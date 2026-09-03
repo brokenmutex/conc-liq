@@ -1,0 +1,116 @@
+{
+  "schemaVersion": 1,
+  "chainId": 4663,
+  "source": {
+    "kind": "verified_pool_snapshot",
+    "repository": "arb-robinhood",
+    "snapshotBlock": "52623101"
+  },
+  "pools": [
+    {
+      "address": "0xEbD78dcfc8a6b3A696f1E191aD1ff321f9579f79",
+      "rwaSymbol": "QQQ",
+      "rwaAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+      "fee": 3000,
+      "createdBlock": "1672833"
+    },
+    {
+      "address": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+      "rwaSymbol": "GOOGL",
+      "rwaAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+      "fee": 500,
+      "createdBlock": "6425257"
+    },
+    {
+      "address": "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B",
+      "rwaSymbol": "NVDA",
+      "rwaAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "fee": 3000,
+      "createdBlock": "7923871"
+    },
+    {
+      "address": "0x3714aa8105DE1f384481B425788Af413748C1837",
+      "rwaSymbol": "AAPL",
+      "rwaAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+      "fee": 10000,
+      "createdBlock": "14306891"
+    },
+    {
+      "address": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+      "rwaSymbol": "MSFT",
+      "rwaAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+      "fee": 3000,
+      "createdBlock": "15302702"
+    },
+    {
+      "address": "0x783C9bbB765047CFdD2b84b92b2Ca9F11D34b7Ed",
+      "rwaSymbol": "AAPL",
+      "rwaAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+      "fee": 3000,
+      "createdBlock": "15312374"
+    },
+    {
+      "address": "0x553e9a453425CD9B90919F317061FbC3794CC57a",
+      "rwaSymbol": "GOOGL",
+      "rwaAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+      "fee": 3000,
+      "createdBlock": "15315878"
+    },
+    {
+      "address": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+      "rwaSymbol": "NVDA",
+      "rwaAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "fee": 500,
+      "createdBlock": "15511376"
+    },
+    {
+      "address": "0xA43b424Bc609495AED4BCD88d654934b510B0aD9",
+      "rwaSymbol": "SPY",
+      "rwaAddress": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+      "fee": 3000,
+      "createdBlock": "15259439"
+    },
+    {
+      "address": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+      "rwaSymbol": "AAPL",
+      "rwaAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+      "fee": 500,
+      "createdBlock": "20889404"
+    },
+    {
+      "address": "0x32cb909aCF78354E08aa45639Ff5CD33767E730a",
+      "rwaSymbol": "GLD",
+      "rwaAddress": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e",
+      "fee": 10000,
+      "createdBlock": "33191522"
+    },
+    {
+      "address": "0xa7Bb1AC63BBaB0C44316E6c8C455213441689167",
+      "rwaSymbol": "SPY",
+      "rwaAddress": "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
+      "fee": 500,
+      "createdBlock": "34839529"
+    },
+    {
+      "address": "0x7A6A053eCCf1446A2633E05aA6D40D09381997ec",
+      "rwaSymbol": "GLD",
+      "rwaAddress": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e",
+      "fee": 3000,
+      "createdBlock": "42412433"
+    },
+    {
+      "address": "0xBA2f1ed4cEB2169D538d1e614D847E83C5A55913",
+      "rwaSymbol": "GLD",
+      "rwaAddress": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e",
+      "fee": 500,
+      "createdBlock": "46656024"
+    },
+    {
+      "address": "0xD60A5d14dB690B7Afad71F76B108071D7175597d",
+      "rwaSymbol": "QQQ",
+      "rwaAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+      "fee": 500,
+      "createdBlock": "47501593"
+    }
+  ]
+}

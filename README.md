@@ -69,6 +69,54 @@ npm run observe
 Every run stores its complete immutable JSON snapshot, with pool fields also
 materialized for indexed SQL queries.
 
+## Historical v3 event indexer
+
+The tracked `config/indexer-pools.json` manifest contains the 15 selected
+RWA/USDG pools that had nonzero active liquidity in both the imported verified
+pool snapshot and this repository's first live observation. Each target pins
+its factory creation block. Startup fails unless every pool still matches the
+canonical factory, RWA, USDG, fee, bytecode, and `PoolCreated` evidence.
+
+For historical work, point `RH_INDEXER_RPC_URL` at a private or archival read
+node. The sibling `arb-robinhood` environment already contains the private
+Robinhood read-node URL; keep that value outside this repository.
+
+On the current host, reuse that untracked read endpoint without copying it:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+```
+
+Exercise decoding without writing data:
+
+```bash
+npm run backfill -- --dry-run --from-block 1672833 --to-block 1672833
+```
+
+Run a bounded PostgreSQL batch:
+
+```bash
+npm run db:migrate
+npm run backfill -- --max-chunks 25
+```
+
+The indexer:
+
+- records raw and decoded `Initialize`, `Mint`, `Burn`, `Collect`, `Swap`,
+  `Flash`, observation-cardinality, and protocol-fee events;
+- keys logs by transaction hash and log index and preserves canonical ordering;
+- commits each log range, end-block checkpoint, and cursor atomically;
+- verifies saved checkpoint hashes on restart and rewinds with overlap;
+- halves ranges after provider failures and grows quiet ranges gradually; and
+- never submits a transaction.
+
+Changing the target manifest fails closed for an existing cursor unless the
+operator supplies an explicit safe `--from-block`. The default 64-block
+confirmation depth is an operating parameter, not a claim of L1 finality.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -81,13 +129,18 @@ materialized for indexed SQL queries.
 | `DATABASE_URL` | unset | Optional PostgreSQL connection |
 | `HTTP_TIMEOUT_MS` | `10000` | Registry request timeout |
 | `RPC_TIMEOUT_MS` | `15000` | JSON-RPC request timeout |
+| `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Private/archive event-read endpoint |
+| `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
+| `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |
+| `INDEXER_INITIAL_CHUNK_SIZE` | `10000` | Initial `eth_getLogs` range |
+| `INDEXER_MIN_CHUNK_SIZE` | `100` | Smallest retry range |
+| `INDEXER_MAX_CHUNK_SIZE` | `25000` | Largest adaptive range |
 
 ## Next slice
 
-The next phase is a reorg-aware event indexer and accounting model: backfill v3
-`Swap`, `Mint`, `Burn`, and fee-growth inputs; reconcile canonical oracle and
-corporate-action state; then produce exact historical strategy inputs. It
-should remain shadow-only until backtests and accounting prove net LP alpha
+The next phase is an exact pool and position replayer over the indexed event
+stream, plus canonical oracle, trading-halt, and corporate-action snapshots.
+It should remain shadow-only until backtests and accounting prove net LP alpha
 after divergence loss and execution costs.
 
 ## Source-of-truth addresses

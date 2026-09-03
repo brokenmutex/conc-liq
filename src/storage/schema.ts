@@ -27,4 +27,67 @@ CREATE TABLE IF NOT EXISTS pool_snapshots (
 
 CREATE INDEX IF NOT EXISTS pool_snapshots_pool_run_idx
   ON pool_snapshots (pool_address, run_id DESC);
+
+CREATE TABLE IF NOT EXISTS indexer_pools (
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  rwa_address TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  created_block NUMERIC(78, 0) NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, pool_address)
+);
+
+CREATE TABLE IF NOT EXISTS indexer_cursors (
+  stream_key TEXT PRIMARY KEY,
+  chain_id BIGINT NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  next_block NUMERIC(78, 0) NOT NULL,
+  last_scanned_block NUMERIC(78, 0),
+  last_scanned_hash TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK ((last_scanned_block IS NULL) = (last_scanned_hash IS NULL))
+);
+
+CREATE TABLE IF NOT EXISTS indexer_checkpoints (
+  stream_key TEXT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  parent_hash TEXT NOT NULL,
+  block_timestamp TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, block_number)
+);
+
+CREATE INDEX IF NOT EXISTS indexer_checkpoints_recent_idx
+  ON indexer_checkpoints (stream_key, block_number DESC);
+
+CREATE TABLE IF NOT EXISTS v3_pool_events (
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  pool_address TEXT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  transaction_hash TEXT NOT NULL,
+  transaction_index INTEGER NOT NULL,
+  log_index INTEGER NOT NULL,
+  event_name TEXT NOT NULL,
+  event_args JSONB NOT NULL,
+  raw_topics JSONB NOT NULL,
+  raw_data TEXT NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, transaction_hash, log_index),
+  FOREIGN KEY (stream_key, pool_address)
+    REFERENCES indexer_pools(stream_key, pool_address)
+);
+
+CREATE INDEX IF NOT EXISTS v3_pool_events_replay_idx
+  ON v3_pool_events (stream_key, block_number, transaction_index, log_index);
+
+CREATE INDEX IF NOT EXISTS v3_pool_events_pool_replay_idx
+  ON v3_pool_events (stream_key, pool_address, block_number, transaction_index, log_index);
 `;
