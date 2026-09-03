@@ -16,6 +16,7 @@
     "reconcile": "node --import tsx src/reconcile.ts",
     "replay": "node --import tsx src/replay.ts",
     "start": "node dist/src/index.js",
+    "tail": "node --import tsx src/tail.ts",
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

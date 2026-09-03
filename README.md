@@ -173,6 +173,42 @@ not label those values exact or infer them from collection cash flows. Exact
 fee accounting requires a subsequent swap-math/fee-growth implementation or
 block-pinned contract state.
 
+## Continuous confirmation-safe tail
+
+Run one complete index-to-replay cycle:
+
+```bash
+npm run tail -- --once
+```
+
+Run continuously at the configured poll interval:
+
+```bash
+npm run tail
+```
+
+The worker holds a PostgreSQL advisory lock so only one tail process can own a
+stream. Each cycle advances the reorg-aware event index to the current safe
+head, then replays exactly the newly committed canonical events. Transient
+failures back off exponentially; five consecutive failures stop the process,
+and the service start limit prevents an unbounded restart loop. If a source
+reorg invalidates the last applied replay event, only the derived replay tables
+are automatically rebuilt from the canonical event index.
+
+Install the repository-owned service on this host:
+
+```bash
+sudo install -m 0644 ops/conc-liq-tail.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-tail.service
+systemctl status conc-liq-tail.service
+journalctl -u conc-liq-tail.service -f
+```
+
+The service imports the ignored local `.env` and the sibling private-node
+environment at process start. The RPC value is never copied into tracked
+configuration.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -193,13 +229,15 @@ block-pinned contract state.
 | `INDEXER_MAX_CHUNK_SIZE` | `25000` | Largest adaptive range |
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
+| `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
+| `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
+| `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
 
 ## Next slice
 
-The next phase is continuous confirmation-safe index/replay tailing plus
-canonical oracle, trading-halt, and corporate-action snapshots. It should
-remain shadow-only until backtests and accounting prove net LP alpha after
-divergence loss and execution costs.
+The next phase adds canonical oracle, trading-halt, and corporate-action
+snapshots. It should remain shadow-only until backtests and accounting prove
+net LP alpha after divergence loss and execution costs.
 
 ## Source-of-truth addresses
 

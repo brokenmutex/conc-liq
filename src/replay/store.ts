@@ -14,6 +14,10 @@ import type {
 
 const { Pool } = pg;
 
+export class ReplaySourceChangedError extends Error {
+  public override readonly name = "ReplaySourceChangedError";
+}
+
 interface SourceRow {
   stream_key: string;
   chain_id: string;
@@ -342,7 +346,9 @@ export class PostgresReplayStore {
       row.block_hash.toLowerCase() !== cursor.last.blockHash.toLowerCase() ||
       row.transaction_index !== cursor.last.transactionIndex
     ) {
-      throw new Error("Indexed source changed behind the replay cursor; rerun with --rebuild");
+      throw new ReplaySourceChangedError(
+        "Indexed source changed behind the replay cursor; rerun with --rebuild",
+      );
     }
   }
 
