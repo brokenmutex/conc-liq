@@ -10,6 +10,7 @@ describe("dashboard config", () => {
     assert.equal(config.activityBucketBlocks, 500);
     assert.equal(config.activityWindowBlocks, 20_000);
     assert.equal(config.riskGateMaxSnapshotAgeSeconds, 180);
+    assert.equal(config.riskGateMaxCanonicalityAgeSeconds, 30);
   });
 
   it("rejects unauthenticated remote binding", () => {

@@ -90,6 +90,9 @@ async function main(): Promise<void> {
       collect: () => collectRiskSnapshot({ blockNumber, config: riskConfig, reader }),
       store,
     });
+    const canonicality = await store.validateLatestCanonical(
+      (requestedBlock) => reader.getBlock(requestedBlock),
+    );
     log("info", "risk_snapshot_saved", {
       assetCount: snapshot.assets.length,
       blockNumber: snapshot.blockNumber,
@@ -98,6 +101,7 @@ async function main(): Promise<void> {
         .filter((asset) => !asset.executionEligible)
         .map((asset) => asset.registry.symbol),
       reasons: snapshot.reasons,
+      canonicality,
     });
   } finally {
     await store.close();

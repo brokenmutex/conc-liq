@@ -246,4 +246,21 @@ CREATE TABLE IF NOT EXISTS risk_snapshot_attempts (
 
 CREATE INDEX IF NOT EXISTS risk_snapshot_attempts_latest_idx
   ON risk_snapshot_attempts (attempted_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS risk_snapshot_canonicality (
+  risk_run_id BIGINT PRIMARY KEY REFERENCES risk_snapshot_runs(id) ON DELETE CASCADE,
+  block_number NUMERIC(78, 0) NOT NULL,
+  expected_hash TEXT NOT NULL,
+  observed_hash TEXT,
+  canonical BOOLEAN NOT NULL,
+  validated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  error TEXT,
+  CHECK (
+    (canonical AND observed_hash IS NOT NULL AND error IS NULL) OR
+    (NOT canonical)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS risk_snapshot_canonicality_latest_idx
+  ON risk_snapshot_canonicality (validated_at DESC, risk_run_id DESC);
 `;

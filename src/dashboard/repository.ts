@@ -465,6 +465,7 @@ export class DashboardRepository {
           client,
           this.config.streamKey,
           this.config.riskGateMaxSnapshotAgeSeconds,
+          this.config.riskGateMaxCanonicalityAgeSeconds,
         ),
         riskAssets: await riskAssets(client),
         sources: await sources(client),

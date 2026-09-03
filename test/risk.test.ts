@@ -221,7 +221,9 @@ describe("freshness-aware risk gate", () => {
   const healthyInput = {
     attemptId: "9",
     attemptStatus: "succeeded" as const,
-    canonicalBlockHash: `0x${"11".repeat(32)}`,
+    canonicalityCanonical: true,
+    canonicalityValidatedAt: new Date("2026-09-03T12:00:55.000Z"),
+    maxCanonicalityAgeSeconds: 30,
     maxSnapshotAgeSeconds: 180,
     now: new Date("2026-09-03T12:01:00.000Z"),
     snapshotBlockHash: `0x${"11".repeat(32)}`,
@@ -230,6 +232,7 @@ describe("freshness-aware risk gate", () => {
     snapshotId: "8",
     snapshotObservedAt: new Date("2026-09-03T12:00:00.000Z"),
     snapshotReasons: [],
+    sourceCoversSnapshot: true,
   };
 
   it("opens only for the newest fresh canonical eligible snapshot", () => {
@@ -237,6 +240,7 @@ describe("freshness-aware risk gate", () => {
 
     assert.equal(decision.executionEligible, true);
     assert.equal(decision.snapshotAgeSeconds, 60);
+    assert.equal(decision.canonicalityAgeSeconds, 5);
     assert.equal(decision.blockCanonical, true);
     assert.deepEqual(decision.reasons, []);
   });
@@ -244,7 +248,8 @@ describe("freshness-aware risk gate", () => {
   it("closes for stale or noncanonical evidence and preserves snapshot reasons", () => {
     const decision = evaluateRiskGate({
       ...healthyInput,
-      canonicalBlockHash: `0x${"22".repeat(32)}`,
+      canonicalityCanonical: false,
+      canonicalityValidatedAt: new Date("2026-09-03T12:03:55.000Z"),
       now: new Date("2026-09-03T12:04:00.000Z"),
       snapshotExecutionEligible: false,
       snapshotReasons: ["sequencer_feed_unavailable"],
@@ -258,6 +263,16 @@ describe("freshness-aware risk gate", () => {
     ]);
   });
 
+  it("closes when private-node canonicality validation stops refreshing", () => {
+    const decision = evaluateRiskGate({
+      ...healthyInput,
+      now: new Date("2026-09-03T12:01:31.000Z"),
+    });
+
+    assert.equal(decision.executionEligible, false);
+    assert.deepEqual(decision.reasons, ["risk_block_validation_stale"]);
+  });
+
   it("closes while the latest collection attempt is incomplete", () => {
     const decision = evaluateRiskGate({
       ...healthyInput,
@@ -267,6 +282,7 @@ describe("freshness-aware risk gate", () => {
       snapshotExecutionEligible: null,
       snapshotId: null,
       snapshotObservedAt: null,
+      sourceCoversSnapshot: null,
     });
 
     assert.equal(decision.executionEligible, false);
@@ -274,5 +290,16 @@ describe("freshness-aware risk gate", () => {
       "latest_risk_attempt_started",
       "risk_snapshot_missing",
     ]);
+  });
+
+  it("closes when private-node canonicality evidence stops refreshing", () => {
+    const decision = evaluateRiskGate({
+      ...healthyInput,
+      now: new Date("2026-09-03T12:01:31.000Z"),
+    });
+
+    assert.equal(decision.executionEligible, false);
+    assert.equal(decision.canonicalityAgeSeconds, 36);
+    assert.deepEqual(decision.reasons, ["risk_block_validation_stale"]);
   });
 });

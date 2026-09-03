@@ -104,7 +104,11 @@ function renderOverview(data) {
   );
   setText(
     "gate-canonical",
-    riskGate.blockCanonical === null ? "Unknown" : riskGate.blockCanonical ? "Hash verified" : "Mismatch",
+    riskGate.blockCanonical === null
+      ? "Unknown"
+      : riskGate.blockCanonical
+        ? `Hash verified · ${duration(String(riskGate.canonicalityAgeSeconds ?? 0))} ago`
+        : "Mismatch",
   );
   setText("gate-session", data.sources.marketSession.status ?? "Unverified");
 

@@ -72,6 +72,7 @@ Environment:
   RISK_SNAPSHOT_INTERVAL_MS       Risk-source cadence (default 60000)
   RISK_MAX_PRICE_AGE_SECONDS      Strict price age ceiling (default 300)
   ROBINHOOD_MARKET_POLICY_URL     Official Stock Tokens market policy
+  RISK_GATE_MAX_CANONICALITY_AGE_SECONDS  Gate-only validation age (default 30)
 `);
 }
 
@@ -122,6 +123,9 @@ async function main(): Promise<void> {
       manifest,
       options: { maxCycles: options.maxCycles, signal: controller.signal },
       replayConfig,
+      riskCanonicalityValidator: () => riskStore.validateLatestCanonical(
+        (requestedBlock) => riskReader.getBlock(requestedBlock),
+      ),
       riskSnapshotter: async (blockNumber) => collectAndSaveRiskSnapshot({
         blockNumber,
         collect: () => collectRiskSnapshot({

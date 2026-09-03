@@ -12,6 +12,7 @@ import {
 } from "../replay/store.js";
 import type { RiskSnapshot } from "../risk/domain.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
+import type { RiskCanonicalityValidation } from "../risk/store.js";
 import type { TailConfig } from "./config.js";
 
 export interface TailOptions {
@@ -131,6 +132,7 @@ export async function runTail(input: {
   readonly manifest: PoolManifest;
   readonly options: TailOptions;
   readonly replayConfig: ReplayConfig;
+  readonly riskCanonicalityValidator?: () => Promise<RiskCanonicalityValidation | null>;
   readonly riskSnapshotter?: (blockNumber: bigint) => Promise<RiskSnapshot>;
   readonly tailConfig: TailConfig;
 }): Promise<void> {
@@ -161,6 +163,18 @@ export async function runTail(input: {
           });
         } catch (error) {
           log("error", "tail_risk_snapshot_failed", {
+            error: sanitizeRiskError(error),
+          });
+        }
+      }
+      if (input.riskCanonicalityValidator !== undefined) {
+        try {
+          const validation = await input.riskCanonicalityValidator();
+          log("info", "tail_risk_canonicality_validated", {
+            validation,
+          });
+        } catch (error) {
+          log("error", "tail_risk_canonicality_failed", {
             error: sanitizeRiskError(error),
           });
         }

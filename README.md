@@ -258,9 +258,12 @@ npm run risk:gate
 
 The gate requires the newest collection attempt to have succeeded, its snapshot
 to be no older than `RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS`, and the snapshot block
-hash to match the canonical index checkpoint. It then preserves every denial
-from the underlying snapshot. A new attempt temporarily closes the gate until
-its snapshot is committed atomically.
+hash to have been revalidated against the private node within
+`RISK_GATE_MAX_CANONICALITY_AGE_SECONDS`. The indexed and replayed cursors must
+also cover that block. It then preserves every denial from the underlying
+snapshot. A new attempt temporarily closes the gate until its snapshot is
+committed atomically. The tail refreshes canonicality independently every cycle,
+so a stopped or disconnected tail closes the gate even before snapshot expiry.
 
 The execution eligibility flag is deliberately stricter than collection
 success. Robinhood's official current Stock Tokens page describes these assets
@@ -340,6 +343,7 @@ worker remains the owner of collection and replay.
 | `RPC_TIMEOUT_MS` | `15000` | JSON-RPC request timeout |
 | `RISK_MAX_PRICE_AGE_SECONDS` | `300` | Strict feed-age ceiling |
 | `RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS` | `180` | Maximum persisted risk-snapshot age |
+| `RISK_GATE_MAX_CANONICALITY_AGE_SECONDS` | `30` | Maximum age of private-node block-hash validation |
 | `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Private/archive event-read endpoint |
 | `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
 | `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |

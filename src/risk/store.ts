@@ -2,8 +2,25 @@ import pg from "pg";
 import { SCHEMA_SQL } from "../storage/schema.js";
 import type { RiskSnapshot } from "./domain.js";
 import { sanitizeRiskError } from "./evaluate.js";
+import type { RiskBlock } from "./reader.js";
 
 const { Pool } = pg;
+
+interface LatestRiskRunRow {
+  block_hash: string;
+  block_number: string;
+  id: string;
+}
+
+export interface RiskCanonicalityValidation {
+  readonly blockNumber: string;
+  readonly canonical: boolean;
+  readonly error: string | null;
+  readonly expectedHash: string;
+  readonly observedHash: string | null;
+  readonly riskRunId: string;
+  readonly validatedAt: string;
+}
 
 export class PostgresRiskStore {
   private readonly pool: InstanceType<typeof Pool>;
@@ -107,6 +124,70 @@ export class PostgresRiskStore {
     } finally {
       client.release();
     }
+  }
+
+  public async validateLatestCanonical(
+    readBlock: (blockNumber: bigint) => Promise<RiskBlock>,
+  ): Promise<RiskCanonicalityValidation | null> {
+    const latest = await this.pool.query<LatestRiskRunRow>(
+      `SELECT id, block_number::text, block_hash
+       FROM risk_snapshot_runs
+       ORDER BY id DESC
+       LIMIT 1`,
+    );
+    const row = latest.rows[0];
+    if (row === undefined) return null;
+
+    let canonical = false;
+    let observedHash: string | null = null;
+    let error: string | null = null;
+    try {
+      const block = await readBlock(BigInt(row.block_number));
+      observedHash = block.hash;
+      if (block.number !== BigInt(row.block_number)) {
+        error = `RPC returned block ${block.number} for requested ${row.block_number}`;
+      } else {
+        canonical = observedHash.toLowerCase() === row.block_hash.toLowerCase();
+      }
+    } catch (caught) {
+      error = sanitizeRiskError(caught);
+    }
+
+    const saved = await this.pool.query<{ validated_at: Date }>(
+      `INSERT INTO risk_snapshot_canonicality (
+         risk_run_id, block_number, expected_hash, observed_hash,
+         canonical, validated_at, error
+       ) VALUES ($1,$2,$3,$4,$5,NOW(),$6)
+       ON CONFLICT (risk_run_id) DO UPDATE SET
+         block_number = EXCLUDED.block_number,
+         expected_hash = EXCLUDED.expected_hash,
+         observed_hash = EXCLUDED.observed_hash,
+         canonical = EXCLUDED.canonical,
+         validated_at = NOW(),
+         error = EXCLUDED.error
+       RETURNING validated_at`,
+      [
+        row.id,
+        row.block_number,
+        row.block_hash,
+        observedHash,
+        canonical,
+        error,
+      ],
+    );
+    const validatedAt = saved.rows[0]?.validated_at;
+    if (validatedAt === undefined) {
+      throw new Error("PostgreSQL did not return a canonicality validation time");
+    }
+    return {
+      blockNumber: row.block_number,
+      canonical,
+      error,
+      expectedHash: row.block_hash,
+      observedHash,
+      riskRunId: row.id,
+      validatedAt: validatedAt.toISOString(),
+    };
   }
 
   public async close(): Promise<void> {

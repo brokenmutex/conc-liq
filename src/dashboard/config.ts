@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { DEFAULT_RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS } from "../risk/gate.js";
+import {
+  DEFAULT_RISK_GATE_MAX_CANONICALITY_AGE_SECONDS,
+  DEFAULT_RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS,
+} from "../risk/gate.js";
 
 const positiveInteger = z.coerce.number().int().positive();
 
@@ -13,6 +16,8 @@ const environmentSchema = z.object({
   INDEXER_STREAM_KEY: z.string().min(1).default("robinhood-v3-rwa-usdg-v1"),
   RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS: positiveInteger
     .default(DEFAULT_RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS),
+  RISK_GATE_MAX_CANONICALITY_AGE_SECONDS: positiveInteger
+    .default(DEFAULT_RISK_GATE_MAX_CANONICALITY_AGE_SECONDS),
 });
 
 export interface DashboardConfig {
@@ -23,6 +28,7 @@ export interface DashboardConfig {
   readonly port: number;
   readonly refreshMs: number;
   readonly riskGateMaxSnapshotAgeSeconds: number;
+  readonly riskGateMaxCanonicalityAgeSeconds: number;
   readonly streamKey: string;
 }
 
@@ -46,6 +52,8 @@ export function loadDashboardConfig(
     port: parsed.DASHBOARD_PORT,
     refreshMs: parsed.DASHBOARD_REFRESH_MS,
     riskGateMaxSnapshotAgeSeconds: parsed.RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS,
+    riskGateMaxCanonicalityAgeSeconds:
+      parsed.RISK_GATE_MAX_CANONICALITY_AGE_SECONDS,
     streamKey: parsed.INDEXER_STREAM_KEY,
   };
 }
