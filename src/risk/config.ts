@@ -14,6 +14,10 @@ const environmentSchema = z.object({
     .string()
     .url()
     .default("https://api.robinhood.com/rhj/assets"),
+  ROBINHOOD_MARKET_POLICY_URL: z
+    .string()
+    .url()
+    .default("https://robinhood.com/rhj/stocktokens/"),
   RWA_SYMBOLS: z.string().optional(),
 });
 
@@ -22,6 +26,7 @@ export interface RiskConfig {
   readonly feedDirectoryUrl: string;
   readonly httpTimeoutMs: number;
   readonly maxPriceAgeSeconds: number;
+  readonly marketPolicyUrl: string;
   readonly symbols: readonly string[];
 }
 
@@ -45,6 +50,7 @@ export function loadRiskConfig(
     feedDirectoryUrl: parsed.CHAINLINK_ROBINHOOD_FEEDS_URL,
     httpTimeoutMs: parsed.HTTP_TIMEOUT_MS,
     maxPriceAgeSeconds: parsed.RISK_MAX_PRICE_AGE_SECONDS,
+    marketPolicyUrl: parsed.ROBINHOOD_MARKET_POLICY_URL,
     symbols: parseSymbols(parsed.RWA_SYMBOLS),
   };
 }

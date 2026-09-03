@@ -210,6 +210,12 @@ CREATE TABLE IF NOT EXISTS risk_snapshot_runs (
 CREATE INDEX IF NOT EXISTS risk_snapshot_runs_chain_block_idx
   ON risk_snapshot_runs (chain_id, block_number DESC);
 
+ALTER TABLE risk_snapshot_runs
+  ADD COLUMN IF NOT EXISTS market_session_fetched_at TIMESTAMPTZ;
+
+ALTER TABLE risk_snapshot_runs
+  ADD COLUMN IF NOT EXISTS market_session_sha256 TEXT;
+
 CREATE TABLE IF NOT EXISTS asset_risk_snapshots (
   run_id BIGINT NOT NULL REFERENCES risk_snapshot_runs(id) ON DELETE CASCADE,
   symbol TEXT NOT NULL,

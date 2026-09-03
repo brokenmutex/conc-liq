@@ -3,7 +3,11 @@ import { getAddress, isAddress } from "viem";
 import { z } from "zod";
 import type { RegistryPayload } from "../registry.js";
 import { parseRegistry } from "../registry.js";
-import type { OracleFeedMetadata, SourceEvidence } from "./domain.js";
+import type {
+  MarketSessionSnapshot,
+  OracleFeedMetadata,
+  SourceEvidence,
+} from "./domain.js";
 
 const feedSchema = z.object({
   decimals: z.number().int().min(0).max(255),
@@ -27,16 +31,20 @@ export interface FetchedSource<T> {
   readonly payload: T;
 }
 
-async function fetchJsonText(url: string, timeoutMs: number): Promise<{
+async function fetchText(
+  url: string,
+  timeoutMs: number,
+  accept: string,
+): Promise<{
   readonly evidence: SourceEvidence;
-  readonly value: unknown;
+  readonly raw: string;
 }> {
   const response = await fetch(url, {
-    headers: { accept: "application/json" },
+    headers: { accept },
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) {
-    throw new Error(`Canonical JSON source returned HTTP ${response.status}`);
+    throw new Error(`Canonical source returned HTTP ${response.status}`);
   }
   const raw = await response.text();
   return {
@@ -45,7 +53,18 @@ async function fetchJsonText(url: string, timeoutMs: number): Promise<{
       sha256: `sha256:${createHash("sha256").update(raw).digest("hex")}`,
       url,
     },
-    value: JSON.parse(raw) as unknown,
+    raw,
+  };
+}
+
+async function fetchJsonText(url: string, timeoutMs: number): Promise<{
+  readonly evidence: SourceEvidence;
+  readonly value: unknown;
+}> {
+  const source = await fetchText(url, timeoutMs, "application/json");
+  return {
+    evidence: source.evidence,
+    value: JSON.parse(source.raw) as unknown,
   };
 }
 
@@ -69,6 +88,30 @@ export async function fetchFeedDirectory(
     evidence: source.evidence,
     payload: feedDirectorySchema.parse(source.value),
   };
+}
+
+const STOCK_TOKENS_24_7_MARKER = /Markets\s+beyond\s+borders,?\s*24\/7/iu;
+
+export function evaluateMarketSessionPolicy(
+  raw: string,
+  evidence: SourceEvidence,
+): MarketSessionSnapshot {
+  const verified = STOCK_TOKENS_24_7_MARKER.test(raw);
+  return {
+    evidence,
+    executionEligible: verified,
+    policy: "robinhood_stock_tokens_24_7",
+    reasons: verified ? [] : ["market_session_unverified"],
+    status: verified ? "open_24_7" : "unverified",
+  };
+}
+
+export async function fetchMarketSessionPolicy(
+  url: string,
+  timeoutMs: number,
+): Promise<MarketSessionSnapshot> {
+  const source = await fetchText(url, timeoutMs, "text/html");
+  return evaluateMarketSessionPolicy(source.raw, source.evidence);
 }
 
 function expectedProductType(symbol: string): string {

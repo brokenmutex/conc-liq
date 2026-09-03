@@ -46,9 +46,10 @@ export class PostgresRiskStore {
            schema_version, chain_id, block_number, block_hash, block_timestamp,
            observed_at, registry_fetched_at, registry_sha256,
            feed_directory_fetched_at, feed_directory_sha256,
+           market_session_fetched_at, market_session_sha256,
            sequencer_status, execution_eligible, reasons, snapshot
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb,$16::jsonb
          ) RETURNING id`,
         [
           snapshot.schemaVersion,
@@ -61,6 +62,8 @@ export class PostgresRiskStore {
           snapshot.registry.sha256,
           snapshot.feedDirectory.fetchedAt,
           snapshot.feedDirectory.sha256,
+          snapshot.marketSession.evidence.fetchedAt,
+          snapshot.marketSession.evidence.sha256,
           snapshot.sequencer.status,
           snapshot.executionEligible,
           JSON.stringify(snapshot.reasons),

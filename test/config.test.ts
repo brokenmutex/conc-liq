@@ -47,6 +47,7 @@ describe("loadRiskConfig", () => {
       config.feedDirectoryUrl,
       "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
     );
+    assert.equal(config.marketPolicyUrl, "https://robinhood.com/rhj/stocktokens/");
   });
 
   it("normalizes the risk universe", () => {

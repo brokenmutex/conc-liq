@@ -7,10 +7,18 @@ import type {
   TokenRiskState,
 } from "../src/risk/domain.js";
 import { evaluateAssetRisk, evaluateOracleRisk } from "../src/risk/evaluate.js";
+import { evaluateRiskGate } from "../src/risk/gate.js";
 import {
+  evaluateMarketSessionPolicy,
   selectOracleFeed,
   type FeedDirectoryPayload,
 } from "../src/risk/source.js";
+
+const sourceEvidence = {
+  fetchedAt: "2026-09-03T12:00:00.000Z",
+  sha256: `sha256:${"ab".repeat(32)}`,
+  url: "https://robinhood.com/rhj/stocktokens/",
+};
 
 const feed: OracleFeedMetadata = {
   address: "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
@@ -184,5 +192,87 @@ describe("Chainlink feed selection", () => {
 
   it("returns unavailable rather than substituting a different asset feed", () => {
     assert.equal(selectOracleFeed(directory, "GLD"), null);
+  });
+});
+
+describe("market-session policy", () => {
+  it("accepts the official Robinhood Stock Tokens 24/7 statement", () => {
+    const result = evaluateMarketSessionPolicy(
+      "<h2>Markets beyond borders, 24/7</h2>",
+      sourceEvidence,
+    );
+
+    assert.equal(result.status, "open_24_7");
+    assert.equal(result.executionEligible, true);
+    assert.deepEqual(result.reasons, []);
+    assert.deepEqual(result.evidence, sourceEvidence);
+  });
+
+  it("fails closed if the policy marker disappears", () => {
+    const result = evaluateMarketSessionPolicy("<h2>Stock Tokens</h2>", sourceEvidence);
+
+    assert.equal(result.status, "unverified");
+    assert.equal(result.executionEligible, false);
+    assert.deepEqual(result.reasons, ["market_session_unverified"]);
+  });
+});
+
+describe("freshness-aware risk gate", () => {
+  const healthyInput = {
+    attemptId: "9",
+    attemptStatus: "succeeded" as const,
+    canonicalBlockHash: `0x${"11".repeat(32)}`,
+    maxSnapshotAgeSeconds: 180,
+    now: new Date("2026-09-03T12:01:00.000Z"),
+    snapshotBlockHash: `0x${"11".repeat(32)}`,
+    snapshotBlockNumber: "1234",
+    snapshotExecutionEligible: true,
+    snapshotId: "8",
+    snapshotObservedAt: new Date("2026-09-03T12:00:00.000Z"),
+    snapshotReasons: [],
+  };
+
+  it("opens only for the newest fresh canonical eligible snapshot", () => {
+    const decision = evaluateRiskGate(healthyInput);
+
+    assert.equal(decision.executionEligible, true);
+    assert.equal(decision.snapshotAgeSeconds, 60);
+    assert.equal(decision.blockCanonical, true);
+    assert.deepEqual(decision.reasons, []);
+  });
+
+  it("closes for stale or noncanonical evidence and preserves snapshot reasons", () => {
+    const decision = evaluateRiskGate({
+      ...healthyInput,
+      canonicalBlockHash: `0x${"22".repeat(32)}`,
+      now: new Date("2026-09-03T12:04:00.000Z"),
+      snapshotExecutionEligible: false,
+      snapshotReasons: ["sequencer_feed_unavailable"],
+    });
+
+    assert.equal(decision.executionEligible, false);
+    assert.deepEqual(decision.reasons, [
+      "risk_snapshot_stale",
+      "risk_block_not_canonical",
+      "sequencer_feed_unavailable",
+    ]);
+  });
+
+  it("closes while the latest collection attempt is incomplete", () => {
+    const decision = evaluateRiskGate({
+      ...healthyInput,
+      attemptStatus: "started",
+      snapshotBlockHash: null,
+      snapshotBlockNumber: null,
+      snapshotExecutionEligible: null,
+      snapshotId: null,
+      snapshotObservedAt: null,
+    });
+
+    assert.equal(decision.executionEligible, false);
+    assert.deepEqual(decision.reasons, [
+      "latest_risk_attempt_started",
+      "risk_snapshot_missing",
+    ]);
   });
 });

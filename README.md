@@ -223,8 +223,10 @@ npm run risk:snapshot
 ```
 
 The collector fetches Robinhood's asset registry and Chainlink's live
-Robinhood feed directory on every attempt, recording the URL, fetch time, and
-SHA-256 of the exact response bytes. It never hardcodes feed proxy addresses.
+Robinhood feed directory on every attempt. It also fetches Robinhood's official
+Stock Tokens market-policy page and verifies its current 24/7 statement. Every
+source records the URL, fetch time, and SHA-256 of the exact response bytes. It
+never hardcodes feed proxy addresses.
 All token and feed reads are pinned to the same confirmation-safe block:
 
 - registry status and all market/extended/overnight trading capabilities;
@@ -248,16 +250,31 @@ attempt. Risk failures do not increment the canonical tail's circuit breaker
 or stop index/replay. The continuous tail attempts this collection once per
 `RISK_SNAPSHOT_INTERVAL_MS`.
 
+Evaluate the latest persisted evidence through the reusable read-only gate:
+
+```bash
+npm run risk:gate
+```
+
+The gate requires the newest collection attempt to have succeeded, its snapshot
+to be no older than `RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS`, and the snapshot block
+hash to match the canonical index checkpoint. It then preserves every denial
+from the underlying snapshot. A new attempt temporarily closes the gate until
+its snapshot is committed atomically.
+
 The execution eligibility flag is deliberately stricter than collection
-success. As of the 2026-09-03 verification, Chainlink's Robinhood directory had
-no GLD token-price feed and its sequencer-feed directory had no Robinhood Chain
-entry. Those are persisted as unavailable evidence. Trading capabilities
-describe whether each session is permitted; they do not prove which session is
-currently open, so `market_session_unverified` also remains a global denial
-reason until a canonical calendar/session source is added. This repository
-still has no transaction path.
+success. Robinhood's official current Stock Tokens page describes these assets
+as available 24/7, so the fetched and hashed policy resolves the former generic
+calendar ambiguity; this is distinct from Classic Stock Tokens and their older
+schedule. If that statement disappears, the collector restores
+`market_session_unverified`. Registry capabilities, token pause state, corporate
+actions, and oracle freshness remain dynamic checks. As of the 2026-09-03
+verification, Chainlink's Robinhood directory had no GLD token-price feed and
+its sequencer-feed directory had no Robinhood Chain entry, so the gate remains
+closed. This repository still has no transaction path.
 
 Sources: [Robinhood oracle and corporate-action behavior](https://docs.robinhood.com/chain/oracles-and-price-feeds/),
+[Robinhood Stock Tokens 24/7 policy](https://robinhood.com/rhj/stocktokens/),
 [Chainlink Robinhood tokenized-equity feeds](https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood),
 and [Chainlink L2 sequencer feed availability](https://docs.chain.link/data-feeds/l2-sequencer-feeds).
 
@@ -269,7 +286,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - recent canonical V3 activity grouped by block range;
 - replayed pool, initialized-tick, and active core-position coverage;
 - the latest per-asset risk gate and recent collection attempts; and
-- the exact registry and feed-directory source hashes behind the risk view.
+- the exact registry, feed-directory, and market-policy source hashes behind the
+  risk view.
 
 It requires `DATABASE_URL`, opens every PostgreSQL connection in read-only mode,
 has no mutation routes, and refuses to bind to a non-loopback address. It does
@@ -314,12 +332,14 @@ worker remains the owner of collection and replay.
 | `RWA_SYMBOLS` | `GLD,SPY,QQQ,NVDA,AAPL,GOOGL,MSFT` | Canonical assets to discover |
 | `UNISWAP_V3_FEE_TIERS` | `100,500,3000,10000` | Factory fee tiers to query |
 | `ROBINHOOD_ASSETS_URL` | Robinhood asset registry | Canonical RWA metadata |
+| `ROBINHOOD_MARKET_POLICY_URL` | Robinhood Stock Tokens page | Current 24/7 policy evidence |
 | `CHAINLINK_ROBINHOOD_FEEDS_URL` | Chainlink Robinhood RDD | Current canonical feed metadata |
 | `SNAPSHOT_JSONL_PATH` | `data/snapshots.jsonl` | Local fallback store |
 | `DATABASE_URL` | unset | Optional PostgreSQL connection |
 | `HTTP_TIMEOUT_MS` | `10000` | Registry request timeout |
 | `RPC_TIMEOUT_MS` | `15000` | JSON-RPC request timeout |
 | `RISK_MAX_PRICE_AGE_SECONDS` | `300` | Strict feed-age ceiling |
+| `RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS` | `180` | Maximum persisted risk-snapshot age |
 | `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Private/archive event-read endpoint |
 | `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
 | `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |
@@ -340,11 +360,11 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next phase adds an exchange-session/calendar source and an explicit
-freshness-aware risk-gate query, then uses the indexed/replayed state and risk
-snapshots for range-policy backtests. It should remain shadow-only until
-backtests and accounting prove net LP alpha after divergence loss and execution
-costs.
+The next phase reconstructs exact V3 fee-growth and position accounting, checks
+it against block-pinned historical contract state, and then uses the
+indexed/replayed state and risk snapshots for range-policy backtests. It should
+remain shadow-only until backtests and accounting prove net LP alpha after
+divergence loss and execution costs.
 
 ## Source-of-truth addresses
 

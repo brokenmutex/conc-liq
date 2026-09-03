@@ -1,3 +1,5 @@
+import type { RiskGateDecision } from "../risk/gate.js";
+
 export interface CursorStatus {
   readonly block: string | null;
   readonly hash: string | null;
@@ -109,6 +111,12 @@ export interface RiskSourceEvidence {
     readonly sha256: string | null;
     readonly url: string | null;
   };
+  readonly marketSession: {
+    readonly fetchedAt: string | null;
+    readonly sha256: string | null;
+    readonly status: string | null;
+    readonly url: string | null;
+  };
 }
 
 export interface DashboardSnapshot {
@@ -118,6 +126,7 @@ export interface DashboardSnapshot {
   readonly pools: readonly PoolRow[];
   readonly positions: readonly PositionCoverageRow[];
   readonly refreshMs: number;
+  readonly riskGate: RiskGateDecision;
   readonly riskAssets: readonly AssetRiskRow[];
   readonly sources: RiskSourceEvidence;
 }

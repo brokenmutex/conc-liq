@@ -71,6 +71,7 @@ Environment:
   TAIL_MAX_CONSECUTIVE_FAILURES   Exit after this many failures (default 5)
   RISK_SNAPSHOT_INTERVAL_MS       Risk-source cadence (default 60000)
   RISK_MAX_PRICE_AGE_SECONDS      Strict price age ceiling (default 300)
+  ROBINHOOD_MARKET_POLICY_URL     Official Stock Tokens market policy
 `);
 }
 

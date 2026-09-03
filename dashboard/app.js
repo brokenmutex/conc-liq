@@ -82,7 +82,7 @@ function cell(value, className) {
 }
 
 function renderOverview(data) {
-  const { overview } = data;
+  const { overview, riskGate } = data;
   const exact = overview.sync.blockLag === "0" && overview.sync.hashesMatch === true;
   setText("sync-value", exact ? "Exact" : overview.sync.blockLag === null ? "Unknown" : `Lag ${overview.sync.blockLag}`);
   setText("sync-detail", exact ? "Block and hash agree" : "Check replay cursor");
@@ -92,13 +92,25 @@ function renderOverview(data) {
   setText("events-detail", "Strictly replayed canonical events");
   setText("coverage-value", `${overview.poolCount} · ${compactInteger(overview.initializedTicks)} · ${compactInteger(overview.activePositions)}`);
   setText("coverage-detail", "Pools · initialized ticks · active positions");
-  setText("risk-value", overview.risk.executionEligible === true ? "Open" : "Closed");
-  setText("risk-detail", `${overview.risk.attemptStatus ?? "no attempt"} · ${timeAgo(overview.risk.observedAt, overview.serverTime)}`);
+  setText("risk-value", riskGate.executionEligible ? "Open" : "Closed");
+  setText("risk-detail", `${riskGate.attemptStatus ?? "no attempt"} · ${timeAgo(riskGate.snapshotObservedAt, riskGate.evaluatedAt)}`);
   setText("stream-key", overview.streamKey);
+  setText("gate-attempt", riskGate.attemptStatus ?? "Missing");
+  setText(
+    "gate-age",
+    riskGate.snapshotAgeSeconds === null
+      ? "Unavailable"
+      : `${duration(String(riskGate.snapshotAgeSeconds))} / ${duration(String(riskGate.maxSnapshotAgeSeconds))}`,
+  );
+  setText(
+    "gate-canonical",
+    riskGate.blockCanonical === null ? "Unknown" : riskGate.blockCanonical ? "Hash verified" : "Mismatch",
+  );
+  setText("gate-session", data.sources.marketSession.status ?? "Unverified");
 
   const reasons = element("global-risk-reasons");
   reasons.replaceChildren();
-  for (const reason of overview.risk.reasons.filter((item) => !item.startsWith("asset_ineligible:"))) {
+  for (const reason of riskGate.reasons.filter((item) => !item.startsWith("asset_ineligible:"))) {
     const chip = document.createElement("span");
     chip.className = "reason-chip";
     chip.textContent = reason;
@@ -276,6 +288,7 @@ function render(data) {
   renderAttempts(data.attempts, data.overview.serverTime);
   renderSource("registry", data.sources.registry, data.overview.serverTime);
   renderSource("feed", data.sources.feedDirectory, data.overview.serverTime);
+  renderSource("session", data.sources.marketSession, data.overview.serverTime);
 }
 
 async function refresh() {

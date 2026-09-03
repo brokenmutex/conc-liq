@@ -7,6 +7,14 @@ export interface SourceEvidence {
   readonly url: string;
 }
 
+export interface MarketSessionSnapshot {
+  readonly evidence: SourceEvidence;
+  readonly executionEligible: boolean;
+  readonly policy: "robinhood_stock_tokens_24_7";
+  readonly reasons: readonly string[];
+  readonly status: "open_24_7" | "unverified";
+}
+
 export interface OracleFeedMetadata {
   readonly address: Address;
   readonly baseAsset: string;
@@ -79,11 +87,12 @@ export interface RiskSnapshot {
   readonly chainId: number;
   readonly executionEligible: boolean;
   readonly feedDirectory: SourceEvidence;
+  readonly marketSession: MarketSessionSnapshot;
   readonly observedAt: string;
   readonly quoteOracle: OracleRiskSnapshot | null;
   readonly reasons: readonly string[];
   readonly registry: SourceEvidence;
-  readonly schemaVersion: 1;
+  readonly schemaVersion: 2;
   readonly sequencer: {
     readonly executionEligible: false;
     readonly reasons: readonly ["sequencer_feed_unavailable"];

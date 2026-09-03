@@ -15,6 +15,7 @@ import {
 import type { RiskChainReader } from "./reader.js";
 import {
   fetchFeedDirectory,
+  fetchMarketSessionPolicy,
   fetchRegistrySource,
   selectOracleFeed,
 } from "./source.js";
@@ -65,11 +66,12 @@ export async function collectRiskSnapshot(input: {
   readonly config: RiskConfig;
   readonly reader: RiskChainReader;
 }): Promise<RiskSnapshot> {
-  const [chainId, block, registrySource, feedSource] = await Promise.all([
+  const [chainId, block, registrySource, feedSource, marketSession] = await Promise.all([
     input.reader.getChainId(),
     input.reader.getBlock(input.blockNumber),
     fetchRegistrySource(input.config.assetsUrl, input.config.httpTimeoutMs),
     fetchFeedDirectory(input.config.feedDirectoryUrl, input.config.httpTimeoutMs),
+    fetchMarketSessionPolicy(input.config.marketPolicyUrl, input.config.httpTimeoutMs),
   ]);
   if (chainId !== ROBINHOOD_CHAIN_ID) {
     throw new Error(
@@ -95,7 +97,7 @@ export async function collectRiskSnapshot(input: {
       reader: input.reader,
     });
   const globalReasons = [
-    "market_session_unverified",
+    ...marketSession.reasons,
     "sequencer_feed_unavailable",
   ];
   const assets = [];
@@ -145,11 +147,12 @@ export async function collectRiskSnapshot(input: {
     chainId,
     executionEligible: reasons.length === 0,
     feedDirectory: feedSource.evidence,
+    marketSession,
     observedAt: new Date().toISOString(),
     quoteOracle,
     reasons: [...new Set(reasons)],
     registry: registrySource.evidence,
-    schemaVersion: 1,
+    schemaVersion: 2,
     sequencer: {
       executionEligible: false,
       reasons: ["sequencer_feed_unavailable"],

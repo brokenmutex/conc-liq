@@ -58,6 +58,7 @@ Environment:
   DATABASE_URL                         Required PostgreSQL database
   RH_INDEXER_RPC_URL                   Private read RPC; falls back to RH_RPC_URL
   ROBINHOOD_ASSETS_URL                 Robinhood canonical asset registry
+  ROBINHOOD_MARKET_POLICY_URL          Official Stock Tokens market policy
   CHAINLINK_ROBINHOOD_FEEDS_URL        Chainlink Robinhood feed directory
   RISK_MAX_PRICE_AGE_SECONDS           Strict price age ceiling (default 300)
 `);

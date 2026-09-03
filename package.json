@@ -16,6 +16,7 @@
     "observe": "node --import tsx src/index.ts",
     "reconcile": "node --import tsx src/reconcile.ts",
     "replay": "node --import tsx src/replay.ts",
+    "risk:gate": "node --import tsx src/risk-gate.ts",
     "risk:snapshot": "node --import tsx src/risk.ts",
     "start": "node dist/src/index.js",
     "tail": "node --import tsx src/tail.ts",

@@ -1,4 +1,5 @@
 import pg, { type PoolClient } from "pg";
+import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
 import type {
   ActivityBucket,
@@ -111,6 +112,10 @@ interface SourceDbRow {
   registry_fetched_at: string | null;
   registry_sha256: string | null;
   registry_url: string | null;
+  session_fetched_at: string | null;
+  session_sha256: string | null;
+  session_status: string | null;
+  session_url: string | null;
 }
 
 function iso(value: Date | null): string | null {
@@ -406,7 +411,11 @@ async function sources(client: PoolClient): Promise<RiskSourceEvidence> {
             snapshot->'registry'->>'sha256' AS registry_sha256,
             snapshot->'feedDirectory'->>'url' AS feed_url,
             snapshot->'feedDirectory'->>'fetchedAt' AS feed_fetched_at,
-            snapshot->'feedDirectory'->>'sha256' AS feed_sha256
+            snapshot->'feedDirectory'->>'sha256' AS feed_sha256,
+            snapshot->'marketSession'->'evidence'->>'url' AS session_url,
+            snapshot->'marketSession'->'evidence'->>'fetchedAt' AS session_fetched_at,
+            snapshot->'marketSession'->'evidence'->>'sha256' AS session_sha256,
+            snapshot->'marketSession'->>'status' AS session_status
      FROM risk_snapshot_runs ORDER BY id DESC LIMIT 1`,
   );
   const row = result.rows[0];
@@ -420,6 +429,12 @@ async function sources(client: PoolClient): Promise<RiskSourceEvidence> {
       fetchedAt: row?.registry_fetched_at ?? null,
       sha256: row?.registry_sha256 ?? null,
       url: row?.registry_url ?? null,
+    },
+    marketSession: {
+      fetchedAt: row?.session_fetched_at ?? null,
+      sha256: row?.session_sha256 ?? null,
+      status: row?.session_status ?? null,
+      url: row?.session_url ?? null,
     },
   };
 }
@@ -446,6 +461,11 @@ export class DashboardRepository {
         pools: await pools(client, this.config.streamKey),
         positions: await positions(client, this.config.streamKey),
         refreshMs: this.config.refreshMs,
+        riskGate: await readRiskGate(
+          client,
+          this.config.streamKey,
+          this.config.riskGateMaxSnapshotAgeSeconds,
+        ),
         riskAssets: await riskAssets(client),
         sources: await sources(client),
       } satisfies DashboardSnapshot;
