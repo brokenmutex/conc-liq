@@ -90,4 +90,102 @@ CREATE INDEX IF NOT EXISTS v3_pool_events_replay_idx
 
 CREATE INDEX IF NOT EXISTS v3_pool_events_pool_replay_idx
   ON v3_pool_events (stream_key, pool_address, block_number, transaction_index, log_index);
+
+CREATE TABLE IF NOT EXISTS v3_replay_cursors (
+  stream_key TEXT PRIMARY KEY,
+  chain_id BIGINT NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  last_block_number NUMERIC(78, 0),
+  last_block_hash TEXT,
+  last_transaction_hash TEXT,
+  last_transaction_index INTEGER,
+  last_log_index INTEGER,
+  events_applied NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  complete_through_block NUMERIC(78, 0),
+  complete_through_hash TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CHECK (
+    (last_block_number IS NULL) = (last_block_hash IS NULL) AND
+    (last_block_number IS NULL) = (last_transaction_hash IS NULL) AND
+    (last_block_number IS NULL) = (last_transaction_index IS NULL) AND
+    (last_block_number IS NULL) = (last_log_index IS NULL)
+  ),
+  CHECK ((complete_through_block IS NULL) = (complete_through_hash IS NULL))
+);
+
+CREATE TABLE IF NOT EXISTS v3_replay_pools (
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  initialized BOOLEAN NOT NULL DEFAULT FALSE,
+  sqrt_price_x96 NUMERIC(78, 0),
+  tick INTEGER,
+  liquidity NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  observation_cardinality_next INTEGER,
+  fee_protocol0 INTEGER NOT NULL DEFAULT 0,
+  fee_protocol1 INTEGER NOT NULL DEFAULT 0,
+  event_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  mint_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  burn_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  swap_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  collect_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  flash_count NUMERIC(78, 0) NOT NULL DEFAULT 0,
+  last_event_block NUMERIC(78, 0),
+  last_event_transaction_index INTEGER,
+  last_event_log_index INTEGER,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, pool_address),
+  FOREIGN KEY (stream_key, pool_address)
+    REFERENCES indexer_pools(stream_key, pool_address),
+  CHECK (liquidity >= 0),
+  CHECK (
+    (initialized AND sqrt_price_x96 IS NOT NULL AND tick IS NOT NULL AND
+      observation_cardinality_next IS NOT NULL) OR
+    (NOT initialized AND sqrt_price_x96 IS NULL AND tick IS NULL AND
+      observation_cardinality_next IS NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS v3_replay_ticks (
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  tick INTEGER NOT NULL,
+  liquidity_gross NUMERIC(78, 0) NOT NULL,
+  liquidity_net NUMERIC(78, 0) NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, pool_address, tick),
+  FOREIGN KEY (stream_key, pool_address)
+    REFERENCES v3_replay_pools(stream_key, pool_address) ON DELETE CASCADE,
+  CHECK (liquidity_gross > 0)
+);
+
+CREATE TABLE IF NOT EXISTS v3_replay_positions (
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  owner_address TEXT NOT NULL,
+  tick_lower INTEGER NOT NULL,
+  tick_upper INTEGER NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  minted_liquidity NUMERIC(78, 0) NOT NULL,
+  burned_liquidity NUMERIC(78, 0) NOT NULL,
+  minted_amount0 NUMERIC(78, 0) NOT NULL,
+  minted_amount1 NUMERIC(78, 0) NOT NULL,
+  burned_amount0 NUMERIC(78, 0) NOT NULL,
+  burned_amount1 NUMERIC(78, 0) NOT NULL,
+  collected_amount0 NUMERIC(78, 0) NOT NULL,
+  collected_amount1 NUMERIC(78, 0) NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (stream_key, pool_address, owner_address, tick_lower, tick_upper),
+  FOREIGN KEY (stream_key, pool_address)
+    REFERENCES v3_replay_pools(stream_key, pool_address) ON DELETE CASCADE,
+  CHECK (tick_lower < tick_upper),
+  CHECK (liquidity >= 0),
+  CHECK (minted_liquidity >= burned_liquidity)
+);
+
+CREATE INDEX IF NOT EXISTS v3_replay_positions_active_idx
+  ON v3_replay_positions (stream_key, pool_address, tick_lower, tick_upper)
+  WHERE liquidity > 0;
 `;

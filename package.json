@@ -13,6 +13,8 @@
     "check": "npm run typecheck && npm test",
     "db:migrate": "node --import tsx src/migrate.ts",
     "observe": "node --import tsx src/index.ts",
+    "reconcile": "node --import tsx src/reconcile.ts",
+    "replay": "node --import tsx src/replay.ts",
     "start": "node dist/src/index.js",
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

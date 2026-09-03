@@ -117,6 +117,62 @@ Changing the target manifest fails closed for an existing cursor unless the
 operator supplies an explicit safe `--from-block`. The default 64-block
 confirmation depth is an operating parameter, not a claim of L1 finality.
 
+## Deterministic v3 state replay
+
+Replay the canonical event stream into derived pool, initialized-tick, and
+core-position state:
+
+```bash
+npm run replay
+```
+
+Each 25,000-event batch updates derived rows and the replay cursor in one
+PostgreSQL transaction. A killed process resumes after its last committed log.
+The cursor also pins the last applied event's block hash; if indexed history
+changes behind it, replay fails closed and requires an explicit rebuild:
+
+```bash
+npm run replay -- --rebuild
+```
+
+Bound work when exercising checkpoint/resume behavior:
+
+```bash
+npm run replay -- --rebuild --max-batches 1
+npm run replay -- --max-batches 1
+```
+
+The strict reducer reconstructs and checks:
+
+- pool `sqrtPriceX96`, tick, and active liquidity;
+- initialized-tick liquidity gross and signed liquidity net;
+- core positions keyed by pool, owner, lower tick, and upper tick;
+- observation-cardinality targets and packed protocol-fee settings; and
+- cumulative event-reported mint, burn, and collection amounts.
+
+Every Swap must agree with the liquidity implied by all crossed tick-net
+deltas. Position and active-liquidity underflows abort the batch. A zero-value
+Collect against an absent core position is treated as a valid no-op; a
+nonzero unknown-position collection fails.
+
+Reconcile every reconstructed pool, initialized tick, and core position
+against historical `eth_call` state at the replay completion block:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run reconcile
+```
+
+Event logs alone do not expose global fee-growth accumulators, per-tick
+fee-growth-outside values, or current position `tokensOwed`. The replayer does
+not label those values exact or infer them from collection cash flows. Exact
+fee accounting requires a subsequent swap-math/fee-growth implementation or
+block-pinned contract state.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -135,13 +191,15 @@ confirmation depth is an operating parameter, not a claim of L1 finality.
 | `INDEXER_INITIAL_CHUNK_SIZE` | `10000` | Initial `eth_getLogs` range |
 | `INDEXER_MIN_CHUNK_SIZE` | `100` | Smallest retry range |
 | `INDEXER_MAX_CHUNK_SIZE` | `25000` | Largest adaptive range |
+| `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
+| `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
 
 ## Next slice
 
-The next phase is an exact pool and position replayer over the indexed event
-stream, plus canonical oracle, trading-halt, and corporate-action snapshots.
-It should remain shadow-only until backtests and accounting prove net LP alpha
-after divergence loss and execution costs.
+The next phase is continuous confirmation-safe index/replay tailing plus
+canonical oracle, trading-halt, and corporate-action snapshots. It should
+remain shadow-only until backtests and accounting prove net LP alpha after
+divergence loss and execution costs.
 
 ## Source-of-truth addresses
 
