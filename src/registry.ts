@@ -3,6 +3,17 @@ import { z } from "zod";
 import { ROBINHOOD_CHAIN_ID } from "./constants.js";
 import type { CanonicalAsset } from "./domain.js";
 
+const tradingCapabilitySchema = z.object({
+  fractional: z.string().min(1),
+  whole: z.string().min(1),
+});
+
+const tradingCapabilitiesSchema = z.object({
+  extended: tradingCapabilitySchema.optional(),
+  market: tradingCapabilitySchema.optional(),
+  overnight: tradingCapabilitySchema.optional(),
+});
+
 const deploymentSchema = z.object({
   chainId: z.number().int(),
   contractAddress: z.string(),
@@ -13,11 +24,14 @@ const assetSchema = z.object({
   currentMultiplier: z.string().min(1),
   deployments: z.array(deploymentSchema),
   id: z.string().min(1),
+  isin: z.string().min(1).optional(),
   pendingMultiplier: z.string(),
+  pendingMultiplierEffectiveTime: z.union([z.string(), z.number()]).nullish(),
   status: z.string().min(1),
   tokenDecimals: z.number().int().min(0).max(255),
   tokenName: z.string().min(1),
   tokenSymbol: z.string().min(1),
+  tradingCapabilities: tradingCapabilitiesSchema.nullish(),
 });
 
 const registrySchema = z.object({
@@ -25,6 +39,10 @@ const registrySchema = z.object({
 });
 
 export type RegistryPayload = z.infer<typeof registrySchema>;
+
+export function parseRegistry(value: unknown): RegistryPayload {
+  return registrySchema.parse(value);
+}
 
 export async function fetchRegistry(
   url: string,
@@ -39,7 +57,7 @@ export async function fetchRegistry(
     throw new Error(`Robinhood asset registry returned HTTP ${response.status}`);
   }
 
-  return registrySchema.parse(await response.json());
+  return parseRegistry(await response.json());
 }
 
 export function selectCanonicalAssets(
@@ -70,10 +88,17 @@ export function selectCanonicalAssets(
       currentMultiplier: asset.currentMultiplier,
       decimals: asset.tokenDecimals,
       id: asset.id,
+      isin: asset.isin ?? null,
       name: asset.tokenName,
       pendingMultiplier: asset.pendingMultiplier || null,
+      pendingMultiplierEffectiveTime:
+        asset.pendingMultiplierEffectiveTime === undefined ||
+        asset.pendingMultiplierEffectiveTime === null
+          ? null
+          : String(asset.pendingMultiplierEffectiveTime),
       status: asset.status,
       symbol,
+      tradingCapabilities: asset.tradingCapabilities ?? null,
     });
   }
 

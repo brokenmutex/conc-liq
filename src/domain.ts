@@ -1,5 +1,16 @@
 import type { Address, Hash } from "viem";
 
+export interface TradingCapability {
+  readonly fractional: string;
+  readonly whole: string;
+}
+
+export interface TradingCapabilities {
+  readonly extended?: TradingCapability;
+  readonly market?: TradingCapability;
+  readonly overnight?: TradingCapability;
+}
+
 export interface CanonicalAsset {
   readonly id: string;
   readonly symbol: string;
@@ -7,8 +18,11 @@ export interface CanonicalAsset {
   readonly address: Address;
   readonly decimals: number;
   readonly currentMultiplier: string;
+  readonly isin: string | null;
   readonly pendingMultiplier: string | null;
+  readonly pendingMultiplierEffectiveTime: string | null;
   readonly status: string;
+  readonly tradingCapabilities: TradingCapabilities | null;
 }
 
 export interface VerifiedAsset extends CanonicalAsset {

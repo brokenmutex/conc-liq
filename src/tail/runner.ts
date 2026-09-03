@@ -10,6 +10,8 @@ import {
   PostgresReplayStore,
   ReplaySourceChangedError,
 } from "../replay/store.js";
+import type { RiskSnapshot } from "../risk/domain.js";
+import { sanitizeRiskError } from "../risk/evaluate.js";
 import type { TailConfig } from "./config.js";
 
 export interface TailOptions {
@@ -33,6 +35,14 @@ export function calculateSafeHead(head: bigint, confirmationDepth: number): bigi
 
 export function calculateRetryDelay(baseDelayMs: number, failures: number): number {
   return Math.min(60_000, baseDelayMs * (2 ** Math.max(0, failures - 1)));
+}
+
+export function isRiskSnapshotDue(
+  nowMs: number,
+  lastAttemptAtMs: number | null,
+  intervalMs: number,
+): boolean {
+  return lastAttemptAtMs === null || nowMs - lastAttemptAtMs >= intervalMs;
 }
 
 export async function waitForDelay(milliseconds: number, signal?: AbortSignal): Promise<void> {
@@ -121,16 +131,40 @@ export async function runTail(input: {
   readonly manifest: PoolManifest;
   readonly options: TailOptions;
   readonly replayConfig: ReplayConfig;
+  readonly riskSnapshotter?: (blockNumber: bigint) => Promise<RiskSnapshot>;
   readonly tailConfig: TailConfig;
 }): Promise<void> {
   let completedCycles = 0;
   let consecutiveFailures = 0;
+  let lastRiskAttemptAtMs: number | null = null;
   while (input.options.signal?.aborted !== true) {
     const startedAt = Date.now();
     try {
       const result = await runTailCycle(input);
       completedCycles += 1;
       consecutiveFailures = 0;
+      if (
+        input.riskSnapshotter !== undefined &&
+        isRiskSnapshotDue(
+          Date.now(),
+          lastRiskAttemptAtMs,
+          input.tailConfig.riskSnapshotIntervalMs,
+        )
+      ) {
+        lastRiskAttemptAtMs = Date.now();
+        try {
+          const snapshot = await input.riskSnapshotter(result.safeHead);
+          log("info", "tail_risk_snapshot_complete", {
+            blockNumber: snapshot.blockNumber,
+            executionEligible: snapshot.executionEligible,
+            reasons: snapshot.reasons,
+          });
+        } catch (error) {
+          log("error", "tail_risk_snapshot_failed", {
+            error: sanitizeRiskError(error),
+          });
+        }
+      }
       log("info", "tail_cycle_complete", {
         cycle: completedCycles,
         durationMs: Date.now() - startedAt,

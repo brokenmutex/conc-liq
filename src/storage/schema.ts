@@ -188,4 +188,56 @@ CREATE TABLE IF NOT EXISTS v3_replay_positions (
 CREATE INDEX IF NOT EXISTS v3_replay_positions_active_idx
   ON v3_replay_positions (stream_key, pool_address, tick_lower, tick_upper)
   WHERE liquidity > 0;
+
+CREATE TABLE IF NOT EXISTS risk_snapshot_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  chain_id BIGINT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  block_timestamp TIMESTAMPTZ NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  registry_fetched_at TIMESTAMPTZ NOT NULL,
+  registry_sha256 TEXT NOT NULL,
+  feed_directory_fetched_at TIMESTAMPTZ NOT NULL,
+  feed_directory_sha256 TEXT NOT NULL,
+  sequencer_status TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL,
+  reasons JSONB NOT NULL,
+  snapshot JSONB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS risk_snapshot_runs_chain_block_idx
+  ON risk_snapshot_runs (chain_id, block_number DESC);
+
+CREATE TABLE IF NOT EXISTS asset_risk_snapshots (
+  run_id BIGINT NOT NULL REFERENCES risk_snapshot_runs(id) ON DELETE CASCADE,
+  symbol TEXT NOT NULL,
+  token_address TEXT NOT NULL,
+  oracle_address TEXT,
+  execution_eligible BOOLEAN NOT NULL,
+  reasons JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (run_id, symbol)
+);
+
+CREATE INDEX IF NOT EXISTS asset_risk_snapshots_symbol_run_idx
+  ON asset_risk_snapshots (symbol, run_id DESC);
+
+CREATE TABLE IF NOT EXISTS risk_snapshot_attempts (
+  id BIGSERIAL PRIMARY KEY,
+  attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ,
+  status TEXT NOT NULL CHECK (status IN ('started', 'succeeded', 'failed')),
+  error TEXT,
+  risk_run_id BIGINT REFERENCES risk_snapshot_runs(id),
+  CHECK (
+    (status = 'started' AND completed_at IS NULL AND error IS NULL AND risk_run_id IS NULL) OR
+    (status = 'succeeded' AND completed_at IS NOT NULL AND error IS NULL AND risk_run_id IS NOT NULL) OR
+    (status = 'failed' AND completed_at IS NOT NULL AND error IS NOT NULL AND risk_run_id IS NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS risk_snapshot_attempts_latest_idx
+  ON risk_snapshot_attempts (attempted_at DESC, id DESC);
 `;

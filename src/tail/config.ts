@@ -4,12 +4,14 @@ const environmentSchema = z.object({
   TAIL_ERROR_DELAY_MS: z.coerce.number().int().positive().default(5_000),
   TAIL_MAX_CONSECUTIVE_FAILURES: z.coerce.number().int().positive().default(5),
   TAIL_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(10_000),
+  RISK_SNAPSHOT_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
 });
 
 export interface TailConfig {
   readonly errorDelayMs: number;
   readonly maxConsecutiveFailures: number;
   readonly pollIntervalMs: number;
+  readonly riskSnapshotIntervalMs: number;
 }
 
 export function loadTailConfig(
@@ -20,5 +22,6 @@ export function loadTailConfig(
     errorDelayMs: parsed.TAIL_ERROR_DELAY_MS,
     maxConsecutiveFailures: parsed.TAIL_MAX_CONSECUTIVE_FAILURES,
     pollIntervalMs: parsed.TAIL_POLL_INTERVAL_MS,
+    riskSnapshotIntervalMs: parsed.RISK_SNAPSHOT_INTERVAL_MS,
   };
 }

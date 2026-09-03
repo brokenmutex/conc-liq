@@ -14,11 +14,26 @@ const registry: RegistryPayload = {
         },
       ],
       id: "spy-id",
+      isin: "US78462F1030",
       pendingMultiplier: "",
       status: "ASSET_STATUS_ACTIVE",
       tokenDecimals: 18,
       tokenName: "SPDR S&P 500 ETF Trust • Robinhood Token",
       tokenSymbol: "SPY",
+      tradingCapabilities: {
+        extended: {
+          fractional: "TRADING_STATUS_TRADABLE",
+          whole: "TRADING_STATUS_TRADABLE",
+        },
+        market: {
+          fractional: "TRADING_STATUS_TRADABLE",
+          whole: "TRADING_STATUS_TRADABLE",
+        },
+        overnight: {
+          fractional: "TRADING_STATUS_TRADABLE",
+          whole: "TRADING_STATUS_TRADABLE",
+        },
+      },
     },
   ],
 };
@@ -34,6 +49,11 @@ describe("selectCanonicalAssets", () => {
       "0x117cc2133c37B721F49dE2A7a74833232B3B4C0C",
     );
     assert.equal(result[0]?.pendingMultiplier, null);
+    assert.equal(result[0]?.isin, "US78462F1030");
+    assert.equal(
+      result[0]?.tradingCapabilities?.overnight?.whole,
+      "TRADING_STATUS_TRADABLE",
+    );
   });
 
   it("fails closed when a requested symbol is missing", () => {

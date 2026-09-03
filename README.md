@@ -209,6 +209,58 @@ The service imports the ignored local `.env` and the sibling private-node
 environment at process start. The RPC value is never copied into tracked
 configuration.
 
+## Oracle, halt, and corporate-action risk snapshots
+
+Capture the current confirmation-safe risk inputs independently:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run risk:snapshot
+```
+
+The collector fetches Robinhood's asset registry and Chainlink's live
+Robinhood feed directory on every attempt, recording the URL, fetch time, and
+SHA-256 of the exact response bytes. It never hardcodes feed proxy addresses.
+All token and feed reads are pinned to the same confirmation-safe block:
+
+- registry status and all market/extended/overnight trading capabilities;
+- registry current and pending multipliers;
+- token `uiMultiplier()`, `newUIMultiplier()`, `effectiveAt()`, and
+  `oraclePaused()`;
+- feed bytecode hash, decimals, description, and full `latestRoundData()`;
+- positive-answer, complete-round, future-timestamp, and freshness checks; and
+- the USDG/USD quote feed used by every RWA/USDG pool.
+
+Chainlink's token price already includes Robinhood's UI multiplier, so the
+collector verifies multiplier consistency but never multiplies the feed answer
+again. The effective freshness limit is the smaller of the directory heartbeat
+and `RISK_MAX_PRICE_AGE_SECONDS` (five minutes by default).
+
+Every successful snapshot and per-asset result is immutable in
+`risk_snapshot_runs` and `asset_risk_snapshots`. Every attempt first creates a
+`risk_snapshot_attempts` row and ends as `succeeded` or `failed`; downstream
+code must reject a stale snapshot or one not backed by the newest successful
+attempt. Risk failures do not increment the canonical tail's circuit breaker
+or stop index/replay. The continuous tail attempts this collection once per
+`RISK_SNAPSHOT_INTERVAL_MS`.
+
+The execution eligibility flag is deliberately stricter than collection
+success. As of the 2026-09-03 verification, Chainlink's Robinhood directory had
+no GLD token-price feed and its sequencer-feed directory had no Robinhood Chain
+entry. Those are persisted as unavailable evidence. Trading capabilities
+describe whether each session is permitted; they do not prove which session is
+currently open, so `market_session_unverified` also remains a global denial
+reason until a canonical calendar/session source is added. This repository
+still has no transaction path.
+
+Sources: [Robinhood oracle and corporate-action behavior](https://docs.robinhood.com/chain/oracles-and-price-feeds/),
+[Chainlink Robinhood tokenized-equity feeds](https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood),
+and [Chainlink L2 sequencer feed availability](https://docs.chain.link/data-feeds/l2-sequencer-feeds).
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -217,10 +269,12 @@ configuration.
 | `RWA_SYMBOLS` | `GLD,SPY,QQQ,NVDA,AAPL,GOOGL,MSFT` | Canonical assets to discover |
 | `UNISWAP_V3_FEE_TIERS` | `100,500,3000,10000` | Factory fee tiers to query |
 | `ROBINHOOD_ASSETS_URL` | Robinhood asset registry | Canonical RWA metadata |
+| `CHAINLINK_ROBINHOOD_FEEDS_URL` | Chainlink Robinhood RDD | Current canonical feed metadata |
 | `SNAPSHOT_JSONL_PATH` | `data/snapshots.jsonl` | Local fallback store |
 | `DATABASE_URL` | unset | Optional PostgreSQL connection |
 | `HTTP_TIMEOUT_MS` | `10000` | Registry request timeout |
 | `RPC_TIMEOUT_MS` | `15000` | JSON-RPC request timeout |
+| `RISK_MAX_PRICE_AGE_SECONDS` | `300` | Strict feed-age ceiling |
 | `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Private/archive event-read endpoint |
 | `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
 | `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |
@@ -232,12 +286,15 @@ configuration.
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
 | `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
+| `RISK_SNAPSHOT_INTERVAL_MS` | `60000` | Independent risk-source cadence |
 
 ## Next slice
 
-The next phase adds canonical oracle, trading-halt, and corporate-action
-snapshots. It should remain shadow-only until backtests and accounting prove
-net LP alpha after divergence loss and execution costs.
+The next phase adds an exchange-session/calendar source and an explicit
+freshness-aware risk-gate query, then uses the indexed/replayed state and risk
+snapshots for range-policy backtests. It should remain shadow-only until
+backtests and accounting prove net LP alpha after divergence loss and execution
+costs.
 
 ## Source-of-truth addresses
 

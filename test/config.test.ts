@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { loadConfig } from "../src/config.js";
+import { loadRiskConfig } from "../src/risk/config.js";
 
 describe("loadConfig", () => {
   it("loads safe defaults", () => {
@@ -34,5 +35,22 @@ describe("loadConfig", () => {
       () => loadConfig({ UNISWAP_V3_FEE_TIERS: "500,nope" }),
       /UNISWAP_V3_FEE_TIERS/,
     );
+  });
+});
+
+describe("loadRiskConfig", () => {
+  it("uses a strict price-age ceiling and the live Chainlink directory", () => {
+    const config = loadRiskConfig({});
+
+    assert.equal(config.maxPriceAgeSeconds, 300);
+    assert.equal(
+      config.feedDirectoryUrl,
+      "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+    );
+  });
+
+  it("normalizes the risk universe", () => {
+    const config = loadRiskConfig({ RWA_SYMBOLS: "spy, GLD,spy" });
+    assert.deepEqual(config.symbols, ["SPY", "GLD"]);
   });
 });

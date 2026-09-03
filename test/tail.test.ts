@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { calculateRetryDelay, calculateSafeHead, waitForDelay } from "../src/tail/runner.js";
+import {
+  calculateRetryDelay,
+  calculateSafeHead,
+  isRiskSnapshotDue,
+  waitForDelay,
+} from "../src/tail/runner.js";
 
 describe("continuous tail helpers", () => {
   it("pins work behind the configured confirmation depth", () => {
@@ -20,5 +25,11 @@ describe("continuous tail helpers", () => {
     setTimeout(() => controller.abort(), 10);
     await waitForDelay(10_000, controller.signal);
     assert.ok(Date.now() - startedAt < 1_000);
+  });
+
+  it("schedules risk collection independently at its slower cadence", () => {
+    assert.equal(isRiskSnapshotDue(1_000, null, 60_000), true);
+    assert.equal(isRiskSnapshotDue(60_999, 1_000, 60_000), false);
+    assert.equal(isRiskSnapshotDue(61_000, 1_000, 60_000), true);
   });
 });
