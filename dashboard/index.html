@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>CONC LIQ · Robinhood V3 Observatory</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <div class="eyebrow">ROBINHOOD CHAIN · UNISWAP V3</div>
+          <h1>CONC <span>LIQ</span></h1>
+          <p class="subtitle">Concentrated-liquidity observatory</p>
+        </div>
+        <div class="header-status">
+          <div class="readonly-badge">READ ONLY</div>
+          <div class="connection-line">
+            <span id="connection-dot" class="status-dot pending"></span>
+            <span id="connection-label">Connecting</span>
+          </div>
+          <div id="last-refresh" class="muted">Waiting for first snapshot</div>
+        </div>
+      </header>
+
+      <div id="error-banner" class="error-banner hidden" role="alert"></div>
+
+      <section class="summary-grid" aria-label="System summary">
+        <article class="metric-card accent-cyan">
+          <div class="metric-label">Canonical sync</div>
+          <div id="sync-value" class="metric-value">—</div>
+          <div id="sync-detail" class="metric-detail">Indexer ↔ replay</div>
+        </article>
+        <article class="metric-card accent-violet">
+          <div class="metric-label">Indexed through</div>
+          <div id="block-value" class="metric-value mono">—</div>
+          <div id="block-detail" class="metric-detail">Confirmation-safe block</div>
+        </article>
+        <article class="metric-card accent-blue">
+          <div class="metric-label">Events applied</div>
+          <div id="events-value" class="metric-value">—</div>
+          <div id="events-detail" class="metric-detail">Canonical V3 events</div>
+        </article>
+        <article class="metric-card accent-mint">
+          <div class="metric-label">Replay coverage</div>
+          <div id="coverage-value" class="metric-value">—</div>
+          <div id="coverage-detail" class="metric-detail">Pools · ticks · positions</div>
+        </article>
+        <article class="metric-card accent-amber">
+          <div class="metric-label">Execution gate</div>
+          <div id="risk-value" class="metric-value">—</div>
+          <div id="risk-detail" class="metric-detail">Latest risk snapshot</div>
+        </article>
+      </section>
+
+      <section class="panel activity-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">CANONICAL EVENT FLOW</div>
+            <h2>Activity by block window</h2>
+          </div>
+          <div class="legend" aria-label="Activity legend">
+            <span><i class="legend-swap"></i>Swap</span>
+            <span><i class="legend-mint"></i>Mint</span>
+            <span><i class="legend-burn"></i>Burn</span>
+            <span><i class="legend-other"></i>Other</span>
+          </div>
+        </div>
+        <div class="chart-frame">
+          <svg id="activity-chart" viewBox="0 0 1000 260" role="img" aria-label="V3 events grouped by block range"></svg>
+          <div id="activity-empty" class="empty hidden">No activity in the selected block window.</div>
+        </div>
+        <div class="chart-axis">
+          <span id="activity-start">—</span>
+          <span>block number →</span>
+          <span id="activity-end">—</span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">REPLAYED STATE</div>
+            <h2>Pool state</h2>
+          </div>
+          <div class="panel-note">Raw V3 liquidity · exact integer state</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Fee</th>
+                <th>Tick</th>
+                <th>Liquidity</th>
+                <th>Swaps</th>
+                <th>Active LPs</th>
+                <th>Init. ticks</th>
+                <th>Last event</th>
+                <th>Pool</th>
+              </tr>
+            </thead>
+            <tbody id="pools-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">FAIL-CLOSED INPUTS</div>
+            <h2>Risk matrix</h2>
+          </div>
+          <div class="panel-note">Observation is not execution authorization</div>
+        </div>
+        <div id="global-risk-reasons" class="reason-strip"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Gate</th>
+                <th>Oracle price</th>
+                <th>Age</th>
+                <th>Trading</th>
+                <th>Multiplier</th>
+                <th>Paused</th>
+                <th>Corporate action</th>
+                <th>Reasons</th>
+              </tr>
+            </thead>
+            <tbody id="risk-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="two-column">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">CORE POSITIONS</div>
+              <h2>LP coverage</h2>
+            </div>
+          </div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pool</th>
+                  <th>Positions</th>
+                  <th>Owners</th>
+                  <th>Tick span</th>
+                </tr>
+              </thead>
+              <tbody id="positions-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">COLLECTION LEDGER</div>
+              <h2>Risk attempts</h2>
+            </div>
+          </div>
+          <div class="attempt-list" id="attempts-list"></div>
+        </section>
+      </section>
+
+      <section class="panel evidence-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SOURCE EVIDENCE</div>
+            <h2>Latest canonical inputs</h2>
+          </div>
+        </div>
+        <div class="evidence-grid">
+          <article>
+            <div class="evidence-label">Robinhood registry</div>
+            <a id="registry-url" target="_blank" rel="noreferrer">Unavailable</a>
+            <code id="registry-hash">—</code>
+            <div id="registry-time" class="muted">—</div>
+          </article>
+          <article>
+            <div class="evidence-label">Chainlink feed directory</div>
+            <a id="feed-url" target="_blank" rel="noreferrer">Unavailable</a>
+            <code id="feed-hash">—</code>
+            <div id="feed-time" class="muted">—</div>
+          </article>
+        </div>
+      </section>
+
+      <footer>
+        <span>Shadow observability only</span>
+        <span id="stream-key" class="mono">—</span>
+        <span>No signer · no transaction path · no inferred PnL</span>
+      </footer>
+    </main>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

@@ -11,6 +11,7 @@
     "backfill": "node --import tsx src/backfill.ts",
     "build": "tsc -p tsconfig.json",
     "check": "npm run typecheck && npm test",
+    "dashboard": "node --import tsx src/dashboard.ts",
     "db:migrate": "node --import tsx src/migrate.ts",
     "observe": "node --import tsx src/index.ts",
     "reconcile": "node --import tsx src/reconcile.ts",

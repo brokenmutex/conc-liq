@@ -1,0 +1,24 @@
+[Unit]
+Description=conc-liq read-only operator dashboard
+After=network-online.target postgresql.service conc-liq-tail.service
+Wants=network-online.target
+Requires=postgresql.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/root/conc-liq
+EnvironmentFile=/root/conc-liq/.env
+Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/bash -c 'exec npm run dashboard'
+Restart=on-failure
+RestartSec=10s
+TimeoutStopSec=30s
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

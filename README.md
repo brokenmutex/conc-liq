@@ -261,6 +261,51 @@ Sources: [Robinhood oracle and corporate-action behavior](https://docs.robinhood
 [Chainlink Robinhood tokenized-equity feeds](https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood),
 and [Chainlink L2 sequencer feed availability](https://docs.chain.link/data-feeds/l2-sequencer-feeds).
 
+## Read-only operator dashboard
+
+The dashboard turns the PostgreSQL state into a continuously refreshed view of:
+
+- indexer/replay block and hash agreement;
+- recent canonical V3 activity grouped by block range;
+- replayed pool, initialized-tick, and active core-position coverage;
+- the latest per-asset risk gate and recent collection attempts; and
+- the exact registry and feed-directory source hashes behind the risk view.
+
+It requires `DATABASE_URL`, opens every PostgreSQL connection in read-only mode,
+has no mutation routes, and refuses to bind to a non-loopback address. It does
+not infer fee-growth state, token inventory, position value, or PnL.
+
+Run it interactively:
+
+```bash
+set -a
+source .env
+set +a
+npm run dashboard
+```
+
+From another machine, create a tunnel and then open
+`http://127.0.0.1:4173` in a browser:
+
+```bash
+ssh -L 4173:127.0.0.1:4173 <server>
+```
+
+Install the repository-owned service on this host:
+
+```bash
+sudo install -m 0644 ops/conc-liq-dashboard.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-dashboard.service
+systemctl status conc-liq-dashboard.service
+journalctl -u conc-liq-dashboard.service -f
+```
+
+`DASHBOARD_ACTIVITY_WINDOW_BLOCKS` and
+`DASHBOARD_ACTIVITY_BUCKET_BLOCKS` are chain-height windows, not wall-clock
+claims. The browser refresh interval controls only presentation; the tail
+worker remains the owner of collection and replay.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -287,6 +332,11 @@ and [Chainlink L2 sequencer feed availability](https://docs.chain.link/data-feed
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
 | `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
 | `RISK_SNAPSHOT_INTERVAL_MS` | `60000` | Independent risk-source cadence |
+| `DASHBOARD_HOST` | `127.0.0.1` | Loopback-only dashboard listener |
+| `DASHBOARD_PORT` | `4173` | Dashboard listener port |
+| `DASHBOARD_REFRESH_MS` | `10000` | Browser snapshot refresh cadence |
+| `DASHBOARD_ACTIVITY_WINDOW_BLOCKS` | `20000` | Recent activity lookback |
+| `DASHBOARD_ACTIVITY_BUCKET_BLOCKS` | `500` | Activity chart bucket width |
 
 ## Next slice
 
