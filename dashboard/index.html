@@ -81,6 +81,56 @@
         </div>
       </section>
 
+      <section class="panel" id="accounting-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">BLOCK-PINNED FEE STATE</div>
+            <h2>Core-position accounting</h2>
+          </div>
+          <div class="panel-note">Raw token units · aggregate core keys, not NFT attribution</div>
+        </div>
+        <div id="accounting-audit" class="gate-audit" aria-label="Fee accounting audit">
+          <div>
+            <span>Snapshot run</span>
+            <strong id="accounting-run">—</strong>
+          </div>
+          <div>
+            <span>Pinned block</span>
+            <strong id="accounting-block">—</strong>
+          </div>
+          <div>
+            <span>Captured</span>
+            <strong id="accounting-age">—</strong>
+          </div>
+          <div>
+            <span>Coverage</span>
+            <strong id="accounting-coverage">—</strong>
+          </div>
+        </div>
+        <div id="accounting-empty" class="inline-empty hidden">
+          No exact fee-accounting snapshot has been captured yet.
+        </div>
+        <div id="accounting-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Core positions</th>
+                <th>Token 0</th>
+                <th>Stored owed</th>
+                <th>Pending</th>
+                <th>Claimable</th>
+                <th>Token 1</th>
+                <th>Stored owed</th>
+                <th>Pending</th>
+                <th>Claimable</th>
+              </tr>
+            </thead>
+            <tbody id="accounting-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-heading">
           <div>

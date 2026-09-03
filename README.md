@@ -169,9 +169,47 @@ npm run reconcile
 
 Event logs alone do not expose global fee-growth accumulators, per-tick
 fee-growth-outside values, or current position `tokensOwed`. The replayer does
-not label those values exact or infer them from collection cash flows. Exact
-fee accounting requires a subsequent swap-math/fee-growth implementation or
-block-pinned contract state.
+not label those values exact or infer them from collection cash flows.
+
+## Exact core-position fee accounting
+
+Capture the missing fee state directly from every pool at one exact replay
+completion block:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run accounting:snapshot
+```
+
+The collector opens a repeatable-read snapshot of replayed state, verifies its
+block hash against the private node before and after collection, and reconciles
+all pool, initialized-tick, and core-position liquidity through block-pinned
+contract reads. It then applies Uniswap v3's canonical uint256-wrap fee-growth
+inside formula and Q128 flooring. Zero-liquidity positions are also read because
+they can retain stored `tokensOwed`; newly pending fees are calculated only for
+active positions whose boundary ticks remain initialized.
+
+Each run is immutable in `v3_fee_accounting_runs`, with exact raw-token rows in
+`v3_pool_fee_accounting`, `v3_tick_fee_accounting`, and
+`v3_position_fee_accounting`. `claimable` is the sum of the pool's stored
+`tokensOwed` and newly accrued pending fees at that block. This is Uniswap core
+position-key accounting: multiple NFTs using the same position-manager owner
+and range are aggregated by the pool, so the data is not per-NFT or per-user
+attribution. Raw amounts are not USD value, inventory PnL, or a profitability
+claim.
+
+The snapshot is deliberately on demand rather than part of every tail cycle;
+the current universe requires thousands of historical calls per capture.
+The implementation follows Uniswap's official
+[`Tick.getFeeGrowthInside`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Tick.sol),
+[`Position.update`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Position.sol),
+and periphery
+[`PositionValue.fees`](https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/PositionValue.sol)
+semantics.
 
 ## Continuous confirmation-safe tail
 
@@ -288,13 +326,15 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - indexer/replay block and hash agreement;
 - recent canonical V3 activity grouped by block range;
 - replayed pool, initialized-tick, and active core-position coverage;
+- the latest exact, block-pinned core-position fee-accounting snapshot;
 - the latest per-asset risk gate and recent collection attempts; and
 - the exact registry, feed-directory, and market-policy source hashes behind the
   risk view.
 
 It requires `DATABASE_URL`, opens every PostgreSQL connection in read-only mode,
-has no mutation routes, and refuses to bind to a non-loopback address. It does
-not infer fee-growth state, token inventory, position value, or PnL.
+has no mutation routes, and refuses to bind to a non-loopback address. It shows
+only captured fee state in raw token units; it does not infer values between
+captures or claim token inventory, position value, or PnL.
 
 Run it interactively:
 
@@ -352,6 +392,7 @@ worker remains the owner of collection and replay.
 | `INDEXER_MAX_CHUNK_SIZE` | `25000` | Largest adaptive range |
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
+| `ACCOUNTING_CONCURRENCY` | `24` | Concurrent block-pinned fee-state reads |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
 | `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
@@ -364,11 +405,10 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next phase reconstructs exact V3 fee-growth and position accounting, checks
-it against block-pinned historical contract state, and then uses the
-indexed/replayed state and risk snapshots for range-policy backtests. It should
-remain shadow-only until backtests and accounting prove net LP alpha after
-divergence loss and execution costs.
+The next phase captures a historical series of exact accounting checkpoints and
+uses the indexed/replayed state and risk snapshots for range-policy backtests.
+It should remain shadow-only until the tests demonstrate net LP alpha after
+divergence loss, gas, rebalancing, and execution costs.
 
 ## Source-of-truth addresses
 

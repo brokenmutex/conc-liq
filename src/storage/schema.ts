@@ -189,6 +189,127 @@ CREATE INDEX IF NOT EXISTS v3_replay_positions_active_idx
   ON v3_replay_positions (stream_key, pool_address, tick_lower, tick_upper)
   WHERE liquidity > 0;
 
+CREATE TABLE IF NOT EXISTS v3_fee_accounting_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  events_applied NUMERIC(78, 0) NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  pool_count INTEGER NOT NULL,
+  tick_count INTEGER NOT NULL,
+  position_count INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS v3_fee_accounting_runs_latest_idx
+  ON v3_fee_accounting_runs (stream_key, block_number DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_pool_fee_accounting (
+  run_id BIGINT NOT NULL REFERENCES v3_fee_accounting_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  tick INTEGER NOT NULL,
+  sqrt_price_x96 NUMERIC(78, 0) NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  fee_growth_global0_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_global1_x128 NUMERIC(78, 0) NOT NULL,
+  positions INTEGER NOT NULL,
+  active_positions INTEGER NOT NULL,
+  tokens_owed0 NUMERIC(78, 0) NOT NULL,
+  tokens_owed1 NUMERIC(78, 0) NOT NULL,
+  pending0 NUMERIC(78, 0) NOT NULL,
+  pending1 NUMERIC(78, 0) NOT NULL,
+  claimable0 NUMERIC(78, 0) NOT NULL,
+  claimable1 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (run_id, pool_address),
+  CHECK (liquidity >= 0),
+  CHECK (positions >= active_positions AND active_positions >= 0),
+  CHECK (tokens_owed0 >= 0 AND tokens_owed1 >= 0),
+  CHECK (pending0 >= 0 AND pending1 >= 0),
+  CONSTRAINT v3_pool_fee_accounting_claimable0_exact
+    CHECK (claimable0 = tokens_owed0 + pending0),
+  CONSTRAINT v3_pool_fee_accounting_claimable1_exact
+    CHECK (claimable1 = tokens_owed1 + pending1)
+);
+
+DO $migration$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_pool_fee_accounting_claimable0_exact'
+      AND conrelid = 'v3_pool_fee_accounting'::regclass
+  ) THEN
+    ALTER TABLE v3_pool_fee_accounting
+      ADD CONSTRAINT v3_pool_fee_accounting_claimable0_exact
+      CHECK (claimable0 = tokens_owed0 + pending0);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_pool_fee_accounting_claimable1_exact'
+      AND conrelid = 'v3_pool_fee_accounting'::regclass
+  ) THEN
+    ALTER TABLE v3_pool_fee_accounting
+      ADD CONSTRAINT v3_pool_fee_accounting_claimable1_exact
+      CHECK (claimable1 = tokens_owed1 + pending1);
+  END IF;
+END
+$migration$;
+
+CREATE TABLE IF NOT EXISTS v3_tick_fee_accounting (
+  run_id BIGINT NOT NULL REFERENCES v3_fee_accounting_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  tick INTEGER NOT NULL,
+  liquidity_gross NUMERIC(78, 0) NOT NULL,
+  liquidity_net NUMERIC(78, 0) NOT NULL,
+  fee_growth_outside0_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_outside1_x128 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (run_id, pool_address, tick),
+  CHECK (liquidity_gross > 0)
+);
+
+CREATE TABLE IF NOT EXISTS v3_position_fee_accounting (
+  run_id BIGINT NOT NULL REFERENCES v3_fee_accounting_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  owner_address TEXT NOT NULL,
+  tick_lower INTEGER NOT NULL,
+  tick_upper INTEGER NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside0_last_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside1_last_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside0_x128 NUMERIC(78, 0),
+  fee_growth_inside1_x128 NUMERIC(78, 0),
+  tokens_owed0 NUMERIC(78, 0) NOT NULL,
+  tokens_owed1 NUMERIC(78, 0) NOT NULL,
+  pending0 NUMERIC(78, 0) NOT NULL,
+  pending1 NUMERIC(78, 0) NOT NULL,
+  claimable0 NUMERIC(78, 0) NOT NULL,
+  claimable1 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (
+    run_id, pool_address, owner_address, tick_lower, tick_upper
+  ),
+  CHECK (tick_lower < tick_upper),
+  CHECK (liquidity >= 0),
+  CHECK (
+    (liquidity > 0 AND fee_growth_inside0_x128 IS NOT NULL
+      AND fee_growth_inside1_x128 IS NOT NULL) OR
+    (liquidity = 0 AND fee_growth_inside0_x128 IS NULL
+      AND fee_growth_inside1_x128 IS NULL)
+  ),
+  CHECK (tokens_owed0 >= 0 AND tokens_owed1 >= 0),
+  CHECK (pending0 >= 0 AND pending1 >= 0),
+  CHECK (claimable0 = tokens_owed0 + pending0),
+  CHECK (claimable1 = tokens_owed1 + pending1)
+);
+
+CREATE INDEX IF NOT EXISTS v3_position_fee_accounting_claimable_idx
+  ON v3_position_fee_accounting (run_id, pool_address)
+  WHERE claimable0 > 0 OR claimable1 > 0;
+
 CREATE TABLE IF NOT EXISTS risk_snapshot_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

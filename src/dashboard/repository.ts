@@ -1,4 +1,5 @@
 import pg, { type PoolClient } from "pg";
+import { USDG } from "../constants.js";
 import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
 import type {
@@ -6,6 +7,8 @@ import type {
   AssetRiskRow,
   DashboardOverview,
   DashboardSnapshot,
+  FeeAccountingPoolRow,
+  FeeAccountingView,
   PoolRow,
   PositionCoverageRow,
   RiskAttemptRow,
@@ -118,6 +121,34 @@ interface SourceDbRow {
   session_url: string | null;
 }
 
+interface AccountingRunDbRow {
+  block_hash: string;
+  block_number: string;
+  events_applied: string;
+  id: string;
+  observed_at: Date;
+  pool_count: string;
+  position_count: string;
+  schema_version: number;
+  tick_count: string;
+}
+
+interface AccountingPoolDbRow {
+  active_positions: string;
+  claimable0: string;
+  claimable1: string;
+  fee: number;
+  pending0: string;
+  pending1: string;
+  pool_address: string;
+  positions: string;
+  rwa_symbol: string;
+  token0: string;
+  token1: string;
+  tokens_owed0: string;
+  tokens_owed1: string;
+}
+
 function iso(value: Date | null): string | null {
   return value?.toISOString() ?? null;
 }
@@ -126,6 +157,72 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === "string")
     : [];
+}
+
+function accountingTokenSymbol(
+  address: string,
+  rwaSymbol: string,
+): string {
+  return address.toLowerCase() === USDG.toLowerCase() ? "USDG" : rwaSymbol;
+}
+
+async function feeAccounting(
+  client: PoolClient,
+  streamKey: string,
+): Promise<FeeAccountingView | null> {
+  const runResult = await client.query<AccountingRunDbRow>(
+    `SELECT id, schema_version, block_number::text, block_hash,
+            events_applied::text, observed_at, pool_count::text,
+            tick_count::text, position_count::text
+     FROM v3_fee_accounting_runs
+     WHERE stream_key = $1
+     ORDER BY id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const run = runResult.rows[0];
+  if (run === undefined) return null;
+
+  const poolResult = await client.query<AccountingPoolDbRow>(
+    `SELECT pool_address, rwa_symbol, fee, token0, token1,
+            positions::text, active_positions::text,
+            tokens_owed0::text, tokens_owed1::text,
+            pending0::text, pending1::text,
+            claimable0::text, claimable1::text
+     FROM v3_pool_fee_accounting
+     WHERE run_id = $1
+     ORDER BY rwa_symbol, fee`,
+    [run.id],
+  );
+  const pools: FeeAccountingPoolRow[] = poolResult.rows.map((row) => ({
+    activePositions: row.active_positions,
+    claimable0: row.claimable0,
+    claimable1: row.claimable1,
+    fee: row.fee,
+    pending0: row.pending0,
+    pending1: row.pending1,
+    poolAddress: row.pool_address,
+    positions: row.positions,
+    rwaSymbol: row.rwa_symbol,
+    token0: row.token0,
+    token0Symbol: accountingTokenSymbol(row.token0, row.rwa_symbol),
+    token1: row.token1,
+    token1Symbol: accountingTokenSymbol(row.token1, row.rwa_symbol),
+    tokensOwed0: row.tokens_owed0,
+    tokensOwed1: row.tokens_owed1,
+  }));
+  return {
+    block: run.block_number,
+    blockHash: run.block_hash,
+    eventsApplied: run.events_applied,
+    observedAt: run.observed_at.toISOString(),
+    poolCount: run.pool_count,
+    pools,
+    positionCount: run.position_count,
+    runId: run.id,
+    schemaVersion: run.schema_version,
+    tickCount: run.tick_count,
+  };
 }
 
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
@@ -455,6 +552,7 @@ export class DashboardRepository {
     try {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const data = {
+        accounting: await feeAccounting(client, this.config.streamKey),
         activity: await activity(client, this.config),
         attempts: await attempts(client),
         overview: await overview(client, this.config.streamKey),

@@ -119,7 +119,39 @@ export interface RiskSourceEvidence {
   };
 }
 
+export interface FeeAccountingPoolRow {
+  readonly activePositions: string;
+  readonly claimable0: string;
+  readonly claimable1: string;
+  readonly fee: number;
+  readonly pending0: string;
+  readonly pending1: string;
+  readonly poolAddress: string;
+  readonly positions: string;
+  readonly rwaSymbol: string;
+  readonly token0: string;
+  readonly token0Symbol: string;
+  readonly token1: string;
+  readonly token1Symbol: string;
+  readonly tokensOwed0: string;
+  readonly tokensOwed1: string;
+}
+
+export interface FeeAccountingView {
+  readonly block: string;
+  readonly blockHash: string;
+  readonly eventsApplied: string;
+  readonly observedAt: string;
+  readonly poolCount: string;
+  readonly pools: readonly FeeAccountingPoolRow[];
+  readonly positionCount: string;
+  readonly runId: string;
+  readonly schemaVersion: number;
+  readonly tickCount: string;
+}
+
 export interface DashboardSnapshot {
+  readonly accounting: FeeAccountingView | null;
   readonly activity: readonly ActivityBucket[];
   readonly attempts: readonly RiskAttemptRow[];
   readonly overview: DashboardOverview;
