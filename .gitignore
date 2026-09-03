@@ -1,0 +1,7 @@
+.env
+.tools/
+contracts/cache/
+contracts/out/
+data/
+dist/
+node_modules/
