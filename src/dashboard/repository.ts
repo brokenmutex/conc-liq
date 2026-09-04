@@ -14,6 +14,8 @@ import type {
   PositionCoverageRow,
   PrincipalAccountingView,
   PrincipalPoolRow,
+  RangePolicyReplayCandidateRow,
+  RangePolicyReplayView,
   RangeSimulationCandidateRow,
   RangeSimulationView,
   RiskAttemptRow,
@@ -279,6 +281,45 @@ interface RangeSimulationCandidateDbRow {
   status: string;
   tick_lower: number;
   tick_upper: number;
+}
+
+interface RangePolicyReplayDbRow {
+  assumptions: unknown;
+  budget_quote: string;
+  checkpoint_count: number;
+  completed_candidates: number;
+  computed_at: Date;
+  entry_cost_quote: string;
+  excluded_candidates: number;
+  fee: number;
+  first_block: string;
+  first_run_id: string;
+  id: string;
+  interval_count: number;
+  last_block: string;
+  last_run_id: string;
+  pool_address: string;
+  quote_decimals: number;
+  rebalance_cost_quote: string;
+  rwa_symbol: string;
+  tick_spacing: number;
+  trigger_percent: number;
+}
+
+interface RangePolicyReplayCandidateDbRow {
+  absolute_pnl_quote: string | null;
+  completed_intervals: number;
+  failure_reason: string | null;
+  failure_run_id: string | null;
+  fee_value_quote: string;
+  final_nav_quote: string | null;
+  half_width_spacings: number;
+  lp_alpha_quote: string | null;
+  max_drawdown_ppm: string;
+  rank: number | null;
+  rebalances: number;
+  status: string;
+  total_cost_quote: string;
 }
 
 function iso(value: Date | null): string | null {
@@ -639,6 +680,83 @@ async function rangeSimulation(
   };
 }
 
+async function rangePolicyReplay(
+  client: PoolClient,
+  streamKey: string,
+): Promise<RangePolicyReplayView | null> {
+  const result = await client.query<RangePolicyReplayDbRow>(
+    `SELECT r.id, r.computed_at, r.pool_address, r.rwa_symbol, r.fee,
+            r.quote_decimals, r.budget_quote::text,
+            r.entry_cost_quote::text, r.rebalance_cost_quote::text,
+            r.trigger_percent, r.tick_spacing, r.checkpoint_count,
+            r.interval_count, r.completed_candidates, r.excluded_candidates,
+            r.assumptions,
+            r.first_accounting_run_id::text AS first_run_id,
+            r.last_accounting_run_id::text AS last_run_id,
+            f.block_number::text AS first_block,
+            l.block_number::text AS last_block
+     FROM v3_range_policy_replay_runs r
+     JOIN v3_fee_accounting_runs f ON f.id = r.first_accounting_run_id
+     JOIN v3_fee_accounting_runs l ON l.id = r.last_accounting_run_id
+     WHERE r.stream_key = $1
+     ORDER BY r.computed_at DESC, r.id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const replay = result.rows[0];
+  if (replay === undefined) return null;
+  const candidates = await client.query<RangePolicyReplayCandidateDbRow>(
+    `SELECT half_width_spacings, status, failure_reason,
+            failure_run_id::text, rank,
+            completed_intervals, rebalances, total_cost_quote::text,
+            fee_value_quote::text, max_drawdown_ppm::text,
+            final_nav_quote::text, absolute_pnl_quote::text,
+            lp_alpha_quote::text
+     FROM v3_range_policy_replay_candidates
+     WHERE replay_run_id = $1
+     ORDER BY half_width_spacings`,
+    [replay.id],
+  );
+  const mapped: RangePolicyReplayCandidateRow[] = candidates.rows.map((row) => ({
+    absolutePnlQuote: row.absolute_pnl_quote,
+    completedIntervals: row.completed_intervals,
+    failureReason: row.failure_reason,
+    failureRunId: row.failure_run_id,
+    feeValueQuote: row.fee_value_quote,
+    finalNavQuote: row.final_nav_quote,
+    halfWidthSpacings: row.half_width_spacings,
+    lpAlphaQuote: row.lp_alpha_quote,
+    maxDrawdownPpm: row.max_drawdown_ppm,
+    rank: row.rank,
+    rebalances: row.rebalances,
+    status: row.status,
+    totalCostQuote: row.total_cost_quote,
+  }));
+  return {
+    assumptions: stringArray(replay.assumptions),
+    budgetQuote: replay.budget_quote,
+    candidates: mapped,
+    checkpointCount: replay.checkpoint_count,
+    completedCandidates: replay.completed_candidates,
+    computedAt: replay.computed_at.toISOString(),
+    entryCostQuote: replay.entry_cost_quote,
+    excludedCandidates: replay.excluded_candidates,
+    fee: replay.fee,
+    firstBlock: replay.first_block,
+    firstRunId: replay.first_run_id,
+    intervalCount: replay.interval_count,
+    lastBlock: replay.last_block,
+    lastRunId: replay.last_run_id,
+    poolAddress: replay.pool_address,
+    quoteDecimals: replay.quote_decimals,
+    rebalanceCostQuote: replay.rebalance_cost_quote,
+    replayRunId: replay.id,
+    rwaSymbol: replay.rwa_symbol,
+    tickSpacing: replay.tick_spacing,
+    triggerPercent: replay.trigger_percent,
+  };
+}
+
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
   const indexed = row.last_scanned_block === null ? null : BigInt(row.last_scanned_block);
   const replayed = row.complete_through_block === null
@@ -977,6 +1095,10 @@ export class DashboardRepository {
         pools: await pools(client, this.config.streamKey),
         positions: await positions(client, this.config.streamKey),
         principal: await principalAccounting(client, this.config.streamKey),
+        rangePolicyReplay: await rangePolicyReplay(
+          client,
+          this.config.streamKey,
+        ),
         rangeSimulation: await rangeSimulation(client, this.config.streamKey),
         refreshMs: this.config.refreshMs,
         riskGate: await readRiskGate(

@@ -285,6 +285,58 @@
         </div>
       </section>
 
+      <section class="panel" id="policy-replay-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">STATEFUL SHADOW POLICY</div>
+            <h2>Multi-checkpoint range replay</h2>
+          </div>
+          <div class="panel-note">Normalized shadow scenario · checkpoint triggers · explicit illustrative costs · never execution-eligible</div>
+        </div>
+        <div id="policy-replay-audit" class="gate-audit" aria-label="Range policy replay audit">
+          <div>
+            <span>Replay</span>
+            <strong id="policy-replay-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="policy-replay-interval">—</strong>
+          </div>
+          <div>
+            <span>Capital / costs</span>
+            <strong id="policy-replay-capital">—</strong>
+          </div>
+          <div>
+            <span>Trigger / certification</span>
+            <strong id="policy-replay-trigger">—</strong>
+          </div>
+        </div>
+        <div id="policy-replay-assumptions" class="reason-strip"></div>
+        <div id="policy-replay-empty" class="inline-empty hidden">
+          No stateful range-policy replay has been persisted yet.
+        </div>
+        <div id="policy-replay-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Half-width</th>
+                <th>Status</th>
+                <th>Intervals</th>
+                <th>Recenters</th>
+                <th>Fee accrued</th>
+                <th>Total costs</th>
+                <th>Max drawdown</th>
+                <th>Absolute P&amp;L</th>
+                <th>LP alpha vs hold</th>
+                <th>Final NAV</th>
+              </tr>
+            </thead>
+            <tbody id="policy-replay-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="baseline-panel">
         <div class="panel-heading">
           <div>

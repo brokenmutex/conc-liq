@@ -357,6 +357,54 @@ the configured cost is not an estimate; and this first interval primitive does
 not rebalance, compound fees, or model entry swaps. Every result remains
 execution-ineligible.
 
+## Stateful range-policy replay
+
+Chain the certified interval primitive across multiple immutable accounting
+checkpoints while carrying the policy's position and earned token inventory:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run policy:replay -- \
+  --rwa NVDA \
+  --fee 500 \
+  --budget-usdg 1000 \
+  --entry-cost-usdg 1 \
+  --rebalance-cost-usdg 1 \
+  --trigger-percent 50 \
+  --half-widths 1,2,5,10,20,50 \
+  --lookback 6
+```
+
+The default lookback is six checkpoints. Every replay window is bounded to
+2–64 checkpoints. To reproduce an immutable window, replace `--lookback` with
+`--from-run ID --to-run ID`; all matching checkpoints between those endpoints
+are included.
+
+Each policy starts from the same post-entry capital and inventory. Fees accrue
+in exact raw token units and remain idle until a checkpoint trigger recenters
+the range. A recenter ideally recomposes the full pool-spot value into the new
+range and charges the explicit per-rebalance cost. The unchanged post-entry
+inventory is the passive-holding benchmark. The replay reports total endpoint-
+valued fee accrual, costs, recenter count, maximum checkpoint drawdown,
+absolute P&L, and net LP alpha versus that benchmark.
+
+Every interval must prove that its complete indexed Swap tick path stayed
+inside the range active during that interval. A crossing stops that candidate
+at the first uncertifiable checkpoint; no partial in-range duration or fee is
+invented. Runs, candidates, and per-interval audit steps are immutable and
+idempotent in `v3_range_policy_replay_runs`,
+`v3_range_policy_replay_candidates`, and `v3_range_policy_replay_steps`.
+
+This remains a normalized shadow model. It assumes zero market impact, no
+self-dilution, ideal spot recomposition, and checkpoint-only trigger decisions.
+Pool spot is not an oracle mark, and operator-supplied costs are illustrative
+rather than measured gas, approval, mint, burn, collect, or swap costs. Results
+remain execution-ineligible and are not pool recommendations.
+
 ## Stable-position fee interval baseline
 
 Compare two exact accounting checkpoints and persist a conservative raw-token
@@ -511,6 +559,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
   Position Manager NFTs;
 - the latest normalized static range-policy comparison, including excluded
   paths, explicit costs, absolute P&L, and LP alpha versus holding;
+- the latest stateful multi-checkpoint replay, including certified progress,
+  recenter count, drawdown, total illustrative costs, and net LP alpha;
 - the latest stable-position interval benchmark, its coverage exclusions, and
   exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and
@@ -592,11 +642,12 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next simulator slice chains the certified interval primitive across many
-checkpoints and adds stateful rebalance triggers, inventory carry, fresh oracle
-marks, and measured gas plus swap costs. The stable-position interval remains
-the fee-truth comparator. The model should remain shadow-only until a long
-enough series demonstrates robust net LP alpha across adverse windows.
+The next simulator gate replaces pool-spot marks and illustrative costs with
+fresh multiplier-adjusted oracle marks plus measured approval, mint, burn,
+collect, gas, and swap-cost observations. After that calibration, collect a
+longer checkpoint series and require robust net LP alpha across adverse windows
+before defining a manually approved, tightly bounded canary. The stable-
+position interval remains the fee-truth comparator.
 
 ## Source-of-truth addresses
 

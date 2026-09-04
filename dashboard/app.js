@@ -484,6 +484,67 @@ function renderRangeSimulation(simulation) {
   }
 }
 
+function renderRangePolicyReplay(replay) {
+  const empty = replay === null || replay === undefined;
+  element("policy-replay-empty").classList.toggle("hidden", !empty);
+  element("policy-replay-table").classList.toggle("hidden", empty);
+  element("policy-replay-audit").classList.toggle("hidden", empty);
+  const assumptions = element("policy-replay-assumptions");
+  assumptions.classList.toggle("hidden", empty);
+  assumptions.replaceChildren();
+  const body = element("policy-replay-body");
+  body.replaceChildren();
+  if (empty) return;
+  setText(
+    "policy-replay-run",
+    `#${replay.replayRunId} · ${replay.rwaSymbol} ${feeLabel(replay.fee)}`,
+  );
+  setText(
+    "policy-replay-interval",
+    `#${replay.firstRunId} → #${replay.lastRunId} · ${replay.checkpointCount} points`,
+  );
+  element("policy-replay-interval").title =
+    `Blocks ${blockNumber(replay.firstBlock)} → ${blockNumber(replay.lastBlock)}`;
+  setText(
+    "policy-replay-capital",
+    `${displayTokenAmount(replay.budgetQuote, replay.quoteDecimals)} USDG · ${displayTokenAmount(replay.entryCostQuote, replay.quoteDecimals)} entry · ${displayTokenAmount(replay.rebalanceCostQuote, replay.quoteDecimals)} / recenter`,
+  );
+  setText(
+    "policy-replay-trigger",
+    `${replay.triggerPercent}% of half-width · ${replay.completedCandidates} complete / ${replay.excludedCandidates} excluded`,
+  );
+  for (const assumption of replay.assumptions) {
+    const chip = document.createElement("span");
+    chip.className = "reason-chip";
+    chip.textContent = assumption;
+    assumptions.append(chip);
+  }
+  for (const candidate of replay.candidates) {
+    const complete = candidate.status === "complete";
+    const status = complete
+      ? pill("Complete", "good")
+      : pill("Stopped", "warn");
+    status.title = candidate.failureReason === null
+      ? "All interval paths certified"
+      : `${candidate.failureReason} at checkpoint #${candidate.failureRunId}`;
+    const row = document.createElement("tr");
+    row.append(
+      cell(candidate.rank === null ? "—" : `#${candidate.rank}`, "number mono"),
+      cell(`${candidate.halfWidthSpacings} × ${replay.tickSpacing}`, "number mono"),
+      cell(status),
+      cell(`${candidate.completedIntervals} / ${replay.intervalCount}`, "number mono"),
+      cell(candidate.rebalances.toLocaleString(), "number"),
+      cell(quoteAmount(candidate.feeValueQuote, replay.quoteDecimals), "number claimable"),
+      cell(quoteAmount(candidate.totalCostQuote, replay.quoteDecimals), "number"),
+      cell(ppmPercent(candidate.maxDrawdownPpm), "number"),
+      cell(quoteAmount(candidate.absolutePnlQuote, replay.quoteDecimals, true), "number"),
+      cell(quoteAmount(candidate.lpAlphaQuote, replay.quoteDecimals, true), "number"),
+      cell(quoteAmount(candidate.finalNavQuote, replay.quoteDecimals), "number"),
+    );
+    body.append(row);
+  }
+}
+
 function renderStableFeeBaseline(baseline) {
   const empty = baseline === null || baseline === undefined;
   element("baseline-empty").classList.toggle("hidden", !empty);
@@ -621,6 +682,7 @@ function render(data) {
   renderPrincipal(data.principal);
   renderTrackedNftPositions(data.trackedNftPositions ?? []);
   renderRangeSimulation(data.rangeSimulation);
+  renderRangePolicyReplay(data.rangePolicyReplay);
   renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);

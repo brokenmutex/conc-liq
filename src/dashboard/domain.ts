@@ -275,6 +275,46 @@ export interface RangeSimulationView {
   readonly toRunId: string;
 }
 
+export interface RangePolicyReplayCandidateRow {
+  readonly absolutePnlQuote: string | null;
+  readonly completedIntervals: number;
+  readonly failureReason: string | null;
+  readonly failureRunId: string | null;
+  readonly feeValueQuote: string;
+  readonly finalNavQuote: string | null;
+  readonly halfWidthSpacings: number;
+  readonly lpAlphaQuote: string | null;
+  readonly maxDrawdownPpm: string;
+  readonly rank: number | null;
+  readonly rebalances: number;
+  readonly status: string;
+  readonly totalCostQuote: string;
+}
+
+export interface RangePolicyReplayView {
+  readonly assumptions: readonly string[];
+  readonly budgetQuote: string;
+  readonly candidates: readonly RangePolicyReplayCandidateRow[];
+  readonly checkpointCount: number;
+  readonly completedCandidates: number;
+  readonly computedAt: string;
+  readonly entryCostQuote: string;
+  readonly excludedCandidates: number;
+  readonly fee: number;
+  readonly firstBlock: string;
+  readonly firstRunId: string;
+  readonly intervalCount: number;
+  readonly lastBlock: string;
+  readonly lastRunId: string;
+  readonly poolAddress: string;
+  readonly quoteDecimals: number;
+  readonly rebalanceCostQuote: string;
+  readonly replayRunId: string;
+  readonly rwaSymbol: string;
+  readonly tickSpacing: number;
+  readonly triggerPercent: number;
+}
+
 export interface StableFeeBaselineView {
   readonly baselineId: string;
   readonly blockDelta: string;
@@ -302,6 +342,7 @@ export interface DashboardSnapshot {
   readonly pools: readonly PoolRow[];
   readonly positions: readonly PositionCoverageRow[];
   readonly principal: PrincipalAccountingView | null;
+  readonly rangePolicyReplay: RangePolicyReplayView | null;
   readonly rangeSimulation: RangeSimulationView | null;
   readonly refreshMs: number;
   readonly riskGate: RiskGateDecision;
