@@ -753,6 +753,122 @@ CREATE TABLE IF NOT EXISTS v3_range_policy_replay_steps (
   )
 );
 
+CREATE TABLE IF NOT EXISTS v3_range_oracle_calibration_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  first_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  last_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  quote_token TEXT NOT NULL,
+  quote_decimals INTEGER NOT NULL,
+  rwa_decimals INTEGER NOT NULL,
+  rwa_feed_address TEXT NOT NULL,
+  quote_feed_address TEXT NOT NULL,
+  max_price_age_seconds INTEGER NOT NULL,
+  registry_fetched_at TIMESTAMPTZ NOT NULL,
+  registry_sha256 TEXT NOT NULL,
+  registry_url TEXT NOT NULL,
+  feed_directory_fetched_at TIMESTAMPTZ NOT NULL,
+  feed_directory_sha256 TEXT NOT NULL,
+  feed_directory_url TEXT NOT NULL,
+  calibration_hash TEXT NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  valid_marks INTEGER NOT NULL,
+  excluded_marks INTEGER NOT NULL,
+  assumptions JSONB NOT NULL,
+  registry_asset JSONB NOT NULL,
+  rwa_feed JSONB NOT NULL,
+  quote_feed JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, first_accounting_run_id,
+    last_accounting_run_id, pool_address, calibration_hash
+  ),
+  CHECK (first_accounting_run_id <> last_accounting_run_id),
+  CHECK (quote_decimals = 6),
+  CHECK (rwa_decimals BETWEEN 0 AND 255),
+  CHECK (max_price_age_seconds > 0),
+  CHECK (valid_marks >= 0 AND excluded_marks >= 0),
+  CHECK (valid_marks + excluded_marks >= 2),
+  CHECK (methodology = 'block_pinned_multiplier_adjusted_oracle_basis_v1'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_range_oracle_calibration_runs_latest_idx
+  ON v3_range_oracle_calibration_runs (
+    stream_key, computed_at DESC, id DESC
+  );
+
+CREATE TABLE IF NOT EXISTS v3_range_oracle_calibration_marks (
+  calibration_run_id BIGINT NOT NULL
+    REFERENCES v3_range_oracle_calibration_runs(id) ON DELETE CASCADE,
+  accounting_run_id BIGINT NOT NULL REFERENCES v3_fee_accounting_runs(id),
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  pool_price_x18 NUMERIC(78, 0) NOT NULL,
+  oracle_price_x18 NUMERIC(78, 0),
+  deviation_ppm NUMERIC(78, 0),
+  rwa_oracle_answer NUMERIC(78, 0),
+  rwa_oracle_updated_at NUMERIC(78, 0),
+  rwa_oracle_age_seconds BIGINT,
+  quote_oracle_answer NUMERIC(78, 0),
+  quote_oracle_updated_at NUMERIC(78, 0),
+  quote_oracle_age_seconds BIGINT,
+  token_decimals INTEGER,
+  token_ui_multiplier NUMERIC(78, 0),
+  token_new_ui_multiplier NUMERIC(78, 0),
+  token_multiplier_effective_at NUMERIC(78, 0),
+  token_oracle_paused BOOLEAN,
+  mark JSONB NOT NULL,
+  PRIMARY KEY (calibration_run_id, accounting_run_id),
+  CHECK (pool_price_x18 > 0),
+  CHECK (oracle_price_x18 IS NULL OR oracle_price_x18 > 0),
+  CHECK (
+    rwa_oracle_age_seconds IS NULL OR rwa_oracle_age_seconds >= 0
+  ),
+  CHECK (
+    quote_oracle_age_seconds IS NULL OR quote_oracle_age_seconds >= 0
+  ),
+  CHECK (
+    (status = 'valid' AND jsonb_array_length(reasons) = 0 AND
+      oracle_price_x18 IS NOT NULL AND deviation_ppm IS NOT NULL AND
+      rwa_oracle_answer IS NOT NULL AND rwa_oracle_answer > 0 AND
+      quote_oracle_answer IS NOT NULL AND quote_oracle_answer > 0 AND
+      token_ui_multiplier IS NOT NULL AND token_ui_multiplier > 0 AND
+      token_new_ui_multiplier = token_ui_multiplier AND
+      token_oracle_paused = FALSE) OR
+    (status = 'excluded' AND jsonb_array_length(reasons) > 0)
+  )
+);
+
+ALTER TABLE v3_range_oracle_calibration_marks
+  ADD COLUMN IF NOT EXISTS token_decimals INTEGER;
+
+DO $migration$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_range_oracle_calibration_marks_token_decimals'
+      AND conrelid = 'v3_range_oracle_calibration_marks'::regclass
+  ) THEN
+    ALTER TABLE v3_range_oracle_calibration_marks
+      ADD CONSTRAINT v3_range_oracle_calibration_marks_token_decimals
+      CHECK (
+        (token_decimals IS NULL OR token_decimals BETWEEN 0 AND 255) AND
+        (status = 'excluded' OR token_decimals IS NOT NULL)
+      );
+  END IF;
+END
+$migration$;
+
 CREATE TABLE IF NOT EXISTS v3_stable_fee_baseline_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

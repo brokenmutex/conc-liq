@@ -10,6 +10,8 @@ import type {
   FeeAccountingPoolRow,
   FeeAccountingRunRow,
   FeeAccountingView,
+  OracleCalibrationMarkRow,
+  OracleCalibrationView,
   PoolRow,
   PositionCoverageRow,
   PrincipalAccountingView,
@@ -320,6 +322,40 @@ interface RangePolicyReplayCandidateDbRow {
   rebalances: number;
   status: string;
   total_cost_quote: string;
+}
+
+interface OracleCalibrationDbRow {
+  assumptions: unknown;
+  computed_at: Date;
+  excluded_marks: number;
+  feed_directory_fetched_at: Date;
+  feed_directory_sha256: string;
+  fee: number;
+  first_run_id: string;
+  id: string;
+  last_run_id: string;
+  max_price_age_seconds: number;
+  pool_address: string;
+  quote_feed_address: string;
+  rwa_feed_address: string;
+  rwa_symbol: string;
+  valid_marks: number;
+}
+
+interface OracleCalibrationMarkDbRow {
+  accounting_run_id: string;
+  block_number: string;
+  block_timestamp: string;
+  deviation_ppm: string | null;
+  oracle_price_x18: string | null;
+  pool_price_x18: string;
+  quote_oracle_age_seconds: string | null;
+  reasons: unknown;
+  rwa_oracle_age_seconds: string | null;
+  status: string;
+  token_new_ui_multiplier: string | null;
+  token_oracle_paused: boolean | null;
+  token_ui_multiplier: string | null;
 }
 
 function iso(value: Date | null): string | null {
@@ -757,6 +793,75 @@ async function rangePolicyReplay(
   };
 }
 
+async function oracleCalibration(
+  client: PoolClient,
+  streamKey: string,
+): Promise<OracleCalibrationView | null> {
+  const result = await client.query<OracleCalibrationDbRow>(
+    `SELECT c.id, c.computed_at, c.pool_address, c.rwa_symbol, c.fee,
+            c.max_price_age_seconds, c.rwa_feed_address,
+            c.quote_feed_address, c.feed_directory_fetched_at,
+            c.feed_directory_sha256, c.valid_marks, c.excluded_marks,
+            c.assumptions,
+            c.first_accounting_run_id::text AS first_run_id,
+            c.last_accounting_run_id::text AS last_run_id
+     FROM v3_range_oracle_calibration_runs c
+     WHERE c.stream_key = $1
+     ORDER BY c.computed_at DESC, c.id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const calibration = result.rows[0];
+  if (calibration === undefined) return null;
+  const marks = await client.query<OracleCalibrationMarkDbRow>(
+    `SELECT m.accounting_run_id::text, a.block_number::text,
+            m.mark->>'blockTimestamp' AS block_timestamp, m.status,
+            m.reasons, m.pool_price_x18::text, m.oracle_price_x18::text,
+            m.deviation_ppm::text, m.rwa_oracle_age_seconds::text,
+            m.quote_oracle_age_seconds::text,
+            m.token_ui_multiplier::text,
+            m.token_new_ui_multiplier::text, m.token_oracle_paused
+     FROM v3_range_oracle_calibration_marks m
+     JOIN v3_fee_accounting_runs a ON a.id = m.accounting_run_id
+     WHERE m.calibration_run_id = $1
+     ORDER BY a.block_number, a.id`,
+    [calibration.id],
+  );
+  const mapped: OracleCalibrationMarkRow[] = marks.rows.map((mark) => ({
+    accountingRunId: mark.accounting_run_id,
+    blockNumber: mark.block_number,
+    blockTimestamp: mark.block_timestamp,
+    deviationPpm: mark.deviation_ppm,
+    oraclePaused: mark.token_oracle_paused,
+    oraclePriceX18: mark.oracle_price_x18,
+    poolPriceX18: mark.pool_price_x18,
+    quoteOracleAgeSeconds: mark.quote_oracle_age_seconds,
+    reasons: stringArray(mark.reasons),
+    rwaOracleAgeSeconds: mark.rwa_oracle_age_seconds,
+    status: mark.status,
+    tokenNewUiMultiplier: mark.token_new_ui_multiplier,
+    tokenUiMultiplier: mark.token_ui_multiplier,
+  }));
+  return {
+    assumptions: stringArray(calibration.assumptions),
+    calibrationRunId: calibration.id,
+    computedAt: calibration.computed_at.toISOString(),
+    excludedMarks: calibration.excluded_marks,
+    feedDirectoryFetchedAt: calibration.feed_directory_fetched_at.toISOString(),
+    feedDirectorySha256: calibration.feed_directory_sha256,
+    fee: calibration.fee,
+    firstRunId: calibration.first_run_id,
+    lastRunId: calibration.last_run_id,
+    marks: mapped,
+    maxPriceAgeSeconds: calibration.max_price_age_seconds,
+    poolAddress: calibration.pool_address,
+    quoteFeedAddress: calibration.quote_feed_address,
+    rwaFeedAddress: calibration.rwa_feed_address,
+    rwaSymbol: calibration.rwa_symbol,
+    validMarks: calibration.valid_marks,
+  };
+}
+
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
   const indexed = row.last_scanned_block === null ? null : BigInt(row.last_scanned_block);
   const replayed = row.complete_through_block === null
@@ -1091,6 +1196,10 @@ export class DashboardRepository {
         ),
         activity: await activity(client, this.config),
         attempts: await attempts(client),
+        oracleCalibration: await oracleCalibration(
+          client,
+          this.config.streamKey,
+        ),
         overview: await overview(client, this.config.streamKey),
         pools: await pools(client, this.config.streamKey),
         positions: await positions(client, this.config.streamKey),

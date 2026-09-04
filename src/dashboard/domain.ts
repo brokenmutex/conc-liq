@@ -315,6 +315,41 @@ export interface RangePolicyReplayView {
   readonly triggerPercent: number;
 }
 
+export interface OracleCalibrationMarkRow {
+  readonly accountingRunId: string;
+  readonly blockNumber: string;
+  readonly blockTimestamp: string;
+  readonly deviationPpm: string | null;
+  readonly oraclePaused: boolean | null;
+  readonly oraclePriceX18: string | null;
+  readonly poolPriceX18: string;
+  readonly quoteOracleAgeSeconds: string | null;
+  readonly reasons: readonly string[];
+  readonly rwaOracleAgeSeconds: string | null;
+  readonly status: string;
+  readonly tokenNewUiMultiplier: string | null;
+  readonly tokenUiMultiplier: string | null;
+}
+
+export interface OracleCalibrationView {
+  readonly assumptions: readonly string[];
+  readonly calibrationRunId: string;
+  readonly computedAt: string;
+  readonly excludedMarks: number;
+  readonly feedDirectoryFetchedAt: string;
+  readonly feedDirectorySha256: string;
+  readonly fee: number;
+  readonly firstRunId: string;
+  readonly lastRunId: string;
+  readonly marks: readonly OracleCalibrationMarkRow[];
+  readonly maxPriceAgeSeconds: number;
+  readonly poolAddress: string;
+  readonly quoteFeedAddress: string;
+  readonly rwaFeedAddress: string;
+  readonly rwaSymbol: string;
+  readonly validMarks: number;
+}
+
 export interface StableFeeBaselineView {
   readonly baselineId: string;
   readonly blockDelta: string;
@@ -338,6 +373,7 @@ export interface DashboardSnapshot {
   readonly accountingHistory: readonly FeeAccountingRunRow[];
   readonly activity: readonly ActivityBucket[];
   readonly attempts: readonly RiskAttemptRow[];
+  readonly oracleCalibration: OracleCalibrationView | null;
   readonly overview: DashboardOverview;
   readonly pools: readonly PoolRow[];
   readonly positions: readonly PositionCoverageRow[];

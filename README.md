@@ -405,6 +405,44 @@ Pool spot is not an oracle mark, and operator-supplied costs are illustrative
 rather than measured gas, approval, mint, burn, collect, or swap costs. Results
 remain execution-ineligible and are not pool recommendations.
 
+## Block-pinned oracle calibration
+
+Compare each replay checkpoint's V3 spot price with the independent Chainlink
+RWA/USD and USDG/USD basis:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run oracle:calibrate -- \
+  --rwa NVDA \
+  --fee 500 \
+  --from-run 2 \
+  --to-run 7
+```
+
+Use `--lookback COUNT` instead of explicit endpoints for the newest 2–64
+accounting checkpoints. The command source-hashes the current canonical
+Robinhood asset registry and Chainlink feed directory, verifies the pool's RWA
+address and decimals, then reads both oracle rounds and the RWA token's
+multiplier/pause state at every historical checkpoint block.
+
+Both pool and oracle prices are stored as exact floor-rounded x18 USDG per RWA
+values. The oracle basis divides Chainlink's multiplier-adjusted RWA/USD answer
+by USDG/USD; it deliberately does not apply `uiMultiplier()` a second time.
+Signed pool deviation is stored in parts per million.
+
+A mark is valid only when both rounds are positive, complete, description- and
+decimal-matched, and within the strict `RISK_MAX_PRICE_AGE_SECONDS` ceiling at
+that historical block. Token state must also be readable, unpaused, and outside
+a multiplier transition. Invalid marks retain their observed price and reason
+for diagnosis but are stored as `excluded` and cannot be treated as a valid
+valuation input. Runs and marks are immutable and idempotent in
+`v3_range_oracle_calibration_runs` and
+`v3_range_oracle_calibration_marks`; all remain execution-ineligible.
+
 ## Stable-position fee interval baseline
 
 Compare two exact accounting checkpoints and persist a conservative raw-token
@@ -561,6 +599,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
   paths, explicit costs, absolute P&L, and LP alpha versus holding;
 - the latest stateful multi-checkpoint replay, including certified progress,
   recenter count, drawdown, total illustrative costs, and net LP alpha;
+- the latest block-pinned pool/oracle basis, including feed ages, multiplier
+  guards, signed spot deviation, and explicit excluded marks;
 - the latest stable-position interval benchmark, its coverage exclusions, and
   exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and
@@ -642,12 +682,15 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next simulator gate replaces pool-spot marks and illustrative costs with
-fresh multiplier-adjusted oracle marks plus measured approval, mint, burn,
-collect, gas, and swap-cost observations. After that calibration, collect a
-longer checkpoint series and require robust net LP alpha across adverse windows
-before defining a manually approved, tightly bounded canary. The stable-
-position interval remains the fee-truth comparator.
+The next simulator gate adds exact replay inventory at each checkpoint so only
+valid oracle calibrations can produce oracle-marked NAV and LP alpha. A lighter
+pool/oracle checkpoint cadence is needed to capture marks near feed updates;
+the default strict five-minute freshness ceiling correctly excludes older
+rounds. In parallel, replace illustrative costs with measured approval, mint,
+burn, collect, L2 gas, L1 data, and swap-cost observations. Then require robust
+net LP alpha across a longer adverse-window sample before defining a manually
+approved, tightly bounded canary. The stable-position interval remains the
+fee-truth comparator.
 
 ## Source-of-truth addresses
 

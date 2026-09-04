@@ -137,6 +137,27 @@ function ppmPercent(value) {
   return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""}%`;
 }
 
+function signedPpmPercent(value) {
+  if (value === null) return document.createTextNode("—");
+  const raw = BigInt(value);
+  const node = document.createElement("span");
+  node.className = "mono raw-amount";
+  node.textContent = `${raw > 0n ? "+" : raw < 0n ? "-" : ""}${ppmPercent(raw < 0n ? -raw : raw)}`;
+  if (raw > 0n) node.classList.add("pnl-positive");
+  if (raw < 0n) node.classList.add("pnl-negative");
+  node.title = `${value} ppm`;
+  return node;
+}
+
+function oraclePrice(value, symbol) {
+  if (value === null) return document.createTextNode("—");
+  const node = document.createElement("span");
+  node.className = "mono raw-amount";
+  node.textContent = `${displayTokenAmount(value, 18)} USDG/${symbol}`;
+  node.title = `x18: ${value}`;
+  return node;
+}
+
 function renderOverview(data) {
   const { overview, riskGate } = data;
   const exact = overview.sync.blockLag === "0" && overview.sync.hashesMatch === true;
@@ -545,6 +566,77 @@ function renderRangePolicyReplay(replay) {
   }
 }
 
+function renderOracleCalibration(calibration) {
+  const empty = calibration === null || calibration === undefined;
+  element("oracle-calibration-empty").classList.toggle("hidden", !empty);
+  element("oracle-calibration-table").classList.toggle("hidden", empty);
+  element("oracle-calibration-audit").classList.toggle("hidden", empty);
+  const assumptions = element("oracle-calibration-assumptions");
+  assumptions.classList.toggle("hidden", empty);
+  assumptions.replaceChildren();
+  const body = element("oracle-calibration-body");
+  body.replaceChildren();
+  if (empty) return;
+  setText(
+    "oracle-calibration-run",
+    `#${calibration.calibrationRunId} · ${calibration.rwaSymbol} ${feeLabel(calibration.fee)}`,
+  );
+  setText(
+    "oracle-calibration-window",
+    `#${calibration.firstRunId} → #${calibration.lastRunId}`,
+  );
+  setText(
+    "oracle-calibration-coverage",
+    `${calibration.validMarks} valid / ${calibration.excludedMarks} excluded · max ${duration(String(calibration.maxPriceAgeSeconds))}`,
+  );
+  setText(
+    "oracle-calibration-source",
+    calibration.feedDirectorySha256.slice(0, 19),
+  );
+  element("oracle-calibration-source").title =
+    `${calibration.feedDirectorySha256} · fetched ${calibration.feedDirectoryFetchedAt}`;
+  for (const assumption of calibration.assumptions) {
+    const chip = document.createElement("span");
+    chip.className = "reason-chip";
+    chip.textContent = assumption;
+    assumptions.append(chip);
+  }
+  for (const mark of calibration.marks) {
+    const stableMultiplier = mark.tokenUiMultiplier !== null &&
+      mark.tokenUiMultiplier === mark.tokenNewUiMultiplier &&
+      mark.oraclePaused === false;
+    const guard = stableMultiplier
+      ? pill("Stable", "good")
+      : pill(mark.oraclePaused ? "Paused" : "Transition", "warn");
+    guard.title = mark.tokenUiMultiplier === null
+      ? "Token risk state unavailable"
+      : `ui ${mark.tokenUiMultiplier} · next ${mark.tokenNewUiMultiplier}`;
+    const status = mark.status === "valid"
+      ? pill("Valid", "good")
+      : pill("Excluded", "warn");
+    status.title = mark.reasons.length === 0
+      ? "Fresh, positive, complete oracle rounds"
+      : mark.reasons.join(", ");
+    const block = document.createElement("span");
+    block.className = "mono";
+    block.textContent = blockNumber(mark.blockNumber);
+    block.title = mark.blockTimestamp;
+    const row = document.createElement("tr");
+    row.append(
+      cell(`#${mark.accountingRunId}`, "number mono"),
+      cell(block, "number"),
+      cell(oraclePrice(mark.poolPriceX18, calibration.rwaSymbol), "number"),
+      cell(oraclePrice(mark.oraclePriceX18, calibration.rwaSymbol), "number"),
+      cell(signedPpmPercent(mark.deviationPpm), "number"),
+      cell(mark.rwaOracleAgeSeconds === null ? "—" : duration(mark.rwaOracleAgeSeconds), "number"),
+      cell(mark.quoteOracleAgeSeconds === null ? "—" : duration(mark.quoteOracleAgeSeconds), "number"),
+      cell(guard),
+      cell(status),
+    );
+    body.append(row);
+  }
+}
+
 function renderStableFeeBaseline(baseline) {
   const empty = baseline === null || baseline === undefined;
   element("baseline-empty").classList.toggle("hidden", !empty);
@@ -683,6 +775,7 @@ function render(data) {
   renderTrackedNftPositions(data.trackedNftPositions ?? []);
   renderRangeSimulation(data.rangeSimulation);
   renderRangePolicyReplay(data.rangePolicyReplay);
+  renderOracleCalibration(data.oracleCalibration);
   renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);

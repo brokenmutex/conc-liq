@@ -337,6 +337,56 @@
         </div>
       </section>
 
+      <section class="panel" id="oracle-calibration-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">INDEPENDENT PRICE BASIS</div>
+            <h2>Pool versus oracle calibration</h2>
+          </div>
+          <div class="panel-note">Block-pinned Chainlink rounds · multiplier-aware token guards · diagnostic only</div>
+        </div>
+        <div id="oracle-calibration-audit" class="gate-audit" aria-label="Oracle calibration audit">
+          <div>
+            <span>Calibration</span>
+            <strong id="oracle-calibration-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="oracle-calibration-window">—</strong>
+          </div>
+          <div>
+            <span>Usable marks</span>
+            <strong id="oracle-calibration-coverage">—</strong>
+          </div>
+          <div>
+            <span>Feed metadata</span>
+            <strong id="oracle-calibration-source">—</strong>
+          </div>
+        </div>
+        <div id="oracle-calibration-assumptions" class="reason-strip"></div>
+        <div id="oracle-calibration-empty" class="inline-empty hidden">
+          No block-pinned pool/oracle calibration has been persisted yet.
+        </div>
+        <div id="oracle-calibration-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Block</th>
+                <th>Pool spot</th>
+                <th>Oracle mark</th>
+                <th>Pool deviation</th>
+                <th>RWA age</th>
+                <th>USDG age</th>
+                <th>Token guard</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="oracle-calibration-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="baseline-panel">
         <div class="panel-heading">
           <div>

@@ -1,4 +1,5 @@
 import { keccak256, type Address, type Hash, type Hex } from "viem";
+import { erc20Abi } from "../abi.js";
 import type { RobinhoodClient } from "../client.js";
 import { aggregatorV3Abi, stockTokenRiskAbi } from "./abi.js";
 import type { OracleRoundState, TokenRiskState } from "./domain.js";
@@ -14,6 +15,7 @@ export interface RiskChainReader {
   getChainId(): Promise<number>;
   readOracle(address: Address, blockNumber: bigint): Promise<OracleRoundState>;
   readToken(address: Address, blockNumber: bigint): Promise<TokenRiskState>;
+  readTokenDecimals(address: Address, blockNumber: bigint): Promise<number>;
 }
 
 async function requireCode(
@@ -121,5 +123,17 @@ export class ViemRiskChainReader implements RiskChainReader {
       oraclePaused,
       uiMultiplier: uiMultiplier.toString(),
     };
+  }
+
+  public async readTokenDecimals(
+    address: Address,
+    blockNumber: bigint,
+  ): Promise<number> {
+    return this.client.readContract({
+      abi: erc20Abi,
+      address,
+      blockNumber,
+      functionName: "decimals",
+    });
   }
 }
