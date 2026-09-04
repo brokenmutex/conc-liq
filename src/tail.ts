@@ -8,6 +8,10 @@ import { loadRiskConfig } from "./risk/config.js";
 import { ViemRiskChainReader } from "./risk/reader.js";
 import { collectRiskSnapshot } from "./risk/runner.js";
 import { collectAndSaveRiskSnapshot, PostgresRiskStore } from "./risk/store.js";
+import { collectStrategyCheckpoint } from "./strategy-checkpoint/collector.js";
+import { loadStrategyCheckpointConfig } from "./strategy-checkpoint/config.js";
+import { ViemStrategyCheckpointReader } from "./strategy-checkpoint/reader.js";
+import { PostgresStrategyCheckpointStore } from "./strategy-checkpoint/store.js";
 import { loadTailConfig } from "./tail/config.js";
 import { PostgresTailLock } from "./tail/lock.js";
 import { calculateSafeHead, runTail } from "./tail/runner.js";
@@ -70,6 +74,8 @@ Environment:
   TAIL_ERROR_DELAY_MS             Initial retry delay (default 5000)
   TAIL_MAX_CONSECUTIVE_FAILURES   Exit after this many failures (default 5)
   RISK_SNAPSHOT_INTERVAL_MS       Risk-source cadence (default 60000)
+  STRATEGY_CHECKPOINT_ENABLED     Attach lightweight pool marks (default false)
+  STRATEGY_CHECKPOINT_CONCURRENCY Concurrent pool readers (default 4)
   RISK_MAX_PRICE_AGE_SECONDS      Strict price age ceiling (default 300)
   ROBINHOOD_MARKET_POLICY_URL     Official Stock Tokens market policy
   RISK_GATE_MAX_CANONICALITY_AGE_SECONDS  Gate-only validation age (default 30)
@@ -90,10 +96,12 @@ async function main(): Promise<void> {
   const indexerConfig = loadIndexerConfig();
   const replayConfig = loadReplayConfig();
   const riskConfig = loadRiskConfig();
+  const strategyConfig = loadStrategyCheckpointConfig();
   const tailConfig = loadTailConfig();
   const manifest = await loadPoolManifest(indexerConfig.poolsPath);
   const client = createRobinhoodClient(indexerConfig.rpcUrl, indexerConfig.rpcTimeoutMs);
   const riskReader = new ViemRiskChainReader(client);
+  const strategyReader = new ViemStrategyCheckpointReader(client);
   const head = await client.getBlockNumber();
   const safeHead = calculateSafeHead(head, indexerConfig.confirmationDepth);
   await validatePoolManifest(client, manifest, safeHead);
@@ -113,8 +121,12 @@ async function main(): Promise<void> {
 
   const lock = new PostgresTailLock(databaseUrl);
   const riskStore = new PostgresRiskStore(databaseUrl);
+  const strategyStore = strategyConfig.enabled
+    ? new PostgresStrategyCheckpointStore(databaseUrl)
+    : null;
   try {
     await riskStore.migrate();
+    await strategyStore?.migrate();
     await lock.acquire(indexerConfig.streamKey);
     await runTail({
       client,
@@ -135,6 +147,26 @@ async function main(): Promise<void> {
         }),
         store: riskStore,
       }),
+      strategyCheckpointter: strategyStore === null
+        ? undefined
+        : async (risk) => {
+          const checkpoint = await collectStrategyCheckpoint({
+            concurrency: strategyConfig.concurrency,
+            manifest,
+            reader: strategyReader,
+            risk,
+            streamKey: indexerConfig.streamKey,
+          });
+          const saved = await strategyStore.save(checkpoint);
+          log("info", saved.created
+            ? "tail_strategy_checkpoint_saved"
+            : "tail_strategy_checkpoint_already_exists", {
+            blockNumber: checkpoint.blockNumber,
+            checkpointRunId: saved.checkpointRunId,
+            excludedPools: checkpoint.excludedPools,
+            validPools: checkpoint.validPools,
+          });
+        },
       tailConfig,
     });
   } finally {
@@ -142,6 +174,7 @@ async function main(): Promise<void> {
     process.removeListener("SIGTERM", stop);
     await lock.close();
     await riskStore.close();
+    await strategyStore?.close();
   }
 }
 

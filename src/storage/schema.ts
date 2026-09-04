@@ -1004,4 +1004,71 @@ CREATE TABLE IF NOT EXISTS risk_snapshot_canonicality (
 
 CREATE INDEX IF NOT EXISTS risk_snapshot_canonicality_latest_idx
   ON risk_snapshot_canonicality (validated_at DESC, risk_run_id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_strategy_checkpoint_runs (
+  id BIGSERIAL PRIMARY KEY,
+  risk_run_id BIGINT NOT NULL UNIQUE
+    REFERENCES risk_snapshot_runs(id) ON DELETE CASCADE,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  block_timestamp TIMESTAMPTZ NOT NULL,
+  captured_at TIMESTAMPTZ NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  valid_pools INTEGER NOT NULL,
+  excluded_pools INTEGER NOT NULL,
+  assumptions JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  CHECK (schema_version = 1),
+  CHECK (methodology = 'synchronized_risk_pool_checkpoint_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (valid_pools >= 0 AND excluded_pools >= 0),
+  CHECK (valid_pools + excluded_pools > 0)
+);
+
+CREATE INDEX IF NOT EXISTS v3_strategy_checkpoint_runs_latest_idx
+  ON v3_strategy_checkpoint_runs (stream_key, block_number DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_strategy_pool_checkpoints (
+  checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  rwa_address TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  tick INTEGER NOT NULL,
+  sqrt_price_x96 NUMERIC(78, 0) NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  fee_growth_global0_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_global1_x128 NUMERIC(78, 0) NOT NULL,
+  pool_unlocked BOOLEAN NOT NULL,
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  pool_price_x18 NUMERIC(78, 0) NOT NULL,
+  oracle_price_x18 NUMERIC(78, 0),
+  deviation_ppm NUMERIC(78, 0),
+  rwa_oracle_round_id NUMERIC(78, 0),
+  quote_oracle_round_id NUMERIC(78, 0),
+  token_decimals INTEGER,
+  checkpoint JSONB NOT NULL,
+  PRIMARY KEY (checkpoint_run_id, pool_address),
+  CHECK (fee > 0 AND fee <= 1000000),
+  CHECK (sqrt_price_x96 > 0 AND liquidity >= 0),
+  CHECK (fee_growth_global0_x128 >= 0 AND fee_growth_global1_x128 >= 0),
+  CHECK (pool_price_x18 > 0),
+  CHECK (oracle_price_x18 IS NULL OR oracle_price_x18 > 0),
+  CHECK (token_decimals IS NULL OR token_decimals BETWEEN 0 AND 255),
+  CHECK (
+    (status = 'valid' AND jsonb_array_length(reasons) = 0 AND
+      pool_unlocked AND liquidity > 0 AND oracle_price_x18 IS NOT NULL AND
+      deviation_ppm IS NOT NULL AND token_decimals IS NOT NULL) OR
+    (status = 'excluded' AND jsonb_array_length(reasons) > 0)
+  )
+);
 `;

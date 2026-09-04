@@ -1,11 +1,15 @@
 import type { CanonicalRangeReplayCheckpoint } from "../simulator/domain.js";
 import type {
   OracleFeedMetadata,
+  OracleRiskSnapshot,
   OracleRoundState,
   TokenRiskState,
 } from "../risk/domain.js";
 import { evaluateOracleRisk } from "../risk/evaluate.js";
-import type { OracleCalibrationMark } from "./domain.js";
+import type {
+  OracleCalibrationMark,
+  OracleValuationMark,
+} from "./domain.js";
 import {
   oracleQuotePerRwaX18,
   poolQuotePerRwaX18,
@@ -54,9 +58,50 @@ export function evaluateOracleCalibrationMark(input: {
     readError: input.quoteOracleReadError,
     state: input.quoteOracle,
   });
+  return {
+    accountingRunId: input.checkpoint.run.runId,
+    ...evaluateOracleValuationMark({
+      blockNumber: input.checkpoint.run.blockNumber.toString(),
+      blockTimestamp: input.checkpoint.run.blockTimestamp,
+      quoteDecimals: input.quoteDecimals,
+      quoteOracle: quoteRisk,
+      quoteToken: input.quoteToken,
+      rwaDecimals: input.rwaDecimals,
+      rwaOracle: rwaRisk,
+      sqrtPriceX96: input.checkpoint.pool.sqrtPriceX96,
+      token: input.token,
+      tokenDecimals: input.tokenDecimals,
+      tokenDecimalsReadError: input.tokenDecimalsReadError,
+      token0: input.token0,
+      token1: input.token1,
+      tokenReadError: input.tokenReadError,
+    }),
+  };
+}
+
+export function evaluateOracleValuationMark(input: {
+  readonly blockNumber: string;
+  readonly blockTimestamp: string;
+  readonly quoteDecimals: number;
+  readonly quoteOracle: OracleRiskSnapshot | null;
+  readonly quoteToken: string;
+  readonly rwaDecimals: number;
+  readonly rwaOracle: OracleRiskSnapshot | null;
+  readonly sqrtPriceX96: bigint;
+  readonly token: TokenRiskState | null;
+  readonly tokenDecimals: number | null;
+  readonly tokenDecimalsReadError?: string;
+  readonly token0: string;
+  readonly token1: string;
+  readonly tokenReadError?: string;
+}): OracleValuationMark {
   const reasons = [
-    ...rwaRisk.reasons.map((reason) => `rwa_${reason}`),
-    ...quoteRisk.reasons.map((reason) => `quote_${reason}`),
+    ...(input.rwaOracle === null
+      ? ["rwa_oracle_feed_missing"]
+      : input.rwaOracle.reasons.map((reason) => `rwa_${reason}`)),
+    ...(input.quoteOracle === null
+      ? ["quote_oracle_feed_missing"]
+      : input.quoteOracle.reasons.map((reason) => `quote_${reason}`)),
   ];
   if (input.token === null) {
     reasons.push("token_risk_read_failed");
@@ -78,21 +123,23 @@ export function evaluateOracleCalibrationMark(input: {
     quoteDecimals: input.quoteDecimals,
     quoteToken: input.quoteToken,
     rwaDecimals: input.tokenDecimals ?? input.rwaDecimals,
-    sqrtPriceX96: input.checkpoint.pool.sqrtPriceX96,
+    sqrtPriceX96: input.sqrtPriceX96,
     token0: input.token0,
     token1: input.token1,
   });
   let oraclePrice: bigint | null = null;
+  const rwaState = input.rwaOracle?.state ?? null;
+  const quoteState = input.quoteOracle?.state ?? null;
   if (
-    input.rwaOracle !== null && input.quoteOracle !== null &&
-    BigInt(input.rwaOracle.answer) > 0n &&
-    BigInt(input.quoteOracle.answer) > 0n
+    rwaState !== null && quoteState !== null &&
+    BigInt(rwaState.answer) > 0n &&
+    BigInt(quoteState.answer) > 0n
   ) {
     oraclePrice = oracleQuotePerRwaX18({
-      quoteAnswer: BigInt(input.quoteOracle.answer),
-      quoteFeedDecimals: input.quoteOracle.decimals,
-      rwaAnswer: BigInt(input.rwaOracle.answer),
-      rwaFeedDecimals: input.rwaOracle.decimals,
+      quoteAnswer: BigInt(quoteState.answer),
+      quoteFeedDecimals: quoteState.decimals,
+      rwaAnswer: BigInt(rwaState.answer),
+      rwaFeedDecimals: rwaState.decimals,
     });
   }
   const deviation = oraclePrice === null
@@ -100,22 +147,21 @@ export function evaluateOracleCalibrationMark(input: {
     : signedDeviationPpm(oraclePrice, poolPrice);
   const uniqueReasons = [...new Set(reasons)];
   return {
-    accountingRunId: input.checkpoint.run.runId,
-    blockNumber: input.checkpoint.run.blockNumber.toString(),
-    blockTimestamp: input.checkpoint.run.blockTimestamp,
+    blockNumber: input.blockNumber,
+    blockTimestamp: input.blockTimestamp,
     deviationPpm: deviation?.toString() ?? null,
     oraclePriceX18: oraclePrice?.toString() ?? null,
     poolPriceX18: poolPrice.toString(),
-    quoteOracle: input.quoteOracle,
-    quoteOracleAgeSeconds: quoteRisk.priceAgeSeconds,
-    quoteOracleReadError: input.quoteOracle === null
-      ? input.quoteOracleReadError ?? "Oracle read failed"
+    quoteOracle: quoteState,
+    quoteOracleAgeSeconds: input.quoteOracle?.priceAgeSeconds ?? null,
+    quoteOracleReadError: quoteState === null
+      ? input.quoteOracle?.readError ?? "Oracle feed unavailable"
       : null,
     reasons: uniqueReasons,
-    rwaOracle: input.rwaOracle,
-    rwaOracleAgeSeconds: rwaRisk.priceAgeSeconds,
-    rwaOracleReadError: input.rwaOracle === null
-      ? input.rwaOracleReadError ?? "Oracle read failed"
+    rwaOracle: rwaState,
+    rwaOracleAgeSeconds: input.rwaOracle?.priceAgeSeconds ?? null,
+    rwaOracleReadError: rwaState === null
+      ? input.rwaOracle?.readError ?? "Oracle feed unavailable"
       : null,
     status: uniqueReasons.length === 0 ? "valid" : "excluded",
     token: input.token,

@@ -7,8 +7,7 @@ import type {
   TokenRiskState,
 } from "../risk/domain.js";
 
-export interface OracleCalibrationMark {
-  readonly accountingRunId: string;
+export interface OracleValuationMark {
   readonly blockNumber: string;
   readonly blockTimestamp: string;
   readonly deviationPpm: string | null;
@@ -26,6 +25,10 @@ export interface OracleCalibrationMark {
   readonly tokenDecimals: number | null;
   readonly tokenDecimalsReadError: string | null;
   readonly tokenReadError: string | null;
+}
+
+export interface OracleCalibrationMark extends OracleValuationMark {
+  readonly accountingRunId: string;
 }
 
 export interface OracleCalibrationRun {

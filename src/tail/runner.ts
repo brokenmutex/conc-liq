@@ -134,6 +134,7 @@ export async function runTail(input: {
   readonly replayConfig: ReplayConfig;
   readonly riskCanonicalityValidator?: () => Promise<RiskCanonicalityValidation | null>;
   readonly riskSnapshotter?: (blockNumber: bigint) => Promise<RiskSnapshot>;
+  readonly strategyCheckpointter?: (snapshot: RiskSnapshot) => Promise<void>;
   readonly tailConfig: TailConfig;
 }): Promise<void> {
   let completedCycles = 0;
@@ -161,6 +162,15 @@ export async function runTail(input: {
             executionEligible: snapshot.executionEligible,
             reasons: snapshot.reasons,
           });
+          if (input.strategyCheckpointter !== undefined) {
+            try {
+              await input.strategyCheckpointter(snapshot);
+            } catch (error) {
+              log("error", "tail_strategy_checkpoint_failed", {
+                error: sanitizeRiskError(error),
+              });
+            }
+          }
         } catch (error) {
           log("error", "tail_risk_snapshot_failed", {
             error: sanitizeRiskError(error),

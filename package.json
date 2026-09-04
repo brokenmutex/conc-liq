@@ -26,6 +26,7 @@
     "risk:gate": "node --import tsx src/risk-gate.ts",
     "risk:snapshot": "node --import tsx src/risk.ts",
     "start": "node dist/src/index.js",
+    "strategy:checkpoint": "node --import tsx src/strategy-checkpoint.ts",
     "tail": "node --import tsx src/tail.ts",
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"

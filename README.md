@@ -584,6 +584,40 @@ Sources: [Robinhood oracle and corporate-action behavior](https://docs.robinhood
 [Chainlink Robinhood tokenized-equity feeds](https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood),
 and [Chainlink L2 sequencer feed availability](https://docs.chain.link/data-feeds/l2-sequencer-feeds).
 
+## Lightweight synchronized strategy checkpoints
+
+Capture pool state and oracle valuation at the exact block owned by a risk
+snapshot without running the full tick-and-position accounting scan:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run strategy:checkpoint
+```
+
+The command first stores the normal confirmation-safe risk snapshot. It then
+reads `slot0`, active liquidity, and both global fee-growth accumulators for
+every manifest pool at that same block. Token-decimal reads are deduplicated by
+RWA address. Pool/oracle prices use the exact calibration math, and a mark is
+excluded when either oracle is missing, invalid, or stale; the token is paused
+or changing multiplier; decimals disagree; liquidity is zero; or the pool is
+locked.
+
+Runs are immutable in `v3_strategy_checkpoint_runs` and
+`v3_strategy_pool_checkpoints`, reference their source `risk_snapshot_runs`
+row, and remain explicitly execution-ineligible. Valuation validity is not a
+live-trading authorization: sequencer, registry, market-policy, canonicality,
+and freshness gates still apply independently.
+
+The continuous tail can attach this lightweight capture to its existing risk
+cadence. It is disabled by default; set `STRATEGY_CHECKPOINT_ENABLED=true` only
+after reviewing the added RPC load. With the current 15-pool manifest, each
+capture adds 60 pool calls plus one decimals call per distinct RWA, instead of
+the roughly 11,000 calls needed by full accounting.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -674,6 +708,8 @@ worker remains the owner of collection and replay.
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
 | `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
 | `RISK_SNAPSHOT_INTERVAL_MS` | `60000` | Independent risk-source cadence |
+| `STRATEGY_CHECKPOINT_ENABLED` | `false` | Attach pool/oracle checkpoints to risk captures |
+| `STRATEGY_CHECKPOINT_CONCURRENCY` | `4` | Concurrent lightweight pool readers |
 | `DASHBOARD_HOST` | `127.0.0.1` | Loopback-only dashboard listener |
 | `DASHBOARD_PORT` | `4173` | Dashboard listener port |
 | `DASHBOARD_REFRESH_MS` | `10000` | Browser snapshot refresh cadence |
@@ -682,15 +718,13 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next simulator gate adds exact replay inventory at each checkpoint so only
-valid oracle calibrations can produce oracle-marked NAV and LP alpha. A lighter
-pool/oracle checkpoint cadence is needed to capture marks near feed updates;
-the default strict five-minute freshness ceiling correctly excludes older
-rounds. In parallel, replace illustrative costs with measured approval, mint,
-burn, collect, L2 gas, L1 data, and swap-cost observations. Then require robust
-net LP alpha across a longer adverse-window sample before defining a manually
-approved, tightly bounded canary. The stable-position interval remains the
-fee-truth comparator.
+The next simulator gate consumes the synchronized lightweight checkpoints and
+carries exact replay inventory so only valid oracle marks can produce
+oracle-marked NAV and LP alpha. In parallel, replace illustrative costs with
+measured approval, mint, burn, collect, L2 gas, L1 data, and swap-cost
+observations. Then require robust net LP alpha across a longer adverse-window
+sample before defining a manually approved, tightly bounded canary. The
+stable-position interval remains the fee-truth comparator.
 
 ## Source-of-truth addresses
 
