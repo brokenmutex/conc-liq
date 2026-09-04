@@ -307,6 +307,56 @@ deposit basis, withdrawals, collected-fee history, mark-to-market value,
 divergence loss, gas, or net PnL. Every row is execution-ineligible, and the
 repository still has no signer or transaction path.
 
+## Static range-policy simulator
+
+Compare multiple centered ranges over two immutable accounting checkpoints
+using the same starting USDG budget and an explicit operator-supplied cost:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run range:simulate -- \
+  --rwa NVDA \
+  --fee 500 \
+  --budget-usdg 1000 \
+  --cost-usdg 2 \
+  --half-widths 1,2,5,10,20,50
+```
+
+The half-width values are counts of the pool's canonical tick spacing. The
+command defaults to the newest two accounting runs; use `--from-run ID` and
+`--to-run ID` to pin an older interval. USDG inputs accept at most six decimal
+places and are converted to exact raw units without floating point.
+
+For each candidate, the simulator:
+
+- centers an aligned range at the first checkpoint;
+- finds the maximum liquidity supported by the common budget using canonical
+  floor-rounded principal math, retaining any rounding remainder as idle USDG;
+- proves the full indexed Swap tick path remained inside the range;
+- applies the observed endpoint global-fee-growth delta to candidate liquidity;
+- values end principal and fees in USDG at the ending pool spot price;
+- subtracts the configured cost once; and
+- reports divergence versus holding, absolute USDG P&L, and net LP alpha versus
+  holding the same post-entry token inventory.
+
+A range crossed by the observed path is stored as `excluded`; the simulator
+does not invent its in-range duration or fees. Completed candidates are ranked
+by net LP alpha. Runs and candidates are immutable and idempotent in
+`v3_range_simulation_runs` and `v3_range_simulation_candidates` and appear in
+the dashboard.
+
+This is a normalized shadow screen, not a profitability or execution claim.
+Principal arithmetic and observed fee-growth deltas are exact, but the
+counterfactual assumes the candidate did not change the observed price path or
+dilute fee growth. Valuation uses pool spot rather than a fresh Chainlink mark;
+the configured cost is not an estimate; and this first interval primitive does
+not rebalance, compound fees, or model entry swaps. Every result remains
+execution-ineligible.
+
 ## Stable-position fee interval baseline
 
 Compare two exact accounting checkpoints and persist a conservative raw-token
@@ -459,6 +509,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - the latest exact active-position principal and range distribution;
 - the latest exact owner, range, principal, and claimable fees for configured
   Position Manager NFTs;
+- the latest normalized static range-policy comparison, including excluded
+  paths, explicit costs, absolute P&L, and LP alpha versus holding;
 - the latest stable-position interval benchmark, its coverage exclusions, and
   exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and
@@ -540,11 +592,11 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next phase uses the accumulating exact checkpoint series and the per-NFT
-accounting primitives to build the generic range-policy simulator. The
-stable-position interval is the fee-truth comparator; the policy model still
-needs mark-to-market valuation, divergence loss, gas, rebalancing, and execution
-costs. It should remain shadow-only until those tests demonstrate net LP alpha.
+The next simulator slice chains the certified interval primitive across many
+checkpoints and adds stateful rebalance triggers, inventory carry, fresh oracle
+marks, and measured gas plus swap costs. The stable-position interval remains
+the fee-truth comparator. The model should remain shadow-only until a long
+enough series demonstrates robust net LP alpha across adverse windows.
 
 ## Source-of-truth addresses
 

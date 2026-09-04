@@ -489,6 +489,132 @@ CREATE INDEX IF NOT EXISTS v3_nft_position_snapshots_latest_idx
     position_manager, token_id, accounting_run_id DESC, id DESC
   );
 
+CREATE TABLE IF NOT EXISTS v3_range_simulation_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  from_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  to_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  quote_token TEXT NOT NULL,
+  quote_decimals INTEGER NOT NULL,
+  budget_quote NUMERIC(78, 0) NOT NULL,
+  cost_quote NUMERIC(78, 0) NOT NULL,
+  tick_spacing INTEGER NOT NULL,
+  path_min_tick INTEGER NOT NULL,
+  path_max_tick INTEGER NOT NULL,
+  swap_count NUMERIC(78, 0) NOT NULL,
+  policy_set_hash TEXT NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_candidates INTEGER NOT NULL,
+  excluded_candidates INTEGER NOT NULL,
+  assumptions JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, from_accounting_run_id,
+    to_accounting_run_id, pool_address, policy_set_hash
+  ),
+  CHECK (from_accounting_run_id <> to_accounting_run_id),
+  CHECK (quote_decimals = 6),
+  CHECK (budget_quote > 0 AND cost_quote >= 0 AND cost_quote <= budget_quote),
+  CHECK (tick_spacing > 0 AND path_min_tick <= path_max_tick),
+  CHECK (swap_count >= 0),
+  CHECK (completed_candidates >= 0 AND excluded_candidates >= 0),
+  CHECK (completed_candidates + excluded_candidates > 0),
+  CHECK (methodology = 'static_centered_observed_fee_growth_v1'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_range_simulation_runs_latest_idx
+  ON v3_range_simulation_runs (stream_key, computed_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_range_simulation_candidates (
+  simulation_run_id BIGINT NOT NULL
+    REFERENCES v3_range_simulation_runs(id) ON DELETE CASCADE,
+  half_width_spacings INTEGER NOT NULL,
+  tick_lower INTEGER NOT NULL,
+  tick_upper INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  exclusion_reason TEXT,
+  rank INTEGER,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  liquidity_share_ppm NUMERIC(78, 0) NOT NULL,
+  start_amount0 NUMERIC(78, 0) NOT NULL,
+  start_amount1 NUMERIC(78, 0) NOT NULL,
+  idle_quote NUMERIC(78, 0) NOT NULL,
+  end_amount0 NUMERIC(78, 0),
+  end_amount1 NUMERIC(78, 0),
+  fee0 NUMERIC(78, 0),
+  fee1 NUMERIC(78, 0),
+  end_principal_value_quote NUMERIC(78, 0),
+  fee_value_quote NUMERIC(78, 0),
+  gross_end_value_quote NUMERIC(78, 0),
+  net_end_value_quote NUMERIC(78, 0),
+  hodl_end_value_quote NUMERIC(78, 0),
+  divergence_quote NUMERIC(78, 0),
+  absolute_pnl_quote NUMERIC(78, 0),
+  lp_alpha_quote NUMERIC(78, 0),
+  PRIMARY KEY (simulation_run_id, half_width_spacings),
+  CHECK (half_width_spacings > 0 AND tick_lower < tick_upper),
+  CHECK (
+    liquidity >= 0 AND liquidity_share_ppm >= 0 AND
+    start_amount0 >= 0 AND start_amount1 >= 0 AND idle_quote >= 0
+  ),
+  CHECK (
+    (status = 'complete' AND exclusion_reason IS NULL AND
+      rank IS NOT NULL AND rank > 0 AND liquidity > 0 AND
+      end_amount0 IS NOT NULL AND end_amount0 >= 0 AND
+      end_amount1 IS NOT NULL AND end_amount1 >= 0 AND
+      fee0 IS NOT NULL AND fee0 >= 0 AND fee1 IS NOT NULL AND fee1 >= 0 AND
+      end_principal_value_quote IS NOT NULL AND
+      end_principal_value_quote >= 0 AND fee_value_quote IS NOT NULL AND
+      fee_value_quote >= 0 AND gross_end_value_quote IS NOT NULL AND
+      gross_end_value_quote >= 0 AND net_end_value_quote IS NOT NULL AND
+      hodl_end_value_quote IS NOT NULL AND hodl_end_value_quote >= 0 AND
+      divergence_quote IS NOT NULL AND absolute_pnl_quote IS NOT NULL AND
+      lp_alpha_quote IS NOT NULL) OR
+    (status = 'excluded' AND exclusion_reason IS NOT NULL AND rank IS NULL AND
+      end_amount0 IS NULL AND end_amount1 IS NULL AND fee0 IS NULL AND
+      fee1 IS NULL AND end_principal_value_quote IS NULL AND
+      fee_value_quote IS NULL AND gross_end_value_quote IS NULL AND
+      net_end_value_quote IS NULL AND hodl_end_value_quote IS NULL AND
+      divergence_quote IS NULL AND absolute_pnl_quote IS NULL AND
+      lp_alpha_quote IS NULL)
+  )
+);
+
+ALTER TABLE v3_range_simulation_candidates
+  ADD COLUMN IF NOT EXISTS divergence_quote NUMERIC(78, 0);
+
+UPDATE v3_range_simulation_candidates
+SET divergence_quote = end_principal_value_quote + idle_quote -
+  hodl_end_value_quote
+WHERE status = 'complete' AND divergence_quote IS NULL;
+
+DO $migration$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_range_simulation_candidates_divergence_status'
+      AND conrelid = 'v3_range_simulation_candidates'::regclass
+  ) THEN
+    ALTER TABLE v3_range_simulation_candidates
+      ADD CONSTRAINT v3_range_simulation_candidates_divergence_status
+      CHECK (
+        (status = 'complete' AND divergence_quote IS NOT NULL) OR
+        (status = 'excluded' AND divergence_quote IS NULL)
+      );
+  END IF;
+END
+$migration$;
+
 CREATE TABLE IF NOT EXISTS v3_stable_fee_baseline_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

@@ -14,6 +14,8 @@ import type {
   PositionCoverageRow,
   PrincipalAccountingView,
   PrincipalPoolRow,
+  RangeSimulationCandidateRow,
+  RangeSimulationView,
   RiskAttemptRow,
   RiskSourceEvidence,
   StableFeeBaselineView,
@@ -240,6 +242,43 @@ interface TrackedNftPositionDbRow {
   token1: string;
   token1_decimals: number;
   token_id: string;
+}
+
+interface RangeSimulationDbRow {
+  assumptions: unknown;
+  budget_quote: string;
+  completed_candidates: number;
+  computed_at: Date;
+  cost_quote: string;
+  excluded_candidates: number;
+  fee: number;
+  from_block: string;
+  from_run_id: string;
+  id: string;
+  path_max_tick: number;
+  path_min_tick: number;
+  pool_address: string;
+  quote_decimals: number;
+  rwa_symbol: string;
+  swap_count: string;
+  tick_spacing: number;
+  to_block: string;
+  to_run_id: string;
+}
+
+interface RangeSimulationCandidateDbRow {
+  absolute_pnl_quote: string | null;
+  divergence_quote: string | null;
+  exclusion_reason: string | null;
+  fee_value_quote: string | null;
+  half_width_spacings: number;
+  liquidity_share_ppm: string;
+  lp_alpha_quote: string | null;
+  net_end_value_quote: string | null;
+  rank: number | null;
+  status: string;
+  tick_lower: number;
+  tick_upper: number;
 }
 
 function iso(value: Date | null): string | null {
@@ -525,6 +564,79 @@ async function trackedNftPositions(
     token1Symbol: accountingTokenSymbol(row.token1, row.rwa_symbol),
     tokenId: row.token_id,
   }));
+}
+
+async function rangeSimulation(
+  client: PoolClient,
+  streamKey: string,
+): Promise<RangeSimulationView | null> {
+  const result = await client.query<RangeSimulationDbRow>(
+    `SELECT s.id, s.computed_at, s.pool_address, s.rwa_symbol, s.fee,
+            s.quote_decimals, s.budget_quote::text, s.cost_quote::text,
+            s.tick_spacing, s.path_min_tick, s.path_max_tick,
+            s.swap_count::text, s.completed_candidates,
+            s.excluded_candidates, s.assumptions,
+            s.from_accounting_run_id::text AS from_run_id,
+            s.to_accounting_run_id::text AS to_run_id,
+            f.block_number::text AS from_block,
+            t.block_number::text AS to_block
+     FROM v3_range_simulation_runs s
+     JOIN v3_fee_accounting_runs f ON f.id = s.from_accounting_run_id
+     JOIN v3_fee_accounting_runs t ON t.id = s.to_accounting_run_id
+     WHERE s.stream_key = $1
+     ORDER BY s.computed_at DESC, s.id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const simulation = result.rows[0];
+  if (simulation === undefined) return null;
+  const candidates = await client.query<RangeSimulationCandidateDbRow>(
+    `SELECT half_width_spacings, tick_lower, tick_upper, status,
+            exclusion_reason, rank, liquidity_share_ppm::text,
+            fee_value_quote::text, net_end_value_quote::text,
+            divergence_quote::text, absolute_pnl_quote::text,
+            lp_alpha_quote::text
+     FROM v3_range_simulation_candidates
+     WHERE simulation_run_id = $1
+     ORDER BY half_width_spacings`,
+    [simulation.id],
+  );
+  const mapped: RangeSimulationCandidateRow[] = candidates.rows.map((row) => ({
+    absolutePnlQuote: row.absolute_pnl_quote,
+    divergenceQuote: row.divergence_quote,
+    exclusionReason: row.exclusion_reason,
+    feeValueQuote: row.fee_value_quote,
+    halfWidthSpacings: row.half_width_spacings,
+    liquiditySharePpm: row.liquidity_share_ppm,
+    lpAlphaQuote: row.lp_alpha_quote,
+    netEndValueQuote: row.net_end_value_quote,
+    rank: row.rank,
+    status: row.status,
+    tickLower: row.tick_lower,
+    tickUpper: row.tick_upper,
+  }));
+  return {
+    assumptions: stringArray(simulation.assumptions),
+    budgetQuote: simulation.budget_quote,
+    candidates: mapped,
+    completedCandidates: simulation.completed_candidates,
+    computedAt: simulation.computed_at.toISOString(),
+    costQuote: simulation.cost_quote,
+    excludedCandidates: simulation.excluded_candidates,
+    fee: simulation.fee,
+    fromBlock: simulation.from_block,
+    fromRunId: simulation.from_run_id,
+    pathMaxTick: simulation.path_max_tick,
+    pathMinTick: simulation.path_min_tick,
+    poolAddress: simulation.pool_address,
+    quoteDecimals: simulation.quote_decimals,
+    rwaSymbol: simulation.rwa_symbol,
+    simulationRunId: simulation.id,
+    swapCount: simulation.swap_count,
+    tickSpacing: simulation.tick_spacing,
+    toBlock: simulation.to_block,
+    toRunId: simulation.to_run_id,
+  };
 }
 
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
@@ -865,6 +977,7 @@ export class DashboardRepository {
         pools: await pools(client, this.config.streamKey),
         positions: await positions(client, this.config.streamKey),
         principal: await principalAccounting(client, this.config.streamKey),
+        rangeSimulation: await rangeSimulation(client, this.config.streamKey),
         refreshMs: this.config.refreshMs,
         riskGate: await readRiskGate(
           client,

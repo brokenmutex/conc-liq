@@ -237,6 +237,44 @@ export interface TrackedNftPositionRow {
   readonly tokenId: string;
 }
 
+export interface RangeSimulationCandidateRow {
+  readonly absolutePnlQuote: string | null;
+  readonly divergenceQuote: string | null;
+  readonly exclusionReason: string | null;
+  readonly feeValueQuote: string | null;
+  readonly halfWidthSpacings: number;
+  readonly liquiditySharePpm: string;
+  readonly lpAlphaQuote: string | null;
+  readonly netEndValueQuote: string | null;
+  readonly rank: number | null;
+  readonly status: string;
+  readonly tickLower: number;
+  readonly tickUpper: number;
+}
+
+export interface RangeSimulationView {
+  readonly assumptions: readonly string[];
+  readonly budgetQuote: string;
+  readonly candidates: readonly RangeSimulationCandidateRow[];
+  readonly completedCandidates: number;
+  readonly computedAt: string;
+  readonly costQuote: string;
+  readonly excludedCandidates: number;
+  readonly fee: number;
+  readonly fromBlock: string;
+  readonly fromRunId: string;
+  readonly pathMaxTick: number;
+  readonly pathMinTick: number;
+  readonly poolAddress: string;
+  readonly quoteDecimals: number;
+  readonly rwaSymbol: string;
+  readonly simulationRunId: string;
+  readonly swapCount: string;
+  readonly tickSpacing: number;
+  readonly toBlock: string;
+  readonly toRunId: string;
+}
+
 export interface StableFeeBaselineView {
   readonly baselineId: string;
   readonly blockDelta: string;
@@ -264,6 +302,7 @@ export interface DashboardSnapshot {
   readonly pools: readonly PoolRow[];
   readonly positions: readonly PositionCoverageRow[];
   readonly principal: PrincipalAccountingView | null;
+  readonly rangeSimulation: RangeSimulationView | null;
   readonly refreshMs: number;
   readonly riskGate: RiskGateDecision;
   readonly riskAssets: readonly AssetRiskRow[];

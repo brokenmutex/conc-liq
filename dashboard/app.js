@@ -90,18 +90,25 @@ function rawAmount(value) {
 }
 
 function displayTokenAmount(value, decimals, precision = 6) {
-  const raw = BigInt(value);
-  if (decimals === 0) return raw.toLocaleString("en-US");
+  const signed = BigInt(value);
+  const negative = signed < 0n;
+  const raw = negative ? -signed : signed;
+  if (decimals === 0) {
+    return `${negative ? "-" : ""}${raw.toLocaleString("en-US")}`;
+  }
   const scale = 10n ** BigInt(decimals);
   const whole = raw / scale;
   const fraction = (raw % scale).toString().padStart(decimals, "0");
   const visible = fraction.slice(0, precision).replace(/0+$/, "");
+  let displayed;
   if (visible.length === 0) {
-    return raw % scale === 0n
+    displayed = raw % scale === 0n
       ? whole.toLocaleString("en-US")
       : `< ${whole === 0n ? "0." : `${whole.toLocaleString("en-US")}.`}${"0".repeat(precision - 1)}1`;
+  } else {
+    displayed = `${whole.toLocaleString("en-US")}.${visible}`;
   }
-  return `${whole.toLocaleString("en-US")}.${visible}`;
+  return negative ? `-${displayed}` : displayed;
 }
 
 function tokenAmount(value, decimals, symbol, detail) {
@@ -110,6 +117,24 @@ function tokenAmount(value, decimals, symbol, detail) {
   node.textContent = `${displayTokenAmount(value, decimals)} ${symbol}`;
   node.title = `raw: ${value}${detail ? ` · ${detail}` : ""}`;
   return node;
+}
+
+function quoteAmount(value, decimals, showSignTone = false) {
+  if (value === null) return document.createTextNode("—");
+  const node = tokenAmount(value, decimals, "USDG");
+  if (showSignTone) {
+    const raw = BigInt(value);
+    if (raw > 0n) node.classList.add("pnl-positive");
+    if (raw < 0n) node.classList.add("pnl-negative");
+  }
+  return node;
+}
+
+function ppmPercent(value) {
+  const ppm = BigInt(value);
+  const whole = ppm / 10_000n;
+  const fraction = (ppm % 10_000n).toString().padStart(4, "0").replace(/0+$/, "");
+  return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""}%`;
 }
 
 function renderOverview(data) {
@@ -400,6 +425,65 @@ function renderTrackedNftPositions(positions) {
   }
 }
 
+function renderRangeSimulation(simulation) {
+  const empty = simulation === null || simulation === undefined;
+  element("simulation-empty").classList.toggle("hidden", !empty);
+  element("simulation-table").classList.toggle("hidden", empty);
+  element("simulation-audit").classList.toggle("hidden", empty);
+  const assumptions = element("simulation-assumptions");
+  assumptions.classList.toggle("hidden", empty);
+  assumptions.replaceChildren();
+  const body = element("simulation-body");
+  body.replaceChildren();
+  if (empty) return;
+  setText(
+    "simulation-run",
+    `#${simulation.simulationRunId} · ${simulation.rwaSymbol} ${feeLabel(simulation.fee)}`,
+  );
+  setText(
+    "simulation-interval",
+    `#${simulation.fromRunId} → #${simulation.toRunId}`,
+  );
+  element("simulation-interval").title =
+    `Blocks ${blockNumber(simulation.fromBlock)} → ${blockNumber(simulation.toBlock)}`;
+  setText(
+    "simulation-capital",
+    `${displayTokenAmount(simulation.budgetQuote, simulation.quoteDecimals)} USDG · ${displayTokenAmount(simulation.costQuote, simulation.quoteDecimals)} cost`,
+  );
+  setText(
+    "simulation-path",
+    `${simulation.pathMinTick.toLocaleString()} → ${simulation.pathMaxTick.toLocaleString()} · ${simulation.completedCandidates} certified / ${simulation.excludedCandidates} excluded`,
+  );
+  element("simulation-path").title = `${compactInteger(simulation.swapCount)} indexed swaps`;
+  for (const assumption of simulation.assumptions) {
+    const chip = document.createElement("span");
+    chip.className = "reason-chip";
+    chip.textContent = assumption;
+    assumptions.append(chip);
+  }
+  for (const candidate of simulation.candidates) {
+    const complete = candidate.status === "complete";
+    const status = complete
+      ? pill("Certified", "good")
+      : pill("Excluded", "warn");
+    status.title = candidate.exclusionReason ?? "Observed path stayed inside range";
+    const row = document.createElement("tr");
+    row.append(
+      cell(candidate.rank === null ? "—" : `#${candidate.rank}`, "number mono"),
+      cell(`${candidate.halfWidthSpacings} × ${simulation.tickSpacing}`, "number mono"),
+      cell(`${candidate.tickLower.toLocaleString()} → ${candidate.tickUpper.toLocaleString()}`, "mono number"),
+      cell(status),
+      cell(ppmPercent(candidate.liquiditySharePpm), "number"),
+      cell(quoteAmount(candidate.feeValueQuote, simulation.quoteDecimals), "number claimable"),
+      cell(quoteAmount(candidate.divergenceQuote, simulation.quoteDecimals, true), "number"),
+      cell(quoteAmount(candidate.absolutePnlQuote, simulation.quoteDecimals, true), "number"),
+      cell(quoteAmount(candidate.lpAlphaQuote, simulation.quoteDecimals, true), "number"),
+      cell(quoteAmount(candidate.netEndValueQuote, simulation.quoteDecimals), "number"),
+    );
+    body.append(row);
+  }
+}
+
 function renderStableFeeBaseline(baseline) {
   const empty = baseline === null || baseline === undefined;
   element("baseline-empty").classList.toggle("hidden", !empty);
@@ -536,6 +620,7 @@ function render(data) {
   renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
   renderPrincipal(data.principal);
   renderTrackedNftPositions(data.trackedNftPositions ?? []);
+  renderRangeSimulation(data.rangeSimulation);
   renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);

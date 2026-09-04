@@ -18,6 +18,7 @@
     "nft:snapshot": "node --import tsx src/nft.ts",
     "observe": "node --import tsx src/index.ts",
     "principal:reconstruct": "node --import tsx src/principal.ts",
+    "range:simulate": "node --import tsx src/simulate.ts",
     "reconcile": "node --import tsx src/reconcile.ts",
     "replay": "node --import tsx src/replay.ts",
     "risk:gate": "node --import tsx src/risk-gate.ts",

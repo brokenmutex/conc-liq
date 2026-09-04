@@ -278,6 +278,8 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.018); }
 }
 .raw-amount { cursor: help; }
 .claimable { color: var(--mint); }
+.pnl-positive { color: var(--mint); }
+.pnl-negative { color: var(--red); }
 .token-label span { cursor: help; }
 .accounting-history { margin-top: 24px; }
 .subsection-heading {

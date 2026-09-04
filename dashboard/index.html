@@ -234,6 +234,57 @@
         </div>
       </section>
 
+      <section class="panel" id="simulation-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SHADOW POLICY SCREEN</div>
+            <h2>Static centered range comparison</h2>
+          </div>
+          <div class="panel-note">Normalized shadow scenario · pool-spot valuation · explicit costs · never execution-eligible</div>
+        </div>
+        <div id="simulation-audit" class="gate-audit" aria-label="Range simulation audit">
+          <div>
+            <span>Simulation</span>
+            <strong id="simulation-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="simulation-interval">—</strong>
+          </div>
+          <div>
+            <span>Capital / cost</span>
+            <strong id="simulation-capital">—</strong>
+          </div>
+          <div>
+            <span>Observed tick path</span>
+            <strong id="simulation-path">—</strong>
+          </div>
+        </div>
+        <div id="simulation-assumptions" class="reason-strip"></div>
+        <div id="simulation-empty" class="inline-empty hidden">
+          No range-policy scenario has been persisted yet.
+        </div>
+        <div id="simulation-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Half-width</th>
+                <th>Tick range</th>
+                <th>Path proof</th>
+                <th>Liquidity share</th>
+                <th>Fee value</th>
+                <th>Divergence</th>
+                <th>Absolute P&amp;L</th>
+                <th>LP alpha vs hold</th>
+                <th>Net end NAV</th>
+              </tr>
+            </thead>
+            <tbody id="simulation-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="baseline-panel">
         <div class="panel-heading">
           <div>
