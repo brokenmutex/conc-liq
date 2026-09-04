@@ -315,6 +315,108 @@ CREATE INDEX IF NOT EXISTS v3_position_fee_accounting_claimable_idx
   ON v3_position_fee_accounting (run_id, pool_address)
   WHERE claimable0 > 0 OR claimable1 > 0;
 
+CREATE TABLE IF NOT EXISTS v3_principal_accounting_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  pool_count INTEGER NOT NULL,
+  position_count INTEGER NOT NULL,
+  below_range_positions INTEGER NOT NULL,
+  in_range_positions INTEGER NOT NULL,
+  above_range_positions INTEGER NOT NULL,
+  UNIQUE (schema_version, accounting_run_id),
+  CHECK (methodology = 'canonical_liquidity_amounts_floor'),
+  CHECK (NOT execution_eligible),
+  CHECK (pool_count >= 0 AND position_count >= 0),
+  CHECK (
+    position_count = below_range_positions + in_range_positions +
+      above_range_positions
+  ),
+  CHECK (
+    below_range_positions >= 0 AND in_range_positions >= 0 AND
+      above_range_positions >= 0
+  )
+);
+
+CREATE INDEX IF NOT EXISTS v3_principal_accounting_runs_latest_idx
+  ON v3_principal_accounting_runs (accounting_run_id DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_pool_principal_accounting (
+  principal_run_id BIGINT NOT NULL
+    REFERENCES v3_principal_accounting_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  tick INTEGER NOT NULL,
+  sqrt_price_x96 NUMERIC(78, 0) NOT NULL,
+  position_count INTEGER NOT NULL,
+  below_range_positions INTEGER NOT NULL,
+  in_range_positions INTEGER NOT NULL,
+  above_range_positions INTEGER NOT NULL,
+  amount0 NUMERIC(78, 0) NOT NULL,
+  amount1 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (principal_run_id, pool_address),
+  CHECK (
+    position_count = below_range_positions + in_range_positions +
+      above_range_positions
+  ),
+  CHECK (amount0 >= 0 AND amount1 >= 0)
+);
+
+CREATE TABLE IF NOT EXISTS v3_position_principal_accounting (
+  principal_run_id BIGINT NOT NULL
+    REFERENCES v3_principal_accounting_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  owner_address TEXT NOT NULL,
+  tick_lower INTEGER NOT NULL,
+  tick_upper INTEGER NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  sqrt_ratio_lower_x96 NUMERIC(78, 0) NOT NULL,
+  sqrt_ratio_upper_x96 NUMERIC(78, 0) NOT NULL,
+  region TEXT NOT NULL,
+  amount0 NUMERIC(78, 0) NOT NULL,
+  amount1 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (
+    principal_run_id, pool_address, owner_address, tick_lower, tick_upper
+  ),
+  CONSTRAINT v3_position_principal_accounting_pool_fk
+    FOREIGN KEY (principal_run_id, pool_address)
+    REFERENCES v3_pool_principal_accounting (principal_run_id, pool_address)
+    ON DELETE CASCADE,
+  CHECK (tick_lower < tick_upper),
+  CHECK (liquidity > 0),
+  CHECK (sqrt_ratio_lower_x96 < sqrt_ratio_upper_x96),
+  CHECK (region IN ('below_range', 'in_range', 'above_range')),
+  CHECK (amount0 >= 0 AND amount1 >= 0),
+  CHECK (region <> 'below_range' OR amount1 = 0),
+  CHECK (region <> 'above_range' OR amount0 = 0)
+);
+
+CREATE INDEX IF NOT EXISTS v3_position_principal_accounting_pool_idx
+  ON v3_position_principal_accounting (principal_run_id, pool_address);
+
+DO $migration$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_position_principal_accounting_pool_fk'
+      AND conrelid = 'v3_position_principal_accounting'::regclass
+  ) THEN
+    ALTER TABLE v3_position_principal_accounting
+      ADD CONSTRAINT v3_position_principal_accounting_pool_fk
+      FOREIGN KEY (principal_run_id, pool_address)
+      REFERENCES v3_pool_principal_accounting (principal_run_id, pool_address)
+      ON DELETE CASCADE;
+  END IF;
+END
+$migration$;
+
 CREATE TABLE IF NOT EXISTS v3_stable_fee_baseline_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

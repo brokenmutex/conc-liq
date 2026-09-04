@@ -22,7 +22,7 @@ export interface CanonicalBaselineInput {
   readonly to: AccountingRunReference;
 }
 
-async function validateRun(
+export async function validateAccountingRun(
   client: RobinhoodClient,
   run: AccountingRunSource,
 ): Promise<AccountingRunReference> {
@@ -57,8 +57,8 @@ export async function validateBaselineSource(input: {
     );
   }
   const [from, to] = await Promise.all([
-    validateRun(input.client, input.source.from),
-    validateRun(input.client, input.source.to),
+    validateAccountingRun(input.client, input.source.from),
+    validateAccountingRun(input.client, input.source.to),
   ]);
   return { ...input.source, from, to };
 }

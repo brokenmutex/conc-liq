@@ -12,6 +12,8 @@ import type {
   FeeAccountingView,
   PoolRow,
   PositionCoverageRow,
+  PrincipalAccountingView,
+  PrincipalPoolRow,
   RiskAttemptRow,
   RiskSourceEvidence,
   StableFeeBaselineView,
@@ -152,6 +154,34 @@ interface AccountingPoolDbRow {
   tokens_owed1: string;
 }
 
+interface PrincipalRunDbRow {
+  above_range_positions: string;
+  accounting_run_id: string;
+  below_range_positions: string;
+  block_hash: string;
+  block_number: string;
+  computed_at: Date;
+  id: string;
+  in_range_positions: string;
+  pool_count: string;
+  position_count: string;
+  schema_version: number;
+}
+
+interface PrincipalPoolDbRow {
+  above_range_positions: string;
+  amount0: string;
+  amount1: string;
+  below_range_positions: string;
+  fee: number;
+  in_range_positions: string;
+  pool_address: string;
+  position_count: string;
+  rwa_symbol: string;
+  token0: string;
+  token1: string;
+}
+
 interface StableFeeBaselineDbRow {
   block_delta: string;
   computed_at: Date;
@@ -283,6 +313,67 @@ async function feeAccountingHistory(
     runId: row.id,
     tickCount: row.tick_count,
   }));
+}
+
+async function principalAccounting(
+  client: PoolClient,
+  streamKey: string,
+): Promise<PrincipalAccountingView | null> {
+  const result = await client.query<PrincipalRunDbRow>(
+    `SELECT p.id, p.schema_version,
+            p.accounting_run_id::text AS accounting_run_id,
+            a.block_number::text, a.block_hash, p.computed_at,
+            p.pool_count::text, p.position_count::text,
+            p.below_range_positions::text, p.in_range_positions::text,
+            p.above_range_positions::text
+     FROM v3_principal_accounting_runs p
+     JOIN v3_fee_accounting_runs a ON a.id = p.accounting_run_id
+     WHERE a.stream_key = $1
+     ORDER BY a.block_number DESC, p.id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const principal = result.rows[0];
+  if (principal === undefined) return null;
+  const poolResult = await client.query<PrincipalPoolDbRow>(
+    `SELECT pool_address, rwa_symbol, fee, token0, token1,
+            position_count::text, below_range_positions::text,
+            in_range_positions::text, above_range_positions::text,
+            amount0::text, amount1::text
+     FROM v3_pool_principal_accounting
+     WHERE principal_run_id = $1
+     ORDER BY rwa_symbol, fee`,
+    [principal.id],
+  );
+  const pools: PrincipalPoolRow[] = poolResult.rows.map((pool) => ({
+    aboveRangePositions: pool.above_range_positions,
+    amount0: pool.amount0,
+    amount1: pool.amount1,
+    belowRangePositions: pool.below_range_positions,
+    fee: pool.fee,
+    inRangePositions: pool.in_range_positions,
+    poolAddress: pool.pool_address,
+    positionCount: pool.position_count,
+    rwaSymbol: pool.rwa_symbol,
+    token0: pool.token0,
+    token0Symbol: accountingTokenSymbol(pool.token0, pool.rwa_symbol),
+    token1: pool.token1,
+    token1Symbol: accountingTokenSymbol(pool.token1, pool.rwa_symbol),
+  }));
+  return {
+    aboveRangePositions: principal.above_range_positions,
+    accountingRunId: principal.accounting_run_id,
+    belowRangePositions: principal.below_range_positions,
+    block: principal.block_number,
+    blockHash: principal.block_hash,
+    computedAt: principal.computed_at.toISOString(),
+    inRangePositions: principal.in_range_positions,
+    poolCount: principal.pool_count,
+    pools,
+    positionCount: principal.position_count,
+    principalRunId: principal.id,
+    schemaVersion: principal.schema_version,
+  };
 }
 
 async function stableFeeBaseline(
@@ -690,6 +781,7 @@ export class DashboardRepository {
         overview: await overview(client, this.config.streamKey),
         pools: await pools(client, this.config.streamKey),
         positions: await positions(client, this.config.streamKey),
+        principal: await principalAccounting(client, this.config.streamKey),
         refreshMs: this.config.refreshMs,
         riskGate: await readRiskGate(
           client,

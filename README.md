@@ -216,16 +216,16 @@ journalctl -u conc-liq-accounting.service -f
 ```
 
 The timer first invokes `--if-new-source`, which checks the exact replay block
-and hash before making accounting RPC calls. It then attempts the newest
-stable-position interval baseline described below. Database uniqueness
-constraints make both steps idempotent and resolve concurrent manual/timer
-races. The timer is persistent across downtime, and a failed capture does not
-stop the canonical tail.
+and hash before making accounting RPC calls. It then reconstructs principal for
+the newest checkpoint and attempts the newest stable-position interval baseline
+described below. Database uniqueness constraints make every step idempotent and
+resolve concurrent manual/timer races. The timer is persistent across downtime,
+and a failed capture does not stop the canonical tail.
 
-At the 2026-09-04 live row count, a full checkpoint occupies about 4.5 MB in
-PostgreSQL, or roughly 3.2 GB/month at this cadence before bloat. Monitor table
-growth before increasing frequency; there is intentionally no automatic data
-deletion.
+At the 2026-09-04 live row count, a full fee-accounting checkpoint occupies
+about 4.5 MB in PostgreSQL, or roughly 3.2 GB/month at this cadence before
+bloat. Monitor table growth before increasing frequency; there is intentionally
+no automatic data deletion.
 
 The implementation follows Uniswap's official
 [`Tick.getFeeGrowthInside`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Tick.sol),
@@ -233,6 +233,45 @@ The implementation follows Uniswap's official
 and periphery
 [`PositionValue.fees`](https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/PositionValue.sol)
 semantics.
+
+## Exact liquidity-principal reconstruction
+
+Materialize the token amounts represented by every active core position in the
+newest accounting checkpoint:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run principal:reconstruct
+```
+
+Use `--run ID` for one accounting run or `--all` to backfill every checkpoint
+that does not yet have the current principal schema version. The command
+revalidates each source block hash against the private node before saving and is
+idempotent for an already reconstructed run.
+
+The implementation reproduces Uniswap's canonical
+[`TickMath.getSqrtRatioAtTick`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol)
+and
+[`LiquidityAmounts.getAmountsForLiquidity`](https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/LiquidityAmounts.sol)
+integer semantics, including its floor rounding. It records whether each
+position is below, inside, or above its range and persists exact raw-token
+principal in `v3_principal_accounting_runs`,
+`v3_pool_principal_accounting`, and
+`v3_position_principal_accounting`.
+
+Principal excludes stored and pending fees, zero-liquidity positions, USD
+valuation, and ownership attribution beyond the aggregated Uniswap core
+position key. It is an exact composition snapshot, not PnL or execution
+evidence; all run rows are explicitly execution-ineligible.
+
+At the 2026-09-04 live row count, the derived principal tables add about
+0.87 MB per checkpoint. Together with exact fee accounting, the hourly cadence
+is roughly 3.8 GB/month before PostgreSQL bloat; the same no-auto-deletion policy
+applies.
 
 ## Stable-position fee interval baseline
 
@@ -383,6 +422,7 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - recent canonical V3 activity grouped by block range;
 - replayed pool, initialized-tick, and active core-position coverage;
 - the latest exact core-position fee snapshot and recent checkpoint history;
+- the latest exact active-position principal and range distribution;
 - the latest stable-position interval benchmark, its coverage exclusions, and
   exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and

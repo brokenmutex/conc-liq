@@ -153,6 +153,55 @@
         </div>
       </section>
 
+      <section class="panel" id="principal-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">EXACT DERIVED STATE</div>
+            <h2>Liquidity principal</h2>
+          </div>
+          <div class="panel-note">Active core positions · canonical floor rounding · fees excluded</div>
+        </div>
+        <div id="principal-audit" class="gate-audit" aria-label="Principal accounting audit">
+          <div>
+            <span>Principal run</span>
+            <strong id="principal-run">—</strong>
+          </div>
+          <div>
+            <span>Source block</span>
+            <strong id="principal-block">—</strong>
+          </div>
+          <div>
+            <span>Active positions</span>
+            <strong id="principal-positions">—</strong>
+          </div>
+          <div>
+            <span>Range distribution</span>
+            <strong id="principal-ranges">—</strong>
+          </div>
+        </div>
+        <div id="principal-empty" class="inline-empty hidden">
+          No principal reconstruction has been persisted yet.
+        </div>
+        <div id="principal-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Positions</th>
+                <th>Below</th>
+                <th>In range</th>
+                <th>Above</th>
+                <th>Token 0</th>
+                <th>Principal</th>
+                <th>Token 1</th>
+                <th>Principal</th>
+              </tr>
+            </thead>
+            <tbody id="principal-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="baseline-panel">
         <div class="panel-heading">
           <div>

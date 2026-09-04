@@ -177,6 +177,37 @@ export interface StableFeePoolRow {
   readonly touchedPositions: string;
 }
 
+export interface PrincipalPoolRow {
+  readonly aboveRangePositions: string;
+  readonly amount0: string;
+  readonly amount1: string;
+  readonly belowRangePositions: string;
+  readonly fee: number;
+  readonly inRangePositions: string;
+  readonly poolAddress: string;
+  readonly positionCount: string;
+  readonly rwaSymbol: string;
+  readonly token0: string;
+  readonly token0Symbol: string;
+  readonly token1: string;
+  readonly token1Symbol: string;
+}
+
+export interface PrincipalAccountingView {
+  readonly aboveRangePositions: string;
+  readonly accountingRunId: string;
+  readonly belowRangePositions: string;
+  readonly block: string;
+  readonly blockHash: string;
+  readonly computedAt: string;
+  readonly inRangePositions: string;
+  readonly poolCount: string;
+  readonly pools: readonly PrincipalPoolRow[];
+  readonly positionCount: string;
+  readonly principalRunId: string;
+  readonly schemaVersion: number;
+}
+
 export interface StableFeeBaselineView {
   readonly baselineId: string;
   readonly blockDelta: string;
@@ -203,6 +234,7 @@ export interface DashboardSnapshot {
   readonly overview: DashboardOverview;
   readonly pools: readonly PoolRow[];
   readonly positions: readonly PositionCoverageRow[];
+  readonly principal: PrincipalAccountingView | null;
   readonly refreshMs: number;
   readonly riskGate: RiskGateDecision;
   readonly riskAssets: readonly AssetRiskRow[];

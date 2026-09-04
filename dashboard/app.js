@@ -287,6 +287,52 @@ function renderAccountingHistory(rows, now) {
   });
 }
 
+function renderPrincipal(principal) {
+  const empty = principal === null || principal === undefined;
+  element("principal-empty").classList.toggle("hidden", !empty);
+  element("principal-table").classList.toggle("hidden", empty);
+  element("principal-audit").classList.toggle("hidden", empty);
+  const body = element("principal-body");
+  body.replaceChildren();
+  if (empty) return;
+
+  setText(
+    "principal-run",
+    `#${principal.principalRunId} · accounting #${principal.accountingRunId}`,
+  );
+  setText("principal-block", blockNumber(principal.block));
+  element("principal-block").title = principal.blockHash;
+  setText(
+    "principal-positions",
+    `${compactInteger(principal.positionCount)} across ${principal.poolCount} pools`,
+  );
+  setText(
+    "principal-ranges",
+    `${principal.belowRangePositions} below · ${principal.inRangePositions} in · ${principal.aboveRangePositions} above`,
+  );
+  for (const pool of principal.pools) {
+    const row = document.createElement("tr");
+    const token0 = document.createElement("span");
+    token0.textContent = pool.token0Symbol;
+    token0.title = pool.token0;
+    const token1 = document.createElement("span");
+    token1.textContent = pool.token1Symbol;
+    token1.title = pool.token1;
+    row.append(
+      cell(`${pool.rwaSymbol} · ${feeLabel(pool.fee)}`, "asset"),
+      cell(pool.positionCount, "number"),
+      cell(pool.belowRangePositions, "number"),
+      cell(pool.inRangePositions, "number"),
+      cell(pool.aboveRangePositions, "number"),
+      cell(token0, "asset token-label"),
+      cell(rawAmount(pool.amount0), "number claimable"),
+      cell(token1, "asset token-label"),
+      cell(rawAmount(pool.amount1), "number claimable"),
+    );
+    body.append(row);
+  }
+}
+
 function renderStableFeeBaseline(baseline) {
   const empty = baseline === null || baseline === undefined;
   element("baseline-empty").classList.toggle("hidden", !empty);
@@ -421,6 +467,7 @@ function render(data) {
   renderPools(data.pools);
   renderAccounting(data.accounting, data.overview.serverTime);
   renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
+  renderPrincipal(data.principal);
   renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);
