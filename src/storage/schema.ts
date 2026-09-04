@@ -1071,4 +1071,173 @@ CREATE TABLE IF NOT EXISTS v3_strategy_pool_checkpoints (
     (status = 'excluded' AND jsonb_array_length(reasons) > 0)
   )
 );
+
+CREATE TABLE IF NOT EXISTS v3_oracle_policy_replay_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  first_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  last_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  rwa_address TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  quote_token TEXT NOT NULL,
+  quote_decimals INTEGER NOT NULL,
+  rwa_decimals INTEGER NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  indexed_through_block NUMERIC(78, 0) NOT NULL,
+  budget_quote NUMERIC(78, 0) NOT NULL,
+  entry_cost_quote NUMERIC(78, 0) NOT NULL,
+  rebalance_cost_quote NUMERIC(78, 0) NOT NULL,
+  trigger_percent INTEGER NOT NULL,
+  tick_spacing INTEGER NOT NULL,
+  checkpoint_count INTEGER NOT NULL,
+  interval_count INTEGER NOT NULL,
+  policy_set_hash TEXT NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  completed_candidates INTEGER NOT NULL,
+  excluded_candidates INTEGER NOT NULL,
+  assumptions JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, first_checkpoint_run_id,
+    last_checkpoint_run_id, pool_address, policy_set_hash
+  ),
+  CHECK (schema_version = 1),
+  CHECK (first_checkpoint_run_id <> last_checkpoint_run_id),
+  CHECK (quote_decimals = 6 AND rwa_decimals BETWEEN 0 AND 255),
+  CHECK (fee > 0 AND fee <= 1000000),
+  CHECK (indexed_through_block >= 0),
+  CHECK (
+    budget_quote > 0 AND entry_cost_quote >= 0 AND
+    entry_cost_quote < budget_quote AND rebalance_cost_quote >= 0
+  ),
+  CHECK (trigger_percent BETWEEN 1 AND 100 AND tick_spacing > 0),
+  CHECK (checkpoint_count >= 2 AND interval_count = checkpoint_count - 1),
+  CHECK (completed_candidates >= 0 AND excluded_candidates >= 0),
+  CHECK (completed_candidates + excluded_candidates > 0),
+  CHECK (methodology = 'oracle_marked_stateful_certified_replay_v1'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_oracle_policy_replay_runs_latest_idx
+  ON v3_oracle_policy_replay_runs (stream_key, computed_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_oracle_policy_replay_candidates (
+  replay_run_id BIGINT NOT NULL
+    REFERENCES v3_oracle_policy_replay_runs(id) ON DELETE CASCADE,
+  half_width_spacings INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  failure_reason TEXT,
+  failure_checkpoint_run_id BIGINT REFERENCES v3_strategy_checkpoint_runs(id),
+  rank INTEGER,
+  completed_intervals INTEGER NOT NULL,
+  rebalances INTEGER NOT NULL,
+  total_cost_quote NUMERIC(78, 0) NOT NULL,
+  marked_fee_value_quote NUMERIC(78, 0) NOT NULL,
+  max_drawdown_ppm NUMERIC(78, 0) NOT NULL,
+  initial_amount0 NUMERIC(78, 0),
+  initial_amount1 NUMERIC(78, 0),
+  initial_nav_quote NUMERIC(78, 0),
+  final_liquidity NUMERIC(78, 0),
+  final_tick_lower INTEGER,
+  final_tick_upper INTEGER,
+  final_amount0 NUMERIC(78, 0),
+  final_amount1 NUMERIC(78, 0),
+  final_nav_quote NUMERIC(78, 0),
+  hodl_end_value_quote NUMERIC(78, 0),
+  absolute_pnl_quote NUMERIC(78, 0),
+  lp_alpha_quote NUMERIC(78, 0),
+  PRIMARY KEY (replay_run_id, half_width_spacings),
+  CHECK (half_width_spacings > 0),
+  CHECK (
+    completed_intervals >= 0 AND rebalances >= 0 AND
+    rebalances <= completed_intervals
+  ),
+  CHECK (
+    total_cost_quote >= 0 AND marked_fee_value_quote >= 0 AND
+    max_drawdown_ppm >= 0 AND max_drawdown_ppm <= 1000000
+  ),
+  CHECK (
+    (initial_amount0 IS NULL AND initial_amount1 IS NULL AND
+      initial_nav_quote IS NULL) OR
+    (initial_amount0 IS NOT NULL AND initial_amount0 >= 0 AND
+      initial_amount1 IS NOT NULL AND initial_amount1 >= 0 AND
+      initial_nav_quote IS NOT NULL AND initial_nav_quote >= 0)
+  ),
+  CHECK (
+    (status = 'complete' AND failure_reason IS NULL AND
+      failure_checkpoint_run_id IS NULL AND rank IS NOT NULL AND rank > 0 AND
+      initial_nav_quote IS NOT NULL AND final_liquidity IS NOT NULL AND
+      final_liquidity > 0 AND final_tick_lower IS NOT NULL AND
+      final_tick_upper IS NOT NULL AND final_tick_lower < final_tick_upper AND
+      final_amount0 IS NOT NULL AND final_amount0 >= 0 AND
+      final_amount1 IS NOT NULL AND final_amount1 >= 0 AND
+      final_nav_quote IS NOT NULL AND final_nav_quote >= 0 AND
+      hodl_end_value_quote IS NOT NULL AND hodl_end_value_quote >= 0 AND
+      absolute_pnl_quote IS NOT NULL AND lp_alpha_quote IS NOT NULL) OR
+    (status = 'excluded' AND failure_reason IS NOT NULL AND
+      failure_checkpoint_run_id IS NOT NULL AND rank IS NULL AND
+      final_liquidity IS NULL AND final_tick_lower IS NULL AND
+      final_tick_upper IS NULL AND final_amount0 IS NULL AND
+      final_amount1 IS NULL AND final_nav_quote IS NULL AND
+      hodl_end_value_quote IS NULL AND absolute_pnl_quote IS NULL AND
+      lp_alpha_quote IS NULL)
+  )
+);
+
+CREATE TABLE IF NOT EXISTS v3_oracle_policy_replay_steps (
+  replay_run_id BIGINT NOT NULL
+    REFERENCES v3_oracle_policy_replay_runs(id) ON DELETE CASCADE,
+  half_width_spacings INTEGER NOT NULL,
+  step_index INTEGER NOT NULL,
+  from_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  to_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  active_tick_lower INTEGER NOT NULL,
+  active_tick_upper INTEGER NOT NULL,
+  ending_tick_lower INTEGER NOT NULL,
+  ending_tick_upper INTEGER NOT NULL,
+  path_min_tick INTEGER NOT NULL,
+  path_max_tick INTEGER NOT NULL,
+  fee0 NUMERIC(78, 0) NOT NULL,
+  fee1 NUMERIC(78, 0) NOT NULL,
+  fee_value_quote NUMERIC(78, 0) NOT NULL,
+  end_amount0 NUMERIC(78, 0) NOT NULL,
+  end_amount1 NUMERIC(78, 0) NOT NULL,
+  pool_spot_nav_before_action_quote NUMERIC(78, 0) NOT NULL,
+  oracle_price_x18 NUMERIC(78, 0) NOT NULL,
+  pool_price_x18 NUMERIC(78, 0) NOT NULL,
+  nav_quote NUMERIC(78, 0) NOT NULL,
+  hodl_value_quote NUMERIC(78, 0) NOT NULL,
+  lp_alpha_quote NUMERIC(78, 0) NOT NULL,
+  rebalanced BOOLEAN NOT NULL,
+  action_cost_quote NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (replay_run_id, half_width_spacings, step_index),
+  FOREIGN KEY (replay_run_id, half_width_spacings)
+    REFERENCES v3_oracle_policy_replay_candidates(
+      replay_run_id, half_width_spacings
+    ) ON DELETE CASCADE,
+  CHECK (step_index >= 0),
+  CHECK (from_checkpoint_run_id <> to_checkpoint_run_id),
+  CHECK (
+    active_tick_lower < active_tick_upper AND
+    ending_tick_lower < ending_tick_upper AND path_min_tick <= path_max_tick
+  ),
+  CHECK (
+    fee0 >= 0 AND fee1 >= 0 AND fee_value_quote >= 0 AND
+    end_amount0 >= 0 AND end_amount1 >= 0 AND
+    pool_spot_nav_before_action_quote >= 0 AND oracle_price_x18 > 0 AND
+    pool_price_x18 > 0 AND nav_quote >= 0 AND hodl_value_quote >= 0 AND
+    action_cost_quote >= 0
+  ),
+  CHECK (rebalanced OR action_cost_quote = 0)
+);
 `;

@@ -18,6 +18,7 @@
     "nft:snapshot": "node --import tsx src/nft.ts",
     "observe": "node --import tsx src/index.ts",
     "oracle:calibrate": "node --import tsx src/oracle-calibrate.ts",
+    "oracle-policy:replay": "node --import tsx src/oracle-policy-replay.ts",
     "principal:reconstruct": "node --import tsx src/principal.ts",
     "policy:replay": "node --import tsx src/policy-replay.ts",
     "range:simulate": "node --import tsx src/simulate.ts",

@@ -618,6 +618,52 @@ after reviewing the added RPC load. With the current 15-pool manifest, each
 capture adds 60 pool calls plus one decimals call per distinct RWA, instead of
 the roughly 11,000 calls needed by full accounting.
 
+## Oracle-marked policy replay
+
+Replay range policies from the lightweight synchronized checkpoints without
+making any RPC calls:
+
+```bash
+set -a
+source .env
+set +a
+npm run oracle-policy:replay -- \
+  --rwa NVDA \
+  --fee 500 \
+  --budget-usdg 1000 \
+  --entry-cost-usdg 1 \
+  --rebalance-cost-usdg 1 \
+  --trigger-percent 50 \
+  --half-widths 1,2,5,10,20,50 \
+  --lookback 60
+```
+
+The default window is the newest 60 strategy checkpoints and the hard maximum
+is 256. Use `--from-checkpoint ID --to-checkpoint ID` instead of `--lookback`
+to pin an immutable historical window.
+
+The loader fails closed unless every selected checkpoint has a matching stored
+canonical block-hash proof, the pool identity and target-set hash remain
+unchanged, and the event indexer covers the final checkpoint. It reconstructs
+each interval's complete indexed Swap tick envelope. An invalid oracle mark or
+a tick path that crosses the active range stops the candidate before the model
+can invent a valuation, fee, or in-range duration.
+
+Candidate inventory is carried in exact raw token units. Principal composition
+and idealized recenter swaps use V3 pool spot because those actions depend on
+the pool. NAV, fee value, drawdown, absolute P&L, and the unchanged post-entry
+inventory benchmark use only the synchronized multiplier-adjusted oracle mark.
+The replay reports both absolute USDG P&L and net LP alpha versus that passive
+holding benchmark; candidates are ranked by the latter.
+
+Results and per-interval inventory steps are immutable and idempotent in
+`v3_oracle_policy_replay_runs`, `v3_oracle_policy_replay_candidates`, and
+`v3_oracle_policy_replay_steps`. This remains a counterfactual shadow model:
+costs are operator inputs, self-impact and self-dilution are absent, triggers
+are checkpoint-only, and rebalancing assumes ideal spot recomposition. Every
+result is explicitly execution-ineligible and the command has no signer or
+transaction path.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
