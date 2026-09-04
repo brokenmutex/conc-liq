@@ -14,6 +14,8 @@ import type {
   PositionCoverageRow,
   RiskAttemptRow,
   RiskSourceEvidence,
+  StableFeeBaselineView,
+  StableFeePoolRow,
 } from "./domain.js";
 
 const { Pool } = pg;
@@ -150,6 +152,38 @@ interface AccountingPoolDbRow {
   tokens_owed1: string;
 }
 
+interface StableFeeBaselineDbRow {
+  block_delta: string;
+  computed_at: Date;
+  elapsed_seconds: string;
+  entered_positions: string;
+  exited_positions: string;
+  from_block: string;
+  from_run_id: string;
+  id: string;
+  limitations: unknown;
+  paired_active_positions: string;
+  stable_positions: string;
+  to_block: string;
+  to_run_id: string;
+  touched_positions: string;
+}
+
+interface StableFeePoolDbRow {
+  accrued0: string;
+  accrued1: string;
+  entered_positions: string;
+  exited_positions: string;
+  fee: number;
+  paired_active_positions: string;
+  pool_address: string;
+  rwa_symbol: string;
+  stable_positions: string;
+  token0: string;
+  token1: string;
+  touched_positions: string;
+}
+
 function iso(value: Date | null): string | null {
   return value?.toISOString() ?? null;
 }
@@ -249,6 +283,74 @@ async function feeAccountingHistory(
     runId: row.id,
     tickCount: row.tick_count,
   }));
+}
+
+async function stableFeeBaseline(
+  client: PoolClient,
+  streamKey: string,
+): Promise<StableFeeBaselineView | null> {
+  const result = await client.query<StableFeeBaselineDbRow>(
+    `SELECT b.id, b.from_accounting_run_id AS from_run_id,
+            b.to_accounting_run_id AS to_run_id,
+            f.block_number::text AS from_block,
+            t.block_number::text AS to_block,
+            b.computed_at, b.block_delta::text, b.elapsed_seconds::text,
+            b.paired_active_positions::text, b.stable_positions::text,
+            b.touched_positions::text, b.entered_positions::text,
+            b.exited_positions::text, b.limitations
+     FROM v3_stable_fee_baseline_runs b
+     JOIN v3_fee_accounting_runs f ON f.id = b.from_accounting_run_id
+     JOIN v3_fee_accounting_runs t ON t.id = b.to_accounting_run_id
+     WHERE b.stream_key = $1
+     ORDER BY t.block_number DESC, b.id DESC
+     LIMIT 1`,
+    [streamKey],
+  );
+  const baseline = result.rows[0];
+  if (baseline === undefined) return null;
+  const poolResult = await client.query<StableFeePoolDbRow>(
+    `SELECT pool_address, rwa_symbol, fee, token0, token1,
+            paired_active_positions::text, stable_positions::text,
+            touched_positions::text, entered_positions::text,
+            exited_positions::text, accrued0::text, accrued1::text
+     FROM v3_stable_fee_pool_baselines
+     WHERE baseline_run_id = $1
+     ORDER BY rwa_symbol, fee`,
+    [baseline.id],
+  );
+  const pools: StableFeePoolRow[] = poolResult.rows.map((row) => ({
+    accrued0: row.accrued0,
+    accrued1: row.accrued1,
+    enteredPositions: row.entered_positions,
+    exitedPositions: row.exited_positions,
+    fee: row.fee,
+    pairedActivePositions: row.paired_active_positions,
+    poolAddress: row.pool_address,
+    rwaSymbol: row.rwa_symbol,
+    stablePositions: row.stable_positions,
+    token0: row.token0,
+    token0Symbol: accountingTokenSymbol(row.token0, row.rwa_symbol),
+    token1: row.token1,
+    token1Symbol: accountingTokenSymbol(row.token1, row.rwa_symbol),
+    touchedPositions: row.touched_positions,
+  }));
+  return {
+    baselineId: baseline.id,
+    blockDelta: baseline.block_delta,
+    computedAt: baseline.computed_at.toISOString(),
+    elapsedSeconds: baseline.elapsed_seconds,
+    enteredPositions: baseline.entered_positions,
+    exitedPositions: baseline.exited_positions,
+    fromBlock: baseline.from_block,
+    fromRunId: baseline.from_run_id,
+    limitations: stringArray(baseline.limitations),
+    pairedActivePositions: baseline.paired_active_positions,
+    pools,
+    stablePositions: baseline.stable_positions,
+    toBlock: baseline.to_block,
+    toRunId: baseline.to_run_id,
+    touchedPositions: baseline.touched_positions,
+  };
 }
 
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
@@ -597,6 +699,10 @@ export class DashboardRepository {
         ),
         riskAssets: await riskAssets(client),
         sources: await sources(client),
+        stableFeeBaseline: await stableFeeBaseline(
+          client,
+          this.config.streamKey,
+        ),
       } satisfies DashboardSnapshot;
       await client.query("COMMIT");
       return data;

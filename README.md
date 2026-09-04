@@ -215,20 +215,57 @@ systemctl list-timers conc-liq-accounting.timer
 journalctl -u conc-liq-accounting.service -f
 ```
 
-The timer invokes `--if-new-source`, which checks the exact replay block and
-hash before making RPC calls. A database uniqueness constraint also resolves
-concurrent manual/timer races without duplicating a run. The timer is persistent
-across downtime, and a failed capture does not stop the canonical tail.
+The timer first invokes `--if-new-source`, which checks the exact replay block
+and hash before making accounting RPC calls. It then attempts the newest
+stable-position interval baseline described below. Database uniqueness
+constraints make both steps idempotent and resolve concurrent manual/timer
+races. The timer is persistent across downtime, and a failed capture does not
+stop the canonical tail.
+
 At the 2026-09-04 live row count, a full checkpoint occupies about 4.5 MB in
 PostgreSQL, or roughly 3.2 GB/month at this cadence before bloat. Monitor table
 growth before increasing frequency; there is intentionally no automatic data
 deletion.
+
 The implementation follows Uniswap's official
 [`Tick.getFeeGrowthInside`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Tick.sol),
 [`Position.update`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Position.sol),
 and periphery
 [`PositionValue.fees`](https://github.com/Uniswap/v3-periphery/blob/main/contracts/libraries/PositionValue.sol)
 semantics.
+
+## Stable-position fee interval baseline
+
+Compare two exact accounting checkpoints and persist a conservative raw-token
+fee benchmark:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run backtest:baseline
+```
+
+By default, the command compares the newest two accounting runs. Use
+`--from-run ID --to-run ID` for an explicit interval. Both endpoint block hashes
+are re-read from the private node before the result is accepted, and rerunning
+the same pair returns the existing immutable baseline.
+
+The benchmark includes only core positions that had positive liquidity at both
+endpoints and no `Mint` or `Burn` event in the open-closed interval
+`(fromBlock, toBlock]`. This includes excluding zero-liquidity `Burn` pokes,
+because they update the position's fee-growth checkpoint. For every remaining
+position, unchanged liquidity and fee-growth checkpoints are required, and the
+exact increase in newly pending token 0 and token 1 fees is summed per pool.
+Any inconsistency or pending-fee decrease fails the whole baseline closed.
+
+Results are stored in `v3_stable_fee_baseline_runs` and
+`v3_stable_fee_pool_baselines`. They are a partial stable-position sample in raw
+token units: not total pool revenue, per-NFT attribution, USD value, inventory
+PnL, or evidence that a range policy would have been profitable. Every row is
+explicitly execution-ineligible.
 
 ## Continuous confirmation-safe tail
 
@@ -346,6 +383,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - recent canonical V3 activity grouped by block range;
 - replayed pool, initialized-tick, and active core-position coverage;
 - the latest exact core-position fee snapshot and recent checkpoint history;
+- the latest stable-position interval benchmark, its coverage exclusions, and
+  exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and
 - the exact registry, feed-directory, and market-policy source hashes behind the
   risk view.
@@ -424,10 +463,11 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next phase captures a historical series of exact accounting checkpoints and
-uses the indexed/replayed state and risk snapshots for range-policy backtests.
-It should remain shadow-only until the tests demonstrate net LP alpha after
-divergence loss, gas, rebalancing, and execution costs.
+The next phase uses the accumulating exact checkpoint series to simulate a
+specific range policy. The stable-position interval is the fee-truth comparator;
+the policy model still needs principal and mark-to-market valuation, divergence
+loss, gas, rebalancing, and execution costs. It should remain shadow-only until
+those tests demonstrate net LP alpha.
 
 ## Source-of-truth addresses
 

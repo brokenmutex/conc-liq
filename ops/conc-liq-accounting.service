@@ -1,5 +1,5 @@
 [Unit]
-Description=conc-liq block-pinned Uniswap V3 fee-accounting checkpoint
+Description=conc-liq fee-accounting checkpoint and stable-position baseline
 After=network-online.target postgresql.service conc-liq-tail.service
 Wants=network-online.target
 Requires=postgresql.service
@@ -11,6 +11,7 @@ EnvironmentFile=/root/conc-liq/.env
 EnvironmentFile=/root/arb-robinhood/.env
 Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run accounting:snapshot -- --if-new-source'
+ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run backtest:baseline -- --if-available'
 TimeoutStartSec=10min
 Nice=10
 IOSchedulingClass=idle

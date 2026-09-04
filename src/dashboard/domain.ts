@@ -160,6 +160,41 @@ export interface FeeAccountingRunRow {
   readonly tickCount: string;
 }
 
+export interface StableFeePoolRow {
+  readonly accrued0: string;
+  readonly accrued1: string;
+  readonly enteredPositions: string;
+  readonly exitedPositions: string;
+  readonly fee: number;
+  readonly pairedActivePositions: string;
+  readonly poolAddress: string;
+  readonly rwaSymbol: string;
+  readonly stablePositions: string;
+  readonly token0: string;
+  readonly token0Symbol: string;
+  readonly token1: string;
+  readonly token1Symbol: string;
+  readonly touchedPositions: string;
+}
+
+export interface StableFeeBaselineView {
+  readonly baselineId: string;
+  readonly blockDelta: string;
+  readonly computedAt: string;
+  readonly elapsedSeconds: string;
+  readonly enteredPositions: string;
+  readonly exitedPositions: string;
+  readonly fromBlock: string;
+  readonly fromRunId: string;
+  readonly limitations: readonly string[];
+  readonly pairedActivePositions: string;
+  readonly pools: readonly StableFeePoolRow[];
+  readonly stablePositions: string;
+  readonly toBlock: string;
+  readonly toRunId: string;
+  readonly touchedPositions: string;
+}
+
 export interface DashboardSnapshot {
   readonly accounting: FeeAccountingView | null;
   readonly accountingHistory: readonly FeeAccountingRunRow[];
@@ -172,4 +207,5 @@ export interface DashboardSnapshot {
   readonly riskGate: RiskGateDecision;
   readonly riskAssets: readonly AssetRiskRow[];
   readonly sources: RiskSourceEvidence;
+  readonly stableFeeBaseline: StableFeeBaselineView | null;
 }

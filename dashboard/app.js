@@ -287,6 +287,60 @@ function renderAccountingHistory(rows, now) {
   });
 }
 
+function renderStableFeeBaseline(baseline) {
+  const empty = baseline === null || baseline === undefined;
+  element("baseline-empty").classList.toggle("hidden", !empty);
+  element("baseline-table").classList.toggle("hidden", empty);
+  element("baseline-audit").classList.toggle("hidden", empty);
+  const limitations = element("baseline-limitations");
+  limitations.classList.toggle("hidden", empty);
+  limitations.replaceChildren();
+  const body = element("baseline-body");
+  body.replaceChildren();
+  if (empty) return;
+
+  setText("baseline-runs", `#${baseline.fromRunId} → #${baseline.toRunId}`);
+  setText(
+    "baseline-interval",
+    `${duration(baseline.elapsedSeconds)} · ${compactInteger(baseline.blockDelta)} blocks`,
+  );
+  setText(
+    "baseline-coverage",
+    `${baseline.stablePositions} / ${baseline.pairedActivePositions} paired`,
+  );
+  setText(
+    "baseline-turnover",
+    `${baseline.touchedPositions} touched · ${baseline.enteredPositions} in · ${baseline.exitedPositions} out`,
+  );
+  for (const limitation of baseline.limitations) {
+    const chip = document.createElement("span");
+    chip.className = "reason-chip";
+    chip.textContent = limitation;
+    limitations.append(chip);
+  }
+  for (const pool of baseline.pools) {
+    const row = document.createElement("tr");
+    const token0 = document.createElement("span");
+    token0.textContent = pool.token0Symbol;
+    token0.title = pool.token0;
+    const token1 = document.createElement("span");
+    token1.textContent = pool.token1Symbol;
+    token1.title = pool.token1;
+    row.append(
+      cell(`${pool.rwaSymbol} · ${feeLabel(pool.fee)}`, "asset"),
+      cell(`${pool.stablePositions} / ${pool.pairedActivePositions}`, "number"),
+      cell(pool.touchedPositions, "number"),
+      cell(pool.enteredPositions, "number"),
+      cell(pool.exitedPositions, "number"),
+      cell(token0, "asset token-label"),
+      cell(rawAmount(pool.accrued0), "number claimable"),
+      cell(token1, "asset token-label"),
+      cell(rawAmount(pool.accrued1), "number claimable"),
+    );
+    body.append(row);
+  }
+}
+
 function renderRisk(rows) {
   const body = element("risk-body");
   body.replaceChildren();
@@ -367,6 +421,7 @@ function render(data) {
   renderPools(data.pools);
   renderAccounting(data.accounting, data.overview.serverTime);
   renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
+  renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);
   renderAttempts(data.attempts, data.overview.serverTime);

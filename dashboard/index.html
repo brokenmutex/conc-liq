@@ -153,6 +153,56 @@
         </div>
       </section>
 
+      <section class="panel" id="baseline-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SHADOW FEE BENCHMARK</div>
+            <h2>Stable-position interval</h2>
+          </div>
+          <div class="panel-note">Partial stable-position sample · raw fees, not total revenue or PnL</div>
+        </div>
+        <div id="baseline-audit" class="gate-audit" aria-label="Stable fee baseline audit">
+          <div>
+            <span>Accounting runs</span>
+            <strong id="baseline-runs">—</strong>
+          </div>
+          <div>
+            <span>Interval</span>
+            <strong id="baseline-interval">—</strong>
+          </div>
+          <div>
+            <span>Stable coverage</span>
+            <strong id="baseline-coverage">—</strong>
+          </div>
+          <div>
+            <span>Turnover excluded</span>
+            <strong id="baseline-turnover">—</strong>
+          </div>
+        </div>
+        <div id="baseline-limitations" class="reason-strip"></div>
+        <div id="baseline-empty" class="inline-empty hidden">
+          Two accounting checkpoints are required for a fee baseline.
+        </div>
+        <div id="baseline-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Stable / paired</th>
+                <th>Touched</th>
+                <th>Entered</th>
+                <th>Exited</th>
+                <th>Token 0</th>
+                <th>Accrued</th>
+                <th>Token 1</th>
+                <th>Accrued</th>
+              </tr>
+            </thead>
+            <tbody id="baseline-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel">
         <div class="panel-heading">
           <div>

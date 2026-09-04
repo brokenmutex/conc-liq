@@ -315,6 +315,67 @@ CREATE INDEX IF NOT EXISTS v3_position_fee_accounting_claimable_idx
   ON v3_position_fee_accounting (run_id, pool_address)
   WHERE claimable0 > 0 OR claimable1 > 0;
 
+CREATE TABLE IF NOT EXISTS v3_stable_fee_baseline_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  from_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  to_accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  block_delta NUMERIC(78, 0) NOT NULL,
+  elapsed_seconds BIGINT NOT NULL,
+  paired_active_positions INTEGER NOT NULL,
+  stable_positions INTEGER NOT NULL,
+  touched_positions INTEGER NOT NULL,
+  entered_positions INTEGER NOT NULL,
+  exited_positions INTEGER NOT NULL,
+  limitations JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key,
+    from_accounting_run_id, to_accounting_run_id
+  ),
+  CHECK (from_accounting_run_id <> to_accounting_run_id),
+  CHECK (methodology = 'stable_core_position_pending_delta'),
+  CHECK (NOT execution_eligible),
+  CHECK (block_delta > 0 AND elapsed_seconds >= 0),
+  CHECK (paired_active_positions = stable_positions + touched_positions),
+  CHECK (
+    stable_positions >= 0 AND touched_positions >= 0 AND
+    entered_positions >= 0 AND exited_positions >= 0
+  )
+);
+
+CREATE INDEX IF NOT EXISTS v3_stable_fee_baseline_runs_latest_idx
+  ON v3_stable_fee_baseline_runs (stream_key, to_accounting_run_id DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_stable_fee_pool_baselines (
+  baseline_run_id BIGINT NOT NULL
+    REFERENCES v3_stable_fee_baseline_runs(id) ON DELETE CASCADE,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  active_positions_from INTEGER NOT NULL,
+  active_positions_to INTEGER NOT NULL,
+  paired_active_positions INTEGER NOT NULL,
+  stable_positions INTEGER NOT NULL,
+  touched_positions INTEGER NOT NULL,
+  entered_positions INTEGER NOT NULL,
+  exited_positions INTEGER NOT NULL,
+  accrued0 NUMERIC(78, 0) NOT NULL,
+  accrued1 NUMERIC(78, 0) NOT NULL,
+  PRIMARY KEY (baseline_run_id, pool_address),
+  CHECK (paired_active_positions = stable_positions + touched_positions),
+  CHECK (active_positions_from = paired_active_positions + exited_positions),
+  CHECK (active_positions_to = paired_active_positions + entered_positions),
+  CHECK (accrued0 >= 0 AND accrued1 >= 0)
+);
+
 CREATE TABLE IF NOT EXISTS risk_snapshot_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,
