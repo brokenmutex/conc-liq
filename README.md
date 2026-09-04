@@ -216,9 +216,10 @@ journalctl -u conc-liq-accounting.service -f
 ```
 
 The timer first invokes `--if-new-source`, which checks the exact replay block
-and hash before making accounting RPC calls. It then reconstructs principal for
-the newest checkpoint and attempts the newest stable-position interval baseline
-described below. Database uniqueness constraints make every step idempotent and
+and hash before making accounting RPC calls. It then reconstructs principal,
+captures any configured position NFTs, and attempts the newest stable-position
+interval baseline described below. The NFT step is a successful no-op until IDs
+are configured. Database uniqueness constraints make every step idempotent and
 resolve concurrent manual/timer races. The timer is persistent across downtime,
 and a failed capture does not stop the canonical tail.
 
@@ -272,6 +273,39 @@ At the 2026-09-04 live row count, the derived principal tables add about
 0.87 MB per checkpoint. Together with exact fee accounting, the hourly cadence
 is roughly 3.8 GB/month before PostgreSQL bloat; the same no-auto-deletion policy
 applies.
+
+## Per-NFT position monitoring
+
+Track the exact state of one or more canonical Uniswap V3 Position Manager NFTs
+at the newest immutable accounting checkpoint:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run nft:snapshot -- --token-id 123
+```
+
+Repeat `--token-id` for multiple NFTs, or set comma-separated
+`NFT_POSITION_TOKEN_IDS` in the ignored `.env`. The CLI flag overrides the
+environment list. A configured NFT must belong to the monitored RWA/USDG pool
+universe; anything else fails closed. `--accounting-run ID` selects a specific
+checkpoint, and `--if-configured` makes an empty configuration a safe no-op for
+the hourly service.
+
+Unlike core-position accounting, this reader uses each NFT's individual
+Position Manager fee-growth checkpoint and stored fees. It block-pins ownership,
+range, liquidity, token decimals, exact principal, newly pending fees, and total
+claimable fees to the accounting source block. Rows are immutable and
+idempotent in `v3_nft_position_snapshots`; the dashboard shows human-readable
+token amounts while retaining exact raw units in tooltips.
+
+This is read-only attribution, not performance accounting: it does not yet know
+deposit basis, withdrawals, collected-fee history, mark-to-market value,
+divergence loss, gas, or net PnL. Every row is execution-ineligible, and the
+repository still has no signer or transaction path.
 
 ## Stable-position fee interval baseline
 
@@ -423,6 +457,8 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - replayed pool, initialized-tick, and active core-position coverage;
 - the latest exact core-position fee snapshot and recent checkpoint history;
 - the latest exact active-position principal and range distribution;
+- the latest exact owner, range, principal, and claimable fees for configured
+  Position Manager NFTs;
 - the latest stable-position interval benchmark, its coverage exclusions, and
   exact raw-token accrual by pool;
 - the latest per-asset risk gate and recent collection attempts; and
@@ -491,6 +527,7 @@ worker remains the owner of collection and replay.
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
 | `ACCOUNTING_CONCURRENCY` | `24` | Concurrent block-pinned fee-state reads |
+| `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
 | `TAIL_MAX_CONSECUTIVE_FAILURES` | `5` | Circuit-breaker failure count |
@@ -503,11 +540,11 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next phase uses the accumulating exact checkpoint series to simulate a
-specific range policy. The stable-position interval is the fee-truth comparator;
-the policy model still needs principal and mark-to-market valuation, divergence
-loss, gas, rebalancing, and execution costs. It should remain shadow-only until
-those tests demonstrate net LP alpha.
+The next phase uses the accumulating exact checkpoint series and the per-NFT
+accounting primitives to build the generic range-policy simulator. The
+stable-position interval is the fee-truth comparator; the policy model still
+needs mark-to-market valuation, divergence loss, gas, rebalancing, and execution
+costs. It should remain shadow-only until those tests demonstrate net LP alpha.
 
 ## Source-of-truth addresses
 

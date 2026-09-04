@@ -208,6 +208,35 @@ export interface PrincipalAccountingView {
   readonly schemaVersion: number;
 }
 
+export interface TrackedNftPositionRow {
+  readonly accountingRunId: string;
+  readonly block: string;
+  readonly blockHash: string;
+  readonly claimable0: string;
+  readonly claimable1: string;
+  readonly computedAt: string;
+  readonly currentTick: number;
+  readonly fee: number;
+  readonly liquidity: string;
+  readonly ownerAddress: string;
+  readonly pending0: string;
+  readonly pending1: string;
+  readonly poolAddress: string;
+  readonly principal0: string;
+  readonly principal1: string;
+  readonly region: string;
+  readonly rwaSymbol: string;
+  readonly tickLower: number;
+  readonly tickUpper: number;
+  readonly token0: string;
+  readonly token0Decimals: number;
+  readonly token0Symbol: string;
+  readonly token1: string;
+  readonly token1Decimals: number;
+  readonly token1Symbol: string;
+  readonly tokenId: string;
+}
+
 export interface StableFeeBaselineView {
   readonly baselineId: string;
   readonly blockDelta: string;
@@ -240,4 +269,5 @@ export interface DashboardSnapshot {
   readonly riskAssets: readonly AssetRiskRow[];
   readonly sources: RiskSourceEvidence;
   readonly stableFeeBaseline: StableFeeBaselineView | null;
+  readonly trackedNftPositions: readonly TrackedNftPositionRow[];
 }

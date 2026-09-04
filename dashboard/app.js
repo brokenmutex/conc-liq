@@ -89,6 +89,29 @@ function rawAmount(value) {
   return node;
 }
 
+function displayTokenAmount(value, decimals, precision = 6) {
+  const raw = BigInt(value);
+  if (decimals === 0) return raw.toLocaleString("en-US");
+  const scale = 10n ** BigInt(decimals);
+  const whole = raw / scale;
+  const fraction = (raw % scale).toString().padStart(decimals, "0");
+  const visible = fraction.slice(0, precision).replace(/0+$/, "");
+  if (visible.length === 0) {
+    return raw % scale === 0n
+      ? whole.toLocaleString("en-US")
+      : `< ${whole === 0n ? "0." : `${whole.toLocaleString("en-US")}.`}${"0".repeat(precision - 1)}1`;
+  }
+  return `${whole.toLocaleString("en-US")}.${visible}`;
+}
+
+function tokenAmount(value, decimals, symbol, detail) {
+  const node = document.createElement("span");
+  node.className = "mono raw-amount";
+  node.textContent = `${displayTokenAmount(value, decimals)} ${symbol}`;
+  node.title = `raw: ${value}${detail ? ` · ${detail}` : ""}`;
+  return node;
+}
+
 function renderOverview(data) {
   const { overview, riskGate } = data;
   const exact = overview.sync.blockLag === "0" && overview.sync.hashesMatch === true;
@@ -333,6 +356,50 @@ function renderPrincipal(principal) {
   }
 }
 
+function renderTrackedNftPositions(positions) {
+  const empty = positions.length === 0;
+  element("nft-empty").classList.toggle("hidden", !empty);
+  element("nft-table").classList.toggle("hidden", empty);
+  const body = element("nft-body");
+  body.replaceChildren();
+  for (const position of positions) {
+    const id = document.createElement("span");
+    id.className = "mono";
+    id.textContent = `#${position.tokenId}`;
+    id.title = `Accounting run #${position.accountingRunId}`;
+    const owner = document.createElement("span");
+    owner.className = "address";
+    owner.textContent = shortAddress(position.ownerAddress);
+    owner.title = position.ownerAddress;
+    const sourceBlock = document.createElement("span");
+    sourceBlock.className = "mono";
+    sourceBlock.textContent = blockNumber(position.block);
+    sourceBlock.title = position.blockHash;
+    const status = position.region === "in_range"
+      ? pill("In range", "good")
+      : position.region === "empty"
+        ? pill("Empty", "neutral")
+        : pill(position.region === "below_range" ? "Below" : "Above", "warn");
+    const range = `${position.tickLower.toLocaleString()} → ${position.currentTick.toLocaleString()} → ${position.tickUpper.toLocaleString()}`;
+    const pending0 = `pending raw: ${position.pending0}`;
+    const pending1 = `pending raw: ${position.pending1}`;
+    const row = document.createElement("tr");
+    row.append(
+      cell(id, "asset"),
+      cell(`${position.rwaSymbol} · ${feeLabel(position.fee)}`, "asset"),
+      cell(status),
+      cell(range, "mono number"),
+      cell(tokenAmount(position.principal0, position.token0Decimals, position.token0Symbol), "number"),
+      cell(tokenAmount(position.claimable0, position.token0Decimals, position.token0Symbol, pending0), "number claimable"),
+      cell(tokenAmount(position.principal1, position.token1Decimals, position.token1Symbol), "number"),
+      cell(tokenAmount(position.claimable1, position.token1Decimals, position.token1Symbol, pending1), "number claimable"),
+      cell(owner),
+      cell(sourceBlock, "number"),
+    );
+    body.append(row);
+  }
+}
+
 function renderStableFeeBaseline(baseline) {
   const empty = baseline === null || baseline === undefined;
   element("baseline-empty").classList.toggle("hidden", !empty);
@@ -468,6 +535,7 @@ function render(data) {
   renderAccounting(data.accounting, data.overview.serverTime);
   renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
   renderPrincipal(data.principal);
+  renderTrackedNftPositions(data.trackedNftPositions ?? []);
   renderStableFeeBaseline(data.stableFeeBaseline);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);

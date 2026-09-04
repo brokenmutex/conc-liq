@@ -18,6 +18,7 @@ import type {
   RiskSourceEvidence,
   StableFeeBaselineView,
   StableFeePoolRow,
+  TrackedNftPositionRow,
 } from "./domain.js";
 
 const { Pool } = pg;
@@ -212,6 +213,33 @@ interface StableFeePoolDbRow {
   token0: string;
   token1: string;
   touched_positions: string;
+}
+
+interface TrackedNftPositionDbRow {
+  accounting_run_id: string;
+  block_hash: string;
+  block_number: string;
+  claimable0: string;
+  claimable1: string;
+  computed_at: Date;
+  current_tick: number;
+  fee: number;
+  liquidity: string;
+  owner_address: string;
+  pending0: string;
+  pending1: string;
+  pool_address: string;
+  principal0: string;
+  principal1: string;
+  region: string;
+  rwa_symbol: string;
+  tick_lower: number;
+  tick_upper: number;
+  token0: string;
+  token0_decimals: number;
+  token1: string;
+  token1_decimals: number;
+  token_id: string;
 }
 
 function iso(value: Date | null): string | null {
@@ -442,6 +470,61 @@ async function stableFeeBaseline(
     toRunId: baseline.to_run_id,
     touchedPositions: baseline.touched_positions,
   };
+}
+
+async function trackedNftPositions(
+  client: PoolClient,
+  streamKey: string,
+): Promise<TrackedNftPositionRow[]> {
+  const result = await client.query<TrackedNftPositionDbRow>(
+    `SELECT *
+     FROM (
+       SELECT DISTINCT ON (n.position_manager, n.token_id)
+              n.accounting_run_id::text, a.block_number::text,
+              a.block_hash, n.computed_at, n.token_id::text,
+              n.owner_address, n.pool_address, n.rwa_symbol, n.fee,
+              n.token0, n.token1, n.token0_decimals, n.token1_decimals,
+              n.tick_lower, n.tick_upper, n.current_tick,
+              n.liquidity::text, n.region, n.principal0::text,
+              n.principal1::text, n.pending0::text, n.pending1::text,
+              n.claimable0::text, n.claimable1::text
+       FROM v3_nft_position_snapshots n
+       JOIN v3_fee_accounting_runs a ON a.id = n.accounting_run_id
+       WHERE a.stream_key = $1
+       ORDER BY n.position_manager, n.token_id,
+                a.block_number DESC, n.id DESC
+     ) latest
+     ORDER BY rwa_symbol, fee, token_id::numeric`,
+    [streamKey],
+  );
+  return result.rows.map((row) => ({
+    accountingRunId: row.accounting_run_id,
+    block: row.block_number,
+    blockHash: row.block_hash,
+    claimable0: row.claimable0,
+    claimable1: row.claimable1,
+    computedAt: row.computed_at.toISOString(),
+    currentTick: row.current_tick,
+    fee: row.fee,
+    liquidity: row.liquidity,
+    ownerAddress: row.owner_address,
+    pending0: row.pending0,
+    pending1: row.pending1,
+    poolAddress: row.pool_address,
+    principal0: row.principal0,
+    principal1: row.principal1,
+    region: row.region,
+    rwaSymbol: row.rwa_symbol,
+    tickLower: row.tick_lower,
+    tickUpper: row.tick_upper,
+    token0: row.token0,
+    token0Decimals: row.token0_decimals,
+    token0Symbol: accountingTokenSymbol(row.token0, row.rwa_symbol),
+    token1: row.token1,
+    token1Decimals: row.token1_decimals,
+    token1Symbol: accountingTokenSymbol(row.token1, row.rwa_symbol),
+    tokenId: row.token_id,
+  }));
 }
 
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
@@ -792,6 +875,10 @@ export class DashboardRepository {
         riskAssets: await riskAssets(client),
         sources: await sources(client),
         stableFeeBaseline: await stableFeeBaseline(
+          client,
+          this.config.streamKey,
+        ),
+        trackedNftPositions: await trackedNftPositions(
           client,
           this.config.streamKey,
         ),

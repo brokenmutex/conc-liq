@@ -202,6 +202,38 @@
         </div>
       </section>
 
+      <section class="panel" id="nft-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">CANARY POSITION MONITOR</div>
+            <h2>Tracked position NFTs</h2>
+          </div>
+          <div class="panel-note">Exact checkpointed principal + claimable fees · display and raw units · no PnL yet</div>
+        </div>
+        <div id="nft-empty" class="inline-empty hidden">
+          No position NFT is configured. Add a token ID after selecting or minting the canary.
+        </div>
+        <div id="nft-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>NFT</th>
+                <th>Pool</th>
+                <th>Status</th>
+                <th>Lower → current → upper</th>
+                <th>Token 0 principal</th>
+                <th>Token 0 fees</th>
+                <th>Token 1 principal</th>
+                <th>Token 1 fees</th>
+                <th>Owner</th>
+                <th>Block</th>
+              </tr>
+            </thead>
+            <tbody id="nft-body"></tbody>
+          </table>
+        </div>
+      </section>
+
       <section class="panel" id="baseline-panel">
         <div class="panel-heading">
           <div>

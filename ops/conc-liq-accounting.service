@@ -1,5 +1,5 @@
 [Unit]
-Description=conc-liq fee, principal, and stable-position accounting
+Description=conc-liq fee, principal, NFT, and stable-position accounting
 After=network-online.target postgresql.service conc-liq-tail.service
 Wants=network-online.target
 Requires=postgresql.service
@@ -12,6 +12,7 @@ EnvironmentFile=/root/arb-robinhood/.env
 Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run accounting:snapshot -- --if-new-source'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run principal:reconstruct -- --if-available'
+ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run nft:snapshot -- --if-configured'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run backtest:baseline -- --if-available'
 TimeoutStartSec=10min
 Nice=10

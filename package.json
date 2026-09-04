@@ -15,6 +15,7 @@
     "check": "npm run typecheck && npm test",
     "dashboard": "node --import tsx src/dashboard.ts",
     "db:migrate": "node --import tsx src/migrate.ts",
+    "nft:snapshot": "node --import tsx src/nft.ts",
     "observe": "node --import tsx src/index.ts",
     "principal:reconstruct": "node --import tsx src/principal.ts",
     "reconcile": "node --import tsx src/reconcile.ts",

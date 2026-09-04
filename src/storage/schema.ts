@@ -417,6 +417,78 @@ BEGIN
 END
 $migration$;
 
+CREATE TABLE IF NOT EXISTS v3_nft_position_snapshots (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  accounting_run_id BIGINT NOT NULL
+    REFERENCES v3_fee_accounting_runs(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  position_manager TEXT NOT NULL,
+  token_id NUMERIC(78, 0) NOT NULL,
+  owner_address TEXT NOT NULL,
+  operator TEXT NOT NULL,
+  nonce NUMERIC(78, 0) NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  token0 TEXT NOT NULL,
+  token1 TEXT NOT NULL,
+  token0_decimals INTEGER NOT NULL,
+  token1_decimals INTEGER NOT NULL,
+  tick_lower INTEGER NOT NULL,
+  tick_upper INTEGER NOT NULL,
+  current_tick INTEGER NOT NULL,
+  sqrt_price_x96 NUMERIC(78, 0) NOT NULL,
+  liquidity NUMERIC(78, 0) NOT NULL,
+  region TEXT NOT NULL,
+  principal0 NUMERIC(78, 0) NOT NULL,
+  principal1 NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside0_last_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside1_last_x128 NUMERIC(78, 0) NOT NULL,
+  fee_growth_inside0_x128 NUMERIC(78, 0),
+  fee_growth_inside1_x128 NUMERIC(78, 0),
+  tokens_owed0 NUMERIC(78, 0) NOT NULL,
+  tokens_owed1 NUMERIC(78, 0) NOT NULL,
+  pending0 NUMERIC(78, 0) NOT NULL,
+  pending1 NUMERIC(78, 0) NOT NULL,
+  claimable0 NUMERIC(78, 0) NOT NULL,
+  claimable1 NUMERIC(78, 0) NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE (
+    schema_version, accounting_run_id, position_manager, token_id
+  ),
+  CHECK (token_id > 0 AND nonce >= 0),
+  CHECK (token0_decimals BETWEEN 0 AND 255),
+  CHECK (token1_decimals BETWEEN 0 AND 255),
+  CHECK (tick_lower < tick_upper),
+  CHECK (liquidity >= 0),
+  CHECK (region IN ('below_range', 'in_range', 'above_range', 'empty')),
+  CHECK (
+    (liquidity = 0 AND region = 'empty' AND principal0 = 0 AND
+      principal1 = 0 AND pending0 = 0 AND pending1 = 0 AND
+      fee_growth_inside0_x128 IS NULL AND
+      fee_growth_inside1_x128 IS NULL) OR
+    (liquidity > 0 AND region <> 'empty' AND
+      fee_growth_inside0_x128 IS NOT NULL AND
+      fee_growth_inside1_x128 IS NOT NULL)
+  ),
+  CHECK (
+    principal0 >= 0 AND principal1 >= 0 AND
+    tokens_owed0 >= 0 AND tokens_owed1 >= 0 AND
+    pending0 >= 0 AND pending1 >= 0
+  ),
+  CHECK (claimable0 = tokens_owed0 + pending0),
+  CHECK (claimable1 = tokens_owed1 + pending1),
+  CHECK (methodology = 'npm_position_value_exact'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_nft_position_snapshots_latest_idx
+  ON v3_nft_position_snapshots (
+    position_manager, token_id, accounting_run_id DESC, id DESC
+  );
+
 CREATE TABLE IF NOT EXISTS v3_stable_fee_baseline_runs (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,
