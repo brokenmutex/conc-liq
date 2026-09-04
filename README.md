@@ -202,8 +202,27 @@ and range are aggregated by the pool, so the data is not per-NFT or per-user
 attribution. Raw amounts are not USD value, inventory PnL, or a profitability
 claim.
 
-The snapshot is deliberately on demand rather than part of every tail cycle;
-the current universe requires thousands of historical calls per capture.
+The snapshot is deliberately outside the ten-second tail cycle because the
+current universe requires thousands of historical calls per capture. Run it
+manually, or install the isolated hourly checkpoint timer:
+
+```bash
+sudo install -m 0644 ops/conc-liq-accounting.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-accounting.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-accounting.timer
+systemctl list-timers conc-liq-accounting.timer
+journalctl -u conc-liq-accounting.service -f
+```
+
+The timer invokes `--if-new-source`, which checks the exact replay block and
+hash before making RPC calls. A database uniqueness constraint also resolves
+concurrent manual/timer races without duplicating a run. The timer is persistent
+across downtime, and a failed capture does not stop the canonical tail.
+At the 2026-09-04 live row count, a full checkpoint occupies about 4.5 MB in
+PostgreSQL, or roughly 3.2 GB/month at this cadence before bloat. Monitor table
+growth before increasing frequency; there is intentionally no automatic data
+deletion.
 The implementation follows Uniswap's official
 [`Tick.getFeeGrowthInside`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Tick.sol),
 [`Position.update`](https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/Position.sol),
@@ -326,7 +345,7 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 - indexer/replay block and hash agreement;
 - recent canonical V3 activity grouped by block range;
 - replayed pool, initialized-tick, and active core-position coverage;
-- the latest exact, block-pinned core-position fee-accounting snapshot;
+- the latest exact core-position fee snapshot and recent checkpoint history;
 - the latest per-asset risk gate and recent collection attempts; and
 - the exact registry, feed-directory, and market-policy source hashes behind the
   risk view.

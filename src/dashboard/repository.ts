@@ -8,6 +8,7 @@ import type {
   DashboardOverview,
   DashboardSnapshot,
   FeeAccountingPoolRow,
+  FeeAccountingRunRow,
   FeeAccountingView,
   PoolRow,
   PositionCoverageRow,
@@ -223,6 +224,31 @@ async function feeAccounting(
     schemaVersion: run.schema_version,
     tickCount: run.tick_count,
   };
+}
+
+async function feeAccountingHistory(
+  client: PoolClient,
+  streamKey: string,
+): Promise<FeeAccountingRunRow[]> {
+  const result = await client.query<AccountingRunDbRow>(
+    `SELECT id, schema_version, block_number::text, block_hash,
+            events_applied::text, observed_at, pool_count::text,
+            tick_count::text, position_count::text
+     FROM v3_fee_accounting_runs
+     WHERE stream_key = $1
+     ORDER BY id DESC
+     LIMIT 32`,
+    [streamKey],
+  );
+  return result.rows.map((row) => ({
+    block: row.block_number,
+    blockHash: row.block_hash,
+    observedAt: row.observed_at.toISOString(),
+    poolCount: row.pool_count,
+    positionCount: row.position_count,
+    runId: row.id,
+    tickCount: row.tick_count,
+  }));
 }
 
 function mapOverview(row: OverviewRow, streamKey: string): DashboardOverview {
@@ -553,6 +579,10 @@ export class DashboardRepository {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const data = {
         accounting: await feeAccounting(client, this.config.streamKey),
+        accountingHistory: await feeAccountingHistory(
+          client,
+          this.config.streamKey,
+        ),
         activity: await activity(client, this.config),
         attempts: await attempts(client),
         overview: await overview(client, this.config.streamKey),

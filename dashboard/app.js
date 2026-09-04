@@ -259,6 +259,34 @@ function renderAccounting(accounting, now) {
   }
 }
 
+function renderAccountingHistory(rows, now) {
+  const section = element("accounting-history");
+  section.classList.toggle("hidden", rows.length === 0);
+  const body = element("accounting-history-body");
+  body.replaceChildren();
+  rows.forEach((run, index) => {
+    const older = rows[index + 1];
+    const delta = older === undefined
+      ? "—"
+      : (BigInt(run.block) - BigInt(older.block)).toLocaleString("en-US");
+    const block = document.createElement("span");
+    block.className = "mono";
+    block.textContent = blockNumber(run.block);
+    block.title = run.blockHash;
+    const row = document.createElement("tr");
+    row.append(
+      cell(`#${run.runId}`, "number mono"),
+      cell(block, "number"),
+      cell(delta, "number mono"),
+      cell(timeAgo(run.observedAt, now), "number"),
+      cell(run.poolCount, "number"),
+      cell(compactInteger(run.tickCount), "number"),
+      cell(compactInteger(run.positionCount), "number"),
+    );
+    body.append(row);
+  });
+}
+
 function renderRisk(rows) {
   const body = element("risk-body");
   body.replaceChildren();
@@ -338,6 +366,7 @@ function render(data) {
   renderActivity(data.activity);
   renderPools(data.pools);
   renderAccounting(data.accounting, data.overview.serverTime);
+  renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
   renderRisk(data.riskAssets);
   renderPositions(data.positions);
   renderAttempts(data.attempts, data.overview.serverTime);

@@ -5,6 +5,11 @@ import type { FeeAccountingSnapshot } from "./domain.js";
 const { Pool } = pg;
 const INSERT_BATCH_SIZE = 250;
 
+export interface FeeAccountingSaveResult {
+  readonly created: boolean;
+  readonly runId: string;
+}
+
 function placeholders(rowCount: number, columnCount: number): string {
   return Array.from({ length: rowCount }, (_, row) => {
     const offset = row * columnCount;
@@ -94,7 +99,30 @@ export class PostgresFeeAccountingStore {
     await this.pool.query(SCHEMA_SQL);
   }
 
-  public async save(snapshot: FeeAccountingSnapshot): Promise<string> {
+  public async findRunId(input: {
+    readonly blockHash: string;
+    readonly blockNumber: bigint;
+    readonly schemaVersion: number;
+    readonly streamKey: string;
+  }): Promise<string | null> {
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id
+       FROM v3_fee_accounting_runs
+       WHERE schema_version = $1 AND stream_key = $2
+         AND block_number = $3 AND block_hash = $4
+       ORDER BY id DESC
+       LIMIT 1`,
+      [
+        input.schemaVersion,
+        input.streamKey,
+        input.blockNumber.toString(),
+        input.blockHash,
+      ],
+    );
+    return result.rows[0]?.id ?? null;
+  }
+
+  public async save(snapshot: FeeAccountingSnapshot): Promise<FeeAccountingSaveResult> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -103,6 +131,8 @@ export class PostgresFeeAccountingStore {
            schema_version, stream_key, chain_id, block_number, block_hash,
            events_applied, observed_at, pool_count, tick_count, position_count
          ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+         ON CONFLICT (schema_version, stream_key, block_number, block_hash)
+           DO NOTHING
          RETURNING id`,
         [
           snapshot.schemaVersion,
@@ -119,7 +149,26 @@ export class PostgresFeeAccountingStore {
       );
       const runId = result.rows[0]?.id;
       if (runId === undefined) {
-        throw new Error("PostgreSQL did not return a fee accounting run ID");
+        const existing = await client.query<{ id: string }>(
+          `SELECT id
+           FROM v3_fee_accounting_runs
+           WHERE schema_version = $1 AND stream_key = $2
+             AND block_number = $3 AND block_hash = $4
+           ORDER BY id DESC
+           LIMIT 1`,
+          [
+            snapshot.schemaVersion,
+            snapshot.streamKey,
+            snapshot.blockNumber.toString(),
+            snapshot.blockHash,
+          ],
+        );
+        const existingRunId = existing.rows[0]?.id;
+        if (existingRunId === undefined) {
+          throw new Error("PostgreSQL did not resolve the accounting run conflict");
+        }
+        await client.query("COMMIT");
+        return { created: false, runId: existingRunId };
       }
       for (const pool of snapshot.pools) {
         await client.query(
@@ -158,7 +207,7 @@ export class PostgresFeeAccountingStore {
       await saveTicks(client, runId, snapshot);
       await savePositions(client, runId, snapshot);
       await client.query("COMMIT");
-      return runId;
+      return { created: true, runId };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

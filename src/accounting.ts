@@ -12,11 +12,15 @@ const environmentSchema = z.object({
 });
 
 function printHelp(): void {
-  console.log(`Usage: npm run accounting:snapshot
+  console.log(`Usage: npm run accounting:snapshot -- [options]
 
 Captures exact Uniswap v3 core fee state at the current replay completion block.
 Every pool, initialized tick, and replayed core position is reconciled through
 block-pinned eth_call before the immutable accounting snapshot is committed.
+
+Options:
+  --if-new-source          Skip RPC reads if this exact source is already stored
+  -h, --help               Show this help
 
 Environment:
   DATABASE_URL             Required PostgreSQL database
@@ -32,8 +36,13 @@ async function main(): Promise<void> {
     printHelp();
     return;
   }
-  if (arguments_.length > 0) {
-    throw new Error(`Unknown argument: ${arguments_[0]}`);
+  const ifNewSource = arguments_.includes("--if-new-source");
+  const unknown = arguments_.find((argument) => argument !== "--if-new-source");
+  if (unknown !== undefined) {
+    throw new Error(`Unknown argument: ${unknown}`);
+  }
+  if (arguments_.filter((argument) => argument === "--if-new-source").length > 1) {
+    throw new Error("--if-new-source may only be supplied once");
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
@@ -50,18 +59,37 @@ async function main(): Promise<void> {
       positions: source.positions.length,
       ticks: source.ticks.length,
     });
+    if (ifNewSource) {
+      const existingRunId = await accountingStore.findRunId({
+        blockHash: source.blockHash,
+        blockNumber: source.blockNumber,
+        schemaVersion: 1,
+        streamKey: source.streamKey,
+      });
+      if (existingRunId !== null) {
+        log("info", "fee_accounting_snapshot_skipped", {
+          blockHash: source.blockHash,
+          blockNumber: source.blockNumber,
+          reason: "source_already_captured",
+          runId: existingRunId,
+        });
+        return;
+      }
+    }
     const snapshot = await collectFeeAccountingSnapshot({
       client,
       concurrency: environment.ACCOUNTING_CONCURRENCY,
       source,
     });
-    const runId = await accountingStore.save(snapshot);
-    log("info", "fee_accounting_snapshot_saved", {
+    const saved = await accountingStore.save(snapshot);
+    log("info", saved.created
+      ? "fee_accounting_snapshot_saved"
+      : "fee_accounting_snapshot_race_skipped", {
       blockHash: snapshot.blockHash,
       blockNumber: snapshot.blockNumber,
       pools: snapshot.pools.length,
       positions: snapshot.positions.length,
-      runId,
+      runId: saved.runId,
       ticks: snapshot.ticks.length,
     });
   } finally {

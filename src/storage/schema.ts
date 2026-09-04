@@ -206,6 +206,11 @@ CREATE TABLE IF NOT EXISTS v3_fee_accounting_runs (
 CREATE INDEX IF NOT EXISTS v3_fee_accounting_runs_latest_idx
   ON v3_fee_accounting_runs (stream_key, block_number DESC, id DESC);
 
+CREATE UNIQUE INDEX IF NOT EXISTS v3_fee_accounting_runs_source_idx
+  ON v3_fee_accounting_runs (
+    schema_version, stream_key, block_number, block_hash
+  );
+
 CREATE TABLE IF NOT EXISTS v3_pool_fee_accounting (
   run_id BIGINT NOT NULL REFERENCES v3_fee_accounting_runs(id) ON DELETE CASCADE,
   pool_address TEXT NOT NULL,

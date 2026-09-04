@@ -150,8 +150,19 @@ export interface FeeAccountingView {
   readonly tickCount: string;
 }
 
+export interface FeeAccountingRunRow {
+  readonly block: string;
+  readonly blockHash: string;
+  readonly observedAt: string;
+  readonly poolCount: string;
+  readonly positionCount: string;
+  readonly runId: string;
+  readonly tickCount: string;
+}
+
 export interface DashboardSnapshot {
   readonly accounting: FeeAccountingView | null;
+  readonly accountingHistory: readonly FeeAccountingRunRow[];
   readonly activity: readonly ActivityBucket[];
   readonly attempts: readonly RiskAttemptRow[];
   readonly overview: DashboardOverview;

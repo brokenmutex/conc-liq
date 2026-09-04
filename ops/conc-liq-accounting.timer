@@ -1,0 +1,11 @@
+[Unit]
+Description=Capture conc-liq exact fee accounting hourly
+
+[Timer]
+OnCalendar=hourly
+AccuracySec=30s
+Persistent=true
+Unit=conc-liq-accounting.service
+
+[Install]
+WantedBy=timers.target

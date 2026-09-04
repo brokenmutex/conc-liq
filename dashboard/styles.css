@@ -279,6 +279,18 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.018); }
 .raw-amount { cursor: help; }
 .claimable { color: var(--mint); }
 .token-label span { cursor: help; }
+.accounting-history { margin-top: 24px; }
+.subsection-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  color: #6f7d91;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.11em;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
 
 .two-column { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(360px, 0.82fr); gap: 12px; }
 .two-column .panel { min-width: 0; }
