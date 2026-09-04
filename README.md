@@ -171,6 +171,52 @@ Event logs alone do not expose global fee-growth accumulators, per-tick
 fee-growth-outside values, or current position `tokensOwed`. The replayer does
 not label those values exact or infer them from collection cash flows.
 
+## Private RPC quorum circuit
+
+Run the low-rate health monitor before starting the tail or accounting workers:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run rpc:health -- --once
+```
+
+The monitor compares the private head with two public references, then requires
+the references to agree on a shared hash at least 64 blocks behind the fastest
+reference. A matching reference group supplies a conservative maximum reference head. The
+circuit degrades above 20 blocks or 5 seconds of lag and opens immediately above
+100 blocks or 30 seconds, when the private node cannot serve or disagrees with
+the reference-confirmed anchor, on a reported sync, a stalled private head,
+excessive latency, missing quorum, or failed private reads. Both `degraded` and
+`open` stop bulk work.
+
+Recovery is deliberately sticky: twelve consecutive clean samples are required
+before the state returns from `half_open` to `healthy`. Tail and fee-accounting
+clients use zero transport retries and check the persisted circuit before every
+private RPC request, with a two-second cache to bound database load. A missing
+or older-than-30-second health sample also closes the gate. The health monitor's
+own fixed load is four small private calls and three calls to each reference per
+sample; it does not request logs or contract state.
+
+Install the monitor first. The tail and accounting units require it:
+
+```bash
+sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-tail.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-accounting.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-accounting.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-rpc-health.service
+journalctl -u conc-liq-rpc-health.service -f
+```
+
+Only start or enable the bulk units after the monitor reports `healthy`. Setting
+`RPC_HEALTH_GATE_ENABLED=false` is an explicit diagnostic bypass; do not use it
+for unattended or production collection.
+
 ## Exact core-position fee accounting
 
 Capture the missing fee state directly from every pool at one exact replay
@@ -207,9 +253,11 @@ current universe requires thousands of historical calls per capture. Run it
 manually, or install the isolated hourly checkpoint timer:
 
 ```bash
+sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
 sudo install -m 0644 ops/conc-liq-accounting.service /etc/systemd/system/
 sudo install -m 0644 ops/conc-liq-accounting.timer /etc/systemd/system/
 sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-rpc-health.service
 sudo systemctl enable --now conc-liq-accounting.timer
 systemctl list-timers conc-liq-accounting.timer
 journalctl -u conc-liq-accounting.service -f
@@ -501,8 +549,10 @@ are automatically rebuilt from the canonical event index.
 Install the repository-owned service on this host:
 
 ```bash
+sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
 sudo install -m 0644 ops/conc-liq-tail.service /etc/systemd/system/
 sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-rpc-health.service
 sudo systemctl enable --now conc-liq-tail.service
 systemctl status conc-liq-tail.service
 journalctl -u conc-liq-tail.service -f
@@ -746,9 +796,20 @@ worker remains the owner of collection and replay.
 | `INDEXER_INITIAL_CHUNK_SIZE` | `10000` | Initial `eth_getLogs` range |
 | `INDEXER_MIN_CHUNK_SIZE` | `100` | Smallest retry range |
 | `INDEXER_MAX_CHUNK_SIZE` | `25000` | Largest adaptive range |
+| `RPC_HEALTH_REFERENCE_URLS` | Robinhood and BlockReq public RPCs | Independent comma-separated head references |
+| `RPC_HEALTH_REFERENCE_QUORUM` | `2` | References agreeing at the confirmed anchor |
+| `RPC_HEALTH_CONFIRMATION_DEPTH` | `64` | Shared anchor depth used for hash agreement |
+| `RPC_HEALTH_SOFT_LAG_BLOCKS` | `20` | Block lag that degrades and pauses bulk reads |
+| `RPC_HEALTH_HARD_LAG_BLOCKS` | `100` | Block lag that opens the circuit |
+| `RPC_HEALTH_SOFT_LAG_SECONDS` | `5` | Time lag that degrades and pauses bulk reads |
+| `RPC_HEALTH_HARD_LAG_SECONDS` | `30` | Time lag that opens the circuit |
+| `RPC_HEALTH_RECOVERY_SAMPLES` | `12` | Consecutive clean samples required to recover |
+| `RPC_HEALTH_POLL_INTERVAL_MS` | `10000` | Quorum probe cadence |
+| `RPC_HEALTH_GATE_ENABLED` | `true` | Fail-closed protection for bulk workers |
+| `RPC_HEALTH_MAX_SAMPLE_AGE_SECONDS` | `30` | Maximum gate sample age |
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
-| `ACCOUNTING_CONCURRENCY` | `24` | Concurrent block-pinned fee-state reads |
+| `ACCOUNTING_CONCURRENCY` | `4` | Concurrent block-pinned fee-state reads |
 | `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |

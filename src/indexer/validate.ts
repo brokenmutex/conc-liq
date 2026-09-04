@@ -85,7 +85,9 @@ export async function validatePoolManifest(
   client: RobinhoodClient,
   manifest: PoolManifest,
   blockNumber: bigint,
+  beforeRpc?: () => Promise<void>,
 ): Promise<void> {
+  await beforeRpc?.();
   const chainId = await client.getChainId();
   if (chainId !== ROBINHOOD_CHAIN_ID || manifest.chainId !== chainId) {
     throw new Error(
@@ -94,6 +96,7 @@ export async function validatePoolManifest(
   }
 
   for (const target of manifest.pools) {
+    await beforeRpc?.();
     await validateTarget(client, target, blockNumber);
   }
 }

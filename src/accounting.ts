@@ -5,9 +5,11 @@ import { PostgresFeeAccountingStore } from "./accounting/store.js";
 import { createRobinhoodClient } from "./client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
+import { loadRpcHealthGateConfig } from "./rpc-health/config.js";
+import { PostgresRpcHealthGate } from "./rpc-health/store.js";
 
 const environmentSchema = z.object({
-  ACCOUNTING_CONCURRENCY: z.coerce.number().int().positive().max(100).default(24),
+  ACCOUNTING_CONCURRENCY: z.coerce.number().int().positive().max(100).default(4),
   DATABASE_URL: z.string().min(1),
 });
 
@@ -26,7 +28,8 @@ Environment:
   DATABASE_URL             Required PostgreSQL database
   RH_INDEXER_RPC_URL       Private archive/read RPC; falls back to RH_RPC_URL
   INDEXER_STREAM_KEY       Indexed/replayed stream
-  ACCOUNTING_CONCURRENCY   Concurrent eth_call limit (default 24)
+  ACCOUNTING_CONCURRENCY   Concurrent eth_call limit (default 4)
+  RPC_HEALTH_GATE_ENABLED  Require healthy quorum state (default true)
 `);
 }
 
@@ -46,10 +49,25 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const healthConfig = loadRpcHealthGateConfig();
+  const healthGate = new PostgresRpcHealthGate({
+    cacheMs: healthConfig.cacheMs,
+    connectionString: environment.DATABASE_URL,
+    enabled: healthConfig.enabled,
+    maxSampleAgeSeconds: healthConfig.maxSampleAgeSeconds,
+  });
+  const client = createRobinhoodClient(
+    indexer.rpcUrl,
+    indexer.rpcTimeoutMs,
+    {
+      beforeRequest: () => healthGate.assertBulkAllowed().then(() => {}),
+      retryCount: 0,
+    },
+  );
   const sourceStore = new PostgresAccountingSourceStore(environment.DATABASE_URL);
   const accountingStore = new PostgresFeeAccountingStore(environment.DATABASE_URL);
   try {
+    await healthGate.migrate();
     await accountingStore.migrate();
     const source = await sourceStore.snapshot(indexer.streamKey);
     log("info", "fee_accounting_source_loaded", {
@@ -76,7 +94,9 @@ async function main(): Promise<void> {
         return;
       }
     }
+    await healthGate.assertBulkAllowed();
     const snapshot = await collectFeeAccountingSnapshot({
+      beforeRpc: () => healthGate.assertBulkAllowed().then(() => {}),
       client,
       concurrency: environment.ACCOUNTING_CONCURRENCY,
       source,
@@ -93,6 +113,7 @@ async function main(): Promise<void> {
       ticks: snapshot.ticks.length,
     });
   } finally {
+    await healthGate.close();
     await sourceStore.close();
     await accountingStore.close();
   }

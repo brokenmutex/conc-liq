@@ -1,8 +1,8 @@
 [Unit]
 Description=conc-liq fee, principal, NFT, and stable-position accounting
-After=network-online.target postgresql.service conc-liq-tail.service
+After=network-online.target postgresql.service conc-liq-rpc-health.service conc-liq-tail.service
 Wants=network-online.target
-Requires=postgresql.service
+Requires=postgresql.service conc-liq-rpc-health.service
 
 [Service]
 Type=oneshot

@@ -10,6 +10,7 @@ import { fetchCheckpoint, fetchV3Events } from "./logs.js";
 import { PostgresEventStore } from "./store.js";
 
 export interface BackfillOptions {
+  readonly beforeRpc?: () => Promise<void>;
   readonly dryRun: boolean;
   readonly explicitFromBlock?: bigint;
   readonly maxChunks?: number;
@@ -81,6 +82,7 @@ export async function findCanonicalAnchor(
   client: RobinhoodClient,
   cursor: IndexerCursor,
   checkpoints: readonly BlockCheckpoint[],
+  beforeRpc?: () => Promise<void>,
 ): Promise<bigint | null> {
   if (cursor.lastScannedBlock === null || cursor.lastScannedHash === null) {
     return null;
@@ -96,6 +98,7 @@ export async function findCanonicalAnchor(
     ...checkpoints.filter((checkpoint) => checkpoint.number !== cursor.lastScannedBlock),
   ];
   for (const candidate of candidates) {
+    await beforeRpc?.();
     const canonical = await client.getBlock({ blockNumber: candidate.number });
     if (canonical.hash.toLowerCase() === candidate.hash.toLowerCase()) {
       return candidate.number;
@@ -134,7 +137,12 @@ export async function runBackfill(
       : await store.recentCheckpoints(config.streamKey);
     const canonicalAnchor = cursor === null
       ? null
-      : await findCanonicalAnchor(client, cursor, checkpoints);
+      : await findCanonicalAnchor(
+        client,
+        cursor,
+        checkpoints,
+        options.beforeRpc,
+      );
     const targetSetChanged = cursor !== null &&
       cursor.targetSetHash.toLowerCase() !== manifest.targetSetHash.toLowerCase();
     fromBlock = calculateResumeStart({
@@ -173,6 +181,7 @@ export async function runBackfill(
 
     let events;
     try {
+      await options.beforeRpc?.();
       events = await fetchV3Events(client, manifest, nextBlock, toBlock);
     } catch (error) {
       if (chunkSize <= config.minChunkSize) {
@@ -190,6 +199,7 @@ export async function runBackfill(
       continue;
     }
 
+    await options.beforeRpc?.();
     const checkpoint = await fetchCheckpoint(client, toBlock);
     if (store !== undefined) {
       await store.saveChunk({

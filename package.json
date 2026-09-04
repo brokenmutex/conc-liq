@@ -26,6 +26,7 @@
     "replay": "node --import tsx src/replay.ts",
     "risk:gate": "node --import tsx src/risk-gate.ts",
     "risk:snapshot": "node --import tsx src/risk.ts",
+    "rpc:health": "node --import tsx src/rpc-health.ts",
     "start": "node dist/src/index.js",
     "strategy:checkpoint": "node --import tsx src/strategy-checkpoint.ts",
     "tail": "node --import tsx src/tail.ts",

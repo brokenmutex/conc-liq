@@ -13,6 +13,10 @@ import {
 import type { RiskSnapshot } from "../risk/domain.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import type { RiskCanonicalityValidation } from "../risk/store.js";
+import {
+  RpcHealthCircuitOpenError,
+  type BulkRpcHealthGate,
+} from "../rpc-health/store.js";
 import type { TailConfig } from "./config.js";
 
 export interface TailOptions {
@@ -95,7 +99,9 @@ export async function runTailCycle(input: {
   readonly indexerConfig: IndexerConfig;
   readonly manifest: PoolManifest;
   readonly replayConfig: ReplayConfig;
+  readonly rpcHealthGate?: BulkRpcHealthGate;
 }): Promise<TailCycleResult> {
+  await input.rpcHealthGate?.assertBulkAllowed();
   const head = await input.client.getBlockNumber();
   const safeHead = calculateSafeHead(head, input.indexerConfig.confirmationDepth);
   const eventStore = new PostgresEventStore(input.databaseUrl);
@@ -105,7 +111,15 @@ export async function runTailCycle(input: {
       input.client,
       input.manifest,
       input.indexerConfig,
-      { dryRun: false, toBlock: safeHead },
+      {
+        beforeRpc: input.rpcHealthGate === undefined
+          ? undefined
+          : async () => {
+            await input.rpcHealthGate!.assertBulkAllowed();
+          },
+        dryRun: false,
+        toBlock: safeHead,
+      },
       eventStore,
     );
   } finally {
@@ -132,6 +146,7 @@ export async function runTail(input: {
   readonly manifest: PoolManifest;
   readonly options: TailOptions;
   readonly replayConfig: ReplayConfig;
+  readonly rpcHealthGate?: BulkRpcHealthGate;
   readonly riskCanonicalityValidator?: () => Promise<RiskCanonicalityValidation | null>;
   readonly riskSnapshotter?: (blockNumber: bigint) => Promise<RiskSnapshot>;
   readonly strategyCheckpointter?: (snapshot: RiskSnapshot) => Promise<void>;
@@ -154,6 +169,7 @@ export async function runTail(input: {
           input.tailConfig.riskSnapshotIntervalMs,
         )
       ) {
+        await input.rpcHealthGate?.assertBulkAllowed();
         lastRiskAttemptAtMs = Date.now();
         try {
           const snapshot = await input.riskSnapshotter(result.safeHead);
@@ -164,14 +180,17 @@ export async function runTail(input: {
           });
           if (input.strategyCheckpointter !== undefined) {
             try {
+              await input.rpcHealthGate?.assertBulkAllowed();
               await input.strategyCheckpointter(snapshot);
             } catch (error) {
+              if (error instanceof RpcHealthCircuitOpenError) throw error;
               log("error", "tail_strategy_checkpoint_failed", {
                 error: sanitizeRiskError(error),
               });
             }
           }
         } catch (error) {
+          if (error instanceof RpcHealthCircuitOpenError) throw error;
           log("error", "tail_risk_snapshot_failed", {
             error: sanitizeRiskError(error),
           });
@@ -179,11 +198,13 @@ export async function runTail(input: {
       }
       if (input.riskCanonicalityValidator !== undefined) {
         try {
+          await input.rpcHealthGate?.assertBulkAllowed();
           const validation = await input.riskCanonicalityValidator();
           log("info", "tail_risk_canonicality_validated", {
             validation,
           });
         } catch (error) {
+          if (error instanceof RpcHealthCircuitOpenError) throw error;
           log("error", "tail_risk_canonicality_failed", {
             error: sanitizeRiskError(error),
           });
@@ -208,6 +229,18 @@ export async function runTail(input: {
       );
       await waitForDelay(remainingDelay, input.options.signal);
     } catch (error) {
+      if (error instanceof RpcHealthCircuitOpenError) {
+        consecutiveFailures = 0;
+        log("warn", "tail_rpc_health_paused", {
+          lagBlocks: error.status?.lagBlocks,
+          lagSeconds: error.status?.lagSeconds,
+          reasons: error.status?.reasons ?? [error.message],
+          sampleId: error.status?.sampleId ?? null,
+          state: error.status?.state ?? "unavailable",
+        });
+        await waitForDelay(input.tailConfig.pollIntervalMs, input.options.signal);
+        continue;
+      }
       consecutiveFailures += 1;
       log("error", "tail_cycle_failed", {
         consecutiveFailures,

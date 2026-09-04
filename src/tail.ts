@@ -12,9 +12,14 @@ import { collectStrategyCheckpoint } from "./strategy-checkpoint/collector.js";
 import { loadStrategyCheckpointConfig } from "./strategy-checkpoint/config.js";
 import { ViemStrategyCheckpointReader } from "./strategy-checkpoint/reader.js";
 import { PostgresStrategyCheckpointStore } from "./strategy-checkpoint/store.js";
+import { loadRpcHealthGateConfig } from "./rpc-health/config.js";
+import {
+  PostgresRpcHealthGate,
+  RpcHealthCircuitOpenError,
+} from "./rpc-health/store.js";
 import { loadTailConfig } from "./tail/config.js";
 import { PostgresTailLock } from "./tail/lock.js";
-import { calculateSafeHead, runTail } from "./tail/runner.js";
+import { calculateSafeHead, runTail, waitForDelay } from "./tail/runner.js";
 
 interface CliOptions {
   readonly help: boolean;
@@ -79,7 +84,36 @@ Environment:
   RISK_MAX_PRICE_AGE_SECONDS      Strict price age ceiling (default 300)
   ROBINHOOD_MARKET_POLICY_URL     Official Stock Tokens market policy
   RISK_GATE_MAX_CANONICALITY_AGE_SECONDS  Gate-only validation age (default 30)
+  RPC_HEALTH_GATE_ENABLED              Require healthy quorum state (default true)
+  RPC_HEALTH_MAX_SAMPLE_AGE_SECONDS    Fail-closed sample age (default 30)
 `);
+}
+
+async function waitForHealthyRpc(input: {
+  readonly gate: PostgresRpcHealthGate;
+  readonly pollIntervalMs: number;
+  readonly signal: AbortSignal;
+}): Promise<boolean> {
+  while (!input.signal.aborted) {
+    try {
+      const status = await input.gate.assertBulkAllowed();
+      log("info", "tail_rpc_health_ready", {
+        lagBlocks: status?.lagBlocks ?? null,
+        sampleId: status?.sampleId ?? null,
+      });
+      return true;
+    } catch (error) {
+      if (!(error instanceof RpcHealthCircuitOpenError)) throw error;
+      log("warn", "tail_rpc_health_waiting", {
+        lagBlocks: error.status?.lagBlocks ?? null,
+        lagSeconds: error.status?.lagSeconds ?? null,
+        reasons: error.status?.reasons ?? [error.message],
+        state: error.status?.state ?? "unavailable",
+      });
+      await waitForDelay(input.pollIntervalMs, input.signal);
+    }
+  }
+  return false;
 }
 
 async function main(): Promise<void> {
@@ -98,18 +132,24 @@ async function main(): Promise<void> {
   const riskConfig = loadRiskConfig();
   const strategyConfig = loadStrategyCheckpointConfig();
   const tailConfig = loadTailConfig();
+  const rpcHealthConfig = loadRpcHealthGateConfig();
   const manifest = await loadPoolManifest(indexerConfig.poolsPath);
-  const client = createRobinhoodClient(indexerConfig.rpcUrl, indexerConfig.rpcTimeoutMs);
+  const rpcHealthGate = new PostgresRpcHealthGate({
+    cacheMs: rpcHealthConfig.cacheMs,
+    connectionString: databaseUrl,
+    enabled: rpcHealthConfig.enabled,
+    maxSampleAgeSeconds: rpcHealthConfig.maxSampleAgeSeconds,
+  });
+  const client = createRobinhoodClient(
+    indexerConfig.rpcUrl,
+    indexerConfig.rpcTimeoutMs,
+    {
+      beforeRequest: () => rpcHealthGate.assertBulkAllowed().then(() => {}),
+      retryCount: 0,
+    },
+  );
   const riskReader = new ViemRiskChainReader(client);
   const strategyReader = new ViemStrategyCheckpointReader(client);
-  const head = await client.getBlockNumber();
-  const safeHead = calculateSafeHead(head, indexerConfig.confirmationDepth);
-  await validatePoolManifest(client, manifest, safeHead);
-  log("info", "tail_manifest_verified", {
-    poolCount: manifest.pools.length,
-    safeHead,
-    targetSetHash: manifest.targetSetHash,
-  });
 
   const controller = new AbortController();
   const stop = (signal: NodeJS.Signals): void => {
@@ -125,8 +165,29 @@ async function main(): Promise<void> {
     ? new PostgresStrategyCheckpointStore(databaseUrl)
     : null;
   try {
+    await rpcHealthGate.migrate();
     await riskStore.migrate();
     await strategyStore?.migrate();
+    const ready = await waitForHealthyRpc({
+      gate: rpcHealthGate,
+      pollIntervalMs: tailConfig.pollIntervalMs,
+      signal: controller.signal,
+    });
+    if (!ready) return;
+    await rpcHealthGate.assertBulkAllowed();
+    const head = await client.getBlockNumber();
+    const safeHead = calculateSafeHead(head, indexerConfig.confirmationDepth);
+    await validatePoolManifest(
+      client,
+      manifest,
+      safeHead,
+      () => rpcHealthGate.assertBulkAllowed().then(() => {}),
+    );
+    log("info", "tail_manifest_verified", {
+      poolCount: manifest.pools.length,
+      safeHead,
+      targetSetHash: manifest.targetSetHash,
+    });
     await lock.acquire(indexerConfig.streamKey);
     await runTail({
       client,
@@ -135,6 +196,7 @@ async function main(): Promise<void> {
       manifest,
       options: { maxCycles: options.maxCycles, signal: controller.signal },
       replayConfig,
+      rpcHealthGate,
       riskCanonicalityValidator: () => riskStore.validateLatestCanonical(
         (requestedBlock) => riskReader.getBlock(requestedBlock),
       ),
@@ -173,6 +235,7 @@ async function main(): Promise<void> {
     process.removeListener("SIGINT", stop);
     process.removeListener("SIGTERM", stop);
     await lock.close();
+    await rpcHealthGate.close();
     await riskStore.close();
     await strategyStore?.close();
   }

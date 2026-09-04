@@ -92,46 +92,50 @@ async function readPool(
   client: RobinhoodClient,
   source: AccountingSourceSnapshot["pools"][number],
   blockNumber: bigint,
+  beforeRpc?: () => Promise<void>,
 ): Promise<PoolFeeBase> {
-  const [slot0, liquidity, feeGrowth0, feeGrowth1, token0, token1] =
-    await Promise.all([
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "slot0",
-      }),
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "liquidity",
-      }),
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "feeGrowthGlobal0X128",
-      }),
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "feeGrowthGlobal1X128",
-      }),
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "token0",
-      }),
-      client.readContract({
-        abi: replayPoolStateAbi,
-        address: source.poolAddress,
-        blockNumber,
-        functionName: "token1",
-      }),
-    ]);
+  await beforeRpc?.();
+  const slot0 = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "slot0",
+  });
+  await beforeRpc?.();
+  const liquidity = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "liquidity",
+  });
+  await beforeRpc?.();
+  const feeGrowth0 = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "feeGrowthGlobal0X128",
+  });
+  await beforeRpc?.();
+  const feeGrowth1 = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "feeGrowthGlobal1X128",
+  });
+  await beforeRpc?.();
+  const token0 = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "token0",
+  });
+  await beforeRpc?.();
+  const token1 = await client.readContract({
+    abi: replayPoolStateAbi,
+    address: source.poolAddress,
+    blockNumber,
+    functionName: "token1",
+  });
   if (
     slot0[0] !== source.sqrtPriceX96 ||
     slot0[1] !== source.tick ||
@@ -267,6 +271,7 @@ async function readPosition(
 }
 
 export async function collectFeeAccountingSnapshot(input: {
+  readonly beforeRpc?: () => Promise<void>;
   readonly client: RobinhoodClient;
   readonly concurrency: number;
   readonly source: AccountingSourceSnapshot;
@@ -274,6 +279,7 @@ export async function collectFeeAccountingSnapshot(input: {
   if (!Number.isSafeInteger(input.concurrency) || input.concurrency <= 0) {
     throw new Error("Fee accounting concurrency must be a positive safe integer");
   }
+  await input.beforeRpc?.();
   const chainId = await input.client.getChainId();
   if (chainId !== input.source.chainId) {
     throw new Error(
@@ -281,11 +287,17 @@ export async function collectFeeAccountingSnapshot(input: {
       `${input.source.chainId}`,
     );
   }
+  await input.beforeRpc?.();
   await requireCanonicalBlock(input.client, input.source);
   const poolBase = await mapConcurrent(
     input.source.pools,
     input.concurrency,
-    (pool) => readPool(input.client, pool, input.source.blockNumber),
+    (pool) => readPool(
+      input.client,
+      pool,
+      input.source.blockNumber,
+      input.beforeRpc,
+    ),
   );
   const pools = new Map(
     input.source.pools.map((pool, index) => [
@@ -299,7 +311,10 @@ export async function collectFeeAccountingSnapshot(input: {
   const tickStates = await mapConcurrent(
     input.source.ticks,
     input.concurrency,
-    (tick) => readTick(input.client, tick, input.source.blockNumber),
+    async (tick) => {
+      await input.beforeRpc?.();
+      return readTick(input.client, tick, input.source.blockNumber);
+    },
     (complete, total) => {
       if (complete % 500 === 0 || complete === total) {
         log("info", "fee_accounting_ticks_progress", { complete, total });
@@ -312,14 +327,17 @@ export async function collectFeeAccountingSnapshot(input: {
   const positionStates = await mapConcurrent(
     input.source.positions,
     input.concurrency,
-    (position) => readPosition(
-      input.client,
-      position,
-      input.source.blockNumber,
-      pools,
-      sourcePools,
-      ticks,
-    ),
+    async (position) => {
+      await input.beforeRpc?.();
+      return readPosition(
+        input.client,
+        position,
+        input.source.blockNumber,
+        pools,
+        sourcePools,
+        ticks,
+      );
+    },
     (complete, total) => {
       if (complete % 1_000 === 0 || complete === total) {
         log("info", "fee_accounting_positions_progress", { complete, total });
@@ -366,6 +384,7 @@ export async function collectFeeAccountingSnapshot(input: {
     return { ...sourcePool, ...base, ...total };
   });
 
+  await input.beforeRpc?.();
   await requireCanonicalBlock(input.client, input.source);
   return {
     blockHash: input.source.blockHash,

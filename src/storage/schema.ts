@@ -1240,4 +1240,66 @@ CREATE TABLE IF NOT EXISTS v3_oracle_policy_replay_steps (
   ),
   CHECK (rebalanced OR action_cost_quote = 0)
 );
+
+CREATE TABLE IF NOT EXISTS rpc_health_samples (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  state TEXT NOT NULL,
+  allow_bulk BOOLEAN NOT NULL,
+  reasons JSONB NOT NULL,
+  warnings JSONB NOT NULL,
+  reference_count INTEGER NOT NULL,
+  reference_quorum INTEGER NOT NULL,
+  private_head NUMERIC(78, 0),
+  reference_head NUMERIC(78, 0),
+  lag_blocks NUMERIC(78, 0),
+  lag_seconds BIGINT,
+  private_head_timestamp NUMERIC(78, 0),
+  reference_head_timestamp NUMERIC(78, 0),
+  private_latency_ms INTEGER,
+  private_syncing BOOLEAN,
+  anchor_block NUMERIC(78, 0),
+  anchor_hash TEXT,
+  private_anchor_hash TEXT,
+  reference_head_spread_blocks NUMERIC(78, 0),
+  consecutive_healthy INTEGER NOT NULL,
+  consecutive_unhealthy INTEGER NOT NULL,
+  private_head_unchanged_since TIMESTAMPTZ,
+  snapshot JSONB NOT NULL,
+  CHECK (schema_version = 1),
+  CHECK (state IN ('healthy', 'degraded', 'open', 'half_open')),
+  CHECK (allow_bulk = (state = 'healthy')),
+  CHECK (jsonb_typeof(reasons) = 'array' AND jsonb_typeof(warnings) = 'array'),
+  CHECK (
+    reference_count >= 0 AND reference_quorum >= 2 AND
+    consecutive_healthy >= 0 AND consecutive_unhealthy >= 0
+  ),
+  CHECK (
+    private_head IS NULL OR private_head >= 0
+  ),
+  CHECK (
+    reference_head IS NULL OR reference_head >= 0
+  ),
+  CHECK (
+    lag_blocks IS NULL OR lag_blocks >= 0
+  ),
+  CHECK (
+    lag_seconds IS NULL OR lag_seconds >= 0
+  ),
+  CHECK (
+    private_latency_ms IS NULL OR private_latency_ms >= 0
+  ),
+  CHECK (
+    reference_head_spread_blocks IS NULL OR
+    reference_head_spread_blocks >= 0
+  ),
+  CHECK (
+    (anchor_block IS NULL AND anchor_hash IS NULL) OR
+    (anchor_block IS NOT NULL AND anchor_block >= 0 AND anchor_hash IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS rpc_health_samples_latest_idx
+  ON rpc_health_samples (observed_at DESC, id DESC);
 `;
