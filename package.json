@@ -10,6 +10,7 @@
   "scripts": {
     "accounting:snapshot": "node --import tsx src/accounting.ts",
     "action-cost:snapshot": "node --import tsx src/action-cost.ts",
+    "action-cost:assess": "node --import tsx src/action-cost-assess.ts",
     "action-cost:value": "node --import tsx src/action-cost-value.ts",
     "backfill": "node --import tsx src/backfill.ts",
     "backtest:baseline": "node --import tsx src/backtest.ts",

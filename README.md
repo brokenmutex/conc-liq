@@ -769,6 +769,22 @@ not yet replace replay inputs until contract/selector comparability and approval
 coverage are proven. The valuation reader is sequential and paced by default,
 and every private RPC request passes through the quorum health circuit.
 
+Assess one valued sample against the canonical Nonfungible Position Manager:
+
+```bash
+npm run action-cost:assess -- --valuation-run <ID>
+```
+
+The assessment derives selectors from exact function signatures and accepts
+only direct `mint`, `increaseLiquidity`, `decreaseLiquidity`, or `collect`
+calls whose pool-event mix is consistent. Position Manager `multicall` remains
+opaque because the receipt snapshot did not retain its inner calldata. Calls to
+routers, pools, or unknown Position Manager selectors are excluded. A
+zero-liquidity `Burn` emitted while collecting fees is explicitly allowed in
+the `collect` consistency rule; the event-mix label alone is not treated as
+proof that liquidity was removed. Comparable, opaque, and excluded costs are
+stored separately and all remain execution-ineligible.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -884,8 +900,8 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Add approval-cost observations and contract/selector comparability gates, then
-feed a conservative measured-cost percentile into oracle-marked policy replay. Require
+Add block-pinned approval-cost observations, then feed direct-call conservative
+cost percentiles into oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather

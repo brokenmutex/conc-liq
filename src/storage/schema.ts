@@ -1459,6 +1459,71 @@ CREATE TABLE IF NOT EXISTS v3_action_cost_valuations (
   CHECK (jsonb_typeof(snapshot) = 'object')
 );
 
+CREATE TABLE IF NOT EXISTS v3_action_cost_call_assessment_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  valuation_run_id BIGINT NOT NULL
+    REFERENCES v3_action_cost_valuation_runs(id) ON DELETE CASCADE,
+  stream_key TEXT NOT NULL,
+  position_manager_address TEXT NOT NULL,
+  observation_count INTEGER NOT NULL,
+  comparable_observations INTEGER NOT NULL,
+  opaque_observations INTEGER NOT NULL,
+  excluded_observations INTEGER NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  computed_at TIMESTAMPTZ NOT NULL,
+  summary JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (schema_version, valuation_run_id, position_manager_address),
+  CHECK (schema_version = 1),
+  CHECK (
+    observation_count = comparable_observations + opaque_observations +
+      excluded_observations
+  ),
+  CHECK (methodology = 'position_manager_selector_comparability_v1'),
+  CHECK (jsonb_typeof(summary) = 'object'),
+  CHECK (jsonb_typeof(snapshot) = 'object'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE TABLE IF NOT EXISTS v3_action_cost_call_assessments (
+  assessment_run_id BIGINT NOT NULL
+    REFERENCES v3_action_cost_call_assessment_runs(id) ON DELETE CASCADE,
+  valuation_run_id BIGINT NOT NULL,
+  transaction_hash TEXT NOT NULL,
+  action_class TEXT NOT NULL,
+  recipient_address TEXT,
+  selector TEXT,
+  call_family TEXT NOT NULL,
+  intended_action TEXT,
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  total_cost_quote_raw NUMERIC(78, 0),
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (assessment_run_id, transaction_hash),
+  FOREIGN KEY (valuation_run_id, transaction_hash)
+    REFERENCES v3_action_cost_valuations(valuation_run_id, transaction_hash),
+  CHECK (call_family IN (
+    'position_manager_mint', 'position_manager_increase',
+    'position_manager_decrease', 'position_manager_collect',
+    'position_manager_multicall', 'position_manager_other', 'external_call'
+  )),
+  CHECK (intended_action IS NULL OR intended_action IN (
+    'initial_mint', 'increase_liquidity', 'decrease_liquidity', 'collect_fees'
+  )),
+  CHECK (status IN ('comparable', 'opaque', 'excluded')),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (
+    (status = 'comparable' AND intended_action IS NOT NULL AND
+      total_cost_quote_raw IS NOT NULL AND jsonb_array_length(reasons) = 0) OR
+    (status <> 'comparable' AND jsonb_array_length(reasons) > 0)
+  ),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,
