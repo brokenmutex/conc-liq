@@ -19,6 +19,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "npm run typecheck && npm test",
     "dashboard": "node --import tsx src/dashboard.ts",
+    "cost-model:resolve": "node --import tsx src/cost-model-resolve.ts",
     "db:migrate": "node --import tsx src/migrate.ts",
     "nft:snapshot": "node --import tsx src/nft.ts",
     "observe": "node --import tsx src/index.ts",

@@ -1713,6 +1713,50 @@ CREATE TABLE IF NOT EXISTS v3_approval_cost_valuations (
   CHECK (jsonb_typeof(snapshot) = 'object')
 );
 
+CREATE TABLE IF NOT EXISTS v3_guarded_cost_models (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  action_assessment_run_id BIGINT NOT NULL
+    REFERENCES v3_action_cost_call_assessment_runs(id),
+  approval_valuation_run_id BIGINT NOT NULL
+    REFERENCES v3_approval_cost_valuation_runs(id),
+  status TEXT NOT NULL,
+  quote_decimals INTEGER NOT NULL,
+  entry_cost_quote_raw NUMERIC(78, 0),
+  rebalance_cost_quote_raw NUMERIC(78, 0),
+  reasons JSONB NOT NULL,
+  warnings JSONB NOT NULL,
+  components JSONB NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  computed_at TIMESTAMPTZ NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, pool_address, action_assessment_run_id,
+    approval_valuation_run_id
+  ),
+  CHECK (schema_version = 1),
+  CHECK (fee > 0 AND fee <= 1000000),
+  CHECK (status IN ('entry_measured', 'unavailable')),
+  CHECK (quote_decimals = 6),
+  CHECK (
+    (status = 'entry_measured' AND entry_cost_quote_raw IS NOT NULL AND
+      entry_cost_quote_raw >= 0) OR
+    (status = 'unavailable' AND entry_cost_quote_raw IS NULL)
+  ),
+  CHECK (rebalance_cost_quote_raw IS NULL),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (jsonb_typeof(warnings) = 'array'),
+  CHECK (jsonb_typeof(components) = 'object'),
+  CHECK (methodology = 'pool_specific_direct_call_p90_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

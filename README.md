@@ -822,6 +822,23 @@ shapes are copied into the valuation artifact without making oracle calls.
 Results remain token-specific: downstream code may add the RWA and USDG P90
 setup costs only when both exist, but may not substitute another token's gas.
 
+Resolve a pool-specific measured entry model:
+
+```bash
+npm run cost-model:resolve -- \
+  --rwa NVDA --fee 500 \
+  --action-assessment-run <ID> \
+  --approval-valuation-run <ID>
+```
+
+The resolver matches direct initial mints to the exact pool address, requires
+separate same-token RWA and USDG approval samples, and sums their nearest-rank
+P90 USDG costs. It records low sample counts as warnings. Entry can be marked
+measured while rebalance remains unavailable: no rebalance value is emitted
+until the exact decrease/collect/swap/mint execution path has comparable
+evidence. A resolved cost model is still analysis evidence, not transaction
+authorization.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -942,8 +959,9 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Resolve pool-specific entry and rebalance costs from direct-call conservative
-percentiles and feed only complete cost models into oracle-marked policy replay. Require
+Begin a low-cadence, quorum-guarded synchronized checkpoint series for the
+entry-ready NVDA/USDG 0.05% pool. Then feed only complete cost models into
+oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather
