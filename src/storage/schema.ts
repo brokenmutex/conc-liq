@@ -1524,6 +1524,112 @@ CREATE TABLE IF NOT EXISTS v3_action_cost_call_assessments (
   CHECK (jsonb_typeof(snapshot) = 'object')
 );
 
+CREATE TABLE IF NOT EXISTS v3_approval_cost_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  from_block NUMERIC(78, 0) NOT NULL,
+  to_block NUMERIC(78, 0) NOT NULL,
+  to_block_hash TEXT NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  position_manager_address TEXT NOT NULL,
+  max_per_token INTEGER NOT NULL,
+  eligible_candidates INTEGER NOT NULL,
+  selected_candidates INTEGER NOT NULL,
+  comparable_observations INTEGER NOT NULL,
+  excluded_observations INTEGER NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  captured_at TIMESTAMPTZ NOT NULL,
+  summary JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, from_block, to_block, max_per_token,
+    position_manager_address
+  ),
+  CHECK (schema_version = 1),
+  CHECK (chain_id > 0 AND from_block >= 0 AND to_block >= from_block),
+  CHECK (max_per_token > 0),
+  CHECK (
+    eligible_candidates >= selected_candidates AND
+    selected_candidates = comparable_observations + excluded_observations
+  ),
+  CHECK (methodology = 'direct_position_manager_approval_cost_v1'),
+  CHECK (jsonb_typeof(summary) = 'object'),
+  CHECK (jsonb_typeof(snapshot) = 'object'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_approval_cost_runs_recent_idx
+  ON v3_approval_cost_runs (stream_key, to_block DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_approval_cost_observations (
+  run_id BIGINT NOT NULL REFERENCES v3_approval_cost_runs(id) ON DELETE CASCADE,
+  transaction_hash TEXT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  transaction_index INTEGER NOT NULL,
+  token_addresses JSONB NOT NULL,
+  approval_events JSONB NOT NULL,
+  owner_address TEXT,
+  spender_address TEXT,
+  approved_value NUMERIC(78, 0),
+  allowance_before NUMERIC(78, 0),
+  allowance_after NUMERIC(78, 0),
+  allowance_transition TEXT,
+  recipient_address TEXT,
+  selector TEXT,
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  gas_used NUMERIC(78, 0) NOT NULL,
+  gas_used_for_l1 NUMERIC(78, 0),
+  l2_execution_gas_used NUMERIC(78, 0),
+  effective_gas_price NUMERIC(78, 0) NOT NULL,
+  total_fee_wei NUMERIC(78, 0) NOT NULL,
+  l1_data_fee_wei NUMERIC(78, 0),
+  l2_execution_fee_wei NUMERIC(78, 0),
+  fee_components_complete BOOLEAN NOT NULL,
+  attribution TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  observed_at TIMESTAMPTZ NOT NULL,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (run_id, transaction_hash),
+  CHECK (block_number >= 0 AND transaction_index >= 0),
+  CHECK (jsonb_typeof(token_addresses) = 'array'),
+  CHECK (jsonb_typeof(approval_events) = 'array'),
+  CHECK (status IN ('comparable', 'excluded')),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (allowance_transition IS NULL OR allowance_transition IN (
+    'zero_to_nonzero', 'nonzero_to_nonzero', 'to_zero', 'zero_to_zero'
+  )),
+  CHECK (
+    (status = 'comparable' AND allowance_transition = 'zero_to_nonzero' AND
+      allowance_before = 0 AND allowance_after = approved_value AND
+      approved_value > 0 AND jsonb_array_length(reasons) = 0) OR
+    (status = 'excluded' AND jsonb_array_length(reasons) > 0)
+  ),
+  CHECK (
+    gas_used >= 0 AND effective_gas_price >= 0 AND
+    total_fee_wei = gas_used * effective_gas_price
+  ),
+  CHECK (
+    (fee_components_complete AND gas_used_for_l1 IS NOT NULL AND
+      l2_execution_gas_used IS NOT NULL AND l1_data_fee_wei IS NOT NULL AND
+      l2_execution_fee_wei IS NOT NULL AND gas_used_for_l1 <= gas_used AND
+      l2_execution_gas_used = gas_used - gas_used_for_l1 AND
+      l1_data_fee_wei = gas_used_for_l1 * effective_gas_price AND
+      l2_execution_fee_wei = l2_execution_gas_used * effective_gas_price AND
+      total_fee_wei = l1_data_fee_wei + l2_execution_fee_wei) OR
+    (NOT fee_components_complete AND gas_used_for_l1 IS NULL AND
+      l2_execution_gas_used IS NULL AND l1_data_fee_wei IS NULL AND
+      l2_execution_fee_wei IS NULL)
+  ),
+  CHECK (attribution = 'whole_direct_approval_transaction'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

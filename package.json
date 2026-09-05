@@ -12,6 +12,7 @@
     "action-cost:snapshot": "node --import tsx src/action-cost.ts",
     "action-cost:assess": "node --import tsx src/action-cost-assess.ts",
     "action-cost:value": "node --import tsx src/action-cost-value.ts",
+    "approval-cost:snapshot": "node --import tsx src/approval-cost.ts",
     "backfill": "node --import tsx src/backfill.ts",
     "backtest:baseline": "node --import tsx src/backtest.ts",
     "build": "tsc -p tsconfig.json",

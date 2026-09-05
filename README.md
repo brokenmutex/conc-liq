@@ -785,6 +785,30 @@ the `collect` consistency rule; the event-mix label alone is not treated as
 proof that liquidity was removed. Comparable, opaque, and excluded costs are
 stored separately and all remain execution-ineligible.
 
+Measure the separate one-time approval setup path:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run approval-cost:snapshot -- --lookback-blocks 20000 --max-per-token 10
+```
+
+This scans only canonical `Approval` events whose indexed spender is the
+canonical Position Manager, across USDG and the enabled RWA token set. It then
+verifies the containing transaction and receipt, decodes a direct
+`approve(address,uint256)` call, matches owner/spender/value to the event, and
+reads `allowance` at blocks N-1 and N. Only a proven zero-to-nonzero transition
+is comparable to first-time canary setup. Replacements, resets, permits,
+routers, multi-approval transactions, and unreadable historical state are
+stored with exclusion reasons. The fee is attributed to the whole approval
+transaction, kept in exact wei with the Nitro fee split when available, and is
+never substituted across tokens that lack observations. Log ranges adapt down
+on provider limits, candidate reads are sequential and paced, and every RPC
+request uses the quorum health circuit.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -885,6 +909,9 @@ worker remains the owner of collection and replay.
 | `ACTION_COST_VALUATION_CONCURRENCY` | `1` | Concurrent block-pinned action-cost marks, maximum 2 |
 | `ACTION_COST_VALUATION_DELAY_MS` | `250` | Milliseconds of pacing after each valuation mark |
 | `ACTION_COST_VALUATION_MAX_PRICE_AGE_SECONDS` | `86400` | Historical valuation ceiling; feed heartbeat can only tighten it |
+| `APPROVAL_COST_INITIAL_CHUNK_SIZE` | `5000` | Initial confirmed-block range per approval log query |
+| `APPROVAL_COST_MIN_CHUNK_SIZE` | `100` | Smallest approval log range after adaptive reductions |
+| `APPROVAL_COST_DELAY_MS` | `250` | Milliseconds of pacing after each approval candidate |
 | `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
@@ -900,8 +927,8 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Add block-pinned approval-cost observations, then feed direct-call conservative
-cost percentiles into oracle-marked policy replay. Require
+Value comparable approval costs at block-pinned oracle marks, then feed direct-call
+conservative cost percentiles into oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather
