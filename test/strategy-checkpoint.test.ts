@@ -13,6 +13,7 @@ import type {
 } from "../src/risk/domain.js";
 import { collectStrategyCheckpoint } from "../src/strategy-checkpoint/collector.js";
 import { loadStrategyCheckpointConfig } from "../src/strategy-checkpoint/config.js";
+import { selectStrategyCheckpointManifest } from "../src/strategy-checkpoint/select.js";
 import type {
   RawStrategyPoolState,
   StrategyCheckpointReader,
@@ -185,6 +186,33 @@ class Reader implements StrategyCheckpointReader {
 }
 
 describe("lightweight synchronized strategy checkpoints", () => {
+  it("selects one exact pool while retaining the canonical target-set hash", () => {
+    const source = manifest();
+    const selected = selectStrategyCheckpointManifest({
+      fee: 3_000,
+      manifest: {
+        ...source,
+        pools: [
+          source.pools[0]!,
+          { ...source.pools[1]!, fee: 3_000 },
+        ],
+      },
+      rwaSymbol: "test",
+    });
+    assert.equal(selected.pools.length, 1);
+    assert.equal(selected.pools[0]?.fee, 3_000);
+    assert.equal(selected.targetSetHash, targetSetHash);
+    assert.throws(() => selectStrategyCheckpointManifest({
+      manifest: source,
+      rwaSymbol: "TEST",
+    }), /supplied together/);
+    assert.throws(() => selectStrategyCheckpointManifest({
+      fee: 500,
+      manifest: source,
+      rwaSymbol: "TEST",
+    }), /found 2/);
+  });
+
   it("is disabled by default and validates bounded concurrency", () => {
     assert.deepEqual(loadStrategyCheckpointConfig({}), {
       concurrency: 4,

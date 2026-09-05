@@ -7,6 +7,7 @@ const { Pool } = pg;
 export interface StrategyCheckpointSaveResult {
   readonly checkpointRunId: string;
   readonly created: boolean;
+  readonly riskRunId: string;
 }
 
 export class PostgresStrategyCheckpointStore {
@@ -74,7 +75,7 @@ export class PostgresStrategyCheckpointStore {
           throw new Error("PostgreSQL did not resolve the checkpoint conflict");
         }
         await client.query("COMMIT");
-        return { checkpointRunId, created: false };
+        return { checkpointRunId, created: false, riskRunId };
       }
       for (const pool of snapshot.pools) {
         await client.query(
@@ -116,7 +117,7 @@ export class PostgresStrategyCheckpointStore {
         );
       }
       await client.query("COMMIT");
-      return { checkpointRunId, created: true };
+      return { checkpointRunId, created: true, riskRunId };
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;

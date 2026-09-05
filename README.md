@@ -645,13 +645,17 @@ source /root/arb-robinhood/.env
 source .env
 set +a
 export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
-npm run strategy:checkpoint
+npm run strategy:checkpoint -- --rwa NVDA --fee 500
 ```
 
-The command first stores the normal confirmation-safe risk snapshot. It then
-reads `slot0`, active liquidity, and both global fee-growth accumulators for
-every manifest pool at that same block. Token-decimal reads are deduplicated by
-RWA address. Pool/oracle prices use the exact calibration math, and a mark is
+The optional paired `--rwa`/`--fee` arguments restrict both risk collection and
+pool reads to one exact manifest target while retaining the full canonical
+target-set hash. Without them the command reads every manifest pool. Every
+private-node request is quorum-gated with transport retries disabled. The
+command first stores the normal confirmation-safe risk snapshot. It then reads
+`slot0`, active liquidity, and both global fee-growth accumulators at that same
+block. Token-decimal reads are deduplicated by RWA address. Pool/oracle prices
+use the exact calibration math, and a mark is
 excluded when either oracle is missing, invalid, or stale; the token is paused
 or changing multiplier; decimals disagree; liquidity is zero; or the pool is
 locked.
@@ -667,6 +671,18 @@ cadence. It is disabled by default; set `STRATEGY_CHECKPOINT_ENABLED=true` only
 after reviewing the added RPC load. With the current 15-pool manifest, each
 capture adds 60 pool calls plus one decimals call per distinct RWA, instead of
 the roughly 11,000 calls needed by full accounting.
+
+The repository also includes a five-minute, single-pool timer for the current
+NVDA/USDG 0.05% research target. It preserves the strict 300-second oracle age:
+weekend or otherwise stale marks are stored as excluded rather than relaxed.
+
+```bash
+sudo install -m 0644 ops/conc-liq-strategy-checkpoint.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-strategy-checkpoint.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-strategy-checkpoint.timer
+systemctl list-timers conc-liq-strategy-checkpoint.timer
+```
 
 ## Oracle-marked policy replay
 
@@ -959,8 +975,9 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Begin a low-cadence, quorum-guarded synchronized checkpoint series for the
-entry-ready NVDA/USDG 0.05% pool. Then feed only complete cost models into
+Accumulate a quorum-guarded synchronized checkpoint series for the entry-ready
+NVDA/USDG 0.05% pool and inspect weekday oracle-update cadence. Then feed only
+complete cost models into
 oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains

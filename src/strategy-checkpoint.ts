@@ -15,12 +15,17 @@ import { loadStrategyCheckpointConfig } from "./strategy-checkpoint/config.js";
 import { ViemStrategyCheckpointReader } from "./strategy-checkpoint/reader.js";
 import { PostgresStrategyCheckpointStore } from "./strategy-checkpoint/store.js";
 import { calculateSafeHead } from "./tail/runner.js";
+import { loadRpcHealthGateConfig } from "./rpc-health/config.js";
+import { PostgresRpcHealthGate } from "./rpc-health/store.js";
+import { selectStrategyCheckpointManifest } from "./strategy-checkpoint/select.js";
 
 const environmentSchema = z.object({ DATABASE_URL: z.string().min(1) });
 
 interface CliOptions {
   readonly blockNumber?: bigint;
+  readonly fee?: number;
   readonly help: boolean;
+  readonly rwaSymbol?: string;
 }
 
 function requireValue(arguments_: readonly string[], index: number, flag: string): string {
@@ -33,7 +38,9 @@ function requireValue(arguments_: readonly string[], index: number, flag: string
 
 function parseCli(arguments_: readonly string[]): CliOptions {
   let blockNumber: bigint | undefined;
+  let fee: number | undefined;
   let help = false;
+  let rwaSymbol: string | undefined;
   for (let index = 0; index < arguments_.length; index += 1) {
     const argument = arguments_[index]!;
     switch (argument) {
@@ -46,6 +53,28 @@ function parseCli(arguments_: readonly string[]): CliOptions {
         index += 1;
         break;
       }
+      case "--rwa": {
+        if (rwaSymbol !== undefined) throw new Error("--rwa supplied twice");
+        rwaSymbol = requireValue(arguments_, index, argument).toUpperCase();
+        if (!/^[A-Z0-9]{1,16}$/u.test(rwaSymbol)) {
+          throw new Error("--rwa requires a canonical symbol");
+        }
+        index += 1;
+        break;
+      }
+      case "--fee": {
+        if (fee !== undefined) throw new Error("--fee supplied twice");
+        const value = requireValue(arguments_, index, argument);
+        if (!/^[1-9]\d*$/u.test(value)) {
+          throw new Error("--fee requires a positive integer");
+        }
+        fee = Number(value);
+        if (!Number.isSafeInteger(fee) || fee > 1_000_000) {
+          throw new Error("--fee is outside the V3 fee domain");
+        }
+        index += 1;
+        break;
+      }
       case "--help":
       case "-h":
         help = true;
@@ -54,7 +83,10 @@ function parseCli(arguments_: readonly string[]): CliOptions {
         throw new Error(`Unknown argument: ${argument}`);
     }
   }
-  return { blockNumber, help };
+  if ((rwaSymbol === undefined) !== (fee === undefined)) {
+    throw new Error("--rwa and --fee must be supplied together");
+  }
+  return { blockNumber, fee, help, rwaSymbol };
 }
 
 function printHelp(): void {
@@ -66,6 +98,8 @@ for every manifest pool; it does not read ticks or positions.
 
 Options:
   --block NUMBER   Pin reads to an explicit block (default: confirmation-safe head)
+  --rwa SYMBOL     Limit collection to one RWA (requires --fee)
+  --fee PIPS       Limit collection to one fee-tier pool (requires --rwa)
   -h, --help       Show this help
 
 Environment:
@@ -73,6 +107,7 @@ Environment:
   RH_INDEXER_RPC_URL                   Private read RPC; falls back to RH_RPC_URL
   STRATEGY_CHECKPOINT_CONCURRENCY      Concurrent pool readers (default 4)
   RISK_MAX_PRICE_AGE_SECONDS           Strict oracle freshness ceiling
+  RPC_HEALTH_GATE_ENABLED              Require healthy quorum state (default true)
 `);
 }
 
@@ -86,25 +121,44 @@ async function main(): Promise<void> {
   const indexer = loadIndexerConfig();
   const riskConfig = loadRiskConfig();
   const strategyConfig = loadStrategyCheckpointConfig();
-  const manifest = await loadPoolManifest(indexer.poolsPath);
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const fullManifest = await loadPoolManifest(indexer.poolsPath);
+  const manifest = selectStrategyCheckpointManifest({
+    fee: options.fee,
+    manifest: fullManifest,
+    rwaSymbol: options.rwaSymbol,
+  });
+  const selectedRiskConfig = options.rwaSymbol === undefined
+    ? riskConfig
+    : { ...riskConfig, symbols: [options.rwaSymbol] };
+  const gateConfig = loadRpcHealthGateConfig();
+  const gate = new PostgresRpcHealthGate({
+    cacheMs: gateConfig.cacheMs,
+    connectionString: environment.DATABASE_URL,
+    enabled: gateConfig.enabled,
+    maxSampleAgeSeconds: gateConfig.maxSampleAgeSeconds,
+  });
+  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
+    beforeRequest: async () => { await gate.assertBulkAllowed(); },
+    retryCount: 0,
+  });
   const riskReader = new ViemRiskChainReader(client);
   const strategyReader = new ViemStrategyCheckpointReader(client);
-  const blockNumber = options.blockNumber ?? calculateSafeHead(
-    await client.getBlockNumber(),
-    indexer.confirmationDepth,
-  );
   const riskStore = new PostgresRiskStore(environment.DATABASE_URL);
   const strategyStore = new PostgresStrategyCheckpointStore(
     environment.DATABASE_URL,
   );
   try {
-    await Promise.all([riskStore.migrate(), strategyStore.migrate()]);
+    await Promise.all([gate.migrate(), riskStore.migrate(), strategyStore.migrate()]);
+    await gate.assertBulkAllowed();
+    const blockNumber = options.blockNumber ?? calculateSafeHead(
+      await client.getBlockNumber(),
+      indexer.confirmationDepth,
+    );
     const risk = await collectAndSaveRiskSnapshot({
       blockNumber,
       collect: () => collectRiskSnapshot({
         blockNumber,
-        config: riskConfig,
+        config: selectedRiskConfig,
         reader: riskReader,
       }),
       store: riskStore,
@@ -117,7 +171,8 @@ async function main(): Promise<void> {
       streamKey: indexer.streamKey,
     });
     const saved = await strategyStore.save(checkpoint);
-    const canonicality = await riskStore.validateLatestCanonical(
+    const canonicality = await riskStore.validateRunCanonical(
+      saved.riskRunId,
       (requestedBlock) => riskReader.getBlock(requestedBlock),
     );
     log("info", saved.created
@@ -127,11 +182,12 @@ async function main(): Promise<void> {
       canonicality,
       checkpointRunId: saved.checkpointRunId,
       excludedPools: checkpoint.excludedPools,
+      poolCount: checkpoint.pools.length,
       validPools: checkpoint.validPools,
     });
     console.log(JSON.stringify(checkpoint, null, 2));
   } finally {
-    await Promise.all([riskStore.close(), strategyStore.close()]);
+    await Promise.all([gate.close(), riskStore.close(), strategyStore.close()]);
   }
 }
 

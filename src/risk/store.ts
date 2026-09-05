@@ -126,18 +126,10 @@ export class PostgresRiskStore {
     }
   }
 
-  public async validateLatestCanonical(
+  private async validateCanonicalRow(
+    row: LatestRiskRunRow,
     readBlock: (blockNumber: bigint) => Promise<RiskBlock>,
-  ): Promise<RiskCanonicalityValidation | null> {
-    const latest = await this.pool.query<LatestRiskRunRow>(
-      `SELECT id, block_number::text, block_hash
-       FROM risk_snapshot_runs
-       ORDER BY id DESC
-       LIMIT 1`,
-    );
-    const row = latest.rows[0];
-    if (row === undefined) return null;
-
+  ): Promise<RiskCanonicalityValidation> {
     let canonical = false;
     let observedHash: string | null = null;
     let error: string | null = null;
@@ -188,6 +180,34 @@ export class PostgresRiskStore {
       riskRunId: row.id,
       validatedAt: validatedAt.toISOString(),
     };
+  }
+
+  public async validateLatestCanonical(
+    readBlock: (blockNumber: bigint) => Promise<RiskBlock>,
+  ): Promise<RiskCanonicalityValidation | null> {
+    const latest = await this.pool.query<LatestRiskRunRow>(
+      `SELECT id, block_number::text, block_hash
+       FROM risk_snapshot_runs
+       ORDER BY id DESC
+       LIMIT 1`,
+    );
+    const row = latest.rows[0];
+    return row === undefined ? null : this.validateCanonicalRow(row, readBlock);
+  }
+
+  public async validateRunCanonical(
+    riskRunId: string,
+    readBlock: (blockNumber: bigint) => Promise<RiskBlock>,
+  ): Promise<RiskCanonicalityValidation> {
+    if (!/^[1-9]\d*$/u.test(riskRunId)) throw new Error("Risk run ID is invalid");
+    const result = await this.pool.query<LatestRiskRunRow>(
+      `SELECT id, block_number::text, block_hash
+       FROM risk_snapshot_runs WHERE id = $1`,
+      [riskRunId],
+    );
+    const row = result.rows[0];
+    if (row === undefined) throw new Error(`Risk run ${riskRunId} does not exist`);
+    return this.validateCanonicalRow(row, readBlock);
   }
 
   public async close(): Promise<void> {
