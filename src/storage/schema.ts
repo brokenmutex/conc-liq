@@ -1990,4 +1990,149 @@ BEGIN
   END IF;
 END
 $$;
+
+CREATE TABLE IF NOT EXISTS perp_pool_basis_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  risk_run_id BIGINT NOT NULL REFERENCES risk_snapshot_runs(id),
+  perp_snapshot_run_id BIGINT NOT NULL
+    REFERENCES perp_reference_snapshot_runs(id),
+  evaluated_at TIMESTAMPTZ NOT NULL,
+  stream_key TEXT NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  dex TEXT NOT NULL,
+  coin TEXT NOT NULL,
+  reference_mode TEXT NOT NULL,
+  status TEXT NOT NULL,
+  quality_pass BOOLEAN NOT NULL,
+  primary_reference_available BOOLEAN NOT NULL,
+  fallback_candidate BOOLEAN NOT NULL,
+  source_skew_seconds INTEGER NOT NULL,
+  checkpoint_age_seconds INTEGER,
+  perp_snapshot_age_seconds INTEGER,
+  quote_oracle_age_seconds INTEGER,
+  multiplier_x18 NUMERIC(78, 0),
+  perp_reference_usd_x18 NUMERIC(78, 0) NOT NULL,
+  token_reference_usd_x18 NUMERIC(78, 0),
+  usdg_usd_x18 NUMERIC(78, 0),
+  token_reference_usdg_x18 NUMERIC(78, 0),
+  pool_price_x18 NUMERIC(78, 0) NOT NULL,
+  chainlink_price_x18 NUMERIC(78, 0),
+  pool_perp_deviation_ppm BIGINT,
+  chainlink_perp_deviation_ppm BIGINT,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  reasons JSONB NOT NULL,
+  limitations JSONB NOT NULL,
+  thresholds JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (checkpoint_run_id, perp_snapshot_run_id, pool_address),
+  CHECK (schema_version = 1),
+  CHECK (fee > 0 AND fee <= 1000000),
+  CHECK (reference_mode IN (
+    'chainlink_primary_comparison',
+    'perp_external_session_candidate',
+    'perp_internal_weekend_candidate'
+  )),
+  CHECK (status IN ('observed', 'quality_rejected')),
+  CHECK (quality_pass = (status = 'observed')),
+  CONSTRAINT perp_pool_basis_mode_check CHECK (
+    primary_reference_available =
+      (reference_mode = 'chainlink_primary_comparison')
+  ),
+  CONSTRAINT perp_pool_basis_candidate_check CHECK (
+    fallback_candidate = (quality_pass AND NOT primary_reference_available)
+  ),
+  CONSTRAINT perp_pool_basis_reason_consistency_check CHECK (
+    (quality_pass AND jsonb_array_length(reasons) = 0) OR
+    (NOT quality_pass AND jsonb_array_length(reasons) > 0)
+  ),
+  CHECK (source_skew_seconds >= 0),
+  CHECK (checkpoint_age_seconds IS NULL OR checkpoint_age_seconds >= 0),
+  CHECK (perp_snapshot_age_seconds IS NULL OR perp_snapshot_age_seconds >= 0),
+  CHECK (quote_oracle_age_seconds IS NULL OR quote_oracle_age_seconds >= 0),
+  CHECK (multiplier_x18 IS NULL OR multiplier_x18 >= 0),
+  CHECK (perp_reference_usd_x18 >= 0),
+  CHECK (token_reference_usd_x18 IS NULL OR token_reference_usd_x18 > 0),
+  CHECK (usdg_usd_x18 IS NULL OR usdg_usd_x18 >= 0),
+  CHECK (token_reference_usdg_x18 IS NULL OR token_reference_usdg_x18 > 0),
+  CHECK (pool_price_x18 > 0),
+  CHECK (chainlink_price_x18 IS NULL OR chainlink_price_x18 > 0),
+  CHECK (methodology = 'perp_pool_basis_shadow_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (jsonb_typeof(limitations) = 'array'),
+  CHECK (jsonb_typeof(thresholds) = 'object'),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+CREATE INDEX IF NOT EXISTS perp_pool_basis_runs_latest_idx
+  ON perp_pool_basis_runs (rwa_symbol, fee, evaluated_at DESC, id DESC);
+
+ALTER TABLE perp_pool_basis_runs ADD COLUMN IF NOT EXISTS stream_key TEXT;
+UPDATE perp_pool_basis_runs b
+SET stream_key = c.stream_key
+FROM v3_strategy_checkpoint_runs c
+WHERE b.checkpoint_run_id = c.id AND b.stream_key IS NULL;
+ALTER TABLE perp_pool_basis_runs ALTER COLUMN stream_key SET NOT NULL;
+
+ALTER TABLE perp_pool_basis_runs
+  DROP CONSTRAINT IF EXISTS perp_pool_basis_runs_multiplier_x18_check;
+ALTER TABLE perp_pool_basis_runs
+  DROP CONSTRAINT IF EXISTS perp_pool_basis_runs_perp_reference_usd_x18_check;
+ALTER TABLE perp_pool_basis_runs
+  DROP CONSTRAINT IF EXISTS perp_pool_basis_runs_usdg_usd_x18_check;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_pool_basis_nonnegative_inputs_check'
+      AND conrelid = 'perp_pool_basis_runs'::regclass
+  ) THEN
+    ALTER TABLE perp_pool_basis_runs
+      ADD CONSTRAINT perp_pool_basis_nonnegative_inputs_check CHECK (
+        (multiplier_x18 IS NULL OR multiplier_x18 >= 0) AND
+        perp_reference_usd_x18 >= 0 AND
+        (usdg_usd_x18 IS NULL OR usdg_usd_x18 >= 0)
+      );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_pool_basis_mode_check'
+      AND conrelid = 'perp_pool_basis_runs'::regclass
+  ) THEN
+    ALTER TABLE perp_pool_basis_runs
+      ADD CONSTRAINT perp_pool_basis_mode_check CHECK (
+        primary_reference_available =
+          (reference_mode = 'chainlink_primary_comparison')
+      );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_pool_basis_candidate_check'
+      AND conrelid = 'perp_pool_basis_runs'::regclass
+  ) THEN
+    ALTER TABLE perp_pool_basis_runs
+      ADD CONSTRAINT perp_pool_basis_candidate_check CHECK (
+        fallback_candidate = (quality_pass AND NOT primary_reference_available)
+      );
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_pool_basis_reason_consistency_check'
+      AND conrelid = 'perp_pool_basis_runs'::regclass
+  ) THEN
+    ALTER TABLE perp_pool_basis_runs
+      ADD CONSTRAINT perp_pool_basis_reason_consistency_check CHECK (
+        (quality_pass AND jsonb_array_length(reasons) = 0) OR
+        (NOT quality_pass AND jsonb_array_length(reasons) > 0)
+      );
+  END IF;
+END
+$$;
 `;

@@ -25,6 +25,7 @@
     "observe": "node --import tsx src/index.ts",
     "oracle:calibrate": "node --import tsx src/oracle-calibrate.ts",
     "oracle-policy:replay": "node --import tsx src/oracle-policy-replay.ts",
+    "perp-basis": "node --import tsx src/perp-basis.ts",
     "perp-reference": "node --import tsx src/perp-reference.ts",
     "principal:reconstruct": "node --import tsx src/principal.ts",
     "policy:replay": "node --import tsx src/policy-replay.ts",

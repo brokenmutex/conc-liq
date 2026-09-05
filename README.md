@@ -702,9 +702,10 @@ the expected New York pricing mode. The source is structurally shadow-only:
 every row has `execution_eligible=false`, and PostgreSQL enforces that invariant.
 Passing the quality checks cannot authorize a liquidity action.
 
-An independent five-minute timer is available for continuous snapshots. It
-uses only Hyperliquid's public API and PostgreSQL; it does not call the private
-Robinhood RPC or couple its failure state to the chain observer:
+An independent five-minute timer is available for continuous snapshots and a
+stored comparison with the newest NVDA/USDG strategy checkpoint. It uses only
+Hyperliquid's public API and PostgreSQL; it does not call the private Robinhood
+RPC or couple its failure state to the chain observer:
 
 ```bash
 sudo install -m 0644 ops/conc-liq-perp-reference.service /etc/systemd/system/
@@ -735,6 +736,31 @@ During scheduled closed sessions its oracle is endogenous to the trade[XYZ]
 order book. The snapshot therefore does not apply the Robinhood Stock Token
 `uiMultiplier`, Stock Token basis, or USDG/USD conversion; those remain required
 before this evidence can enter any guarded execution policy.
+
+### Multiplier-adjusted pool basis
+
+Run the stored-data join directly:
+
+```bash
+npm run perp-basis -- --rwa NVDA --fee 500
+```
+
+The join requires a matching canonical checkpoint, active and tradable registry
+state, stable on-chain multiplier, no corporate action or oracle pause, positive
+pool liquidity, an unlocked pool, a quality-passing perp snapshot, and bounded
+source age and timestamp skew. It takes the median of the HIP-3 oracle, mark,
+and mid, converts the underlying-share USD price into Stock Token USD as
+`underlying × uiMultiplier / 1e18`, then divides by USDG/USD to produce exact
+x18 USDG per token. The USDG round must remain structurally valid, within both
+its published heartbeat and the configured age cap, and inside the depeg bound.
+
+Strictly fresh Chainlink remains the primary reference. When that primary mark
+is unavailable, a passing join is labelled either an external-session or
+internal-weekend *shadow candidate*. Large pool/perp deviation, stale or skewed
+sources, missing canonicality, multiplier transitions, and stale USDG evidence
+all reject the candidate. PostgreSQL permanently enforces
+`execution_eligible=false`; this series is evidence for later policy replay,
+not authorization to rebalance.
 
 ## Oracle-marked policy replay
 
@@ -1028,6 +1054,11 @@ worker remains the owner of collection and replay.
 | `PERP_REFERENCE_MAX_IMPACT_SPREAD_PPM` | `10000` | Shadow impact-spread quality ceiling |
 | `PERP_REFERENCE_MIN_DAY_NOTIONAL_USD` | `1000000` | Shadow rolling-volume floor |
 | `PERP_REFERENCE_MIN_OPEN_INTEREST_NOTIONAL_USD` | `5000000` | Shadow open-interest notional floor |
+| `PERP_BASIS_MAX_SOURCE_AGE_SECONDS` | `600` | Maximum age of pool block and perp observation |
+| `PERP_BASIS_MAX_SOURCE_SKEW_SECONDS` | `360` | Maximum pool-block/perp timestamp skew |
+| `PERP_BASIS_MAX_QUOTE_ORACLE_AGE_SECONDS` | `86400` | Hard cap applied below the USDG feed heartbeat |
+| `PERP_BASIS_MAX_QUOTE_DEPEG_PPM` | `10000` | Maximum absolute USDG/USD deviation from one dollar |
+| `PERP_BASIS_MAX_POOL_DEVIATION_PPM` | `20000` | Maximum absolute pool/perp shadow basis |
 | `DASHBOARD_HOST` | `127.0.0.1` | Loopback-only dashboard listener |
 | `DASHBOARD_PORT` | `4173` | Dashboard listener port |
 | `DASHBOARD_REFRESH_MS` | `10000` | Browser snapshot refresh cadence |
@@ -1037,10 +1068,10 @@ worker remains the owner of collection and replay.
 ## Next slice
 
 Accumulate the quorum-guarded NVDA/USDG checkpoint series while collecting the
-shadow `xyz:NVDA` reference. Backfill multiple complete weekends and compare
-the internal-session close with the first full external-price hour close. Then
-combine only measured Stock Token multiplier/basis and USDG conversion evidence
-with complete cost models in oracle-marked policy replay. Require
+normalized `xyz:NVDA` pool-basis series. Measure candidate availability and
+rejection reasons across complete weekend and after-hours windows, then add a
+historical shadow-policy replay which consumes only passing joined marks and
+complete cost models. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather
