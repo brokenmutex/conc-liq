@@ -1241,6 +1241,112 @@ CREATE TABLE IF NOT EXISTS v3_oracle_policy_replay_steps (
   CHECK (rebalanced OR action_cost_quote = 0)
 );
 
+CREATE TABLE IF NOT EXISTS v3_action_cost_observations (
+  stream_key TEXT NOT NULL,
+  transaction_hash TEXT NOT NULL,
+  schema_version INTEGER NOT NULL,
+  chain_id BIGINT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  transaction_index INTEGER NOT NULL,
+  sender_address TEXT NOT NULL,
+  recipient_address TEXT,
+  selector TEXT,
+  input_bytes INTEGER NOT NULL,
+  action_class TEXT NOT NULL,
+  action_names JSONB NOT NULL,
+  event_counts JSONB NOT NULL,
+  pool_addresses JSONB NOT NULL,
+  attribution TEXT NOT NULL,
+  gas_used NUMERIC(78, 0) NOT NULL,
+  gas_used_for_l1 NUMERIC(78, 0),
+  l2_execution_gas_used NUMERIC(78, 0),
+  effective_gas_price NUMERIC(78, 0) NOT NULL,
+  total_fee_wei NUMERIC(78, 0) NOT NULL,
+  l1_data_fee_wei NUMERIC(78, 0),
+  l2_execution_fee_wei NUMERIC(78, 0),
+  fee_components_complete BOOLEAN NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  observed_at TIMESTAMPTZ NOT NULL,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (stream_key, transaction_hash),
+  CHECK (schema_version = 1),
+  CHECK (chain_id > 0 AND block_number >= 0 AND transaction_index >= 0),
+  CHECK (input_bytes >= 0),
+  CHECK (action_class IN (
+    'collect_bundle', 'exit_bundle', 'mint_bundle', 'mixed',
+    'rebalance_bundle', 'swap_only'
+  )),
+  CHECK (jsonb_typeof(action_names) = 'array'),
+  CHECK (jsonb_typeof(event_counts) = 'object'),
+  CHECK (jsonb_typeof(pool_addresses) = 'array'),
+  CHECK (attribution = 'whole_transaction_action_mix'),
+  CHECK (
+    gas_used >= 0 AND effective_gas_price >= 0 AND
+    total_fee_wei = gas_used * effective_gas_price
+  ),
+  CHECK (
+    (fee_components_complete AND gas_used_for_l1 IS NOT NULL AND
+      l2_execution_gas_used IS NOT NULL AND l1_data_fee_wei IS NOT NULL AND
+      l2_execution_fee_wei IS NOT NULL AND gas_used_for_l1 <= gas_used AND
+      l2_execution_gas_used = gas_used - gas_used_for_l1 AND
+      l1_data_fee_wei = gas_used_for_l1 * effective_gas_price AND
+      l2_execution_fee_wei = l2_execution_gas_used * effective_gas_price AND
+      total_fee_wei = l1_data_fee_wei + l2_execution_fee_wei) OR
+    (NOT fee_components_complete AND gas_used_for_l1 IS NULL AND
+      l2_execution_gas_used IS NULL AND l1_data_fee_wei IS NULL AND
+      l2_execution_fee_wei IS NULL)
+  ),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_action_cost_observations_class_idx
+  ON v3_action_cost_observations (
+    stream_key, action_class, block_number DESC, transaction_index DESC
+  );
+
+CREATE TABLE IF NOT EXISTS v3_action_cost_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  from_block NUMERIC(78, 0) NOT NULL,
+  to_block NUMERIC(78, 0) NOT NULL,
+  to_block_hash TEXT NOT NULL,
+  target_set_hash TEXT NOT NULL,
+  max_per_class INTEGER NOT NULL,
+  eligible_candidates INTEGER NOT NULL,
+  observation_count INTEGER NOT NULL,
+  complete_fee_components INTEGER NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  captured_at TIMESTAMPTZ NOT NULL,
+  summary JSONB NOT NULL,
+  UNIQUE (schema_version, stream_key, from_block, to_block, max_per_class),
+  CHECK (schema_version = 1),
+  CHECK (chain_id > 0 AND from_block >= 0 AND to_block >= from_block),
+  CHECK (
+    max_per_class > 0 AND eligible_candidates >= observation_count AND
+    observation_count >= complete_fee_components AND
+    complete_fee_components >= 0
+  ),
+  CHECK (methodology = 'stratified_canonical_receipt_cost_v1'),
+  CHECK (jsonb_typeof(summary) = 'object'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE INDEX IF NOT EXISTS v3_action_cost_runs_recent_idx
+  ON v3_action_cost_runs (stream_key, to_block DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS v3_action_cost_run_observations (
+  run_id BIGINT NOT NULL REFERENCES v3_action_cost_runs(id) ON DELETE CASCADE,
+  stream_key TEXT NOT NULL,
+  transaction_hash TEXT NOT NULL,
+  PRIMARY KEY (run_id, transaction_hash),
+  FOREIGN KEY (stream_key, transaction_hash)
+    REFERENCES v3_action_cost_observations(stream_key, transaction_hash)
+);
+
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

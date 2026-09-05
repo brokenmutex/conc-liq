@@ -714,6 +714,38 @@ are checkpoint-only, and rebalancing assumes ideal spot recomposition. Every
 result is explicitly execution-ineligible and the command has no signer or
 transaction path.
 
+## Measured action-cost observations
+
+Build a stratified sample of real, confirmation-safe transactions touching the
+monitored pools:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run action-cost:snapshot -- --lookback-blocks 50000 --max-per-class 25
+```
+
+The command groups indexed V3 events into whole transactions and labels them as
+mint, exit, collect, rebalance, swap-only, or mixed bundles. It samples the most
+recent transactions within each class, then verifies every transaction and
+receipt against the indexed canonical block before storing exact `gasUsed`,
+`effectiveGasPrice`, total fee in wei, calldata size, destination, selector,
+and Nitro's `gasUsedForL1`. When that component is present, the stored fee is
+split exactly into parent-data and child-execution portions. P50 and P90 gas and
+fee observations are persisted for each class.
+
+These are whole-transaction observations. A transaction containing burn,
+collect, swap, and mint is a rebalance bundle; its fee is never attributed to
+one event. Unknown event mixtures remain `mixed`, and all rows are explicitly
+execution-ineligible. The measurements are ETH-denominated and do not yet
+replace replay's USDG cost inputs: that requires a block-pinned ETH/USDG mark,
+contract/selector comparability gates, approval-cost coverage, and a
+conservative sampling policy. The hourly accounting service refreshes a
+bounded 50,000-block sample while the private-node quorum circuit is healthy.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -810,6 +842,7 @@ worker remains the owner of collection and replay.
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
 | `ACCOUNTING_CONCURRENCY` | `4` | Concurrent block-pinned fee-state reads |
+| `ACTION_COST_CONCURRENCY` | `4` | Concurrent guarded transaction/receipt batches |
 | `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
@@ -825,13 +858,13 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-The next simulator gate consumes the synchronized lightweight checkpoints and
-carries exact replay inventory so only valid oracle marks can produce
-oracle-marked NAV and LP alpha. In parallel, replace illustrative costs with
-measured approval, mint, burn, collect, L2 gas, L1 data, and swap-cost
-observations. Then require robust net LP alpha across a longer adverse-window
-sample before defining a manually approved, tightly bounded canary. The
-stable-position interval remains the fee-truth comparator.
+Convert comparable measured action bundles from ETH into USDG with a
+block-pinned independent mark, add approval-cost observations, and feed a
+conservative cost percentile into oracle-marked policy replay. Then require
+robust net LP alpha across a longer adverse-window sample before defining a
+manually approved, tightly bounded canary. The stable-position interval remains
+the fee-truth comparator, and measured bundle costs remain unavailable rather
+than inferred whenever selector, destination, or valuation evidence is weak.
 
 ## Source-of-truth addresses
 

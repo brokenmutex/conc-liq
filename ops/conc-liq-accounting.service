@@ -1,5 +1,5 @@
 [Unit]
-Description=conc-liq fee, principal, NFT, and stable-position accounting
+Description=conc-liq fee, principal, NFT, baseline, and action-cost accounting
 After=network-online.target postgresql.service conc-liq-rpc-health.service conc-liq-tail.service
 Wants=network-online.target
 Requires=postgresql.service conc-liq-rpc-health.service
@@ -14,6 +14,7 @@ ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; ex
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run principal:reconstruct -- --if-available'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run nft:snapshot -- --if-configured'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run backtest:baseline -- --if-available'
+ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run action-cost:snapshot -- --lookback-blocks 50000 --max-per-class 25'
 TimeoutStartSec=10min
 Nice=10
 IOSchedulingClass=idle
