@@ -1630,6 +1630,89 @@ CREATE TABLE IF NOT EXISTS v3_approval_cost_observations (
   CHECK (jsonb_typeof(snapshot) = 'object')
 );
 
+CREATE TABLE IF NOT EXISTS v3_approval_cost_valuation_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  approval_cost_run_id BIGINT NOT NULL
+    REFERENCES v3_approval_cost_runs(id) ON DELETE CASCADE,
+  stream_key TEXT NOT NULL,
+  chain_id BIGINT NOT NULL,
+  feed_directory_sha256 TEXT NOT NULL,
+  feed_directory JSONB NOT NULL,
+  eth_feed JSONB NOT NULL,
+  quote_feed JSONB NOT NULL,
+  max_price_age_seconds INTEGER NOT NULL,
+  quote_decimals INTEGER NOT NULL,
+  observation_count INTEGER NOT NULL,
+  valid_observations INTEGER NOT NULL,
+  excluded_observations INTEGER NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  computed_at TIMESTAMPTZ NOT NULL,
+  summary JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (
+    schema_version, approval_cost_run_id, feed_directory_sha256,
+    max_price_age_seconds
+  ),
+  CHECK (schema_version = 1),
+  CHECK (chain_id > 0),
+  CHECK (feed_directory_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+  CHECK (max_price_age_seconds > 0 AND quote_decimals >= 0),
+  CHECK (observation_count = valid_observations + excluded_observations),
+  CHECK (methodology = 'block_pinned_eth_usdg_approval_cost_v1'),
+  CHECK (jsonb_typeof(feed_directory) = 'object'),
+  CHECK (jsonb_typeof(eth_feed) = 'object'),
+  CHECK (jsonb_typeof(quote_feed) = 'object'),
+  CHECK (jsonb_typeof(summary) = 'object'),
+  CHECK (jsonb_typeof(snapshot) = 'object'),
+  CHECK (NOT execution_eligible)
+);
+
+CREATE TABLE IF NOT EXISTS v3_approval_cost_valuations (
+  valuation_run_id BIGINT NOT NULL
+    REFERENCES v3_approval_cost_valuation_runs(id) ON DELETE CASCADE,
+  approval_cost_run_id BIGINT NOT NULL,
+  transaction_hash TEXT NOT NULL,
+  block_number NUMERIC(78, 0) NOT NULL,
+  block_hash TEXT NOT NULL,
+  block_timestamp NUMERIC(78, 0),
+  token_symbols JSONB NOT NULL,
+  source_status TEXT NOT NULL,
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  total_fee_wei NUMERIC(78, 0) NOT NULL,
+  l1_data_fee_wei NUMERIC(78, 0),
+  l2_execution_fee_wei NUMERIC(78, 0),
+  total_cost_quote_raw NUMERIC(78, 0),
+  l1_data_cost_quote_raw NUMERIC(78, 0),
+  l2_execution_cost_quote_raw NUMERIC(78, 0),
+  eth_oracle JSONB,
+  quote_oracle JSONB,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (valuation_run_id, transaction_hash),
+  FOREIGN KEY (approval_cost_run_id, transaction_hash)
+    REFERENCES v3_approval_cost_observations(run_id, transaction_hash),
+  CHECK (block_number >= 0),
+  CHECK (jsonb_typeof(token_symbols) = 'array'),
+  CHECK (source_status IN ('comparable', 'excluded')),
+  CHECK (status IN ('valid', 'excluded')),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (
+    (status = 'valid' AND source_status = 'comparable' AND
+      block_timestamp IS NOT NULL AND total_cost_quote_raw IS NOT NULL AND
+      total_cost_quote_raw >= 0 AND jsonb_array_length(reasons) = 0 AND
+      eth_oracle IS NOT NULL AND quote_oracle IS NOT NULL) OR
+    (status = 'excluded' AND total_cost_quote_raw IS NULL AND
+      l1_data_cost_quote_raw IS NULL AND
+      l2_execution_cost_quote_raw IS NULL AND
+      jsonb_array_length(reasons) > 0)
+  ),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
   schema_version INTEGER NOT NULL,

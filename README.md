@@ -809,6 +809,19 @@ never substituted across tokens that lack observations. Log ranges adapt down
 on provider limits, candidate reads are sequential and paced, and every RPC
 request uses the quorum health circuit.
 
+Value only the proven setup calls at their historical oracle marks:
+
+```bash
+npm run approval-cost:value -- --approval-cost-run <ID>
+```
+
+The valuation uses the same canonical ETH/USD and USDG/USD reference-feed
+checks, upward rounding, one-day accounting ceiling, sequential reads, and
+per-request health gate as action-cost valuation. Source-excluded approval
+shapes are copied into the valuation artifact without making oracle calls.
+Results remain token-specific: downstream code may add the RWA and USDG P90
+setup costs only when both exist, but may not substitute another token's gas.
+
 ## Read-only operator dashboard
 
 The dashboard turns the PostgreSQL state into a continuously refreshed view of:
@@ -912,6 +925,8 @@ worker remains the owner of collection and replay.
 | `APPROVAL_COST_INITIAL_CHUNK_SIZE` | `5000` | Initial confirmed-block range per approval log query |
 | `APPROVAL_COST_MIN_CHUNK_SIZE` | `100` | Smallest approval log range after adaptive reductions |
 | `APPROVAL_COST_DELAY_MS` | `250` | Milliseconds of pacing after each approval candidate |
+| `APPROVAL_COST_VALUATION_DELAY_MS` | `250` | Milliseconds of pacing after each comparable approval mark |
+| `APPROVAL_COST_VALUATION_MAX_PRICE_AGE_SECONDS` | `86400` | Historical approval valuation ceiling; feed heartbeat can tighten it |
 | `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
@@ -927,8 +942,8 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Value comparable approval costs at block-pinned oracle marks, then feed direct-call
-conservative cost percentiles into oracle-marked policy replay. Require
+Resolve pool-specific entry and rebalance costs from direct-call conservative
+percentiles and feed only complete cost models into oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather
