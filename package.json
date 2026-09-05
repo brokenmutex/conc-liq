@@ -17,6 +17,7 @@
     "backfill": "node --import tsx src/backfill.ts",
     "backtest:baseline": "node --import tsx src/backtest.ts",
     "build": "tsc -p tsconfig.json",
+    "canary:plan": "node --import tsx src/canary-plan.ts",
     "check": "npm run typecheck && npm test",
     "dashboard": "node --import tsx src/dashboard.ts",
     "cost-model:resolve": "node --import tsx src/cost-model-resolve.ts",

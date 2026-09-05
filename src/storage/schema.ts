@@ -2135,4 +2135,61 @@ BEGIN
   END IF;
 END
 $$;
+
+CREATE TABLE IF NOT EXISTS guarded_canary_plan_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  risk_run_id BIGINT NOT NULL REFERENCES risk_snapshot_runs(id),
+  rpc_health_sample_id BIGINT NOT NULL REFERENCES rpc_health_samples(id),
+  chain_id BIGINT NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  operator_address TEXT NOT NULL,
+  budget_quote_raw NUMERIC(78, 0) NOT NULL,
+  budget_cap_quote_raw NUMERIC(78, 0) NOT NULL,
+  half_width_spacings INTEGER NOT NULL,
+  slippage_bps INTEGER NOT NULL,
+  max_oracle_deviation_ppm NUMERIC(78, 0) NOT NULL,
+  max_liquidity_share_ppm NUMERIC(78, 0) NOT NULL,
+  ttl_seconds INTEGER NOT NULL,
+  approval_hash TEXT NOT NULL,
+  status TEXT NOT NULL,
+  manual_approval_candidate BOOLEAN NOT NULL,
+  simulation_succeeded BOOLEAN NOT NULL,
+  gas_estimate NUMERIC(78, 0),
+  gas_cost_estimate_wei NUMERIC(78, 0),
+  broadcast_authorized BOOLEAN NOT NULL DEFAULT FALSE,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  reasons JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  CHECK (schema_version = 1),
+  CHECK (chain_id = 4663),
+  CHECK (UPPER(rwa_symbol) = 'NVDA' AND fee = 500),
+  CHECK (budget_quote_raw > 0 AND budget_quote_raw <= budget_cap_quote_raw),
+  CHECK (half_width_spacings > 0),
+  CHECK (slippage_bps BETWEEN 1 AND 500),
+  CHECK (max_oracle_deviation_ppm BETWEEN 0 AND 100000),
+  CHECK (max_liquidity_share_ppm BETWEEN 1 AND 1000000),
+  CHECK (ttl_seconds BETWEEN 60 AND 1800),
+  CHECK (status IN ('manual_approval_candidate', 'preflight_rejected')),
+  CHECK (manual_approval_candidate = (status = 'manual_approval_candidate')),
+  CHECK (NOT manual_approval_candidate OR
+         (simulation_succeeded AND gas_estimate IS NOT NULL)),
+  CHECK (NOT broadcast_authorized AND NOT execution_eligible),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+ALTER TABLE guarded_canary_plan_runs
+  ADD COLUMN IF NOT EXISTS gas_cost_estimate_wei NUMERIC(78, 0);
+
+CREATE INDEX IF NOT EXISTS guarded_canary_plan_runs_latest_idx
+  ON guarded_canary_plan_runs (created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS guarded_canary_plan_runs_approval_hash_idx
+  ON guarded_canary_plan_runs (approval_hash);
 `;

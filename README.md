@@ -1059,23 +1059,61 @@ worker remains the owner of collection and replay.
 | `PERP_BASIS_MAX_QUOTE_ORACLE_AGE_SECONDS` | `86400` | Hard cap applied below the USDG feed heartbeat |
 | `PERP_BASIS_MAX_QUOTE_DEPEG_PPM` | `10000` | Maximum absolute USDG/USD deviation from one dollar |
 | `PERP_BASIS_MAX_POOL_DEVIATION_PPM` | `20000` | Maximum absolute pool/perp shadow basis |
+| `CANARY_MAX_CHECKPOINT_AGE_SECONDS` | `180` | Maximum synchronized checkpoint age accepted by canary preflight |
 | `DASHBOARD_HOST` | `127.0.0.1` | Loopback-only dashboard listener |
 | `DASHBOARD_PORT` | `4173` | Dashboard listener port |
 | `DASHBOARD_REFRESH_MS` | `10000` | Browser snapshot refresh cadence |
 | `DASHBOARD_ACTIVITY_WINDOW_BLOCKS` | `20000` | Recent activity lookback |
 | `DASHBOARD_ACTIVITY_BUCKET_BLOCKS` | `500` | Activity chart bucket width |
 
+## Guarded NVDA canary preflight
+
+The first canary boundary is now a signer-free plan generator restricted to the
+one canonical NVDA/USDG fee-500 pool. It reads one synchronized checkpoint,
+requires the public-reference RPC circuit to be healthy, revalidates the source
+block, factory mapping, Position Manager factory, pool identity/state, token
+metadata, balances, and allowances at that pinned block, and performs both
+`eth_call` and gas estimation. It cannot sign or send a transaction.
+
+Every material policy input is required explicitly:
+
+```bash
+npm run canary:plan -- \
+  --operator <address> \
+  --budget-usdg <amount> \
+  --budget-cap-usdg <amount> \
+  --half-width-spacings <count> \
+  --slippage-bps <bps> \
+  --max-oracle-deviation-ppm <ppm> \
+  --max-liquidity-share-ppm <ppm> \
+  --ttl-seconds <seconds>
+```
+
+The command aborts before private-node reads if the RPC health sample is stale
+or the quorum circuit is not healthy. Otherwise it stores the complete artifact
+in `guarded_canary_plan_runs`, including exact calldata, source block/hash,
+balances, risk evidence, simulation result, gas estimate, rejection reasons,
+and a deterministic `approvalHash`. A `manual_approval_candidate` status means
+only that all preflight checks passed. Every artifact remains
+`executionEligible=false` and `broadcastAuthorized=false`; the approval hash is
+not an approval and no private-key input exists.
+
+Plans are intentionally short-lived. Any deadline expiry, new checkpoint,
+changed balance/allowance, changed policy, or changed calldata requires a newly
+generated artifact and hash. Range width and budget have no defaults because
+the current replay sample is not strong enough to select them safely.
+
 ## Next slice
 
-Accumulate the quorum-guarded NVDA/USDG checkpoint series while collecting the
-normalized `xyz:NVDA` pool-basis series. Measure candidate availability and
-rejection reasons across complete weekend and after-hours windows, then add a
-historical shadow-policy replay which consumes only passing joined marks and
-complete cost models. Require
-robust net LP alpha across a longer adverse-window sample before defining a
-manually approved, tightly bounded canary. The stable-position interval remains
-the fee-truth comparator, and measured bundle costs remain unavailable rather
-than inferred whenever selector, destination, or valuation evidence is weak.
+Accumulate quorum-guarded NVDA/USDG checkpoints and normalized `xyz:NVDA`
+pool-basis observations across a complete weekend and after-hours window. Add
+the historical shadow-policy replay over passing joined marks and complete the
+measured rebalance/exit cost model. Once those evidence gates support a bounded
+budget and range, add a separate manual approval and broadcast wrapper that can
+consume exactly one unexpired plan hash, record the receipt/NFT ID, and remain
+disabled by default. The stable-position interval remains the fee-truth
+comparator, and costs remain unavailable rather than inferred when evidence is
+weak.
 
 ## Source-of-truth addresses
 
