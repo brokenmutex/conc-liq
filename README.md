@@ -684,6 +684,58 @@ sudo systemctl enable --now conc-liq-strategy-checkpoint.timer
 systemctl list-timers conc-liq-strategy-checkpoint.timer
 ```
 
+## Shadow-only weekend perpetual reference
+
+Capture the current trade[XYZ] `xyz:NVDA` HIP-3 market context directly from
+Hyperliquid's public info API:
+
+```bash
+set -a
+source .env
+set +a
+npm run perp-reference -- snapshot
+```
+
+The snapshot records oracle, mark, mid, impact prices, volume, open interest,
+source-response hash, and conservative research-quality checks. It also records
+the expected New York pricing mode. The source is structurally shadow-only:
+every row has `execution_eligible=false`, and PostgreSQL enforces that invariant.
+Passing the quality checks cannot authorize a liquidity action.
+
+An independent five-minute timer is available for continuous snapshots. It
+uses only Hyperliquid's public API and PostgreSQL; it does not call the private
+Robinhood RPC or couple its failure state to the chain observer:
+
+```bash
+sudo install -m 0644 ops/conc-liq-perp-reference.service /etc/systemd/system/
+sudo install -m 0644 ops/conc-liq-perp-reference.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-perp-reference.timer
+systemctl list-timers conc-liq-perp-reference.timer
+```
+
+Backfill completed hourly candles and assess scheduled internal-price weekends:
+
+```bash
+npm run perp-reference -- backfill --days 120
+```
+
+For U.S. single-name equities, the assessment treats Friday 20:00 through
+Sunday 20:00 `America/New_York` as the scheduled internal-price window. A
+weekend is complete only when the preceding external-session candle, every
+hourly internal candle, and the Sunday reopen candle are present. It reports
+weekend movement, the correction at the close of the first full external-price
+hour, maximum excursions, direction agreement, volume, and trades. Candle opens
+are deliberately not used as reopen evidence because they are mechanically
+continuous with the preceding trade. Partial current weekends, gaps, holidays,
+and unscheduled source outages are excluded or remain explicit limitations.
+
+This source is a perp-market signal, not an independent cash-equity oracle.
+During scheduled closed sessions its oracle is endogenous to the trade[XYZ]
+order book. The snapshot therefore does not apply the Robinhood Stock Token
+`uiMultiplier`, Stock Token basis, or USDG/USD conversion; those remain required
+before this evidence can enter any guarded execution policy.
+
 ## Oracle-marked policy replay
 
 Replay range policies from the lightweight synchronized checkpoints without
@@ -967,6 +1019,15 @@ worker remains the owner of collection and replay.
 | `RISK_SNAPSHOT_INTERVAL_MS` | `60000` | Independent risk-source cadence |
 | `STRATEGY_CHECKPOINT_ENABLED` | `false` | Attach pool/oracle checkpoints to risk captures |
 | `STRATEGY_CHECKPOINT_CONCURRENCY` | `4` | Concurrent lightweight pool readers |
+| `HYPERLIQUID_INFO_URL` | Hyperliquid public info API | Shadow perp-reference endpoint |
+| `PERP_REFERENCE_DEX` | `xyz` | HIP-3 deployment name |
+| `PERP_REFERENCE_COIN` | `xyz:NVDA` | Exact shadow market |
+| `PERP_REFERENCE_REQUEST_TIMEOUT_MS` | `10000` | Perp-reference request timeout |
+| `PERP_REFERENCE_MAX_MARK_ORACLE_DEVIATION_PPM` | `5000` | Shadow mark/oracle quality ceiling |
+| `PERP_REFERENCE_MAX_MID_ORACLE_DEVIATION_PPM` | `10000` | Shadow mid/oracle quality ceiling |
+| `PERP_REFERENCE_MAX_IMPACT_SPREAD_PPM` | `10000` | Shadow impact-spread quality ceiling |
+| `PERP_REFERENCE_MIN_DAY_NOTIONAL_USD` | `1000000` | Shadow rolling-volume floor |
+| `PERP_REFERENCE_MIN_OPEN_INTEREST_NOTIONAL_USD` | `5000000` | Shadow open-interest notional floor |
 | `DASHBOARD_HOST` | `127.0.0.1` | Loopback-only dashboard listener |
 | `DASHBOARD_PORT` | `4173` | Dashboard listener port |
 | `DASHBOARD_REFRESH_MS` | `10000` | Browser snapshot refresh cadence |
@@ -975,10 +1036,11 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Accumulate a quorum-guarded synchronized checkpoint series for the entry-ready
-NVDA/USDG 0.05% pool and inspect weekday oracle-update cadence. Then feed only
-complete cost models into
-oracle-marked policy replay. Require
+Accumulate the quorum-guarded NVDA/USDG checkpoint series while collecting the
+shadow `xyz:NVDA` reference. Backfill multiple complete weekends and compare
+the internal-session close with the first full external-price hour close. Then
+combine only measured Stock Token multiplier/basis and USDG conversion evidence
+with complete cost models in oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather

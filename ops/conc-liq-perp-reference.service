@@ -1,0 +1,18 @@
+[Unit]
+Description=conc-liq shadow xyz:NVDA perpetual reference
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/conc-liq
+EnvironmentFile=/root/conc-liq/.env
+Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/root/conc-liq/.tools/node/bin/node --import tsx src/perp-reference.ts snapshot
+TimeoutStartSec=1min
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

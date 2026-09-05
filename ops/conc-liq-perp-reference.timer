@@ -1,0 +1,12 @@
+[Unit]
+Description=Capture shadow xyz:NVDA perpetual reference every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=15s
+RandomizedDelaySec=10s
+Unit=conc-liq-perp-reference.service
+
+[Install]
+WantedBy=timers.target

@@ -1818,4 +1818,176 @@ CREATE TABLE IF NOT EXISTS rpc_health_samples (
 
 CREATE INDEX IF NOT EXISTS rpc_health_samples_latest_idx
   ON rpc_health_samples (observed_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS perp_reference_snapshot_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  dex TEXT NOT NULL,
+  coin TEXT NOT NULL,
+  asset_index INTEGER NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  expected_pricing_mode TEXT NOT NULL,
+  status TEXT NOT NULL,
+  quality_pass BOOLEAN NOT NULL,
+  reasons JSONB NOT NULL,
+  limitations JSONB NOT NULL,
+  evidence_sha256 TEXT NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  snapshot JSONB NOT NULL,
+  CHECK (schema_version = 1),
+  CHECK (source = 'hyperliquid_info_api'),
+  CHECK (asset_index >= 0),
+  CHECK (expected_pricing_mode IN (
+    'scheduled_internal_weekend', 'external_session_expected'
+  )),
+  CHECK (status IN ('observed', 'quality_rejected')),
+  CHECK (quality_pass = (status = 'observed')),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (jsonb_typeof(limitations) = 'array'),
+  CHECK (evidence_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+  CHECK (methodology = 'xyz_hip3_shadow_quality_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+CREATE INDEX IF NOT EXISTS perp_reference_snapshot_runs_latest_idx
+  ON perp_reference_snapshot_runs (dex, coin, observed_at DESC, id DESC);
+
+CREATE TABLE IF NOT EXISTS perp_reference_candles (
+  source TEXT NOT NULL,
+  dex TEXT NOT NULL,
+  coin TEXT NOT NULL,
+  candle_interval TEXT NOT NULL,
+  open_time_ms BIGINT NOT NULL,
+  close_time_ms BIGINT NOT NULL,
+  open_price_x18 NUMERIC(78, 0) NOT NULL,
+  close_price_x18 NUMERIC(78, 0) NOT NULL,
+  high_price_x18 NUMERIC(78, 0) NOT NULL,
+  low_price_x18 NUMERIC(78, 0) NOT NULL,
+  base_volume_x18 NUMERIC(78, 0) NOT NULL,
+  trade_count BIGINT NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (source, dex, coin, candle_interval, open_time_ms),
+  CHECK (source = 'hyperliquid_info_api'),
+  CHECK (candle_interval = '1h'),
+  CHECK (open_time_ms >= 0 AND close_time_ms > open_time_ms),
+  CHECK (
+    open_price_x18 > 0 AND close_price_x18 > 0 AND high_price_x18 > 0 AND
+    low_price_x18 > 0 AND high_price_x18 >= low_price_x18
+  ),
+  CHECK (base_volume_x18 >= 0 AND trade_count >= 0),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+CREATE TABLE IF NOT EXISTS perp_weekend_assessment_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  source TEXT NOT NULL,
+  dex TEXT NOT NULL,
+  coin TEXT NOT NULL,
+  candle_interval TEXT NOT NULL,
+  from_time_ms BIGINT NOT NULL,
+  to_time_ms BIGINT NOT NULL,
+  candle_count INTEGER NOT NULL,
+  session_count INTEGER NOT NULL,
+  complete_sessions INTEGER NOT NULL,
+  excluded_sessions INTEGER NOT NULL,
+  evidence_sha256 TEXT NOT NULL,
+  fetched_at TIMESTAMPTZ NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  summary JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (
+    schema_version, source, dex, coin, candle_interval,
+    from_time_ms, to_time_ms, evidence_sha256
+  ),
+  CHECK (schema_version = 1),
+  CHECK (source = 'hyperliquid_info_api'),
+  CHECK (candle_interval = '1h'),
+  CHECK (from_time_ms >= 0 AND to_time_ms > from_time_ms),
+  CHECK (candle_count >= 0),
+  CHECK (
+    session_count = complete_sessions + excluded_sessions AND
+    complete_sessions >= 0 AND excluded_sessions >= 0
+  ),
+  CHECK (evidence_sha256 ~ '^sha256:[0-9a-f]{64}$'),
+  CHECK (methodology = 'xyz_weekend_reopen_assessment_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(summary) = 'object'),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+CREATE TABLE IF NOT EXISTS perp_weekend_assessment_sessions (
+  assessment_run_id BIGINT NOT NULL
+    REFERENCES perp_weekend_assessment_runs(id) ON DELETE CASCADE,
+  session_key TEXT NOT NULL,
+  status TEXT NOT NULL,
+  reasons JSONB NOT NULL,
+  internal_start_ms BIGINT NOT NULL,
+  internal_end_ms BIGINT NOT NULL,
+  reopen_time_ms BIGINT,
+  candle_count INTEGER NOT NULL,
+  external_close_price_x18 NUMERIC(78, 0),
+  weekend_close_price_x18 NUMERIC(78, 0),
+  reopen_price_x18 NUMERIC(78, 0),
+  weekend_move_ppm BIGINT,
+  reopen_gap_ppm BIGINT,
+  max_up_excursion_ppm BIGINT,
+  max_down_excursion_ppm BIGINT,
+  direction_correct BOOLEAN,
+  base_volume_x18 NUMERIC(78, 0) NOT NULL,
+  trade_count BIGINT NOT NULL,
+  snapshot JSONB NOT NULL,
+  PRIMARY KEY (assessment_run_id, session_key),
+  CHECK (status IN ('complete', 'excluded')),
+  CHECK (jsonb_typeof(reasons) = 'array'),
+  CHECK (internal_start_ms >= 0 AND internal_end_ms > internal_start_ms),
+  CHECK (reopen_time_ms IS NULL OR reopen_time_ms > internal_end_ms),
+  CHECK (candle_count >= 0),
+  CHECK (weekend_close_price_x18 > 0),
+  CHECK (base_volume_x18 >= 0 AND trade_count >= 0),
+  CHECK (
+    (status = 'complete' AND jsonb_array_length(reasons) = 0 AND
+      external_close_price_x18 IS NOT NULL AND weekend_close_price_x18 IS NOT NULL AND
+      reopen_price_x18 IS NOT NULL AND
+      reopen_time_ms IS NOT NULL AND weekend_move_ppm IS NOT NULL AND
+      reopen_gap_ppm IS NOT NULL AND max_up_excursion_ppm IS NOT NULL AND
+      max_down_excursion_ppm IS NOT NULL) OR
+    (status = 'excluded' AND jsonb_array_length(reasons) > 0)
+  ),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+ALTER TABLE perp_weekend_assessment_sessions
+  ALTER COLUMN weekend_close_price_x18 DROP NOT NULL;
+
+ALTER TABLE perp_weekend_assessment_sessions
+  DROP CONSTRAINT IF EXISTS perp_weekend_assessment_sessions_candle_count_check;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_weekend_complete_prices_check'
+      AND conrelid = 'perp_weekend_assessment_sessions'::regclass
+  ) THEN
+    ALTER TABLE perp_weekend_assessment_sessions
+      ADD CONSTRAINT perp_weekend_complete_prices_check
+      CHECK (status <> 'complete' OR weekend_close_price_x18 IS NOT NULL);
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'perp_weekend_candle_count_check'
+      AND conrelid = 'perp_weekend_assessment_sessions'::regclass
+  ) THEN
+    ALTER TABLE perp_weekend_assessment_sessions
+      ADD CONSTRAINT perp_weekend_candle_count_check
+      CHECK (candle_count >= 0 AND (status <> 'complete' OR candle_count > 0));
+  END IF;
+END
+$$;
 `;
