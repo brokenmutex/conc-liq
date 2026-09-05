@@ -740,11 +740,34 @@ fee observations are persisted for each class.
 These are whole-transaction observations. A transaction containing burn,
 collect, swap, and mint is a rebalance bundle; its fee is never attributed to
 one event. Unknown event mixtures remain `mixed`, and all rows are explicitly
-execution-ineligible. The measurements are ETH-denominated and do not yet
-replace replay's USDG cost inputs: that requires a block-pinned ETH/USDG mark,
-contract/selector comparability gates, approval-cost coverage, and a
-conservative sampling policy. The hourly accounting service refreshes a
-bounded 50,000-block sample while the private-node quorum circuit is healthy.
+execution-ineligible. The hourly accounting service refreshes a bounded
+50,000-block sample while the private-node quorum circuit is healthy.
+
+Convert one stored run into USDG raw units with independent, block-pinned
+Chainlink ETH/USD and USDG/USD reference prices:
+
+```bash
+set -a
+source /root/arb-robinhood/.env
+source .env
+set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
+npm run action-cost:value -- --action-cost-run <ID>
+```
+
+Omit `--action-cost-run` to use the newest run. Each historical block hash is
+revalidated before conversion, both oracle rounds must pass positive-answer,
+metadata, completed-round, and freshness checks, and costs are rounded up to
+avoid understatement. Historical accounting accepts the last completed round
+only within the feed directory's declared heartbeat, capped at one day by
+default; this is deliberately separate from the 300-second live execution-risk
+ceiling. A missing L1 split never gets reconstructed:
+the valid total is retained while both components remain unavailable. Invalid,
+stale, unreadable, or noncanonical marks are stored as excluded with their
+evidence. Per-class P50 and conservative P90 USDG costs are persisted, but do
+not yet replace replay inputs until contract/selector comparability and approval
+coverage are proven. The valuation reader is sequential and paced by default,
+and every private RPC request passes through the quorum health circuit.
 
 ## Read-only operator dashboard
 
@@ -843,6 +866,9 @@ worker remains the owner of collection and replay.
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
 | `ACCOUNTING_CONCURRENCY` | `4` | Concurrent block-pinned fee-state reads |
 | `ACTION_COST_CONCURRENCY` | `4` | Concurrent guarded transaction/receipt batches |
+| `ACTION_COST_VALUATION_CONCURRENCY` | `1` | Concurrent block-pinned action-cost marks, maximum 2 |
+| `ACTION_COST_VALUATION_DELAY_MS` | `250` | Milliseconds of pacing after each valuation mark |
+| `ACTION_COST_VALUATION_MAX_PRICE_AGE_SECONDS` | `86400` | Historical valuation ceiling; feed heartbeat can only tighten it |
 | `NFT_POSITION_TOKEN_IDS` | unset | Comma-separated Position Manager NFT IDs to monitor |
 | `TAIL_POLL_INTERVAL_MS` | `10000` | Successful index/replay cycle cadence |
 | `TAIL_ERROR_DELAY_MS` | `5000` | Initial failed-cycle retry delay |
@@ -858,9 +884,8 @@ worker remains the owner of collection and replay.
 
 ## Next slice
 
-Convert comparable measured action bundles from ETH into USDG with a
-block-pinned independent mark, add approval-cost observations, and feed a
-conservative cost percentile into oracle-marked policy replay. Then require
+Add approval-cost observations and contract/selector comparability gates, then
+feed a conservative measured-cost percentile into oracle-marked policy replay. Require
 robust net LP alpha across a longer adverse-window sample before defining a
 manually approved, tightly bounded canary. The stable-position interval remains
 the fee-truth comparator, and measured bundle costs remain unavailable rather

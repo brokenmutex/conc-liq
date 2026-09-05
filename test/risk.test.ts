@@ -184,6 +184,30 @@ describe("Chainlink feed selection", () => {
       name: "Robinhood AAPL / USD",
       proxyAddress: "0x6B22A786bAa607d76728168703a39Ea9C99f2cD0",
     },
+    {
+      decimals: 8,
+      docs: {
+        baseAsset: "ETH",
+        blockchainName: "Robinhood",
+        productTypeCode: "RefPrice",
+        quoteAsset: "USD",
+      },
+      heartbeat: 86_400,
+      name: "ETH / USD",
+      proxyAddress: "0x1111111111111111111111111111111111111111",
+    },
+    {
+      decimals: 8,
+      docs: {
+        baseAsset: "ETH",
+        blockchainName: "Robinhood",
+        productTypeCode: "primaryTokenizedPrice",
+        quoteAsset: "USD",
+      },
+      heartbeat: 86_400,
+      name: "Robinhood ETH / USD",
+      proxyAddress: "0x2222222222222222222222222222222222222222",
+    },
   ];
 
   it("selects only the provider-specific token price feed", () => {
@@ -192,6 +216,13 @@ describe("Chainlink feed selection", () => {
 
   it("returns unavailable rather than substituting a different asset feed", () => {
     assert.equal(selectOracleFeed(directory, "GLD"), null);
+  });
+
+  it("selects the ETH reference feed used to value native gas", () => {
+    assert.equal(
+      selectOracleFeed(directory, "ETH")?.address,
+      "0x1111111111111111111111111111111111111111",
+    );
   });
 });
 

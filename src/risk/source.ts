@@ -115,7 +115,9 @@ export async function fetchMarketSessionPolicy(
 }
 
 function expectedProductType(symbol: string): string {
-  return symbol === "USDG" ? "RefPrice" : "primaryTokenizedPrice";
+  return symbol === "USDG" || symbol === "ETH"
+    ? "RefPrice"
+    : "primaryTokenizedPrice";
 }
 
 export function selectOracleFeed(
