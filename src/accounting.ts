@@ -10,6 +10,7 @@ import { PostgresRpcHealthGate } from "./rpc-health/store.js";
 
 const environmentSchema = z.object({
   ACCOUNTING_CONCURRENCY: z.coerce.number().int().positive().max(100).default(4),
+  ACCOUNTING_MAX_STATE_READS: z.coerce.number().int().positive().max(1_000_000).default(500),
   DATABASE_URL: z.string().min(1),
 });
 
@@ -29,6 +30,8 @@ Environment:
   RH_INDEXER_RPC_URL       Live node; use RH_ARCHIVE_RPC_URL for isolated historical state
   INDEXER_STREAM_KEY       Indexed/replayed stream
   ACCOUNTING_CONCURRENCY   Concurrent eth_call limit (default 4)
+  ACCOUNTING_FULL_SNAPSHOT_ENABLED  Explicit opt-in for full snapshots (default false)
+  ACCOUNTING_MAX_STATE_READS       Maximum planned state reads per snapshot (default 500)
   RPC_HEALTH_GATE_ENABLED  Require healthy quorum state (default true)
 `);
 }
@@ -46,6 +49,15 @@ async function main(): Promise<void> {
   }
   if (arguments_.filter((argument) => argument === "--if-new-source").length > 1) {
     throw new Error("--if-new-source may only be supplied once");
+  }
+  const fullSnapshotEnabled = z.enum(["true", "false"]).default("false")
+    .parse(process.env.ACCOUNTING_FULL_SNAPSHOT_ENABLED) === "true";
+  if (!fullSnapshotEnabled) {
+    if (!ifNewSource) throw new Error("Full fee accounting is disabled: ACCOUNTING_FULL_SNAPSHOT_ENABLED must be true");
+    log("warn", "fee_accounting_snapshot_unavailable", {
+      reason: "full_snapshot_disabled", executionEligible: false,
+    });
+    return;
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
@@ -107,6 +119,7 @@ async function main(): Promise<void> {
       beforeRpc: () => healthGate.assertBulkAllowed().then(() => {}),
       client,
       concurrency: environment.ACCOUNTING_CONCURRENCY,
+      maxStateReads: environment.ACCOUNTING_MAX_STATE_READS,
       source,
     });
     const saved = await accountingStore.save(snapshot);

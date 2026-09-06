@@ -274,10 +274,21 @@ export async function collectFeeAccountingSnapshot(input: {
   readonly beforeRpc?: () => Promise<void>;
   readonly client: RobinhoodClient;
   readonly concurrency: number;
+  readonly maxStateReads?: number;
   readonly source: AccountingSourceSnapshot;
 }): Promise<FeeAccountingSnapshot> {
   if (!Number.isSafeInteger(input.concurrency) || input.concurrency <= 0) {
     throw new Error("Fee accounting concurrency must be a positive safe integer");
+  }
+  const plannedStateReads = input.source.pools.length * 6 +
+    input.source.ticks.length + input.source.positions.length;
+  if (input.maxStateReads !== undefined) {
+    if (!Number.isSafeInteger(input.maxStateReads) || input.maxStateReads <= 0) {
+      throw new Error("Fee accounting state-read limit must be a positive safe integer");
+    }
+    if (plannedStateReads > input.maxStateReads) {
+      throw new Error(`Fee accounting needs ${plannedStateReads} planned state reads, exceeding limit ${input.maxStateReads}`);
+    }
   }
   await input.beforeRpc?.();
   const chainId = await input.client.getChainId();

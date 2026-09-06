@@ -1,0 +1,94 @@
+{
+  "verifiedAt": "2026-09-06T12:23:54.581Z",
+  "historySource": "hypersync",
+  "activeArchiveProvider": "robinhood-mainnet.g.alchemy.com",
+  "chainstackCandidate": "robinhood-mainnet.core.chainstack.com",
+  "chainstackArchiveAvailable": false,
+  "fullSnapshotEnabled": "false",
+  "plannedStateReadCap": 500,
+  "archiveRequestIntervalMs": 500,
+  "historyRequestIntervalMs": 500,
+  "monthlyAllocationsKnown": false,
+  "monthlyUsageMeterImplemented": false,
+  "automaticProviderFailover": false,
+  "lastAttemptedFullSnapshot": {
+    "blockNumber": "55962325",
+    "plannedStateReads": 11936,
+    "monthlyReadsAtHourlyCadence30Days": 8593920,
+    "result": "provider_rpc_error_no_snapshot_committed",
+    "exactFailedCallSucceededOnManualRetry": true
+  },
+  "currentServiceState": [
+    "Result=success",
+    "ExecMainStatus=0",
+    "Id=conc-liq-accounting.service",
+    "ActiveState=inactive",
+    "SubState=dead",
+    "",
+    "Result=success",
+    "Id=conc-liq-accounting.timer",
+    "ActiveState=active",
+    "SubState=waiting",
+    "",
+    "Result=success",
+    "ExecMainStatus=0",
+    "Id=conc-liq-tail.service",
+    "ActiveState=active",
+    "SubState=running"
+  ],
+  "pipelineEvents": [
+    {
+      "event": "fee_accounting_snapshot_unavailable",
+      "timestamp": "2026-09-06T12:19:02.917Z",
+      "reason": "full_snapshot_disabled"
+    },
+    {
+      "event": "principal_reconstruction_already_exists",
+      "timestamp": "2026-09-06T12:19:04.303Z"
+    },
+    {
+      "event": "nft_position_snapshot_skipped",
+      "timestamp": "2026-09-06T12:19:05.500Z",
+      "reason": "no_token_ids_configured"
+    },
+    {
+      "event": "stable_fee_baseline_already_exists",
+      "timestamp": "2026-09-06T12:19:09.212Z"
+    },
+    {
+      "event": "action_cost_snapshot_saved",
+      "timestamp": "2026-09-06T12:19:50.674Z",
+      "runId": "25",
+      "selectedTransactions": 79
+    }
+  ],
+  "latestFeeSnapshot": [
+    {
+      "id": "40",
+      "block_number": "55889182",
+      "observed_at": "2026-09-06T10:00:19.500Z",
+      "pool_count": 15,
+      "tick_count": 1480,
+      "position_count": 10351
+    }
+  ],
+  "latestActionCostRun": [
+    {
+      "id": "25",
+      "captured_at": "2026-09-06T12:19:10.806Z",
+      "observation_count": 79,
+      "complete_fee_components": 79,
+      "execution_eligible": false
+    }
+  ],
+  "health": [
+    {
+      "observed_at": "2026-09-06T12:23:49.908Z",
+      "state": "healthy",
+      "allow_bulk": true,
+      "lag_blocks": "2",
+      "lag_seconds": "0"
+    }
+  ],
+  "validation": "typecheck and all 161 tests pass"
+}

@@ -1,4 +1,5 @@
 import { createRobinhoodClient } from "../client.js";
+import { log } from "../logger.js";
 import { createHyperSyncFetch } from "./hypersync.js";
 
 export const HISTORY_TRANSPORT_URL = "https://historical-data.invalid";
@@ -8,6 +9,7 @@ export interface HistoryConfig {
   readonly historyUrl?: string;
   readonly archiveUrl?: string;
   readonly requestIntervalMs?: number;
+  readonly archiveRequestIntervalMs?: number;
   readonly timeoutMs?: number;
   readonly apiToken?: string;
 }
@@ -40,6 +42,7 @@ export function loadHistoryConfig(
     ? endpoint(environment.RH_ARCHIVE_RPC_URL, "RH_ARCHIVE_RPC_URL")
     : undefined;
   const requestIntervalMs = Number(environment.HISTORY_REQUEST_INTERVAL_MS ?? "500");
+  const archiveRequestIntervalMs = Number(environment.ARCHIVE_REQUEST_INTERVAL_MS ?? requestIntervalMs);
   const timeoutMs = Number(environment.HISTORY_RPC_TIMEOUT_MS ?? "60000");
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 300_000) {
     throw new Error("HISTORY_RPC_TIMEOUT_MS must be an integer from 1 to 300000");
@@ -47,11 +50,14 @@ export function loadHistoryConfig(
   if (!Number.isSafeInteger(requestIntervalMs) || requestIntervalMs < 0 || requestIntervalMs > 60_000) {
     throw new Error("HISTORY_REQUEST_INTERVAL_MS must be an integer from 0 to 60000");
   }
+  if (!Number.isSafeInteger(archiveRequestIntervalMs) || archiveRequestIntervalMs < 0 || archiveRequestIntervalMs > 60_000) {
+    throw new Error("ARCHIVE_REQUEST_INTERVAL_MS must be an integer from 0 to 60000");
+  }
   const liveHost = new URL(liveRpcUrl).hostname;
   if ([historyUrl, archiveUrl].some((url) => url && new URL(url).hostname === liveHost)) {
     throw new Error("Historical providers must be separate from the live node host");
   }
-  return { source, historyUrl, archiveUrl, requestIntervalMs, timeoutMs, apiToken: token };
+  return { source, historyUrl, archiveUrl, requestIntervalMs, archiveRequestIntervalMs, timeoutMs, apiToken: token };
 }
 
 const historyMethods = new Set([
@@ -99,34 +105,77 @@ export async function pace(url: string, intervalMs: number, signal?: AbortSignal
 export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch = fetch): typeof fetch {
   const verified = new Map<string, Promise<void>>();
   async function send(url: string, init: RequestInit): Promise<unknown> {
-    let response: Response;
-    try {
-      let attempts = 0;
-      while (true) {
-        await pace(url, config.requestIntervalMs ?? 0, init.signal);
-        response = await fetcher(url, { ...init, redirect: "error" });
-        if (response.status !== 429 || attempts >= 2) break;
-        attempts += 1;
-        const retryAfter = Number(response.headers.get("retry-after") ?? "5");
-        const delay = Number.isFinite(retryAfter) ? Math.max(1000, Math.min(5000, retryAfter * 1000)) : 5000;
-        await response.body?.cancel();
-        await new Promise((resolve) => setTimeout(resolve, delay));
-        init.signal?.throwIfAborted();
+    async function retry(attempt: number, details: { httpStatus?: number; rpcCodes?: (number | null)[]; transport?: boolean }, retryAfter?: string | null): Promise<void> {
+      const numericSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
+      const dateDelayMs = retryAfter ? Date.parse(retryAfter) - Date.now() : Number.NaN;
+      const requestedDelayMs = Number.isFinite(numericSeconds) ? numericSeconds * 1000 : dateDelayMs;
+      const delayMs = Math.max(1000, Number.isFinite(requestedDelayMs) ? requestedDelayMs : 1000 * 2 ** attempt);
+      if (delayMs > (config.timeoutMs ?? 60_000)) {
+        throw new Error("Historical provider retry delay exceeds request timeout");
       }
-    } catch {
-      throw new Error("Historical provider transport failed");
+      log("warn", "historical_provider_retry", {
+        provider: url === config.archiveUrl ? "archive" : "history",
+        attempt: attempt + 1, maxRetries: 2, delayMs, ...details,
+      });
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer);
+          init.signal?.removeEventListener("abort", abort);
+          reject(new Error("Historical provider transport failed"));
+        };
+        const timer = setTimeout(() => {
+          init.signal?.removeEventListener("abort", abort);
+          resolve();
+        }, delayMs);
+        init.signal?.addEventListener("abort", abort, { once: true });
+        if (init.signal?.aborted) abort();
+      });
     }
-    if (!response.ok) throw new Error(`Historical provider HTTP ${response.status}`);
-    let body: unknown;
-    try { body = await response.json(); } catch {
-      throw new Error("Historical provider returned invalid JSON");
+    for (let attempt = 0; ; attempt += 1) {
+      let response: Response;
+      try {
+        const intervalMs = url === config.archiveUrl
+          ? config.archiveRequestIntervalMs ?? config.requestIntervalMs ?? 0
+          : config.requestIntervalMs ?? 0;
+        await pace(url, intervalMs, init.signal);
+        response = await fetcher(url, { ...init, redirect: "error" });
+      } catch {
+        if (init.signal?.aborted || attempt >= 2) throw new Error("Historical provider transport failed");
+        await retry(attempt, { transport: true });
+        continue;
+      }
+      if ([429, 500, 502, 503, 504].includes(response.status) && attempt < 2) {
+        await response.body?.cancel();
+        await retry(attempt, { httpStatus: response.status }, response.headers.get("retry-after"));
+        continue;
+      }
+      if (!response.ok) throw new Error(`Historical provider HTTP ${response.status}`);
+      let body: unknown;
+      try { body = await response.json(); } catch {
+        throw new Error("Historical provider returned invalid JSON");
+      }
+      const responses = Array.isArray(body) ? body : [body];
+      const errors: { code: number | null; transient: boolean }[] = [];
+      for (const entry of responses) {
+        if (!entry || typeof entry !== "object") throw new Error("Malformed historical RPC response");
+        if ("error" in entry) {
+          const error = entry.error as { code?: unknown; message?: unknown } | null;
+          const code = typeof error?.code === "number" && Number.isSafeInteger(error.code) ? error.code : null;
+          const transient = code !== null && ([429, -32603, -32002, -32005].includes(code) ||
+            (code === -32000 && typeof error?.message === "string" && /timeout|timed out|temporar|capacity|rate limit|busy|try again|upstream/iu.test(error.message)));
+          errors.push({ code, transient });
+        }
+      }
+      if (errors.length > 0) {
+        const rpcCodes = errors.map((error) => error.code);
+        if (attempt < 2 && errors.every((error) => error.transient)) {
+          await retry(attempt, { rpcCodes });
+          continue;
+        }
+        throw new Error(`Historical provider returned a JSON-RPC error (codes: ${rpcCodes.map((code) => code ?? "unknown").join(",")})`);
+      }
+      return body;
     }
-    const responses = Array.isArray(body) ? body : [body];
-    for (const entry of responses) {
-      if (!entry || typeof entry !== "object") throw new Error("Malformed historical RPC response");
-      if ("error" in entry) throw new Error("Historical provider returned a JSON-RPC error");
-    }
-    return body;
   }
   return async (_input, init) => {
     if (typeof init?.body !== "string") throw new Error("Historical RPC requires a JSON body");

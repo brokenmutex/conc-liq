@@ -14,7 +14,7 @@ loop. The process did not restart and never fell back to private historical read
 See [the runtime evidence](historical-evidence-2026-09-06/native-tail-runtime.json).
 
 The hourly accounting pipeline was restored after a successful run at
-11:36–11:37 UTC. Its timer is enabled. With no independent archive endpoint,
+11:36–11:37 UTC. At that time, with no independent archive endpoint,
 the expensive fee-state snapshot reports `fee_accounting_snapshot_unavailable`
 and performs no historical contract-state scans. Principal and baseline steps
 validated their existing records, NFT collection skipped the empty token-ID list,
@@ -26,9 +26,47 @@ RPC health sample was healthy with zero reported lag at 11:38 UTC. This is a
 point-in-time health observation, not a measured before/after load reduction.
 See [the database verification](historical-evidence-2026-09-06/native-accounting-verification.json).
 
-Full fee-growth/position accounting remains unavailable until
-`RH_ARCHIVE_RPC_URL` is configured. The previous accounting snapshot remains old;
-the resumed timer does not imply fresh fee-state accounting.
+At 12:02 UTC, the supplied Alchemy endpoint was configured as
+`RH_ARCHIVE_RPC_URL` after bounded historical-state validation. The first full
+snapshot targeted block **55,962,325**, covering 15 pools, 1,483 ticks, and
+10,363 positions. It checked every tick, then failed at 12:06 UTC on a provider
+JSON-RPC error while reading a position. Retrying that exact call succeeded.
+The original error code/message had been sanitized away, so its precise cause
+is unavailable; a transient provider failure is an inference. The failed run
+saved no partial accounting snapshot. See [initial activation evidence](historical-evidence-2026-09-06/alchemy-activation.json).
+
+After the user confirmed that both providers have throughput and monthly
+limits, full fee scans were disabled. `ACCOUNTING_FULL_SNAPSHOT_ENABLED=false`
+skips that scheduled step before opening RPC/database connections. A separate
+`ACCOUNTING_MAX_STATE_READS=500` cap rejects oversized full snapshots before
+any provider request, even after opt-in. The last attempted source would need
+**11,936 planned state reads**, or **8,593,920 per 30 days** at an hourly cadence,
+excluding retries and metadata. Slowing those requests does not lower that
+monthly total. The cap is a per-snapshot preflight, not a monthly usage meter.
+
+Alchemy matched all 15 pools plus 15 sampled ticks and 15 sampled positions at
+each of blocks **53,589,223** (September 3) and **55,889,182** (September 6).
+Pool identity, price, liquidity, global fee growth, sampled outside/position fee
+growth, and tokens owed agreed with the saved snapshots. Block hashes also
+agreed between Alchemy, HyperSync, and the saved records. A fresh in-memory
+sample reconciled all 15 pools, 30 boundary ticks, and 15 active positions at
+block **55,960,725**. Validation made 378 Alchemy requests, 5 HyperSync requests,
+zero private requests, and observed no provider errors.
+See [state validation evidence](historical-evidence-2026-09-06/alchemy-state-validation.json).
+
+The supplied Chainstack endpoint answered chain identity and current-head
+requests, but returned HTTP 403 for historical block and contract-state reads:
+its current plan excludes archive requests. Validation stopped without a bulk
+scan (five diagnostic requests total). It is saved as a candidate endpoint in
+ignored configuration and is not an active archive fallback.
+See [the bounded validation](historical-evidence-2026-09-06/chainstack-state-validation.json)
+and [the explicit plan response](historical-evidence-2026-09-06/chainstack-capability-probe.json).
+
+The hourly pipeline completed successfully at 12:19 UTC with the full fee scan
+skipped. Principal/baseline records were verified, NFT collection skipped its
+empty configuration, and action-cost run **25** saved 79 observations through
+HyperSync. The timer is enabled and the native tail remains active. Full fee
+accounting remains at run 40. See [current budget and runtime evidence](historical-evidence-2026-09-06/archive-budget-activation.json).
 
 ## Provider boundary
 
@@ -37,7 +75,8 @@ the resumed timer does not imply fresh fee-state accounting.
 | Pool creation evidence, historical/continuation logs, block metadata | Native HyperSync |
 | Historical calldata and transaction fee fields for action-cost sampling | Native HyperSync, pinned to the indexed transaction block |
 | Historical block proofs for principal, range, and policy replay | Native HyperSync |
-| Historical pool/tick/position fee state, NFT state, allowances, oracle marks | Explicit independent `RH_ARCHIVE_RPC_URL` |
+| Budgeted historical pool/tick/position fee state, NFT state, allowances, oracle marks | Alchemy through explicit independent `RH_ARCHIVE_RPC_URL`; automatic full fee scans disabled |
+| Chainstack candidate | Current-head access works; historical requests denied by the current plan |
 | Current head, near-head manifest/risk/strategy state, canary checks | Private live node |
 | Independent node-health quorum | Existing private/public quorum monitor |
 
@@ -56,6 +95,12 @@ Calldata and receipt-derived fee fields come directly from native transaction
 records. Optional missing L1 gas fields remain unavailable.
 
 HyperSync history does not replace arbitrary historical `eth_call` state.
+Historical-state access is required by the current retrospective accounting
+implementation, rather than by every project feature. A source retaining the
+requested block is sufficient; recent pinned reads do not inherently require
+full archive retention. Persisting narrow forward snapshots can reduce future
+archive dependence. Alchemy has now passed the sampled historical-state checks;
+that does not establish availability for every past block or contract.
 The separate archive provider must be on chain 4663 and accept explicitly pinned
 state reads. The private host cannot be configured as either historical provider;
 this configuration guard does not prove that differently named hosts are
@@ -89,11 +134,28 @@ separate [HyperRPC product](https://docs.envio.dev/docs/HyperRPC/overview-hyperr
 - No error falls back to private historical reads. Unsupported/signing methods
   and unpinned archive state are rejected. Manual writing backfills share the
   tail's advisory lock to prevent concurrent stream writers.
-- Request pacing is 500 ms per URL within each process. Historical request
+- Native history request pacing is 500 ms per URL within each process. Historical request
   timeout is 60 seconds including queueing. Native request failures surface to
   the caller; the integrated tail supplies bounded retry/recovery behavior.
-  The optional HyperRPC mode has two bounded HTTP 429 retries. Account-wide
+  Archive/HyperRPC transports have at most two retries for transient network,
+  HTTP 429/500/502/503/504, and selected JSON-RPC errors. Invalid parameters,
+  ordinary contract reverts, and HTTP 403 do not retry. Retry logs include
+  numeric error codes and provider roles without response text or credentials.
+  Each retry repeats the same pinned request and is paced again. Account-wide
   pacing across independent processes is not coordinated.
+  `Retry-After` seconds or HTTP dates are honored; an excessive delay stops
+  the request instead of retrying early. Cancellation interrupts backoff.
+- Archive pacing can be set independently with `ARCHIVE_REQUEST_INTERVAL_MS`;
+  when absent it inherits history pacing. The Alchemy value was 100 ms for
+  initial validation, then was set to **500 ms spacing** after pausing
+  full snapshots. HyperSync remains at 500 ms. The accounting unit permits
+  up to 30 minutes, but full snapshots now require both explicit opt-in and
+  an adequate planned-read budget. Alchemy's [throughput limits are account-wide](https://www.alchemy.com/docs/reference/throughput);
+  this pacing does not coordinate other applications sharing the account.
+  Type checking and all **161 tests** pass, including independent pacing,
+  bounded retry/rejection/cancellation behavior, credential-free error logs,
+  disabled scheduled jobs without RPC/database access, and rejection of an
+  oversized accounting snapshot before provider requests.
 - New action-cost observations persist full input calldata and provider identity
   in their existing immutable JSON snapshots. Existing observations are not
   rewritten. This is a sampled transaction dataset, not a full-chain archive.
@@ -122,13 +184,31 @@ window under its actual identity, not as a reproduction of an old one.
 
 After validation, restart `conc-liq-tail.service`; the existing units already
 read `.env`. Watch `tail_historical_source`, `tail_cycle_complete`, and
-`fee_accounting_snapshot_unavailable`. Once an archive provider is supplied,
+`fee_accounting_snapshot_unavailable`. For a replacement archive provider,
 validate a bounded exact-state snapshot before allowing full fee-state scans.
+The read-only [validation script](historical-evidence-2026-09-06/validate-archive-state.mjs)
+compares the oldest/newest saved accounting snapshots and a bounded current
+sample. Run it from the repository root with `node --import tsx`; it writes
+local evidence and performs no database writes. Run it separately from full
+accounting to avoid combining independently paced archive workloads.
 Restoring `HISTORY_SOURCE=legacy` intentionally restores private historical load
 and is not an automatic recovery path.
 
-The immediate remaining data requirements are an independent archive provider
-and a validated equity-history source. Native HyperSync access is resolved.
+Native HyperSync and sampled Alchemy historical-state access are resolved.
+Full Alchemy accounting refreshes remain disabled. After the user's scope
+correction, archive infrastructure and shared quota accounting are deferred;
+the earlier question about provider allowances does not block the next
+execution milestone. The [revised next slice](../README.md#next-slice) is one
+NVDA/USDG mint/observe/decrease/collect lifecycle, simulated first, using recent
+private-node state and our own persisted position observations. HyperSync
+continues to cover bulk historical events and transaction evidence.
+
+An archive provider can answer specific retrospective questions later. It
+should not be used to make exhaustive historical accounting a prerequisite
+for observing one actual position. The reference-policy comparison below
+remains a future research specification; a first limited open-session trial
+can use an already validated current mark. Such a trial establishes operational
+behavior, not economic edge or weekend-policy validity.
 
 ## Reference decision
 

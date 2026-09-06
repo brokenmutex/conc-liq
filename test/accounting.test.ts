@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { collectFeeAccountingSnapshot } from "../src/accounting/collector.js";
+import type { AccountingSourceSnapshot } from "../src/accounting/domain.js";
+import type { RobinhoodClient } from "../src/client.js";
 import {
   calculatePositionFees,
   feeGrowthInside,
@@ -8,6 +13,26 @@ import {
 
 const Q128 = 1n << 128n;
 const Q256 = 1n << 256n;
+
+describe("fee accounting request controls", () => {
+  it("skips disabled scheduled snapshots before opening a database or RPC connection", async () => {
+    for (const flag of [undefined, "false"]) {
+      const environment: NodeJS.ProcessEnv = { ...process.env, DATABASE_URL: "invalid", RH_RPC_URL: "invalid" };
+      delete environment.ACCOUNTING_FULL_SNAPSHOT_ENABLED;
+      if (flag !== undefined) environment.ACCOUNTING_FULL_SNAPSHOT_ENABLED = flag;
+      const { stdout } = await promisify(execFile)(process.execPath, ["--import", "tsx", "src/accounting.ts", "--if-new-source"], { env: environment });
+      assert.equal(JSON.parse(stdout.trim()).reason, "full_snapshot_disabled");
+    }
+  });
+
+  it("rejects an over-budget snapshot before any provider request", async () => {
+    let calls = 0;
+    const client = new Proxy({}, { get() { return async () => { calls += 1; throw new Error("Unexpected request"); }; } }) as RobinhoodClient;
+    const source = { pools: [{}], ticks: [{}], positions: [{}] } as unknown as AccountingSourceSnapshot;
+    await assert.rejects(collectFeeAccountingSnapshot({ client, source, concurrency: 4, maxStateReads: 7 }), /needs 8 planned state reads, exceeding limit 7/);
+    assert.equal(calls, 0);
+  });
+});
 
 describe("Uniswap v3 fee accounting", () => {
   it("uses uint256 wraparound subtraction", () => {

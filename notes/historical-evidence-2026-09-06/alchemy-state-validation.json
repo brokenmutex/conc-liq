@@ -1,0 +1,42 @@
+{
+  "startedAt": "2026-09-06T11:59:53.542Z",
+  "provider": "alchemy",
+  "chainId": 4663,
+  "historicalComparisons": [
+    {
+      "runId": "1",
+      "blockNumber": "53589223",
+      "blockHash": "0xee70312d5e6d5131652c840a09b0df2e6ff0e707de0a865fe36655ebcd84b918",
+      "pools": 15,
+      "ticks": 15,
+      "positions": 15,
+      "matched": true
+    },
+    {
+      "runId": "40",
+      "blockNumber": "55889182",
+      "blockHash": "0xf192e0fee7961d44252280854ac7b8c1a1d235ba48727865e3f9626a96a6be3e",
+      "pools": 15,
+      "ticks": 15,
+      "positions": 15,
+      "matched": true
+    }
+  ],
+  "forwardSample": {
+    "blockNumber": "55960725",
+    "blockHash": "0xbeec276fb9cba57c02e96c773dcecc1779d9eeb3ca7d818d867fc7dcd97fbec4",
+    "pools": 15,
+    "ticks": 30,
+    "positions": 15,
+    "matched": true,
+    "savedToDatabase": false
+  },
+  "stats": {
+    "archiveRequests": 378,
+    "hyperSyncRequests": 5,
+    "privateRequests": 0,
+    "httpErrors": 0,
+    "rpcErrors": 0
+  },
+  "completedAt": "2026-09-06T12:00:33.671Z"
+}

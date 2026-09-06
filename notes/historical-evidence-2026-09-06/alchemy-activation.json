@@ -1,0 +1,102 @@
+{
+  "verifiedAt": "2026-09-06T12:03:25.236Z",
+  "historySource": "hypersync",
+  "archiveProvider": "robinhood-mainnet.g.alchemy.com",
+  "historyRequestIntervalMs": 500,
+  "archiveRequestIntervalMs": 100,
+  "feeRefreshStatus": "first_full_alchemy_snapshot_in_progress",
+  "accountingService": [
+    "TimeoutStartUSec=30min",
+    "ActiveState=activating",
+    "SubState=start",
+    "InvocationID=6b2645c783654cec9521fe959f8929e7"
+  ],
+  "services": [
+    "Id=conc-liq-accounting.timer",
+    "ActiveState=active",
+    "SubState=waiting",
+    "",
+    "Id=conc-liq-tail.service",
+    "ActiveState=active",
+    "SubState=running"
+  ],
+  "health": [
+    {
+      "observed_at": "2026-09-06T12:03:17.395Z",
+      "state": "healthy",
+      "allow_bulk": true,
+      "lag_blocks": "0",
+      "lag_seconds": "0"
+    }
+  ],
+  "latestAccounting": [
+    {
+      "id": "40",
+      "block_number": "55889182",
+      "observed_at": "2026-09-06T10:00:19.500Z",
+      "pool_count": 15,
+      "tick_count": 1480,
+      "position_count": 10351
+    }
+  ],
+  "validation": "typecheck and all 155 tests pass",
+  "accountingProgress": [
+    {
+      "timestamp": "2026-09-06T12:02:54.108Z",
+      "level": "info",
+      "event": "fee_accounting_source_loaded",
+      "blockNumber": "55962325",
+      "eventsApplied": "3507360",
+      "pools": 15,
+      "positions": 10363,
+      "ticks": 1483
+    },
+    {
+      "timestamp": "2026-09-06T12:03:53.920Z",
+      "level": "info",
+      "event": "fee_accounting_ticks_progress",
+      "complete": 500,
+      "total": 1483
+    },
+    {
+      "timestamp": "2026-09-06T12:04:44.093Z",
+      "level": "info",
+      "event": "fee_accounting_ticks_progress",
+      "complete": 1000,
+      "total": 1483
+    },
+    {
+      "timestamp": "2026-09-06T12:05:32.563Z",
+      "level": "info",
+      "event": "fee_accounting_ticks_progress",
+      "complete": 1483,
+      "total": 1483
+    },
+    {
+      "timestamp": "2026-09-06T12:06:18.618Z",
+      "level": "error",
+      "event": "fee_accounting_failed",
+      "error": {
+        "name": "ContractFunctionExecutionError",
+        "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n \nRaw Call Arguments:\n  to:    0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  data:  0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\n \nContract Call:\n  address:   0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  function:  positions(bytes32)\n  args:               (0x7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101)\n\nDocs: https://viem.sh/docs/contract/readContract\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3",
+        "stack": "ContractFunctionExecutionError: HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n \nRaw Call Arguments:\n  to:    0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  data:  0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\n \nContract Call:\n  address:   0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  function:  positions(bytes32)\n  args:               (0x7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101)\n\nDocs: https://viem.sh/docs/contract/readContract\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3\n    at getContractError (/root/conc-liq/node_modules/viem/utils/errors/getContractError.ts:82:10)\n    at readContract (/root/conc-liq/node_modules/viem/actions/public/readContract.ts:140:11)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async readPosition (/root/conc-liq/src/accounting/collector.ts:192:18)\n    at async worker (/root/conc-liq/src/accounting/collector.ts:65:24)\n    at async Promise.all (index 1)\n    at async mapConcurrent (/root/conc-liq/src/accounting/collector.ts:70:3)\n    at async collectFeeAccountingSnapshot (/root/conc-liq/src/accounting/collector.ts:327:26)\n    at async main (/root/conc-liq/src/accounting.ts:106:22)",
+        "cause": {
+          "name": "CallExecutionError",
+          "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n \nRaw Call Arguments:\n  to:    0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  data:  0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\n\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3",
+          "stack": "CallExecutionError: HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n \nRaw Call Arguments:\n  to:    0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\n  data:  0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\n\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3\n    at getCallError (/root/conc-liq/node_modules/viem/utils/errors/getCallError.ts:42:10)\n    at call (/root/conc-liq/node_modules/viem/_esm/actions/public/call.js:175:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async readContract (/root/conc-liq/node_modules/viem/actions/public/readContract.ts:124:22)\n    at async readPosition (/root/conc-liq/src/accounting/collector.ts:192:18)\n    at async worker (/root/conc-liq/src/accounting/collector.ts:65:24)\n    at async Promise.all (index 1)\n    at async mapConcurrent (/root/conc-liq/src/accounting/collector.ts:70:3)\n    at async collectFeeAccountingSnapshot (/root/conc-liq/src/accounting/collector.ts:327:26)\n    at async main (/root/conc-liq/src/accounting.ts:106:22)",
+          "cause": {
+            "name": "HttpRequestError",
+            "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3",
+            "stack": "HttpRequestError: HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_call\",\"params\":[{\"data\":\"0x514ea4bf7b24849e8e2494c93b1ebea9e2a73f517a600231d766cb9a4d0ede5a16603101\",\"to\":\"0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7\"},\"0x355ead5\"]}\n\nDetails: Historical provider returned a JSON-RPC error\nVersion: viem@2.56.3\n    at Object.request (/root/conc-liq/node_modules/viem/utils/rpc/http.ts:200:15)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async fn (/root/conc-liq/node_modules/viem/clients/transports/http.ts:167:19)\n    at async request (/root/conc-liq/node_modules/viem/clients/transports/http.ts:173:39)\n    at async withRetry.delay.count.count (/root/conc-liq/node_modules/viem/utils/buildRequest.ts:163:22)\n    at async attemptRetry (/root/conc-liq/node_modules/viem/utils/promise/withRetry.ts:63:22)",
+            "cause": {
+              "name": "Error",
+              "message": "Historical provider returned a JSON-RPC error",
+              "stack": "Error: Historical provider returned a JSON-RPC error\n    at send (/root/conc-liq/src/history/client.ts:135:35)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at async <anonymous> (/root/conc-liq/src/history/client.ts:163:20)\n    at async withTimeout.errorInstance.TimeoutError.body.body (/root/conc-liq/node_modules/viem/utils/rpc/http.ts:145:30)\n    at async <anonymous> (/root/conc-liq/node_modules/viem/utils/promise/withTimeout.ts:38:17)"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "lastProgressCheckAt": "2026-09-06T12:06:22.882640+00:00"
+}

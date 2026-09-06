@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import type { Hash } from "viem";
 import { createRobinhoodClient, type RobinhoodClient } from "../src/client.js";
 import {
@@ -27,6 +28,40 @@ function request(method: string, params: unknown[] = []): RequestInit {
 }
 
 describe("historical provider isolation", () => {
+  it("defaults archive pacing to history pacing and rejects invalid overrides", () => {
+    const environment = { HISTORY_SOURCE: "hypersync", ENVIO_API_TOKEN: "token", HISTORY_REQUEST_INTERVAL_MS: "500" };
+    assert.equal(loadHistoryConfig(liveUrl, environment).archiveRequestIntervalMs, 500);
+    const separate = loadHistoryConfig(liveUrl, { ...environment, ARCHIVE_REQUEST_INTERVAL_MS: "100" });
+    assert.equal(separate.requestIntervalMs, 500);
+    assert.equal(separate.archiveRequestIntervalMs, 100);
+    for (const value of ["-1", "1.5", "60001", "NaN"]) {
+      assert.throws(() => loadHistoryConfig(liveUrl, { ...environment, ARCHIVE_REQUEST_INTERVAL_MS: value }), /ARCHIVE_REQUEST_INTERVAL_MS/);
+    }
+  });
+
+  it("paces archive calls independently without accelerating the history provider", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    const calls: string[] = [];
+    const separate = { ...config, historyUrl: "https://paced-history.invalid/", archiveUrl: "https://paced-archive.invalid/", requestIntervalMs: 1000, archiveRequestIntervalMs: 100 };
+    const routed = createHistoryFetch(separate, async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      calls.push(body.method);
+      return Response.json({ id: body.id, result: body.method === "eth_chainId" ? "0x1237" : "0x" });
+    });
+    const pending = Promise.all([
+      routed(HISTORY_TRANSPORT_URL, request("eth_getLogs", [{}])),
+      routed(HISTORY_TRANSPORT_URL, request("eth_call", [{}, "0x64"])),
+    ]);
+    await setImmediate();
+    assert.deepEqual(calls, ["eth_chainId", "eth_chainId"]);
+    context.mock.timers.tick(100);
+    await setImmediate();
+    assert.deepEqual(calls, ["eth_chainId", "eth_chainId", "eth_call"]);
+    context.mock.timers.tick(900);
+    await pending;
+    assert.deepEqual(calls, ["eth_chainId", "eth_chainId", "eth_call", "eth_getLogs"]);
+  });
+
   it("requires explicit enablement and refuses the live host as a historical provider", () => {
     assert.equal(loadHistoryConfig(liveUrl, {}).source, "legacy");
     assert.throws(() => loadHistoryConfig(liveUrl, { HISTORY_SOURCE: "envio" }), /requires/);
@@ -129,6 +164,100 @@ describe("historical provider isolation", () => {
         assert.equal(requests, 3);
       }
     }
+  });
+
+  it("retries transient JSON-RPC and server errors with identical pinned calls and a hard limit", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    const messages: string[] = [];
+    context.mock.method(console, "log", (line: string) => { messages.push(line); });
+    const archive = { ...config, archiveUrl: "https://archive-retry.invalid/secret-token" };
+    for (const mode of ["rpc-recover", "rpc-exhausted", "http-recover", "network-recover"] as const) {
+      const bodies: string[] = [];
+      const routed = createHistoryFetch(archive, async (url, init) => {
+        assert.equal(url, archive.archiveUrl);
+        const body = JSON.parse(String(init?.body));
+        if (body.method === "eth_chainId") return Response.json({ result: "0x1237" });
+        bodies.push(String(init?.body));
+        if (mode !== "rpc-exhausted" && bodies.length === 2) return Response.json({ result: "0x1234" });
+        if (mode === "network-recover") throw new Error(archive.archiveUrl);
+        if (mode === "http-recover") return new Response(archive.archiveUrl, { status: 503 });
+        return Response.json({ error: { code: 429, message: archive.archiveUrl } });
+      });
+      const result = routed(HISTORY_TRANSPORT_URL, request("eth_call", [{ to: event.poolAddress, data: "0x1234" }, "0x64"]))
+        .then(async (response) => ({ body: await response.json(), error: undefined }), (error: Error) => ({ body: undefined, error }));
+      await setImmediate();
+      assert.equal(bodies.length, 1);
+      context.mock.timers.tick(1000);
+      await setImmediate();
+      if (mode === "rpc-exhausted") context.mock.timers.tick(2000);
+      const outcome = await result;
+      assert.equal(bodies.length, mode === "rpc-exhausted" ? 3 : 2);
+      assert(bodies.every((body) => body === bodies[0]));
+      if (mode === "rpc-exhausted") {
+        assert.match(outcome.error!.message, /JSON-RPC error.*429/);
+        assert(!outcome.error!.message.includes("secret-token"));
+      } else assert.deepEqual(outcome.body, { result: "0x1234" });
+    }
+    assert(messages.length > 0);
+    assert(messages.every((message) => !message.includes("secret-token")));
+  });
+
+  it("does not retry invalid parameters or contract reverts", async () => {
+    for (const code of [-32602, 3, -32000]) {
+      let calls = 0;
+      const routed = createHistoryFetch(config, async (_url, init) => {
+        const body = JSON.parse(String(init?.body));
+        if (body.method === "eth_chainId") return Response.json({ result: "0x1237" });
+        calls += 1;
+        return Response.json({ error: { code, message: "execution reverted secret-token" } });
+      });
+      await assert.rejects(routed(HISTORY_TRANSPORT_URL, request("eth_blockNumber")), /JSON-RPC error/);
+      assert.equal(calls, 1);
+    }
+  });
+
+  it("honors Retry-After and stops if its delay exceeds the request budget", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    for (const seconds of [10, 120]) {
+      let calls = 0;
+      const routed = createHistoryFetch(config, async () => {
+        calls += 1;
+        return calls === 1
+          ? new Response(null, { status: 429, headers: { "retry-after": String(seconds) } })
+          : Response.json({ result: "0x1237" });
+      });
+      const result = routed(HISTORY_TRANSPORT_URL, request("eth_chainId")).catch((error: Error) => error);
+      await setImmediate();
+      if (seconds === 120) {
+        assert.match((await result as Error).message, /retry delay exceeds request timeout/);
+        assert.equal(calls, 1);
+      } else {
+        context.mock.timers.tick(5000);
+        await setImmediate();
+        assert.equal(calls, 1);
+        context.mock.timers.tick(5000);
+        assert(await result instanceof Response);
+        assert.equal(calls, 3);
+      }
+    }
+  });
+
+  it("stops retrying after cancellation without sending another request", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    const controller = new AbortController();
+    let calls = 0;
+    const routed = createHistoryFetch(config, async () => {
+      calls += 1;
+      return Response.json({ error: { code: -32603, message: "upstream unavailable" } });
+    });
+    const result = routed(HISTORY_TRANSPORT_URL, { ...request("eth_blockNumber"), signal: controller.signal }).catch((error: Error) => error);
+    await setImmediate();
+    controller.abort();
+    context.mock.timers.tick(1000);
+    assert.match((await result as Error).message, /transport failed/);
+    assert.equal(calls, 1);
   });
 });
 

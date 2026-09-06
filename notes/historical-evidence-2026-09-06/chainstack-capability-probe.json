@@ -1,0 +1,21 @@
+{
+  "verifiedAt": "2026-09-06T12:17:13.028Z",
+  "provider": "chainstack",
+  "requests": [
+    {
+      "method": "eth_blockNumber",
+      "httpStatus": 200,
+      "response": "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"0x3560c91\"}"
+    },
+    {
+      "method": "eth_getBlockByNumber",
+      "httpStatus": 403,
+      "response": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32002,\"message\":\"Archive, Debug and Trace requests are not available on your current plan. Visit https://console.chainstack.com/user/settings/billing to upgrade..\"}}"
+    },
+    {
+      "method": "eth_call",
+      "httpStatus": 403,
+      "response": "{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":-32002,\"message\":\"Archive, Debug and Trace requests are not available on your current plan. Visit https://console.chainstack.com/user/settings/billing to upgrade..\"}}"
+    }
+  ]
+}

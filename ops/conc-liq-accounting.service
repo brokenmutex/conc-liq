@@ -15,7 +15,9 @@ ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; ex
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run nft:snapshot -- --if-configured'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run backtest:baseline -- --if-available'
 ExecStart=/bin/bash -c 'export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"; exec npm run action-cost:snapshot -- --lookback-blocks 50000 --max-per-class 25'
-TimeoutStartSec=10min
+# The full snapshot currently needs ~12,000 state reads. Allow provider pacing
+# at 100 ms per request plus the remaining accounting steps.
+TimeoutStartSec=30min
 Nice=10
 IOSchedulingClass=idle
 NoNewPrivileges=true
