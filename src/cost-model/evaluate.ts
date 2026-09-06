@@ -57,6 +57,7 @@ export function resolveGuardedCostModel(input: {
     quoteDecimals: 6,
     reasons: [...new Set(reasons)],
     rebalanceCostQuoteRaw: null,
+    exitCostQuoteRaw: null,
     schemaVersion: 1,
     source: input.source,
     status: entryReady ? "entry_measured" : "unavailable",

@@ -25,6 +25,7 @@ describe("guarded measured cost model", () => {
     assert.equal(model.status, "entry_measured");
     assert.equal(model.entryCostQuoteRaw, 2_966_159n);
     assert.equal(model.rebalanceCostQuoteRaw, null);
+    assert.equal(model.exitCostQuoteRaw, null);
     assert.deepEqual(model.reasons, ["rebalance_execution_path_unset"]);
     assert.deepEqual(model.warnings, ["rwa_approval_sample_below_three"]);
     assert.equal(model.executionEligible, false);

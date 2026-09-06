@@ -1728,6 +1728,7 @@ CREATE TABLE IF NOT EXISTS v3_guarded_cost_models (
   quote_decimals INTEGER NOT NULL,
   entry_cost_quote_raw NUMERIC(78, 0),
   rebalance_cost_quote_raw NUMERIC(78, 0),
+  exit_cost_quote_raw NUMERIC(78, 0),
   reasons JSONB NOT NULL,
   warnings JSONB NOT NULL,
   components JSONB NOT NULL,
@@ -1741,14 +1742,19 @@ CREATE TABLE IF NOT EXISTS v3_guarded_cost_models (
   ),
   CHECK (schema_version = 1),
   CHECK (fee > 0 AND fee <= 1000000),
-  CHECK (status IN ('entry_measured', 'unavailable')),
+  CHECK (status IN ('complete', 'entry_measured', 'unavailable')),
   CHECK (quote_decimals = 6),
   CHECK (
+    (status = 'complete' AND entry_cost_quote_raw IS NOT NULL AND
+      entry_cost_quote_raw >= 0 AND rebalance_cost_quote_raw IS NOT NULL AND
+      rebalance_cost_quote_raw >= 0 AND exit_cost_quote_raw IS NOT NULL AND
+      exit_cost_quote_raw >= 0) OR
     (status = 'entry_measured' AND entry_cost_quote_raw IS NOT NULL AND
-      entry_cost_quote_raw >= 0) OR
-    (status = 'unavailable' AND entry_cost_quote_raw IS NULL)
+      entry_cost_quote_raw >= 0 AND rebalance_cost_quote_raw IS NULL AND
+      exit_cost_quote_raw IS NULL) OR
+    (status = 'unavailable' AND entry_cost_quote_raw IS NULL AND
+      rebalance_cost_quote_raw IS NULL AND exit_cost_quote_raw IS NULL)
   ),
-  CHECK (rebalance_cost_quote_raw IS NULL),
   CHECK (jsonb_typeof(reasons) = 'array'),
   CHECK (jsonb_typeof(warnings) = 'array'),
   CHECK (jsonb_typeof(components) = 'object'),
@@ -1756,6 +1762,48 @@ CREATE TABLE IF NOT EXISTS v3_guarded_cost_models (
   CHECK (NOT execution_eligible),
   CHECK (jsonb_typeof(snapshot) = 'object')
 );
+
+ALTER TABLE v3_guarded_cost_models
+  ADD COLUMN IF NOT EXISTS exit_cost_quote_raw NUMERIC(78, 0);
+
+ALTER TABLE v3_guarded_cost_models
+  DROP CONSTRAINT IF EXISTS v3_guarded_cost_models_status_check;
+ALTER TABLE v3_guarded_cost_models
+  DROP CONSTRAINT IF EXISTS v3_guarded_cost_models_check;
+ALTER TABLE v3_guarded_cost_models
+  DROP CONSTRAINT IF EXISTS v3_guarded_cost_models_rebalance_cost_quote_raw_check;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_guarded_cost_models_status_v2_check'
+      AND conrelid = 'v3_guarded_cost_models'::regclass
+  ) THEN
+    ALTER TABLE v3_guarded_cost_models
+      ADD CONSTRAINT v3_guarded_cost_models_status_v2_check
+      CHECK (status IN ('complete', 'entry_measured', 'unavailable'));
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'v3_guarded_cost_models_completeness_v2_check'
+      AND conrelid = 'v3_guarded_cost_models'::regclass
+  ) THEN
+    ALTER TABLE v3_guarded_cost_models
+      ADD CONSTRAINT v3_guarded_cost_models_completeness_v2_check CHECK (
+        (status = 'complete' AND entry_cost_quote_raw IS NOT NULL AND
+          entry_cost_quote_raw >= 0 AND rebalance_cost_quote_raw IS NOT NULL AND
+          rebalance_cost_quote_raw >= 0 AND exit_cost_quote_raw IS NOT NULL AND
+          exit_cost_quote_raw >= 0) OR
+        (status = 'entry_measured' AND entry_cost_quote_raw IS NOT NULL AND
+          entry_cost_quote_raw >= 0 AND rebalance_cost_quote_raw IS NULL AND
+          exit_cost_quote_raw IS NULL) OR
+        (status = 'unavailable' AND entry_cost_quote_raw IS NULL AND
+          rebalance_cost_quote_raw IS NULL AND exit_cost_quote_raw IS NULL)
+      );
+  END IF;
+END
+$$;
 
 CREATE TABLE IF NOT EXISTS rpc_health_samples (
   id BIGSERIAL PRIMARY KEY,
@@ -2192,4 +2240,72 @@ CREATE INDEX IF NOT EXISTS guarded_canary_plan_runs_latest_idx
 
 CREATE INDEX IF NOT EXISTS guarded_canary_plan_runs_approval_hash_idx
   ON guarded_canary_plan_runs (approval_hash);
+
+CREATE TABLE IF NOT EXISTS v3_joined_policy_replay_runs (
+  id BIGSERIAL PRIMARY KEY,
+  schema_version INTEGER NOT NULL,
+  stream_key TEXT NOT NULL,
+  first_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  last_checkpoint_run_id BIGINT NOT NULL
+    REFERENCES v3_strategy_checkpoint_runs(id),
+  cost_model_id BIGINT NOT NULL REFERENCES v3_guarded_cost_models(id),
+  computed_at TIMESTAMPTZ NOT NULL,
+  pool_address TEXT NOT NULL,
+  rwa_symbol TEXT NOT NULL,
+  fee INTEGER NOT NULL,
+  budget_quote NUMERIC(78, 0) NOT NULL,
+  trigger_percent INTEGER NOT NULL,
+  half_widths JSONB NOT NULL,
+  min_passing_checkpoints INTEGER NOT NULL,
+  min_window_hours INTEGER NOT NULL,
+  min_weekend_fallback_checkpoints INTEGER NOT NULL,
+  min_external_fallback_checkpoints INTEGER NOT NULL,
+  selected_checkpoints INTEGER NOT NULL,
+  primary_checkpoints INTEGER NOT NULL,
+  weekend_fallback_checkpoints INTEGER NOT NULL,
+  external_fallback_checkpoints INTEGER NOT NULL,
+  coverage_total_rows INTEGER NOT NULL,
+  coverage_passing_rows INTEGER NOT NULL,
+  coverage_rejected_rows INTEGER NOT NULL,
+  policy_set_hash TEXT NOT NULL,
+  completed_candidates INTEGER NOT NULL,
+  excluded_candidates INTEGER NOT NULL,
+  methodology TEXT NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE,
+  assumptions JSONB NOT NULL,
+  snapshot JSONB NOT NULL,
+  UNIQUE (
+    schema_version, stream_key, first_checkpoint_run_id,
+    last_checkpoint_run_id, pool_address, policy_set_hash
+  ),
+  CHECK (schema_version = 1),
+  CHECK (first_checkpoint_run_id <> last_checkpoint_run_id),
+  CHECK (fee > 0 AND fee <= 1000000 AND budget_quote > 0),
+  CHECK (trigger_percent BETWEEN 1 AND 100),
+  CHECK (jsonb_typeof(half_widths) = 'array' AND
+         jsonb_array_length(half_widths) > 0),
+  CHECK (min_passing_checkpoints >= 2 AND min_window_hours > 0),
+  CHECK (min_weekend_fallback_checkpoints >= 0 AND
+         min_external_fallback_checkpoints >= 0),
+  CHECK (selected_checkpoints >= min_passing_checkpoints),
+  CHECK (primary_checkpoints >= 0 AND weekend_fallback_checkpoints >= 0 AND
+         external_fallback_checkpoints >= 0 AND
+         selected_checkpoints = primary_checkpoints +
+           weekend_fallback_checkpoints + external_fallback_checkpoints),
+  CHECK (weekend_fallback_checkpoints >= min_weekend_fallback_checkpoints AND
+         external_fallback_checkpoints >= min_external_fallback_checkpoints),
+  CHECK (coverage_total_rows = coverage_passing_rows + coverage_rejected_rows AND
+         coverage_passing_rows >= selected_checkpoints AND
+         coverage_rejected_rows >= 0),
+  CHECK (completed_candidates >= 0 AND excluded_candidates >= 0 AND
+         completed_candidates + excluded_candidates > 0),
+  CHECK (methodology = 'joined_reference_cost_complete_policy_replay_v1'),
+  CHECK (NOT execution_eligible),
+  CHECK (jsonb_typeof(assumptions) = 'array'),
+  CHECK (jsonb_typeof(snapshot) = 'object')
+);
+
+CREATE INDEX IF NOT EXISTS v3_joined_policy_replay_runs_latest_idx
+  ON v3_joined_policy_replay_runs (stream_key, computed_at DESC, id DESC);
 `;

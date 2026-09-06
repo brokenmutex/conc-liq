@@ -171,11 +171,11 @@ export class PostgresGuardedCostModelStore {
          schema_version, stream_key, pool_address, rwa_symbol, fee,
          action_assessment_run_id, approval_valuation_run_id, status,
          quote_decimals, entry_cost_quote_raw, rebalance_cost_quote_raw,
-         reasons, warnings, components, methodology, execution_eligible,
+         exit_cost_quote_raw, reasons, warnings, components, methodology, execution_eligible,
          computed_at, snapshot
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,
-         $14::jsonb,$15,$16,$17,$18::jsonb
+         $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14::jsonb,
+         $15::jsonb,$16,$17,$18,$19::jsonb
        ) ON CONFLICT (
          schema_version, stream_key, pool_address, action_assessment_run_id,
          approval_valuation_run_id
@@ -191,7 +191,8 @@ export class PostgresGuardedCostModelStore {
         model.status,
         model.quoteDecimals,
         model.entryCostQuoteRaw?.toString() ?? null,
-        model.rebalanceCostQuoteRaw,
+        model.rebalanceCostQuoteRaw?.toString() ?? null,
+        model.exitCostQuoteRaw?.toString() ?? null,
         json(model.reasons),
         json(model.warnings),
         json(model.evidence),

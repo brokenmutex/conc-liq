@@ -28,9 +28,10 @@ export interface GuardedCostModel {
   readonly methodology: "pool_specific_direct_call_p90_v1";
   readonly quoteDecimals: 6;
   readonly reasons: readonly string[];
-  readonly rebalanceCostQuoteRaw: null;
+  readonly rebalanceCostQuoteRaw: bigint | null;
+  readonly exitCostQuoteRaw: bigint | null;
   readonly schemaVersion: 1;
   readonly source: GuardedCostModelSource;
-  readonly status: "entry_measured" | "unavailable";
+  readonly status: "complete" | "entry_measured" | "unavailable";
   readonly warnings: readonly string[];
 }

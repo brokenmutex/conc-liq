@@ -808,6 +808,47 @@ are checkpoint-only, and rebalancing assumes ideal spot recomposition. Every
 result is explicitly execution-ineligible and the command has no signer or
 transaction path.
 
+## Joined-reference policy replay
+
+Run the stricter replay only over checkpoints whose multiplier-adjusted
+pool/reference join passed every quality gate:
+
+```bash
+npm run joined-policy:replay -- \
+  --rwa NVDA \
+  --fee 500 \
+  --budget-usdg 1000 \
+  --half-widths 20,50 \
+  --trigger-percent 50 \
+  --lookback 60 \
+  --min-passing-checkpoints 60 \
+  --min-window-hours 48 \
+  --min-weekend-fallback-checkpoints 1 \
+  --min-external-fallback-checkpoints 1
+```
+
+The numeric values above define an illustrative research scenario, not a live
+policy recommendation. The command requires every scenario and evidence
+threshold explicitly. It selects fresh Chainlink primary marks and uses a
+normalized perp mark only when the stored join labelled it a quality-passing
+external-session or internal-weekend fallback candidate. It also records the
+passing/rejected row counts and rejection-reason histogram for the selected
+block window.
+
+Unlike `oracle-policy:replay`, costs cannot be supplied on the command line.
+The loader requires one pool-specific stored cost model with measured entry,
+rebalance, and exit costs. Entry is charged once, rebalance cost is charged per
+recenter, and exit cost is charged once after the final checkpoint. Candidates
+whose remaining NAV cannot pay the measured exit are excluded. Results are
+ranked by net LP alpha versus unchanged post-entry inventory, after all three
+cost classes, and stored idempotently in `v3_joined_policy_replay_runs`.
+
+The command reads PostgreSQL only after its additive migration. It makes no RPC
+calls, has no signer or transaction path, and every stored replay remains
+`execution_eligible=false`. Missing passing marks, insufficient time/session
+coverage, incomplete indexer coverage, or an incomplete cost model stop it
+without storing a successful replay.
+
 ## Measured action-cost observations
 
 Build a stratified sample of real, confirmation-safe transactions touching the
@@ -1106,14 +1147,15 @@ the current replay sample is not strong enough to select them safely.
 ## Next slice
 
 Accumulate quorum-guarded NVDA/USDG checkpoints and normalized `xyz:NVDA`
-pool-basis observations across a complete weekend and after-hours window. Add
-the historical shadow-policy replay over passing joined marks and complete the
-measured rebalance/exit cost model. Once those evidence gates support a bounded
-budget and range, add a separate manual approval and broadcast wrapper that can
-consume exactly one unexpired plan hash, record the receipt/NFT ID, and remain
-disabled by default. The stable-position interval remains the fee-truth
-comparator, and costs remain unavailable rather than inferred when evidence is
-weak.
+pool-basis observations across a complete weekend and after-hours window. The
+joined historical replay is implemented and now fails closed until the exact
+decrease/collect/swap/mint rebalance path and exit path have measured cost
+evidence in a complete pool-specific model. Once a sufficiently long joined
+series and that cost gate produce a stable bounded-budget/range result, add a
+separate manual approval and broadcast wrapper that can consume exactly one
+unexpired plan hash, record the receipt/NFT ID, and remain disabled by default.
+The stable-position interval remains the fee-truth comparator, and costs remain
+unavailable rather than inferred when evidence is weak.
 
 ## Source-of-truth addresses
 
