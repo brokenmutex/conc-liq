@@ -1018,7 +1018,8 @@ authorization.
 
 ## Read-only operator dashboard
 
-The default view follows the one-position NVDA/USDG 0.05% milestone. It shows
+The default view leads with the live paper session described below. The
+NVDA/USDG 0.05% input and future-canary panel shows
 the regular-equity entry session, observed chain recovery, NVDA-scoped risk
 findings, the latest pool/reference checkpoint and its age, dated local
 lifecycle evidence, the latest saved wallet preflight, and tracked mainnet NFT
@@ -1231,37 +1232,103 @@ changed balance/allowance, changed policy, or changed calldata requires a newly
 generated artifact and hash. Range width and budget have no defaults because
 the current replay sample is not strong enough to select them safely.
 
+## Live paper session
+
+Paper trading now precedes any funded wallet trial. The dashboard leads with
+one forward-only NVDA/USDG 0.05% session: simulated balance, net P&L after modeled
+costs, LP alpha versus passive holdings, estimated fees, paid/reserved costs,
+maximum observed drawdown, and a timestamped decision journal and value chart.
+
+The worker consumes existing PostgreSQL pool checkpoints and HyperSync-indexed
+swap paths. It makes no RPC calls, accepts no wallet/key, and never signs or
+broadcasts. Session parameters are fixed at creation and hashed; starting a
+second active session for the same stream is rejected. State and observations
+survive restarts. Source block and capture time must both follow session creation;
+old history is not relabeled as forward performance.
+
+```bash
+set -a
+source .env
+set +a
+npm run paper -- start
+npm run paper -- tick
+```
+
+The default experiment uses **1,000 paper USDG**, a fixed range of ±20 tick
+spacings, a six-hour holding limit after entry, a 1 USDG entry-cost assumption,
+a 10 bps entry inventory haircut, and a 1 USDG exit-cost assumption. These are
+explicit experimental settings, not optimized parameters or a real allocation.
+The hypothetical position is capped at 1% of observed active pool liquidity.
+`start --policy FILE` accepts JSON overrides before a new session; the saved
+policy cannot be retuned in place.
+
+The default `guarded` mode uses the intended equity-session, chain-recovery,
+NVDA risk/reference, canonicality and freshness inputs, with a fixed ±0.5%
+pool/oracle entry-deviation ceiling. It can remain in cash
+while these checks fail. `research` mode explicitly records the market/risk
+findings while allowing research entries; it still requires fresh canonical
+data, chain recovery, token identity and the size cap. Neither mode authorizes
+live execution or performs wallet-specific simulation.
+
+An entry or exit signal fills only at a later fresh checkpoint whose block time
+follows the recorded signal time. The range is fixed at the entry signal; if
+the fill price has already left it, the order is canceled without a paper fill. Fees begin at the simulated entry boundary.
+This first experiment keeps its range fixed; it does not recenter. Guarded
+sessions request an exit when their continuing risk/session checks fail or the
+holding limit is reached. A newer risk snapshot alone is an entry-coordination
+wait, not a forced exit. Exit fills wait for observed chain recovery. Actual
+fill timing, transaction gas/L1 fees, impact and slippage remain unproven.
+
+Net value is marked in USDG at pool spot. Entry costs and the inventory haircut
+reduce deployable capital; exit cash is reserved once and charged once. The
+holding benchmark is the same initial post-entry token inventory, with no LP
+fees or exit charge. Its entry costs are shared by construction. Fees remain
+idle, and drawdown includes the initial cost decrease from the paper budget.
+Global fee growth is only credited when the complete indexed swap path stayed
+inside the hypothetical range. This is a zero-impact/no-self-dilution estimate.
+Range crossings, invalidated source hashes, missed decisions, or coverage gaps
+invalidate the economic result instead of inventing fees or retroactive exits.
+
+Install the database-only worker timer:
+
+```bash
+sudo install -m 0644 ops/conc-liq-paper.service ops/conc-liq-paper.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now conc-liq-paper.timer
+journalctl -u conc-liq-paper.service -f
+```
+
+It checks for new source data every 15 seconds; marks arrive with the existing
+roughly five-minute checkpoints. Dashboard/API refreshes and worker heartbeats
+are shown separately from valuation timestamps. `npm run paper -- stop` cancels
+an unentered session or requests a later paper exit for an open one. Stopping
+the timer itself does not simulate an exit; an unattended gap can invalidate an
+open session on restart. The new tables are included in `db:migrate`, and
+`paper start`/`paper migrate` can create just the paper tables.
+
+See [paper-session activation and evidence](notes/live-paper-session-2026-09-06.md).
+
 ## Next slice
 
-The preflight timestamp repair, NVDA-scoped risk/recovery policy, atomic exit
-builder, and local one-position rehearsal are now implemented and verified.
-See the [rehearsal evidence and runbook](notes/nvda-canary-lifecycle-2026-09-06.md).
-The remaining step is an operator-specific plan and a separately approved tiny
-live lifecycle when market, price, funding, and health checks permit it.
+Run and review the paper session before selecting or funding real wallets.
+The local mint/observe/decrease/collect rehearsal remains complete; its evidence
+is an execution-mechanics milestone, not measured strategy performance.
 
-Complete one bounded NVDA/USDG position lifecycle using the existing private
-node for recent state, simulations, and eventual execution. HyperSync supplies
-bulk event and transaction history. Save our own position state and receipts
-as we go. Archive access and provider quota infrastructure are optional research
-tools, not prerequisites for this milestone; automatic full fee scans stay off.
+1. Observe a complete paper lifecycle during eligible market conditions. Review
+   net P&L, alpha versus holding, fees and modeled costs, drawdown, entry/exit
+   delay, and coverage or gate failures. Waiting in cash is visible but is not
+   a trading result.
+2. Review the fixed strategy and assumptions against those observations. Any
+   changed range or cost policy starts a new identified session so earlier
+   decisions and results remain auditable. Paper performance alone cannot
+   establish real fills, realized fees, gas or profitability.
+3. Only after paper review should an operator-specific preflight and separately
+   approved tiny funded lifecycle be considered. No wallet, signing or
+   broadcast authorization is introduced by paper trading.
 
-1. Repair the existing canary preflight's millisecond timestamp conversion and
-   resolve the target-specific chain-health/risk gate. Keep explicit sizing,
-   slippage, deadline, and spending limits. Do not bypass unavailable checks.
-2. Build and simulate the complete mint, observe, decrease-liquidity, and collect
-   path for one position. Start during a verified open equity session with a
-   valid current mark; automatic rebalancing and closure-anchor policies remain
-   outside this first experiment. Verify the exit path before any funded mint.
-3. Prepare one tiny, explicitly sized, time-bounded, manually approved lifecycle
-   with receipt/NFT tracking. Measure token balances, gas, fees, and inventory
-   changes against the same initial passive holdings. This validates execution
-   and accounting; one trial cannot establish a profitable strategy.
-
-Full historical position accounting, cross-provider quota management, and the
-larger weekend/reference-policy comparison are deferred unless a concrete
-question from this lifecycle requires them. The joined replay's completeness
-requirements still apply when reporting that replay's economic results. No
-funding, signing, or broadcast authorization is introduced by this roadmap.
+HyperSync continues to supply historical events; the private node is reserved
+for existing current-state reads and eventual execution. Full historical fee
+scans and additional archive/provider-budget infrastructure remain optional.
 
 ## Source-of-truth addresses
 

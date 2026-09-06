@@ -43,7 +43,8 @@
     "strategy:checkpoint": "node --import tsx src/strategy-checkpoint.ts",
     "tail": "node --import tsx src/tail.ts",
     "test": "node --import tsx --test test/**/*.test.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "paper": "node --import tsx src/paper.ts"
   },
   "dependencies": {
     "pg": "^8.16.3",

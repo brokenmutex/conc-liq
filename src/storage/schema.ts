@@ -1,3 +1,5 @@
+import { PAPER_SCHEMA_SQL } from "../paper/schema.js";
+
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS observer_runs (
   id BIGSERIAL PRIMARY KEY,
@@ -2308,4 +2310,5 @@ CREATE TABLE IF NOT EXISTS v3_joined_policy_replay_runs (
 
 CREATE INDEX IF NOT EXISTS v3_joined_policy_replay_runs_latest_idx
   ON v3_joined_policy_replay_runs (stream_key, computed_at DESC, id DESC);
+${PAPER_SCHEMA_SQL}
 `;

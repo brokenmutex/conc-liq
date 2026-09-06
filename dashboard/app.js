@@ -262,7 +262,7 @@ function renderFocus(data) {
   setText("focus-rehearsal", rehearsal ? "Completed on local fork" : "Evidence unavailable");
   setText("focus-rehearsal-detail", rehearsal ? `${dated(rehearsal.completedAt, now)} · source block ${blockNumber(rehearsal.sourceBlock)} · no swaps or measured strategy profit` : "No validated local lifecycle artifact for this stream");
   setText("focus-plan", lastPlan ? `#${lastPlan.id} · ${lastPlan.status}` : "None saved");
-  setText("focus-plan-detail", lastPlan ? `${dated(lastPlan.createdAt, now)} · historical result; rerun preflight before any approval` : "Choose a wallet and capital cap for preflight. Live execution remains disabled.");
+  setText("focus-plan-detail", lastPlan ? `${dated(lastPlan.createdAt, now)} · historical result; rerun preflight before any approval` : "Wallet preflight is deferred until the paper session is reviewed. Live execution remains disabled.");
   setText("history-source", focus.historySource === "hypersync" ? "HyperSync" : "Legacy RPC history");
   setText("focus-index", cursorSummary(overview));
   setText("focus-index-detail", `Block ${blockNumber(overview.indexer.block)} · cursor updated ${timeAgo(overview.indexer.updatedAt, now)} · 180s freshness limit; not a head-lag measurement`);
@@ -846,7 +846,79 @@ function renderSource(prefix, source, now) {
   setText(`${prefix}-time`, timeAgo(source.fetchedAt, now));
 }
 
+function renderPaper(paper, now) {
+  const journal = element("paper-journal");
+  journal.replaceChildren();
+  const svg = element("paper-chart");
+  svg.replaceChildren();
+  element("paper-chart-empty").classList.remove("hidden");
+  setText("paper-chart-empty", "Performance starts after a simulated entry. Waiting is not a trading result.");
+  for (const key of ["nav", "pnl", "alpha", "hold", "fees", "costs", "drawdown", "budget", "coverage", "chart-start", "chart-end"]) setText(`paper-${key}`, "—");
+  element("paper-reasons").replaceChildren();
+  if (!paper) {
+    setText("paper-status", "No paper session has been started.");
+    setText("paper-freshness", "No performance evidence yet");
+    setText("paper-policy", "A session fixes its strategy and cost assumptions before observing returns.");
+    return;
+  }
+  const { state, policy } = paper;
+  if (state.status === "invalid") setText("paper-chart-empty", "Performance unavailable because coverage is incomplete. See the decision journal.");
+  element("paper-policy").title = `Policy SHA-256 ${paper.policyHash} · started ${paper.createdAt}`;
+  const labels = { waiting: "Waiting for eligible live inputs", entry_pending: "Entry signaled · waiting for a later checkpoint", open: "Paper position open", exit_pending: "Exit signaled · waiting for a later checkpoint", closed: "Paper position closed", invalid: "Performance incomplete · session stopped" };
+  setText("paper-status", `Session #${paper.id} · ${labels[state.status]} · ${policy.mode === "guarded" ? "intended live entry gates" : "continuous research; may be ineligible live"}`);
+  const terminal = state.status === "closed" || state.status === "invalid";
+  const heartbeatFresh = fresh(paper.heartbeatAt, now, 60);
+  setText("paper-freshness", `${terminal ? "Session finished" : heartbeatFresh ? "Paper worker responding" : "Paper worker stale or unavailable"} · last heartbeat ${timeAgo(paper.heartbeatAt, now)} · ${state.last ? `valuation/source block ${blockNumber(state.last.block)} at ${dated(state.last.blockTimestamp, now)}` : "awaiting first checkpoint captured after session start"}`);
+  element("paper-freshness").classList.toggle("attention", (!terminal && !heartbeatFresh) || state.status === "invalid" || (state.last && !fresh(state.last.blockTimestamp, now, policy.maxSourceAgeSeconds)));
+  const amount = value => value === null ? "—" : `${displayTokenAmount(value, 6)} USDG`;
+  setText("paper-nav", state.navQuote === null && !state.position && state.status !== "invalid" ? amount(policy.budgetQuote) : amount(state.navQuote));
+  setText("paper-budget", `Initial paper budget ${amount(policy.budgetQuote)}${state.position ? "" : " · uninvested"}`);
+  setText("paper-pnl", amount(state.pnlQuote));
+  setText("paper-alpha", amount(state.alphaQuote));
+  setText("paper-hold", state.holdQuote === null ? "Benchmark starts at paper entry" : `Passive holdings ${amount(state.holdQuote)}`);
+  setText("paper-fees", amount(state.feeValueQuote));
+  setText("paper-costs", `${amount(state.costsPaidQuote)} / ${amount(state.exitReserveQuote)}`);
+  setText("paper-drawdown", state.navQuote === null ? "—" : ppmPercent(state.maxDrawdownPpm));
+  setText("paper-coverage", `${state.intervals} holding intervals · ${compactInteger(state.observedSwaps)} observed swaps`);
+  setText("paper-policy", `Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. Fill at a later fresh checkpoint. Costs: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps entry inventory haircut; ${amount(policy.exitCostQuote)} exit. Holding limit ${duration(String(policy.maxHoldingSeconds))}. Marks arrive with the existing pool checkpoints (about five minutes).`);
+  const reasons = [...new Set([...state.reasons, ...paper.monitorReasons])];
+  element("paper-reasons").replaceChildren(...reasons.map(reason => {
+    const node = document.createElement("span"); node.className = "reason-chip"; node.textContent = reason.replaceAll("_", " "); node.title = reason; return node;
+  }));
+  for (const point of paper.points.slice(-12).reverse()) {
+    const row = document.createElement("tr");
+    row.append(cell(dated(point.observedAt, now)), cell(blockNumber(point.block), "mono"), cell(point.action.replaceAll("_", " ")), cell(amount(point.navQuote), "number"), cell(point.reasons.join(" · "), "reasons-cell"));
+    journal.append(row);
+  }
+  const points = state.status === "invalid" ? [] : paper.points.filter(point => point.navQuote !== null && point.holdQuote !== null);
+  element("paper-chart-empty").classList.toggle("hidden", points.length > 0);
+  if (!points.length) return;
+  // Number conversion is presentation only; accounting stays bigint on the server.
+  const values = points.flatMap(point => [Number(point.navQuote) / 1e6, Number(point.holdQuote) / 1e6]);
+  const low = Math.min(...values), high = Math.max(...values);
+  const spread = Math.max(high - low, 0.01);
+  const first = Date.parse(points[0].sourceAt), last = Date.parse(points.at(-1).sourceAt);
+  const chartWidth = Math.max(svg.clientWidth, 300);
+  svg.setAttribute("viewBox", `0 0 ${chartWidth} 230`);
+  const x = point => 80 + (Date.parse(point.sourceAt) - first) / Math.max(last - first, 1) * (chartWidth - 120);
+  const y = value => 195 - (Number(value) / 1e6 - low + spread * 0.1) / (spread * 1.2) * 170;
+  for (const mark of [low, high]) {
+    const label = svgNode("text", { x: 0, y: y(mark * 1e6), fill: "#8592a5", "font-size": 12 });
+    label.textContent = mark.toFixed(2); svg.append(label);
+  }
+  for (const [field, color] of [["navQuote", "#5fe0a5"], ["holdQuote", "#46d7df"]]) {
+    svg.append(svgNode("polyline", { points: points.map(point => `${x(point)},${y(point[field])}`).join(" "), stroke: color, "stroke-width": 2, fill: "none" }));
+    for (const point of points) {
+      const dot = svgNode("circle", { cx: x(point), cy: y(point[field]), r: 3, fill: color });
+      const title = svgNode("title"); title.textContent = `${point.action} · ${dated(point.sourceAt, now)} · ${field === "navQuote" ? "Paper net value" : "Holdings"} ${amount(point[field])}`; dot.append(title); svg.append(dot);
+    }
+  }
+  setText("paper-chart-start", new Date(first).toISOString().replace("T", " ").slice(0, 19) + " UTC");
+  setText("paper-chart-end", new Date(last).toISOString().replace("T", " ").slice(0, 19) + " UTC");
+}
+
 function render(data) {
+  renderPaper(data.paper, data.overview.serverTime);
   renderFocus(data);
   renderOverview(data);
   renderActivity(data.activity);

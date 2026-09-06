@@ -1,0 +1,194 @@
+import { createHash } from "node:crypto";
+import { subtractUint256 } from "../accounting/math.js";
+import { principalAmounts } from "../backtest/principal.js";
+import { USDG } from "../constants.js";
+import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAndSqrtPrice } from "../simulator/math.js";
+
+export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
+export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
+export interface PaperPolicy {
+  readonly mode: "guarded" | "research";
+  readonly budgetQuote: string;
+  readonly halfWidthSpacings: number;
+  readonly entryCostQuote: string;
+  readonly exitCostQuote: string;
+  readonly slippageBps: number;
+  readonly maxHoldingSeconds: number;
+  readonly maxSourceAgeSeconds: number;
+  readonly maxGapSeconds: number;
+  readonly maxLiquiditySharePpm: number;
+}
+export const DEFAULT_PAPER_POLICY: PaperPolicy = {
+  mode: "guarded", budgetQuote: "1000000000", halfWidthSpacings: 20,
+  entryCostQuote: "1000000", exitCostQuote: "1000000", slippageBps: 10,
+  maxHoldingSeconds: 21_600, maxSourceAgeSeconds: 180, maxGapSeconds: 900,
+  maxLiquiditySharePpm: 10_000,
+};
+export function policyHash(policy: PaperPolicy): string {
+  return createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.entries(policy).sort(([a], [b]) => a.localeCompare(b))))).digest("hex");
+}
+export interface PaperCheckpoint {
+  readonly id: string;
+  readonly block: string;
+  readonly hash: string;
+  readonly blockTimestamp: string;
+  readonly capturedAt: string;
+  readonly tick: number;
+  readonly sqrtPriceX96: string;
+  readonly liquidity: string;
+  readonly feeGrowth0: string;
+  readonly feeGrowth1: string;
+  readonly targetSetHash: string;
+}
+export interface PaperInput {
+  readonly now: string;
+  readonly checkpoint: PaperCheckpoint;
+  readonly dataReasons: readonly string[];
+  readonly entryReasons: readonly string[];
+  readonly chainHealthy: boolean;
+  readonly pathMinTick: number;
+  readonly pathMaxTick: number;
+  readonly swapCount: string;
+}
+export interface PaperPosition {
+  liquidity: string; tickLower: number; tickUpper: number;
+  idle0: string; idle1: string; fee0: string; fee1: string;
+  hold0: string; hold1: string; enteredAt: string;
+}
+export interface PaperState {
+  status: "waiting" | "entry_pending" | "open" | "exit_pending" | "closed" | "invalid";
+  action: "wait" | "signal_entry" | "enter" | "mark" | "signal_exit" | "exit" | "invalidate";
+  reasons: readonly string[];
+  last: PaperCheckpoint | null;
+  position: PaperPosition | null;
+  navQuote: string | null;
+  holdQuote: string | null;
+  pnlQuote: string | null;
+  alphaQuote: string | null;
+  feeValueQuote: string | null;
+  costsPaidQuote: string;
+  exitReserveQuote: string;
+  peakNavQuote: string;
+  maxDrawdownPpm: string;
+  intervals: number;
+  observedSwaps: string;
+  invalidatedAt: string | null;
+  pendingSince: string | null;
+  entryRange: { tickLower: number; tickUpper: number } | null;
+}
+export function initialPaperState(): PaperState {
+  return { status: "waiting", action: "wait", reasons: [], last: null, position: null,
+    navQuote: null, holdQuote: null, pnlQuote: null, alphaQuote: null, feeValueQuote: null,
+    costsPaidQuote: "0", exitReserveQuote: "0", peakNavQuote: "0", maxDrawdownPpm: "0",
+    intervals: 0, observedSwaps: "0", invalidatedAt: null, pendingSince: null, entryRange: null };
+}
+export function invalidatePaper(state: PaperState, now: string, reasons: readonly string[]): PaperState {
+  return { ...state, status: "invalid", action: "invalidate", reasons,
+    navQuote: null, holdQuote: null, pnlQuote: null, alphaQuote: null, feeValueQuote: null,
+    invalidatedAt: now };
+}
+function value(amount0: bigint, amount1: bigint, checkpoint: PaperCheckpoint): bigint {
+  return quoteValue({ amount0, amount1, token0: USDG, token1: PAPER_NVDA,
+    quoteToken: USDG, sqrtPriceX96: BigInt(checkpoint.sqrtPriceX96) });
+}
+function age(then: string, now: string): number {
+  return (Date.parse(now) - Date.parse(then)) / 1000;
+}
+export function advancePaper(previous: PaperState, policy: PaperPolicy, input: PaperInput): PaperState {
+  if (previous.status === "closed" || previous.status === "invalid") return previous;
+  const cp = input.checkpoint;
+  const last = previous.last;
+  if (last && BigInt(cp.block) <= BigInt(last.block)) throw new Error("Paper checkpoints must advance strictly");
+  const state = structuredClone(previous);
+  state.action = "wait";
+  state.entryRange ??= null;
+  const dataReasons = [...input.dataReasons];
+  if (last && last.targetSetHash !== cp.targetSetHash) dataReasons.push("target_set_changed");
+  if (dataReasons.length) return previous.position
+    ? invalidatePaper(previous, input.now, dataReasons)
+    : { ...state, status: "waiting", last: cp, reasons: dataReasons };
+  validateTickAndSqrtPrice({ tick: cp.tick, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+  const stale = [cp.capturedAt, cp.blockTimestamp].some(at => !Number.isFinite(age(at, input.now)) || age(at, input.now) < 0 || age(at, input.now) > policy.maxSourceAgeSeconds);
+  // A delayed worker cannot retroactively fill orders or overlook missed exit decisions.
+  if (stale) return previous.position
+    ? invalidatePaper(previous, input.now, ["source_stale_or_worker_missed_decision"])
+    : { ...state, status: "waiting", last: cp, reasons: ["source_stale"] };
+  const gates = [...input.entryReasons];
+  if (!input.chainHealthy) gates.push("chain_recovery_unproven");
+  if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
+  state.reasons = [...new Set(gates)];
+  state.last = cp;
+  if (!state.position) {
+    if (!input.chainHealthy || (policy.mode === "guarded" && gates.length)) {
+      state.status = "waiting";
+      return state;
+    }
+    if (previous.status !== "entry_pending") {
+      state.status = "entry_pending"; state.action = "signal_entry"; state.pendingSince = input.now;
+      state.entryRange = centeredRange({ currentTick: cp.tick, halfWidthSpacings: policy.halfWidthSpacings, tickSpacing: 10 });
+      return state;
+    }
+    if (!state.pendingSince || Date.parse(cp.blockTimestamp) <= Date.parse(state.pendingSince)) return state;
+    const range = state.entryRange;
+    if (!range || cp.tick < range.tickLower || cp.tick >= range.tickUpper) {
+      state.status = "waiting"; state.pendingSince = null; state.entryRange = null;
+      state.reasons = [...state.reasons, "entry_range_no_longer_contains_price"];
+      return state;
+    }
+    const entryCost = BigInt(policy.entryCostQuote) + BigInt(policy.budgetQuote) * BigInt(policy.slippageBps) / 10_000n;
+    // Cash is retained to pay the modeled exit. It is not deployed twice.
+    const exitCost = BigInt(policy.exitCostQuote);
+    const sized = sizeLiquidityForQuoteBudget({ budgetQuote: BigInt(policy.budgetQuote) - entryCost - exitCost,
+      ...range,
+      quoteToken: USDG, token0: USDG, token1: PAPER_NVDA, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+    if (sized.liquidity <= 0n || sized.liquidity * 1_000_000n > BigInt(cp.liquidity) * BigInt(policy.maxLiquiditySharePpm)) {
+      state.status = "waiting"; state.reasons = [...state.reasons, "paper_size_exceeds_pool_share_or_is_zero"]; return state;
+    }
+    state.position = { ...range,
+      liquidity: String(sized.liquidity), idle0: String(sized.idleQuote + exitCost), idle1: "0",
+      fee0: "0", fee1: "0", hold0: String(sized.amount0 + sized.idleQuote + exitCost), hold1: String(sized.amount1), enteredAt: input.now };
+    state.costsPaidQuote = String(entryCost); state.exitReserveQuote = String(exitCost);
+    state.status = "open"; state.action = "enter"; state.pendingSince = null;
+  } else {
+    if (!last) throw new Error("Open paper position has no source checkpoint");
+    if (age(last.blockTimestamp, cp.blockTimestamp) > policy.maxGapSeconds || !Number.isFinite(age(last.blockTimestamp, cp.blockTimestamp)) || age(last.blockTimestamp, cp.blockTimestamp) <= 0) {
+      return invalidatePaper(previous, input.now, ["checkpoint_gap_prevents_forward_decision_proof"]);
+    }
+    const p = state.position;
+    if (input.pathMinTick > Math.min(last.tick, cp.tick) || input.pathMaxTick < Math.max(last.tick, cp.tick)) throw new Error("Paper path omits an endpoint");
+    if (input.pathMinTick < p.tickLower || input.pathMaxTick >= p.tickUpper) return invalidatePaper(previous, input.now, ["range_crossed_fee_coverage_incomplete"]);
+    const delta0 = subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0));
+    const delta1 = subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1));
+    if (BigInt(input.swapCount) === 0n && (cp.sqrtPriceX96 !== last.sqrtPriceX96)) return invalidatePaper(previous, input.now, ["fee_or_price_change_without_swap_coverage"]);
+    // Canonical observed growth is a zero-impact estimate for this hypothetical LP.
+    p.fee0 = String(BigInt(p.fee0) + delta0 * BigInt(p.liquidity) / (1n << 128n));
+    p.fee1 = String(BigInt(p.fee1) + delta1 * BigInt(p.liquidity) / (1n << 128n));
+    state.intervals += 1;
+    state.observedSwaps = String(BigInt(state.observedSwaps) + BigInt(input.swapCount));
+    state.action = "mark";
+    if (previous.status === "exit_pending" && input.chainHealthy && state.pendingSince !== null && Date.parse(cp.blockTimestamp) > Date.parse(state.pendingSince)) {
+      state.status = "closed"; state.action = "exit"; state.pendingSince = null;
+      const released = principalAmounts({ liquidity: BigInt(p.liquidity), tickLower: p.tickLower, tickUpper: p.tickUpper, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+      p.idle0 = String(BigInt(p.idle0) + released.amount0 - BigInt(policy.exitCostQuote));
+      p.idle1 = String(BigInt(p.idle1) + released.amount1);
+      p.liquidity = "0";
+      state.costsPaidQuote = String(BigInt(state.costsPaidQuote) + BigInt(policy.exitCostQuote));
+      state.exitReserveQuote = "0";
+    } else if (previous.status === "exit_pending" || age(p.enteredAt, input.now) >= policy.maxHoldingSeconds || (policy.mode === "guarded" && gates.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
+      state.status = "exit_pending"; state.action = "signal_exit"; state.pendingSince ??= input.now;
+    }
+  }
+  const p = state.position!;
+  const principal = principalAmounts({ liquidity: BigInt(p.liquidity), tickLower: p.tickLower, tickUpper: p.tickUpper, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+  const nav = value(principal.amount0 + BigInt(p.idle0) + BigInt(p.fee0), principal.amount1 + BigInt(p.idle1) + BigInt(p.fee1), cp) - BigInt(state.exitReserveQuote);
+  const hold = value(BigInt(p.hold0), BigInt(p.hold1), cp);
+  state.navQuote = String(nav); state.holdQuote = String(hold);
+  state.pnlQuote = String(nav - BigInt(policy.budgetQuote)); state.alphaQuote = String(nav - hold);
+  state.feeValueQuote = String(value(BigInt(p.fee0), BigInt(p.fee1), cp));
+  const previousPeak = previous.position ? BigInt(state.peakNavQuote) : BigInt(policy.budgetQuote);
+  const peak = previousPeak > nav ? previousPeak : nav;
+  const drawdown = peak > 0n ? (peak - nav) * 1_000_000n / peak : 0n;
+  state.peakNavQuote = String(peak);
+  state.maxDrawdownPpm = String(drawdown > BigInt(state.maxDrawdownPpm) ? drawdown : BigInt(state.maxDrawdownPpm));
+  return state;
+}

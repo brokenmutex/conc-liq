@@ -1,0 +1,141 @@
+{
+  "observedAt": "2026-09-06T18:07:26.443Z",
+  "paper": {
+    "id": "1",
+    "createdAt": "2026-09-06T17:52:43.732Z",
+    "updatedAt": "2026-09-06T18:04:15.815Z",
+    "heartbeatAt": "2026-09-06T18:07:10.804Z",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "slippageBps": 10,
+      "exitCostQuote": "1000000",
+      "maxGapSeconds": 900,
+      "entryCostQuote": "1000000",
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000
+    },
+    "policyHash": "9b6a7c7888f82fde35fedb76bebed6bf1d8d8329bfa745087323769dab29a48f",
+    "state": {
+      "last": {
+        "id": "329",
+        "hash": "0x34d5fa7a7ad4681a6c3960a301fe40dceb616dda982652c5d6b40f2f58718186",
+        "tick": 221881,
+        "block": "56177374",
+        "liquidity": "38398244903000496425",
+        "capturedAt": "2026-09-06T21:04:11.436+03:00",
+        "feeGrowth0": "18925862948660109100917655259654",
+        "feeGrowth1": "87747362124671560774124873417103018267796",
+        "sqrtPriceX96": "5208697860408731870002455844872686",
+        "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+        "blockTimestamp": "2026-09-06T21:04:04+03:00"
+      },
+      "action": "wait",
+      "status": "waiting",
+      "reasons": [
+        "source_ahead_of_confirmed_quorum",
+        "equity_session_closed",
+        "sequencer_feed_unavailable",
+        "oracle_price_stale",
+        "quote_oracle_unavailable",
+        "rwa_oracle_price_stale",
+        "quote_oracle_price_stale",
+        "pool_reference_excluded",
+        "chain_recovery_unproven"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": null,
+      "holdQuote": null,
+      "intervals": 0,
+      "alphaQuote": null,
+      "peakNavQuote": "0",
+      "pendingSince": null,
+      "feeValueQuote": null,
+      "invalidatedAt": null,
+      "observedSwaps": "0",
+      "costsPaidQuote": "0",
+      "maxDrawdownPpm": "0",
+      "exitReserveQuote": "0"
+    },
+    "monitorReasons": [
+      "awaiting_next_live_checkpoint"
+    ],
+    "sourceCanonical": true,
+    "points": [
+      {
+        "block": "56171280",
+        "action": "wait",
+        "reasons": [
+          "equity_session_closed",
+          "oracle_price_stale",
+          "quote_oracle_unavailable",
+          "rwa_oracle_price_stale",
+          "quote_oracle_price_stale",
+          "pool_reference_excluded"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-06T20:53:48+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-06T20:54:04.880188+03:00",
+        "checkpointId": "327"
+      },
+      {
+        "block": "56174359",
+        "action": "wait",
+        "reasons": [
+          "equity_session_closed",
+          "oracle_price_stale",
+          "quote_oracle_unavailable",
+          "rwa_oracle_price_stale",
+          "quote_oracle_price_stale",
+          "pool_reference_excluded",
+          "checkpoint_not_latest_risk_snapshot"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-06T20:59:01+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-06T20:59:21.628766+03:00",
+        "checkpointId": "328"
+      },
+      {
+        "block": "56177374",
+        "action": "wait",
+        "reasons": [
+          "source_ahead_of_confirmed_quorum",
+          "equity_session_closed",
+          "sequencer_feed_unavailable",
+          "oracle_price_stale",
+          "quote_oracle_unavailable",
+          "rwa_oracle_price_stale",
+          "quote_oracle_price_stale",
+          "pool_reference_excluded",
+          "chain_recovery_unproven"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-06T21:04:04+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-06T21:04:15.815511+03:00",
+        "checkpointId": "329"
+      }
+    ],
+    "executionEligible": false
+  },
+  "checks": [
+    "real waiting session has no invented PnL",
+    "desktop and mobile have no page overflow",
+    "synthetic chart renders net value and passive holdings",
+    "invalid coverage hides performance curve and PnL",
+    "missing session clears prior values",
+    "no browser errors"
+  ],
+  "fixtureProfitsStored": false
+}

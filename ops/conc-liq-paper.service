@@ -1,0 +1,16 @@
+[Unit]
+Description=conc-liq live paper position observer
+After=postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/conc-liq
+EnvironmentFile=/root/conc-liq/.env
+Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/bash -c 'exec npm run paper -- tick'
+TimeoutStartSec=45s
+Nice=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full

@@ -1,0 +1,11 @@
+[Unit]
+Description=Observe new live paper checkpoints every 15 seconds
+
+[Timer]
+OnBootSec=15s
+OnUnitActiveSec=15s
+AccuracySec=1s
+Unit=conc-liq-paper.service
+
+[Install]
+WantedBy=timers.target

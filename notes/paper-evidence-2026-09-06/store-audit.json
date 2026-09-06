@@ -1,0 +1,1 @@
+{"passed":["one active session per stream","JSON policy survives database serialization and worker restart","no historical fill or duplicate journal on idle ticks","stop before entry closes without invented PnL","stop after entry requests a later exit without charging early","missing canonical hash revokes the recorded result"],"fixtureSchemaRemoved":true}
