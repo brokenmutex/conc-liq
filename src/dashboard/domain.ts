@@ -1,4 +1,5 @@
 import type { RiskGateDecision } from "../risk/gate.js";
+import type { DashboardFocus } from "./focus.js";
 
 export interface CursorStatus {
   readonly block: string | null;
@@ -369,6 +370,7 @@ export interface StableFeeBaselineView {
 }
 
 export interface DashboardSnapshot {
+  readonly focus: DashboardFocus;
   readonly accounting: FeeAccountingView | null;
   readonly accountingHistory: readonly FeeAccountingRunRow[];
   readonly activity: readonly ActivityBucket[];

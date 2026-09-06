@@ -1,6 +1,38 @@
 const SVG_NS = "http://www.w3.org/2000/svg";
 let refreshTimer;
 
+function ageSeconds(value, now) {
+  if (!value) return null;
+  const age = (Date.parse(now) - Date.parse(value)) / 1000;
+  return Number.isFinite(age) && age >= 0 ? Math.floor(age) : null;
+}
+
+function fresh(value, now, maxAge) {
+  const age = ageSeconds(value, now);
+  return age !== null && age <= maxAge;
+}
+
+function cursorSummary(overview) {
+  const matches = overview.sync.blockLag === "0" && overview.sync.hashesMatch === true;
+  const recent = fresh(overview.indexer.updatedAt, overview.serverTime, 180) &&
+    fresh(overview.replay.updatedAt, overview.serverTime, 180);
+  if (!recent) return "Stale or missing";
+  return matches ? "Cursors aligned" : "Replay behind or mismatched";
+}
+
+function booleanStatus(value, whenTrue, whenFalse) {
+  return value === null || value === undefined ? "Unknown" : value ? whenTrue : whenFalse;
+}
+
+// Display only. Never grants eligibility; the canary planner performs full preflight.
+function focusRiskReasons(focus, now) {
+  const recovery = focus.entryReadiness;
+  const replacesFeed = recovery.chainEligible && fresh(recovery.evaluatedAt, now, 20);
+  const reasons = focus.riskGate.reasons.filter((reason) => !(reason === "sequencer_feed_unavailable" && replacesFeed));
+  if (!focus.riskGate.executionEligible && focus.riskGate.reasons.length === 0) reasons.push("risk_snapshot_ineligible");
+  return reasons;
+}
+
 function element(id) {
   const node = document.getElementById(id);
   if (!node) throw new Error(`Missing dashboard element ${id}`);
@@ -49,8 +81,13 @@ function duration(secondsValue) {
 
 function timeAgo(value, nowValue) {
   if (!value) return "—";
-  const seconds = Math.max(0, Math.floor((new Date(nowValue) - new Date(value)) / 1_000));
+  const seconds = ageSeconds(value, nowValue);
+  if (seconds === null) return "Invalid / future timestamp";
   return `${duration(String(seconds))} ago`;
+}
+
+function dated(value, now) {
+  return value ? `${new Date(value).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · ${timeAgo(value, now)}` : "No saved result";
 }
 
 function feeLabel(fee) {
@@ -161,8 +198,8 @@ function oraclePrice(value, symbol) {
 function renderOverview(data) {
   const { overview, riskGate } = data;
   const exact = overview.sync.blockLag === "0" && overview.sync.hashesMatch === true;
-  setText("sync-value", exact ? "Exact" : overview.sync.blockLag === null ? "Unknown" : `Lag ${overview.sync.blockLag}`);
-  setText("sync-detail", exact ? "Block and hash agree" : "Check replay cursor");
+  setText("sync-value", cursorSummary(overview));
+  setText("sync-detail", exact ? "Block and hash agree; chain head is checked separately" : "Check replay cursor");
   setText("block-value", blockNumber(overview.indexer.block));
   setText("block-detail", `${timeAgo(overview.indexer.updatedAt, overview.serverTime)} · chain ${overview.chainId ?? "—"}`);
   setText("events-value", compactInteger(overview.indexedEvents));
@@ -196,6 +233,50 @@ function renderOverview(data) {
     chip.className = "reason-chip";
     chip.textContent = reason;
     reasons.append(chip);
+  }
+}
+
+function renderFocus(data) {
+  const { focus, overview } = data;
+  const now = overview.serverTime;
+  const { checkpoint, entryReadiness, rehearsal, lastPlan } = focus;
+  setText("focus-session", entryReadiness.session === "regular_session" ? "Within entry window" : entryReadiness.session === "closed" ? "Closed for entry" : "Calendar unavailable");
+  setText("focus-chain", entryReadiness.chainEligible ? "Recovery observed" : "Not established");
+  setText("focus-chain-detail", `${entryReadiness.sampleIds.length} samples · evaluated ${timeAgo(entryReadiness.evaluatedAt, now)} · RPC agreement is not L1 finality`);
+  const riskReasons = focusRiskReasons(focus, now);
+  const nvda = data.riskAssets.find((asset) => asset.rwaSymbol === "NVDA");
+  setText("focus-risk", riskReasons.length ? "Needs attention" : "No remaining findings");
+  setText("focus-risk-detail", `Collector #${focus.riskGate.snapshotId ?? "—"} · ${timeAgo(focus.riskGate.snapshotObservedAt, now)}. NVDA price was ${duration(nvda?.oracleAgeSeconds ?? null)} old at collection. Recovery can cover only the missing sequencer feed.`);
+  const checkpointFresh = checkpoint && fresh(checkpoint.capturedAt, now, focus.checkpointMaxAgeSeconds) && fresh(checkpoint.blockTimestamp, now, focus.checkpointMaxAgeSeconds);
+  const aligned = checkpoint && checkpoint.riskRunId === focus.riskGate.snapshotId;
+  setText("focus-checkpoint", !checkpoint ? "Missing" : !checkpointFresh ? "Stale" : !aligned ? "Awaiting latest risk" : checkpoint.status === "valid" ? "Current · valid mark" : "Current · mark excluded");
+  element("focus-checkpoint").classList.toggle("attention", !checkpointFresh || !aligned || checkpoint?.status !== "valid");
+  element("focus-risk").classList.toggle("attention", riskReasons.length > 0);
+  element("focus-session").classList.toggle("attention", entryReadiness.session !== "regular_session");
+  element("focus-chain").classList.toggle("attention", !entryReadiness.chainEligible);
+  setText("focus-checkpoint-detail", checkpoint ? `#${checkpoint.id} · block ${blockNumber(checkpoint.block)} · ${dated(checkpoint.blockTimestamp, now)} · freshness limit ${focus.checkpointMaxAgeSeconds}s` : "No synchronized NVDA checkpoint");
+  setText("focus-spot", checkpoint ? `${displayTokenAmount(checkpoint.poolPriceX18, 18)} USDG/NVDA` : "Unavailable");
+  setText("focus-oracle", checkpoint?.oraclePriceX18 ? `${displayTokenAmount(checkpoint.oraclePriceX18, 18)} USDG/NVDA` : "Unavailable");
+  setText("focus-deviation", checkpoint?.deviationPpm !== null && checkpoint?.deviationPpm !== undefined ? `${displayTokenAmount(checkpoint.deviationPpm, 4, 4)}%` : "Unavailable");
+  setText("focus-reference-note", `${checkpoint?.status === "valid" && checkpointFresh && aligned ? "Valid at the stated checkpoint." : "Displayed marks are diagnostic; a stale or excluded mark cannot authorize entry."} Current preflight uses NVDA and USDG oracle checks. Hyperliquid remains research-only; a Nasdaq / last-close policy is not active.`);
+  setText("focus-rehearsal", rehearsal ? "Completed on local fork" : "Evidence unavailable");
+  setText("focus-rehearsal-detail", rehearsal ? `${dated(rehearsal.completedAt, now)} · source block ${blockNumber(rehearsal.sourceBlock)} · no swaps or measured strategy profit` : "No validated local lifecycle artifact for this stream");
+  setText("focus-plan", lastPlan ? `#${lastPlan.id} · ${lastPlan.status}` : "None saved");
+  setText("focus-plan-detail", lastPlan ? `${dated(lastPlan.createdAt, now)} · historical result; rerun preflight before any approval` : "Choose a wallet and capital cap for preflight. Live execution remains disabled.");
+  setText("history-source", focus.historySource === "hypersync" ? "HyperSync" : "Legacy RPC history");
+  setText("focus-index", cursorSummary(overview));
+  setText("focus-index-detail", `Block ${blockNumber(overview.indexer.block)} · cursor updated ${timeAgo(overview.indexer.updatedAt, now)} · 180s freshness limit; not a head-lag measurement`);
+  setText("accounting-mode", focus.fullAccountingEnabled ? "Enabled" : "Paused intentionally");
+  setText("accounting-status-note", `${focus.fullAccountingEnabled ? "Full-universe snapshots enabled in configuration." : "Full-universe snapshots paused intentionally."} Saved capture: ${dated(data.accounting?.observedAt, now)}. These aggregate fees are not our earnings.`);
+  const reasons = [...entryReadiness.reasons, ...riskReasons, ...(checkpoint?.reasons ?? ["checkpoint_missing"])];
+  if (checkpoint && !checkpointFresh) reasons.push("checkpoint_stale");
+  if (checkpoint && !aligned) reasons.push("checkpoint_not_latest_risk_snapshot");
+  element("focus-reasons").replaceChildren(...[...new Set(reasons)].map((reason) => {
+    const node = document.createElement("span"); node.className = "reason-chip";
+    node.textContent = reason.replaceAll("_", " "); node.title = reason; return node;
+  }));
+  for (const [key, result] of [["principal", data.principal], ["simulation", data.rangeSimulation], ["policy-replay", data.rangePolicyReplay], ["oracle-calibration", data.oracleCalibration], ["baseline", data.stableFeeBaseline]]) {
+    setText(`${key}-date`, `Saved research result · ${dated(result?.computedAt, now)}`);
   }
 }
 
@@ -402,7 +483,7 @@ function renderPrincipal(principal) {
   }
 }
 
-function renderTrackedNftPositions(positions) {
+function renderTrackedNftPositions(positions, now) {
   const empty = positions.length === 0;
   element("nft-empty").classList.toggle("hidden", !empty);
   element("nft-table").classList.toggle("hidden", empty);
@@ -419,7 +500,7 @@ function renderTrackedNftPositions(positions) {
     owner.title = position.ownerAddress;
     const sourceBlock = document.createElement("span");
     sourceBlock.className = "mono";
-    sourceBlock.textContent = blockNumber(position.block);
+    sourceBlock.textContent = `${blockNumber(position.block)} · ${dated(position.computedAt, now)}`;
     sourceBlock.title = position.blockHash;
     const status = position.region === "in_range"
       ? pill("In range", "good")
@@ -473,7 +554,7 @@ function renderRangeSimulation(simulation) {
   );
   setText(
     "simulation-path",
-    `${simulation.pathMinTick.toLocaleString()} → ${simulation.pathMaxTick.toLocaleString()} · ${simulation.completedCandidates} certified / ${simulation.excludedCandidates} excluded`,
+    `${simulation.pathMinTick.toLocaleString()} → ${simulation.pathMaxTick.toLocaleString()} · ${simulation.completedCandidates} completed / ${simulation.excludedCandidates} excluded`,
   );
   element("simulation-path").title = `${compactInteger(simulation.swapCount)} indexed swaps`;
   for (const assumption of simulation.assumptions) {
@@ -485,7 +566,7 @@ function renderRangeSimulation(simulation) {
   for (const candidate of simulation.candidates) {
     const complete = candidate.status === "complete";
     const status = complete
-      ? pill("Certified", "good")
+      ? pill("Stayed in range", "neutral")
       : pill("Excluded", "warn");
     status.title = candidate.exclusionReason ?? "Observed path stayed inside range";
     const row = document.createElement("tr");
@@ -546,7 +627,7 @@ function renderRangePolicyReplay(replay) {
       ? pill("Complete", "good")
       : pill("Stopped", "warn");
     status.title = candidate.failureReason === null
-      ? "All interval paths certified"
+      ? "All observed interval paths stayed in range"
       : `${candidate.failureReason} at checkpoint #${candidate.failureRunId}`;
     const row = document.createElement("tr");
     row.append(
@@ -704,10 +785,10 @@ function renderRisk(rows) {
       cell(pill(risk.executionEligible ? "Open" : "Closed", risk.executionEligible ? "good" : "bad")),
       cell(price(risk.answer, risk.feedDecimals), "number"),
       cell(duration(risk.oracleAgeSeconds), "number"),
-      cell(pill(risk.tradingTradable ? "Tradable" : "Blocked", risk.tradingTradable ? "good" : "bad")),
-      cell(pill(risk.multiplierConsistent ? "Match" : "Mismatch", risk.multiplierConsistent ? "good" : "bad")),
-      cell(pill(risk.oraclePaused ? "Paused" : "No", risk.oraclePaused ? "bad" : "good")),
-      cell(pill(risk.corporateActionPending ? "Pending" : "None", risk.corporateActionPending ? "warn" : "good")),
+      cell(pill(booleanStatus(risk.tradingTradable, "Tradable", "Blocked"), risk.tradingTradable === true ? "good" : risk.tradingTradable === false ? "bad" : "warn")),
+      cell(pill(booleanStatus(risk.multiplierConsistent, "Match", "Mismatch"), risk.multiplierConsistent === true ? "good" : risk.multiplierConsistent === false ? "bad" : "warn")),
+      cell(pill(booleanStatus(risk.oraclePaused, "Paused", "No"), risk.oraclePaused === false ? "good" : risk.oraclePaused === true ? "bad" : "warn")),
+      cell(pill(booleanStatus(risk.corporateActionPending, "Pending", "None"), risk.corporateActionPending === false ? "good" : "warn")),
       cell(nonGlobalReasons.length === 0 ? "Global gate only" : nonGlobalReasons.join(" · "), "reasons-cell"),
     );
     body.append(row);
@@ -766,13 +847,14 @@ function renderSource(prefix, source, now) {
 }
 
 function render(data) {
+  renderFocus(data);
   renderOverview(data);
   renderActivity(data.activity);
   renderPools(data.pools);
   renderAccounting(data.accounting, data.overview.serverTime);
   renderAccountingHistory(data.accountingHistory ?? [], data.overview.serverTime);
   renderPrincipal(data.principal);
-  renderTrackedNftPositions(data.trackedNftPositions ?? []);
+  renderTrackedNftPositions(data.trackedNftPositions ?? [], data.overview.serverTime);
   renderRangeSimulation(data.rangeSimulation);
   renderRangePolicyReplay(data.rangePolicyReplay);
   renderOracleCalibration(data.oracleCalibration);
@@ -787,13 +869,13 @@ function render(data) {
 
 async function refresh() {
   try {
-    const response = await fetch("/api/dashboard", { cache: "no-store" });
+    const response = await fetch("/api/dashboard", { cache: "no-store", signal: AbortSignal.timeout(8_000) });
     if (!response.ok) throw new Error(`Dashboard API returned ${response.status}`);
     const data = await response.json();
     render(data);
     element("connection-dot").className = "status-dot live";
-    setText("connection-label", "Live data");
-    setText("last-refresh", `Updated ${new Date().toLocaleTimeString()}`);
+    setText("connection-label", "Dashboard connected");
+    setText("last-refresh", `API refreshed ${new Date().toLocaleTimeString()} · source ages shown below`);
     element("error-banner").classList.add("hidden");
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(refresh, data.refreshMs);
@@ -801,7 +883,7 @@ async function refresh() {
     element("connection-dot").className = "status-dot error";
     setText("connection-label", "Data unavailable");
     const banner = element("error-banner");
-    banner.textContent = error instanceof Error ? error.message : "Dashboard refresh failed";
+    banner.textContent = `${error instanceof Error ? error.message : "Dashboard refresh failed"}. Displayed values are from the last successful response and are no longer current.`;
     banner.classList.remove("hidden");
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(refresh, 10_000);

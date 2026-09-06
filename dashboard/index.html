@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>CONC LIQ · Robinhood V3 Observatory</title>
+    <title>CONC LIQ · NVDA Canary</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -15,7 +15,7 @@
         <div>
           <div class="eyebrow">ROBINHOOD CHAIN · UNISWAP V3</div>
           <h1>CONC <span>LIQ</span></h1>
-          <p class="subtitle">Concentrated-liquidity observatory</p>
+          <p class="subtitle">NVDA canary · data readiness and position monitoring</p>
         </div>
         <div class="header-status">
           <div class="readonly-badge">READ ONLY</div>
@@ -29,6 +29,66 @@
 
       <div id="error-banner" class="error-banner hidden" role="alert"></div>
 
+      <section class="panel focus-panel" id="canary-panel" aria-label="NVDA canary status">
+        <div class="panel-heading">
+          <div><div class="section-kicker">CURRENT MILESTONE</div><h2>One NVDA / USDG position · 0.05%</h2></div>
+          <div class="readonly-badge">LIVE EXECUTION DISABLED</div>
+        </div>
+        <p class="focus-intro">Mint → observe → decrease and collect. The next live step requires a fresh preflight for the chosen wallet and capital cap.</p>
+        <div class="focus-grid">
+          <article><div class="metric-label">Equity entry session</div><div id="focus-session" class="focus-value">—</div><div class="muted">New York regular session · 5-minute opening and closing buffers</div></article>
+          <article><div class="metric-label">Chain recovery</div><div id="focus-chain" class="focus-value">—</div><div id="focus-chain-detail" class="muted">Five minutes of observed RPC agreement</div></article>
+          <article><div class="metric-label">NVDA risk inputs</div><div id="focus-risk" class="focus-value">—</div><div id="focus-risk-detail" class="muted">NVDA-scoped collector and current canonicality</div></article>
+          <article><div class="metric-label">Pool / reference checkpoint</div><div id="focus-checkpoint" class="focus-value">—</div><div id="focus-checkpoint-detail" class="muted">Waiting for source timestamps</div></article>
+          <article><div class="metric-label">Local lifecycle evidence</div><div id="focus-rehearsal" class="focus-value">—</div><div id="focus-rehearsal-detail" class="muted">Local fork only · no measured strategy profit</div></article>
+          <article><div class="metric-label">Saved wallet preflight</div><div id="focus-plan" class="focus-value">—</div><div id="focus-plan-detail" class="muted">A saved plan does not authorize a transaction</div></article>
+        </div>
+        <div class="price-strip"><div><span>Pool spot at checkpoint</span><strong id="focus-spot">—</strong></div><div><span>Oracle mark at checkpoint</span><strong id="focus-oracle">—</strong></div><div><span>Pool deviation</span><strong id="focus-deviation">—</strong></div></div>
+        <p id="focus-reference-note" class="muted">Price validity is checked independently of dashboard refresh.</p>
+        <div id="focus-reasons" class="reason-strip" aria-label="Current NVDA input findings"></div>
+        <p class="muted">These are stored input checks. Wallet balances, allowances, size limits, mint simulation and approval require a fresh preflight. Realized P&amp;L and LP alpha versus holding are unavailable until a live position is measured.</p>
+      </section>
+      <section class="panel pipeline-panel" aria-label="Data collection status">
+        <div><div class="metric-label">Historical event source · configured</div><strong id="history-source">—</strong></div>
+        <div><div class="metric-label">Event collection</div><strong id="focus-index">—</strong><div id="focus-index-detail" class="muted">—</div></div>
+        <div><div class="metric-label">Full-universe fee snapshots · configured</div><strong id="accounting-mode">—</strong><div class="muted">Optional research; archive RPC is not required for this milestone.</div></div>
+      </section>
+
+      <section class="panel" id="nft-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">CANARY POSITION MONITOR</div>
+            <h2>Tracked position NFTs</h2>
+          </div>
+          <div class="panel-note">Exact checkpointed principal + claimable fees · display and raw units · no PnL yet</div>
+        </div>
+        <div id="nft-empty" class="inline-empty hidden">
+          No mainnet NFT checkpoint is stored. The local rehearsal NFT is not a live wallet position.
+        </div>
+        <div id="nft-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>NFT</th>
+                <th>Pool</th>
+                <th>Status at capture</th>
+                <th>Lower → current → upper</th>
+                <th>Token 0 principal</th>
+                <th>Token 0 fees</th>
+                <th>Token 1 principal</th>
+                <th>Token 1 fees</th>
+                <th>Owner</th>
+                <th>Block / captured</th>
+              </tr>
+            </thead>
+            <tbody id="nft-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <details id="research-details" class="research-details">
+        <summary>Research and diagnostics <span>Historical scenarios, aggregate pool state and collector evidence</span></summary>
+        <p class="research-note">Saved scenarios use illustrative costs and pool-spot marks. They are not measured live returns or a selected strategy. Captures below retain their original dates.</p>
       <section class="summary-grid" aria-label="System summary">
         <article class="metric-card accent-cyan">
           <div class="metric-label">Canonical sync</div>
@@ -51,7 +111,7 @@
           <div id="coverage-detail" class="metric-detail">Pools · ticks · positions</div>
         </article>
         <article class="metric-card accent-amber">
-          <div class="metric-label">Execution gate</div>
+          <div class="metric-label">Global collector gate</div>
           <div id="risk-value" class="metric-value">—</div>
           <div id="risk-detail" class="metric-detail">Latest risk snapshot</div>
         </article>
@@ -89,6 +149,7 @@
           </div>
           <div class="panel-note">Raw token units · aggregate core keys, not NFT attribution</div>
         </div>
+        <p id="accounting-status-note" class="research-note">Saved research snapshot</p>
         <div id="accounting-audit" class="gate-audit" aria-label="Fee accounting audit">
           <div>
             <span>Snapshot run</span>
@@ -131,7 +192,7 @@
         </div>
         <div id="accounting-history" class="accounting-history">
           <div class="subsection-heading">
-            <span>Recent checkpoint history</span>
+            <span>Saved accounting history</span>
             <span>Newest first · exact source blocks</span>
           </div>
           <div class="table-wrap compact-table">
@@ -157,10 +218,11 @@
         <div class="panel-heading">
           <div>
             <div class="section-kicker">EXACT DERIVED STATE</div>
-            <h2>Liquidity principal</h2>
+            <h2>Historical liquidity principal</h2>
           </div>
           <div class="panel-note">Active core positions · canonical floor rounding · fees excluded</div>
         </div>
+        <p id="principal-date" class="research-note"></p>
         <div id="principal-audit" class="gate-audit" aria-label="Principal accounting audit">
           <div>
             <span>Principal run</span>
@@ -202,38 +264,6 @@
         </div>
       </section>
 
-      <section class="panel" id="nft-panel">
-        <div class="panel-heading">
-          <div>
-            <div class="section-kicker">CANARY POSITION MONITOR</div>
-            <h2>Tracked position NFTs</h2>
-          </div>
-          <div class="panel-note">Exact checkpointed principal + claimable fees · display and raw units · no PnL yet</div>
-        </div>
-        <div id="nft-empty" class="inline-empty hidden">
-          No position NFT is configured. Add a token ID after selecting or minting the canary.
-        </div>
-        <div id="nft-table" class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>NFT</th>
-                <th>Pool</th>
-                <th>Status</th>
-                <th>Lower → current → upper</th>
-                <th>Token 0 principal</th>
-                <th>Token 0 fees</th>
-                <th>Token 1 principal</th>
-                <th>Token 1 fees</th>
-                <th>Owner</th>
-                <th>Block</th>
-              </tr>
-            </thead>
-            <tbody id="nft-body"></tbody>
-          </table>
-        </div>
-      </section>
-
       <section class="panel" id="simulation-panel">
         <div class="panel-heading">
           <div>
@@ -242,6 +272,7 @@
           </div>
           <div class="panel-note">Normalized shadow scenario · pool-spot valuation · explicit costs · never execution-eligible</div>
         </div>
+        <p id="simulation-date" class="research-note"></p>
         <div id="simulation-audit" class="gate-audit" aria-label="Range simulation audit">
           <div>
             <span>Simulation</span>
@@ -293,6 +324,7 @@
           </div>
           <div class="panel-note">Normalized shadow scenario · checkpoint triggers · explicit illustrative costs · never execution-eligible</div>
         </div>
+        <p id="policy-replay-date" class="research-note"></p>
         <div id="policy-replay-audit" class="gate-audit" aria-label="Range policy replay audit">
           <div>
             <span>Replay</span>
@@ -307,7 +339,7 @@
             <strong id="policy-replay-capital">—</strong>
           </div>
           <div>
-            <span>Trigger / certification</span>
+            <span>Trigger / completed scenarios</span>
             <strong id="policy-replay-trigger">—</strong>
           </div>
         </div>
@@ -345,6 +377,7 @@
           </div>
           <div class="panel-note">Block-pinned Chainlink rounds · multiplier-aware token guards · diagnostic only</div>
         </div>
+        <p id="oracle-calibration-date" class="research-note"></p>
         <div id="oracle-calibration-audit" class="gate-audit" aria-label="Oracle calibration audit">
           <div>
             <span>Calibration</span>
@@ -395,6 +428,7 @@
           </div>
           <div class="panel-note">Partial stable-position sample · raw fees, not total revenue or PnL</div>
         </div>
+        <p id="baseline-date" class="research-note"></p>
         <div id="baseline-audit" class="gate-audit" aria-label="Stable fee baseline audit">
           <div>
             <span>Accounting runs</span>
@@ -454,7 +488,7 @@
                 <th>Tick</th>
                 <th>Liquidity</th>
                 <th>Swaps</th>
-                <th>Active LPs</th>
+                <th>Core positions</th>
                 <th>Init. ticks</th>
                 <th>Last event</th>
                 <th>Pool</th>
@@ -469,9 +503,9 @@
         <div class="panel-heading">
           <div>
             <div class="section-kicker">FAIL-CLOSED INPUTS</div>
-            <h2>Risk matrix</h2>
+            <h2>Raw collector risk matrix</h2>
           </div>
-          <div class="panel-note">Observation is not execution authorization</div>
+          <div class="panel-note">All-asset diagnostics · canary input checks are shown above</div>
         </div>
         <div class="gate-audit" aria-label="Risk gate audit">
           <div>
@@ -487,7 +521,7 @@
             <strong id="gate-canonical">—</strong>
           </div>
           <div>
-            <span>Session policy</span>
+            <span>Robinhood venue policy</span>
             <strong id="gate-session">—</strong>
           </div>
         </div>
@@ -498,7 +532,7 @@
               <tr>
                 <th>Asset</th>
                 <th>Gate</th>
-                <th>Oracle price</th>
+                <th>USD / token (feed)</th>
                 <th>Age</th>
                 <th>Trading</th>
                 <th>Multiplier</th>
@@ -526,7 +560,7 @@
                 <tr>
                   <th>Pool</th>
                   <th>Positions</th>
-                  <th>Owners</th>
+                  <th>Core-key owners</th>
                   <th>Tick span</th>
                 </tr>
               </thead>
@@ -575,10 +609,12 @@
         </div>
       </section>
 
+      </details>
+
       <footer>
         <span>Shadow observability only</span>
         <span id="stream-key" class="mono">—</span>
-        <span>No signer · no transaction path · no inferred PnL</span>
+        <span>Dashboard has no signer or broadcast path · no inferred PnL</span>
       </footer>
     </main>
     <script src="/app.js" defer></script>

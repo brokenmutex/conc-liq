@@ -1018,7 +1018,20 @@ authorization.
 
 ## Read-only operator dashboard
 
-The dashboard turns the PostgreSQL state into a continuously refreshed view of:
+The default view follows the one-position NVDA/USDG 0.05% milestone. It shows
+the regular-equity entry session, observed chain recovery, NVDA-scoped risk
+findings, the latest pool/reference checkpoint and its age, dated local
+lifecycle evidence, the latest saved wallet preflight, and tracked mainnet NFT
+captures. Live execution remains disabled; these stored input checks are not
+the full wallet, simulation, size-policy, and approval preflight.
+
+The dashboard reads the same regular-session/recovery evaluator and scoped risk
+reader as the canary planner. Observed recovery can explain only the missing
+sequencer-feed finding; other risk reasons remain visible. The dated rehearsal
+artifact is validated for scope, stream and completed exit before it is shown,
+and contributes no mainnet NFT, inventory or P&L values.
+
+The collapsed **Research and diagnostics** section retains:
 
 - indexer/replay block and hash agreement;
 - recent canonical V3 activity grouped by block range;
@@ -1029,7 +1042,7 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
   Position Manager NFTs;
 - the latest normalized static range-policy comparison, including excluded
   paths, explicit costs, absolute P&L, and LP alpha versus holding;
-- the latest stateful multi-checkpoint replay, including certified progress,
+- the latest stateful multi-checkpoint replay, including completed intervals,
   recenter count, drawdown, total illustrative costs, and net LP alpha;
 - the latest block-pinned pool/oracle basis, including feed ages, multiplier
   guards, signed spot deviation, and explicit excluded marks;
@@ -1041,8 +1054,29 @@ The dashboard turns the PostgreSQL state into a continuously refreshed view of:
 
 It requires `DATABASE_URL`, opens every PostgreSQL connection in read-only mode,
 has no mutation routes, and refuses to bind to a non-loopback address. It shows
-only captured fee state in raw token units; it does not infer values between
-captures or claim token inventory, position value, or PnL.
+captured principal and fees, with raw units available in tooltips. Aggregate
+pool/core-position values are not our holdings or earnings. Saved simulations
+retain their dates, source blocks, illustrative costs and assumptions; their
+rankings are not a selected strategy or measured live P&L.
+
+“Dashboard connected” means the API responded. It does not establish source
+freshness. Matching index/replay cursors older than 180 seconds show as stale;
+fresh matching cursors do not prove proximity to chain head. The canary
+checkpoint uses `CANARY_MAX_CHECKPOINT_AGE_SECONDS` (default 180), and both source
+block time and capture time are shown/checked. The five-minute checkpoint timer
+can exceed that ceiling or lag the latest risk snapshot; collect a fresh
+synchronized checkpoint for an actual preflight. Missing pause/corporate-action
+flags remain unknown, and failed/timed-out refreshes mark the last response as
+no longer current.
+
+`HISTORY_SOURCE` and `ACCOUNTING_FULL_SNAPSHOT_ENABLED` are displayed as startup
+configuration, not independently probed service health. Restart the dashboard
+after changing its backend code or environment. Paused full-universe accounting
+is optional research and does not prevent the single-position milestone. The
+dashboard itself performs no chain RPC calls.
+
+See the [2026-09-06 dashboard audit](notes/dashboard-audit-2026-09-06.md) for
+before/after evidence, browser screenshots, and remaining operational gaps.
 
 Run it interactively:
 

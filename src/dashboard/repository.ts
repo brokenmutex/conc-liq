@@ -2,6 +2,7 @@ import pg, { type PoolClient } from "pg";
 import { USDG } from "../constants.js";
 import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
+import { readDashboardFocus } from "./focus.js";
 import type {
   ActivityBucket,
   AssetRiskRow,
@@ -1189,6 +1190,7 @@ export class DashboardRepository {
     try {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
       const data = {
+        focus: await readDashboardFocus(client, this.config),
         accounting: await feeAccounting(client, this.config.streamKey),
         accountingHistory: await feeAccountingHistory(
           client,

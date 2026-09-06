@@ -7,6 +7,9 @@ import {
 const positiveInteger = z.coerce.number().int().positive();
 
 const environmentSchema = z.object({
+  ACCOUNTING_FULL_SNAPSHOT_ENABLED: z.enum(["true", "false"]).default("false"),
+  HISTORY_SOURCE: z.enum(["legacy", "hypersync"]).default("legacy"),
+  CANARY_MAX_CHECKPOINT_AGE_SECONDS: positiveInteger.default(180),
   DASHBOARD_ACTIVITY_BUCKET_BLOCKS: positiveInteger.default(500),
   DASHBOARD_ACTIVITY_WINDOW_BLOCKS: positiveInteger.default(20_000),
   DASHBOARD_HOST: z.enum(["127.0.0.1", "::1"]).default("127.0.0.1"),
@@ -21,6 +24,9 @@ const environmentSchema = z.object({
 });
 
 export interface DashboardConfig {
+  readonly fullAccountingEnabled: boolean;
+  readonly historySource: "legacy" | "hypersync";
+  readonly canaryMaxCheckpointAgeSeconds: number;
   readonly activityBucketBlocks: number;
   readonly activityWindowBlocks: number;
   readonly databaseUrl: string;
@@ -45,6 +51,9 @@ export function loadDashboardConfig(
     );
   }
   return {
+    fullAccountingEnabled: parsed.ACCOUNTING_FULL_SNAPSHOT_ENABLED === "true",
+    historySource: parsed.HISTORY_SOURCE,
+    canaryMaxCheckpointAgeSeconds: parsed.CANARY_MAX_CHECKPOINT_AGE_SECONDS,
     activityBucketBlocks: parsed.DASHBOARD_ACTIVITY_BUCKET_BLOCKS,
     activityWindowBlocks: parsed.DASHBOARD_ACTIVITY_WINDOW_BLOCKS,
     databaseUrl: parsed.DATABASE_URL,

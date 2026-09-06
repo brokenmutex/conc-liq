@@ -1,0 +1,148 @@
+{
+  "observedAt": "2026-09-06T15:34:45.137Z",
+  "focus": {
+    "poolAddress": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+    "checkpoint": {
+      "id": "302",
+      "block": "56087604",
+      "status": "excluded",
+      "reasons": [
+        "rwa_oracle_price_stale"
+      ],
+      "blockHash": "0x940318eee5e793376c12a2587bcc8b048e62abe7b1ba2765a8a38cf5f864f572",
+      "riskRunId": "4295",
+      "capturedAt": "2026-09-06T18:33:19.259+03:00",
+      "deviationPpm": "4557",
+      "poolPriceX18": "231300073714508870303",
+      "blockTimestamp": "2026-09-06T18:33:12+03:00",
+      "oraclePriceX18": "230250674568587972693"
+    },
+    "checkpointMaxAgeSeconds": 180,
+    "entryReadiness": {
+      "policy": "robinhood_quorum_recovery_regular_session_v1",
+      "evaluatedAt": "2026-09-06T15:34:45.137Z",
+      "chainEligible": true,
+      "session": "closed",
+      "reasons": [
+        "equity_session_closed"
+      ],
+      "sampleIds": [
+        "16825",
+        "16826",
+        "16827",
+        "16828",
+        "16829",
+        "16830",
+        "16831",
+        "16832",
+        "16833",
+        "16834",
+        "16835",
+        "16836",
+        "16837",
+        "16838",
+        "16839",
+        "16840",
+        "16841",
+        "16842",
+        "16843",
+        "16844",
+        "16845",
+        "16846",
+        "16847",
+        "16848",
+        "16849",
+        "16850",
+        "16851",
+        "16852",
+        "16853",
+        "16854",
+        "16855"
+      ],
+      "recoverySeconds": 300
+    },
+    "riskGate": {
+      "attemptId": "4298",
+      "attemptStatus": "succeeded",
+      "blockCanonical": true,
+      "canonicalityAgeSeconds": 0,
+      "evaluatedAt": "2026-09-06T15:34:45.137Z",
+      "executionEligible": false,
+      "maxCanonicalityAgeSeconds": 30,
+      "maxSnapshotAgeSeconds": 180,
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "oracle_price_stale"
+      ],
+      "snapshotAgeSeconds": 0,
+      "snapshotBlockNumber": "56088401",
+      "snapshotId": "4297",
+      "snapshotObservedAt": "2026-09-06T15:34:44.459Z",
+      "sourceCoversSnapshot": true
+    },
+    "rehearsal": {
+      "completedAt": "2026-09-06T14:50:33.329Z",
+      "sourceBlock": "56059710",
+      "scope": "local_anvil_mint_observe_decrease_collect"
+    },
+    "lastPlan": null,
+    "executionEnabled": false,
+    "historySource": "hypersync",
+    "fullAccountingEnabled": false
+  },
+  "overview": {
+    "activePositions": "1871",
+    "chainId": 4663,
+    "indexedEvents": "3540149",
+    "indexer": {
+      "block": "56088401",
+      "hash": "0xa7d84df5413eb39769bdce8b94088661f3ab45c3fb756c2fe6c6f5f0f69df8a3",
+      "updatedAt": "2026-09-06T15:34:42.588Z"
+    },
+    "initializedTicks": "1480",
+    "poolCount": "15",
+    "replay": {
+      "block": "56088401",
+      "hash": "0xa7d84df5413eb39769bdce8b94088661f3ab45c3fb756c2fe6c6f5f0f69df8a3",
+      "updatedAt": "2026-09-06T15:34:42.680Z"
+    },
+    "risk": {
+      "attemptCompletedAt": "2026-09-06T15:34:44.460Z",
+      "attemptId": "4298",
+      "attemptStartedAt": "2026-09-06T15:34:42.685Z",
+      "attemptStatus": "succeeded",
+      "block": "56088401",
+      "executionEligible": false,
+      "observedAt": "2026-09-06T15:34:44.459Z",
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "asset_ineligible:GLD",
+        "asset_ineligible:SPY",
+        "asset_ineligible:QQQ",
+        "asset_ineligible:NVDA",
+        "asset_ineligible:AAPL",
+        "asset_ineligible:GOOGL",
+        "asset_ineligible:MSFT"
+      ],
+      "runId": "4297"
+    },
+    "serverTime": "2026-09-06T15:34:45.137Z",
+    "streamKey": "robinhood-v3-rwa-usdg-v1",
+    "sync": {
+      "blockLag": "0",
+      "hashesMatch": true
+    }
+  },
+  "trackedNftCount": 0,
+  "checks": [
+    "desktop and mobile render without horizontal overflow",
+    "research collapsed and historical dates visible when expanded",
+    "local rehearsal separated from mainnet NFT records",
+    "paused full accounting shown explicitly",
+    "stopped matching cursors and old checkpoint marked stale",
+    "unknown pause and corporate action flags remain unknown",
+    "API failure marks previous response as no longer current",
+    "missing checkpoint and rehearsal do not retain previous values",
+    "no browser page errors"
+  ]
+}
