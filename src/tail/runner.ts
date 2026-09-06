@@ -95,6 +95,7 @@ async function runReplayCycle(
 
 export async function runTailCycle(input: {
   readonly client: RobinhoodClient;
+  readonly historyClient?: RobinhoodClient;
   readonly databaseUrl: string;
   readonly indexerConfig: IndexerConfig;
   readonly manifest: PoolManifest;
@@ -108,7 +109,7 @@ export async function runTailCycle(input: {
   let backfill: BackfillResult;
   try {
     backfill = await runBackfill(
-      input.client,
+      input.historyClient ?? input.client,
       input.manifest,
       input.indexerConfig,
       {
@@ -118,6 +119,7 @@ export async function runTailCycle(input: {
             await input.rpcHealthGate!.assertBulkAllowed();
           },
         dryRun: false,
+        liveClient: input.historyClient === undefined ? undefined : input.client,
         toBlock: safeHead,
       },
       eventStore,
@@ -141,6 +143,7 @@ export async function runTailCycle(input: {
 
 export async function runTail(input: {
   readonly client: RobinhoodClient;
+  readonly historyClient?: RobinhoodClient;
   readonly databaseUrl: string;
   readonly indexerConfig: IndexerConfig;
   readonly manifest: PoolManifest;

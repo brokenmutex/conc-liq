@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 import { collectOracleCalibration } from "./oracle/collector.js";
@@ -132,7 +132,7 @@ Optional:
 
 Environment:
   DATABASE_URL                       Required PostgreSQL database
-  RH_INDEXER_RPC_URL                 Private archive RPC
+  RH_INDEXER_RPC_URL                 Live node; isolated state uses RH_ARCHIVE_RPC_URL
   CHAINLINK_ROBINHOOD_FEEDS_URL      Canonical feed directory
   ROBINHOOD_ASSETS_URL               Canonical asset registry
   RISK_MAX_PRICE_AGE_SECONDS         Maximum valid historical mark age
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
   const risk = loadRiskConfig();
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const reader = new ViemRiskChainReader(client);
   const sourceStore = new PostgresRangePolicyReplayStore(environment.DATABASE_URL);
   const calibrationStore = new PostgresOracleCalibrationStore(

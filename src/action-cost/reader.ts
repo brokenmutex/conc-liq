@@ -1,6 +1,8 @@
 import { getAddress, type Address, type Hash, type Hex } from "viem";
 import type { BulkRpcHealthGate } from "../rpc-health/store.js";
 import type { RawActionTransaction } from "./domain.js";
+import { createHistoryFetch, HISTORY_TRANSPORT_URL, loadHistoryConfig } from "../history/client.js";
+import { NativeHyperSync } from "../history/hypersync.js";
 
 interface RpcEnvelope {
   readonly error?: { readonly code?: unknown; readonly message?: unknown };
@@ -66,10 +68,12 @@ function same(left: string, right: string): boolean {
 }
 
 export interface ActionCostReader {
-  read(transactionHash: Hash): Promise<RawActionTransaction>;
+  read(transactionHash: Hash, blockNumber?: bigint): Promise<RawActionTransaction>;
 }
 
 export class JsonRpcActionCostReader implements ActionCostReader {
+  private native: NativeHyperSync | undefined;
+  private transport: { readonly fetcher: typeof fetch; readonly url: string; readonly timeoutMs: number } | undefined;
   public constructor(private readonly input: {
     readonly gate: BulkRpcHealthGate;
     readonly rpcUrl: string;
@@ -78,8 +82,16 @@ export class JsonRpcActionCostReader implements ActionCostReader {
 
   private async request(transactionHash: Hash): Promise<readonly RpcEnvelope[]> {
     await this.input.gate.assertBulkAllowed();
+    if (this.transport === undefined) {
+      const history = loadHistoryConfig(this.input.rpcUrl);
+      this.transport = {
+        fetcher: history.source === "envio" ? createHistoryFetch(history) : fetch,
+        url: history.source === "envio" ? HISTORY_TRANSPORT_URL : this.input.rpcUrl,
+        timeoutMs: history.source === "envio" ? history.timeoutMs! : this.input.timeoutMs,
+      };
+    }
     try {
-      const response = await fetch(this.input.rpcUrl, {
+      const response = await this.transport.fetcher(this.transport.url, {
         body: JSON.stringify([
           {
             id: 1,
@@ -96,7 +108,7 @@ export class JsonRpcActionCostReader implements ActionCostReader {
         ]),
         headers: { "content-type": "application/json" },
         method: "POST",
-        signal: AbortSignal.timeout(this.input.timeoutMs),
+        signal: AbortSignal.timeout(this.transport.timeoutMs),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const body: unknown = await response.json();
@@ -109,7 +121,14 @@ export class JsonRpcActionCostReader implements ActionCostReader {
     }
   }
 
-  public async read(transactionHash: Hash): Promise<RawActionTransaction> {
+  public async read(transactionHash: Hash, indexedBlockNumber?: bigint): Promise<RawActionTransaction> {
+    const history = loadHistoryConfig(this.input.rpcUrl);
+    if (history.source === "hypersync") {
+      if (indexedBlockNumber === undefined) throw new Error("Native historical transaction reads require the indexed block number");
+      await this.input.gate.assertBulkAllowed();
+      this.native ??= new NativeHyperSync(history);
+      return this.native.transaction(transactionHash, indexedBlockNumber);
+    }
     const responses = await this.request(transactionHash);
     const byId = new Map<number, RpcEnvelope>();
     for (const response of responses) {
@@ -125,10 +144,7 @@ export class JsonRpcActionCostReader implements ActionCostReader {
         const code = typeof response.error.code === "number"
           ? response.error.code
           : "unknown";
-        const message = typeof response.error.message === "string"
-          ? response.error.message
-          : "JSON-RPC error";
-        throw new Error(`Action-cost RPC ${code}: ${message}`);
+        throw new Error(`Action-cost RPC ${code}: JSON-RPC error`);
       }
     }
     const transaction = record(transactionResponse.result, "transaction");

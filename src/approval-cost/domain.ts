@@ -118,5 +118,5 @@ export interface ApprovalCostRun {
 }
 
 export interface ApprovalTransactionReader {
-  read(transactionHash: Hash): Promise<RawActionTransaction>;
+  read(transactionHash: Hash, blockNumber?: bigint): Promise<RawActionTransaction>;
 }

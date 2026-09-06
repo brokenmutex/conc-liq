@@ -29,6 +29,19 @@ export async function fetchV3Events(
     toBlock,
   });
 
+  const seen = new Set<string>();
+  const addresses = new Set(manifest.pools.map((pool) => pool.address.toLowerCase()));
+  for (const entry of logs) {
+    if (entry.removed || entry.blockNumber === null ||
+        entry.blockNumber < fromBlock || entry.blockNumber > toBlock ||
+        !addresses.has(entry.address.toLowerCase())) {
+      throw new Error("Historical log is removed or outside the requested pool/block range");
+    }
+    const key = `${entry.transactionHash?.toLowerCase()}:${entry.logIndex}`;
+    if (seen.has(key)) throw new Error("Historical provider returned duplicate logs");
+    seen.add(key);
+  }
+
   const events = logs.map((entry): IndexedV3Event => ({
     args: toJsonValue(entry.args),
     blockHash: requireLogField(entry.blockHash, "blockHash") as Hash,

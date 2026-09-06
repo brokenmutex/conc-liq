@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { collectApprovalCostValuation } from "./approval-cost/valuation-collector.js";
 import { PostgresApprovalCostValuationStore } from "./approval-cost/valuation-store.js";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { ROBINHOOD_CHAIN_ID } from "./constants.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     maxSampleAgeSeconds: gateConfig.maxSampleAgeSeconds,
   });
   const store = new PostgresApprovalCostValuationStore(environment.DATABASE_URL);
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
     beforeRequest: async () => { await gate.assertBulkAllowed(); },
     retryCount: 0,
   });

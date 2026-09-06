@@ -9,6 +9,11 @@ and records block-pinned pool state.
 There is no private-key configuration, signer, transaction construction, or
 capital-moving path in this phase.
 
+The [September 6 project review](notes/project-review-2026-09-06.md) records
+verified progress, current blockers, and the recommended validation milestones.
+The [historical data split](notes/historical-data-and-reference-policy-2026-09-06.md)
+documents the Envio migration and the proposed equity-reference comparison.
+
 ## What one observation verifies
 
 - RPC chain ID is Robinhood Chain mainnet (`4663`).
@@ -77,9 +82,28 @@ pool snapshot and this repository's first live observation. Each target pins
 its factory creation block. Startup fails unless every pool still matches the
 canonical factory, RWA, USDG, fee, bytecode, and `PoolCreated` evidence.
 
-For historical work, point `RH_INDEXER_RPC_URL` at a private or archival read
-node. The sibling `arb-robinhood` environment already contains the private
-Robinhood read-node URL; keep that value outside this repository.
+Enable `HISTORY_SOURCE=hypersync` and supply `ENVIO_API_TOKEN` to move logs,
+block metadata, transaction calldata/fee fields, and historical replay proofs
+to native HyperSync. `HYPERSYNC_URL` defaults to `https://4663.hypersync.xyz`.
+The current host runs this mode. `RH_INDEXER_RPC_URL` supplies near-head manifest
+validation, live risk state, and bounded block-hash checks. The sibling
+`arb-robinhood` environment contains that private node URL; keep credentials
+outside this repository.
+
+Historical contract state requires a separate `RH_ARCHIVE_RPC_URL`. Isolated history
+never falls back to the private node. Without an archive provider, scheduled
+fee accounting reports `fee_accounting_snapshot_unavailable` and leaves its
+previous snapshot intact; on-demand historical state reads fail explicitly.
+Live risk and strategy checkpoints continue using the private node. The default
+`HISTORY_SOURCE=legacy` retains the original single-node setup for existing installs.
+The separate `envio` mode uses HyperRPC and requires access to that product.
+
+Before switching an existing collector, run `npm run history:compare` with
+`HISTORY_SOURCE=hypersync` and `DATABASE_URL`. It compares up to 25,000 blocks of
+NVDA/500 events against stored data, checks the boundary hash, and validates up
+to 20 transaction inclusion/fee records without private-node calls or database writes.
+New action-cost observations also retain full calldata and provider identity.
+See the migration note for the verified window and limitations.
 
 On the current host, reuse that untracked read endpoint without copying it:
 
@@ -1050,7 +1074,14 @@ worker remains the owner of collection and replay.
 | `RISK_MAX_PRICE_AGE_SECONDS` | `300` | Strict feed-age ceiling |
 | `RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS` | `180` | Maximum persisted risk-snapshot age |
 | `RISK_GATE_MAX_CANONICALITY_AGE_SECONDS` | `30` | Maximum age of private-node block-hash validation |
-| `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Private/archive event-read endpoint |
+| `RH_INDEXER_RPC_URL` | falls back to `RH_RPC_URL` | Live validation/risk node; also history in legacy mode |
+| `HISTORY_SOURCE` | `legacy` | `hypersync` for native history; `envio` for HyperRPC |
+| `ENVIO_API_TOKEN` | unset | Credential with access to the selected Envio product |
+| `HYPERSYNC_URL` | `https://4663.hypersync.xyz` | Native historical query endpoint |
+| `RH_HISTORY_RPC_URL` | built from token | Optional complete historical RPC endpoint |
+| `RH_ARCHIVE_RPC_URL` | unset | Independent block-pinned historical contract-state provider |
+| `HISTORY_REQUEST_INTERVAL_MS` | `500` | Minimum provider request spacing per process |
+| `HISTORY_RPC_TIMEOUT_MS` | `60000` | Historical transport timeout including pacing |
 | `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
 | `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |
 | `INDEXER_INITIAL_CHUNK_SIZE` | `10000` | Initial `eth_getLogs` range |

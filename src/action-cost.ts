@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { loadIndexerConfig } from "./indexer/config.js";
+import { loadHistoryConfig } from "./history/client.js";
 import { log } from "./logger.js";
 import { evaluateActionCost, summarizeActionCosts } from "./action-cost/evaluate.js";
 import { JsonRpcActionCostReader } from "./action-cost/reader.js";
@@ -76,7 +77,7 @@ Options:
 
 Environment:
   DATABASE_URL             Required PostgreSQL database
-  RH_INDEXER_RPC_URL       Private read RPC
+  RH_INDEXER_RPC_URL       Live node; HISTORY_SOURCE=hypersync isolates history
   ACTION_COST_CONCURRENCY  Concurrent receipt batches, maximum 8 (default 4)
   RPC_HEALTH_GATE_ENABLED  Require healthy quorum state (default true)
 `);
@@ -110,6 +111,7 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
+  const sourceProvider = loadHistoryConfig(indexer.rpcUrl).source;
   const gateConfig = loadRpcHealthGateConfig();
   const gate = new PostgresRpcHealthGate({
     cacheMs: gateConfig.cacheMs,
@@ -139,12 +141,12 @@ async function main(): Promise<void> {
     const observations: ActionCostObservation[] = await mapConcurrent(
       source.candidates,
       environment.ACTION_COST_CONCURRENCY,
-      async (candidate) => evaluateActionCost({
+      async (candidate) => ({ ...evaluateActionCost({
         candidate,
         observedAt: capturedAt,
-        raw: await reader.read(candidate.transactionHash),
+        raw: await reader.read(candidate.transactionHash, candidate.blockNumber),
         streamKey: source.streamKey,
-      }),
+      }), sourceProvider }),
     );
     const run: ActionCostRun = {
       capturedAt,

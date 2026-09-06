@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 import { validateRangeSimulationSource } from "./simulator/canonical.js";
@@ -179,7 +179,7 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresRangeSimulationStore(environment.DATABASE_URL);
   try {
     await store.migrate();

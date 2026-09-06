@@ -20,6 +20,7 @@
     "canary:plan": "node --import tsx src/canary-plan.ts",
     "check": "npm run typecheck && npm test",
     "dashboard": "node --import tsx src/dashboard.ts",
+    "history:compare": "node --import tsx src/history-compare.ts",
     "joined-policy:replay": "node --import tsx src/joined-policy-replay.ts",
     "cost-model:resolve": "node --import tsx src/cost-model-resolve.ts",
     "db:migrate": "node --import tsx src/migrate.ts",

@@ -1,0 +1,14 @@
+{
+  "nativeTailActivated": true,
+  "activatedAt": "2026-09-06T10:40:20.886Z",
+  "historySource": "hypersync",
+  "accountingTimer": "enabled",
+  "accountingPipeline": "success",
+  "archiveStateAvailable": false,
+  "fullStartupPassed": true,
+  "nativeComparisonEvents": 240,
+  "startupEvents": 1419,
+  "nativeActionCostRunId": "22",
+  "newObservationsWithCalldata": 76,
+  "executionEligible": false
+}

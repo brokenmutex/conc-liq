@@ -24,6 +24,7 @@ async function validateTarget(
   client: RobinhoodClient,
   target: V3PoolTarget,
   blockNumber: bigint,
+  historyClient: RobinhoodClient,
 ): Promise<void> {
   const [code, token0, token1, fee, factoryPool] = await Promise.all([
     client.getBytecode({ address: target.address, blockNumber }),
@@ -67,7 +68,7 @@ async function validateTarget(
     throw new Error(`Factory does not map to configured pool: ${target.address}`);
   }
 
-  const creationLogs = await client.getLogs({
+  const creationLogs = await historyClient.getLogs({
     address: UNISWAP_V3_FACTORY,
     event: poolCreatedEvent,
     fromBlock: target.createdBlock,
@@ -86,6 +87,7 @@ export async function validatePoolManifest(
   manifest: PoolManifest,
   blockNumber: bigint,
   beforeRpc?: () => Promise<void>,
+  historyClient: RobinhoodClient = client,
 ): Promise<void> {
   await beforeRpc?.();
   const chainId = await client.getChainId();
@@ -97,6 +99,6 @@ export async function validatePoolManifest(
 
   for (const target of manifest.pools) {
     await beforeRpc?.();
-    await validateTarget(client, target, blockNumber);
+    await validateTarget(client, target, blockNumber, historyClient);
   }
 }

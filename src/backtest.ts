@@ -6,7 +6,7 @@ import {
   InsufficientAccountingRunsError,
   PostgresStableFeeBaselineStore,
 } from "./backtest/store.js";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresStableFeeBaselineStore(environment.DATABASE_URL);
   try {
     await store.migrate();

@@ -8,7 +8,7 @@ import {
   AccountingRunUnavailableError,
   PostgresPrincipalStore,
 } from "./backtest/principal-store.js";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 
@@ -100,7 +100,7 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
-  const rpc = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const rpc = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresPrincipalStore(environment.DATABASE_URL);
   try {
     await store.migrate();

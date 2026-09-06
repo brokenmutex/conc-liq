@@ -1,4 +1,5 @@
 import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient, loadHistoryConfig } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { loadPoolManifest } from "./indexer/manifest.js";
 import { validatePoolManifest } from "./indexer/validate.js";
@@ -73,7 +74,7 @@ Options:
 
 Environment:
   DATABASE_URL                    Required PostgreSQL database
-  RH_INDEXER_RPC_URL              Private read RPC; falls back to RH_RPC_URL
+  RH_INDEXER_RPC_URL              Live node; HISTORY_SOURCE=hypersync isolates history
   INDEXER_CONFIRMATION_DEPTH      Blocks withheld from the index tip
   TAIL_POLL_INTERVAL_MS           Successful-cycle cadence (default 10000)
   TAIL_ERROR_DELAY_MS             Initial retry delay (default 5000)
@@ -149,6 +150,13 @@ async function main(): Promise<void> {
     },
   );
   const riskReader = new ViemRiskChainReader(client);
+  const historyConfig = loadHistoryConfig(indexerConfig.rpcUrl);
+  const historyClient = historyConfig.source !== "legacy"
+    ? createHistoricalClient(indexerConfig.rpcUrl, indexerConfig.rpcTimeoutMs)
+    : undefined;
+  log("info", "tail_historical_source", {
+    source: historyConfig.source, archiveStateAvailable: Boolean(historyConfig.archiveUrl),
+  });
   const strategyReader = new ViemStrategyCheckpointReader(client);
 
   const controller = new AbortController();
@@ -182,6 +190,7 @@ async function main(): Promise<void> {
       manifest,
       safeHead,
       () => rpcHealthGate.assertBulkAllowed().then(() => {}),
+      historyClient,
     );
     log("info", "tail_manifest_verified", {
       poolCount: manifest.pools.length,
@@ -191,6 +200,7 @@ async function main(): Promise<void> {
     await lock.acquire(indexerConfig.streamKey);
     await runTail({
       client,
+      historyClient,
       databaseUrl,
       indexerConfig,
       manifest,

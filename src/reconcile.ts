@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 import { reconcileReplay } from "./replay/reconcile.js";
@@ -17,7 +17,7 @@ replay completion block against read-only on-chain calls.
 
 Environment:
   DATABASE_URL             Required PostgreSQL database
-  RH_INDEXER_RPC_URL       Private read RPC; falls back to RH_RPC_URL
+  RH_INDEXER_RPC_URL       Live node; HISTORY_SOURCE=hypersync isolates history
   INDEXER_STREAM_KEY       Indexed/replayed stream
   RECONCILE_CONCURRENCY    Concurrent eth_call limit (default 24)
 `);
@@ -38,7 +38,7 @@ async function main(): Promise<void> {
   }
   const config = loadIndexerConfig();
   const reconcileConfig = environmentSchema.parse(process.env);
-  const client = createRobinhoodClient(config.rpcUrl, config.rpcTimeoutMs);
+  const client = createHistoricalClient(config.rpcUrl, config.rpcTimeoutMs);
   const store = new PostgresReplayStore(databaseUrl);
   try {
     await store.open(config.streamKey);

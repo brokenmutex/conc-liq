@@ -8,8 +8,10 @@ import type {
 import type { IndexerConfig } from "./config.js";
 import { fetchCheckpoint, fetchV3Events } from "./logs.js";
 import { PostgresEventStore } from "./store.js";
+import { verifyHistoryBoundary } from "../history/verify.js";
 
 export interface BackfillOptions {
+  readonly liveClient?: RobinhoodClient;
   readonly beforeRpc?: () => Promise<void>;
   readonly dryRun: boolean;
   readonly explicitFromBlock?: bigint;
@@ -114,6 +116,11 @@ export async function runBackfill(
   options: BackfillOptions,
   store?: PostgresEventStore,
 ): Promise<BackfillResult> {
+  // Provider lag/disagreement must fail before even rewinding the stored cursor.
+  if (options.liveClient !== undefined) {
+    await options.beforeRpc?.();
+    await verifyHistoryBoundary(client, options.liveClient, options.toBlock);
+  }
   const manifestFromBlock = manifest.pools.reduce(
     (minimum, pool) => pool.createdBlock < minimum ? pool.createdBlock : minimum,
     manifest.pools[0]!.createdBlock,
@@ -201,6 +208,9 @@ export async function runBackfill(
 
     await options.beforeRpc?.();
     const checkpoint = await fetchCheckpoint(client, toBlock);
+    if (options.liveClient !== undefined) {
+      await verifyHistoryBoundary(client, options.liveClient, toBlock, checkpoint);
+    }
     if (store !== undefined) {
       await store.saveChunk({
         chainId: manifest.chainId,

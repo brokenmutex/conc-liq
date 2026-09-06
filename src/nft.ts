@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 import { collectNftPositionSnapshots } from "./nft/collector.js";
@@ -111,7 +111,7 @@ async function main(): Promise<void> {
     throw new Error("No NFT token IDs are configured");
   }
   const indexer = loadIndexerConfig();
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresNftPositionStore(environment.DATABASE_URL);
   try {
     await store.migrate();

@@ -162,6 +162,7 @@ export async function collectApprovalCostRun(input: {
   for (const candidate of candidates) {
     const raw: RawActionTransaction = await input.receiptReader.read(
       candidate.transactionHash,
+      candidate.blockNumber,
     );
     if (raw.chainId !== input.source.chainId) {
       throw new Error(`Approval transaction ${raw.transactionHash} has wrong chain ID`);

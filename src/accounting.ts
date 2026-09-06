@@ -2,7 +2,7 @@ import { z } from "zod";
 import { collectFeeAccountingSnapshot } from "./accounting/collector.js";
 import { PostgresAccountingSourceStore } from "./accounting/source-store.js";
 import { PostgresFeeAccountingStore } from "./accounting/store.js";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient, loadHistoryConfig } from "./history/client.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
 import { loadRpcHealthGateConfig } from "./rpc-health/config.js";
@@ -26,7 +26,7 @@ Options:
 
 Environment:
   DATABASE_URL             Required PostgreSQL database
-  RH_INDEXER_RPC_URL       Private archive/read RPC; falls back to RH_RPC_URL
+  RH_INDEXER_RPC_URL       Live node; use RH_ARCHIVE_RPC_URL for isolated historical state
   INDEXER_STREAM_KEY       Indexed/replayed stream
   ACCOUNTING_CONCURRENCY   Concurrent eth_call limit (default 4)
   RPC_HEALTH_GATE_ENABLED  Require healthy quorum state (default true)
@@ -49,6 +49,14 @@ async function main(): Promise<void> {
   }
   const environment = environmentSchema.parse(process.env);
   const indexer = loadIndexerConfig();
+  const history = loadHistoryConfig(indexer.rpcUrl);
+  if (history.source !== "legacy" && !history.archiveUrl) {
+    if (!ifNewSource) throw new Error("Historical state unavailable: RH_ARCHIVE_RPC_URL is required");
+    log("warn", "fee_accounting_snapshot_unavailable", {
+      reason: "archive_rpc_not_configured", executionEligible: false,
+    });
+    return;
+  }
   const healthConfig = loadRpcHealthGateConfig();
   const healthGate = new PostgresRpcHealthGate({
     cacheMs: healthConfig.cacheMs,
@@ -56,7 +64,7 @@ async function main(): Promise<void> {
     enabled: healthConfig.enabled,
     maxSampleAgeSeconds: healthConfig.maxSampleAgeSeconds,
   });
-  const client = createRobinhoodClient(
+  const client = createHistoricalClient(
     indexer.rpcUrl,
     indexer.rpcTimeoutMs,
     {

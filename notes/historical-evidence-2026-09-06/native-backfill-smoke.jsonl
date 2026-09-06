@@ -1,0 +1,3 @@
+{"timestamp":"2026-09-06T10:35:14.987Z","level":"info","event":"indexer_manifest_verified","earliestCreationBlock":"1672833","poolCount":15,"safeHead":"55910126","sourceSnapshotBlock":"52623101","targetSetHash":"0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"}
+{"timestamp":"2026-09-06T10:35:16.977Z","level":"info","event":"indexer_chunk_complete","chunk":1,"dryRun":true,"eventCount":1419,"eventsByType":{"Burn":4,"Collect":4,"Mint":3,"Swap":1408},"fromBlock":"55898039","toBlock":"55908038"}
+{"timestamp":"2026-09-06T10:35:16.977Z","level":"info","event":"indexer_run_complete","chunks":1,"complete":true,"events":1419,"nextBlock":"55908039"}

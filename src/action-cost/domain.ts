@@ -46,6 +46,9 @@ export interface RawActionTransaction {
 }
 
 export interface ActionCostObservation {
+  /** Present on new observations; older stored snapshots retain their original shape. */
+  readonly input?: Hex;
+  readonly sourceProvider?: "legacy" | "envio" | "hypersync";
   readonly actionClass: ActionCostClass;
   readonly actionNames: readonly string[];
   readonly attribution: "whole_transaction_action_mix";

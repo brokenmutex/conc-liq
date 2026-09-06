@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { ROBINHOOD_CHAIN_ID } from "./constants.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
@@ -67,7 +67,7 @@ Options:
 
 Environment:
   DATABASE_URL                       Required PostgreSQL database
-  RH_INDEXER_RPC_URL                 Private archive/read RPC
+  RH_INDEXER_RPC_URL                 Live node; isolated state uses RH_ARCHIVE_RPC_URL
   ACTION_COST_VALUATION_CONCURRENCY  Concurrent block marks, maximum 2 (default 1)
   ACTION_COST_VALUATION_DELAY_MS     Delay after each mark (default 250ms)
   ACTION_COST_VALUATION_MAX_PRICE_AGE_SECONDS
@@ -96,7 +96,7 @@ async function main(): Promise<void> {
     maxSampleAgeSeconds: gateConfig.maxSampleAgeSeconds,
   });
   const store = new PostgresActionCostValuationStore(environment.DATABASE_URL);
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
     beforeRequest: async () => { await gate.assertBulkAllowed(); },
     retryCount: 0,
   });

@@ -1,4 +1,6 @@
 import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient, loadHistoryConfig } from "./history/client.js";
+import { PostgresTailLock } from "./tail/lock.js";
 import { log } from "./logger.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { earliestCreationBlock, loadPoolManifest } from "./indexer/manifest.js";
@@ -88,7 +90,7 @@ Options:
 
 Environment:
   DATABASE_URL          Required unless --dry-run is used
-  RH_INDEXER_RPC_URL    Historical read RPC; falls back to RH_RPC_URL
+  RH_INDEXER_RPC_URL    Live validation RPC; HISTORY_SOURCE=hypersync isolates history
   INDEXER_POOLS_PATH    Verified pool target manifest
 `);
 }
@@ -103,6 +105,8 @@ async function main(): Promise<void> {
   const config = loadIndexerConfig();
   const manifest = await loadPoolManifest(config.poolsPath);
   const client = createRobinhoodClient(config.rpcUrl, config.rpcTimeoutMs);
+  const isolated = loadHistoryConfig(config.rpcUrl).source !== "legacy";
+  const historyClient = isolated ? createHistoricalClient(config.rpcUrl, config.rpcTimeoutMs) : client;
   const head = await client.getBlockNumber();
   const confirmationDepth = BigInt(config.confirmationDepth);
   if (head < confirmationDepth) {
@@ -114,7 +118,7 @@ async function main(): Promise<void> {
     throw new Error(`--to-block ${toBlock} exceeds confirmed head ${safeHead}`);
   }
 
-  await validatePoolManifest(client, manifest, safeHead);
+  await validatePoolManifest(client, manifest, safeHead, undefined, historyClient);
   log("info", "indexer_manifest_verified", {
     earliestCreationBlock: earliestCreationBlock(manifest),
     poolCount: manifest.pools.length,
@@ -128,13 +132,16 @@ async function main(): Promise<void> {
     throw new Error("DATABASE_URL is required unless --dry-run is used");
   }
   const store = options.dryRun ? undefined : new PostgresEventStore(databaseUrl!);
+  const lock = options.dryRun ? undefined : new PostgresTailLock(databaseUrl!);
   try {
+    await lock?.acquire(config.streamKey);
     const result = await runBackfill(
-      client,
+      historyClient,
       manifest,
       config,
       {
         dryRun: options.dryRun,
+        liveClient: isolated ? client : undefined,
         explicitFromBlock: options.fromBlock,
         maxChunks: options.maxChunks,
         toBlock,
@@ -144,6 +151,7 @@ async function main(): Promise<void> {
     log("info", "indexer_run_complete", { ...result });
   } finally {
     await store?.close();
+    await lock?.close();
   }
 }
 

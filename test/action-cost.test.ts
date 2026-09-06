@@ -82,6 +82,7 @@ describe("action-cost receipt evaluation", () => {
     assert.equal(observation.l2ExecutionGasUsed, 75n);
     assert.equal(observation.l2ExecutionFeeWei, 150n);
     assert.equal(observation.inputBytes, 6);
+    assert.equal(observation.input, "0x12345678aabb");
     assert.equal(observation.selector, "0x12345678");
     assert.equal(observation.executionEligible, false);
   });

@@ -6,12 +6,14 @@ export function createRobinhoodClient(
   timeoutMs: number,
   options: {
     readonly beforeRequest?: () => Promise<void>;
+    readonly fetchFn?: typeof fetch;
     readonly retryCount?: number;
   } = {},
 ) {
   return createPublicClient({
     chain: robinhoodChain,
     transport: http(rpcUrl, {
+      fetchFn: options.fetchFn,
       onFetchRequest: options.beforeRequest === undefined
         ? undefined
         : async () => options.beforeRequest!(),

@@ -1,0 +1,19 @@
+{
+  "envioTailActivated": false,
+  "accountingTimer": "disabled",
+  "accountingService": "stopped",
+  "liveTailSource": "existing private node",
+  "nativeHyperSync": "HTTP 403 product access denied",
+  "observedHyperRpcRateLimit": {
+    "limitHeader": "5000, 5000;w=60",
+    "unitsPerTestedHttpRequest": 1000,
+    "successfulHttpRequestsBefore429": 5
+  },
+  "fullStartupPassed": false,
+  "lastAttempt": {
+    "requestIntervalMs": 13000,
+    "failedCreationBlock": "33191522",
+    "error": "Historical provider transport failed"
+  },
+  "executionEligible": false
+}

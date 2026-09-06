@@ -3,7 +3,7 @@ import { JsonRpcActionCostReader } from "./action-cost/reader.js";
 import { collectApprovalCostRun } from "./approval-cost/collector.js";
 import { ViemApprovalCostReader } from "./approval-cost/reader.js";
 import { PostgresApprovalCostStore } from "./approval-cost/store.js";
-import { createRobinhoodClient } from "./client.js";
+import { createHistoricalClient } from "./history/client.js";
 import { NONFUNGIBLE_POSITION_MANAGER } from "./constants.js";
 import { loadIndexerConfig } from "./indexer/config.js";
 import { log } from "./logger.js";
@@ -81,7 +81,7 @@ Options:
 
 Environment:
   DATABASE_URL                     Required PostgreSQL database
-  RH_INDEXER_RPC_URL               Private archive/read RPC
+  RH_INDEXER_RPC_URL               Live node; isolated state uses RH_ARCHIVE_RPC_URL
   APPROVAL_COST_INITIAL_CHUNK_SIZE Approval log range (default 5000)
   APPROVAL_COST_MIN_CHUNK_SIZE     Smallest adaptive range (default 100)
   APPROVAL_COST_DELAY_MS           Delay after each candidate (default 250ms)
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     maxSampleAgeSeconds: gateConfig.maxSampleAgeSeconds,
   });
   const store = new PostgresApprovalCostStore(environment.DATABASE_URL);
-  const client = createRobinhoodClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
+  const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs, {
     beforeRequest: async () => { await gate.assertBulkAllowed(); },
     retryCount: 0,
   });

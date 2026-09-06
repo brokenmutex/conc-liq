@@ -1,0 +1,60 @@
+{
+  "source": [
+    {
+      "timestamp": "2026-09-06T10:40:20.886Z",
+      "level": "info",
+      "event": "tail_historical_source",
+      "source": "hypersync",
+      "archiveStateAvailable": false
+    }
+  ],
+  "manifest": [
+    {
+      "timestamp": "2026-09-06T10:40:28.517Z",
+      "level": "info",
+      "event": "tail_manifest_verified",
+      "poolCount": 15,
+      "safeHead": "55913230",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"
+    }
+  ],
+  "completedCycles": 335,
+  "firstCycle": {
+    "timestamp": "2026-09-06T10:40:30.864Z",
+    "level": "info",
+    "event": "tail_cycle_complete",
+    "cycle": 1,
+    "durationMs": 2341,
+    "indexedEvents": 39,
+    "replayedEvents": "25",
+    "safeHead": "55913305"
+  },
+  "lastCycle": {
+    "timestamp": "2026-09-06T11:36:46.233Z",
+    "level": "info",
+    "event": "tail_cycle_complete",
+    "cycle": 335,
+    "durationMs": 1609,
+    "indexedEvents": 124,
+    "replayedEvents": "24",
+    "safeHead": "55946802"
+  },
+  "medianCycleMs": 1620,
+  "errors": [
+    {
+      "timestamp": "2026-09-06T10:42:18.542Z",
+      "event": "tail_cycle_failed",
+      "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x3552f98\",false]}\n\nDetails: HyperSync transport failed\nVersion: viem@2.56.3"
+    },
+    {
+      "timestamp": "2026-09-06T10:42:23.558Z",
+      "event": "tail_cycle_failed",
+      "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x3552fca\",false]}\n\nDetails: HyperSync transport failed\nVersion: viem@2.56.3"
+    },
+    {
+      "timestamp": "2026-09-06T10:42:33.575Z",
+      "event": "tail_cycle_failed",
+      "message": "HTTP request failed.\n\nURL: https://historical-data.invalid/\nRequest body: {\"method\":\"eth_getBlockByNumber\",\"params\":[\"0x355302d\",false]}\n\nDetails: HyperSync transport failed\nVersion: viem@2.56.3"
+    }
+  ]
+}

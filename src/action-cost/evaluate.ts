@@ -107,6 +107,7 @@ export function evaluateActionCost(input: {
     from: getAddress(input.raw.from),
     gasUsed: input.raw.gasUsed,
     gasUsedForL1: input.raw.gasUsedForL1,
+    input: input.raw.input,
     inputBytes,
     l1DataFeeWei,
     l2ExecutionFeeWei,

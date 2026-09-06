@@ -1,0 +1,27 @@
+{
+  "verifiedAt": "2026-09-06T11:38:34.571Z",
+  "observations": [
+    {
+      "source_provider": "hypersync",
+      "observations": 76,
+      "with_calldata": 76,
+      "calldata_bytes": "75462"
+    }
+  ],
+  "health": [
+    {
+      "observed_at": "2026-09-06T11:38:24.668Z",
+      "state": "healthy",
+      "allow_bulk": true,
+      "lag_blocks": "0",
+      "lag_seconds": "0"
+    }
+  ],
+  "cursors": [
+    {
+      "stream_key": "robinhood-v3-rwa-usdg-v1",
+      "last_scanned_block": "55947830",
+      "last_scanned_hash": "0xb82401a1df6039af312c9849b1ab7dc1c6abd07e6f18200206b082e065e38085"
+    }
+  ]
+}
