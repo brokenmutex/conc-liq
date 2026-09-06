@@ -28,6 +28,7 @@ import type {
 } from "./domain.js";
 import type { RiskGateDecision } from "../risk/gate.js";
 import type { RpcHealthGateStatus } from "../rpc-health/domain.js";
+import { regularEquitySession, type CanaryEntryReadiness } from "./entry-readiness.js";
 
 const BPS = 10_000n;
 const ONE_MILLION = 1_000_000n;
@@ -45,7 +46,7 @@ function timestampSeconds(value: string): bigint {
   if (!Number.isSafeInteger(milliseconds)) {
     throw new Error(`Invalid timestamp ${value}`);
   }
-  return BigInt(milliseconds / 1_000);
+  return BigInt(Math.floor(milliseconds / 1_000));
 }
 
 function ageSeconds(from: string, to: string): number | null {
@@ -99,6 +100,7 @@ function requiredToken(
 }
 
 export function buildGuardedCanaryDraft(input: {
+  readonly entryReadiness?: CanaryEntryReadiness;
   readonly chain: GuardedCanaryChainState;
   readonly createdAt: string;
   readonly maxCheckpointAgeSeconds: number;
@@ -123,6 +125,18 @@ export function buildGuardedCanaryDraft(input: {
     tick: input.chain.pool.tick,
   });
   const reasons: string[] = [];
+  const readiness = input.entryReadiness;
+  const readinessAge = readiness ? ageSeconds(readiness.evaluatedAt, input.createdAt) : null;
+  const readinessFresh = readinessAge !== null && readinessAge <= 20;
+  if (!readiness || !readinessFresh) reasons.push("entry_readiness_missing_or_stale");
+  if (regularEquitySession(input.createdAt) !== "regular_session") reasons.push("equity_session_closed_or_unverified");
+  if (readiness) reasons.push(...readiness.reasons);
+  if (readiness && (!readiness.chainEligible || readiness.session !== "regular_session") && readiness.reasons.length === 0) {
+    reasons.push("entry_readiness_ineligible");
+  }
+  const residualRiskReasons = (values: readonly string[]) => values.filter((reason) =>
+    !(reason === "sequencer_feed_unavailable" && readinessFresh && readiness?.chainEligible),
+  );
   if (input.chain.chainId !== ROBINHOOD_CHAIN_ID) reasons.push("chain_id_mismatch");
   if (input.source.chainId !== ROBINHOOD_CHAIN_ID) reasons.push("source_chain_id_mismatch");
   if (input.chain.blockNumber !== input.source.blockNumber) {
@@ -176,13 +190,14 @@ export function buildGuardedCanaryDraft(input: {
     if (input.rpcHealth.reasons.length === 0) reasons.push("rpc_health:not_healthy");
   }
   if (!input.riskGate.executionEligible) {
-    reasons.push(...input.riskGate.reasons.map((reason) => `risk_gate:${reason}`));
+    reasons.push(...residualRiskReasons(input.riskGate.reasons).map((reason) => `risk_gate:${reason}`));
+    if (input.riskGate.reasons.length === 0) reasons.push("risk_gate:ineligible");
   }
   if (input.riskGate.snapshotId !== input.source.riskRunId) {
     reasons.push("checkpoint_not_latest_risk_snapshot");
   }
   if (!input.source.assetRiskExecutionEligible) {
-    reasons.push(...input.source.assetRiskReasons.map((reason) => `asset_risk:${reason}`));
+    reasons.push(...residualRiskReasons(input.source.assetRiskReasons).map((reason) => `asset_risk:${reason}`));
     if (input.source.assetRiskReasons.length === 0) reasons.push("asset_risk:ineligible");
   }
   if (input.source.poolStatus !== "valid") reasons.push("pool_valuation_invalid");
@@ -273,6 +288,7 @@ export function buildGuardedCanaryDraft(input: {
     ttlSeconds: input.policy.ttlSeconds,
   };
   const hashPayload = {
+    entryReadiness: readiness ?? null,
     chainId: input.chain.chainId,
     sourceBlockHash: input.source.blockHash,
     sourceBlockNumber: input.source.blockNumber.toString(),
@@ -281,6 +297,7 @@ export function buildGuardedCanaryDraft(input: {
     transaction,
   };
   return {
+    entryReadiness: readiness ?? null,
     approvalHash: approvalHash(hashPayload),
     assumptions: [
       "single_direct_position_manager_mint",

@@ -1,6 +1,7 @@
 import type { Address, Hash, Hex } from "viem";
 import type { RiskGateDecision } from "../risk/gate.js";
 import type { RpcHealthGateStatus } from "../rpc-health/domain.js";
+import type { CanaryEntryReadiness } from "./entry-readiness.js";
 
 export interface GuardedCanaryPolicy {
   readonly budgetCapQuote: bigint;
@@ -89,6 +90,7 @@ export interface GuardedCanaryTransaction {
 }
 
 export interface GuardedCanaryDraft {
+  readonly entryReadiness: CanaryEntryReadiness | null;
   readonly approvalHash: string;
   readonly assumptions: readonly string[];
   readonly balances: {

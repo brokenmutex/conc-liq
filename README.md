@@ -6,13 +6,15 @@ chain and canonical contracts, resolves selected RWAs through Robinhood's live
 asset registry, discovers their USDG pools through the official v3 factory,
 and records block-pinned pool state.
 
-There is no private-key configuration, signer, transaction construction, or
-capital-moving path in this phase.
+The project builds unsigned entry/exit plans and can rehearse their lifecycle
+on an owned local Anvil fork. There is no mainnet signer or broadcast wrapper.
 
 The [September 6 project review](notes/project-review-2026-09-06.md) records
 verified progress, current blockers, and the recommended validation milestones.
 The [historical data split](notes/historical-data-and-reference-policy-2026-09-06.md)
 documents the Envio migration and the proposed equity-reference comparison.
+The [NVDA lifecycle milestone](notes/nvda-canary-lifecycle-2026-09-06.md) records
+the completed local mint/observe/decrease/collect rehearsal and remaining live gates.
 
 ## What one observation verifies
 
@@ -243,8 +245,15 @@ for unattended or production collection.
 
 ## Exact core-position fee accounting
 
-Capture the missing fee state directly from every pool at one exact replay
-completion block:
+Full snapshots are disabled by default because they read every replayed pool,
+tick, and core position. The September 6 snapshot needed 11,936 planned state
+reads; hourly execution would make about 8.6 million state reads per 30 days,
+before retries and metadata. Pacing lowers throughput, not monthly usage.
+Use HyperSync for bulk history and keep full snapshots off until their archive
+budget and cadence are explicitly allocated.
+
+After allocating a budget, capture the missing fee state at one exact replay
+completion block (choose the cap for the intended source size):
 
 ```bash
 set -a
@@ -252,11 +261,11 @@ source /root/arb-robinhood/.env
 source .env
 set +a
 export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
-npm run accounting:snapshot
+ACCOUNTING_FULL_SNAPSHOT_ENABLED=true ACCOUNTING_MAX_STATE_READS=12000 npm run accounting:snapshot
 ```
 
 The collector opens a repeatable-read snapshot of replayed state, verifies its
-block hash against the private node before and after collection, and reconciles
+block hash against the selected historical metadata source before and after collection, and reconciles
 all pool, initialized-tick, and core-position liquidity through block-pinned
 contract reads. It then applies Uniswap v3's canonical uint256-wrap fee-growth
 inside formula and Q128 flooring. Zero-liquidity positions are also read because
@@ -271,6 +280,15 @@ position-key accounting: multiple NFTs using the same position-manager owner
 and range are aggregated by the pool, so the data is not per-NFT or per-user
 attribution. Raw amounts are not USD value, inventory PnL, or a profitability
 claim.
+
+The scheduled command skips its full fee scan while
+`ACCOUNTING_FULL_SNAPSHOT_ENABLED=false`; principal, baseline, and HyperSync
+action-cost steps continue. `ACCOUNTING_MAX_STATE_READS` defaults to 500 and
+rejects oversized snapshots before provider calls. It caps planned contract
+reads for that snapshot, not retry attempts or account-wide monthly usage.
+The archive transport makes at most two retries for transient transport,
+HTTP 429/5xx, and selected JSON-RPC errors, with provider-local pacing and
+sanitized retry logs. It does not switch providers to bypass throttling.
 
 The snapshot is deliberately outside the ten-second tail cycle because the
 current universe requires thousands of historical calls per capture. Run it
@@ -1080,7 +1098,9 @@ worker remains the owner of collection and replay.
 | `HYPERSYNC_URL` | `https://4663.hypersync.xyz` | Native historical query endpoint |
 | `RH_HISTORY_RPC_URL` | built from token | Optional complete historical RPC endpoint |
 | `RH_ARCHIVE_RPC_URL` | unset | Independent block-pinned historical contract-state provider |
+| `RH_CHAINSTACK_ARCHIVE_RPC_URL` | unset | Saved candidate only; no automatic routing or failover |
 | `HISTORY_REQUEST_INTERVAL_MS` | `500` | Minimum provider request spacing per process |
+| `ARCHIVE_REQUEST_INTERVAL_MS` | history spacing | Optional separate pacing for historical contract-state reads; 100 ms is about 10 requests/second per process |
 | `HISTORY_RPC_TIMEOUT_MS` | `60000` | Historical transport timeout including pacing |
 | `INDEXER_CONFIRMATION_DEPTH` | `64` | Blocks withheld from the scan tip |
 | `INDEXER_REORG_OVERLAP` | `256` | Canonical history replayed on resume |
@@ -1101,6 +1121,8 @@ worker remains the owner of collection and replay.
 | `REPLAY_BATCH_SIZE` | `25000` | Events per atomic derived-state batch |
 | `RECONCILE_CONCURRENCY` | `24` | Concurrent historical state reads |
 | `ACCOUNTING_CONCURRENCY` | `4` | Concurrent block-pinned fee-state reads |
+| `ACCOUNTING_FULL_SNAPSHOT_ENABLED` | `false` | Explicit opt-in for full-universe fee snapshots |
+| `ACCOUNTING_MAX_STATE_READS` | `500` | Planned state-read cap checked before any snapshot provider requests; excludes retries/metadata |
 | `ACTION_COST_CONCURRENCY` | `4` | Concurrent guarded transaction/receipt batches |
 | `ACTION_COST_VALUATION_CONCURRENCY` | `1` | Concurrent block-pinned action-cost marks, maximum 2 |
 | `ACTION_COST_VALUATION_DELAY_MS` | `250` | Milliseconds of pacing after each valuation mark |
@@ -1177,16 +1199,35 @@ the current replay sample is not strong enough to select them safely.
 
 ## Next slice
 
-Accumulate quorum-guarded NVDA/USDG checkpoints and normalized `xyz:NVDA`
-pool-basis observations across a complete weekend and after-hours window. The
-joined historical replay is implemented and now fails closed until the exact
-decrease/collect/swap/mint rebalance path and exit path have measured cost
-evidence in a complete pool-specific model. Once a sufficiently long joined
-series and that cost gate produce a stable bounded-budget/range result, add a
-separate manual approval and broadcast wrapper that can consume exactly one
-unexpired plan hash, record the receipt/NFT ID, and remain disabled by default.
-The stable-position interval remains the fee-truth comparator, and costs remain
-unavailable rather than inferred when evidence is weak.
+The preflight timestamp repair, NVDA-scoped risk/recovery policy, atomic exit
+builder, and local one-position rehearsal are now implemented and verified.
+See the [rehearsal evidence and runbook](notes/nvda-canary-lifecycle-2026-09-06.md).
+The remaining step is an operator-specific plan and a separately approved tiny
+live lifecycle when market, price, funding, and health checks permit it.
+
+Complete one bounded NVDA/USDG position lifecycle using the existing private
+node for recent state, simulations, and eventual execution. HyperSync supplies
+bulk event and transaction history. Save our own position state and receipts
+as we go. Archive access and provider quota infrastructure are optional research
+tools, not prerequisites for this milestone; automatic full fee scans stay off.
+
+1. Repair the existing canary preflight's millisecond timestamp conversion and
+   resolve the target-specific chain-health/risk gate. Keep explicit sizing,
+   slippage, deadline, and spending limits. Do not bypass unavailable checks.
+2. Build and simulate the complete mint, observe, decrease-liquidity, and collect
+   path for one position. Start during a verified open equity session with a
+   valid current mark; automatic rebalancing and closure-anchor policies remain
+   outside this first experiment. Verify the exit path before any funded mint.
+3. Prepare one tiny, explicitly sized, time-bounded, manually approved lifecycle
+   with receipt/NFT tracking. Measure token balances, gas, fees, and inventory
+   changes against the same initial passive holdings. This validates execution
+   and accounting; one trial cannot establish a profitable strategy.
+
+Full historical position accounting, cross-provider quota management, and the
+larger weekend/reference-policy comparison are deferred unless a concrete
+question from this lifecycle requires them. The joined replay's completeness
+requirements still apply when reporting that replay's economic results. No
+funding, signing, or broadcast authorization is introduced by this roadmap.
 
 ## Source-of-truth addresses
 

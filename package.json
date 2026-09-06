@@ -18,6 +18,7 @@
     "backtest:baseline": "node --import tsx src/backtest.ts",
     "build": "tsc -p tsconfig.json",
     "canary:plan": "node --import tsx src/canary-plan.ts",
+    "canary:rehearse": "node --import tsx src/canary-rehearse.ts",
     "check": "npm run typecheck && npm test",
     "dashboard": "node --import tsx src/dashboard.ts",
     "history:compare": "node --import tsx src/history-compare.ts",

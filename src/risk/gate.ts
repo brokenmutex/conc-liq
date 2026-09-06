@@ -143,6 +143,7 @@ export async function readRiskGate(
   streamKey: string,
   maxSnapshotAgeSeconds: number,
   maxCanonicalityAgeSeconds: number,
+  assetSymbol?: string,
 ): Promise<RiskGateDecision> {
   const result = await client.query<RiskGateDbRow>(
     `WITH latest_attempt AS (
@@ -158,8 +159,10 @@ export async function readRiskGate(
             r.block_number::text AS snapshot_block_number,
             r.block_hash AS snapshot_block_hash,
             r.observed_at AS snapshot_observed_at,
-            r.execution_eligible AS snapshot_execution_eligible,
-            r.reasons AS snapshot_reasons,
+            CASE WHEN $2::text IS NULL THEN r.execution_eligible
+                 ELSE asset.execution_eligible END AS snapshot_execution_eligible,
+            CASE WHEN $2::text IS NULL THEN r.reasons
+                 ELSE asset.reasons END AS snapshot_reasons,
             validation.canonical AS canonicality_canonical,
             validation.validated_at AS canonicality_validated_at,
             CASE
@@ -171,11 +174,13 @@ export async function readRiskGate(
      FROM (SELECT 1) seed
      LEFT JOIN latest_attempt a ON TRUE
      LEFT JOIN risk_snapshot_runs r ON r.id = a.risk_run_id
+     LEFT JOIN asset_risk_snapshots asset
+       ON asset.run_id = r.id AND UPPER(asset.symbol) = UPPER($2::text)
      LEFT JOIN risk_snapshot_canonicality validation
        ON validation.risk_run_id = r.id
      LEFT JOIN indexer_cursors index_cursor ON index_cursor.stream_key = $1
      LEFT JOIN v3_replay_cursors replay_cursor ON replay_cursor.stream_key = $1`,
-    [streamKey],
+    [streamKey, assetSymbol ?? null],
   );
   const row = result.rows[0];
   if (row === undefined) {

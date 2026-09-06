@@ -1,6 +1,8 @@
 import pg from "pg";
 import { getAddress, type Hash } from "viem";
 import { readRiskGate, type RiskGateDecision } from "../risk/gate.js";
+import { evaluateCanaryEntryReadiness } from "./entry-readiness.js";
+import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { SCHEMA_SQL } from "../storage/schema.js";
 import type { GuardedCanaryPlan, GuardedCanarySource } from "./domain.js";
 
@@ -142,7 +144,20 @@ export class PostgresGuardedCanaryPlanStore {
       input.streamKey,
       input.maxSnapshotAgeSeconds,
       input.maxCanonicalityAgeSeconds,
+      "NVDA",
     );
+  }
+
+  public async readEntryReadiness(sourceBlock: bigint) {
+    const result = await this.pool.query<{ id: string; snapshot: RpcHealthEvaluation; server_time: Date }>(
+      `SELECT id::text, snapshot, NOW() AS server_time FROM rpc_health_samples
+       WHERE observed_at >= NOW() - INTERVAL '6 minutes'
+       ORDER BY observed_at DESC, id DESC LIMIT 128`,
+    );
+    return evaluateCanaryEntryReadiness({
+      now: (result.rows[0]?.server_time ?? new Date()).toISOString(),
+      sourceBlock, samples: result.rows,
+    });
   }
 
   public async save(plan: GuardedCanaryPlan): Promise<string> {

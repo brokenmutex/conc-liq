@@ -109,7 +109,9 @@ async function main(): Promise<void> {
     });
     const reader = new ViemGuardedCanaryReader(client);
     const chain = await reader.readState({ operator: options.operator, source });
+    const entryReadiness = await store.readEntryReadiness(source.blockNumber);
     const draft = buildGuardedCanaryDraft({
+      entryReadiness,
       chain,
       createdAt: new Date().toISOString(),
       maxCheckpointAgeSeconds: config.maxCheckpointAgeSeconds,

@@ -1,5 +1,10 @@
 # Project review — 2026-09-06
 
+Follow-up: the user narrowed the next milestone to one position's execution
+lifecycle. The [implemented canary slice](nvda-canary-lifecycle-2026-09-06.md)
+fixes the timestamp defect, scopes NVDA risk, and records a successful local
+entry/exit rehearsal. This review below retains its original observation window.
+
 The project is on the right architectural track. Canonical discovery, deterministic
 state reconstruction, exact accounting, independent reference data, and disabled
 execution are substantial progress. The current milestone is an operational

@@ -1,0 +1,238 @@
+{
+  "completedAt": "2026-09-06T14:50:33.329Z",
+  "executionEligible": false,
+  "broadcastAuthorized": false,
+  "scope": "local_anvil_mint_observe_decrease_collect",
+  "source": {
+    "blockHash": "0x3c70a36a5898c440d83e5486052b5dbba0a77af99712ddf84f24ff70abf7feca",
+    "blockNumber": "56059710",
+    "blockTimestamp": "2026-09-06T14:46:22.000Z",
+    "checkpointRunId": "293",
+    "poolAddress": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+    "poolDeviationPpm": "4864",
+    "riskRunId": "4247",
+    "rwaSymbol": "NVDA",
+    "streamKey": "robinhood-v3-rwa-usdg-v1",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"
+  },
+  "policy": {
+    "budgetCapQuote": "1000000",
+    "budgetQuote": "1000000",
+    "halfWidthSpacings": 20,
+    "maxLiquiditySharePpm": "10000",
+    "maxOracleDeviationPpm": "5000",
+    "slippageBps": 50,
+    "ttlSeconds": 1800
+  },
+  "operator": "0x000000000000000000000000000000000000c0DE",
+  "livePreflightReasons": [
+    "equity_session_closed_or_unverified",
+    "chain_recovery_not_continuously_healthy",
+    "equity_session_closed",
+    "risk_gate:sequencer_feed_unavailable",
+    "risk_gate:oracle_price_stale",
+    "risk_gate:quote_oracle_unavailable",
+    "checkpoint_not_latest_risk_snapshot",
+    "asset_risk:sequencer_feed_unavailable",
+    "asset_risk:oracle_price_stale",
+    "asset_risk:quote_oracle_unavailable",
+    "pool_valuation_invalid",
+    "checkpoint_stale",
+    "token0_balance_insufficient",
+    "token1_balance_insufficient",
+    "token0_allowance_insufficient",
+    "token1_allowance_insufficient",
+    "native_gas_balance_zero"
+  ],
+  "entryReadiness": {
+    "policy": "robinhood_quorum_recovery_regular_session_v1",
+    "evaluatedAt": "2026-09-06T14:50:23.779Z",
+    "chainEligible": false,
+    "session": "closed",
+    "reasons": [
+      "chain_recovery_not_continuously_healthy",
+      "equity_session_closed"
+    ],
+    "sampleIds": [
+      "16559",
+      "16560",
+      "16561",
+      "16562",
+      "16563",
+      "16564",
+      "16565",
+      "16566",
+      "16567",
+      "16568",
+      "16569",
+      "16570",
+      "16571",
+      "16572",
+      "16573",
+      "16574",
+      "16575",
+      "16576",
+      "16577",
+      "16578",
+      "16579",
+      "16580",
+      "16581",
+      "16582",
+      "16583",
+      "16584",
+      "16585",
+      "16586",
+      "16587",
+      "16588",
+      "16589"
+    ],
+    "recoverySeconds": 300
+  },
+  "mintTransaction": {
+    "amount0Desired": "493617",
+    "amount0Min": "491148",
+    "amount1Desired": "2188945117687865",
+    "amount1Min": "2178000392099425",
+    "calldata": "0x883164560000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec00000000000000000000000000000000000000000000000000000000000001f400000000000000000000000000000000000000000000000000000000000361f0000000000000000000000000000000000000000000000000000000000003638000000000000000000000000000000000000000000000000000000000000788310000000000000000000000000000000000000000000000000007c6d5802c30390000000000000000000000000000000000000000000000000000000000077e8c0000000000000000000000000000000000000000000000000007bce13bb11661000000000000000000000000000000000000000000000000000000000000c0de000000000000000000000000000000000000000000000000000000006a9d83c6",
+    "deadline": "1788707782",
+    "fee": 500,
+    "positionManager": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+    "recipient": "0x000000000000000000000000000000000000c0DE",
+    "tickLower": 221680,
+    "tickUpper": 222080,
+    "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    "value": "0"
+  },
+  "mintSimulation": {
+    "amount0": "493617",
+    "amount1": "2188940683195443",
+    "error": null,
+    "liquidity": "3303992564724",
+    "returnData": "0x0000000000000000000000000000000000000000000000000000000000101df800000000000000000000000000000000000000000000000000000301454d9bf400000000000000000000000000000000000000000000000000000000000788310000000000000000000000000000000000000000000000000007c6d477db3433",
+    "succeeded": true,
+    "tokenId": "1056248"
+  },
+  "tokenId": "1056248",
+  "position": {
+    "owner": "0x000000000000000000000000000000000000c0DE",
+    "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    "fee": 500,
+    "tickLower": 221680,
+    "tickUpper": 222080,
+    "liquidity": "3303992564724",
+    "tokensOwed0": "0",
+    "tokensOwed1": "0"
+  },
+  "exit": {
+    "to": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+    "value": "0",
+    "calldata": "0xac9650d8000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000a40c49ccbe0000000000000000000000000000000000000000000000000000000000101df800000000000000000000000000000000000000000000000000000301454d9bf40000000000000000000000000000000000000000000000000000000000077e8b0000000000000000000000000000000000000000000000000007bce034b26d88000000000000000000000000000000000000000000000000000000006a9d83cf000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084fc6f78650000000000000000000000000000000000000000000000000000000000101df8000000000000000000000000000000000000000000000000000000000000c0de00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000",
+    "tokenId": "1056248",
+    "liquidity": "3303992564724",
+    "recipient": "0x000000000000000000000000000000000000c0DE",
+    "amount0Min": "491147",
+    "amount1Min": "2177995979779464",
+    "deadline": "1788707791",
+    "expectedPrincipal0": "493616",
+    "expectedPrincipal1": "2188940683195442"
+  },
+  "exitAmounts": {
+    "decreased0": "493616",
+    "decreased1": "2188940683195442",
+    "collected0": "493616",
+    "collected1": "2188940683195442"
+  },
+  "finalPosition": {
+    "owner": "0x000000000000000000000000000000000000c0DE",
+    "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+    "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+    "fee": 500,
+    "tickLower": 221680,
+    "tickUpper": 222080,
+    "liquidity": "0",
+    "tokensOwed0": "0",
+    "tokensOwed1": "0"
+  },
+  "balances": {
+    "before": [
+      "493617",
+      "2188945117687865",
+      "100000000000000000000"
+    ],
+    "afterMint": [
+      "0",
+      "4434492422",
+      "99999316398492773461"
+    ],
+    "afterExit": [
+      "493616",
+      "2188945117687864",
+      "99998971366475665597"
+    ]
+  },
+  "receipts": [
+    {
+      "action": "approve",
+      "hash": "0xdceb8b8465b2006f3f0210d1b0d4f42d7950d0d5f1fab36c713f4379babc8231",
+      "gasUsed": "57976",
+      "effectiveGasPrice": "1247522736"
+    },
+    {
+      "action": "approve",
+      "hash": "0x743a28ac341fcdc9c117f44dd461715f62ca108b527cf37749ef063cde978601",
+      "gasUsed": "63637",
+      "effectiveGasPrice": "1216582395"
+    },
+    {
+      "action": "mint",
+      "hash": "0x7334e0413eeb0e278c5246f1f099e76f0a6cf13cc793efc9597b05eb0a27c8d8",
+      "gasUsed": "448803",
+      "effectiveGasPrice": "1189509596"
+    },
+    {
+      "action": "decrease_and_collect",
+      "hash": "0x0896c9f317e5777b9d579e438000d114331f31bf97120ec9e39950c087c41516",
+      "gasUsed": "232294",
+      "effectiveGasPrice": "1111087047"
+    },
+    {
+      "action": "revoke_approval",
+      "hash": "0xb50f12401a9c1fa331a7cd480f5ec673e6f675a7b5785d542066e010bf593cc4",
+      "gasUsed": "38040",
+      "effectiveGasPrice": "1097201167"
+    },
+    {
+      "action": "revoke_approval",
+      "hash": "0xca6f8e3ab998d5773390157caafc99436dfb1a4fdbdfb6fbb9cebcbf1bceeef3",
+      "gasUsed": "41653",
+      "effectiveGasPrice": "1085051022"
+    }
+  ],
+  "localEvmGasCostWei": "1028633524334403",
+  "upstream": {
+    "requests": 94,
+    "rejected": 2,
+    "rejectedMethods": [
+      "eth_gasPrice",
+      "eth_getAccountInfo"
+    ],
+    "methods": {
+      "eth_getBlockByNumber": 2,
+      "eth_getBalance": 12,
+      "eth_getTransactionCount": 12,
+      "eth_getCode": 12,
+      "eth_getStorageAt": 56
+    },
+    "maxRequests": 600
+  },
+  "preflightRequests": 26,
+  "totalPrivateReadRequests": 120,
+  "limitations": [
+    "simulated token funding from a different pool on the local fork only",
+    "no swaps during the observation window; no fee-accrual or adverse-selection result",
+    "local EVM gas excludes Robinhood L1 data fees and is not a live cost measurement",
+    "does not approve the live operator, policy, or current market conditions"
+  ]
+}

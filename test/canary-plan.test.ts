@@ -19,13 +19,19 @@ import {
 } from "../src/constants.js";
 import type { RiskGateDecision } from "../src/risk/gate.js";
 import type { RpcHealthGateStatus } from "../src/rpc-health/domain.js";
+import type { CanaryEntryReadiness } from "../src/canary-plan/entry-readiness.js";
 
 const rwa = "0x1111111111111111111111111111111111111111" as Address;
 const pool = "0x2222222222222222222222222222222222222222" as Address;
 const operator = "0x3333333333333333333333333333333333333333" as Address;
 const blockHash = `0x${"44".repeat(32)}` as Hash;
 const targetSetHash = `0x${"55".repeat(32)}` as Hash;
-const capturedAt = "2026-09-05T12:00:01.000Z";
+const capturedAt = "2026-09-08T14:00:01.000Z";
+
+function entryReadiness(): CanaryEntryReadiness {
+  return { policy: "robinhood_quorum_recovery_regular_session_v1", evaluatedAt: "2026-09-08T14:00:02.000Z",
+    chainEligible: true, session: "regular_session", reasons: [], sampleIds: ["12"], recoverySeconds: 300 };
+}
 
 function source(): GuardedCanarySource {
   return {
@@ -33,7 +39,7 @@ function source(): GuardedCanarySource {
     assetRiskReasons: [],
     blockHash,
     blockNumber: 100n,
-    blockTimestamp: "2026-09-05T12:00:00.000Z",
+    blockTimestamp: "2026-09-08T14:00:00.000Z",
     capturedAt,
     chainId: 4663,
     checkpointRunId: "10",
@@ -60,7 +66,7 @@ function chain(): GuardedCanaryChainState {
   return {
     blockHash,
     blockNumber: 100n,
-    blockTimestamp: 1_788_609_600n,
+    blockTimestamp: BigInt(Date.parse("2026-09-08T14:00:00Z") / 1000),
     chainId: 4663,
     factoryPool: pool,
     gasPriceWei: 1_000_000_000n,
@@ -112,7 +118,7 @@ function riskGate(): RiskGateDecision {
     attemptStatus: "succeeded",
     blockCanonical: true,
     canonicalityAgeSeconds: 1,
-    evaluatedAt: "2026-09-05T12:00:02.000Z",
+    evaluatedAt: "2026-09-08T14:00:02.000Z",
     executionEligible: true,
     maxCanonicalityAgeSeconds: 30,
     maxSnapshotAgeSeconds: 180,
@@ -130,7 +136,7 @@ function rpcHealth(): RpcHealthGateStatus {
     allowBulk: true,
     lagBlocks: 0n,
     lagSeconds: 0n,
-    observedAt: "2026-09-05T12:00:02.000Z",
+    observedAt: "2026-09-08T14:00:02.000Z",
     privateHead: 164n,
     reasons: [],
     referenceHead: 164n,
@@ -140,10 +146,28 @@ function rpcHealth(): RpcHealthGateStatus {
 }
 
 describe("guarded canary planner", () => {
+  it("replaces only the unavailable sequencer feed with proven recovery and preserves other entry blockers", () => {
+    const input = { chain: chain(), source: { ...source(), assetRiskExecutionEligible: false, assetRiskReasons: ["sequencer_feed_unavailable"] },
+      operator, policy: policy(), createdAt: "2026-09-08T14:00:02.123Z", maxCheckpointAgeSeconds: 180,
+      rpcHealth: rpcHealth(), riskGate: { ...riskGate(), executionEligible: false, reasons: ["sequencer_feed_unavailable"] } };
+    const missing = buildGuardedCanaryDraft(input);
+    assert(missing.reasons.includes("risk_gate:sequencer_feed_unavailable"));
+    const recovered = buildGuardedCanaryDraft({ ...input, entryReadiness: entryReadiness() });
+    assert.deepEqual(recovered.reasons, []);
+    const stale = buildGuardedCanaryDraft({ ...input, entryReadiness: entryReadiness(),
+      riskGate: { ...input.riskGate, reasons: ["sequencer_feed_unavailable", "oracle_price_stale"] } });
+    assert(stale.reasons.includes("risk_gate:oracle_price_stale"));
+    const paused = buildGuardedCanaryDraft({ ...input, entryReadiness: entryReadiness(),
+      source: { ...input.source, assetRiskReasons: ["sequencer_feed_unavailable", "oracle_paused"] } });
+    assert(paused.reasons.includes("asset_risk:oracle_paused"));
+    const old = buildGuardedCanaryDraft({ ...input, entryReadiness: { ...entryReadiness(), evaluatedAt: "2026-09-08T13:59:00Z" } });
+    assert(old.reasons.includes("risk_gate:sequencer_feed_unavailable"));
+  });
   it("builds a deterministic direct-mint approval envelope without authorization", () => {
     const input = {
+      entryReadiness: entryReadiness(),
       chain: chain(),
-      createdAt: "2026-09-05T12:00:02.000Z",
+      createdAt: "2026-09-08T14:00:02.123Z",
       maxCheckpointAgeSeconds: 180,
       operator,
       policy: policy(),
@@ -154,7 +178,7 @@ describe("guarded canary planner", () => {
     const first = buildGuardedCanaryDraft(input);
     const second = buildGuardedCanaryDraft({
       ...input,
-      createdAt: "2026-09-05T12:00:03.000Z",
+      createdAt: "2026-09-08T14:00:03.000Z",
     });
 
     assert.deepEqual(first.reasons, []);
@@ -171,8 +195,9 @@ describe("guarded canary planner", () => {
 
   it("requires successful simulation and estimation before manual approval", () => {
     const draft = buildGuardedCanaryDraft({
+      entryReadiness: entryReadiness(),
       chain: chain(),
-      createdAt: "2026-09-05T12:00:02.000Z",
+      createdAt: "2026-09-08T14:00:02.000Z",
       maxCheckpointAgeSeconds: 180,
       operator,
       policy: policy(),
@@ -243,7 +268,7 @@ describe("guarded canary planner", () => {
         ...unsafeChain,
         token0: { ...unsafeChain.token0, allowance: 0n, balance: 0n },
       },
-      createdAt: "2026-09-05T12:10:00.000Z",
+      createdAt: "2026-09-08T14:10:00.000Z",
       maxCheckpointAgeSeconds: 180,
       operator,
       policy: { ...policy(), maxOracleDeviationPpm: 100n },
