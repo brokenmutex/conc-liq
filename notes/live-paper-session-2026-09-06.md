@@ -1,5 +1,9 @@
 # Live paper session — 2026-09-06
 
+**Superseded September 7:** the fixed charges and spot-price fills below were
+illustrative. See the [execution realism correction](paper-execution-realism-2026-09-07.md).
+This note preserves the original configuration and activation evidence.
+
 Paper trading is now the next stage before any real-wallet preflight. Session
 **1** started at **17:52:43 UTC** on the canonical NVDA/USDG 0.05% pool, with
 1,000 simulated USDG. The first observation was recorded at **17:54:04 UTC**

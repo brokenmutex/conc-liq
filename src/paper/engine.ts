@@ -6,21 +6,28 @@ import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAnd
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
-export interface PaperPolicy {
+interface PaperStrategy {
   readonly mode: "guarded" | "research";
   readonly budgetQuote: string;
   readonly halfWidthSpacings: number;
-  readonly entryCostQuote: string;
-  readonly exitCostQuote: string;
-  readonly slippageBps: number;
   readonly maxHoldingSeconds: number;
   readonly maxSourceAgeSeconds: number;
   readonly maxGapSeconds: number;
   readonly maxLiquiditySharePpm: number;
 }
-export const DEFAULT_PAPER_POLICY: PaperPolicy = {
+// Retain the old shape only to read/reproduce the first illustrative session.
+export interface IllustrativePaperPolicy extends PaperStrategy {
+  readonly entryCostQuote: string;
+  readonly exitCostQuote: string;
+  readonly slippageBps: number;
+}
+export interface ExecutionPaperPolicy extends PaperStrategy {
+  readonly executionBasis: "transaction_simulation";
+}
+export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy;
+export const DEFAULT_PAPER_POLICY: ExecutionPaperPolicy = {
   mode: "guarded", budgetQuote: "1000000000", halfWidthSpacings: 20,
-  entryCostQuote: "1000000", exitCostQuote: "1000000", slippageBps: 10,
+  executionBasis: "transaction_simulation",
   maxHoldingSeconds: 21_600, maxSourceAgeSeconds: 180, maxGapSeconds: 900,
   maxLiquiditySharePpm: 10_000,
 };
@@ -118,6 +125,16 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
   if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
   state.reasons = [...new Set(gates)];
   state.last = cp;
+  if ("executionBasis" in policy) {
+    // The DB checkpoint runner cannot produce transaction-specific gas, swaps,
+    // or exit proceeds. Never silently fall back to the illustrative v1 fill.
+    // A fresh execution simulator must supply that evidence before this path
+    // can open a paper position. Historical receipt averages are not fills.
+    const reasons = [...state.reasons, "paper_transaction_simulation_unavailable"];
+    if (state.position) return invalidatePaper(previous, input.now, reasons);
+    return { ...state, status: "waiting", reasons, pendingSince: null, entryRange: null,
+      navQuote: null, holdQuote: null, pnlQuote: null, alphaQuote: null, feeValueQuote: null };
+  }
   if (!state.position) {
     if (!input.chainHealthy || (policy.mode === "guarded" && gates.length)) {
       state.status = "waiting";

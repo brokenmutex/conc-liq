@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { sqrtRatioAtTick } from "../src/backtest/principal.js";
-import { advancePaper, DEFAULT_PAPER_POLICY, initialPaperState, invalidatePaper, policyHash, type PaperInput, type PaperState } from "../src/paper/engine.js";
-import { paperPolicy } from "../src/paper/config.js";
+import { advancePaper, DEFAULT_PAPER_POLICY as EXECUTION_POLICY, initialPaperState, invalidatePaper, policyHash, type IllustrativePaperPolicy, type PaperInput, type PaperState } from "../src/paper/engine.js";
+import { paperPolicy, paperPolicySchema } from "../src/paper/config.js";
+// The original accounting fixtures remain reproducible, but this policy can
+// no longer be used to start a new operator session.
+const DEFAULT_PAPER_POLICY: IllustrativePaperPolicy = {
+  mode: "guarded", budgetQuote: "1000000000", halfWidthSpacings: 20,
+  entryCostQuote: "1000000", exitCostQuote: "1000000", slippageBps: 10,
+  maxHoldingSeconds: 21_600, maxSourceAgeSeconds: 180, maxGapSeconds: 900,
+  maxLiquiditySharePpm: 10_000,
+};
 const Q128 = 1n << 128n;
 const base = Date.parse("2026-09-08T14:00:00Z");
 function input(index: number, overrides: Partial<PaperInput> = {}): PaperInput {
@@ -17,7 +25,39 @@ function input(index: number, overrides: Partial<PaperInput> = {}): PaperInput {
 function opened(): PaperState {
   return advancePaper(advancePaper(initialPaperState(),DEFAULT_PAPER_POLICY,input(1)),DEFAULT_PAPER_POLICY,input(2));
 }
-describe("forward paper position accounting", () => {
+describe("paper execution evidence", () => {
+  it("does not create orders, positions, costs or PnL from spot prices and arbitrary costs", () => {
+    for (const mode of ["guarded", "research"] as const) {
+      const policy = paperPolicy({ mode });
+      assert.deepEqual(policy, { ...EXECUTION_POLICY, mode });
+      let state = initialPaperState();
+      for (let index = 1; index <= 4; index += 1) {
+        state = advancePaper(state, policy, input(index));
+        assert.equal(state.status, "waiting");
+        assert.equal(state.action, "wait");
+        assert.equal(state.position, null);
+        assert.equal(state.pendingSince, null);
+        assert.equal(state.pnlQuote, null);
+        assert.equal(state.costsPaidQuote, "0");
+        assert.ok(state.reasons.includes("paper_transaction_simulation_unavailable"));
+      }
+    }
+  });
+  it("rejects fixed cost overrides for new sessions, but reads legacy policies without rewriting hashes", () => {
+    for (const overrides of [{ entryCostQuote: "1000000" }, { exitCostQuote: "1000000" }, { slippageBps: 10 }, DEFAULT_PAPER_POLICY]) {
+      assert.throws(() => paperPolicy(overrides));
+    }
+    assert.deepEqual(paperPolicySchema.parse(DEFAULT_PAPER_POLICY), DEFAULT_PAPER_POLICY);
+    assert.equal(policyHash(paperPolicySchema.parse(DEFAULT_PAPER_POLICY)), "9b6a7c7888f82fde35fedb76bebed6bf1d8d8329bfa745087323769dab29a48f");
+  });
+  it("revokes a position incorrectly attached to a session without execution evidence", () => {
+    const state = advancePaper(opened(), EXECUTION_POLICY, input(3));
+    assert.equal(state.status, "invalid");
+    assert.equal(state.navQuote, null);
+    assert.equal(state.pnlQuote, null);
+  });
+});
+describe("legacy illustrative paper position accounting", () => {
   it("waits for gates, records an intent, and earns no fees before its later fill", () => {
     let state = advancePaper(initialPaperState(),DEFAULT_PAPER_POLICY,input(1,{entryReasons:["equity_session_closed"]}));
     assert.equal(state.status,"waiting"); assert.equal(state.navQuote,null);
@@ -99,7 +139,8 @@ describe("forward paper position accounting", () => {
   it("keeps policy hashes stable through PostgreSQL JSON key ordering", () => {
     assert.equal(policyHash(DEFAULT_PAPER_POLICY),policyHash(Object.fromEntries(Object.entries(DEFAULT_PAPER_POLICY).reverse()) as typeof DEFAULT_PAPER_POLICY));
     assert.notEqual(policyHash(DEFAULT_PAPER_POLICY),policyHash({...DEFAULT_PAPER_POLICY,halfWidthSpacings:50}));
-    assert.throws(()=>paperPolicy({budgetQuote:"1000"}),/Costs/);
+    assert.throws(()=>paperPolicySchema.parse({...DEFAULT_PAPER_POLICY,budgetQuote:"1000"}),/Costs/);
+    assert.throws(()=>paperPolicy({budgetQuote:"0"}));
     assert.throws(()=>paperPolicy({slippageBps:-1}));
   });
 });

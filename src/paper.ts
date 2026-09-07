@@ -12,8 +12,9 @@ async function main() {
 Create one immutable, forward-only NVDA/USDG paper session, then process new
 stored live checkpoints. Uses PostgreSQL only; no wallet or RPC access.
 Default: guarded entry, 1000 paper USDG, fixed ±20 tick spacings, six-hour hold,
-1 USDG entry + 1 USDG exit cost assumptions and a 10 bps entry inventory haircut.
-Signals fill only at a later fresh checkpoint. No automatic range recentering.
+No fixed gas charges or slippage haircuts. Transaction simulation is required
+before paper fills; that adapter is not implemented yet. This runner currently
+records live input readiness only. No automatic range recentering.
 A policy JSON file can override defaults; existing sessions cannot be retuned.`);
     return;
   }

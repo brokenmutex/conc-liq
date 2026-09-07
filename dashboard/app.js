@@ -847,6 +847,10 @@ function renderSource(prefix, source, now) {
 }
 
 function renderPaper(paper, now) {
+  const receiptCosts = element("paper-receipt-costs");
+  receiptCosts.replaceChildren();
+  element("paper-receipt-empty").classList.remove("hidden");
+  setText("paper-cost-status", "Awaiting transaction simulation");
   const journal = element("paper-journal");
   journal.replaceChildren();
   const svg = element("paper-chart");
@@ -858,14 +862,27 @@ function renderPaper(paper, now) {
   if (!paper) {
     setText("paper-status", "No paper session has been started.");
     setText("paper-freshness", "No performance evidence yet");
-    setText("paper-policy", "A session fixes its strategy and cost assumptions before observing returns.");
+    setText("paper-policy", "Paper fills require transaction simulation and evidence for execution costs.");
     return;
   }
   const { state, policy } = paper;
+  const needsSimulation = policy.executionBasis === "transaction_simulation";
+  for (const cost of paper.receiptCosts ?? []) {
+    const row = document.createElement("tr");
+    row.append(cell(cost.actionClass.replaceAll("_", " ")),
+      cell(compactInteger(cost.transactions), "number"),
+      cell(`${displayTokenAmount(cost.minFeeWei, 18)} – ${displayTokenAmount(cost.maxFeeWei, 18)}`, "number mono"),
+      cell(`${blockNumber(cost.firstBlock)}–${blockNumber(cost.lastBlock)}`, "mono"),
+      cell(dated(cost.collectedAt, now)));
+    receiptCosts.append(row);
+  }
+  element("paper-receipt-empty").classList.toggle("hidden", receiptCosts.children.length > 0);
   if (state.status === "invalid") setText("paper-chart-empty", "Performance unavailable because coverage is incomplete. See the decision journal.");
   element("paper-policy").title = `Policy SHA-256 ${paper.policyHash} · started ${paper.createdAt}`;
   const labels = { waiting: "Waiting for eligible live inputs", entry_pending: "Entry signaled · waiting for a later checkpoint", open: "Paper position open", exit_pending: "Exit signaled · waiting for a later checkpoint", closed: "Paper position closed", invalid: "Performance incomplete · session stopped" };
-  setText("paper-status", `Session #${paper.id} · ${labels[state.status]} · ${policy.mode === "guarded" ? "intended live entry gates" : "continuous research; may be ineligible live"}`);
+  const statusLabel = needsSimulation && state.status === "waiting"
+    ? "Observing live inputs · transaction simulator not implemented" : labels[state.status];
+  setText("paper-status", `Session #${paper.id} · ${statusLabel} · ${policy.mode === "guarded" ? "intended live entry gates" : "continuous research; may be ineligible live"}`);
   const terminal = state.status === "closed" || state.status === "invalid";
   const heartbeatFresh = fresh(paper.heartbeatAt, now, 60);
   setText("paper-freshness", `${terminal ? "Session finished" : heartbeatFresh ? "Paper worker responding" : "Paper worker stale or unavailable"} · last heartbeat ${timeAgo(paper.heartbeatAt, now)} · ${state.last ? `valuation/source block ${blockNumber(state.last.block)} at ${dated(state.last.blockTimestamp, now)}` : "awaiting first checkpoint captured after session start"}`);
@@ -877,10 +894,16 @@ function renderPaper(paper, now) {
   setText("paper-alpha", amount(state.alphaQuote));
   setText("paper-hold", state.holdQuote === null ? "Benchmark starts at paper entry" : `Passive holdings ${amount(state.holdQuote)}`);
   setText("paper-fees", amount(state.feeValueQuote));
-  setText("paper-costs", `${amount(state.costsPaidQuote)} / ${amount(state.exitReserveQuote)}`);
+  setText("paper-costs", needsSimulation ? "Unavailable" : `${amount(state.costsPaidQuote)} / ${amount(state.exitReserveQuote)}`);
+  setText("paper-cost-status", needsSimulation
+    ? "Missing swap, transaction gas and exit simulation; no fixed fallback"
+    : "Legacy illustrative charges; not transaction measurements");
   setText("paper-drawdown", state.navQuote === null ? "—" : ppmPercent(state.maxDrawdownPpm));
   setText("paper-coverage", `${state.intervals} holding intervals · ${compactInteger(state.observedSwaps)} observed swaps`);
-  setText("paper-policy", `Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. Fill at a later fresh checkpoint. Costs: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps entry inventory haircut; ${amount(policy.exitCostQuote)} exit. Holding limit ${duration(String(policy.maxHoldingSeconds))}. Marks arrive with the existing pool checkpoints (about five minutes).`);
+  const costPolicy = needsSimulation
+    ? "No paper fills until the intended swaps and LP transactions can be simulated against current chain state. Gas and exit costs must have evidence; slippage must come from executable quotes. The current worker records input readiness only."
+    : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
+  setText("paper-policy", `Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. ${costPolicy} Holding limit ${duration(String(policy.maxHoldingSeconds))}. Pool checkpoints arrive about every five minutes.`);
   const reasons = [...new Set([...state.reasons, ...paper.monitorReasons])];
   element("paper-reasons").replaceChildren(...reasons.map(reason => {
     const node = document.createElement("span"); node.className = "reason-chip"; node.textContent = reason.replaceAll("_", " "); node.title = reason; return node;

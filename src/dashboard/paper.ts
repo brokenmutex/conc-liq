@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import type { PaperSessionRow } from "../paper/store.js";
 import { invalidatePaper } from "../paper/engine.js";
+import { readPaperReceiptCosts } from "./paper-costs.js";
 interface PaperPoint {
   checkpointId: string; block: string; observedAt: string; sourceAt: string;
   action: string; navQuote: string | null; holdQuote: string | null;
@@ -26,6 +27,7 @@ export async function readPaperDashboard(client: PoolClient, streamKey: string) 
     heartbeatAt: row.heartbeat_at?.toISOString() ?? null, policy: row.policy, policyHash: row.policy_hash,
     state: valid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),["prior_paper_source_no_longer_canonical"]),
     monitorReasons: row.monitor_reasons, sourceCanonical: valid,
-    points: valid ? points.rows.reverse().map(p=>p.point) : [], executionEligible: false as const };
+    points: valid ? points.rows.reverse().map(p=>p.point) : [],
+    receiptCosts: await readPaperReceiptCosts(client, streamKey), executionEligible: false as const };
 }
 export type PaperDashboard = Awaited<ReturnType<typeof readPaperDashboard>>;

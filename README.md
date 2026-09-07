@@ -1234,10 +1234,17 @@ the current replay sample is not strong enough to select them safely.
 
 ## Live paper session
 
-Paper trading now precedes any funded wallet trial. The dashboard leads with
-one forward-only NVDA/USDG 0.05% session: simulated balance, net P&L after modeled
-costs, LP alpha versus passive holdings, estimated fees, paid/reserved costs,
-maximum observed drawdown, and a timestamped decision journal and value chart.
+Paper trading must precede any funded wallet trial, and must approximate the
+intended transactions. The first implementation's fixed 1 USDG entry/exit
+charges, 10 bps haircut, and acquisition at spot did not meet that requirement.
+Those defaults were removed on September 7. **The current worker observes live
+inputs; a transaction simulator is not implemented, so new sessions cannot
+fill orders or report trading performance yet.**
+
+The dashboard distinguishes unavailable paper execution costs from actual
+historical transaction charges for this pool. Receipt fees are shown in ETH,
+with transaction counts, block ranges and collection times. They include all
+actions in each transaction and are calibration evidence, not our fill costs.
 
 The worker consumes existing PostgreSQL pool checkpoints and HyperSync-indexed
 swap paths. It makes no RPC calls, accepts no wallet/key, and never signs or
@@ -1254,40 +1261,37 @@ npm run paper -- start
 npm run paper -- tick
 ```
 
-The default experiment uses **1,000 paper USDG**, a fixed range of ±20 tick
-spacings, a six-hour holding limit after entry, a 1 USDG entry-cost assumption,
-a 10 bps entry inventory haircut, and a 1 USDG exit-cost assumption. These are
-explicit experimental settings, not optimized parameters or a real allocation.
+The configured experiment uses **1,000 paper USDG**, a fixed range of ±20 tick
+spacings, and a six-hour holding limit after entry. These are experimental
+strategy settings, not optimized parameters or a real allocation.
 The hypothetical position is capped at 1% of observed active pool liquidity.
 `start --policy FILE` accepts JSON overrides before a new session; the saved
-policy cannot be retuned in place.
+policy cannot be retuned in place. `executionBasis` is `transaction_simulation`;
+fixed entry/exit costs and flat slippage overrides are rejected. Stored legacy
+policies remain readable without changing their hashes or journals.
 
 The default `guarded` mode uses the intended equity-session, chain-recovery,
 NVDA risk/reference, canonicality and freshness inputs, with a fixed ±0.5%
 pool/oracle entry-deviation ceiling. It can remain in cash
-while these checks fail. `research` mode explicitly records the market/risk
-findings while allowing research entries; it still requires fresh canonical
-data, chain recovery, token identity and the size cap. Neither mode authorizes
-live execution or performs wallet-specific simulation.
+while these checks fail. `research` mode records the market/risk findings.
+Both modes require transaction simulation before a paper fill; switching to
+research does not bypass missing execution evidence. Neither authorizes live
+execution or performs wallet-specific simulation.
 
-An entry or exit signal fills only at a later fresh checkpoint whose block time
-follows the recorded signal time. The range is fixed at the entry signal; if
-the fill price has already left it, the order is canceled without a paper fill. Fees begin at the simulated entry boundary.
-This first experiment keeps its range fixed; it does not recenter. Guarded
-sessions request an exit when their continuing risk/session checks fail or the
-holding limit is reached. A newer risk snapshot alone is an entry-coordination
-wait, not a forced exit. Exit fills wait for observed chain recovery. Actual
-fill timing, transaction gas/L1 fees, impact and slippage remain unproven.
+The next simulator must freeze orders before observing their execution state,
+acquire NVDA through the intended swap route, execute the LP calls with the
+paper inventory/allowances, and retain the resulting balances and gas evidence.
+An exit needs its own fresh simulation and, for a cash P&L, a sale of the
+remaining NVDA. A slippage limit is an order constraint, not a fee to subtract.
+No arbitrary fee, perfect spot fill, zero missing cost or stale quote may fill
+an evidence gap. A paper transaction has no mainnet receipt: simulation results
+must remain labeled estimates, distinct from actual recorded transaction costs.
 
-Net value is marked in USDG at pool spot. Entry costs and the inventory haircut
-reduce deployable capital; exit cash is reserved once and charged once. The
-holding benchmark is the same initial post-entry token inventory, with no LP
-fees or exit charge. Its entry costs are shared by construction. Fees remain
-idle, and drawdown includes the initial cost decrease from the paper budget.
-Global fee growth is only credited when the complete indexed swap path stayed
-inside the hypothetical range. This is a zero-impact/no-self-dilution estimate.
-Range crossings, invalidated source hashes, missed decisions, or coverage gaps
-invalidate the economic result instead of inventing fees or retroactive exits.
+The preserved v1 accounting engine is an illustrative regression fixture.
+It uses pool-spot marks and observed fee-growth deltas for a hypothetical LP,
+with no self-dilution or market impact. Range crossings, invalidated hashes,
+missed decisions or coverage gaps revoke its results. It does not establish
+executable fills, liquidation value, realized fees or trading profitability.
 
 Install the database-only worker timer:
 
@@ -1298,7 +1302,7 @@ sudo systemctl enable --now conc-liq-paper.timer
 journalctl -u conc-liq-paper.service -f
 ```
 
-It checks for new source data every 15 seconds; marks arrive with the existing
+It checks for new source data every 15 seconds; inputs arrive with the existing
 roughly five-minute checkpoints. Dashboard/API refreshes and worker heartbeats
 are shown separately from valuation timestamps. `npm run paper -- stop` cancels
 an unentered session or requests a later paper exit for an open one. Stopping
@@ -1306,7 +1310,8 @@ the timer itself does not simulate an exit; an unattended gap can invalidate an
 open session on restart. The new tables are included in `db:migrate`, and
 `paper start`/`paper migrate` can create just the paper tables.
 
-See [paper-session activation and evidence](notes/live-paper-session-2026-09-06.md).
+See [execution realism correction](notes/paper-execution-realism-2026-09-07.md)
+and the preserved [initial activation evidence](notes/live-paper-session-2026-09-06.md).
 
 ## Next slice
 
@@ -1314,14 +1319,17 @@ Run and review the paper session before selecting or funding real wallets.
 The local mint/observe/decrease/collect rehearsal remains complete; its evidence
 is an execution-mechanics milestone, not measured strategy performance.
 
-1. Observe a complete paper lifecycle during eligible market conditions. Review
-   net P&L, alpha versus holding, fees and modeled costs, drawdown, entry/exit
-   delay, and coverage or gate failures. Waiting in cash is visible but is not
-   a trading result.
-2. Review the fixed strategy and assumptions against those observations. Any
-   changed range or cost policy starts a new identified session so earlier
-   decisions and results remain auditable. Paper performance alone cannot
-   establish real fills, realized fees, gas or profitability.
+1. Extend the existing bounded local lifecycle rehearsal into a current-state
+   paper execution simulator: cash-to-inventory swap, approvals, mint,
+   decrease/collect and inventory-to-cash swap. Attach chain gas estimates,
+   including parent-chain data cost, and actual amount deltas to each action.
+   Use receipt measurements to check the estimates; do not copy aggregate
+   historical charges into new orders. No additional archive infrastructure is
+   required for this current-state work.
+2. Then run a complete forward paper lifecycle during eligible conditions.
+   Review net P&L and alpha versus holding separately, fees, execution costs,
+   drawdown, delays and failures. Every changed policy starts a new identified
+   session. Waiting in cash and the local rehearsal are not trading results.
 3. Only after paper review should an operator-specific preflight and separately
    approved tiny funded lifecycle be considered. No wallet, signing or
    broadcast authorization is introduced by paper trading.

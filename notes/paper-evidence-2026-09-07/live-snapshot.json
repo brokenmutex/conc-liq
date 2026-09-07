@@ -1,0 +1,113 @@
+{
+  "observedAt": "2026-09-07T07:07:56.447Z",
+  "paper": {
+    "id": "2",
+    "createdAt": "2026-09-07T07:06:07.782Z",
+    "updatedAt": "2026-09-07T07:06:07.782Z",
+    "heartbeatAt": "2026-09-07T07:07:50.846Z",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "maxGapSeconds": 900,
+      "executionBasis": "transaction_simulation",
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000
+    },
+    "policyHash": "0464d7c0ab9f3a6ed4bfe30d217f323798dc19735dc84b02f8a9b5d5f8b8b234",
+    "state": {
+      "last": null,
+      "action": "wait",
+      "status": "waiting",
+      "reasons": [
+        "paper_transaction_simulation_unavailable"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": null,
+      "holdQuote": null,
+      "intervals": 0,
+      "alphaQuote": null,
+      "entryRange": null,
+      "peakNavQuote": "0",
+      "pendingSince": null,
+      "feeValueQuote": null,
+      "invalidatedAt": null,
+      "observedSwaps": "0",
+      "costsPaidQuote": "0",
+      "maxDrawdownPpm": "0",
+      "exitReserveQuote": "0"
+    },
+    "monitorReasons": [
+      "awaiting_next_live_checkpoint"
+    ],
+    "sourceCanonical": true,
+    "points": [],
+    "receiptCosts": [
+      {
+        "lastBlock": "56559380",
+        "maxFeeWei": "581006697340000",
+        "minFeeWei": "28404632204000",
+        "firstBlock": "54417932",
+        "actionClass": "collect_bundle",
+        "collectedAt": "2026-09-07T08:00:09.918+03:00",
+        "transactions": "28"
+      },
+      {
+        "lastBlock": "56562090",
+        "maxFeeWei": "3359994813472000",
+        "minFeeWei": "29069533416000",
+        "firstBlock": "54417636",
+        "actionClass": "exit_bundle",
+        "collectedAt": "2026-09-07T08:00:09.918+03:00",
+        "transactions": "253"
+      },
+      {
+        "lastBlock": "56562542",
+        "maxFeeWei": "7241905289192000",
+        "minFeeWei": "86429068992000",
+        "firstBlock": "54417326",
+        "actionClass": "mint_bundle",
+        "collectedAt": "2026-09-07T08:00:09.918+03:00",
+        "transactions": "264"
+      },
+      {
+        "lastBlock": "56212012",
+        "maxFeeWei": "11688626560576000",
+        "minFeeWei": "5341083333280000",
+        "firstBlock": "54432157",
+        "actionClass": "mixed",
+        "collectedAt": "2026-09-06T23:00:09.742+03:00",
+        "transactions": "7"
+      },
+      {
+        "lastBlock": "56190719",
+        "maxFeeWei": "2108971531238000",
+        "minFeeWei": "326470066000000",
+        "firstBlock": "54947758",
+        "actionClass": "rebalance_bundle",
+        "collectedAt": "2026-09-06T22:00:20.712+03:00",
+        "transactions": "11"
+      },
+      {
+        "lastBlock": "56567396",
+        "maxFeeWei": "4921790409360000",
+        "minFeeWei": "58718454858000",
+        "firstBlock": "54436435",
+        "actionClass": "swap_only",
+        "collectedAt": "2026-09-07T08:00:09.918+03:00",
+        "transactions": "408"
+      }
+    ],
+    "executionEligible": false
+  },
+  "checks": [
+    "live session explicitly waits for transaction simulator",
+    "no cost assumption, position or PnL",
+    "actual historical fees separated and denominated in ETH",
+    "desktop and mobile layouts have no page overflow",
+    "missing session clears prior receipt values",
+    "no browser errors"
+  ]
+}

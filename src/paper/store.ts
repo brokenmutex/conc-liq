@@ -6,7 +6,7 @@ import { USDG } from "../constants.js";
 import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, policyHash, type PaperCheckpoint, type PaperPolicy, type PaperState } from "./engine.js";
 
 import { PAPER_SCHEMA_SQL } from "./schema.js";
-import { paperPolicySchema } from "./config.js";
+import { paperPolicy, paperPolicySchema } from "./config.js";
 export interface PaperSessionRow {
   id: string; stream_key: string; created_at: Date; updated_at: Date; heartbeat_at: Date | null;
   policy: PaperPolicy; policy_hash: string; state: PaperState; monitor_reasons: string[];
@@ -45,9 +45,12 @@ export class PaperStore {
   constructor(connectionString: string) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
   async migrate() { await this.pool.query(PAPER_SCHEMA_SQL); }
   async start(streamKey: string, policy: PaperPolicy): Promise<string> {
+    policy = paperPolicy(policy);
+    const state = initialPaperState();
+    state.reasons = ["paper_transaction_simulation_unavailable"];
     const result = await this.pool.query<{ id: string }>(
       `INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status) VALUES($1,$2,$3,$4,'waiting') RETURNING id::text`,
-      [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(initialPaperState())]);
+      [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(state)]);
     return result.rows[0]!.id;
   }
   async stop(streamKey: string): Promise<string | null> {

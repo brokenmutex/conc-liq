@@ -1,0 +1,13 @@
+{
+  "observedAt": "2026-09-07T07:06:07.215Z",
+  "passed": [
+    "absent receipt data stays unavailable",
+    "pool, chain and stream scoped actual costs",
+    "mismatched indexed block hash excluded",
+    "case insensitive hash match and no event fanout double count",
+    "wei values retain integer precision",
+    "new sessions reject illustrative cost fields",
+    "new session exposes missing simulation without a position or PnL"
+  ],
+  "isolatedSchemaRemoved": true
+}

@@ -1,0 +1,83 @@
+{
+  "observedAt": "2026-09-07T07:06:07.784Z",
+  "previous": {
+    "id": "1",
+    "status": "closed",
+    "policy_hash": "9b6a7c7888f82fde35fedb76bebed6bf1d8d8329bfa745087323769dab29a48f",
+    "state": {
+      "last": {
+        "id": "433",
+        "hash": "0x32e06f2cc8c31366bd73672d2834d15d3b1639ed4838f7a7407c7a5d0bbbed44",
+        "tick": 221850,
+        "block": "56635857",
+        "liquidity": "27374646969371152789",
+        "capturedAt": "2026-09-07T09:55:10.326+03:00",
+        "feeGrowth0": "18974389926180925795162467494619",
+        "feeGrowth1": "87943681986860407610910271131470864635544",
+        "sqrtPriceX96": "5200570108807038690468638473735008",
+        "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+        "blockTimestamp": "2026-09-07T09:55:03+03:00"
+      },
+      "action": "wait",
+      "status": "closed",
+      "reasons": [
+        "paper_session_cancelled_before_entry"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": null,
+      "holdQuote": null,
+      "intervals": 0,
+      "alphaQuote": null,
+      "entryRange": null,
+      "peakNavQuote": "0",
+      "pendingSince": null,
+      "feeValueQuote": null,
+      "invalidatedAt": null,
+      "observedSwaps": "0",
+      "costsPaidQuote": "0",
+      "maxDrawdownPpm": "0",
+      "exitReserveQuote": "0"
+    },
+    "observations": "107"
+  },
+  "current": {
+    "id": "2",
+    "created_at": "2026-09-07T07:06:07.782Z",
+    "status": "waiting",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "maxGapSeconds": 900,
+      "executionBasis": "transaction_simulation",
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000
+    },
+    "policy_hash": "0464d7c0ab9f3a6ed4bfe30d217f323798dc19735dc84b02f8a9b5d5f8b8b234",
+    "state": {
+      "last": null,
+      "action": "wait",
+      "status": "waiting",
+      "reasons": [
+        "paper_transaction_simulation_unavailable"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": null,
+      "holdQuote": null,
+      "intervals": 0,
+      "alphaQuote": null,
+      "entryRange": null,
+      "peakNavQuote": "0",
+      "pendingSince": null,
+      "feeValueQuote": null,
+      "invalidatedAt": null,
+      "observedSwaps": "0",
+      "costsPaidQuote": "0",
+      "maxDrawdownPpm": "0",
+      "exitReserveQuote": "0"
+    }
+  }
+}
