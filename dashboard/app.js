@@ -259,8 +259,11 @@ function renderFocus(data) {
   setText("focus-oracle", checkpoint?.oraclePriceX18 ? `${displayTokenAmount(checkpoint.oraclePriceX18, 18)} USDG/NVDA` : "Unavailable");
   setText("focus-deviation", checkpoint?.deviationPpm !== null && checkpoint?.deviationPpm !== undefined ? `${displayTokenAmount(checkpoint.deviationPpm, 4, 4)}%` : "Unavailable");
   setText("focus-reference-note", `${checkpoint?.status === "valid" && checkpointFresh && aligned ? "Valid at the stated checkpoint." : "Displayed marks are diagnostic; a stale or excluded mark cannot authorize entry."} Current preflight uses NVDA and USDG oracle checks. Hyperliquid remains research-only; a Nasdaq / last-close policy is not active.`);
-  setText("focus-rehearsal", rehearsal ? "Completed on local fork" : "Evidence unavailable");
-  setText("focus-rehearsal-detail", rehearsal ? `${dated(rehearsal.completedAt, now)} · source block ${blockNumber(rehearsal.sourceBlock)} · no swaps or measured strategy profit` : "No validated local lifecycle artifact for this stream");
+  const paperRehearsal = data.paper?.execution?.rehearsal;
+  setText("focus-rehearsal", paperRehearsal ? "Cash-to-cash calls verified" : rehearsal ? "LP calls verified on local fork" : "Evidence unavailable");
+  setText("focus-rehearsal-detail", paperRehearsal
+    ? `${dated(paperRehearsal.computedAt, now)} · source block ${blockNumber(paperRehearsal.block)} · swaps, LP calls and node gas estimates; no holding-period result`
+    : rehearsal ? `${dated(rehearsal.completedAt, now)} · source block ${blockNumber(rehearsal.sourceBlock)} · no swaps or measured strategy profit` : "No validated local lifecycle artifact for this stream");
   setText("focus-plan", lastPlan ? `#${lastPlan.id} · ${lastPlan.status}` : "None saved");
   setText("focus-plan-detail", lastPlan ? `${dated(lastPlan.createdAt, now)} · historical result; rerun preflight before any approval` : "Wallet preflight is deferred until the paper session is reviewed. Live execution remains disabled.");
   setText("history-source", focus.historySource === "hypersync" ? "HyperSync" : "Legacy RPC history");
@@ -847,6 +850,8 @@ function renderSource(prefix, source, now) {
 }
 
 function renderPaper(paper, now) {
+  element("paper-execution-runs").replaceChildren();
+  setText("paper-execution-proof", "No transaction simulation evidence available.");
   const receiptCosts = element("paper-receipt-costs");
   receiptCosts.replaceChildren();
   element("paper-receipt-empty").classList.remove("hidden");
@@ -867,6 +872,16 @@ function renderPaper(paper, now) {
   }
   const { state, policy } = paper;
   const needsSimulation = policy.executionBasis === "transaction_simulation";
+  const usesTransactions = policy.executionBasis === "nitro_fork_v1";
+  const rehearsal = paper.execution?.rehearsal;
+  if (rehearsal) setText("paper-execution-proof", `Execution rehearsal: ${rehearsal.transactions} calls verified at block ${blockNumber(rehearsal.block)} · ${dated(rehearsal.computedAt, now)}. Cash change ${displayTokenAmount(rehearsal.cashDeltaQuote, 6)} USDG before ${displayTokenAmount(rehearsal.totalGasWei, 18, 9)} ETH estimated gas. This immediate round trip is not forward strategy performance.`);
+  for (const run of paper.execution?.runs ?? []) {
+    const row = document.createElement("tr");
+    row.append(cell(run.action), cell(run.status), cell(run.gasWei === null ? "—" : displayTokenAmount(run.gasWei, 18, 9), "number mono"),
+      cell(blockNumber(run.block), "mono"), cell(dated(run.observedAt, now)));
+    if (run.error) row.title = run.error;
+    element("paper-execution-runs").append(row);
+  }
   for (const cost of paper.receiptCosts ?? []) {
     const row = document.createElement("tr");
     row.append(cell(cost.actionClass.replaceAll("_", " ")),
@@ -894,14 +909,18 @@ function renderPaper(paper, now) {
   setText("paper-alpha", amount(state.alphaQuote));
   setText("paper-hold", state.holdQuote === null ? "Benchmark starts at paper entry" : `Passive holdings ${amount(state.holdQuote)}`);
   setText("paper-fees", amount(state.feeValueQuote));
-  setText("paper-costs", needsSimulation ? "Unavailable" : `${amount(state.costsPaidQuote)} / ${amount(state.exitReserveQuote)}`);
+  setText("paper-costs", needsSimulation ? "Unavailable" : usesTransactions && !state.position ? "No trades yet" : `${amount(state.costsPaidQuote)} / ${amount(state.exitReserveQuote)}`);
   setText("paper-cost-status", needsSimulation
     ? "Missing swap, transaction gas and exit simulation; no fixed fallback"
+    : usesTransactions ? state.execution?.entryRunId
+      ? `Estimated gas debited: ${displayTokenAmount(state.execution.gasSpentWei, 18, 9)} ETH · exit reserve replaced at exit`
+      : "Gas from the intended calls; slippage is an order limit, not a flat charge"
     : "Legacy illustrative charges; not transaction measurements");
   setText("paper-drawdown", state.navQuote === null ? "—" : ppmPercent(state.maxDrawdownPpm));
   setText("paper-coverage", `${state.intervals} holding intervals · ${compactInteger(state.observedSwaps)} observed swaps`);
   const costPolicy = needsSimulation
     ? "No paper fills until the intended swaps and LP transactions can be simulated against current chain state. Gas and exit costs must have evidence; slippage must come from executable quotes. The current worker records input readiness only."
+    : usesTransactions ? `Swap quote and range fixed before a later fill; ${policy.maxSlippageBps / 100}% maximum swap slippage. Inventory purchase, LP entry and cash exit use actual contract calls in simulation. Gas is estimated on the node and charged separately to the LP allocation. LP fee income remains an estimate from observed growth.`
     : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
   setText("paper-policy", `Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. ${costPolicy} Holding limit ${duration(String(policy.maxHoldingSeconds))}. Pool checkpoints arrive about every five minutes.`);
   const reasons = [...new Set([...state.reasons, ...paper.monitorReasons])];

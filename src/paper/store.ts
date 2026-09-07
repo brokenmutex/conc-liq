@@ -3,7 +3,10 @@ import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js"
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { readRiskGate } from "../risk/gate.js";
 import { USDG } from "../constants.js";
-import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, policyHash, type PaperCheckpoint, type PaperPolicy, type PaperState } from "./engine.js";
+import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, policyHash, type PaperCheckpoint, type PaperInput, type PaperPolicy, type PaperState } from "./engine.js";
+import type { PaperExecutor } from "./executor.js";
+import { sanitizeRiskError } from "../risk/evaluate.js";
+import { paperExecutionEvidenceValid } from "./evidence.js";
 
 import { PAPER_SCHEMA_SQL } from "./schema.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -42,12 +45,12 @@ const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_num
 
 export class PaperStore {
   private readonly pool: pg.Pool;
-  constructor(connectionString: string) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
+  constructor(connectionString: string, private readonly executor?: PaperExecutor) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
   async migrate() { await this.pool.query(PAPER_SCHEMA_SQL); }
   async start(streamKey: string, policy: PaperPolicy): Promise<string> {
     policy = paperPolicy(policy);
     const state = initialPaperState();
-    state.reasons = ["paper_transaction_simulation_unavailable"];
+    state.reasons = ["awaiting_first_live_checkpoint"];
     const result = await this.pool.query<{ id: string }>(
       `INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status) VALUES($1,$2,$3,$4,'waiting') RETURNING id::text`,
       [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(state)]);
@@ -82,6 +85,13 @@ export class PaperStore {
       const now = (await client.query<{ now: Date }>("SELECT NOW() AS now")).rows[0]!.now.toISOString();
       session.policy = paperPolicySchema.parse(session.policy);
       if (policyHash(session.policy) !== session.policy_hash) throw new Error("Stored paper policy hash mismatch");
+      if ("executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1" &&
+        !(await paperExecutionEvidenceValid(client, session))) {
+        session.state = invalidatePaper(session.state, now, ["paper_execution_evidence_invalid"]);
+        await this.update(client, session.id, session.state, session.state.reasons);
+        await client.query("COMMIT");
+        return { id: session.id, status: session.state.status, action: session.state.action, reasons: session.state.reasons };
+      }
       // Preserve the journal on reorgs; revoke the result rather than rewriting it.
       const invalid = await client.query<{ invalid: string }>(
         `SELECT COUNT(*)::text AS invalid FROM paper_observations o
@@ -132,12 +142,47 @@ export class PaperStore {
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
         [session.stream_key,PAPER_POOL,session.state.last?.block ?? cp.block,cp.block]);
       const swaps = path.rows[0]!;
-      const state = advancePaper(session.state, session.policy, { now, checkpoint: cp, dataReasons,
+      const input: PaperInput = { now, checkpoint: cp, dataReasons,
         entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
-        pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count });
-      await client.query(`INSERT INTO paper_observations(session_id,checkpoint_id,block_number,block_hash,source_at,action,state,entry_reasons)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`,[session.id,cp.id,cp.block,cp.hash,cp.blockTimestamp,state.action,JSON.stringify(state),JSON.stringify([...new Set(entryReasons)])]);
+        pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
+        execution: { available: this.executor !== undefined } };
+      let state = advancePaper(session.state, session.policy, input);
+      if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
+        const action = state.reasons.includes("paper_entry_quote_required") ? "quote"
+          : state.reasons.includes("paper_entry_simulation_required") ? "entry"
+          : state.reasons.includes("paper_exit_simulation_required") ? "exit" : null;
+        if (action) {
+          let evidence: unknown;
+          let status = "succeeded";
+          let execution: NonNullable<PaperInput["execution"]> = { available: true };
+          try {
+            if (action === "quote") {
+              evidence = execution.quote = await this.executor.quote(cp, session.policy);
+            } else if (action === "entry") {
+              const result = await this.executor.enter(cp, session.policy, state.execution!.intent!);
+              evidence = result; execution.entry = { runId: "pending", ...result };
+            } else {
+              const p = state.position!;
+              const result = await this.executor.exit(cp, session.policy, { ...p, allowances: state.execution!.allowances,
+                nativeBalanceWei: String(10n ** 18n - BigInt(state.execution!.gasSpentWei)) });
+              evidence = result; execution.exit = { runId: "pending", ...result };
+            }
+          } catch (error) {
+            status = "failed"; execution = { available: true, error: sanitizeRiskError(error) };
+            evidence = { error: execution.error };
+          }
+          const saved = await client.query<{ id: string }>(`INSERT INTO paper_execution_runs
+            (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id::text`,
+            [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence)]);
+          if (execution.entry) execution.entry.runId = saved.rows[0]!.id;
+          if (execution.exit) execution.exit.runId = saved.rows[0]!.id;
+          state = advancePaper(session.state, session.policy, { ...input, now: new Date().toISOString(), execution });
+        }
+      }
+      await client.query(`INSERT INTO paper_observations(session_id,checkpoint_id,block_number,block_hash,source_at,action,state,entry_reasons,observed_at)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp())`,[session.id,cp.id,cp.block,cp.hash,cp.blockTimestamp,state.action,JSON.stringify(state),JSON.stringify([...new Set(entryReasons)])]);
       await this.update(client, session.id, state, []);
       await client.query("COMMIT");
       return { id: session.id, status: state.status, action: state.action, reasons: state.reasons };
@@ -145,7 +190,7 @@ export class PaperStore {
     finally { client.release(); }
   }
   private async update(client: PoolClient, id: string, state: PaperState, monitorReasons: readonly string[]) {
-    await client.query("UPDATE paper_sessions SET state=$2,status=$3,updated_at=NOW(),heartbeat_at=NOW(),monitor_reasons=$4 WHERE id=$1",[id,JSON.stringify(state),state.status,JSON.stringify(monitorReasons)]);
+    await client.query("UPDATE paper_sessions SET state=$2,status=$3,updated_at=clock_timestamp(),heartbeat_at=clock_timestamp(),monitor_reasons=$4 WHERE id=$1",[id,JSON.stringify(state),state.status,JSON.stringify(monitorReasons)]);
   }
   async close() { await this.pool.end(); }
 }

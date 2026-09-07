@@ -3,6 +3,8 @@ import { subtractUint256 } from "../accounting/math.js";
 import { principalAmounts } from "../backtest/principal.js";
 import { USDG } from "../constants.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAndSqrtPrice } from "../simulator/math.js";
+import { advanceTransactionPaper } from "./transaction-engine.js";
+import type { PaperExecutionInput, PaperExecutionLedger } from "./execution-domain.js";
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -24,10 +26,15 @@ export interface IllustrativePaperPolicy extends PaperStrategy {
 export interface ExecutionPaperPolicy extends PaperStrategy {
   readonly executionBasis: "transaction_simulation";
 }
-export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy;
-export const DEFAULT_PAPER_POLICY: ExecutionPaperPolicy = {
+export interface TransactionPaperPolicy extends PaperStrategy {
+  readonly executionBasis: "nitro_fork_v1";
+  readonly maxSlippageBps: number;
+  readonly transactionTtlSeconds: number;
+}
+export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy | TransactionPaperPolicy;
+export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
   mode: "guarded", budgetQuote: "1000000000", halfWidthSpacings: 20,
-  executionBasis: "transaction_simulation",
+  executionBasis: "nitro_fork_v1", maxSlippageBps: 50, transactionTtlSeconds: 300,
   maxHoldingSeconds: 21_600, maxSourceAgeSeconds: 180, maxGapSeconds: 900,
   maxLiquiditySharePpm: 10_000,
 };
@@ -56,6 +63,7 @@ export interface PaperInput {
   readonly pathMinTick: number;
   readonly pathMaxTick: number;
   readonly swapCount: string;
+  readonly execution?: PaperExecutionInput;
 }
 export interface PaperPosition {
   liquidity: string; tickLower: number; tickUpper: number;
@@ -82,6 +90,7 @@ export interface PaperState {
   invalidatedAt: string | null;
   pendingSince: string | null;
   entryRange: { tickLower: number; tickUpper: number } | null;
+  execution?: PaperExecutionLedger;
 }
 export function initialPaperState(): PaperState {
   return { status: "waiting", action: "wait", reasons: [], last: null, position: null,
@@ -125,6 +134,9 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
   if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
   state.reasons = [...new Set(gates)];
   state.last = cp;
+  if ("executionBasis" in policy && policy.executionBasis === "nitro_fork_v1") {
+    return advanceTransactionPaper(previous, state, policy, input);
+  }
   if ("executionBasis" in policy) {
     // The DB checkpoint runner cannot produce transaction-specific gas, swaps,
     // or exit proceeds. Never silently fall back to the illustrative v1 fill.

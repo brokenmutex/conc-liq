@@ -1,5 +1,9 @@
 # Paper execution realism — September 7, 2026
 
+Historical correction at 07:06 UTC. The subsequent [transaction simulation
+implementation](paper-transaction-simulation-2026-09-07.md) supersedes the
+missing-simulator status below; this note preserves the original audit.
+
 The user requires paper performance to be as close as possible to the intended
 real trades before using real wallets. The first paper runner did not meet
 that requirement: it charged 1 USDG for entry, 1 USDG for exit, and a flat 10 bps

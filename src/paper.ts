@@ -3,6 +3,7 @@ import { z } from "zod";
 import { paperPolicy } from "./paper/config.js";
 import { PaperStore } from "./paper/store.js";
 import { log } from "./logger.js";
+import { NitroPaperExecutor } from "./paper/executor.js";
 const env = z.object({ DATABASE_URL: z.string().min(1), INDEXER_STREAM_KEY: z.string().default("robinhood-v3-rwa-usdg-v1") });
 async function main() {
   const [command, ...args] = process.argv.slice(2);
@@ -10,18 +11,19 @@ async function main() {
     console.log(`Usage: npm run paper -- start [--policy FILE] | tick | stop | migrate
 
 Create one immutable, forward-only NVDA/USDG paper session, then process new
-stored live checkpoints. Uses PostgreSQL only; no wallet or RPC access.
+stored live checkpoints. Uses bounded read-only RPC for prospective paper actions.
 Default: guarded entry, 1000 paper USDG, fixed ±20 tick spacings, six-hour hold,
-No fixed gas charges or slippage haircuts. Transaction simulation is required
-before paper fills; that adapter is not implemented yet. This runner currently
-records live input readiness only. No automatic range recentering.
+No fixed gas charges or slippage haircuts. Orders freeze an executable swap quote,
+then simulate swaps and LP transactions at a later fresh checkpoint. Gas uses
+Nitro estimates with paper prestate. No wallet keys or mainnet broadcasts.
 A policy JSON file can override defaults; existing sessions cannot be retuned.`);
     return;
   }
   if (!["start", "tick", "stop", "migrate"].includes(command)) throw new Error("Unknown paper command");
   if (args.length && !(command === "start" && args.length === 2 && args[0] === "--policy")) throw new Error("Unknown paper arguments");
   const config = env.parse(process.env);
-  const store = new PaperStore(config.DATABASE_URL);
+  const executor = command === "tick" ? new NitroPaperExecutor(config.DATABASE_URL) : undefined;
+  const store = new PaperStore(config.DATABASE_URL, executor);
   try {
     if (command === "migrate" || command === "start") await store.migrate();
     if (command === "start") {
@@ -32,6 +34,6 @@ A policy JSON file can override defaults; existing sessions cannot be retuned.`)
     } else if (command === "stop") {
       log("info", "paper_stop_requested", { id: await store.stop(config.INDEXER_STREAM_KEY) });
     } else log("info", "paper_schema_ready");
-  } finally { await store.close(); }
+  } finally { await store.close(); await executor?.close(); }
 }
 main().catch(error => { log("error", "paper_session_failed", { message: error instanceof Error ? error.message : "Unknown failure" }); process.exitCode = 1; });

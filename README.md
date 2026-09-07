@@ -1234,66 +1234,68 @@ the current replay sample is not strong enough to select them safely.
 
 ## Live paper session
 
-Paper trading must precede any funded wallet trial, and must approximate the
-intended transactions. The first implementation's fixed 1 USDG entry/exit
-charges, 10 bps haircut, and acquisition at spot did not meet that requirement.
-Those defaults were removed on September 7. **The current worker observes live
-inputs; a transaction simulator is not implemented, so new sessions cannot
-fill orders or report trading performance yet.**
+Paper trading precedes any funded wallet trial. The worker now freezes an
+executable swap quote and range, then simulates the USDG purchase of NVDA,
+approvals and LP mint at a later fresh checkpoint. Exit restores the paper
+position on a fresh local fork, decreases and collects liquidity, sells the
+remaining NVDA for USDG, and clears allowances. No wallet key or upstream
+transaction submission is used.
 
-The dashboard distinguishes unavailable paper execution costs from actual
-historical transaction charges for this pool. Receipt fees are shown in ETH,
-with transaction counts, block ranges and collection times. They include all
-actions in each transaction and are calibration evidence, not our fill costs.
+Each priced call must produce identical return data on the local fork and
+Robinhood Nitro with the paper account's touched prestate. Native
+`eth_estimateGas` supplies the full gas estimate; the node's parent-data
+component is retained without adding it twice. Calldata, balances, allowances,
+source hashes, local receipts and node estimates are saved. Gas remains an
+estimate until an actual transaction has a mainnet receipt. There are no flat
+entry/exit charges, spot inventory purchases or arbitrary slippage haircuts.
 
-The worker consumes existing PostgreSQL pool checkpoints and HyperSync-indexed
-swap paths. It makes no RPC calls, accepts no wallet/key, and never signs or
-broadcasts. Session parameters are fixed at creation and hashed; starting a
-second active session for the same stream is rejected. State and observations
-survive restarts. Source block and capture time must both follow session creation;
-old history is not relabeled as forward performance.
+The dashboard separates forward session performance, dated execution
+rehearsals, and actual historical transaction fees. A successful immediate
+round trip proves execution mechanics; it supplies no holding-period return.
+Historical receipt fees remain calibration evidence, not copied fill costs.
 
 ```bash
+export PATH=/root/conc-liq/.tools/node/bin:/root/.foundry/bin:$PATH
 set -a
+source /root/arb-robinhood/.env
 source .env
 set +a
+export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
 npm run paper -- start
 npm run paper -- tick
+# Optional bounded mechanics diagnostic; does not open a paper session:
+npm run paper:simulate
 ```
 
-The configured experiment uses **1,000 paper USDG**, a fixed range of ±20 tick
-spacings, and a six-hour holding limit after entry. These are experimental
-strategy settings, not optimized parameters or a real allocation.
-The hypothetical position is capped at 1% of observed active pool liquidity.
-`start --policy FILE` accepts JSON overrides before a new session; the saved
-policy cannot be retuned in place. `executionBasis` is `transaction_simulation`;
-fixed entry/exit costs and flat slippage overrides are rejected. Stored legacy
-policies remain readable without changing their hashes or journals.
+The default immutable policy (`executionBasis: nitro_fork_v1`) uses **1,000
+paper USDG**, ±20 tick spacings, a six-hour holding limit, a maximum 1% share of
+observed active liquidity and a 0.5% swap slippage limit. That last setting is
+an order constraint, not a cost debit. `start --policy FILE` accepts overrides
+before a new session. Old session policies and journals retain their hashes.
 
-The default `guarded` mode uses the intended equity-session, chain-recovery,
-NVDA risk/reference, canonicality and freshness inputs, with a fixed ±0.5%
-pool/oracle entry-deviation ceiling. It can remain in cash
-while these checks fail. `research` mode records the market/risk findings.
-Both modes require transaction simulation before a paper fill; switching to
-research does not bypass missing execution evidence. Neither authorizes live
-execution or performs wallet-specific simulation.
+Guarded entry requires the existing regular-equity-session, continuous
+five-minute chain recovery, fresh NVDA risk/reference, canonicality and event
+coverage checks, including the ±0.5% pool/oracle deviation ceiling. Research
+mode records market/risk exclusions but still requires healthy chain evidence
+and the transaction simulator. Neither mode authorizes live execution. Missing
+or stale ETH/USD and USDG/USD oracle evidence prevents a fill with invented
+gas conversion. Full oracle rounds and feed-directory provenance are saved.
 
-The next simulator must freeze orders before observing their execution state,
-acquire NVDA through the intended swap route, execute the LP calls with the
-paper inventory/allowances, and retain the resulting balances and gas evidence.
-An exit needs its own fresh simulation and, for a cash P&L, a sale of the
-remaining NVDA. A slippage limit is an order constraint, not a fee to subtract.
-No arbitrary fee, perfect spot fill, zero missing cost or stale quote may fill
-an evidence gap. A paper transaction has no mainnet receipt: simulation results
-must remain labeled estimates, distinct from actual recorded transaction costs.
+The LP allocation's NAV deducts estimated ETH gas at each action's validated
+USDG conversion. The local account's 1 ETH technical gas float is excluded from
+the 1,000 USDG allocation and tracked against a separate native spending cap.
+The entry's immediate-exit simulation supplies a reserve; the later exit
+replaces that reserve with a fresh estimate, charged once. Passive holding
+starts with the same purchased inventory and shares its acquisition gas cost.
 
-The preserved v1 accounting engine is an illustrative regression fixture.
-It uses pool-spot marks and observed fee-growth deltas for a hypothetical LP,
-with no self-dilution or market impact. Range crossings, invalidated hashes,
-missed decisions or coverage gaps revoke its results. It does not establish
-executable fills, liquidation value, realized fees or trading profitability.
+Open positions use spot marks and observed in-range fee growth. **Hypothetical
+LP fee income is still an estimate:** adding our liquidity would change fee
+sharing and potentially the swap path. Range crossings, source hash changes,
+missing execution evidence and coverage gaps invalidate performance. Closed
+cash results include those estimated fees; they are not mainnet realized P&L.
+The worker does not yet simulate submission failures, MEV or an inclusion queue.
 
-Install the database-only worker timer:
+Install the worker timer (Anvil must be available on the configured PATH):
 
 ```bash
 sudo install -m 0644 ops/conc-liq-paper.service ops/conc-liq-paper.timer /etc/systemd/system/
@@ -1302,41 +1304,39 @@ sudo systemctl enable --now conc-liq-paper.timer
 journalctl -u conc-liq-paper.service -f
 ```
 
-It checks for new source data every 15 seconds; inputs arrive with the existing
-roughly five-minute checkpoints. Dashboard/API refreshes and worker heartbeats
-are shown separately from valuation timestamps. `npm run paper -- stop` cancels
-an unentered session or requests a later paper exit for an open one. Stopping
-the timer itself does not simulate an exit; an unattended gap can invalidate an
-open session on restart. The new tables are included in `db:migrate`, and
-`paper start`/`paper migrate` can create just the paper tables.
+The timer checks every 15 seconds; source checkpoints currently arrive about
+every five minutes. Decisions and fills must occur at different checkpoints.
+RPC is used only for prospective execution actions, with at most 400 fork reads,
+100 ms pacing, a 150-second fork deadline and health checks before each read.
+Ordinary marks consume PostgreSQL checkpoints and HyperSync-indexed swap paths.
+Worker heartbeat, source time and simulation completion time remain distinct.
 
-See [execution realism correction](notes/paper-execution-realism-2026-09-07.md)
-and the preserved [initial activation evidence](notes/live-paper-session-2026-09-06.md).
+State, orders and evidence survive worker restarts; duplicate actions for a
+checkpoint are rejected. `npm run paper -- stop` cancels an unentered session or
+requests a later simulated exit. Stopping the timer itself does not exit an
+open position. `paper start` and `paper migrate` create only the paper tables.
+
+See [transaction simulation and validation](notes/paper-transaction-simulation-2026-09-07.md),
+the preserved [cost correction](notes/paper-execution-realism-2026-09-07.md),
+and [first session evidence](notes/live-paper-session-2026-09-06.md).
 
 ## Next slice
 
-Run and review the paper session before selecting or funding real wallets.
-The local mint/observe/decrease/collect rehearsal remains complete; its evidence
-is an execution-mechanics milestone, not measured strategy performance.
+Run a complete forward paper lifecycle during eligible conditions and review
+net P&L, alpha versus holding, fee estimates, transaction costs, drawdown, delays
+and failures. Waiting in cash and local rehearsals are not strategy results.
+Review whether five-minute decisions and the current fixed range fit the
+intended trading cadence before optimizing or adding rebalancing.
 
-1. Extend the existing bounded local lifecycle rehearsal into a current-state
-   paper execution simulator: cash-to-inventory swap, approvals, mint,
-   decrease/collect and inventory-to-cash swap. Attach chain gas estimates,
-   including parent-chain data cost, and actual amount deltas to each action.
-   Use receipt measurements to check the estimates; do not copy aggregate
-   historical charges into new orders. No additional archive infrastructure is
-   required for this current-state work.
-2. Then run a complete forward paper lifecycle during eligible conditions.
-   Review net P&L and alpha versus holding separately, fees, execution costs,
-   drawdown, delays and failures. Every changed policy starts a new identified
-   session. Waiting in cash and the local rehearsal are not trading results.
-3. Only after paper review should an operator-specific preflight and separately
-   approved tiny funded lifecycle be considered. No wallet, signing or
-   broadcast authorization is introduced by paper trading.
+Use observed mainnet receipts to calibrate gas estimates for comparable calls.
+Improve hypothetical LP fee allocation and inclusion/failure scenarios where
+the forward evidence shows those uncertainties matter. Any policy change
+starts a new session. Only after paper review should an operator-specific
+preflight and separately approved tiny funded lifecycle be considered.
 
-HyperSync continues to supply historical events; the private node is reserved
-for existing current-state reads and eventual execution. Full historical fee
-scans and additional archive/provider-budget infrastructure remain optional.
+HyperSync continues to supply historical events. The private node supplies
+bounded recent-state simulation; no additional archive infrastructure or full
+historical fee scan is required for this milestone.
 
 ## Source-of-truth addresses
 

@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-09-07T08:03:19.349Z",
+  "scope": "isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance",
+  "passed": [
+    "one active session per stream",
+    "quote frozen before a later checkpoint",
+    "restart retains quote without duplicate calls",
+    "entry uses simulation balances and gas",
+    "idle ticks do not repeat fills",
+    "failed exit preflight retains position and charges no gas",
+    "later exit replaces reserve with fresh gas exactly once",
+    "successful and failed execution evidence persists",
+    "cost evidence revocation hides economics",
+    "missing canonical hash hides economics"
+  ],
+  "calls": {
+    "quote": 1,
+    "entry": 1,
+    "exit": 2
+  },
+  "journalRows": 4,
+  "executionRuns": [
+    {
+      "action": "quote",
+      "status": "succeeded"
+    },
+    {
+      "action": "entry",
+      "status": "succeeded"
+    },
+    {
+      "action": "exit",
+      "status": "failed"
+    },
+    {
+      "action": "exit",
+      "status": "succeeded"
+    }
+  ],
+  "fixtureSchemaRemoved": true
+}

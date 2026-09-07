@@ -45,6 +45,11 @@
           <article><div class="metric-label">Maximum observed drawdown</div><div id="paper-drawdown" class="focus-value">—</div><div id="paper-coverage" class="muted">No completed holding intervals</div></article>
         </div>
         <p id="paper-policy" class="research-note">Paper fills require transaction simulation and evidence for execution costs.</p>
+        <p id="paper-execution-proof" class="muted">Waiting for transaction simulation evidence.</p>
+        <details><summary class="paper-journal-summary">Paper transaction simulations</summary>
+          <p class="muted">Each entry and exit records the simulated calls, source block, balances and node gas estimates. A successful preflight becomes a paper fill only if the session's freshness and risk checks also pass.</p>
+          <div class="table-wrap"><table><thead><tr><th>Action</th><th>Result</th><th>Estimated action gas (ETH)</th><th>Source block</th><th>Observed at</th></tr></thead><tbody id="paper-execution-runs"></tbody></table></div>
+        </details>
         <details><summary class="paper-journal-summary">Actual transaction fees observed on this pool</summary>
           <p class="muted">Historical whole-transaction charges, including any bundled actions. These are calibration evidence, not charges for our paper orders. Kept in ETH without assuming a USDG conversion price.</p>
           <p id="paper-receipt-empty" class="muted">No matching receipt evidence available.</p>

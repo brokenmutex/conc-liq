@@ -1,0 +1,179 @@
+{
+  "observedAt": "2026-09-07T08:08:23.173Z",
+  "paper": {
+    "id": "3",
+    "createdAt": "2026-09-07T08:05:09.717Z",
+    "updatedAt": "2026-09-07T08:05:09.717Z",
+    "heartbeatAt": "2026-09-07T08:08:10.021Z",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "maxGapSeconds": 900,
+      "executionBasis": "nitro_fork_v1",
+      "maxSlippageBps": 50,
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000,
+      "transactionTtlSeconds": 300
+    },
+    "policyHash": "32ec0e0acfd86de2f35c2599fdbc93480bbc315b12636b4f9b0cbf91af762924",
+    "state": {
+      "last": null,
+      "action": "wait",
+      "status": "waiting",
+      "reasons": [
+        "awaiting_first_live_checkpoint"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": null,
+      "holdQuote": null,
+      "intervals": 0,
+      "alphaQuote": null,
+      "entryRange": null,
+      "peakNavQuote": "0",
+      "pendingSince": null,
+      "feeValueQuote": null,
+      "invalidatedAt": null,
+      "observedSwaps": "0",
+      "costsPaidQuote": "0",
+      "maxDrawdownPpm": "0",
+      "exitReserveQuote": "0"
+    },
+    "monitorReasons": [
+      "awaiting_next_live_checkpoint"
+    ],
+    "sourceCanonical": true,
+    "points": [],
+    "execution": {
+      "rehearsal": {
+        "computedAt": "2026-09-07T07:47:10.364Z",
+        "block": "56666711",
+        "budgetQuote": "1000000000",
+        "cashDeltaQuote": "-515154",
+        "totalGasWei": "466529295616000",
+        "transactions": 10
+      },
+      "runs": []
+    },
+    "receiptCosts": [
+      {
+        "lastBlock": "56663098",
+        "maxFeeWei": "581006697340000",
+        "minFeeWei": "27594771360000",
+        "firstBlock": "54417932",
+        "actionClass": "collect_bundle",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "32"
+      },
+      {
+        "lastBlock": "56667917",
+        "maxFeeWei": "3359994813472000",
+        "minFeeWei": "29069533416000",
+        "firstBlock": "54417636",
+        "actionClass": "exit_bundle",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "260"
+      },
+      {
+        "lastBlock": "56668990",
+        "maxFeeWei": "7241905289192000",
+        "minFeeWei": "49343901368000",
+        "firstBlock": "54417326",
+        "actionClass": "mint_bundle",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "285"
+      },
+      {
+        "lastBlock": "56212012",
+        "maxFeeWei": "11688626560576000",
+        "minFeeWei": "5341083333280000",
+        "firstBlock": "54432157",
+        "actionClass": "mixed",
+        "collectedAt": "2026-09-06T23:00:09.742+03:00",
+        "transactions": "7"
+      },
+      {
+        "lastBlock": "56645953",
+        "maxFeeWei": "2108971531238000",
+        "minFeeWei": "326470066000000",
+        "firstBlock": "54947758",
+        "actionClass": "rebalance_bundle",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "12"
+      },
+      {
+        "lastBlock": "56674501",
+        "maxFeeWei": "4921790409360000",
+        "minFeeWei": "58718454858000",
+        "firstBlock": "54436435",
+        "actionClass": "swap_only",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "430"
+      }
+    ],
+    "executionEligible": false
+  },
+  "entryReadiness": {
+    "policy": "robinhood_quorum_recovery_regular_session_v1",
+    "evaluatedAt": "2026-09-07T08:08:23.173Z",
+    "chainEligible": false,
+    "session": "closed",
+    "reasons": [
+      "chain_recovery_not_continuously_healthy",
+      "chain_anchor_quorum_unproven",
+      "equity_session_closed"
+    ],
+    "sampleIds": [
+      "22774",
+      "22775",
+      "22776",
+      "22777",
+      "22778",
+      "22779",
+      "22780",
+      "22781",
+      "22782",
+      "22783",
+      "22784",
+      "22785",
+      "22786",
+      "22787",
+      "22788",
+      "22789",
+      "22790",
+      "22791",
+      "22792",
+      "22793",
+      "22794",
+      "22795",
+      "22796",
+      "22797",
+      "22798",
+      "22799",
+      "22800",
+      "22801",
+      "22802",
+      "22803",
+      "22804"
+    ],
+    "recoverySeconds": 300
+  },
+  "riskReasons": [
+    "risk_snapshot_stale",
+    "risk_block_validation_stale",
+    "sequencer_feed_unavailable",
+    "oracle_price_stale",
+    "quote_oracle_unavailable"
+  ],
+  "checks": [
+    "guarded simulator session active without invented fills or PnL",
+    "dated round trip and native gas estimate visible separately",
+    "focus panel reflects latest execution mechanics",
+    "historical receipt costs remain separate",
+    "execution action table and reset verified with labelled browser fixture",
+    "desktop and mobile without page overflow",
+    "no browser errors"
+  ]
+}

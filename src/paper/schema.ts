@@ -16,4 +16,13 @@ CREATE TABLE IF NOT EXISTS paper_observations (
   UNIQUE(session_id, checkpoint_id)
 );
 CREATE INDEX IF NOT EXISTS paper_observations_latest_idx ON paper_observations (session_id, id DESC);
+CREATE TABLE IF NOT EXISTS paper_execution_runs (
+  id BIGSERIAL PRIMARY KEY, session_id BIGINT NOT NULL REFERENCES paper_sessions(id),
+  checkpoint_id BIGINT NOT NULL, source_block NUMERIC(78,0) NOT NULL, source_hash TEXT NOT NULL,
+  policy_hash TEXT NOT NULL, action TEXT NOT NULL CHECK(action IN ('quote','entry','exit')),
+  observed_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),
+  status TEXT NOT NULL CHECK(status IN ('succeeded','failed')), snapshot JSONB NOT NULL,
+  execution_eligible BOOLEAN NOT NULL DEFAULT FALSE CHECK(NOT execution_eligible),
+  UNIQUE(session_id,checkpoint_id,action)
+);
 `;

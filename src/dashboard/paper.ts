@@ -2,6 +2,8 @@ import type { PoolClient } from "pg";
 import type { PaperSessionRow } from "../paper/store.js";
 import { invalidatePaper } from "../paper/engine.js";
 import { readPaperReceiptCosts } from "./paper-costs.js";
+import { readPaperExecutionDashboard } from "./paper-execution.js";
+import { paperExecutionEvidenceValid } from "../paper/evidence.js";
 interface PaperPoint {
   checkpointId: string; block: string; observedAt: string; sourceAt: string;
   action: string; navQuote: string | null; holdQuote: string | null;
@@ -23,11 +25,13 @@ export async function readPaperDashboard(client: PoolClient, streamKey: string) 
       OR c.block_number IS DISTINCT FROM o.block_number OR LOWER(c.block_hash) IS DISTINCT FROM LOWER(o.block_hash)
       OR v.block_number IS DISTINCT FROM o.block_number OR LOWER(v.expected_hash) IS DISTINCT FROM LOWER(o.block_hash)
       OR LOWER(v.observed_hash) IS DISTINCT FROM LOWER(o.block_hash))) AS canonical`,[row.id])).rows[0]!.canonical;
+  const executionValid = !("executionBasis" in row.policy && row.policy.executionBasis === "nitro_fork_v1") || await paperExecutionEvidenceValid(client,row);
   return { id: row.id, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
     heartbeatAt: row.heartbeat_at?.toISOString() ?? null, policy: row.policy, policyHash: row.policy_hash,
-    state: valid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),["prior_paper_source_no_longer_canonical"]),
+    state: valid && executionValid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),[!valid ? "prior_paper_source_no_longer_canonical" : "paper_execution_evidence_invalid"]),
     monitorReasons: row.monitor_reasons, sourceCanonical: valid,
-    points: valid ? points.rows.reverse().map(p=>p.point) : [],
+    points: valid && executionValid ? points.rows.reverse().map(p=>p.point) : [],
+    execution: await readPaperExecutionDashboard(client, row.id),
     receiptCosts: await readPaperReceiptCosts(client, streamKey), executionEligible: false as const };
 }
 export type PaperDashboard = Awaited<ReturnType<typeof readPaperDashboard>>;

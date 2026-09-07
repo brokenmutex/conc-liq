@@ -1,0 +1,116 @@
+import assert from "node:assert/strict";
+import { subtractUint256 } from "../accounting/math.js";
+import { principalAmounts } from "../backtest/principal.js";
+import { convertWeiToQuoteRaw } from "../action-cost/valuation.js";
+import { USDG } from "../constants.js";
+import { quoteValue } from "../simulator/math.js";
+import { invalidatePaper, PAPER_NVDA, type PaperInput, type PaperState, type TransactionPaperPolicy } from "./engine.js";
+import type { PaperGasValuation } from "./execution-domain.js";
+
+export function paperGasQuote(feeWei: string, valuation: PaperGasValuation): bigint {
+  return convertWeiToQuoteRaw({ feeWei: BigInt(feeWei), quoteDecimals: 6,
+    ethUsdAnswer: BigInt(valuation.ethUsdAnswer), ethUsdDecimals: valuation.ethUsdDecimals,
+    quoteUsdAnswer: BigInt(valuation.quoteUsdAnswer), quoteUsdDecimals: valuation.quoteUsdDecimals });
+}
+const seconds = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 1000;
+export function advanceTransactionPaper(previous: PaperState, state: PaperState, policy: TransactionPaperPolicy, input: PaperInput): PaperState {
+  const cp = input.checkpoint;
+  const value = (amount0: bigint, amount1: bigint) => quoteValue({ amount0, amount1, token0: USDG, token1: PAPER_NVDA, quoteToken: USDG, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+  const proofMatches = (source: { block: string; hash: string }, valuation: PaperGasValuation) => {
+    assert(source.block === cp.block && source.hash.toLowerCase() === cp.hash.toLowerCase(), "Paper execution source differs from accounting checkpoint");
+    assert(valuation.sourceBlock === cp.block && valuation.sourceHash.toLowerCase() === cp.hash.toLowerCase(), "Paper gas valuation source mismatch");
+  };
+  const ledger = state.execution ??= { intent: null, entryRunId: null, exitRunId: null, gasSpentWei: "0", holdGasQuote: "0",
+    exitReserveWei: "0", allowances: [], earnedFee0: "0", earnedFee1: "0", lastValuation: null };
+  if (state.position && !previous.execution?.entryRunId) return invalidatePaper(previous, input.now, ["paper_entry_execution_evidence_missing"]);
+  if (!input.execution?.available) {
+    if (state.position) return invalidatePaper(previous, input.now, ["paper_transaction_simulation_unavailable"]);
+    return { ...state, status: "waiting", reasons: [...state.reasons, "paper_transaction_simulation_unavailable"] };
+  }
+  if (!state.position) {
+    if (!input.chainHealthy || (policy.mode === "guarded" && state.reasons.length)) {
+      ledger.intent = null; state.pendingSince = null; state.entryRange = null; state.status = "waiting"; return state;
+    }
+    if (input.execution.error) {
+      ledger.intent = null; state.pendingSince = null; state.entryRange = null;
+      return { ...state, status: "waiting", reasons: [...state.reasons, "paper_entry_preflight_failed", input.execution.error] };
+    }
+    if (!ledger.intent || previous.status !== "entry_pending") {
+      const quote = input.execution.quote;
+      if (!quote) return { ...state, status: "waiting", reasons: [...state.reasons, "paper_entry_quote_required"] };
+      assert(quote.sourceBlock === cp.block && quote.sourceHash.toLowerCase() === cp.hash.toLowerCase(), "Paper entry quote source mismatch");
+      assert(BigInt(quote.swapAmountQuote) > 0n && BigInt(quote.swapAmountQuote) < BigInt(policy.budgetQuote) && BigInt(quote.minRwaOut) > 0n);
+      ledger.intent = quote; state.entryRange = { tickLower: quote.tickLower, tickUpper: quote.tickUpper };
+      return { ...state, status: "entry_pending", action: "signal_entry", pendingSince: input.now };
+    }
+    if (!state.pendingSince || Date.parse(cp.blockTimestamp) <= Date.parse(state.pendingSince)) return state;
+    if (seconds(state.pendingSince, input.now) > policy.maxGapSeconds || cp.tick < ledger.intent.tickLower || cp.tick >= ledger.intent.tickUpper) {
+      ledger.intent = null; state.pendingSince = null; state.entryRange = null;
+      return { ...state, status: "waiting", reasons: [...state.reasons, "paper_entry_intent_expired_or_outside_range"] };
+    }
+    const fill = input.execution.entry;
+    if (!fill) return { ...state, reasons: [...state.reasons, "paper_entry_simulation_required"] };
+    proofMatches(fill.result.source, fill.valuation);
+    const r = fill.result;
+    assert(r.policy.budgetQuote === policy.budgetQuote && r.range.tickLower === ledger.intent.tickLower && r.range.tickUpper === ledger.intent.tickUpper);
+    assert(r.entrySwap.amountIn === ledger.intent.swapAmountQuote && BigInt(r.entrySwap.actualOut) >= BigInt(ledger.intent.minRwaOut));
+    assert(BigInt(r.liquidity) > 0n && BigInt(r.liquidity) * 1000000n <= BigInt(cp.liquidity) * BigInt(policy.maxLiquiditySharePpm));
+    assert(BigInt(r.entryGasWei) + BigInt(r.exitGasWei) <= 10n ** 18n, "Paper native gas fixture budget exhausted");
+    ledger.entryRunId = fill.runId; ledger.gasSpentWei = r.entryGasWei; ledger.exitReserveWei = r.exitGasWei;
+    ledger.allowances = r.allowances; ledger.lastValuation = fill.valuation;
+    const buyIndex = r.transactions.findIndex(tx => tx.action === "buy_nvda");
+    assert(buyIndex >= 0, "Paper entry has no inventory acquisition");
+    ledger.holdGasQuote = String(paperGasQuote(String(r.transactions.slice(0, buyIndex + 1).reduce((sum, tx) => sum + BigInt(tx.estimate.totalFeeWei), 0n)), fill.valuation));
+    state.position = { liquidity: r.liquidity, ...r.range, idle0: r.balances.afterMint.quote, idle1: r.balances.afterMint.rwa,
+      fee0: "0", fee1: "0", hold0: r.balances.inventory.quote, hold1: r.balances.inventory.rwa, enteredAt: cp.blockTimestamp };
+    state.costsPaidQuote = String(paperGasQuote(r.entryGasWei, fill.valuation));
+    state.exitReserveQuote = String(paperGasQuote(r.exitGasWei, fill.valuation));
+    state.status = "open"; state.action = "enter"; state.pendingSince = null;
+  } else {
+    const last = previous.last;
+    assert(last, "Open paper position has no accounting baseline");
+    const gap = seconds(last.blockTimestamp, cp.blockTimestamp);
+    if (!Number.isFinite(gap) || gap <= 0 || gap > policy.maxGapSeconds) return invalidatePaper(previous, input.now, ["checkpoint_gap_prevents_forward_decision_proof"]);
+    const p = state.position;
+    assert(input.pathMinTick <= Math.min(last.tick, cp.tick) && input.pathMaxTick >= Math.max(last.tick, cp.tick), "Paper swap path omits an endpoint");
+    if (input.pathMinTick < p.tickLower || input.pathMaxTick >= p.tickUpper) return invalidatePaper(previous, input.now, ["range_crossed_fee_coverage_incomplete"]);
+    if (input.swapCount === "0" && cp.sqrtPriceX96 !== last.sqrtPriceX96) return invalidatePaper(previous, input.now, ["price_change_without_swap_coverage"]);
+    p.fee0 = String(BigInt(p.fee0) + subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0)) * BigInt(p.liquidity) / (1n << 128n));
+    p.fee1 = String(BigInt(p.fee1) + subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1)) * BigInt(p.liquidity) / (1n << 128n));
+    ledger.earnedFee0 = p.fee0; ledger.earnedFee1 = p.fee1;
+    state.intervals++; state.observedSwaps = String(BigInt(state.observedSwaps) + BigInt(input.swapCount)); state.action = "mark";
+    if (previous.status === "exit_pending" && input.chainHealthy && state.pendingSince && Date.parse(cp.blockTimestamp) > Date.parse(state.pendingSince)) {
+      const fill = input.execution.exit;
+      if (!fill) {
+        state.reasons = [...state.reasons, input.execution.error ? "paper_exit_preflight_failed" : "paper_exit_simulation_required", ...(input.execution.error ? [input.execution.error] : [])];
+        state.status = "exit_pending";
+      } else {
+        proofMatches(fill.result.source, fill.valuation);
+        const r = fill.result;
+        assert(r.inventory.liquidity === p.liquidity && r.inventory.tickLower === p.tickLower && r.inventory.tickUpper === p.tickUpper);
+        assert(r.inventory.idle0 === p.idle0 && r.inventory.idle1 === p.idle1 && r.inventory.fee0 === p.fee0 && r.inventory.fee1 === p.fee1, "Exit inventory differs from the forward paper ledger");
+        ledger.exitRunId = fill.runId; ledger.gasSpentWei = String(BigInt(ledger.gasSpentWei) + BigInt(r.totalGasWei));
+        assert(BigInt(ledger.gasSpentWei) <= 10n ** 18n, "Paper native gas fixture budget exhausted");
+        ledger.exitReserveWei = "0"; ledger.lastValuation = fill.valuation;
+        state.costsPaidQuote = String(BigInt(state.costsPaidQuote) + paperGasQuote(r.totalGasWei, fill.valuation));
+        state.exitReserveQuote = "0"; state.status = "closed"; state.action = "exit"; state.pendingSince = null;
+        p.liquidity = "0"; p.idle0 = r.balances.afterExit.quote; p.idle1 = "0"; p.fee0 = "0"; p.fee1 = "0";
+      }
+    } else if (previous.status === "exit_pending" || seconds(p.enteredAt, input.now) >= policy.maxHoldingSeconds ||
+      (policy.mode === "guarded" && state.reasons.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
+      state.status = "exit_pending"; state.action = "signal_exit"; state.pendingSince ??= input.now;
+    }
+  }
+  const p = state.position!;
+  const principal = principalAmounts({ liquidity: BigInt(p.liquidity), tickLower: p.tickLower, tickUpper: p.tickUpper, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+  const nav = value(principal.amount0 + BigInt(p.idle0) + BigInt(p.fee0), principal.amount1 + BigInt(p.idle1) + BigInt(p.fee1)) - BigInt(state.costsPaidQuote) - BigInt(state.exitReserveQuote);
+  const hold = value(BigInt(p.hold0), BigInt(p.hold1)) - BigInt(ledger.holdGasQuote);
+  state.navQuote = String(nav); state.holdQuote = String(hold);
+  state.pnlQuote = String(nav - BigInt(policy.budgetQuote)); state.alphaQuote = String(nav - hold);
+  state.feeValueQuote = String(value(BigInt(ledger.earnedFee0), BigInt(ledger.earnedFee1)));
+  const previousPeak = previous.position ? BigInt(state.peakNavQuote) : BigInt(policy.budgetQuote);
+  const peak = previousPeak > nav ? previousPeak : nav;
+  const drawdown = peak > 0n ? (peak - nav) * 1000000n / peak : 0n;
+  state.peakNavQuote = String(peak); state.maxDrawdownPpm = String(drawdown > BigInt(state.maxDrawdownPpm) ? drawdown : BigInt(state.maxDrawdownPpm));
+  return state;
+}
