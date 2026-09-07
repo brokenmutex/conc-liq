@@ -1,0 +1,36 @@
+{
+  "scope": "Discrete checkpoints only; intrainterval extremes may be missed. No rebalance performance backtest.",
+  "checkpoints": 618,
+  "noncanonicalExcluded": 0,
+  "start": "2026-09-05T12:32:48.000Z",
+  "end": "2026-09-07T12:03:55.000Z",
+  "hours": 47.51861111111111,
+  "priceMin": 230.7960740656419,
+  "priceMax": 233.20686289896358,
+  "sampledHighLowPercent": 1.0445536576311198,
+  "medianCheckpointGapMinutes": 5.116666666666666,
+  "maxGapMinutes": 30.683333333333334,
+  "gapsOver15Minutes": 12,
+  "hourBucketsAtLeast3Checkpoints": 49,
+  "medianSampledHourlyHighLowPercent": 0.04452025174859209,
+  "maxSampledHourlyHighLowPercent": 0.3686883773648786,
+  "session4": {
+    "holdingHours": 1.3122222222222222,
+    "estimatedFeesUSDG": 0.134903,
+    "estimatedGasUSDG": 1.183336,
+    "gasToFeeRatio": 8.771754519914309,
+    "observedFeeRateUSDGPerHour": 0.10280499576629974,
+    "hoursAtSameFeeRateToRecoverOneUSDG": 9.727153749154743,
+    "warning": "This fee rate is one short closed-market position, not a forecast and not an own-rebalance cost quote."
+  },
+  "rebalanceReceipts": {
+    "action_class": "rebalance_bundle",
+    "samples": 14,
+    "first_block": "54947758",
+    "last_block": "56808530",
+    "median_fee_wei": "400727194784000",
+    "p90_fee_wei": "1991896357932000",
+    "min_fee_wei": "230434427592000",
+    "max_fee_wei": "2108971531238000"
+  }
+}
