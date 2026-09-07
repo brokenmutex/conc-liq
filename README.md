@@ -3,7 +3,9 @@
 Runtime refactor: see [schema migrations and pinned releases](notes/runtime-boundaries-2026-09-07.md)
 for the new worker startup contract, isolated audits and rollout procedure.
 Workers require an explicitly migrated database; existing unversioned databases
-use `db:migrate -- --baseline`. New paper sessions use the pinned release launcher.
+use `db:migrate -- --baseline`. New paper sessions use the pinned release launcher. Service installation examples
+below require units rendered into `/tmp/conc-liq-units` by that runbook;
+`ops/` contains rendering templates, not the units to install directly.
 
 
 This repository starts the Robinhood Chain Uniswap v3 liquidity automation
@@ -236,10 +238,10 @@ sample; it does not request logs or contract state.
 Install the monitor first. The tail and accounting units require it:
 
 ```bash
-sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-tail.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-accounting.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-accounting.timer /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-rpc-health.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-tail.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-accounting.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-accounting.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-rpc-health.service
 journalctl -u conc-liq-rpc-health.service -f
@@ -301,9 +303,9 @@ current universe requires thousands of historical calls per capture. Run it
 manually, or install the isolated hourly checkpoint timer:
 
 ```bash
-sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-accounting.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-accounting.timer /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-rpc-health.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-accounting.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-accounting.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-rpc-health.service
 sudo systemctl enable --now conc-liq-accounting.timer
@@ -597,8 +599,8 @@ are automatically rebuilt from the canonical event index.
 Install the repository-owned service on this host:
 
 ```bash
-sudo install -m 0644 ops/conc-liq-rpc-health.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-tail.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-rpc-health.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-tail.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-rpc-health.service
 sudo systemctl enable --now conc-liq-tail.service
@@ -725,8 +727,8 @@ NVDA/USDG 0.05% research target. It preserves the strict 300-second oracle age:
 weekend or otherwise stale marks are stored as excluded rather than relaxed.
 
 ```bash
-sudo install -m 0644 ops/conc-liq-strategy-checkpoint.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-strategy-checkpoint.timer /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-strategy-checkpoint.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-strategy-checkpoint.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-strategy-checkpoint.timer
 systemctl list-timers conc-liq-strategy-checkpoint.timer
@@ -756,8 +758,8 @@ Hyperliquid's public API and PostgreSQL; it does not call the private Robinhood
 RPC or couple its failure state to the chain observer:
 
 ```bash
-sudo install -m 0644 ops/conc-liq-perp-reference.service /etc/systemd/system/
-sudo install -m 0644 ops/conc-liq-perp-reference.timer /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-perp-reference.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-perp-reference.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-perp-reference.timer
 systemctl list-timers conc-liq-perp-reference.timer
@@ -1104,7 +1106,7 @@ ssh -L 4173:127.0.0.1:4173 <server>
 Install the repository-owned service on this host:
 
 ```bash
-sudo install -m 0644 ops/conc-liq-dashboard.service /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-dashboard.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-dashboard.service
 systemctl status conc-liq-dashboard.service
@@ -1316,7 +1318,7 @@ The worker does not yet simulate submission failures, MEV or an inclusion queue.
 Install the worker timer (Anvil must be available on the configured PATH):
 
 ```bash
-sudo install -m 0644 ops/conc-liq-paper.service ops/conc-liq-paper.timer /etc/systemd/system/
+sudo install -m 0644 /tmp/conc-liq-units/conc-liq-paper.service /tmp/conc-liq-units/conc-liq-paper.timer /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now conc-liq-paper.timer
 journalctl -u conc-liq-paper.service -f

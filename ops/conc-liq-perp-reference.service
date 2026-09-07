@@ -1,3 +1,4 @@
+# Rendering template: use scripts/render-release-units.mjs; do not install directly.
 [Unit]
 Description=conc-liq shadow xyz:NVDA perpetual reference
 After=network-online.target postgresql.service

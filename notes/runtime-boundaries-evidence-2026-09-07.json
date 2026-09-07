@@ -1,0 +1,65 @@
+{
+  "checkedAt": "2026-09-07T11:44:59.663Z",
+  "sourceCommit": "3ba0a8ec85d0a8e95353802cfbae7f954ebfded5",
+  "buildId": "baf8904628469d4b071581514a7b7eb9a066740b081a49ed7d6b972b0df8e4b6",
+  "migrations": [
+    {
+      "version": 1,
+      "checksum": "21b11698602d31fa939a8697820d7a352c257acefcd1ad9b4029dff06a7d8775",
+      "method": "verified_baseline",
+      "applied_at": "2026-09-07T11:42:13.595Z"
+    },
+    {
+      "version": 2,
+      "checksum": "91d39f64b0fd6b7a48e41c8018a9ad2c870fab8a5bd752045c479d3318e38521",
+      "method": "applied",
+      "applied_at": "2026-09-07T11:42:13.596Z"
+    }
+  ],
+  "services": {
+    "rpc-health.service": "active",
+    "tail.service": "active",
+    "dashboard.service": "active",
+    "paper.timer": "active",
+    "strategy-checkpoint.timer": "active",
+    "perp-reference.timer": "active",
+    "accounting.timer": "active"
+  },
+  "checkpoint": {
+    "id": "599",
+    "block_number": "56807996",
+    "block_timestamp": "2026-09-07T11:44:27.000Z",
+    "captured_at": "2026-09-07T11:44:34.751Z"
+  },
+  "rpcHealth": {
+    "observed_at": "2026-09-07T11:44:53.451Z",
+    "state": "healthy"
+  },
+  "legacySession": {
+    "id": "4",
+    "status": "closed",
+    "policy_hash": "99781c7894225d594a46f4087157f47983db12af074e31558ef5235083bd66d5",
+    "runtime_identity": null,
+    "nav_quote": "996580017",
+    "pnl_quote": "-3419983",
+    "alpha_quote": "-1290882"
+  },
+  "activePaperSessions": 0,
+  "dashboard": {
+    "httpStatus": 200,
+    "sessionId": "4",
+    "status": "closed",
+    "pnlQuote": "-3419983",
+    "sourceCanonical": true
+  },
+  "validation": {
+    "unitTestsPassed": 209,
+    "typecheckPassed": true,
+    "isolatedMigrationAuditPassed": true,
+    "isolatedLifecycleAuditPassed": true,
+    "compiledReleaseSmokePassed": true,
+    "systemdUnitsVerified": true
+  },
+  "preexistingAccountingJobFailure": true,
+  "newPaperSessionStarted": false
+}

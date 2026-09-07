@@ -1,9 +1,9 @@
 # First architecture refactor: schema and release boundaries
 
 This implements stages 0–1 of the [architecture review](architecture-review-2026-09-07.md).
-Work is isolated on `refactor/runtime-boundaries` in
-`/root/conc-liq-runtime-refactor`. Existing source-based services have not been
-switched, restarted or given a new paper session. The dashboard redesign and
+Implementation was isolated on `refactor/runtime-boundaries` in
+`/root/conc-liq-runtime-refactor`, then activated at the idle session boundary
+at 11:42 UTC. Services now run the pinned release; no new paper session was started. The dashboard redesign and
 strategy-contract extraction remain subsequent slices.
 
 ## Changes
@@ -29,7 +29,7 @@ strategy-contract extraction remain subsequent slices.
   configuration manifests, UI assets and the two currently required rehearsal
   artifacts into a separate, sealed directory. A manifest hashes its contents.
   The launcher verifies the release before each invocation and uses its pinned
-  binaries. No `src/`, `.env`, wallet keys or shared `node_modules` symlink is
+  binaries. No application `src/`, `.env`, wallet keys or shared `node_modules` symlink is
   installed into a release.
 - The service renderer produces reviewable units with explicit release paths,
   preserving all accounting/perpetual job arguments and timers. It does not
@@ -173,3 +173,35 @@ use its pinned runtime to finish/cancel it; do not resume it under old source
 code that lacks runtime checks. Future schema changes must append migrations and
 declare a compatibility window; the current implementation intentionally rejects
 unknown versions. A rollback never rewrites a policy hash or trading history.
+
+## September 7 activation evidence
+
+[Recorded rollout checks](runtime-boundaries-evidence-2026-09-07.json) identify
+source commit `3ba0a8e` and build
+`baf8904628469d4b071581514a7b7eb9a066740b081a49ed7d6b972b0df8e4b6`.
+Schema versions 1 and 2 committed at 11:42:13 UTC. Version 1 used verified
+baseline registration. The old paper rows retain null runtime metadata;
+session 4 retains its original policy hash and −3.419983 USDG result.
+
+At 11:44:59 UTC the RPC monitor, tail, dashboard and all four previously active
+timers were active. RPC health was healthy, replay was advancing, checkpoint
+599 covered block 56,807,996, the dashboard returned HTTP 200 with canonical
+legacy-session evidence, and the paper timer completed with no active session.
+The targeted checkpoint and perpetual jobs had successful exit status. The
+hourly accounting job had a failure before this rollout; its timer was restored
+without forcing additional historical work. This slice does not claim that
+preexisting accounting issue is resolved.
+
+Validation passed: typechecking, 209 unit tests, the isolated migration and
+lifecycle audits, compiled-release migration/start/tick/config-drift/stop smoke
+test, and systemd unit verification. systemd emitted an unrelated existing
+`snapd.service` warning about `RestartMode`; no generated conc-liq unit was
+rejected. The dedicated mode-0600 configuration preserves the project settings
+and explicitly supplies the private-node route. No conflicting overlapping
+project/sibling environment values were found; unrelated sibling credentials
+were not copied.
+
+Previous installed units are saved under
+`/root/conc-liq/data/runtime-rollout-2026-09-07/previous-units/`. The deployed
+private environment is `/root/conc-liq/data/runtime-refactor.env`; its contents
+are deliberately excluded from Git and the evidence report.
