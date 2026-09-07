@@ -227,7 +227,7 @@ async function main(): Promise<void> {
   const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresRangePolicyReplayStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.load({
       fee: options.fee,
       firstRunId: options.firstRunId,

@@ -1,5 +1,5 @@
 import pg from "pg";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type { RiskSnapshot } from "./domain.js";
 import { sanitizeRiskError } from "./evaluate.js";
 import type { RiskBlock } from "./reader.js";
@@ -29,8 +29,8 @@ export class PostgresRiskStore {
     this.pool = new Pool({ connectionString, max: 2 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async startAttempt(): Promise<string> {

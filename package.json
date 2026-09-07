@@ -45,7 +45,9 @@
     "test": "node --import tsx --test test/**/*.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "paper": "node --import tsx src/paper.ts",
-    "paper:simulate": "node --import tsx src/paper-execute.ts"
+    "paper:simulate": "node --import tsx src/paper-execute.ts",
+    "test:integration": "node --import tsx test/integration/migrations.mjs && node --import tsx test/integration/paper-lifecycle.mjs",
+    "release:build": "node scripts/build-release.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3",

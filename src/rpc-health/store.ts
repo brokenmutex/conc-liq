@@ -1,5 +1,5 @@
 import pg from "pg";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type {
   RpcHealthEvaluation,
   RpcHealthGateStatus,
@@ -90,8 +90,8 @@ export class PostgresRpcHealthStore {
     this.pool = new Pool({ connectionString, max: 1 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async latest(): Promise<RpcHealthPreviousStatus | null> {
@@ -187,8 +187,8 @@ export class PostgresRpcHealthGate implements BulkRpcHealthGate {
     this.pool = new Pool({ connectionString: input.connectionString, max: 1 });
   }
 
-  public async migrate(): Promise<void> {
-    if (this.enabled) await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    if (this.enabled) await assertSchemaReady(this.pool);
   }
 
   private async readLatest(): Promise<RpcHealthGateStatus | null> {

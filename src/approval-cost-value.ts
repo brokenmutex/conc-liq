@@ -89,8 +89,8 @@ async function main(): Promise<void> {
   });
   const reader = new ViemRiskChainReader(client);
   try {
-    await gate.migrate();
-    await store.migrate();
+    await gate.assertReady();
+    await store.assertReady();
     await gate.assertBulkAllowed();
     const source = await store.loadSource(options.approvalCostRunId);
     const [chainId, feedDirectory] = await Promise.all([

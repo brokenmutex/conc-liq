@@ -8,6 +8,7 @@ import { sanitizeRiskError } from "./risk/evaluate.js";
 async function main(): Promise<void> {
   const config = loadDashboardConfig();
   const repository = new DashboardRepository(config);
+  try { await repository.assertReady(); } catch (error) { await repository.close(); throw error; }
   const server = createDashboardServer(repository, config);
   await once(server, "listening");
   log("info", "dashboard_started", {

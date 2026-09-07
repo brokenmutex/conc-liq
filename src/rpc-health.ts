@@ -98,7 +98,7 @@ async function main(): Promise<void> {
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
   try {
-    await store.migrate();
+    await store.assertReady();
     let cycles = 0;
     while (!controller.signal.aborted) {
       const startedAt = Date.now();

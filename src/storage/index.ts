@@ -11,6 +11,6 @@ export async function createSnapshotStore(
   }
 
   const store = new PostgresSnapshotStore(config.databaseUrl);
-  await store.migrate();
+  await store.assertReady();
   return store;
 }

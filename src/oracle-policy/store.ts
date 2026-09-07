@@ -1,6 +1,6 @@
 import pg from "pg";
 import { USDG } from "../constants.js";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type {
   OraclePolicyCheckpoint,
   OraclePolicyReplay,
@@ -166,8 +166,8 @@ export class PostgresOraclePolicyReplayStore {
     this.pool = new Pool({ connectionString, max: 1 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async load(input: {

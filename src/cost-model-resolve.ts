@@ -119,7 +119,7 @@ async function main(): Promise<void> {
   const environment = environmentSchema.parse(process.env);
   const store = new PostgresGuardedCostModelStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const input = await store.load({
       actionAssessmentRunId: options.actionAssessmentRunId,
       approvalValuationRunId: options.approvalValuationRunId,

@@ -87,8 +87,8 @@ async function main(): Promise<void> {
   const sourceStore = new PostgresAccountingSourceStore(environment.DATABASE_URL);
   const accountingStore = new PostgresFeeAccountingStore(environment.DATABASE_URL);
   try {
-    await healthGate.migrate();
-    await accountingStore.migrate();
+    await healthGate.assertReady();
+    await accountingStore.assertReady();
     const source = await sourceStore.snapshot(indexer.streamKey);
     log("info", "fee_accounting_source_loaded", {
       blockNumber: source.blockNumber,

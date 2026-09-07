@@ -1,3 +1,4 @@
+import { assertRuntimeMatches, type RuntimeIdentity } from "../runtime/identity.js";
 import pg, { type PoolClient } from "pg";
 import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
@@ -9,10 +10,11 @@ import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
 import { readPaperReferenceGate } from "./reference.js";
 
-import { PAPER_SCHEMA_SQL } from "./schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
 export interface PaperSessionRow {
   id: string; stream_key: string; created_at: Date; updated_at: Date; heartbeat_at: Date | null;
+  runtime_identity: RuntimeIdentity | null;
   policy: PaperPolicy; policy_hash: string; state: PaperState; monitor_reasons: string[];
 }
 interface SourceRow {
@@ -46,15 +48,16 @@ const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_num
 
 export class PaperStore {
   private readonly pool: pg.Pool;
-  constructor(connectionString: string, private readonly executor?: PaperExecutor) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
-  async migrate() { await this.pool.query(PAPER_SCHEMA_SQL); }
+  constructor(connectionString: string, private readonly executor?: PaperExecutor, private readonly runtimeIdentity?: RuntimeIdentity) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
+  async assertReady() { await assertSchemaReady(this.pool); }
   async start(streamKey: string, policy: PaperPolicy): Promise<string> {
+    assertRuntimeMatches(this.runtimeIdentity ?? null, this.runtimeIdentity);
     policy = paperPolicy(policy);
     const state = initialPaperState();
     state.reasons = ["awaiting_first_live_checkpoint"];
     const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status) VALUES($1,$2,$3,$4,'waiting') RETURNING id::text`,
-      [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(state)]);
+      `INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status,runtime_identity) VALUES($1,$2,$3,$4,'waiting',$5) RETURNING id::text`,
+      [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(state),JSON.stringify(this.runtimeIdentity)]);
     return result.rows[0]!.id;
   }
   async stop(streamKey: string): Promise<string | null> {
@@ -87,6 +90,7 @@ export class PaperStore {
       const session = sessions.rows[0];
       if (!session) { await client.query("COMMIT"); return null; }
       const now = (await client.query<{ now: Date }>("SELECT NOW() AS now")).rows[0]!.now.toISOString();
+      assertRuntimeMatches(session.runtime_identity, this.runtimeIdentity);
       session.policy = paperPolicySchema.parse(session.policy);
       if (policyHash(session.policy) !== session.policy_hash) throw new Error("Stored paper policy hash mismatch");
       if ("executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1" &&
@@ -199,7 +203,9 @@ export class PaperStore {
           await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
           await client.query("SET LOCAL statement_timeout = '10s'");
           const current = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE id=$1 FOR UPDATE",[session.id])).rows[0]!;
-          const changed = current.policy_hash !== session.policy_hash || JSON.stringify(current.state) !== JSON.stringify(session.state);
+          const changed = current.runtime_identity?.buildId !== this.runtimeIdentity?.buildId ||
+            current.runtime_identity?.configHash !== this.runtimeIdentity?.configHash ||
+            current.runtime_identity?.nodeVersion !== this.runtimeIdentity?.nodeVersion || current.policy_hash !== session.policy_hash || JSON.stringify(current.state) !== JSON.stringify(session.state);
           const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[session.stream_key,PAPER_NVDA,PAPER_POOL,cp.id])).rows[0];
           const invalidHistory = (await client.query<{invalid:string}>(invalidSql,[session.id])).rows[0]!.invalid !== "0";
           const sourceChanged = !renewed || renewed.canonical !== true || renewed.covered !== true ||
@@ -209,9 +215,9 @@ export class PaperStore {
             evidence = { preflight: evidence, error: changed ? "paper_session_changed_during_preflight" : "paper_source_changed_during_preflight" };
           }
           const saved = await client.query<{ id: string }>(`INSERT INTO paper_execution_runs
-            (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot)
-            VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id::text`,
-            [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence)]);
+            (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot,runtime_identity)
+            VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id::text`,
+            [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence),JSON.stringify(this.runtimeIdentity)]);
           if (changed || sourceChanged) {
             const next = changed ? current.state : invalidatePaper(session.state,new Date().toISOString(),["paper_source_changed_during_preflight"]);
             if (!changed) await this.update(client,session.id,next,next.reasons);

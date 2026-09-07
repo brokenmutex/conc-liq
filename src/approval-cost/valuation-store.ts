@@ -1,6 +1,6 @@
 import pg, { type PoolClient } from "pg";
 import { type Hash } from "viem";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type {
   ApprovalCostValuationObservation,
   ApprovalCostValuationRun,
@@ -137,8 +137,8 @@ export class PostgresApprovalCostValuationStore {
     this.pool = new Pool({ connectionString, max: 2 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async loadSource(approvalCostRunId?: string): Promise<ApprovalCostValuationSource> {

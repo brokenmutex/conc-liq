@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     maxSampleAgeSeconds: rpcGateConfig.maxSampleAgeSeconds,
   });
   try {
-    await store.migrate();
+    await store.assertReady();
     const [source, manifest, riskGate, rpcHealth] = await Promise.all([
       store.loadLatestSource({ fee: 500, rwaSymbol: "NVDA", streamKey: config.streamKey }),
       loadPoolManifest(indexer.poolsPath),

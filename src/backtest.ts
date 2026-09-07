@@ -99,7 +99,7 @@ async function main(): Promise<void> {
   const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresStableFeeBaselineStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     let source: BaselineSourceInput;
     try {
       source = await store.load({

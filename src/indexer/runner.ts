@@ -131,7 +131,7 @@ export async function runBackfill(
     if (store === undefined) {
       throw new Error("A PostgreSQL event store is required outside --dry-run mode");
     }
-    await store.migrate();
+    await store.assertReady();
     await store.registerManifest(config.streamKey, manifest);
     const cursor = await store.getCursor(config.streamKey);
     if (cursor !== null && cursor.chainId !== manifest.chainId) {

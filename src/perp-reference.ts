@@ -91,7 +91,7 @@ async function main(): Promise<void> {
   const config = loadPerpReferenceConfig();
   const store = new PostgresPerpReferenceStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     if (options.command === "snapshot") {
       const source = await fetchPerpMarketContext({
         coin: config.coin,

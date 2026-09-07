@@ -1,6 +1,6 @@
 import pg, { type PoolClient } from "pg";
 import { getAddress, type Hash, type Hex } from "viem";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type { ActionCostClass } from "./domain.js";
 import type {
   ActionCostCallAssessmentRun,
@@ -121,8 +121,8 @@ export class PostgresActionCostCallStore {
     this.pool = new Pool({ connectionString, max: 2 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async loadSource(valuationRunId?: string): Promise<ActionCostCallSource> {

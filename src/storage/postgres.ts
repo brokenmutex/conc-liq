@@ -1,6 +1,6 @@
 import pg from "pg";
 import type { ObserverSnapshot } from "../domain.js";
-import { SCHEMA_SQL } from "./schema.js";
+import { assertSchemaReady } from "./compatibility.js";
 import type { SnapshotStore } from "./types.js";
 
 const { Pool } = pg;
@@ -12,8 +12,8 @@ export class PostgresSnapshotStore implements SnapshotStore {
     this.pool = new Pool({ connectionString, max: 4 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async save(snapshot: ObserverSnapshot): Promise<void> {

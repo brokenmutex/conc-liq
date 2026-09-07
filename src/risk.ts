@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   );
   const store = new PostgresRiskStore(databaseUrl);
   try {
-    await store.migrate();
+    await store.assertReady();
     const snapshot = await collectAndSaveRiskSnapshot({
       blockNumber,
       collect: () => collectRiskSnapshot({ blockNumber, config: riskConfig, reader }),

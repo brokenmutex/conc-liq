@@ -148,7 +148,7 @@ async function main(): Promise<void> {
     environment.DATABASE_URL,
   );
   try {
-    await Promise.all([gate.migrate(), riskStore.migrate(), strategyStore.migrate()]);
+    await Promise.all([gate.assertReady(), riskStore.assertReady(), strategyStore.assertReady()]);
     await gate.assertBulkAllowed();
     const blockNumber = options.blockNumber ?? calculateSafeHead(
       await client.getBlockNumber(),

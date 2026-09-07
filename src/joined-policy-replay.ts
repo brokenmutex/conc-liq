@@ -58,7 +58,7 @@ async function main(): Promise<void> {
   const environment = loadJoinedPolicyEnvironment();
   const store = new PostgresJoinedPolicyReplayStore(environment.databaseUrl);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.load({
       fee: options.fee,
       lookback: options.lookback,

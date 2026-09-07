@@ -1,3 +1,4 @@
+import { assertSchemaReady } from "../storage/compatibility.js";
 import pg, { type PoolClient } from "pg";
 import { USDG } from "../constants.js";
 import { readRiskGate } from "../risk/gate.js";
@@ -1185,6 +1186,8 @@ export class DashboardRepository {
       options: "-c default_transaction_read_only=on",
     });
   }
+
+  public async assertReady(): Promise<void> { await assertSchemaReady(this.pool); }
 
   public async snapshot(): Promise<DashboardSnapshot> {
     const client = await this.pool.connect();

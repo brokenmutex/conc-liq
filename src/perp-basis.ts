@@ -83,7 +83,7 @@ async function main(): Promise<void> {
   const perpConfig = loadPerpReferenceConfig();
   const store = new PostgresPerpBasisStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.loadLatest({
       coin: perpConfig.coin,
       dex: perpConfig.dex,

@@ -114,7 +114,7 @@ async function main(): Promise<void> {
   const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresNftPositionStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     let source;
     try {
       source = await store.loadSource({

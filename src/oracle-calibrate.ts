@@ -158,7 +158,7 @@ async function main(): Promise<void> {
     environment.DATABASE_URL,
   );
   try {
-    await calibrationStore.migrate();
+    await calibrationStore.assertReady();
     const [source, registrySource, feedSource] = await Promise.all([
       sourceStore.load({
         fee: options.fee,

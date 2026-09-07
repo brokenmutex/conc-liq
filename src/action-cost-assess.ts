@@ -61,7 +61,7 @@ async function main(): Promise<void> {
   const environment = environmentSchema.parse(process.env);
   const store = new PostgresActionCostCallStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.loadSource(options.valuationRunId);
     const assessments = source.marks.map((mark) =>
       assessActionCostCall(mark, NONFUNGIBLE_POSITION_MANAGER)

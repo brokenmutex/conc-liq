@@ -173,9 +173,9 @@ async function main(): Promise<void> {
     ? new PostgresStrategyCheckpointStore(databaseUrl)
     : null;
   try {
-    await rpcHealthGate.migrate();
-    await riskStore.migrate();
-    await strategyStore?.migrate();
+    await rpcHealthGate.assertReady();
+    await riskStore.assertReady();
+    await strategyStore?.assertReady();
     const ready = await waitForHealthyRpc({
       gate: rpcHealthGate,
       pollIntervalMs: tailConfig.pollIntervalMs,

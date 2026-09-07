@@ -1,0 +1,246 @@
+{
+  "provenance": "Read-only catalog at 3fe5070; exact accepted legacy schema, no row data",
+  "digest": "f1dd4a8a48802c1efcfc2e5ae5ff914d9383c5afae97a32ac8bd3096e0f2a389",
+  "tables": [
+    "perp_pool_basis_runs",
+    "perp_weekend_assessment_sessions",
+    "v3_range_simulation_candidates"
+  ],
+  "constraints": [
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_candidate_check",
+      "definition": "CHECK ((fallback_candidate = (quality_pass AND (NOT primary_reference_available))))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_mode_check",
+      "definition": "CHECK ((primary_reference_available = (reference_mode = 'chainlink_primary_comparison'::text)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_nonnegative_inputs_check",
+      "definition": "CHECK ((((multiplier_x18 IS NULL) OR (multiplier_x18 >= (0)::numeric)) AND (perp_reference_usd_x18 >= (0)::numeric) AND ((usdg_usd_x18 IS NULL) OR (usdg_usd_x18 >= (0)::numeric))))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_reason_consistency_check",
+      "definition": "CHECK (((quality_pass AND (jsonb_array_length(reasons) = 0)) OR ((NOT quality_pass) AND (jsonb_array_length(reasons) > 0))))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_chainlink_price_x18_check",
+      "definition": "CHECK (((chainlink_price_x18 IS NULL) OR (chainlink_price_x18 > (0)::numeric)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_check",
+      "definition": "CHECK ((quality_pass = (status = 'observed'::text)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_check1",
+      "definition": "CHECK (((NOT fallback_candidate) OR (quality_pass AND (NOT primary_reference_available) AND (reference_mode <> 'chainlink_primary_comparison'::text))))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_checkpoint_age_seconds_check",
+      "definition": "CHECK (((checkpoint_age_seconds IS NULL) OR (checkpoint_age_seconds >= 0)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_checkpoint_run_id_fkey",
+      "definition": "FOREIGN KEY (checkpoint_run_id) REFERENCES v3_strategy_checkpoint_runs(id)"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_checkpoint_run_id_perp_snapshot_run_id_key",
+      "definition": "UNIQUE (checkpoint_run_id, perp_snapshot_run_id, pool_address)"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_execution_eligible_check",
+      "definition": "CHECK ((NOT execution_eligible))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_fee_check",
+      "definition": "CHECK (((fee > 0) AND (fee <= 1000000)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_limitations_check",
+      "definition": "CHECK ((jsonb_typeof(limitations) = 'array'::text))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_methodology_check",
+      "definition": "CHECK ((methodology = 'perp_pool_basis_shadow_v1'::text))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_perp_snapshot_age_seconds_check",
+      "definition": "CHECK (((perp_snapshot_age_seconds IS NULL) OR (perp_snapshot_age_seconds >= 0)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_perp_snapshot_run_id_fkey",
+      "definition": "FOREIGN KEY (perp_snapshot_run_id) REFERENCES perp_reference_snapshot_runs(id)"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_pkey",
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_pool_price_x18_check",
+      "definition": "CHECK ((pool_price_x18 > (0)::numeric))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_quote_oracle_age_seconds_check",
+      "definition": "CHECK (((quote_oracle_age_seconds IS NULL) OR (quote_oracle_age_seconds >= 0)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_reasons_check",
+      "definition": "CHECK ((jsonb_typeof(reasons) = 'array'::text))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_reference_mode_check",
+      "definition": "CHECK ((reference_mode = ANY (ARRAY['chainlink_primary_comparison'::text, 'perp_external_session_candidate'::text, 'perp_internal_weekend_candidate'::text])))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_risk_run_id_fkey",
+      "definition": "FOREIGN KEY (risk_run_id) REFERENCES risk_snapshot_runs(id)"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_schema_version_check",
+      "definition": "CHECK ((schema_version = 1))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_snapshot_check",
+      "definition": "CHECK ((jsonb_typeof(snapshot) = 'object'::text))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_source_skew_seconds_check",
+      "definition": "CHECK ((source_skew_seconds >= 0))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['observed'::text, 'quality_rejected'::text])))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_thresholds_check",
+      "definition": "CHECK ((jsonb_typeof(thresholds) = 'object'::text))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_token_reference_usd_x18_check",
+      "definition": "CHECK (((token_reference_usd_x18 IS NULL) OR (token_reference_usd_x18 > (0)::numeric)))"
+    },
+    {
+      "table_name": "perp_pool_basis_runs",
+      "name": "perp_pool_basis_runs_token_reference_usdg_x18_check",
+      "definition": "CHECK (((token_reference_usdg_x18 IS NULL) OR (token_reference_usdg_x18 > (0)::numeric)))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_assessment_run_id_fkey",
+      "definition": "FOREIGN KEY (assessment_run_id) REFERENCES perp_weekend_assessment_runs(id) ON DELETE CASCADE"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_check",
+      "definition": "CHECK (((internal_start_ms >= 0) AND (internal_end_ms > internal_start_ms)))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_check1",
+      "definition": "CHECK (((reopen_time_ms IS NULL) OR (reopen_time_ms > internal_end_ms)))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_check2",
+      "definition": "CHECK (((base_volume_x18 >= (0)::numeric) AND (trade_count >= 0)))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_check3",
+      "definition": "CHECK ((((status = 'complete'::text) AND (jsonb_array_length(reasons) = 0) AND (external_close_price_x18 IS NOT NULL) AND (reopen_price_x18 IS NOT NULL) AND (reopen_time_ms IS NOT NULL) AND (weekend_move_ppm IS NOT NULL) AND (reopen_gap_ppm IS NOT NULL) AND (max_up_excursion_ppm IS NOT NULL) AND (max_down_excursion_ppm IS NOT NULL)) OR ((status = 'excluded'::text) AND (jsonb_array_length(reasons) > 0))))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_pkey",
+      "definition": "PRIMARY KEY (assessment_run_id, session_key)"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_reasons_check",
+      "definition": "CHECK ((jsonb_typeof(reasons) = 'array'::text))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_snapshot_check",
+      "definition": "CHECK ((jsonb_typeof(snapshot) = 'object'::text))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_status_check",
+      "definition": "CHECK ((status = ANY (ARRAY['complete'::text, 'excluded'::text])))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_assessment_sessions_weekend_close_price_x18_check",
+      "definition": "CHECK ((weekend_close_price_x18 > (0)::numeric))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_candle_count_check",
+      "definition": "CHECK (((candle_count >= 0) AND ((status <> 'complete'::text) OR (candle_count > 0))))"
+    },
+    {
+      "table_name": "perp_weekend_assessment_sessions",
+      "name": "perp_weekend_complete_prices_check",
+      "definition": "CHECK (((status <> 'complete'::text) OR (weekend_close_price_x18 IS NOT NULL)))"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_check",
+      "definition": "CHECK (((half_width_spacings > 0) AND (tick_lower < tick_upper)))"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_check1",
+      "definition": "CHECK (((liquidity >= (0)::numeric) AND (liquidity_share_ppm >= (0)::numeric) AND (start_amount0 >= (0)::numeric) AND (start_amount1 >= (0)::numeric) AND (idle_quote >= (0)::numeric)))"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_check2",
+      "definition": "CHECK ((((status = 'complete'::text) AND (exclusion_reason IS NULL) AND (rank IS NOT NULL) AND (rank > 0) AND (liquidity > (0)::numeric) AND (end_amount0 IS NOT NULL) AND (end_amount0 >= (0)::numeric) AND (end_amount1 IS NOT NULL) AND (end_amount1 >= (0)::numeric) AND (fee0 IS NOT NULL) AND (fee0 >= (0)::numeric) AND (fee1 IS NOT NULL) AND (fee1 >= (0)::numeric) AND (end_principal_value_quote IS NOT NULL) AND (end_principal_value_quote >= (0)::numeric) AND (fee_value_quote IS NOT NULL) AND (fee_value_quote >= (0)::numeric) AND (gross_end_value_quote IS NOT NULL) AND (gross_end_value_quote >= (0)::numeric) AND (net_end_value_quote IS NOT NULL) AND (hodl_end_value_quote IS NOT NULL) AND (hodl_end_value_quote >= (0)::numeric) AND (absolute_pnl_quote IS NOT NULL) AND (lp_alpha_quote IS NOT NULL)) OR ((status = 'excluded'::text) AND (exclusion_reason IS NOT NULL) AND (rank IS NULL) AND (end_amount0 IS NULL) AND (end_amount1 IS NULL) AND (fee0 IS NULL) AND (fee1 IS NULL) AND (end_principal_value_quote IS NULL) AND (fee_value_quote IS NULL) AND (gross_end_value_quote IS NULL) AND (net_end_value_quote IS NULL) AND (hodl_end_value_quote IS NULL) AND (absolute_pnl_quote IS NULL) AND (lp_alpha_quote IS NULL))))"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_divergence_status",
+      "definition": "CHECK ((((status = 'complete'::text) AND (divergence_quote IS NOT NULL)) OR ((status = 'excluded'::text) AND (divergence_quote IS NULL))))"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_pkey",
+      "definition": "PRIMARY KEY (simulation_run_id, half_width_spacings)"
+    },
+    {
+      "table_name": "v3_range_simulation_candidates",
+      "name": "v3_range_simulation_candidates_simulation_run_id_fkey",
+      "definition": "FOREIGN KEY (simulation_run_id) REFERENCES v3_range_simulation_runs(id) ON DELETE CASCADE"
+    }
+  ]
+}

@@ -120,8 +120,8 @@ async function main(): Promise<void> {
     timeoutMs: indexer.rpcTimeoutMs,
   });
   try {
-    await gate.migrate();
-    await store.migrate();
+    await gate.assertReady();
+    await store.assertReady();
     await gate.assertBulkAllowed();
     const source = await store.loadUniverse({
       lookbackBlocks: options.lookbackBlocks,

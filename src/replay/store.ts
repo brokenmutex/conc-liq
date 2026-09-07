@@ -1,6 +1,6 @@
 import pg, { type PoolClient } from "pg";
 import type { Hash } from "viem";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type {
   ReplayChanges,
   ReplayCoordinate,
@@ -195,7 +195,7 @@ export class PostgresReplayStore {
   }
 
   public async open(streamKey: string): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+    await assertSchemaReady(this.pool);
     this.client = await this.pool.connect();
     this.lockName = `v3-replay:${streamKey}`;
     const result = await this.client.query<{ locked: boolean }>(

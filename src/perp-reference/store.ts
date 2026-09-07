@@ -1,5 +1,5 @@
 import pg, { type PoolClient } from "pg";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type {
   PerpCandle,
   PerpReferenceSnapshot,
@@ -80,8 +80,8 @@ export class PostgresPerpReferenceStore {
     this.pool = new Pool({ connectionString, max: 1 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async saveSnapshot(snapshot: PerpReferenceSnapshot): Promise<SaveResult> {

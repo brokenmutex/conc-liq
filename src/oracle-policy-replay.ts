@@ -228,7 +228,7 @@ async function main(): Promise<void> {
   const environment = environmentSchema.parse(process.env);
   const store = new PostgresOraclePolicyReplayStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.load({
       fee: options.fee,
       firstCheckpointRunId: options.firstCheckpointRunId,

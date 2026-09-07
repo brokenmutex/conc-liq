@@ -3,7 +3,7 @@ import { getAddress, type Hash } from "viem";
 import { readRiskGate, type RiskGateDecision } from "../risk/gate.js";
 import { evaluateCanaryEntryReadiness } from "./entry-readiness.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
-import { SCHEMA_SQL } from "../storage/schema.js";
+import { assertSchemaReady } from "../storage/compatibility.js";
 import type { GuardedCanaryPlan, GuardedCanarySource } from "./domain.js";
 
 const { Pool } = pg;
@@ -62,8 +62,8 @@ export class PostgresGuardedCanaryPlanStore {
     this.pool = new Pool({ connectionString, max: 1 });
   }
 
-  public async migrate(): Promise<void> {
-    await this.pool.query(SCHEMA_SQL);
+  public async assertReady(): Promise<void> {
+    await assertSchemaReady(this.pool);
   }
 
   public async loadLatestSource(input: {

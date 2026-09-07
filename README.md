@@ -1,5 +1,11 @@
 # Concentrated-liquidity observer
 
+Runtime refactor: see [schema migrations and pinned releases](notes/runtime-boundaries-2026-09-07.md)
+for the new worker startup contract, isolated audits and rollout procedure.
+Workers require an explicitly migrated database; existing unversioned databases
+use `db:migrate -- --baseline`. New paper sessions use the pinned release launcher.
+
+
 This repository starts the Robinhood Chain Uniswap v3 liquidity automation
 project with a deliberately read-only observer. It verifies the configured
 chain and canonical contracts, resolves selected RWAs through Robinhood's live
@@ -1261,8 +1267,8 @@ source /root/arb-robinhood/.env
 source .env
 set +a
 export RH_INDEXER_RPC_URL="$ROBINHOOD_READ_HTTP_URL"
-npm run paper -- start
-npm run paper -- tick
+/release/path/bin/node /release/path/launch.mjs /private/runtime.env paper start
+/release/path/bin/node /release/path/launch.mjs /private/runtime.env paper tick
 # Optional bounded mechanics diagnostic; does not open a paper session:
 npm run paper:simulate
 ```
@@ -1335,7 +1341,8 @@ network simulation holds no database transaction open. Before committing a fill,
 the worker rereads session state, source coverage and canonicality, preserving
 operator cancellation and rejecting invalidated sources. `npm run paper -- stop` cancels an unentered session or
 requests a later simulated exit. Stopping the timer itself does not exit an
-open position. `paper start` and `paper migrate` create only the paper tables.
+open position. Schema setup now belongs to the explicit `db:migrate` command;
+`paper start` requires a pinned runtime and never creates tables.
 
 See [continuous paper activation and RPC repair](notes/paper-continuous-2026-09-07.md),
 [transaction simulation and validation](notes/paper-transaction-simulation-2026-09-07.md),

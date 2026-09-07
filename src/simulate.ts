@@ -182,7 +182,7 @@ async function main(): Promise<void> {
   const client = createHistoricalClient(indexer.rpcUrl, indexer.rpcTimeoutMs);
   const store = new PostgresRangeSimulationStore(environment.DATABASE_URL);
   try {
-    await store.migrate();
+    await store.assertReady();
     const source = await store.load({
       fee: options.fee,
       fromRunId: options.fromRunId,
