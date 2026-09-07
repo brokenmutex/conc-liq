@@ -5,8 +5,8 @@ import type {RiskSnapshot} from '../src/risk/domain.js';
 import {DEFAULT_PAPER_POLICY,type PaperCheckpoint,policyHash} from '../src/paper/engine.js';
 import {paperPolicySchema} from '../src/paper/config.js';
 import {evaluatePaperReference,heartbeatOracle,latestEquitySessionStart} from '../src/paper/reference.js';
-const baseline=JSON.parse(readFileSync(new URL('../notes/paper-continuous-evidence-2026-09-07/risk-snapshot.json',import.meta.url),'utf8')) as RiskSnapshot;
-const cp=JSON.parse(readFileSync(new URL('../notes/paper-continuous-evidence-2026-09-07/reference-preflight.json',import.meta.url),'utf8')).cp as PaperCheckpoint;
+const baseline=JSON.parse(readFileSync(new URL('./fixtures/paper-risk-snapshot.json',import.meta.url),'utf8')) as RiskSnapshot;
+const cp=JSON.parse(readFileSync(new URL('./fixtures/paper-reference-preflight.json',import.meta.url),'utf8')).cp as PaperCheckpoint;
 const policy=DEFAULT_PAPER_POLICY.referencePolicy!;
 const evaluate=(snapshot=structuredClone(baseline),p=policy)=>evaluatePaperReference({snapshot,checkpoint:cp,policy:p});
 describe('continuous paper reference policy',()=>{

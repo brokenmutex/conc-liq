@@ -1,0 +1,33 @@
+{
+  "now": "2026-09-07T08:58:40.245Z",
+  "cp": {
+    "id": "445",
+    "block": "56709090",
+    "hash": "0xbef41fd41566fff71a5f02e6e14236c5d14fe567da40d6185437bf20f13e1a68",
+    "blockTimestamp": "2026-09-07T08:58:10.000Z",
+    "capturedAt": "2026-09-07T08:58:17.234Z",
+    "sqrtPriceX96": "5190363732174448438250185800231808",
+    "tick": 221810,
+    "liquidity": "11214929484454999921",
+    "feeGrowth0": "18982655700034730963944987931028",
+    "feeGrowth1": "87962777635558539638843422116420583939721",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"
+  },
+  "gate": {
+    "eligible": true,
+    "reasons": [],
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "held_equity_reference",
+      "ageSeconds": 227506,
+      "referencePriceX18": "230250674568587972693",
+      "poolPriceX18": "233004109000000000000",
+      "deviationPpm": "11958",
+      "referenceUpdatedAt": "2026-09-04T17:46:24.000Z",
+      "sourceBlock": "56709090",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 30000
+    }
+  }
+}

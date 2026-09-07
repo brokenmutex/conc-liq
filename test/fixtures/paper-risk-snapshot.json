@@ -1,0 +1,167 @@
+{
+  "assets": [
+    {
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": false,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "oracle": {
+        "feed": {
+          "name": "Robinhood NVDA / USD",
+          "address": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+          "decimals": 8,
+          "baseAsset": "NVDA",
+          "quoteAsset": "USD",
+          "marketHours": "us_equities_24/5",
+          "productTypeCode": "primaryTokenizedPrice",
+          "heartbeatSeconds": 86400
+        },
+        "flags": {
+          "priceFresh": false,
+          "decimalsMatch": true,
+          "roundComplete": true,
+          "answerPositive": true,
+          "descriptionMatches": true,
+          "timestampNotFuture": true
+        },
+        "state": {
+          "answer": "23023665000",
+          "roundId": "18446744073709552610",
+          "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+          "decimals": 8,
+          "startedAt": "1788543972",
+          "updatedAt": "1788543984",
+          "description": "RHNVDA / USD",
+          "answeredInRound": "18446744073709552610"
+        },
+        "reasons": [
+          "oracle_price_stale"
+        ],
+        "readError": null,
+        "maxAgeSeconds": 300,
+        "priceAgeSeconds": 227506,
+        "executionEligible": false
+      },
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "0",
+        "oraclePaused": false,
+        "uiMultiplier": "1000000000000000000",
+        "newUIMultiplier": "1000000000000000000"
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000000000000000000",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "onchainReadError": null,
+      "executionEligible": false
+    }
+  ],
+  "chainId": 4663,
+  "reasons": [
+    "sequencer_feed_unavailable",
+    "quote_oracle_price_stale",
+    "asset_ineligible:NVDA"
+  ],
+  "registry": {
+    "url": "https://api.robinhood.com/rhj/assets",
+    "sha256": "sha256:af6387ef7bad187d8a45d1ec9e94807bdd96cd1485d0f7ca85246b70d70119ee",
+    "fetchedAt": "2026-09-07T08:58:17.137Z"
+  },
+  "blockHash": "0xbef41fd41566fff71a5f02e6e14236c5d14fe567da40d6185437bf20f13e1a68",
+  "sequencer": {
+    "status": "unavailable",
+    "reasons": [
+      "sequencer_feed_unavailable"
+    ],
+    "executionEligible": false
+  },
+  "observedAt": "2026-09-07T08:58:17.213Z",
+  "blockNumber": "56709090",
+  "quoteOracle": {
+    "feed": {
+      "name": "USDG / USD",
+      "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+      "decimals": 8,
+      "baseAsset": "USDG",
+      "quoteAsset": "USD",
+      "marketHours": "Crypto",
+      "productTypeCode": "RefPrice",
+      "heartbeatSeconds": 86400
+    },
+    "flags": {
+      "priceFresh": false,
+      "decimalsMatch": true,
+      "roundComplete": true,
+      "answerPositive": true,
+      "descriptionMatches": true,
+      "timestampNotFuture": true
+    },
+    "state": {
+      "answer": "99993909",
+      "roundId": "18446744073709551710",
+      "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+      "decimals": 8,
+      "startedAt": "1788708651",
+      "updatedAt": "1788708664",
+      "description": "USDG / USD",
+      "answeredInRound": "18446744073709551710"
+    },
+    "reasons": [
+      "oracle_price_stale"
+    ],
+    "readError": null,
+    "maxAgeSeconds": 300,
+    "priceAgeSeconds": 62826,
+    "executionEligible": false
+  },
+  "feedDirectory": {
+    "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+    "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+    "fetchedAt": "2026-09-07T08:58:17.086Z"
+  },
+  "marketSession": {
+    "policy": "robinhood_stock_tokens_24_7",
+    "status": "open_24_7",
+    "reasons": [],
+    "evidence": {
+      "url": "https://robinhood.com/rhj/stocktokens/",
+      "sha256": "sha256:2f9575d28e4f50d70ee0e9fd454c0bfd9be7f3e6dae171c65b96c5c837b1ced4",
+      "fetchedAt": "2026-09-07T08:58:17.173Z"
+    },
+    "executionEligible": true
+  },
+  "schemaVersion": 2,
+  "blockTimestamp": "2026-09-07T08:58:10.000Z",
+  "executionEligible": false
+}
