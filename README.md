@@ -714,7 +714,7 @@ after reviewing the added RPC load. With the current 15-pool manifest, each
 capture adds 60 pool calls plus one decimals call per distinct RWA, instead of
 the roughly 11,000 calls needed by full accounting.
 
-The repository also includes a five-minute, single-pool timer for the current
+The repository also includes a one-minute, single-pool timer for the current
 NVDA/USDG 0.05% research target. It preserves the strict 300-second oracle age:
 weekend or otherwise stale marks are stored as excluded rather than relaxed.
 
@@ -1020,15 +1020,15 @@ authorization.
 
 The default view leads with the live paper session described below. The
 NVDA/USDG 0.05% input and future-canary panel shows
-the regular-equity entry session, observed chain recovery, NVDA-scoped risk
+the active paper trading-hours policy, observed chain recovery, NVDA-scoped risk
 findings, the latest pool/reference checkpoint and its age, dated local
 lifecycle evidence, the latest saved wallet preflight, and tracked mainnet NFT
 captures. Live execution remains disabled; these stored input checks are not
 the full wallet, simulation, size-policy, and approval preflight.
 
-The dashboard reads the same regular-session/recovery evaluator and scoped risk
-reader as the canary planner. Observed recovery can explain only the missing
-sequencer-feed finding; other risk reasons remain visible. The dated rehearsal
+The dashboard evaluates the active continuous paper reference policy separately
+from the legacy wallet planner. Held reference prices keep their timestamps;
+pause, multiplier, canonicality and other safety findings remain visible. The dated rehearsal
 artifact is validated for scope, stream and completed exit before it is shown,
 and contributes no mainnet NFT, inventory or P&L values.
 
@@ -1064,7 +1064,7 @@ rankings are not a selected strategy or measured live P&L.
 freshness. Matching index/replay cursors older than 180 seconds show as stale;
 fresh matching cursors do not prove proximity to chain head. The canary
 checkpoint uses `CANARY_MAX_CHECKPOINT_AGE_SECONDS` (default 180), and both source
-block time and capture time are shown/checked. The five-minute checkpoint timer
+block time and capture time are shown/checked. The one-minute checkpoint timer
 can exceed that ceiling or lag the latest risk snapshot; collect a fresh
 synchronized checkpoint for an actual preflight. Missing pause/corporate-action
 flags remain unknown, and failed/timed-out refreshes mark the last response as
@@ -1273,13 +1273,25 @@ observed active liquidity and a 0.5% swap slippage limit. That last setting is
 an order constraint, not a cost debit. `start --policy FILE` accepts overrides
 before a new session. Old session policies and journals retain their hashes.
 
-Guarded entry requires the existing regular-equity-session, continuous
-five-minute chain recovery, fresh NVDA risk/reference, canonicality and event
-coverage checks, including the ±0.5% pool/oracle deviation ceiling. Research
-mode records market/risk exclusions but still requires healthy chain evidence
-and the transaction simulator. Neither mode authorizes live execution. Missing
-or stale ETH/USD and USDG/USD oracle evidence prevents a fill with invented
-gas conversion. Full oracle rounds and feed-directory provenance are saved.
+Guarded entry now evaluates **24/7**, including overnight, weekends and holidays.
+The immutable `continuous_bounded_v1` reference policy allows a ±3% deviation
+from the latest published NVDA token reference. During closed equity sessions,
+a held reference may be at most 96 hours old and must have updated during the
+most recent equity session. It is labelled as held, never as a current quote.
+The 3% band is an initial paper-trial setting, not an optimized opportunity
+threshold. A new regular session cannot inherit a multi-day stale reference.
+
+USDG and ETH gas valuation use each feed's declared heartbeat, capped at 24
+hours, instead of rejecting every round older than five minutes. Complete,
+positive, timestamp-valid rounds and feed identity remain required. Full oracle
+rounds and provenance are retained; there is no one-dollar USDG fallback.
+
+The paper worker reevaluates these reference rules using both the checkpoint's
+risk snapshot and the latest fresh canonical risk snapshot. Five-minute chain
+recovery, issuer pause, multiplier/corporate-action, token identity, executable
+quote, event coverage and slippage checks remain in effect. Old sessions retain
+their original policy/hash. Research mode and paper mode never authorize live
+execution or signing.
 
 The LP allocation's NAV deducts estimated ETH gas at each action's validated
 USDG conversion. The local account's 1 ETH technical gas float is excluded from
@@ -1305,18 +1317,28 @@ journalctl -u conc-liq-paper.service -f
 ```
 
 The timer checks every 15 seconds; source checkpoints currently arrive about
-every five minutes. Decisions and fills must occur at different checkpoints.
+every minute. Decisions and fills must occur at different checkpoints.
 RPC is used only for prospective execution actions, with at most 400 fork reads,
 100 ms pacing, a 150-second fork deadline and health checks before each read.
 Ordinary marks consume PostgreSQL checkpoints and HyperSync-indexed swap paths.
 Worker heartbeat, source time and simulation completion time remain distinct.
 
+A checkpoint is a saved pool-state snapshot at a specific block. Collection can
+fail while the chain continues producing blocks; the dashboard then retains the
+last snapshot with its age. Missing intervals are not treated as zero fees or
+backfilled as if the worker made live decisions. A snapshot awaiting quorum
+confirmation is deferred without being consumed.
+
 State, orders and evidence survive worker restarts; duplicate actions for a
-checkpoint are rejected. `npm run paper -- stop` cancels an unentered session or
+checkpoint are rejected. A session advisory lock prevents concurrent ticks, but
+network simulation holds no database transaction open. Before committing a fill,
+the worker rereads session state, source coverage and canonicality, preserving
+operator cancellation and rejecting invalidated sources. `npm run paper -- stop` cancels an unentered session or
 requests a later simulated exit. Stopping the timer itself does not exit an
 open position. `paper start` and `paper migrate` create only the paper tables.
 
-See [transaction simulation and validation](notes/paper-transaction-simulation-2026-09-07.md),
+See [continuous paper activation and RPC repair](notes/paper-continuous-2026-09-07.md),
+[transaction simulation and validation](notes/paper-transaction-simulation-2026-09-07.md),
 the preserved [cost correction](notes/paper-execution-realism-2026-09-07.md),
 and [first session evidence](notes/live-paper-session-2026-09-06.md).
 
@@ -1325,7 +1347,7 @@ and [first session evidence](notes/live-paper-session-2026-09-06.md).
 Run a complete forward paper lifecycle during eligible conditions and review
 net P&L, alpha versus holding, fee estimates, transaction costs, drawdown, delays
 and failures. Waiting in cash and local rehearsals are not strategy results.
-Review whether five-minute decisions and the current fixed range fit the
+Review whether one-minute decisions and the current fixed range fit the
 intended trading cadence before optimizing or adding rebalancing.
 
 Use observed mainnet receipts to calibrate gas estimates for comparable calls.

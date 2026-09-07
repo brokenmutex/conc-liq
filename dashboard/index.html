@@ -31,20 +31,22 @@
 
       <section class="panel focus-panel" id="paper-panel" aria-label="Live paper session">
         <div class="panel-heading">
-          <div><div class="section-kicker">CURRENT MILESTONE · PAPER TRADING</div><h2>NVDA / USDG · execution readiness</h2></div>
+          <div><div class="section-kicker">CURRENT MILESTONE · PAPER TRADING</div><h2>NVDA / USDG · live paper performance</h2></div>
           <div class="readonly-badge">SIMULATED CAPITAL</div>
         </div>
         <p id="paper-status" class="focus-intro">No paper session has been started.</p>
         <p id="paper-freshness" class="muted">Waiting for session evidence</p>
+        <p id="paper-lifecycle" class="muted">Entry → holding period → withdrawal and sale back to USDG</p>
         <div class="focus-grid paper-metrics">
           <article><div class="metric-label">Paper balance / net value</div><div id="paper-nav" class="focus-value">—</div><div id="paper-budget" class="muted">—</div></article>
-          <article><div class="metric-label">Paper P&amp;L after execution costs</div><div id="paper-pnl" class="focus-value">—</div><div class="muted">Unavailable until fills and costs have evidence</div></article>
+          <article><div class="metric-label">Paper P&amp;L after execution costs</div><div id="paper-pnl" class="focus-value">—</div><div id="paper-pnl-note" class="muted">Unavailable until fills and costs have evidence</div></article>
           <article><div class="metric-label">LP alpha versus holding</div><div id="paper-alpha" class="focus-value">—</div><div id="paper-hold" class="muted">Same post-entry token inventory</div></article>
           <article><div class="metric-label">Estimated fees accrued</div><div id="paper-fees" class="focus-value">—</div><div class="muted">Observed fee growth · hypothetical position</div></article>
           <article><div class="metric-label">Paper execution costs / exit estimate</div><div id="paper-costs" class="focus-value">—</div><div id="paper-cost-status" class="muted">Awaiting transaction simulation</div></article>
           <article><div class="metric-label">Maximum observed drawdown</div><div id="paper-drawdown" class="focus-value">—</div><div id="paper-coverage" class="muted">No completed holding intervals</div></article>
         </div>
         <p id="paper-policy" class="research-note">Paper fills require transaction simulation and evidence for execution costs.</p>
+        <p id="paper-reference" class="muted">Reference evidence appears with each paper decision.</p>
         <p id="paper-execution-proof" class="muted">Waiting for transaction simulation evidence.</p>
         <details><summary class="paper-journal-summary">Paper transaction simulations</summary>
           <p class="muted">Each entry and exit records the simulated calls, source block, balances and node gas estimates. A successful preflight becomes a paper fill only if the session's freshness and risk checks also pass.</p>
@@ -70,7 +72,7 @@
         </div>
         <p class="focus-intro">Paper results come first. These inputs also describe the checks a future wallet preflight will need.</p>
         <div class="focus-grid">
-          <article><div class="metric-label">Equity entry session</div><div id="focus-session" class="focus-value">—</div><div class="muted">New York regular session · 5-minute opening and closing buffers</div></article>
+          <article><div class="metric-label">Paper trading hours</div><div id="focus-session" class="focus-value">—</div><div id="focus-session-detail" class="muted">Hours follow the active paper policy.</div></article>
           <article><div class="metric-label">Chain recovery</div><div id="focus-chain" class="focus-value">—</div><div id="focus-chain-detail" class="muted">Five minutes of observed RPC agreement</div></article>
           <article><div class="metric-label">NVDA risk inputs</div><div id="focus-risk" class="focus-value">—</div><div id="focus-risk-detail" class="muted">NVDA-scoped collector and current canonicality</div></article>
           <article><div class="metric-label">Pool / reference checkpoint</div><div id="focus-checkpoint" class="focus-value">—</div><div id="focus-checkpoint-detail" class="muted">Waiting for source timestamps</div></article>

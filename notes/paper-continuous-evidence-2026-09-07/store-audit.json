@@ -1,0 +1,70 @@
+{
+  "observedAt": "2026-09-07T09:19:07.782Z",
+  "scope": "isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance",
+  "passed": [
+    "one active session per stream",
+    "unconfirmed checkpoint waits without being consumed",
+    "quote frozen before a later checkpoint",
+    "restart retains quote without duplicate calls",
+    "entry uses simulation balances and gas",
+    "network preflight holds no transaction lock blocking schema maintenance",
+    "idle ticks do not repeat fills",
+    "failed exit preflight retains position and charges no gas",
+    "later exit replaces reserve with fresh gas exactly once",
+    "successful and failed execution evidence persists",
+    "concurrent tick is excluded during unlocked preflight",
+    "operator cancellation during preflight cannot become a fill",
+    "cost evidence revocation hides economics",
+    "missing canonical hash hides economics",
+    "source revoked during unlocked simulation cannot become a fill"
+  ],
+  "calls": {
+    "quote": 3,
+    "entry": 3,
+    "exit": 2
+  },
+  "journalRows": 6,
+  "executionRuns": [
+    {
+      "action": "quote",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "action": "entry",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "action": "exit",
+      "status": "failed",
+      "error": "Error: fixture rejected preflight"
+    },
+    {
+      "action": "exit",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "action": "quote",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "action": "entry",
+      "status": "failed",
+      "error": "paper_session_changed_during_preflight"
+    },
+    {
+      "action": "quote",
+      "status": "succeeded",
+      "error": null
+    },
+    {
+      "action": "entry",
+      "status": "failed",
+      "error": "paper_source_changed_during_preflight"
+    }
+  ],
+  "fixtureSchemaRemoved": true
+}

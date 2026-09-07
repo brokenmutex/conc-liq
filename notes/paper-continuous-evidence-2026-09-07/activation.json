@@ -1,0 +1,37 @@
+{
+  "observedAt": "2026-09-07T09:01:50.061Z",
+  "previous": {
+    "id": "3",
+    "policyHash": "32ec0e0acfd86de2f35c2599fdbc93480bbc315b12636b4f9b0cbf91af762924",
+    "observations": 10,
+    "status": "closed",
+    "position": null
+  },
+  "current": {
+    "id": "4",
+    "createdAt": "2026-09-07T09:01:50.059Z",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "maxGapSeconds": 900,
+      "executionBasis": "nitro_fork_v1",
+      "maxSlippageBps": 50,
+      "referencePolicy": {
+        "kind": "continuous_bounded_v1",
+        "maxDeviationPpm": 30000,
+        "maxHeldAgeSeconds": 345600,
+        "maxGasPriceAgeSeconds": 86400
+      },
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000,
+      "transactionTtlSeconds": 300
+    },
+    "policyHash": "99781c7894225d594a46f4087157f47983db12af074e31558ef5235083bd66d5",
+    "status": "waiting",
+    "position": null
+  },
+  "executionEligible": false,
+  "broadcastAuthorized": false
+}

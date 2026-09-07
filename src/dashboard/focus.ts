@@ -5,6 +5,9 @@ import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js"
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
+import { paperPolicySchema } from "../paper/config.js";
+import { readPaperReferenceGate } from "../paper/reference.js";
+import type { PaperCheckpoint } from "../paper/engine.js";
 
 export const CANARY_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 
@@ -46,6 +49,12 @@ export interface FocusCheckpoint {
   readonly poolPriceX18: string;
   readonly oraclePriceX18: string | null;
   readonly deviationPpm: string | null;
+  readonly tick: number;
+  readonly sqrtPriceX96: string;
+  readonly liquidity: string;
+  readonly feeGrowth0: string;
+  readonly feeGrowth1: string;
+  readonly targetSetHash: string;
 }
 
 export async function readDashboardFocus(client: PoolClient, config: DashboardConfig) {
@@ -57,7 +66,10 @@ export async function readDashboardFocus(client: PoolClient, config: DashboardCo
        'status', p.status, 'reasons', p.reasons,
        'poolPriceX18', p.pool_price_x18::text,
        'oraclePriceX18', p.oracle_price_x18::text,
-       'deviationPpm', p.deviation_ppm::text) AS checkpoint
+       'deviationPpm', p.deviation_ppm::text,
+       'tick',p.tick,'sqrtPriceX96',p.sqrt_price_x96::text,'liquidity',p.liquidity::text,
+       'feeGrowth0',p.fee_growth_global0_x128::text,'feeGrowth1',p.fee_growth_global1_x128::text,
+       'targetSetHash',c.target_set_hash) AS checkpoint
      FROM v3_strategy_checkpoint_runs c
      JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id = c.id
      WHERE c.stream_key = $1 AND c.chain_id = 4663
@@ -85,13 +97,29 @@ export async function readDashboardFocus(client: PoolClient, config: DashboardCo
       "notes/canary-evidence-2026-09-06/local-lifecycle.json", "utf8",
     )), config.streamKey);
   } catch { /* Missing evidence remains unavailable. */ }
+  const entryReadiness = evaluateCanaryEntryReadiness({ now, sourceBlock: BigInt(checkpoint?.block ?? "0"), samples: samples.rows });
+  let paperEntry = null;
+  const present = (await client.query<{present:string|null}>("SELECT to_regclass('paper_sessions')::text AS present")).rows[0]?.present;
+  if (present && checkpoint) {
+    const row = (await client.query<{policy:unknown}>("SELECT policy FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1",[config.streamKey])).rows[0];
+    const policy = row ? paperPolicySchema.parse(row.policy) : null;
+    if (policy && "referencePolicy" in policy && policy.referencePolicy) {
+      const cp: PaperCheckpoint = {...checkpoint,hash:checkpoint.blockHash};
+      const gate = await readPaperReferenceGate(client,cp,policy.referencePolicy,now);
+      const reasons = [...gate.reasons,...entryReadiness.reasons.filter(r=>!r.startsWith("equity_session_"))];
+      for (const at of [cp.blockTimestamp,cp.capturedAt]) {
+        const age = (Date.parse(now)-Date.parse(at))/1000;
+        if (!Number.isFinite(age) || age<0 || age>policy.maxSourceAgeSeconds) reasons.push("paper_checkpoint_stale");
+      }
+      paperEntry = {...gate,reasons:[...new Set(reasons)],eligible:reasons.length===0,policy:policy.referencePolicy};
+    }
+  }
   return {
     poolAddress: CANARY_POOL,
     checkpoint,
     checkpointMaxAgeSeconds: config.canaryMaxCheckpointAgeSeconds,
-    entryReadiness: evaluateCanaryEntryReadiness({
-      now, sourceBlock: BigInt(checkpoint?.block ?? "0"), samples: samples.rows,
-    }),
+    entryReadiness,
+    paperEntry,
     riskGate: await readRiskGate(client, config.streamKey,
       config.riskGateMaxSnapshotAgeSeconds, config.riskGateMaxCanonicalityAgeSeconds, "NVDA"),
     rehearsal,

@@ -7,6 +7,7 @@ import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POO
 import type { PaperExecutor } from "./executor.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
+import { readPaperReferenceGate } from "./reference.js";
 
 import { PAPER_SCHEMA_SQL } from "./schema.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -75,7 +76,10 @@ export class PaperStore {
   }
   async tick(streamKey: string): Promise<{ id: string; status: string; action: string; reasons: readonly string[] } | null> {
     const client = await this.pool.connect();
+    let locked = false;
     try {
+      locked = (await client.query<{locked:boolean}>("SELECT pg_try_advisory_lock(hashtext('conc-liq-paper'),hashtext($1)) AS locked",[streamKey])).rows[0]!.locked;
+      if (!locked) return null;
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
       await client.query("SET LOCAL statement_timeout = '10s'");
       const sessions = await client.query<PaperSessionRow>(
@@ -93,14 +97,14 @@ export class PaperStore {
         return { id: session.id, status: session.state.status, action: session.state.action, reasons: session.state.reasons };
       }
       // Preserve the journal on reorgs; revoke the result rather than rewriting it.
-      const invalid = await client.query<{ invalid: string }>(
-        `SELECT COUNT(*)::text AS invalid FROM paper_observations o
+      const invalidSql = `SELECT COUNT(*)::text AS invalid FROM paper_observations o
          LEFT JOIN v3_strategy_checkpoint_runs c ON c.id=o.checkpoint_id
          LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id
          WHERE o.session_id=$1 AND (c.id IS NULL OR v.canonical IS DISTINCT FROM TRUE
            OR c.block_number IS DISTINCT FROM o.block_number OR LOWER(c.block_hash) IS DISTINCT FROM LOWER(o.block_hash)
            OR v.block_number IS DISTINCT FROM o.block_number OR LOWER(v.expected_hash) IS DISTINCT FROM LOWER(o.block_hash)
-           OR LOWER(v.observed_hash) IS DISTINCT FROM LOWER(o.block_hash))`, [session.id]);
+           OR LOWER(v.observed_hash) IS DISTINCT FROM LOWER(o.block_hash))`;
+      const invalid = await client.query<{ invalid: string }>(invalidSql, [session.id]);
       if (invalid.rows[0]!.invalid !== "0") {
         session.state = invalidatePaper(session.state, now, ["prior_paper_source_no_longer_canonical"]);
         await this.update(client, session.id, session.state, session.state.reasons);
@@ -128,15 +132,31 @@ export class PaperStore {
       if (source.token0.toLowerCase() !== USDG.toLowerCase() || source.token1.toLowerCase() !== PAPER_NVDA || source.token_decimals !== 18) dataReasons.push("paper_token_identity_mismatch");
       const health = await client.query<{ id: string; snapshot: RpcHealthEvaluation }>(`SELECT id::text,snapshot FROM rpc_health_samples WHERE observed_at >= NOW()-INTERVAL '6 minutes' ORDER BY observed_at DESC,id DESC LIMIT 128`);
       const readiness = evaluateCanaryEntryReadiness({ now, sourceBlock: BigInt(cp.block), samples: health.rows });
+      if (readiness.reasons.includes("source_ahead_of_confirmed_quorum")) {
+        // A just-collected snapshot can precede the next health poll's anchor.
+        // Leave it unconsumed so the following tick can use it after confirmation.
+        await client.query("UPDATE paper_sessions SET heartbeat_at=clock_timestamp(),monitor_reasons=$2 WHERE id=$1",
+          [session.id, JSON.stringify(["awaiting_checkpoint_confirmation"])]);
+        await client.query("COMMIT");
+        return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_checkpoint_confirmation"] };
+      }
       const risk = await readRiskGate(client, session.stream_key, 180, 30, "NVDA");
       const residual = (reasons: readonly string[]) => reasons.filter(r => !(r === "sequencer_feed_unavailable" && readiness.chainEligible));
-      const entryReasons = [...readiness.reasons, ...residual(risk.reasons), ...source.reasons,
+      let entryReasons = [...readiness.reasons, ...residual(risk.reasons), ...source.reasons,
         ...residual(source.asset_reasons ?? ["asset_risk_missing"])];
       if (source.asset_eligible !== true && source.asset_reasons?.length === 0) entryReasons.push("asset_risk_ineligible");
       if (!source.pool_unlocked) entryReasons.push("pool_locked");
       if (source.status !== "valid") entryReasons.push("pool_reference_excluded");
       if (source.risk_run_id !== risk.snapshotId) entryReasons.push("checkpoint_not_latest_risk_snapshot");
       if (source.deviation_ppm === null || BigInt(source.deviation_ppm) > 5000n || BigInt(source.deviation_ppm) < -5000n) entryReasons.push("oracle_deviation_over_0_5_percent_or_unavailable");
+      let reference = null;
+      if ("referencePolicy" in session.policy && session.policy.referencePolicy) {
+        const gate = await readPaperReferenceGate(client, cp, session.policy.referencePolicy, now);
+        reference = gate.reference;
+        entryReasons = [...readiness.reasons.filter(r => !r.startsWith("equity_session_")), ...gate.reasons];
+        if (!source.pool_unlocked) entryReasons.push("pool_locked");
+        entryReasons.push(...source.reasons.filter(r => !["rwa_oracle_price_stale", "quote_oracle_price_stale"].includes(r)));
+      }
       const path = await client.query<{ minimum: number | null; maximum: number | null; count: string }>(
         `SELECT MIN((event_args->>'tick')::int) AS minimum,MAX((event_args->>'tick')::int) AS maximum,COUNT(*)::text AS count
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
@@ -146,13 +166,17 @@ export class PaperStore {
         entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
         pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
-        execution: { available: this.executor !== undefined } };
+        execution: { available: this.executor !== undefined }, reference };
       let state = advancePaper(session.state, session.policy, input);
       if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
         const action = state.reasons.includes("paper_entry_quote_required") ? "quote"
           : state.reasons.includes("paper_entry_simulation_required") ? "entry"
           : state.reasons.includes("paper_exit_simulation_required") ? "exit" : null;
         if (action) {
+          // Keep only the session advisory lock while doing network work. A
+          // database read transaction here can block scheduled migrations and
+          // then deadlock our independent current-risk preflight behind them.
+          await client.query("COMMIT");
           let evidence: unknown;
           let status = "succeeded";
           let execution: NonNullable<PaperInput["execution"]> = { available: true };
@@ -172,10 +196,28 @@ export class PaperStore {
             status = "failed"; execution = { available: true, error: sanitizeRiskError(error) };
             evidence = { error: execution.error };
           }
+          await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
+          await client.query("SET LOCAL statement_timeout = '10s'");
+          const current = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE id=$1 FOR UPDATE",[session.id])).rows[0]!;
+          const changed = current.policy_hash !== session.policy_hash || JSON.stringify(current.state) !== JSON.stringify(session.state);
+          const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[session.stream_key,PAPER_NVDA,PAPER_POOL,cp.id])).rows[0];
+          const invalidHistory = (await client.query<{invalid:string}>(invalidSql,[session.id])).rows[0]!.invalid !== "0";
+          const sourceChanged = !renewed || renewed.canonical !== true || renewed.covered !== true ||
+            renewed.checkpoint.block !== cp.block || renewed.checkpoint.hash.toLowerCase() !== cp.hash.toLowerCase() || invalidHistory;
+          if (changed || sourceChanged) {
+            status = "failed";
+            evidence = { preflight: evidence, error: changed ? "paper_session_changed_during_preflight" : "paper_source_changed_during_preflight" };
+          }
           const saved = await client.query<{ id: string }>(`INSERT INTO paper_execution_runs
             (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id::text`,
             [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence)]);
+          if (changed || sourceChanged) {
+            const next = changed ? current.state : invalidatePaper(session.state,new Date().toISOString(),["paper_source_changed_during_preflight"]);
+            if (!changed) await this.update(client,session.id,next,next.reasons);
+            await client.query("COMMIT");
+            return {id:session.id,status:next.status,action:next.action,reasons:next.reasons};
+          }
           if (execution.entry) execution.entry.runId = saved.rows[0]!.id;
           if (execution.exit) execution.exit.runId = saved.rows[0]!.id;
           state = advancePaper(session.state, session.policy, { ...input, now: new Date().toISOString(), execution });
@@ -187,7 +229,10 @@ export class PaperStore {
       await client.query("COMMIT");
       return { id: session.id, status: state.status, action: state.action, reasons: state.reasons };
     } catch (error) { await client.query("ROLLBACK"); throw error; }
-    finally { client.release(); }
+    finally {
+      try { if (locked) await client.query("SELECT pg_advisory_unlock(hashtext('conc-liq-paper'),hashtext($1))",[streamKey]); }
+      finally { client.release(); }
+    }
   }
   private async update(client: PoolClient, id: string, state: PaperState, monitorReasons: readonly string[]) {
     await client.query("UPDATE paper_sessions SET state=$2,status=$3,updated_at=clock_timestamp(),heartbeat_at=clock_timestamp(),monitor_reasons=$4 WHERE id=$1",[id,JSON.stringify(state),state.status,JSON.stringify(monitorReasons)]);

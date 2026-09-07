@@ -240,25 +240,30 @@ function renderFocus(data) {
   const { focus, overview } = data;
   const now = overview.serverTime;
   const { checkpoint, entryReadiness, rehearsal, lastPlan } = focus;
-  setText("focus-session", entryReadiness.session === "regular_session" ? "Within entry window" : entryReadiness.session === "closed" ? "Closed for entry" : "Calendar unavailable");
+  const paperEntry = focus.paperEntry;
+  setText("focus-session", paperEntry ? "24/7 entry evaluation" : entryReadiness.session === "regular_session" ? "Within entry window" : entryReadiness.session === "closed" ? "Closed for entry" : "Calendar unavailable");
+  setText("focus-session-detail", paperEntry ? "Overnight, weekends and holidays included; reference and execution checks still apply." : "Legacy regular-equity-session entry policy.");
   setText("focus-chain", entryReadiness.chainEligible ? "Recovery observed" : "Not established");
   setText("focus-chain-detail", `${entryReadiness.sampleIds.length} samples · evaluated ${timeAgo(entryReadiness.evaluatedAt, now)} · RPC agreement is not L1 finality`);
-  const riskReasons = focusRiskReasons(focus, now);
+  const riskReasons = paperEntry ? paperEntry.reasons : focusRiskReasons(focus, now);
   const nvda = data.riskAssets.find((asset) => asset.rwaSymbol === "NVDA");
   setText("focus-risk", riskReasons.length ? "Needs attention" : "No remaining findings");
   setText("focus-risk-detail", `Collector #${focus.riskGate.snapshotId ?? "—"} · ${timeAgo(focus.riskGate.snapshotObservedAt, now)}. NVDA price was ${duration(nvda?.oracleAgeSeconds ?? null)} old at collection. Recovery can cover only the missing sequencer feed.`);
+  if (paperEntry) setText("focus-risk-detail", `Continuous paper policy · ${paperEntry.reference?.basis === "held_equity_reference" ? "held equity reference" : "feed reference"} · price age ${duration(paperEntry.reference?.ageSeconds === null || paperEntry.reference?.ageSeconds === undefined ? null : String(paperEntry.reference.ageSeconds))}. Pause, multiplier and canonicality checks remain active.`);
   const checkpointFresh = checkpoint && fresh(checkpoint.capturedAt, now, focus.checkpointMaxAgeSeconds) && fresh(checkpoint.blockTimestamp, now, focus.checkpointMaxAgeSeconds);
   const aligned = checkpoint && checkpoint.riskRunId === focus.riskGate.snapshotId;
   setText("focus-checkpoint", !checkpoint ? "Missing" : !checkpointFresh ? "Stale" : !aligned ? "Awaiting latest risk" : checkpoint.status === "valid" ? "Current · valid mark" : "Current · mark excluded");
-  element("focus-checkpoint").classList.toggle("attention", !checkpointFresh || !aligned || checkpoint?.status !== "valid");
+  if (paperEntry && checkpointFresh) setText("focus-checkpoint", paperEntry.eligible ? "Current · paper checks pass" : "Current · see findings");
+  element("focus-checkpoint").classList.toggle("attention", paperEntry ? !checkpointFresh || !paperEntry.eligible : !checkpointFresh || !aligned || checkpoint?.status !== "valid");
   element("focus-risk").classList.toggle("attention", riskReasons.length > 0);
-  element("focus-session").classList.toggle("attention", entryReadiness.session !== "regular_session");
+  element("focus-session").classList.toggle("attention", !paperEntry && entryReadiness.session !== "regular_session");
   element("focus-chain").classList.toggle("attention", !entryReadiness.chainEligible);
   setText("focus-checkpoint-detail", checkpoint ? `#${checkpoint.id} · block ${blockNumber(checkpoint.block)} · ${dated(checkpoint.blockTimestamp, now)} · freshness limit ${focus.checkpointMaxAgeSeconds}s` : "No synchronized NVDA checkpoint");
   setText("focus-spot", checkpoint ? `${displayTokenAmount(checkpoint.poolPriceX18, 18)} USDG/NVDA` : "Unavailable");
   setText("focus-oracle", checkpoint?.oraclePriceX18 ? `${displayTokenAmount(checkpoint.oraclePriceX18, 18)} USDG/NVDA` : "Unavailable");
   setText("focus-deviation", checkpoint?.deviationPpm !== null && checkpoint?.deviationPpm !== undefined ? `${displayTokenAmount(checkpoint.deviationPpm, 4, 4)}%` : "Unavailable");
   setText("focus-reference-note", `${checkpoint?.status === "valid" && checkpointFresh && aligned ? "Valid at the stated checkpoint." : "Displayed marks are diagnostic; a stale or excluded mark cannot authorize entry."} Current preflight uses NVDA and USDG oracle checks. Hyperliquid remains research-only; a Nasdaq / last-close policy is not active.`);
+  if (paperEntry) setText("focus-reference-note", `The paper policy permits ±${paperEntry.policy.maxDeviationPpm / 10000}% around the published token reference. Held prices retain their update time and must come from the most recent equity session, within ${paperEntry.policy.maxHeldAgeSeconds / 3600} hours. This is a reference bound, not an executable fill or a fresh Nasdaq quote.`);
   const paperRehearsal = data.paper?.execution?.rehearsal;
   setText("focus-rehearsal", paperRehearsal ? "Cash-to-cash calls verified" : rehearsal ? "LP calls verified on local fork" : "Evidence unavailable");
   setText("focus-rehearsal-detail", paperRehearsal
@@ -271,9 +276,9 @@ function renderFocus(data) {
   setText("focus-index-detail", `Block ${blockNumber(overview.indexer.block)} · cursor updated ${timeAgo(overview.indexer.updatedAt, now)} · 180s freshness limit; not a head-lag measurement`);
   setText("accounting-mode", focus.fullAccountingEnabled ? "Enabled" : "Paused intentionally");
   setText("accounting-status-note", `${focus.fullAccountingEnabled ? "Full-universe snapshots enabled in configuration." : "Full-universe snapshots paused intentionally."} Saved capture: ${dated(data.accounting?.observedAt, now)}. These aggregate fees are not our earnings.`);
-  const reasons = [...entryReadiness.reasons, ...riskReasons, ...(checkpoint?.reasons ?? ["checkpoint_missing"])];
+  const reasons = paperEntry ? [...paperEntry.reasons] : [...entryReadiness.reasons, ...riskReasons, ...(checkpoint?.reasons ?? ["checkpoint_missing"])];
   if (checkpoint && !checkpointFresh) reasons.push("checkpoint_stale");
-  if (checkpoint && !aligned) reasons.push("checkpoint_not_latest_risk_snapshot");
+  if (checkpoint && !aligned && !paperEntry) reasons.push("checkpoint_not_latest_risk_snapshot");
   element("focus-reasons").replaceChildren(...[...new Set(reasons)].map((reason) => {
     const node = document.createElement("span"); node.className = "reason-chip";
     node.textContent = reason.replaceAll("_", " "); node.title = reason; return node;
@@ -852,6 +857,9 @@ function renderSource(prefix, source, now) {
 function renderPaper(paper, now) {
   element("paper-execution-runs").replaceChildren();
   setText("paper-execution-proof", "No transaction simulation evidence available.");
+  setText("paper-reference", "No paper reference decision recorded yet.");
+  setText("paper-lifecycle", "Entry → holding period → withdrawal and sale back to USDG");
+  setText("paper-pnl-note", "Unavailable until fills and costs have evidence");
   const receiptCosts = element("paper-receipt-costs");
   receiptCosts.replaceChildren();
   element("paper-receipt-empty").classList.remove("hidden");
@@ -906,6 +914,11 @@ function renderPaper(paper, now) {
   setText("paper-nav", state.navQuote === null && !state.position && state.status !== "invalid" ? amount(policy.budgetQuote) : amount(state.navQuote));
   setText("paper-budget", `Initial paper budget ${amount(policy.budgetQuote)}${state.position ? "" : " · uninvested"}`);
   setText("paper-pnl", amount(state.pnlQuote));
+  if (state.position) {
+    const exitAt = new Date(Date.parse(state.position.enteredAt) + policy.maxHoldingSeconds * 1000).toISOString();
+    setText("paper-lifecycle", `Entry source ${new Date(state.position.enteredAt).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · ${terminal ? "session finished" : `holding time limit ${exitAt.replace("T", " ").replace(/\.\d{3}Z$/, " UTC")}; an exit condition may trigger earlier`}. ${state.status === "exit_pending" ? "Exit requested; awaiting its simulation." : ""}`);
+    setText("paper-pnl-note", state.status === "invalid" ? "Performance unavailable; source or coverage invalidated" : state.status === "closed" ? "Simulated cash result; includes estimated LP fee income" : "Simulated NAV; includes estimated LP fees and an exit gas reserve");
+  }
   setText("paper-alpha", amount(state.alphaQuote));
   setText("paper-hold", state.holdQuote === null ? "Benchmark starts at paper entry" : `Passive holdings ${amount(state.holdQuote)}`);
   setText("paper-fees", amount(state.feeValueQuote));
@@ -922,7 +935,11 @@ function renderPaper(paper, now) {
     ? "No paper fills until the intended swaps and LP transactions can be simulated against current chain state. Gas and exit costs must have evidence; slippage must come from executable quotes. The current worker records input readiness only."
     : usesTransactions ? `Swap quote and range fixed before a later fill; ${policy.maxSlippageBps / 100}% maximum swap slippage. Inventory purchase, LP entry and cash exit use actual contract calls in simulation. Gas is estimated on the node and charged separately to the LP allocation. LP fee income remains an estimate from observed growth.`
     : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
-  setText("paper-policy", `Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. ${costPolicy} Holding limit ${duration(String(policy.maxHoldingSeconds))}. Pool checkpoints arrive about every five minutes.`);
+  const referencePolicy = policy.referencePolicy;
+  setText("paper-policy", `${referencePolicy ? "24/7 evaluation, including overnight and closed markets. " : ""}Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. ${costPolicy} Holding limit ${duration(String(policy.maxHoldingSeconds))}. Pool checkpoints arrive about every minute.`);
+  if (referencePolicy) setText("paper-reference", state.reference
+    ? `${state.reference.basis === "held_equity_reference" ? "Held equity reference" : "Feed reference"}: ${state.reference.referencePriceX18 === null ? "Unavailable" : displayTokenAmount(state.reference.referencePriceX18, 18)} USDG/NVDA · updated ${dated(state.reference.referenceUpdatedAt, now)}. Pool deviation ${state.reference.deviationPpm === null ? "unavailable" : ppmPercent(state.reference.deviationPpm)}; permitted band ±${referencePolicy.maxDeviationPpm / 10000}%. Gas conversion uses each feed's heartbeat, capped at ${referencePolicy.maxGasPriceAgeSeconds / 3600}h.`
+    : `Awaiting reference evaluation. Permitted band ±${referencePolicy.maxDeviationPpm / 10000}%; a held equity reference must update during the latest equity session and be no older than ${referencePolicy.maxHeldAgeSeconds / 3600}h.`);
   const reasons = [...new Set([...state.reasons, ...paper.monitorReasons])];
   element("paper-reasons").replaceChildren(...reasons.map(reason => {
     const node = document.createElement("span"); node.className = "reason-chip"; node.textContent = reason.replaceAll("_", " "); node.title = reason; return node;

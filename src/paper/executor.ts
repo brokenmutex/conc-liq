@@ -19,6 +19,7 @@ import { simulatePaperRoundTrip } from "./execution.js";
 import { simulatePaperExit, type PaperExitInventory } from "./execution-exit.js";
 import { openPaperFork } from "./fork.js";
 import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
+import { readPaperReferenceGate } from "./reference.js";
 
 export interface PaperExecutor {
   quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote>;
@@ -38,7 +39,7 @@ export class NitroPaperExecutor implements PaperExecutor {
   private feedDirectory: Awaited<ReturnType<typeof fetchFeedDirectory>> | undefined;
   constructor(connectionString: string) {
     this.gate = new PostgresRpcHealthGate({ connectionString, enabled: true, cacheMs: 2000, maxSampleAgeSeconds: 30 });
-    this.database = new pg.Pool({ connectionString, max: 1 });
+    this.database = new pg.Pool({ connectionString, max: 1, statement_timeout: 10000 });
   }
   private client() {
     let requests = 0;
@@ -60,24 +61,31 @@ export class NitroPaperExecutor implements PaperExecutor {
       const readiness = evaluateCanaryEntryReadiness({ now, sourceBlock: BigInt(cp.block), samples: samples.rows });
       assert(readiness.chainEligible, "Paper chain recovery is not continuously healthy");
       if (entering && policy.mode === "guarded") {
+        if (policy.referencePolicy) {
+          const reference = await readPaperReferenceGate(client, cp, policy.referencePolicy, now);
+          assert(reference.eligible, reference.reasons.join(", "));
+        } else {
         assert(readiness.session === "regular_session", readiness.reasons.join(", "));
         const risk = await readRiskGate(client, this.config.streamKey, 180, 30, "NVDA");
         const reasons = risk.reasons.filter(reason => reason !== "sequencer_feed_unavailable");
         assert(reasons.length === 0, `Paper current risk gate: ${reasons.join(", ")}`);
+        }
       }
     } finally { client.release(); }
     await this.gate.assertBulkAllowed();
+    assert((Date.now()-Date.parse(cp.blockTimestamp))/1000 <= policy.maxSourceAgeSeconds, "Paper source aged out during preflight");
   }
-  private async valuation(cp: PaperCheckpoint): Promise<PaperGasValuation> {
+  private async valuation(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperGasValuation> {
     this.feedDirectory ??= await fetchFeedDirectory(this.riskConfig.feedDirectoryUrl, this.riskConfig.httpTimeoutMs);
     const ethFeed = selectOracleFeed(this.feedDirectory.payload, "ETH");
     const quoteFeed = selectOracleFeed(this.feedDirectory.payload, "USDG");
     assert(ethFeed && quoteFeed, "Paper gas valuation feeds are unavailable");
     const reader = new ViemRiskChainReader(this.client());
     const blockTimestamp = BigInt(Math.floor(Date.parse(cp.blockTimestamp) / 1000));
-    const eth = evaluateOracleRisk({ feed: ethFeed, blockTimestamp, maxPriceAgeSeconds: this.riskConfig.maxPriceAgeSeconds,
+    const maxPriceAgeSeconds = policy.referencePolicy?.maxGasPriceAgeSeconds ?? this.riskConfig.maxPriceAgeSeconds;
+    const eth = evaluateOracleRisk({ feed: ethFeed, blockTimestamp, maxPriceAgeSeconds,
       state: await reader.readOracle(ethFeed.address, BigInt(cp.block)) });
-    const quote = evaluateOracleRisk({ feed: quoteFeed, blockTimestamp, maxPriceAgeSeconds: this.riskConfig.maxPriceAgeSeconds,
+    const quote = evaluateOracleRisk({ feed: quoteFeed, blockTimestamp, maxPriceAgeSeconds,
       state: await reader.readOracle(quoteFeed.address, BigInt(cp.block)) });
     assert(eth.executionEligible && eth.state, `Paper ETH gas valuation unavailable: ${eth.reasons.join(", ")}`);
     assert(quote.executionEligible && quote.state, `Paper USDG gas valuation unavailable: ${quote.reasons.join(", ")}`);
@@ -104,7 +112,7 @@ export class NitroPaperExecutor implements PaperExecutor {
   private async simulate<T>(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean,
     operation: (fork: Awaited<ReturnType<typeof openPaperFork>>) => Promise<T>) {
     await this.check(cp, policy, entering);
-    const valuation = await this.valuation(cp);
+    const valuation = await this.valuation(cp, policy);
     const client = this.client();
     assert.equal(await client.getChainId(), 4663);
     const block = await client.getBlock({ blockNumber: BigInt(cp.block) });

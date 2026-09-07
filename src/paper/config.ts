@@ -15,6 +15,12 @@ const transactionPolicySchema = strategy.extend({
   executionBasis: z.literal("nitro_fork_v1"),
   maxSlippageBps: z.number().int().min(1).max(500),
   transactionTtlSeconds: z.number().int().min(60).max(1800),
+  referencePolicy: z.object({
+    kind: z.literal("continuous_bounded_v1"),
+    maxHeldAgeSeconds: z.number().int().min(86400).max(345600),
+    maxDeviationPpm: z.number().int().min(1).max(50000),
+    maxGasPriceAgeSeconds: z.number().int().min(300).max(86400),
+  }).strict().optional(),
 }).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG");
 const illustrativePolicySchema = strategy.extend({
   entryCostQuote: raw.transform(String), exitCostQuote: raw.transform(String),

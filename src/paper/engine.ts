@@ -5,6 +5,7 @@ import { USDG } from "../constants.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAndSqrtPrice } from "../simulator/math.js";
 import { advanceTransactionPaper } from "./transaction-engine.js";
 import type { PaperExecutionInput, PaperExecutionLedger } from "./execution-domain.js";
+import type { ContinuousPaperReferencePolicy, PaperReferenceDecision } from "./reference.js";
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -30,6 +31,7 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly executionBasis: "nitro_fork_v1";
   readonly maxSlippageBps: number;
   readonly transactionTtlSeconds: number;
+  readonly referencePolicy?: ContinuousPaperReferencePolicy;
 }
 export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy | TransactionPaperPolicy;
 export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
@@ -37,6 +39,7 @@ export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
   executionBasis: "nitro_fork_v1", maxSlippageBps: 50, transactionTtlSeconds: 300,
   maxHoldingSeconds: 21_600, maxSourceAgeSeconds: 180, maxGapSeconds: 900,
   maxLiquiditySharePpm: 10_000,
+  referencePolicy: { kind: "continuous_bounded_v1", maxHeldAgeSeconds: 345600, maxDeviationPpm: 30000, maxGasPriceAgeSeconds: 86400 },
 };
 export function policyHash(policy: PaperPolicy): string {
   return createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.entries(policy).sort(([a], [b]) => a.localeCompare(b))))).digest("hex");
@@ -64,6 +67,7 @@ export interface PaperInput {
   readonly pathMaxTick: number;
   readonly swapCount: string;
   readonly execution?: PaperExecutionInput;
+  readonly reference?: PaperReferenceDecision | null;
 }
 export interface PaperPosition {
   liquidity: string; tickLower: number; tickUpper: number;
@@ -91,6 +95,7 @@ export interface PaperState {
   pendingSince: string | null;
   entryRange: { tickLower: number; tickUpper: number } | null;
   execution?: PaperExecutionLedger;
+  reference?: PaperReferenceDecision | null;
 }
 export function initialPaperState(): PaperState {
   return { status: "waiting", action: "wait", reasons: [], last: null, position: null,
@@ -134,6 +139,7 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
   if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
   state.reasons = [...new Set(gates)];
   state.last = cp;
+  state.reference = input.reference ?? state.reference;
   if ("executionBasis" in policy && policy.executionBasis === "nitro_fork_v1") {
     return advanceTransactionPaper(previous, state, policy, input);
   }

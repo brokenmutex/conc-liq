@@ -12,7 +12,9 @@ async function main() {
 
 Create one immutable, forward-only NVDA/USDG paper session, then process new
 stored live checkpoints. Uses bounded read-only RPC for prospective paper actions.
-Default: guarded entry, 1000 paper USDG, fixed ±20 tick spacings, six-hour hold,
+Default: guarded 24/7 entry, 1000 paper USDG, fixed ±20 tick spacings, six-hour hold.
+Published equity reference within ±3%; held off-hours reference at most 96 hours
+old and updated during the most recent equity session. Gas feeds use heartbeats.
 No fixed gas charges or slippage haircuts. Orders freeze an executable swap quote,
 then simulate swaps and LP transactions at a later fresh checkpoint. Gas uses
 Nitro estimates with paper prestate. No wallet keys or mainnet broadcasts.

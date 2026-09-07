@@ -1,0 +1,575 @@
+{
+  "observedAt": "2026-09-07T09:23:04.849Z",
+  "paper": {
+    "id": "4",
+    "createdAt": "2026-09-07T09:01:50.059Z",
+    "updatedAt": "2026-09-07T09:22:21.079Z",
+    "heartbeatAt": "2026-09-07T09:22:52.986Z",
+    "policy": {
+      "mode": "guarded",
+      "budgetQuote": "1000000000",
+      "maxGapSeconds": 900,
+      "executionBasis": "nitro_fork_v1",
+      "maxSlippageBps": 50,
+      "referencePolicy": {
+        "kind": "continuous_bounded_v1",
+        "maxDeviationPpm": 30000,
+        "maxHeldAgeSeconds": 345600,
+        "maxGasPriceAgeSeconds": 86400
+      },
+      "halfWidthSpacings": 20,
+      "maxHoldingSeconds": 21600,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000,
+      "transactionTtlSeconds": 300
+    },
+    "policyHash": "99781c7894225d594a46f4087157f47983db12af074e31558ef5235083bd66d5",
+    "state": {
+      "last": {
+        "id": "466",
+        "hash": "0x2147cecb04ebd98c4848d336a53917219dbf04b0ae4eda909bf007d34162a92b",
+        "tick": 221812,
+        "block": "56723271",
+        "liquidity": "11100284058344659018",
+        "capturedAt": "2026-09-07T12:22:07.262+03:00",
+        "feeGrowth0": "18985038171456097103959903692935",
+        "feeGrowth1": "87973618491905556120420085759053252793640",
+        "sqrtPriceX96": "5190747714711339176694630839533814",
+        "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+        "blockTimestamp": "2026-09-07T12:22:00+03:00"
+      },
+      "action": "mark",
+      "status": "open",
+      "reasons": [],
+      "navQuote": "998227961",
+      "pnlQuote": "-1772039",
+      "position": {
+        "fee0": "2728",
+        "fee1": "37410404987150",
+        "hold0": "498422005",
+        "hold1": "2150492587124421628",
+        "idle0": "0",
+        "idle1": "103037551493302395",
+        "enteredAt": "2026-09-07T12:12:47+03:00",
+        "liquidity": "3211439772439956",
+        "tickLower": 221610,
+        "tickUpper": 222010
+      },
+      "execution": {
+        "intent": {
+          "quotedAt": "2026-09-07T09:12:01.120Z",
+          "minRwaOut": "2140794163667666645",
+          "tickLower": 221610,
+          "tickUpper": 222010,
+          "sourceHash": "0x3679233fae6147d4d88649e0faa62397093ca56832c0647d4f60a8a38718f4de",
+          "sourceBlock": "56715954",
+          "swapAmountQuote": "501577995"
+        },
+        "exitRunId": null,
+        "allowances": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "0",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "103037551493302395",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          }
+        ],
+        "earnedFee0": "2728",
+        "earnedFee1": "37410404987150",
+        "entryRunId": "3",
+        "gasSpentWei": "299887116240000",
+        "holdGasQuote": "190317",
+        "lastValuation": {
+          "computedAt": "2026-09-07T09:13:05.254Z",
+          "sourceHash": "0x4248561c9d30e3ece4e00ee4d025811e99f69821517c9244c9b9b4558bcd4bd9",
+          "sourceBlock": "56717784",
+          "ethUsdAnswer": "249320130000",
+          "ethUsdDecimals": 8,
+          "oracleEvidence": {
+            "eth": {
+              "feed": {
+                "name": "ETH / USD",
+                "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+                "decimals": 8,
+                "baseAsset": "ETH",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "249320130000",
+                "roundId": "18446744073709553649",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788769951",
+                "updatedAt": "1788769963",
+                "description": "ETH / USD",
+                "answeredInRound": "18446744073709553649"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 2404,
+              "executionEligible": true
+            },
+            "quote": {
+              "feed": {
+                "name": "USDG / USD",
+                "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+                "decimals": 8,
+                "baseAsset": "USDG",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "99993909",
+                "roundId": "18446744073709551710",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788708651",
+                "updatedAt": "1788708664",
+                "description": "USDG / USD",
+                "answeredInRound": "18446744073709551710"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 63703,
+              "executionEligible": true
+            },
+            "directory": {
+              "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+              "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+              "fetchedAt": "2026-09-07T09:13:05.204Z"
+            }
+          },
+          "quoteUsdAnswer": "99993909",
+          "quoteUsdDecimals": 8
+        },
+        "exitReserveWei": "181262871230000"
+      },
+      "holdQuote": "999231167",
+      "intervals": 9,
+      "reference": {
+        "basis": "held_equity_reference",
+        "reasons": [],
+        "eligible": true,
+        "ageSeconds": 228936,
+        "sourceBlock": "56723271",
+        "deviationPpm": "11808",
+        "poolPriceX18": "232969637000000000000",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 30000,
+        "referencePriceX18": "230250674568587972693",
+        "referenceUpdatedAt": "2026-09-04T17:46:24.000Z"
+      },
+      "alphaQuote": "-1003206",
+      "entryRange": {
+        "tickLower": 221610,
+        "tickUpper": 222010
+      },
+      "peakNavQuote": "1000000000",
+      "pendingSince": null,
+      "feeValueQuote": "11443",
+      "invalidatedAt": null,
+      "observedSwaps": "295",
+      "costsPaidQuote": "747725",
+      "maxDrawdownPpm": "1806",
+      "exitReserveQuote": "451953"
+    },
+    "monitorReasons": [
+      "awaiting_next_live_checkpoint"
+    ],
+    "sourceCanonical": true,
+    "points": [
+      {
+        "block": "56711526",
+        "action": "wait",
+        "reasons": [
+          "source_ahead_of_confirmed_quorum",
+          "chain_recovery_unproven"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:02:15+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:02:34.034792+03:00",
+        "checkpointId": "449"
+      },
+      {
+        "block": "56712131",
+        "action": "signal_entry",
+        "reasons": [],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:03:17+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:03:54.132014+03:00",
+        "checkpointId": "450"
+      },
+      {
+        "block": "56712745",
+        "action": "wait",
+        "reasons": [
+          "source_stale"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:04:19+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:07:42.31983+03:00",
+        "checkpointId": "451"
+      },
+      {
+        "block": "56714728",
+        "action": "wait",
+        "reasons": [
+          "source_stale"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:07:40+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:11:29.11398+03:00",
+        "checkpointId": "452"
+      },
+      {
+        "block": "56715350",
+        "action": "wait",
+        "reasons": [
+          "source_stale"
+        ],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:08:41+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:11:45.037782+03:00",
+        "checkpointId": "453"
+      },
+      {
+        "block": "56715954",
+        "action": "signal_entry",
+        "reasons": [],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:09:42+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:12:01.124634+03:00",
+        "checkpointId": "454"
+      },
+      {
+        "block": "56716567",
+        "action": "wait",
+        "reasons": [],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:10:44+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:12:17.121132+03:00",
+        "checkpointId": "455"
+      },
+      {
+        "block": "56717171",
+        "action": "wait",
+        "reasons": [],
+        "navQuote": null,
+        "pnlQuote": null,
+        "sourceAt": "2026-09-07T12:11:45+03:00",
+        "holdQuote": null,
+        "alphaQuote": null,
+        "observedAt": "2026-09-07T12:12:33.05053+03:00",
+        "checkpointId": "456"
+      },
+      {
+        "block": "56717784",
+        "action": "enter",
+        "reasons": [],
+        "navQuote": "998548052",
+        "pnlQuote": "-1451948",
+        "sourceAt": "2026-09-07T12:12:47+03:00",
+        "holdQuote": "999557414",
+        "alphaQuote": "-1009362",
+        "observedAt": "2026-09-07T12:13:19.298443+03:00",
+        "checkpointId": "457"
+      },
+      {
+        "block": "56718379",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998558182",
+        "pnlQuote": "-1441818",
+        "sourceAt": "2026-09-07T12:13:48+03:00",
+        "holdQuote": "999567067",
+        "alphaQuote": "-1008885",
+        "observedAt": "2026-09-07T12:14:07.999026+03:00",
+        "checkpointId": "458"
+      },
+      {
+        "block": "56719006",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998584227",
+        "pnlQuote": "-1415773",
+        "sourceAt": "2026-09-07T12:14:50+03:00",
+        "holdQuote": "999592412",
+        "alphaQuote": "-1008185",
+        "observedAt": "2026-09-07T12:15:12.012028+03:00",
+        "checkpointId": "459"
+      },
+      {
+        "block": "56719611",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998567522",
+        "pnlQuote": "-1432478",
+        "sourceAt": "2026-09-07T12:15:51+03:00",
+        "holdQuote": "999574763",
+        "alphaQuote": "-1007241",
+        "observedAt": "2026-09-07T12:16:15.040869+03:00",
+        "checkpointId": "460"
+      },
+      {
+        "block": "56720223",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998458903",
+        "pnlQuote": "-1541097",
+        "sourceAt": "2026-09-07T12:16:53+03:00",
+        "holdQuote": "999464258",
+        "alphaQuote": "-1005355",
+        "observedAt": "2026-09-07T12:17:19.039826+03:00",
+        "checkpointId": "461"
+      },
+      {
+        "block": "56720836",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998403071",
+        "pnlQuote": "-1596929",
+        "sourceAt": "2026-09-07T12:17:55+03:00",
+        "holdQuote": "999407869",
+        "alphaQuote": "-1004798",
+        "observedAt": "2026-09-07T12:18:23.044089+03:00",
+        "checkpointId": "462"
+      },
+      {
+        "block": "56721439",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998400712",
+        "pnlQuote": "-1599288",
+        "sourceAt": "2026-09-07T12:18:56+03:00",
+        "holdQuote": "999405000",
+        "alphaQuote": "-1004288",
+        "observedAt": "2026-09-07T12:19:09.998531+03:00",
+        "checkpointId": "463"
+      },
+      {
+        "block": "56722052",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998193126",
+        "pnlQuote": "-1806874",
+        "sourceAt": "2026-09-07T12:19:58+03:00",
+        "holdQuote": "999198558",
+        "alphaQuote": "-1005432",
+        "observedAt": "2026-09-07T12:20:14.010481+03:00",
+        "checkpointId": "464"
+      },
+      {
+        "block": "56722668",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998227946",
+        "pnlQuote": "-1772054",
+        "sourceAt": "2026-09-07T12:20:59+03:00",
+        "holdQuote": "999231426",
+        "alphaQuote": "-1003480",
+        "observedAt": "2026-09-07T12:21:18.085025+03:00",
+        "checkpointId": "465"
+      },
+      {
+        "block": "56723271",
+        "action": "mark",
+        "reasons": [],
+        "navQuote": "998227961",
+        "pnlQuote": "-1772039",
+        "sourceAt": "2026-09-07T12:22:00+03:00",
+        "holdQuote": "999231167",
+        "alphaQuote": "-1003206",
+        "observedAt": "2026-09-07T12:22:21.078133+03:00",
+        "checkpointId": "466"
+      }
+    ],
+    "execution": {
+      "rehearsal": {
+        "computedAt": "2026-09-07T07:47:10.364Z",
+        "block": "56666711",
+        "budgetQuote": "1000000000",
+        "cashDeltaQuote": "-515154",
+        "totalGasWei": "466529295616000",
+        "transactions": 10
+      },
+      "runs": [
+        {
+          "id": "3",
+          "block": "56717784",
+          "error": null,
+          "action": "entry",
+          "gasWei": "299887116240000",
+          "status": "succeeded",
+          "observedAt": "2026-09-07T12:13:19.295765+03:00"
+        },
+        {
+          "id": "2",
+          "block": "56715954",
+          "error": null,
+          "action": "quote",
+          "gasWei": null,
+          "status": "succeeded",
+          "observedAt": "2026-09-07T12:12:01.12371+03:00"
+        },
+        {
+          "id": "1",
+          "block": "56712131",
+          "error": null,
+          "action": "quote",
+          "gasWei": null,
+          "status": "succeeded",
+          "observedAt": "2026-09-07T12:03:54.130677+03:00"
+        }
+      ]
+    },
+    "receiptCosts": [
+      {
+        "lastBlock": "56696094",
+        "maxFeeWei": "581006697340000",
+        "minFeeWei": "26787540468000",
+        "firstBlock": "54417932",
+        "actionClass": "collect_bundle",
+        "collectedAt": "2026-09-07T12:00:21.406+03:00",
+        "transactions": "36"
+      },
+      {
+        "lastBlock": "56708671",
+        "maxFeeWei": "3359994813472000",
+        "minFeeWei": "29069533416000",
+        "firstBlock": "54417636",
+        "actionClass": "exit_bundle",
+        "collectedAt": "2026-09-07T12:00:21.406+03:00",
+        "transactions": "279"
+      },
+      {
+        "lastBlock": "56698389",
+        "maxFeeWei": "7241905289192000",
+        "minFeeWei": "49343901368000",
+        "firstBlock": "54417326",
+        "actionClass": "mint_bundle",
+        "collectedAt": "2026-09-07T12:00:21.406+03:00",
+        "transactions": "299"
+      },
+      {
+        "lastBlock": "56212012",
+        "maxFeeWei": "11688626560576000",
+        "minFeeWei": "5341083333280000",
+        "firstBlock": "54432157",
+        "actionClass": "mixed",
+        "collectedAt": "2026-09-06T23:00:09.742+03:00",
+        "transactions": "7"
+      },
+      {
+        "lastBlock": "56645953",
+        "maxFeeWei": "2108971531238000",
+        "minFeeWei": "326470066000000",
+        "firstBlock": "54947758",
+        "actionClass": "rebalance_bundle",
+        "collectedAt": "2026-09-07T11:00:10.742+03:00",
+        "transactions": "12"
+      },
+      {
+        "lastBlock": "56710267",
+        "maxFeeWei": "4921790409360000",
+        "minFeeWei": "58718454858000",
+        "firstBlock": "54436435",
+        "actionClass": "swap_only",
+        "collectedAt": "2026-09-07T12:00:21.406+03:00",
+        "transactions": "448"
+      }
+    ],
+    "executionEligible": false
+  },
+  "entryGate": {
+    "eligible": true,
+    "reasons": [],
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "held_equity_reference",
+      "ageSeconds": 228936,
+      "referencePriceX18": "230250674568587972693",
+      "poolPriceX18": "232969637000000000000",
+      "deviationPpm": "11808",
+      "referenceUpdatedAt": "2026-09-04T17:46:24.000Z",
+      "sourceBlock": "56723271",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 30000
+    },
+    "policy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 30000,
+      "maxGasPriceAgeSeconds": 86400
+    }
+  },
+  "checks": [
+    "actual forward entry and later holding observations visible",
+    "24/7 policy and held-reference timestamp visible",
+    "gas and exit reserve separated",
+    "holding deadline shown",
+    "legacy closed-session findings do not contradict the active paper policy",
+    "desktop/mobile without overflow",
+    "missing reference values stay unavailable without browser errors",
+    "missing-session reset clears economics",
+    "no browser errors"
+  ]
+}
