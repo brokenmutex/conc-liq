@@ -13,6 +13,9 @@ const strategy = z.object({
 const executionPolicySchema = strategy.extend({ executionBasis: z.literal("transaction_simulation") }).strict();
 const transactionPolicySchema = strategy.extend({
   executionBasis: z.literal("nitro_fork_v1"),
+  feeAccounting: z.literal("initialized_boundaries_v1").optional(),
+  lpAllocationPpm: z.number().int().min(100000).max(1000000).optional(),
+  inventoryExitPpm: z.number().int().min(100000).max(1000000).optional(),
   maxSlippageBps: z.number().int().min(1).max(500),
   transactionTtlSeconds: z.number().int().min(60).max(1800),
   referencePolicy: z.object({

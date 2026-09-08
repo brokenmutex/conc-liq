@@ -6,6 +6,7 @@ import { USDG } from "../constants.js";
 import { quoteValue } from "../simulator/math.js";
 import { invalidatePaper, PAPER_NVDA, type PaperInput, type PaperState, type TransactionPaperPolicy } from "./engine.js";
 import type { PaperGasValuation } from "./execution-domain.js";
+import { boundaryInside, boundaryFeeIncrement } from "./boundary-fees.js";
 
 export function paperGasQuote(feeWei: string, valuation: PaperGasValuation): bigint {
   return convertWeiToQuoteRaw({ feeWei: BigInt(feeWei), quoteDecimals: 6,
@@ -63,6 +64,12 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     ledger.holdGasQuote = String(paperGasQuote(String(r.transactions.slice(0, buyIndex + 1).reduce((sum, tx) => sum + BigInt(tx.estimate.totalFeeWei), 0n)), fill.valuation));
     state.position = { liquidity: r.liquidity, ...r.range, idle0: r.balances.afterMint.quote, idle1: r.balances.afterMint.rwa,
       fee0: "0", fee1: "0", hold0: r.balances.inventory.quote, hold1: r.balances.inventory.rwa, enteredAt: cp.blockTimestamp };
+    if(policy.feeAccounting){
+      assert(input.boundaryFees,"Paper entry boundary fee proof missing");
+      assert(input.boundaryFees.tickLower===r.range.tickLower&&input.boundaryFees.tickUpper===r.range.tickUpper);
+      boundaryInside(cp,input.boundaryFees);state.position.boundaryFees=input.boundaryFees;
+      state.position.feeRemainder0="0";state.position.feeRemainder1="0";
+    }
     state.costsPaidQuote = String(paperGasQuote(r.entryGasWei, fill.valuation));
     state.exitReserveQuote = String(paperGasQuote(r.exitGasWei, fill.valuation));
     state.status = "open"; state.action = "enter"; state.pendingSince = null;
@@ -73,10 +80,17 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     if (!Number.isFinite(gap) || gap <= 0 || gap > policy.maxGapSeconds) return invalidatePaper(previous, input.now, ["checkpoint_gap_prevents_forward_decision_proof"]);
     const p = state.position;
     assert(input.pathMinTick <= Math.min(last.tick, cp.tick) && input.pathMaxTick >= Math.max(last.tick, cp.tick), "Paper swap path omits an endpoint");
-    if (input.pathMinTick < p.tickLower || input.pathMaxTick >= p.tickUpper) return invalidatePaper(previous, input.now, ["range_crossed_fee_coverage_incomplete"]);
+    if (!policy.feeAccounting && (input.pathMinTick < p.tickLower || input.pathMaxTick >= p.tickUpper)) return invalidatePaper(previous, input.now, ["range_crossed_fee_coverage_incomplete"]);
     if (input.swapCount === "0" && cp.sqrtPriceX96 !== last.sqrtPriceX96) return invalidatePaper(previous, input.now, ["price_change_without_swap_coverage"]);
-    p.fee0 = String(BigInt(p.fee0) + subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0)) * BigInt(p.liquidity) / (1n << 128n));
-    p.fee1 = String(BigInt(p.fee1) + subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1)) * BigInt(p.liquidity) / (1n << 128n));
+    if(policy.feeAccounting){
+      if(!input.boundaryFees||!p.boundaryFees||input.boundaryContinuity!==true)return invalidatePaper(previous,input.now,["paper_boundary_fee_continuity_unproven"]);
+      const fees=boundaryFeeIncrement(last,cp,p.boundaryFees,input.boundaryFees,BigInt(p.liquidity),BigInt(p.feeRemainder0??"0"),BigInt(p.feeRemainder1??"0"));
+      p.fee0=String(BigInt(p.fee0)+fees.fee0);p.fee1=String(BigInt(p.fee1)+fees.fee1);
+      p.feeRemainder0=String(fees.remainder0);p.feeRemainder1=String(fees.remainder1);p.boundaryFees=input.boundaryFees;
+    }else{
+      p.fee0 = String(BigInt(p.fee0) + subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0)) * BigInt(p.liquidity) / (1n << 128n));
+      p.fee1 = String(BigInt(p.fee1) + subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1)) * BigInt(p.liquidity) / (1n << 128n));
+    }
     ledger.earnedFee0 = p.fee0; ledger.earnedFee1 = p.fee1;
     state.intervals++; state.observedSwaps = String(BigInt(state.observedSwaps) + BigInt(input.swapCount)); state.action = "mark";
     if (previous.status === "exit_pending" && input.chainHealthy && state.pendingSince && Date.parse(cp.blockTimestamp) > Date.parse(state.pendingSince)) {
@@ -112,5 +126,16 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
   const peak = previousPeak > nav ? previousPeak : nav;
   const drawdown = peak > 0n ? (peak - nav) * 1000000n / peak : 0n;
   state.peakNavQuote = String(peak); state.maxDrawdownPpm = String(drawdown > BigInt(state.maxDrawdownPpm) ? drawdown : BigInt(state.maxDrawdownPpm));
+  if(policy.inventoryExitPpm&&state.status==="open"){
+    const reference=input.reference?.eligible?input.reference.referencePriceX18:null;
+    if(reference){
+      const rwaValue=(principal.amount1+BigInt(p.idle1)+BigInt(p.fee1))*BigInt(reference)/10n**30n;
+      const total=principal.amount0+BigInt(p.idle0)+BigInt(p.fee0)+rwaValue-BigInt(state.costsPaidQuote)-BigInt(state.exitReserveQuote);
+      if(total<=0n||rwaValue*1000000n>=total*BigInt(policy.inventoryExitPpm)){
+        state.status="exit_pending";state.action="signal_exit";state.pendingSince=input.now;
+        state.reasons=[...state.reasons,"paper_inventory_threshold_exit_to_cash"];
+      }
+    }
+  }
   return state;
 }

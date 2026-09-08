@@ -6,7 +6,7 @@ import { NONFUNGIBLE_POSITION_MANAGER, UNISWAP_V3_FACTORY, USDG } from "../const
 import { guardedCanaryPositionManagerAbi } from "../canary-plan/abi.js";
 import { buildCanaryExit, decodeCanaryExit, readCanaryPosition } from "../canary-plan/exit.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget } from "../simulator/math.js";
-import { PAPER_NVDA, PAPER_POOL } from "./engine.js";
+import { PAPER_NVDA, PAPER_POOL, paperEntryRange } from "./engine.js";
 import { PAPER_ACCOUNT, PAPER_ROUTER, PAPER_ROUTER_CODE_HASH, PAPER_QUOTER, paperTokenAbi, paperRouterAbi, paperQuoterAbi } from "./execution-abi.js";
 import { localReceipt, simulatePaperTransaction, type PaperTransaction } from "./execution-gas.js";
 import type { PaperFork } from "./fork.js";
@@ -18,6 +18,8 @@ export interface PaperExecutionPolicy {
   maxLiquiditySharePpm: number;
   maxSlippageBps: number;
   transactionTtlSeconds: number;
+  lpAllocationPpm?: number;
+  feeAccounting?: "initialized_boundaries_v1";
 }
 const NVDA = PAPER_NVDA as Address;
 const POOL = PAPER_POOL as Address;
@@ -123,10 +125,12 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   const context = await createPaperExecutionContext(fork, policy, onTransaction);
   const { local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot } = context;
   const range = intent ? { tickLower: intent.tickLower, tickUpper: intent.tickUpper }
-    : centeredRange({ currentTick: sourceSlot[1], tickSpacing: 10, halfWidthSpacings: policy.halfWidthSpacings });
-  const sized = sizeLiquidityForQuoteBudget({ budgetQuote: BigInt(policy.budgetQuote), quoteToken: USDG, token0: USDG, token1: NVDA,
+    : paperEntryRange({tick:sourceSlot[1],sqrtPriceX96:String(sourceSlot[0])},policy);
+  const lpBudget = BigInt(policy.budgetQuote)*BigInt(policy.lpAllocationPpm??1000000)/1000000n;
+  const reserve = BigInt(policy.budgetQuote)-lpBudget;
+  const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, token0: USDG, token1: NVDA,
     sqrtPriceX96: sourceSlot[0], ...range });
-  const swapAmount = intent ? BigInt(intent.swapAmountQuote) : BigInt(policy.budgetQuote) - sized.amount0 - sized.idleQuote;
+  const swapAmount = intent ? BigInt(intent.swapAmountQuote) : lpBudget - sized.amount0 - sized.idleQuote;
   assert(swapAmount > 0n && swapAmount < BigInt(policy.budgetQuote), "Paper entry needs both token sides");
   const quotedEntry = await quoteSwap(USDG, NVDA, swapAmount);
   if (intent) assert(BigInt(quotedEntry.amountOut) >= BigInt(intent.minRwaOut), "Entry quote exceeds the previously recorded slippage limit");
@@ -144,7 +148,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   assert(beforeMintSlot[1] >= range.tickLower && beforeMintSlot[1] < range.tickUpper, "Entry swap left the fixed LP range");
   const poolLiquidity = await local.readContract({ address: POOL, abi: poolAbi, functionName: "liquidity" });
   const params = { token0: USDG, token1: NVDA, fee: 500, ...range,
-    amount0Desired: BigInt(inventory.quote), amount1Desired: BigInt(inventory.rwa), amount0Min: 0n, amount1Min: 0n,
+    amount0Desired: BigInt(inventory.quote)-reserve, amount1Desired: BigInt(inventory.rwa), amount0Min: 0n, amount1Min: 0n,
     recipient: PAPER_ACCOUNT, deadline: fork.source.timestamp + BigInt(policy.transactionTtlSeconds) };
   const preview = await local.simulateContract({ account: PAPER_ACCOUNT, address: NONFUNGIBLE_POSITION_MANAGER,
     abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] });
@@ -154,6 +158,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   const mint = await send("mint", NONFUNGIBLE_POSITION_MANAGER, encodeFunctionData({ abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] }));
   const [tokenId, liquidity, amount0, amount1] = decodeFunctionResult({ abi: guardedCanaryPositionManagerAbi, functionName: "mint", data: mint.returnData });
   const afterMint = await balances();
+  assert(BigInt(afterMint.quote)>=reserve,"Paper mint spent reserved USDG");
   assert.equal(BigInt(inventory.quote) - BigInt(afterMint.quote), amount0);
   assert.equal(BigInt(inventory.rwa) - BigInt(afterMint.rwa), amount1);
   const position = await readCanaryPosition(local, tokenId, await local.getBlockNumber({ cacheTime: 0 }));

@@ -4,7 +4,7 @@ import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js"
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { readRiskGate } from "../risk/gate.js";
 import { USDG } from "../constants.js";
-import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, policyHash, type PaperCheckpoint, type PaperInput, type PaperPolicy, type PaperState } from "./engine.js";
+import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, paperEntryRange, policyHash, type PaperCheckpoint, type PaperInput, type PaperPolicy, type PaperState } from "./engine.js";
 import type { PaperExecutor } from "./executor.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
@@ -12,6 +12,9 @@ import { readPaperReferenceGate } from "./reference.js";
 
 import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
+import { boundaryContinuity, type BoundaryChange, type BoundaryFeeProof } from "./boundary-fees.js";
+import { centeredRange } from "../simulator/math.js";
+import { sqrtRatioAtTick } from "../backtest/principal.js";
 export interface PaperSessionRow {
   id: string; stream_key: string; created_at: Date; updated_at: Date; heartbeat_at: Date | null;
   runtime_identity: RuntimeIdentity | null;
@@ -83,6 +86,33 @@ export class PaperStore {
     try {
       locked = (await client.query<{locked:boolean}>("SELECT pg_try_advisory_lock(hashtext('conc-liq-paper'),hashtext($1)) AS locked",[streamKey])).rows[0]!.locked;
       if (!locked) return null;
+      // Bounded boundary reads happen before the DB transaction, under the
+      // session advisory lock. Main selection below revalidates source/state.
+      let feeProof: BoundaryFeeProof | undefined;
+      const preview=(await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 AND status NOT IN ('closed','invalid') ORDER BY id LIMIT 1",[streamKey])).rows[0];
+      if(preview&&"feeAccounting" in preview.policy&&preview.policy.feeAccounting){
+        assertRuntimeMatches(preview.runtime_identity,this.runtimeIdentity);
+        const range=preview.state.position??preview.state.entryRange;
+        if(range){
+          const source=(await client.query<SourceRow>(`${sourceSql}
+            AND c.captured_at >= $4 AND c.block_timestamp >= $4
+            AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
+            AND c.block_number > $6 ORDER BY c.block_number,c.id LIMIT 1`,
+            [preview.stream_key,PAPER_NVDA,PAPER_POOL,preview.created_at,preview.id,preview.state.last?.block??"0"])).rows[0];
+          if(source?.covered===true&&source.canonical===true){
+            try{
+              if(!this.executor?.boundaryFees)throw new Error("Paper boundary reader unavailable");
+              feeProof=await this.executor.boundaryFees(source.checkpoint,range);
+            }catch(error){
+              const reason=sanitizeRiskError(error);
+              if((Date.now()-Date.parse(source.checkpoint.blockTimestamp))/1000<=preview.policy.maxSourceAgeSeconds){
+              await client.query("UPDATE paper_sessions SET heartbeat_at=clock_timestamp(),monitor_reasons=$2 WHERE id=$1",[preview.id,JSON.stringify(["awaiting_boundary_fee_evidence",reason])]);
+              return {id:preview.id,status:preview.state.status,action:"wait",reasons:["awaiting_boundary_fee_evidence",reason]};
+              }
+            }
+          }
+        }
+      }
       await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
       await client.query("SET LOCAL statement_timeout = '10s'");
       const sessions = await client.query<PaperSessionRow>(
@@ -126,6 +156,7 @@ export class PaperStore {
         return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_next_live_checkpoint"] };
       }
       const cp = source.checkpoint;
+      if(feeProof&&(feeProof.block!==cp.block||feeProof.hash.toLowerCase()!==cp.hash.toLowerCase()))feeProof=undefined;
       const dataReasons: string[] = [];
       if (source.canonical !== true) dataReasons.push("checkpoint_canonicality_unproven");
       if (source.covered !== true) {
@@ -160,17 +191,33 @@ export class PaperStore {
         entryReasons = [...readiness.reasons.filter(r => !r.startsWith("equity_session_")), ...gate.reasons];
         if (!source.pool_unlocked) entryReasons.push("pool_locked");
         entryReasons.push(...source.reasons.filter(r => !["rwa_oracle_price_stale", "quote_oracle_price_stale"].includes(r)));
+        if("feeAccounting" in session.policy&&session.policy.feeAccounting&&reference?.referencePriceX18){
+          const range=session.state.position??session.state.entryRange??paperEntryRange(cp,session.policy);
+          const ref=BigInt(reference.referencePriceX18),bound=BigInt(session.policy.referencePolicy.maxDeviationPpm);
+          for(const tick of [range.tickLower,range.tickUpper]){
+            const price=(1n<<192n)*10n**30n/sqrtRatioAtTick(tick)**2n;
+            if(price*1000000n<ref*(1000000n-bound)||price*1000000n>ref*(1000000n+bound)){entryReasons.push("paper_range_reference_band_exceeded");break;}
+          }
+        }
       }
       const path = await client.query<{ minimum: number | null; maximum: number | null; count: string }>(
         `SELECT MIN((event_args->>'tick')::int) AS minimum,MAX((event_args->>'tick')::int) AS maximum,COUNT(*)::text AS count
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
         [session.stream_key,PAPER_POOL,session.state.last?.block ?? cp.block,cp.block]);
       const swaps = path.rows[0]!;
+      let feeContinuity=false;
+      if(feeProof&&session.state.position?.boundaryFees){
+        const changes=await client.query<BoundaryChange>(`SELECT event_name AS "eventName",event_args AS args FROM v3_pool_events
+          WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4
+          AND event_name IN ('Mint','Burn') ORDER BY block_number,transaction_index,log_index`,
+          [session.stream_key,PAPER_POOL,session.state.last!.block,cp.block]);
+        feeContinuity=boundaryContinuity(session.state.position.boundaryFees,feeProof,changes.rows);
+      }
       const input: PaperInput = { now, checkpoint: cp, dataReasons,
         entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
         pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
-        execution: { available: this.executor !== undefined }, reference };
+        execution: { available: this.executor !== undefined }, reference, boundaryFees:feeProof,boundaryContinuity:feeContinuity };
       let state = advancePaper(session.state, session.policy, input);
       if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
         const action = state.reasons.includes("paper_entry_quote_required") ? "quote"

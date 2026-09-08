@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import pg from "pg";
-import type { Address } from "viem";
+import { parseAbi, type Address } from "viem";
 import { createRobinhoodClient } from "../client.js";
 import { USDG } from "../constants.js";
 import { loadIndexerConfig } from "../indexer/config.js";
@@ -13,7 +13,8 @@ import { PostgresRpcHealthGate } from "../rpc-health/store.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js";
 import { centeredRange, sizeLiquidityForQuoteBudget } from "../simulator/math.js";
-import { PAPER_NVDA, type PaperCheckpoint, type TransactionPaperPolicy } from "./engine.js";
+import { PAPER_NVDA, PAPER_POOL, paperEntryRange, type PaperCheckpoint, type TransactionPaperPolicy } from "./engine.js";
+import { boundaryInside, type BoundaryFeeProof } from "./boundary-fees.js";
 import type { PaperEntryQuote, PaperGasValuation } from "./execution-domain.js";
 import { simulatePaperRoundTrip } from "./execution.js";
 import { simulatePaperExit, type PaperExitInventory } from "./execution-exit.js";
@@ -22,6 +23,7 @@ import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
 import { readPaperReferenceGate } from "./reference.js";
 
 export interface PaperExecutor {
+  boundaryFees?(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof>;
   quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote>;
   enter(cp: PaperCheckpoint, policy: TransactionPaperPolicy, intent: PaperEntryQuote): Promise<{
     result: Awaited<ReturnType<typeof simulatePaperRoundTrip>>; valuation: PaperGasValuation;
@@ -49,6 +51,14 @@ export class NitroPaperExecutor implements PaperExecutor {
         await this.gate.assertBulkAllowed();
       }, retryCount: 0,
     });
+  }
+  async boundaryFees(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof> {
+    const client=this.client(),abi=parseAbi(['function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)']);
+    const read=async(tick:number)=>{const t=await client.readContract({address:PAPER_POOL as Address,abi,functionName:'ticks',args:[tick],blockNumber:BigInt(cp.block)});
+      assert(t[7]&&t[0]>0n,'Paper fee boundary is not initialized');return {gross:String(t[0]),outside0:String(t[2]),outside1:String(t[3])};};
+    const lower=await read(range.tickLower),upper=await read(range.tickUpper);
+    assert.equal((await client.getBlock({blockNumber:BigInt(cp.block)})).hash.toLowerCase(),cp.hash.toLowerCase());
+    const proof={block:cp.block,hash:cp.hash,...range,lower,upper};boundaryInside(cp,proof);return proof;
   }
   private async check(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean) {
     const now = new Date().toISOString();
@@ -95,9 +105,11 @@ export class NitroPaperExecutor implements PaperExecutor {
   }
   async quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote> {
     await this.check(cp, policy, true);
-    const range = centeredRange({ currentTick: cp.tick, halfWidthSpacings: policy.halfWidthSpacings, tickSpacing: 10 });
-    const sized = sizeLiquidityForQuoteBudget({ budgetQuote: BigInt(policy.budgetQuote), quoteToken: USDG, token0: USDG, token1: PAPER_NVDA, sqrtPriceX96: BigInt(cp.sqrtPriceX96), ...range });
-    const amountIn = BigInt(policy.budgetQuote) - sized.amount0 - sized.idleQuote;
+    const range = paperEntryRange(cp,policy);
+    if(policy.feeAccounting)await this.boundaryFees(cp,range);
+    const lpBudget=BigInt(policy.budgetQuote)*BigInt(policy.lpAllocationPpm??1000000)/1000000n;
+    const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, token0: USDG, token1: PAPER_NVDA, sqrtPriceX96: BigInt(cp.sqrtPriceX96), ...range });
+    const amountIn = lpBudget - sized.amount0 - sized.idleQuote;
     assert(amountIn > 0n && amountIn < BigInt(policy.budgetQuote));
     const client = this.client();
     assert.equal(await client.getChainId(), 4663);

@@ -1,11 +1,12 @@
 import { createHash } from "node:crypto";
 import { subtractUint256 } from "../accounting/math.js";
-import { principalAmounts } from "../backtest/principal.js";
+import { principalAmounts, sqrtRatioAtTick } from "../backtest/principal.js";
 import { USDG } from "../constants.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAndSqrtPrice } from "../simulator/math.js";
 import { advanceTransactionPaper } from "./transaction-engine.js";
 import type { PaperExecutionInput, PaperExecutionLedger } from "./execution-domain.js";
 import type { ContinuousPaperReferencePolicy, PaperReferenceDecision } from "./reference.js";
+import type { BoundaryFeeProof } from "./boundary-fees.js";
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -32,6 +33,9 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly maxSlippageBps: number;
   readonly transactionTtlSeconds: number;
   readonly referencePolicy?: ContinuousPaperReferencePolicy;
+  readonly feeAccounting?: "initialized_boundaries_v1";
+  readonly lpAllocationPpm?: number;
+  readonly inventoryExitPpm?: number;
 }
 export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy | TransactionPaperPolicy;
 export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
@@ -41,6 +45,13 @@ export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
   maxLiquiditySharePpm: 10_000,
   referencePolicy: { kind: "continuous_bounded_v1", maxHeldAgeSeconds: 345600, maxDeviationPpm: 30000, maxGasPriceAgeSeconds: 86400 },
 };
+export function paperEntryRange(cp: Pick<PaperCheckpoint,"tick"|"sqrtPriceX96">, policy: {halfWidthSpacings:number;feeAccounting?:string}) {
+  if(!policy.feeAccounting)return centeredRange({currentTick:cp.tick,halfWidthSpacings:policy.halfWidthSpacings,tickSpacing:10});
+  const base=Math.floor(cp.tick/10)*10,half=policy.halfWidthSpacings*10,price=BigInt(cp.sqrtPriceX96);
+  const candidates=[base,base+10].map(center=>({tickLower:center-half,tickUpper:center+half}));
+  const distance=(r:typeof candidates[number])=>{const middle=sqrtRatioAtTick(r.tickLower)*sqrtRatioAtTick(r.tickUpper),now=price*price;return middle>now?middle-now:now-middle;};
+  return candidates.reduce((best,r)=>distance(r)<distance(best)?r:best);
+}
 export function policyHash(policy: PaperPolicy): string {
   return createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.entries(policy).sort(([a], [b]) => a.localeCompare(b))))).digest("hex");
 }
@@ -68,11 +79,15 @@ export interface PaperInput {
   readonly swapCount: string;
   readonly execution?: PaperExecutionInput;
   readonly reference?: PaperReferenceDecision | null;
+  readonly boundaryFees?: BoundaryFeeProof;
+  readonly boundaryContinuity?: boolean;
 }
 export interface PaperPosition {
   liquidity: string; tickLower: number; tickUpper: number;
   idle0: string; idle1: string; fee0: string; fee1: string;
   hold0: string; hold1: string; enteredAt: string;
+  boundaryFees?: BoundaryFeeProof;
+  feeRemainder0?: string; feeRemainder1?: string;
 }
 export interface PaperState {
   status: "waiting" | "entry_pending" | "open" | "exit_pending" | "closed" | "invalid";

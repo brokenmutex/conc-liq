@@ -10,6 +10,7 @@ import { principalAmounts, sqrtRatioAtTick } from "../src/backtest/principal.js"
 import type { PaperRoundTrip } from "../src/paper/execution.js";
 import type { PaperExitSimulation } from "../src/paper/execution-exit.js";
 import type { PaperEntryQuote, PaperGasValuation } from "../src/paper/execution-domain.js";
+import type {BoundaryFeeProof} from "../src/paper/boundary-fees.js";
 
 const Q128 = 1n << 128n;
 const source = { number: 100n, hash: `0x${"1".repeat(64)}` as Hex, timestamp: 1n };
@@ -42,6 +43,33 @@ function entry() {
 }
 function pending() { return advancePaper(initialPaperState(), DEFAULT_PAPER_POLICY, { ...input(1), execution: { available: true, quote } }); }
 function opened() { return advancePaper(pending(), DEFAULT_PAPER_POLICY, { ...input(2), execution: { available: true, entry: entry() } }); }
+
+describe("paper initialized-boundary accounting lifecycle",()=>{
+  const policy={...DEFAULT_PAPER_POLICY,feeAccounting:"initialized_boundaries_v1" as const};
+  function proof(index:number,upper0="0",upper1="0"):BoundaryFeeProof{return {block:input(index).checkpoint.block,hash:input(index).checkpoint.hash,
+    tickLower:-200,tickUpper:200,lower:{gross:"100",outside0:"0",outside1:"0"},upper:{gross:"100",outside0:upper0,outside1:upper1}};}
+  function start(){return advancePaper(pending(),policy,{...input(2),boundaryFees:proof(2),execution:{available:true,entry:entry()}});}
+  it("keeps an out-of-range position valid and credits no fees for an entirely inactive interval",()=>{
+    const i=input(3),p=proof(3,i.checkpoint.feeGrowth0,i.checkpoint.feeGrowth1);
+    const crossed=advancePaper(start(),policy,{...i,checkpoint:{...i.checkpoint,tick:201,sqrtPriceX96:String(sqrtRatioAtTick(201))},pathMaxTick:201,boundaryFees:p,boundaryContinuity:true});
+    assert.equal(crossed.status,"open");assert.equal(crossed.action,"mark");
+    const next=input(4),outside=advancePaper(crossed,policy,{...next,checkpoint:{...next.checkpoint,tick:201,sqrtPriceX96:String(sqrtRatioAtTick(201))},
+      pathMinTick:201,pathMaxTick:201,boundaryFees:proof(4,p.upper.outside0,p.upper.outside1),boundaryContinuity:true});
+    assert.equal(outside.status,"open");assert.equal(outside.position!.fee0,crossed.position!.fee0);assert.equal(outside.position!.fee1,crossed.position!.fee1);
+  });
+  it("invalidates performance when continuous boundary evidence is missing",()=>{
+    const r=advancePaper(start(),policy,{...input(3),boundaryFees:proof(3),boundaryContinuity:false});
+    assert.equal(r.status,"invalid");assert.equal(r.alphaQuote,null);assert(r.reasons.includes("paper_boundary_fee_continuity_unproven"));
+  });
+  it("signals a delayed full exit when reference-valued NVDA inventory exceeds the threshold",()=>{
+    const previous=start();previous.position!.idle1="2000000000";
+    const r=advancePaper(previous,{...policy,inventoryExitPpm:600000},{...input(3),boundaryFees:proof(3),boundaryContinuity:true,
+      reference:{eligible:true,reasons:[],basis:"heartbeat_valid",ageSeconds:1,referencePriceX18:String(10n**30n),poolPriceX18:String(10n**30n),
+        deviationPpm:"0",referenceUpdatedAt:input(3).now,sourceBlock:input(3).checkpoint.block,maxAgeSeconds:86400,maxDeviationPpm:50000}});
+    assert.equal(r.status,"exit_pending");assert.equal(r.action,"signal_exit");assert.equal(r.execution!.exitRunId,null);
+    assert(r.reasons.includes("paper_inventory_threshold_exit_to_cash"));
+  });
+});
 
 describe("paper transaction boundaries and cost measurements", () => {
   it("never forwards signing, broadcasts, debug methods or unpinned state reads", () => {

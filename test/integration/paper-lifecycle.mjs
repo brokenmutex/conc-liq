@@ -15,7 +15,8 @@ const schema=`paper_execution_audit_${process.pid}_${Date.now()}`;
 const client=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});
 const entryArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/round-trip.json',import.meta.url),'utf8'));
 const exitArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/restored-exit.json',import.meta.url),'utf8')).result;
-const policy={...DEFAULT_PAPER_POLICY,mode:'research',referencePolicy:undefined}; // Isolated mechanics fixture; never a live session.
+const boundaryMode=process.env.PAPER_TEST_BOUNDARIES==='1';
+const policy={...DEFAULT_PAPER_POLICY,mode:'research',referencePolicy:undefined,...(boundaryMode?{feeAccounting:'initialized_boundaries_v1'}:{})}; // Isolated mechanics fixture; never a live session.
 const stream='paper-execution-fixture';
 const calls={quote:0,entry:0,exit:0};
 const valuation=cp=>({sourceBlock:cp.block,sourceHash:cp.hash,computedAt:new Date().toISOString(),ethUsdAnswer:'200000000000',ethUsdDecimals:8,quoteUsdAnswer:'100000000',quoteUsdDecimals:8});
@@ -23,7 +24,11 @@ let failExit=true;
 let cancelDuringEntry=false;
 let invalidateDuringEntry=false;
 let concurrentStore;
+let boundaryReads=0;
 const executor={
+ async boundaryFees(cp,range) {boundaryReads++;assert.equal(await concurrentStore.tick(stream),null);
+  await client.query("SET statement_timeout='2s'");await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS boundary_audit_marker boolean");await client.query('SET statement_timeout=0');
+  return {block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower:{gross:'100',outside0:'0',outside1:'0'},upper:{gross:'100',outside0:'0',outside1:'0'}};},
  async quote(cp) { calls.quote++; return {...entryArtifact.range,sourceBlock:cp.block,sourceHash:cp.hash,quotedAt:new Date().toISOString(),swapAmountQuote:entryArtifact.entrySwap.amountIn,minRwaOut:entryArtifact.entrySwap.amountOutMinimum}; },
  async enter(cp,p,intent) { calls.entry++; assert.equal(await concurrentStore.tick(stream),null); if(cancelDuringEntry)await concurrentStore.stop(stream); if(invalidateDuringEntry)await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=$1',[cp.id]); await client.query("SET statement_timeout='2s'"); await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS paper_audit_marker boolean"); await client.query('SET statement_timeout=0'); assert.equal(intent.swapAmountQuote,entryArtifact.entrySwap.amountIn); return {result:{...entryArtifact,source:{block:cp.block,hash:cp.hash},policy:p},valuation:valuation(cp)}; },
  async exit(cp,p,inventory) { calls.exit++; if(failExit) { failExit=false; throw new Error('fixture rejected preflight'); } return {result:{...exitArtifact,source:{block:cp.block,hash:cp.hash},policy:p,inventory},valuation:valuation(cp)}; },
@@ -140,7 +145,8 @@ try {
  const allRuns=(await client.query("SELECT action,status,snapshot->>'error' AS error FROM paper_execution_runs ORDER BY id")).rows;
  const journalRows=(await client.query('SELECT COUNT(*)::int AS n FROM paper_observations')).rows[0].n;
  assert.equal(journalRows,6);assert.equal(allRuns.length,8);
+ if(boundaryMode)assert(boundaryReads>=4);
  const result={observedAt:new Date().toISOString(),scope:'isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance',passed:[
   'runtime mismatch rejects before execution','session and execution identities persist','execution identity mismatch revokes evidence','one active session per stream','unconfirmed checkpoint waits without being consumed','quote frozen before a later checkpoint','restart retains quote without duplicate calls','entry uses simulation balances and gas','network preflight holds no transaction lock blocking schema maintenance','idle ticks do not repeat fills','failed exit preflight retains position and charges no gas','later exit replaces reserve with fresh gas exactly once','successful and failed execution evidence persists','concurrent tick is excluded during unlocked preflight','operator cancellation during preflight cannot become a fill','cost evidence revocation hides economics','missing canonical hash hides economics','source revoked during unlocked simulation cannot become a fill'],calls,journalRows,executionRuns:allRuns,fixtureSchemaRemoved:true};
- console.log(JSON.stringify(result));
+ console.log(JSON.stringify({...result,boundaryMode,boundaryReads}));
 } finally { await store?.close();await concurrentStore?.close();await client.query('SET search_path=public');await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await client.query(`DROP SCHEMA IF EXISTS ${schema}_template CASCADE`);await client.end(); }
