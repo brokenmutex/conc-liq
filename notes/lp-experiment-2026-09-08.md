@@ -1,6 +1,6 @@
 # Bounded active-LP learning experiment — September 8, 2026
 
-The experiment screens 20 NVDA/USDG candidates against one reconstructed market stream, then runs four modeled portfolios prospectively against the same incoming checkpoints. The existing transaction-simulated paper campaign continues separately. No wallets or upstream broadcasts are used.
+The experiment screens 20 NVDA/USDG candidates against one reconstructed market stream, then runs four modeled portfolios prospectively against the same incoming checkpoints. The existing transaction-simulated paper campaign has a separate lifecycle; its current stopped status is recorded below. No wallets or upstream broadcasts are used.
 
 ## Frozen questions and accounting
 
@@ -46,8 +46,18 @@ capture 2026-09-05T12:30:00Z 2026-09-08T13:15:00Z data/lp-experiment-2026-09-08/
 screen data/lp-experiment-2026-09-08/source-v2.json data/lp-experiment-2026-09-08/screen-release.json
 ```
 
-The deployed `conc-liq-experiment.service` owns the continuous forward writer. Its pinned launcher starts with `lp-experiment watch /root/conc-liq/data/lp-experiment-2026-09-08/forward.json`. `systemctl stop conc-liq-experiment.service` stops the modeled experiment; restarting after missed decisions cannot retroactively resume it. Its state, complete modeled action ledger, latest JSON report and readable Markdown report are under that path. The existing paper campaign is operated through its own pinned `paper stop` command.
+The deployed `conc-liq-experiment.service` owns the continuous forward writer. Its pinned launcher starts with `lp-experiment watch /root/conc-liq/data/lp-experiment-2026-09-08/forward-lag10-v1.json`. `systemctl stop conc-liq-experiment.service` stops the modeled experiment; restarting after missed decisions cannot retroactively resume it. Its state, complete modeled action ledger, latest JSON report and readable Markdown report are under that path. The existing paper campaign is operated through its own pinned `paper stop` command.
 
 `lp-experiment status STATE_PATH` reads the latest report without database or network access. Inspect cumulative P&L, common-benchmark alpha, cost totals, infrastructure churn, occupancy and inventory together. Review at fixed session boundaries, keeping candidate definitions frozen through the next overnight/weekend sample. A changed hypothesis requires a new experiment file and plan, not edits to the existing portfolio state.
 
 Validation: TypeScript and 266 tests passed, including ten new experiment tests for cash/cost conservation, fee/depth reconciliation, delayed decisions, shared benchmarks, liquidity admission, recenter persistence, restart equality, idempotent processing, runtime mismatch, source revocation and missed-decision rejection. Historical reconstruction verified all source intervals. Bounded local-fork probes separately assess the selected entry/exit geometries; they do not turn the prospective modeled portfolios into transaction-faithful recenter simulations.
+
+## Activation and small-lag handling
+
+At 14:06:13.424 UTC on September 8, a fresh prospective comparison was initialized and `conc-liq-experiment.service` enabled with release `64fd6f986ac9bdf345511d5afb3a664f6c0e6598651d2cfd75402b966799b301` (source `f9fb846`). The four candidates above share the corrected RPC monitor described in [small node-lag handling](lp-node-lag-2026-09-08.md). The original historical source and screen remain frozen under the old monitor evidence; no historical hashes or classifications were changed.
+
+The earlier `forward.json` initialization at 13:57:34.749 UTC had not started its worker before the lag investigation. A normal tick marked it invalid for `missed_forward_decision`, with zero entries and zero actions. It remains preserved. The new `forward-lag10-v1.json` is a separately identified prospective trial, not a backfill or reset of invested portfolios. The first start attempt for this new file failed before creation because event coverage had not caught up; a later attempt succeeded.
+
+Bounded geometry probes are preserved in `entry-exit-probes.json` and `entry-exit-probes-lag10.json`. The first obtained a 1,000/±20 quote but subsequent calls were blocked by chain readiness. The second obtained another quote but later execution and the other geometries were unavailable because event coverage had not caught up. There are **no newly verified ±30 transaction round trips**. Existing session-6 evidence calibrates the 1,000/±20 accounting; the four forward portfolios remain modeled scenarios pending further fork validation.
+
+The original transaction-simulated campaign is currently terminal at invalid session 7, with inventory preserved and cumulative NAV unavailable after its preflight consistency failure. Automatic reentry correctly does not reset it. The forward comparison is independent of that campaign and is not a continuation of its money or performance record.
