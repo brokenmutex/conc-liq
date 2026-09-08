@@ -1,0 +1,348 @@
+{
+  "observedAt": "2026-09-08T12:01:10.403Z",
+  "scope": "Live forward paper continuation; estimated economics, no mainnet broadcasts",
+  "ancestryEvidenceValid": true,
+  "sessions": [
+    {
+      "id": "5",
+      "createdAt": "2026-09-08T09:00:26.052Z",
+      "updatedAt": "2026-09-08T10:21:55.555Z",
+      "runtimeIdentity": {
+        "buildId": "3a0f3dcef93880fbdca01e6b8263780749cd1306dacb7ca2ed7d6fbf8066242d",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "policy": {
+        "mode": "guarded",
+        "budgetQuote": "1000000000",
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": 86400,
+        "maxSourceAgeSeconds": 180,
+        "maxGapSeconds": 900,
+        "maxLiquiditySharePpm": 10000,
+        "executionBasis": "nitro_fork_v1",
+        "feeAccounting": "initialized_boundaries_v1",
+        "lpAllocationPpm": 800000,
+        "inventoryExitPpm": 600000,
+        "maxSlippageBps": 50,
+        "transactionTtlSeconds": 300,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxHeldAgeSeconds": 345600,
+          "maxDeviationPpm": 50000,
+          "maxGasPriceAgeSeconds": 86400
+        }
+      },
+      "policyHash": "83674897d0da7ba2bfceb086859bc4e09ff92563e785ab0bc49ea59d50151009",
+      "state": {
+        "status": "closed",
+        "action": "exit",
+        "reasons": [],
+        "last": {
+          "id": "1908",
+          "hash": "0xdcd28f244ec561b55a92845bb5aac9e8f0460d4647963338f78ccfa35a1cc893",
+          "tick": 221858,
+          "block": "57614886",
+          "liquidity": "19817211485073200382",
+          "capturedAt": "2026-09-08T13:21:33.854+03:00",
+          "feeGrowth0": "19094984394740868175089727431123",
+          "feeGrowth1": "88467037957332901482897238420654222123647",
+          "sqrtPriceX96": "5202833204702407411247615555139207",
+          "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+          "blockTimestamp": "2026-09-08T13:21:26+03:00"
+        },
+        "navQuote": "1000043983",
+        "pnlQuote": "43983",
+        "holdQuote": "1000944510",
+        "alphaQuote": "-900527",
+        "costsPaidQuote": "869274",
+        "exitReserveQuote": "0",
+        "intervals": 76,
+        "observedSwaps": "6733",
+        "position": {
+          "tickLower": 221880,
+          "tickUpper": 221920,
+          "idle0": "1000913257",
+          "idle1": "0",
+          "liquidity": "0"
+        },
+        "entryRunId": "6",
+        "exitRunId": "7"
+      },
+      "monitorReasons": []
+    },
+    {
+      "id": "6",
+      "createdAt": "2026-09-08T11:57:47.266Z",
+      "updatedAt": "2026-09-08T12:00:25.374Z",
+      "runtimeIdentity": {
+        "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "policy": {
+        "mode": "guarded",
+        "budgetQuote": "1000043983",
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": 86400,
+        "maxSourceAgeSeconds": 180,
+        "maxGapSeconds": 900,
+        "maxLiquiditySharePpm": 10000,
+        "executionBasis": "nitro_fork_v1",
+        "feeAccounting": "initialized_boundaries_v1",
+        "lpAllocationPpm": 800000,
+        "inventoryExitPpm": 600000,
+        "reentry": {
+          "cooldownSeconds": 600,
+          "previousSessionId": "5"
+        },
+        "maxSlippageBps": 50,
+        "transactionTtlSeconds": 300,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxHeldAgeSeconds": 345600,
+          "maxDeviationPpm": 50000,
+          "maxGasPriceAgeSeconds": 86400
+        }
+      },
+      "policyHash": "d9f3d258d1283824822d6db2a806c2bf0e5ffd1e8d176042749e61fc3c818919",
+      "state": {
+        "status": "open",
+        "action": "enter",
+        "reasons": [],
+        "last": {
+          "id": "2004",
+          "hash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "tick": 221868,
+          "block": "57673343",
+          "liquidity": "19044769648044828907",
+          "capturedAt": "2026-09-08T14:59:53.594+03:00",
+          "feeGrowth0": "19103339801052840977424147887794",
+          "feeGrowth1": "88507316137038536547142327925212331382235",
+          "sqrtPriceX96": "5205415952643680547686416359834422",
+          "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+          "blockTimestamp": "2026-09-08T14:59:46+03:00"
+        },
+        "navQuote": "998998414",
+        "pnlQuote": "-1045569",
+        "holdQuote": "999694296",
+        "alphaQuote": "-695882",
+        "costsPaidQuote": "501934",
+        "exitReserveQuote": "338661",
+        "intervals": 0,
+        "observedSwaps": "0",
+        "position": {
+          "fee0": "0",
+          "fee1": "0",
+          "hold0": "591252844",
+          "hold1": "1763743268129599177",
+          "idle0": "200008797",
+          "idle1": "291091740455538572",
+          "enteredAt": "2026-09-08T14:59:46+03:00",
+          "liquidity": "24073089213487905",
+          "tickLower": 221850,
+          "tickUpper": 221890,
+          "boundaryFees": {
+            "hash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+            "block": "57673343",
+            "lower": {
+              "gross": "1686347003542408557",
+              "outside0": "8870391838205060854616119048647",
+              "outside1": "42511216148869743642582572353031486436430"
+            },
+            "upper": {
+              "gross": "107304659754089519",
+              "outside0": "5596105068756850807517229415048",
+              "outside1": "25256077865882801636296575152546835321248"
+            },
+            "tickLower": 221850,
+            "tickUpper": 221890
+          },
+          "feeRemainder0": "0",
+          "feeRemainder1": "0"
+        },
+        "entryRunId": "9",
+        "exitRunId": null
+      },
+      "monitorReasons": [
+        "awaiting_canonical_event_coverage"
+      ]
+    }
+  ],
+  "campaign": {
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "998998414",
+    "pnlQuote": "-1001586",
+    "holdQuote": "1000612913",
+    "alphaQuote": "-1614499",
+    "costsPaidQuote": "1371208",
+    "sourceAt": "2026-09-08T14:59:46+03:00"
+  },
+  "observations": [
+    {
+      "session_id": "6",
+      "checkpoint_id": "2003",
+      "block_number": "57672740",
+      "block_hash": "0x69baee1724a837fa7ae158527d38783ea891246ed5aebd7a9af8f84ea98315e8",
+      "source_at": "2026-09-08T11:58:45.000Z",
+      "observed_at": "2026-09-08T11:59:07.857Z",
+      "action": "signal_entry",
+      "reasons": []
+    },
+    {
+      "session_id": "6",
+      "checkpoint_id": "2004",
+      "block_number": "57673343",
+      "block_hash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+      "source_at": "2026-09-08T11:59:46.000Z",
+      "observed_at": "2026-09-08T12:00:25.373Z",
+      "action": "enter",
+      "reasons": []
+    }
+  ],
+  "executions": [
+    {
+      "id": "8",
+      "session_id": "6",
+      "checkpoint_id": "2003",
+      "source_block": "57672740",
+      "source_hash": "0x69baee1724a837fa7ae158527d38783ea891246ed5aebd7a9af8f84ea98315e8",
+      "policy_hash": "d9f3d258d1283824822d6db2a806c2bf0e5ffd1e8d176042749e61fc3c818919",
+      "action": "quote",
+      "status": "succeeded",
+      "runtime_identity": {
+        "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "9",
+      "session_id": "6",
+      "checkpoint_id": "2004",
+      "source_block": "57673343",
+      "source_hash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+      "policy_hash": "d9f3d258d1283824822d6db2a806c2bf0e5ffd1e8d176042749e61fc3c818919",
+      "action": "entry",
+      "status": "succeeded",
+      "runtime_identity": {
+        "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    }
+  ],
+  "health": {
+    "observed_at": "2026-09-08T12:01:07.862Z",
+    "state": "healthy",
+    "reasons": []
+  },
+  "validation": {
+    "observedAt": "2026-09-08T11:56:48.614Z",
+    "scope": "isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance",
+    "passed": [
+      "runtime mismatch rejects before execution",
+      "session and execution identities persist",
+      "execution identity mismatch revokes evidence",
+      "one active session per stream",
+      "unconfirmed checkpoint waits without being consumed",
+      "quote frozen before a later checkpoint",
+      "restart retains quote without duplicate calls",
+      "entry uses simulation balances and gas",
+      "network preflight holds no transaction lock blocking schema maintenance",
+      "idle ticks do not repeat fills",
+      "failed exit preflight retains position and charges no gas",
+      "later exit replaces reserve with fresh gas exactly once",
+      "successful and failed execution evidence persists",
+      "concurrent tick is excluded during unlocked preflight",
+      "operator cancellation during preflight cannot become a fill",
+      "cost evidence revocation hides economics",
+      "missing canonical hash hides economics",
+      "source revoked during unlocked simulation cannot become a fill"
+    ],
+    "calls": {
+      "quote": 5,
+      "entry": 5,
+      "exit": 4
+    },
+    "journalRows": 6,
+    "executionRuns": [
+      {
+        "action": "quote",
+        "status": "succeeded",
+        "error": null
+      },
+      {
+        "action": "entry",
+        "status": "succeeded",
+        "error": null
+      },
+      {
+        "action": "exit",
+        "status": "failed",
+        "error": "Error: fixture rejected preflight"
+      },
+      {
+        "action": "exit",
+        "status": "succeeded",
+        "error": null
+      },
+      {
+        "action": "quote",
+        "status": "succeeded",
+        "error": null
+      },
+      {
+        "action": "entry",
+        "status": "failed",
+        "error": "paper_session_changed_during_preflight"
+      },
+      {
+        "action": "quote",
+        "status": "succeeded",
+        "error": null
+      },
+      {
+        "action": "entry",
+        "status": "failed",
+        "error": "paper_source_changed_during_preflight"
+      }
+    ],
+    "fixtureSchemaRemoved": true,
+    "boundaryMode": true,
+    "boundaryReads": 10,
+    "reentryAudit": {
+      "passed": [
+        "automatic successor created once under concurrent ticks",
+        "runtime pin enforced before automatic continuation",
+        "net cash and gas carried across restart",
+        "cooldown prevents quotes",
+        "unhealthy recovery prevents quotes",
+        "fresh healthy checkpoint quotes then enters later",
+        "cumulative performance retains original budget and all costs",
+        "manual stop survives exit and idle ticks",
+        "explicit continuation after manual stop",
+        "revoked ancestor evidence invalidates descendants and stops reentry"
+      ],
+      "sessions": [
+        {
+          "id": "5",
+          "status": "closed"
+        },
+        {
+          "id": "6",
+          "status": "closed"
+        },
+        {
+          "id": "7",
+          "status": "invalid"
+        }
+      ]
+    }
+  }
+}
