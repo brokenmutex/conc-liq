@@ -1,0 +1,23 @@
+# Render with scripts/render-experiment-unit.mjs before installation.
+[Unit]
+Description=conc-liq bounded forward LP experiment
+After=postgresql.service network-online.target
+Requires=postgresql.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=@RELEASE@
+ExecStart=@RELEASE@/bin/node @RELEASE@/launch.mjs @ENV@ lp-experiment watch @STATE@
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=30s
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
