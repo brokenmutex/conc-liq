@@ -28,6 +28,16 @@ Issuer/pause/multiplier, token identity, canonicality, source age, indexed event
 
 TypeScript and 252 tests pass. The isolated PostgreSQL lifecycle with boundary mode verifies restarted state, five boundary reads, unlocked network preflight, concurrent-tick exclusion, cancellation, source revocation, failed exit retry, and entry/exit evidence. Its temporary schemas are removed. No production migration is required; policy and proof fields use existing immutable JSON records.
 
-The paper worker uses a new sealed release and the existing private runtime configuration. Other services retain their existing releases. The timer runs every 15 seconds and processes new canonical minute checkpoints. Runtime/policy hashes bind each session to its build and configuration. Stop through the pinned worker's `paper stop` command; stopping the timer alone does not close a position. An open session must complete its exit before changing its runtime identity.
+The paper worker uses a new sealed release and the existing private runtime configuration. The dashboard uses the same release to read the new policy fields; market-data services retain their existing releases. The timer runs every 15 seconds and processes new canonical minute checkpoints. Runtime/policy hashes bind each session to its build and configuration. Stop through the pinned worker's `paper stop` command; stopping the timer alone does not close a position. An open session must complete its exit before changing its runtime identity.
 
-Activation evidence will be recorded alongside this note after the new worker starts. Review the first entry, subsequent fee marks, actual cash reserve, source ages, boundary continuity, exit triggers and any failed simulations before interpreting performance.
+## Confirmed activation
+
+Session **5** was created at **09:00:26 UTC / 12:00:26 Vilnius**, September 8. Its immutable policy hash is `83674897d0da7ba2bfceb086859bc4e09ff92563e785ab0bc49ea59d50151009`. The sealed build is `3a0f3dcef93880fbdca01e6b8263780749cd1306dacb7ca2ed7d6fbf8066242d`, from source commit `0d586cac10a5c8fdbdcc19e4819e80a269dee219`.
+
+The quote was recorded at 09:00:57 UTC against block **57,566,778**. Entry used the later block **57,567,392**, timestamp **09:01:35 UTC / 12:01:35 Vilnius**; simulation and persistence completed at **09:02:13 UTC**. Both execution records succeeded. The initial range is **221880–221920** and liquidity is **26,209,862,110,328,812**, approximately **0.152%** of historical active liquidity at entry. Exactly **200 USDG** remains idle, plus a small residual NVDA balance.
+
+Estimated entry gas costs **0.520941 USDG** and the reserved exit estimate is **0.364100 USDG**. Initial NAV after costs and exit reserve is **998.947961 USDG**; this is an immediate execution mark, not a holding-period performance conclusion. The reference is heartbeat-valid, updated September 8 at 06:55:32 UTC, rather than a held weekend anchor.
+
+The first subsequent holding interval was successfully marked at 09:03:02 UTC and covers **166 indexed swaps**, with boundary continuity proven. The worker remains active and the dashboard API successfully returns session 5. [Activation evidence](paper-narrow-evidence-2026-09-08/activation.json) preserves the session, initial observations, transaction evidence, policy/runtime hashes and canonical execution validation. The 24-hour maximum holding deadline is September 9 **09:01:35 UTC / 12:01:35 Vilnius**; risk conditions may exit earlier.
+
+This is a paper position only. Review forward net P&L, alpha, costs, source coverage and risk exits before treating the candidate as suitable for funded use.
