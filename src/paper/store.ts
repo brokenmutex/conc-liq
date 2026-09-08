@@ -25,10 +25,10 @@ export interface PaperSessionRow {
 interface SourceRow {
   checkpoint: PaperCheckpoint; risk_run_id: string; token0: string; token1: string;
   token_decimals: number | null; pool_unlocked: boolean; status: string; reasons: string[];
-  canonical: boolean; covered: boolean; asset_reasons: string[] | null;
+  canonical: boolean; covered: boolean; coverage_identity_valid: boolean; asset_reasons: string[] | null;
   asset_eligible: boolean | null; deviation_ppm: string | null;
 }
-const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
+export const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
   'hash',c.block_hash,'blockTimestamp',c.block_timestamp,'capturedAt',c.captured_at,
   'tick',p.tick,'sqrtPriceX96',p.sqrt_price_x96::text,'liquidity',p.liquidity::text,
   'feeGrowth0',p.fee_growth_global0_x128::text,'feeGrowth1',p.fee_growth_global1_x128::text,
@@ -41,7 +41,11 @@ const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_num
     AND i.chain_id=c.chain_id AND r.chain_id=c.chain_id AND i.target_set_hash=c.target_set_hash
     AND r.target_set_hash=c.target_set_hash AND t.target_set_hash=c.target_set_hash AND t.enabled
     AND t.chain_id=4663 AND t.fee=500 AND LOWER(t.rwa_address)=$2
-    AND t.created_block<=c.block_number) AS covered
+    AND t.created_block<=c.block_number) AS covered,
+  (i.chain_id=c.chain_id AND r.chain_id=c.chain_id AND i.target_set_hash=c.target_set_hash
+    AND r.target_set_hash=c.target_set_hash AND t.target_set_hash=c.target_set_hash AND t.enabled
+    AND t.chain_id=4663 AND t.fee=500 AND LOWER(t.rwa_address)=$2
+    AND t.created_block<=c.block_number) AS coverage_identity_valid
  FROM v3_strategy_checkpoint_runs c JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id=c.id
  LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id
  LEFT JOIN asset_risk_snapshots a ON a.run_id=c.risk_run_id AND a.symbol='NVDA'
@@ -155,6 +159,7 @@ export class PaperStore {
           const source=(await client.query<SourceRow>(`${sourceSql}
             AND c.captured_at >= $4 AND c.block_timestamp >= $4
             AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
+            AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
             AND c.block_number > $6 ORDER BY c.block_number,c.id LIMIT 1`,
             [preview.stream_key,PAPER_NVDA,PAPER_POOL,preview.created_at,preview.id,preview.state.last?.block??"0"])).rows[0];
           if(source?.covered===true&&source.canonical===true){
@@ -215,6 +220,7 @@ export class PaperStore {
       const source = (await client.query<SourceRow>(`${sourceSql}
         AND c.captured_at >= $4 AND c.block_timestamp >= $4
         AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
+            AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
         AND c.block_number > $6 ORDER BY c.block_number,c.id LIMIT 1`,
         [session.stream_key,PAPER_NVDA,PAPER_POOL,session.created_at,session.id,session.state.last?.block ?? "0"])).rows[0];
       if (!source) {
@@ -333,16 +339,33 @@ export class PaperStore {
           if ("reentry" in session.policy && session.policy.reentry?.previousSessionId) {
             try { await readPaperChain(client, session); } catch { ancestryInvalid = true; }
           }
-          const sourceChanged = ancestryInvalid || !renewed || renewed.canonical !== true || renewed.covered !== true ||
+          const sourceChanged = ancestryInvalid || !renewed || renewed.canonical !== true || renewed.coverage_identity_valid !== true ||
             renewed.checkpoint.block !== cp.block || renewed.checkpoint.hash.toLowerCase() !== cp.hash.toLowerCase() || invalidHistory;
+          const coverageDeferred = !changed && !sourceChanged && renewed?.covered !== true;
+          if (coverageDeferred) {
+            status = "failed";
+            evidence = { preflight: evidence, error: "paper_event_coverage_deferred" };
+          }
           if (changed || sourceChanged) {
             status = "failed";
-            evidence = { preflight: evidence, error: changed ? "paper_session_changed_during_preflight" : "paper_source_changed_during_preflight" };
+            evidence = { preflight: evidence, error: changed ? "paper_session_changed_during_preflight" : "paper_source_changed_during_preflight",
+              checks: { ancestryInvalid, sourcePresent: !!renewed, canonical: renewed?.canonical, coverageIdentityValid: renewed?.coverage_identity_valid,
+                covered: renewed?.covered, blockMatches: renewed?.checkpoint.block === cp.block,
+                hashMatches: renewed?.checkpoint.hash.toLowerCase() === cp.hash.toLowerCase(), invalidHistory } };
           }
           const saved = await client.query<{ id: string }>(`INSERT INTO paper_execution_runs
             (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot,runtime_identity)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id::text`,
             [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence),JSON.stringify(this.runtimeIdentity)]);
+          if (coverageDeferred) {
+            // Overlap rescans temporarily retract event coverage. Discard this
+            // unaccepted simulation without changing balances or consuming the
+            // source. The next fresh checkpoint accounts for the entire interval.
+            await client.query("UPDATE paper_sessions SET heartbeat_at=clock_timestamp(),monitor_reasons=$2 WHERE id=$1",
+              [session.id, JSON.stringify(["paper_event_coverage_deferred"])]);
+            await client.query("COMMIT");
+            return { id: session.id, status: session.state.status, action: "wait", reasons: ["paper_event_coverage_deferred"] };
+          }
           if (changed || sourceChanged) {
             const next = changed ? current.state : invalidatePaper(session.state,new Date().toISOString(),["paper_source_changed_during_preflight"]);
             if (!changed) await this.update(client,session.id,next,next.reasons);

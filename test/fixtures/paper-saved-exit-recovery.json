@@ -1,0 +1,1043 @@
+{
+  "scope": "Recorded session-7 recovery accounting fixture; transaction storage overrides omitted. Not independent profitability validation.",
+  "session": {
+    "id": "7",
+    "stream_key": "robinhood-v3-rwa-usdg-v1",
+    "created_at": "2026-09-08T13:00:45.368Z",
+    "updated_at": "2026-09-08T13:36:41.632Z",
+    "heartbeat_at": "2026-09-08T13:36:41.632Z",
+    "policy_hash": "2bf3d909fd0ca37e191af5b45ff277ce9921bbc78170c9217fe5ccc8a6a3fd0f",
+    "policy": {
+      "mode": "guarded",
+      "reentry": {
+        "cooldownSeconds": 600,
+        "previousSessionId": "6"
+      },
+      "budgetQuote": "999967410",
+      "feeAccounting": "initialized_boundaries_v1",
+      "maxGapSeconds": 900,
+      "executionBasis": "nitro_fork_v1",
+      "maxSlippageBps": 50,
+      "lpAllocationPpm": 800000,
+      "referencePolicy": {
+        "kind": "continuous_bounded_v1",
+        "maxDeviationPpm": 50000,
+        "maxHeldAgeSeconds": 345600,
+        "maxGasPriceAgeSeconds": 86400
+      },
+      "inventoryExitPpm": 600000,
+      "halfWidthSpacings": 2,
+      "maxHoldingSeconds": 86400,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000,
+      "transactionTtlSeconds": 300
+    },
+    "state": {
+      "last": {
+        "id": "2095",
+        "hash": "0x2eca7970c004880745175b3d0fca103e928c3038cf1a88951f0a11729d9361c2",
+        "tick": 221855,
+        "block": "57730005",
+        "liquidity": "8044097563217764714",
+        "capturedAt": "2026-09-08T16:35:11.025+03:00",
+        "feeGrowth0": "19119587101666015067742201211658",
+        "feeGrowth1": "88571582572730370232060396737832118029059",
+        "sqrtPriceX96": "5201909340375729467515773534959902",
+        "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+        "blockTimestamp": "2026-09-08T16:35:04+03:00"
+      },
+      "action": "invalidate",
+      "status": "invalid",
+      "reasons": [
+        "paper_source_changed_during_preflight"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": {
+        "fee0": "498342",
+        "fee1": "2580692720147909",
+        "hold0": "573768128",
+        "hold1": "1833868402812925734",
+        "idle0": "206727680",
+        "idle1": "10",
+        "enteredAt": "2026-09-08T16:12:25+03:00",
+        "liquidity": "26030599564799223",
+        "tickLower": 221820,
+        "tickUpper": 221860,
+        "boundaryFees": {
+          "hash": "0x2eca7970c004880745175b3d0fca103e928c3038cf1a88951f0a11729d9361c2",
+          "block": "57730005",
+          "lower": {
+            "gross": "303075392969981969",
+            "outside0": "7176089742591607631924150298828",
+            "outside1": "34952469718192361526458890562852185159525"
+          },
+          "upper": {
+            "gross": "1017733433846089064",
+            "outside0": "9202045593135063805510777036852",
+            "outside1": "41512882170477839754760356778011120950206"
+          },
+          "tickLower": 221820,
+          "tickUpper": 221860
+        },
+        "feeRemainder0": "11606012011127423340978458120785871349",
+        "feeRemainder1": "248544071969614952177680509387582172606"
+      },
+      "execution": {
+        "intent": {
+          "quotedAt": "2026-09-08T13:12:01.517Z",
+          "minRwaOut": "1824658833221218456",
+          "tickLower": 221820,
+          "tickUpper": 221860,
+          "sourceHash": "0xfee8b0b0d259daad7f4b52d04ef7511bf291f597a836d0924ff10f15572d74a7",
+          "sourceBlock": "57715944",
+          "swapAmountQuote": "426199282"
+        },
+        "exitRunId": null,
+        "allowances": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "206727680",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "10",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          }
+        ],
+        "earnedFee0": "498342",
+        "earnedFee1": "2580692720147909",
+        "entryRunId": "12",
+        "gasSpentWei": "197595421920000",
+        "holdGasQuote": "141556",
+        "lastValuation": {
+          "computedAt": "2026-09-08T13:12:48.841Z",
+          "sourceHash": "0x4220951e1cd3e473019d3ae3c0612e8e8678a0137b46e31d840e7f7198d469b3",
+          "sourceBlock": "57716555",
+          "ethUsdAnswer": "247527430000",
+          "ethUsdDecimals": 8,
+          "oracleEvidence": {
+            "eth": {
+              "feed": {
+                "name": "ETH / USD",
+                "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+                "decimals": 8,
+                "baseAsset": "ETH",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "247527430000",
+                "roundId": "18446744073709553662",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788865737",
+                "updatedAt": "1788865749",
+                "description": "ETH / USD",
+                "answeredInRound": "18446744073709553662"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 7396,
+              "executionEligible": true
+            },
+            "quote": {
+              "feed": {
+                "name": "USDG / USD",
+                "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+                "decimals": 8,
+                "baseAsset": "USDG",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "99984552",
+                "roundId": "18446744073709551711",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788795079",
+                "updatedAt": "1788795094",
+                "description": "USDG / USD",
+                "answeredInRound": "18446744073709551711"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 78051,
+              "executionEligible": true
+            },
+            "directory": {
+              "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+              "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+              "fetchedAt": "2026-09-08T13:12:48.811Z"
+            }
+          },
+          "quoteUsdAnswer": "99984552",
+          "quoteUsdDecimals": 8
+        },
+        "exitReserveWei": "138108868560000"
+      },
+      "holdQuote": null,
+      "intervals": 22,
+      "reference": {
+        "basis": "heartbeat_valid",
+        "reasons": [],
+        "eligible": true,
+        "ageSeconds": 38,
+        "sourceBlock": "57730005",
+        "deviationPpm": "-1226",
+        "poolPriceX18": "231970954000000000000",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "referencePriceX18": "232255878888170644601",
+        "referenceUpdatedAt": "2026-09-08T13:34:26.000Z"
+      },
+      "alphaQuote": null,
+      "entryRange": {
+        "tickLower": 221820,
+        "tickUpper": 221860
+      },
+      "peakNavQuote": "999967410",
+      "pendingSince": "2026-09-08T13:35:27.792Z",
+      "feeValueQuote": null,
+      "invalidatedAt": "2026-09-08T13:36:41.631Z",
+      "observedSwaps": "2276",
+      "costsPaidQuote": "489179",
+      "maxDrawdownPpm": "1045",
+      "exitReserveQuote": "341911"
+    },
+    "status": "invalid",
+    "monitor_reasons": [
+      "paper_source_changed_during_preflight"
+    ],
+    "execution_eligible": false,
+    "runtime_identity": {
+      "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    }
+  },
+  "previous": {
+    "last": {
+      "id": "2095",
+      "hash": "0x2eca7970c004880745175b3d0fca103e928c3038cf1a88951f0a11729d9361c2",
+      "tick": 221855,
+      "block": "57730005",
+      "liquidity": "8044097563217764714",
+      "capturedAt": "2026-09-08T16:35:11.025+03:00",
+      "feeGrowth0": "19119587101666015067742201211658",
+      "feeGrowth1": "88571582572730370232060396737832118029059",
+      "sqrtPriceX96": "5201909340375729467515773534959902",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-08T16:35:04+03:00"
+    },
+    "action": "signal_exit",
+    "status": "exit_pending",
+    "reasons": [
+      "paper_inventory_threshold_exit_to_cash"
+    ],
+    "navQuote": "999252376",
+    "pnlQuote": "-715034",
+    "position": {
+      "fee0": "498342",
+      "fee1": "2580692720147909",
+      "hold0": "573768128",
+      "hold1": "1833868402812925734",
+      "idle0": "206727680",
+      "idle1": "10",
+      "enteredAt": "2026-09-08T16:12:25+03:00",
+      "liquidity": "26030599564799223",
+      "tickLower": 221820,
+      "tickUpper": 221860,
+      "boundaryFees": {
+        "hash": "0x2eca7970c004880745175b3d0fca103e928c3038cf1a88951f0a11729d9361c2",
+        "block": "57730005",
+        "lower": {
+          "gross": "303075392969981969",
+          "outside0": "7176089742591607631924150298828",
+          "outside1": "34952469718192361526458890562852185159525"
+        },
+        "upper": {
+          "gross": "1017733433846089064",
+          "outside0": "9202045593135063805510777036852",
+          "outside1": "41512882170477839754760356778011120950206"
+        },
+        "tickLower": 221820,
+        "tickUpper": 221860
+      },
+      "feeRemainder0": "11606012011127423340978458120785871349",
+      "feeRemainder1": "248544071969614952177680509387582172606"
+    },
+    "execution": {
+      "intent": {
+        "quotedAt": "2026-09-08T13:12:01.517Z",
+        "minRwaOut": "1824658833221218456",
+        "tickLower": 221820,
+        "tickUpper": 221860,
+        "sourceHash": "0xfee8b0b0d259daad7f4b52d04ef7511bf291f597a836d0924ff10f15572d74a7",
+        "sourceBlock": "57715944",
+        "swapAmountQuote": "426199282"
+      },
+      "exitRunId": null,
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "206727680",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "10",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "earnedFee0": "498342",
+      "earnedFee1": "2580692720147909",
+      "entryRunId": "12",
+      "gasSpentWei": "197595421920000",
+      "holdGasQuote": "141556",
+      "lastValuation": {
+        "computedAt": "2026-09-08T13:12:48.841Z",
+        "sourceHash": "0x4220951e1cd3e473019d3ae3c0612e8e8678a0137b46e31d840e7f7198d469b3",
+        "sourceBlock": "57716555",
+        "ethUsdAnswer": "247527430000",
+        "ethUsdDecimals": 8,
+        "oracleEvidence": {
+          "eth": {
+            "feed": {
+              "name": "ETH / USD",
+              "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+              "decimals": 8,
+              "baseAsset": "ETH",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "247527430000",
+              "roundId": "18446744073709553662",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788865737",
+              "updatedAt": "1788865749",
+              "description": "ETH / USD",
+              "answeredInRound": "18446744073709553662"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 7396,
+            "executionEligible": true
+          },
+          "quote": {
+            "feed": {
+              "name": "USDG / USD",
+              "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+              "decimals": 8,
+              "baseAsset": "USDG",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "99984552",
+              "roundId": "18446744073709551711",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788795079",
+              "updatedAt": "1788795094",
+              "description": "USDG / USD",
+              "answeredInRound": "18446744073709551711"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 78051,
+            "executionEligible": true
+          },
+          "directory": {
+            "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+            "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+            "fetchedAt": "2026-09-08T13:12:48.811Z"
+          }
+        },
+        "quoteUsdAnswer": "99984552",
+        "quoteUsdDecimals": 8
+      },
+      "exitReserveWei": "138108868560000"
+    },
+    "holdQuote": "999030775",
+    "intervals": 22,
+    "reference": {
+      "basis": "heartbeat_valid",
+      "reasons": [],
+      "eligible": true,
+      "ageSeconds": 38,
+      "sourceBlock": "57730005",
+      "deviationPpm": "-1226",
+      "poolPriceX18": "231970954000000000000",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "referencePriceX18": "232255878888170644601",
+      "referenceUpdatedAt": "2026-09-08T13:34:26.000Z"
+    },
+    "alphaQuote": "221601",
+    "entryRange": {
+      "tickLower": 221820,
+      "tickUpper": 221860
+    },
+    "peakNavQuote": "999967410",
+    "pendingSince": "2026-09-08T13:35:27.792Z",
+    "feeValueQuote": "1096987",
+    "invalidatedAt": null,
+    "observedSwaps": "2276",
+    "costsPaidQuote": "489179",
+    "maxDrawdownPpm": "1045",
+    "exitReserveQuote": "341911"
+  },
+  "run": {
+    "id": "13",
+    "session_id": "7",
+    "checkpoint_id": "2096",
+    "source_block": "57730617",
+    "source_hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+    "policy_hash": "2bf3d909fd0ca37e191af5b45ff277ce9921bbc78170c9217fe5ccc8a6a3fd0f",
+    "action": "exit",
+    "observed_at": "2026-09-08T13:36:41.630Z",
+    "status": "failed",
+    "snapshot": {
+      "error": "paper_source_changed_during_preflight",
+      "preflight": {
+        "result": {
+          "scope": "paper_restored_position_exit",
+          "policy": {
+            "mode": "guarded",
+            "reentry": {
+              "cooldownSeconds": 600,
+              "previousSessionId": "6"
+            },
+            "budgetQuote": "999967410",
+            "feeAccounting": "initialized_boundaries_v1",
+            "maxGapSeconds": 900,
+            "executionBasis": "nitro_fork_v1",
+            "maxSlippageBps": 50,
+            "lpAllocationPpm": 800000,
+            "referencePolicy": {
+              "kind": "continuous_bounded_v1",
+              "maxDeviationPpm": 50000,
+              "maxHeldAgeSeconds": 345600,
+              "maxGasPriceAgeSeconds": 86400
+            },
+            "inventoryExitPpm": 600000,
+            "halfWidthSpacings": 2,
+            "maxHoldingSeconds": 86400,
+            "maxSourceAgeSeconds": 180,
+            "maxLiquiditySharePpm": 10000,
+            "transactionTtlSeconds": 300
+          },
+          "source": {
+            "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+            "block": "57730617",
+            "timestamp": "1788874566"
+          },
+          "balances": {
+            "before": {
+              "rwa": "10",
+              "quote": "206727680",
+              "native": "999802404578080000"
+            },
+            "afterExit": {
+              "rwa": "0",
+              "quote": "995953615",
+              "native": "999297138488633499"
+            },
+            "afterCollect": {
+              "rwa": "3418175552068429158",
+              "quote": "207227172",
+              "native": "999594558880566854"
+            }
+          },
+          "exitSwap": {
+            "amountIn": "3418175552068429158",
+            "actualOut": "788726443",
+            "amountOut": "788726443",
+            "ticksCrossed": 1,
+            "sqrtPriceAfter": "5214425176320530037700780261588857",
+            "amountOutMinimum": "784782810"
+          },
+          "upstream": {
+            "methods": {
+              "eth_call": 10,
+              "eth_getCode": 15,
+              "eth_getBalance": 15,
+              "eth_estimateGas": 5,
+              "eth_getStorageAt": 64,
+              "eth_getBlockByNumber": 2,
+              "eth_getTransactionCount": 15
+            },
+            "rejected": 2,
+            "requests": 126,
+            "maxRequests": 400
+          },
+          "inventory": {
+            "fee0": "499492",
+            "fee1": "2740154074918378",
+            "hold0": "573768128",
+            "hold1": "1833868402812925734",
+            "idle0": "206727680",
+            "idle1": "10",
+            "enteredAt": "2026-09-08T16:12:25+03:00",
+            "liquidity": "26030599564799223",
+            "tickLower": 221820,
+            "tickUpper": 221860,
+            "allowances": [
+              {
+                "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+                "amount": "0",
+                "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+              },
+              {
+                "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+                "amount": "206727680",
+                "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+              },
+              {
+                "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "amount": "0",
+                "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+              },
+              {
+                "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "amount": "10",
+                "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+              }
+            ],
+            "boundaryFees": {
+              "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "block": "57730617",
+              "lower": {
+                "gross": "303075392969981969",
+                "outside0": "7176089742591607631924150298828",
+                "outside1": "34952469718192361526458890562852185159525"
+              },
+              "upper": {
+                "gross": "411169849600783066",
+                "outside0": "9917556551131429965118865004796",
+                "outside1": "47060784944604259178098182077055063667846"
+              },
+              "tickLower": 221820,
+              "tickUpper": 221860
+            },
+            "feeRemainder0": "254793527303859825660751212834169794719",
+            "feeRemainder1": "243084694504619625360404545694552632181",
+            "nativeBalanceWei": "999802404578080000"
+          },
+          "computedAt": "2026-09-08T13:36:41.593Z",
+          "limitations": [
+            "NFT, idle balances and allowances restored on the local fork only",
+            "Fee inputs remain estimates from observed fee growth; restoring them does not turn them into realized mainnet income",
+            "Gas and token proceeds are simulations at the source block; no intervening third-party transactions"
+          ],
+          "totalGasWei": "133188029592000",
+          "storageProof": {
+            "nftBase": "44797551277100671782279507015460839739333558576461443336978089145466109560528",
+            "coreBase": "50562236215793925505646304522132001228489514303793834393860474559007712326975"
+          },
+          "transactions": [
+            {
+              "action": "decrease_and_collect",
+              "sourceBlock": "57730617",
+              "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "estimate": {
+                "gas": "236459",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "240788000",
+                "totalFeeWei": "56936489692000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "56936489692000",
+                "parentBaseFeeWei": "0"
+              }
+            },
+            {
+              "action": "approve_exit_swap",
+              "sourceBlock": "57730617",
+              "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "estimate": {
+                "gas": "64484",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "240788000",
+                "totalFeeWei": "15526973392000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "15526973392000",
+                "parentBaseFeeWei": "0"
+              }
+            },
+            {
+              "action": "sell_nvda",
+              "sourceBlock": "57730617",
+              "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "estimate": {
+                "gas": "163736",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "240788000",
+                "totalFeeWei": "39425663968000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "39425663968000",
+                "parentBaseFeeWei": "0"
+              }
+            },
+            {
+              "action": "revoke_exit_allowance",
+              "sourceBlock": "57730617",
+              "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "estimate": {
+                "gas": "41390",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "240788000",
+                "totalFeeWei": "9966215320000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "9966215320000",
+                "parentBaseFeeWei": "0"
+              }
+            },
+            {
+              "action": "revoke_exit_allowance",
+              "sourceBlock": "57730617",
+              "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+              "estimate": {
+                "gas": "47065",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "240788000",
+                "totalFeeWei": "11332687220000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "11332687220000",
+                "parentBaseFeeWei": "0"
+              }
+            }
+          ],
+          "schemaVersion": 1,
+          "restoredTokenId": "1084706",
+          "executionEligible": false,
+          "restoredLiquidity": "26030599564799223",
+          "broadcastAuthorized": false
+        },
+        "valuation": {
+          "computedAt": "2026-09-08T13:36:28.962Z",
+          "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+          "sourceBlock": "57730617",
+          "ethUsdAnswer": "246083352032",
+          "ethUsdDecimals": 8,
+          "oracleEvidence": {
+            "eth": {
+              "feed": {
+                "name": "ETH / USD",
+                "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+                "decimals": 8,
+                "baseAsset": "ETH",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "246083352032",
+                "roundId": "18446744073709553663",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788874319",
+                "updatedAt": "1788874332",
+                "description": "ETH / USD",
+                "answeredInRound": "18446744073709553663"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 234,
+              "executionEligible": true
+            },
+            "quote": {
+              "feed": {
+                "name": "USDG / USD",
+                "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+                "decimals": 8,
+                "baseAsset": "USDG",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "99984552",
+                "roundId": "18446744073709551711",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788795079",
+                "updatedAt": "1788795094",
+                "description": "USDG / USD",
+                "answeredInRound": "18446744073709551711"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 79472,
+              "executionEligible": true
+            },
+            "directory": {
+              "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+              "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+              "fetchedAt": "2026-09-08T13:36:28.936Z"
+            }
+          },
+          "quoteUsdAnswer": "99984552",
+          "quoteUsdDecimals": 8
+        }
+      }
+    },
+    "execution_eligible": false,
+    "runtime_identity": {
+      "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    }
+  },
+  "input": {
+    "now": "2026-09-08T13:36:41.630Z",
+    "checkpoint": {
+      "id": "2096",
+      "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+      "tick": 221903,
+      "block": "57730617",
+      "liquidity": "7636304119601131013",
+      "capturedAt": "2026-09-08T16:36:13.422+03:00",
+      "feeGrowth0": "19122810579852603268823274272306",
+      "feeGrowth1": "88605634604229710442736311529974473789059",
+      "sqrtPriceX96": "5214389729806612041666308415160320",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-08T16:36:06+03:00"
+    },
+    "dataReasons": [],
+    "entryReasons": [],
+    "chainHealthy": true,
+    "pathMinTick": 221855,
+    "pathMaxTick": 221904,
+    "swapCount": "174",
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "heartbeat_valid",
+      "ageSeconds": 10,
+      "referencePriceX18": "230754146900613206728",
+      "poolPriceX18": "230861860000000000000",
+      "deviationPpm": "466",
+      "referenceUpdatedAt": "2026-09-08T13:35:56.000Z",
+      "sourceBlock": "57730617",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 50000
+    },
+    "boundaryFees": {
+      "block": "57730617",
+      "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+      "tickLower": 221820,
+      "tickUpper": 221860,
+      "lower": {
+        "gross": "303075392969981969",
+        "outside0": "7176089742591607631924150298828",
+        "outside1": "34952469718192361526458890562852185159525"
+      },
+      "upper": {
+        "gross": "411169849600783066",
+        "outside0": "9917556551131429965118865004796",
+        "outside1": "47060784944604259178098182077055063667846"
+      }
+    },
+    "boundaryContinuity": true,
+    "execution": {
+      "available": true
+    }
+  },
+  "expected": {
+    "last": {
+      "id": "2096",
+      "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+      "tick": 221903,
+      "block": "57730617",
+      "liquidity": "7636304119601131013",
+      "capturedAt": "2026-09-08T16:36:13.422+03:00",
+      "feeGrowth0": "19122810579852603268823274272306",
+      "feeGrowth1": "88605634604229710442736311529974473789059",
+      "sqrtPriceX96": "5214389729806612041666308415160320",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-08T16:36:06+03:00"
+    },
+    "action": "exit",
+    "status": "closed",
+    "reasons": [],
+    "navQuote": "995136631",
+    "pnlQuote": "-4830779",
+    "position": {
+      "fee0": "0",
+      "fee1": "0",
+      "hold0": "573768128",
+      "hold1": "1833868402812925734",
+      "idle0": "995953615",
+      "idle1": "0",
+      "enteredAt": "2026-09-08T16:12:25+03:00",
+      "liquidity": "0",
+      "tickLower": 221820,
+      "tickUpper": 221860,
+      "boundaryFees": {
+        "block": "57730617",
+        "hash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+        "tickLower": 221820,
+        "tickUpper": 221860,
+        "lower": {
+          "gross": "303075392969981969",
+          "outside0": "7176089742591607631924150298828",
+          "outside1": "34952469718192361526458890562852185159525"
+        },
+        "upper": {
+          "gross": "411169849600783066",
+          "outside0": "9917556551131429965118865004796",
+          "outside1": "47060784944604259178098182077055063667846"
+        }
+      },
+      "feeRemainder0": "254793527303859825660751212834169794719",
+      "feeRemainder1": "243084694504619625360404545694552632181"
+    },
+    "execution": {
+      "intent": {
+        "quotedAt": "2026-09-08T13:12:01.517Z",
+        "minRwaOut": "1824658833221218456",
+        "tickLower": 221820,
+        "tickUpper": 221860,
+        "sourceHash": "0xfee8b0b0d259daad7f4b52d04ef7511bf291f597a836d0924ff10f15572d74a7",
+        "sourceBlock": "57715944",
+        "swapAmountQuote": "426199282"
+      },
+      "exitRunId": "13",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "206727680",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "10",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "earnedFee0": "499492",
+      "earnedFee1": "2740154074918378",
+      "entryRunId": "12",
+      "gasSpentWei": "330783451512000",
+      "holdGasQuote": "141556",
+      "lastValuation": {
+        "computedAt": "2026-09-08T13:36:28.962Z",
+        "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+        "sourceBlock": "57730617",
+        "ethUsdAnswer": "246083352032",
+        "ethUsdDecimals": 8,
+        "oracleEvidence": {
+          "eth": {
+            "feed": {
+              "name": "ETH / USD",
+              "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+              "decimals": 8,
+              "baseAsset": "ETH",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "246083352032",
+              "roundId": "18446744073709553663",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788874319",
+              "updatedAt": "1788874332",
+              "description": "ETH / USD",
+              "answeredInRound": "18446744073709553663"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 234,
+            "executionEligible": true
+          },
+          "quote": {
+            "feed": {
+              "name": "USDG / USD",
+              "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+              "decimals": 8,
+              "baseAsset": "USDG",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "99984552",
+              "roundId": "18446744073709551711",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788795079",
+              "updatedAt": "1788795094",
+              "description": "USDG / USD",
+              "answeredInRound": "18446744073709551711"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 79472,
+            "executionEligible": true
+          },
+          "directory": {
+            "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+            "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+            "fetchedAt": "2026-09-08T13:36:28.936Z"
+          }
+        },
+        "quoteUsdAnswer": "99984552",
+        "quoteUsdDecimals": 8
+      },
+      "exitReserveWei": "0"
+    },
+    "holdQuote": "996996844",
+    "intervals": 23,
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "heartbeat_valid",
+      "ageSeconds": 10,
+      "referencePriceX18": "230754146900613206728",
+      "poolPriceX18": "230861860000000000000",
+      "deviationPpm": "466",
+      "referenceUpdatedAt": "2026-09-08T13:35:56.000Z",
+      "sourceBlock": "57730617",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 50000
+    },
+    "alphaQuote": "-1860213",
+    "entryRange": {
+      "tickLower": 221820,
+      "tickUpper": 221860
+    },
+    "peakNavQuote": "999967410",
+    "pendingSince": null,
+    "feeValueQuote": "1132089",
+    "invalidatedAt": null,
+    "observedSwaps": "2450",
+    "costsPaidQuote": "816984",
+    "maxDrawdownPpm": "4830",
+    "exitReserveQuote": "0"
+  }
+}

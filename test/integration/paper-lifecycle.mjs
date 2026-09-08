@@ -21,6 +21,7 @@ const stream='paper-execution-fixture';
 const calls={quote:0,entry:0,exit:0};
 const valuation=cp=>({sourceBlock:cp.block,sourceHash:cp.hash,computedAt:new Date().toISOString(),ethUsdAnswer:'200000000000',ethUsdDecimals:8,quoteUsdAnswer:'100000000',quoteUsdDecimals:8});
 let failExit=true;
+let deferCoverageDuringExit=false;
 let cancelDuringEntry=false;
 let invalidateDuringEntry=false;
 let concurrentStore;
@@ -33,7 +34,7 @@ const executor={
  async enter(cp,p,intent) { calls.entry++; assert.equal(await concurrentStore.tick(stream),null); if(cancelDuringEntry)await concurrentStore.stop(stream); if(invalidateDuringEntry)await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=$1',[cp.id]); await client.query("SET statement_timeout='2s'"); await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS paper_audit_marker boolean"); await client.query('SET statement_timeout=0'); assert.equal(intent.swapAmountQuote,entryArtifact.entrySwap.amountIn); const balances=structuredClone(entryArtifact.balances);const delta=BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote);
   balances.afterMint.quote=String(BigInt(balances.afterMint.quote)+delta);balances.inventory.quote=String(BigInt(balances.inventory.quote)+delta);
   return {result:{...entryArtifact,balances,source:{block:cp.block,hash:cp.hash},policy:p},valuation:valuation(cp)}; },
- async exit(cp,p,inventory) { calls.exit++; if(failExit) { failExit=false; throw new Error('fixture rejected preflight'); } const balances=structuredClone(exitArtifact.balances);balances.afterExit.quote=String(BigInt(balances.afterExit.quote)+BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote));return {result:{...exitArtifact,balances,source:{block:cp.block,hash:cp.hash},policy:p,inventory},valuation:valuation(cp)}; },
+ async exit(cp,p,inventory) { calls.exit++; if(deferCoverageDuringExit)await client.query("UPDATE indexer_cursors SET last_scanned_block=0"); if(failExit) { failExit=false; throw new Error('fixture rejected preflight'); } const balances=structuredClone(exitArtifact.balances);balances.afterExit.quote=String(BigInt(balances.afterExit.quote)+BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote));return {result:{...exitArtifact,balances,source:{block:cp.block,hash:cp.hash},policy:p,inventory},valuation:valuation(cp)}; },
 };
 await client.connect();
 let store;
@@ -206,7 +207,24 @@ try {
   assert.equal(rows.length,3);
   reentryAudit={passed:['automatic successor created once under concurrent ticks','runtime pin enforced before automatic continuation','net cash and gas carried across restart','cooldown prevents quotes','unhealthy recovery prevents quotes','fresh healthy checkpoint quotes then enters later','cumulative performance retains original budget and all costs','manual stop survives exit and idle ticks','explicit continuation after manual stop','revoked ancestor evidence invalidates descendants and stops reentry'],sessions:rows};
  }
+ await client.query('UPDATE indexer_cursors SET last_scanned_block=1000000');
+ await client.query('UPDATE v3_replay_cursors SET complete_through_block=1000000');
+ cancelDuringEntry=false;invalidateDuringEntry=false;failExit=false;
+ const deferredId=await store.start(stream,policy);
+ await checkpoint(30);assert.equal((await store.tick(stream)).action,'signal_entry');
+ await checkpoint(31);assert.equal((await store.tick(stream)).action,'enter');
+ await store.stop(stream);
+ const beforeDeferred=(await client.query('SELECT state FROM paper_sessions WHERE id=$1',[deferredId])).rows[0].state;
+ deferCoverageDuringExit=true;
+ await checkpoint(32);assert.deepEqual((await store.tick(stream)).reasons,['paper_event_coverage_deferred']);
+ assert.deepEqual((await client.query('SELECT state FROM paper_sessions WHERE id=$1',[deferredId])).rows[0].state,beforeDeferred);
+ const exitsAtDeferral=calls.exit;
+ await client.query('UPDATE indexer_cursors SET last_scanned_block=1000000');
+ deferCoverageDuringExit=false;
+ assert.equal((await store.tick(stream)).action,'wait');assert.equal(calls.exit,exitsAtDeferral);
+ await checkpoint(33);assert.equal((await store.tick(stream)).action,'exit');
+ assert.equal((await client.query("SELECT count(*)::int AS n FROM paper_execution_runs WHERE session_id=$1 AND status='failed' AND snapshot->>'error'='paper_event_coverage_deferred'",[deferredId])).rows[0].n,1);
  const result={observedAt:new Date().toISOString(),scope:'isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance',passed:[
-  'runtime mismatch rejects before execution','session and execution identities persist','execution identity mismatch revokes evidence','one active session per stream','unconfirmed checkpoint waits without being consumed','quote frozen before a later checkpoint','restart retains quote without duplicate calls','entry uses simulation balances and gas','network preflight holds no transaction lock blocking schema maintenance','idle ticks do not repeat fills','failed exit preflight retains position and charges no gas','later exit replaces reserve with fresh gas exactly once','successful and failed execution evidence persists','concurrent tick is excluded during unlocked preflight','operator cancellation during preflight cannot become a fill','cost evidence revocation hides economics','missing canonical hash hides economics','source revoked during unlocked simulation cannot become a fill'],calls,journalRows,executionRuns:allRuns,fixtureSchemaRemoved:true};
+  'temporary preflight coverage retraction preserves state and costs, skips duplicate simulation and exits at the next fresh checkpoint','runtime mismatch rejects before execution','session and execution identities persist','execution identity mismatch revokes evidence','one active session per stream','unconfirmed checkpoint waits without being consumed','quote frozen before a later checkpoint','restart retains quote without duplicate calls','entry uses simulation balances and gas','network preflight holds no transaction lock blocking schema maintenance','idle ticks do not repeat fills','failed exit preflight retains position and charges no gas','later exit replaces reserve with fresh gas exactly once','successful and failed execution evidence persists','concurrent tick is excluded during unlocked preflight','operator cancellation during preflight cannot become a fill','cost evidence revocation hides economics','missing canonical hash hides economics','source revoked during unlocked simulation cannot become a fill'],calls,journalRows,executionRuns:allRuns,fixtureSchemaRemoved:true};
  console.log(JSON.stringify({...result,boundaryMode,boundaryReads,reentryAudit}));
 } finally { await store?.close();await concurrentStore?.close();await client.query('SET search_path=public');await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await client.query(`DROP SCHEMA IF EXISTS ${schema}_template CASCADE`);await client.end(); }
