@@ -1,0 +1,13 @@
+# LP handling of small private-node delays — September 8, 2026
+
+Ordinary private-node lag of up to ten blocks must not by itself force an LP exit. The health monitor now moves its shared confirmation anchor back just enough to retain 64 confirmations on the private node as well as both public references. The adjustment applies only when the private probe is valid, explicitly not syncing, and no more than ten blocks behind the fastest usable reference. Larger delays retain the existing reference-derived anchor and readiness checks. No observation history or paper balances are rewritten.
+
+This corrects an interaction between two existing checks. The monitor's unchanged default soft block threshold is 20 (hard 100), but LP readiness requires 64 blocks beyond the shared anchor on every participating node. A reference-derived anchor could therefore classify a small private delay as a readiness failure even when the monitor was healthy. Actual September 8 samples at 01:00:00.408, 01:37:35.075 and 05:32:06.752 UTC had lag 7, 7 and 8 blocks, healthy monitor state, and private confirmation depth 62. The recorded 12:53:04.988 UTC degradation was a separate 42-block / four-second delay; this change does not exempt that incident.
+
+The five-minute readiness window, private syncing gate, time-lag limits, sample freshness, canonical hash agreement, source confirmation wait, source-age limit and true-price bound remain enforced. The change adds no synthetic confirmations and assumes no block-time conversion. A stalled node can still trip time/stall safeguards even with a small block gap.
+
+Regression coverage passes realistic 31-sample recovery windows with 0, 1, 5 and 10 blocks of lag; bounds adjustment at 11 blocks and for missing private evidence; and retains syncing, time-lag and hash-disagreement failures at ten blocks. Deployment changes only the RPC health monitor's sealed release. Existing paper and experiment evaluators consume the same schema and continue to enforce their full checks.
+
+The frozen historical experiment screen retains original health evidence and original results. Its four prospective candidates share the corrected monitor, so the forward comparison measures behavior under the new infrastructure treatment. Historical rankings are provisional and must not be presented as results of this corrected monitor.
+
+Separately, paper session 7 became invalid at 13:36:41.631 UTC after an exit preflight consistency check (`paper_source_changed_during_preflight`). Its position and prior evidence remain stored; no cash exit or campaign continuation is asserted. This is not repaired by relaxing node lag. Recovery requires identifying the failed consistency check and conserving the existing inventory and costs.

@@ -10,7 +10,8 @@ import type {
   RpcHealthPreviousStatus,
 } from "../src/rpc-health/domain.js";
 import { evaluateRpcHealth } from "../src/rpc-health/policy.js";
-import { calculateReferenceAnchorBlock } from "../src/rpc-health/probe.js";
+import { calculateReferenceAnchorBlock, calculateMonitorAnchorBlock } from "../src/rpc-health/probe.js";
+import { evaluateCanaryEntryReadiness } from "../src/canary-plan/entry-readiness.js";
 
 const now = "2026-09-04T12:00:00.000Z";
 const nowSeconds = BigInt(Date.parse(now) / 1_000);
@@ -206,6 +207,42 @@ describe("RPC health configuration", () => {
 });
 
 describe("RPC health reference anchor", () => {
+  it("preserves 64 confirmations on all nodes through ten blocks of private lag", () => {
+    for (const lag of [0n, 1n, 5n, 10n]) {
+      const samples = Array.from({ length: 31 }, (_, i) => {
+        const at = new Date(Date.parse(now) - 300000 + i * 10000).toISOString();
+        const head = 1000n + BigInt(i * 100);
+        const anchor = calculateMonitorAnchorBlock([head, head - 1n], 64, head - lag)!;
+        const probes = healthyProbes().map((p, j) => ({ ...p, anchorBlock: anchor,
+          headBlock: j === 0 ? head - lag : j === 1 ? head : head - 1n,
+          headTimestamp: BigInt(Date.parse(at) / 1000) }));
+        const snapshot = evaluateRpcHealth({ config, observedAt: at, previous: previous({ state: 'healthy' }), probes });
+        assert.equal(snapshot.state, 'healthy');
+        return { id: String(i), snapshot };
+      });
+      const result = evaluateCanaryEntryReadiness({ now, sourceBlock: 3900n, samples });
+      assert.equal(result.chainEligible, true, `lag=${lag}: ${result.reasons}`);
+    }
+  });
+
+  it("bounds anchor adjustment and keeps unknown or larger lag on the reference policy", () => {
+    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 990n), 926n);
+    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 989n), 936n);
+    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 1n), 936n);
+    assert.equal(calculateMonitorAnchorBlock([1000n], 64, null), 936n);
+    assert.equal(calculateMonitorAnchorBlock([], 64, 990n), null);
+    assert.equal(calculateMonitorAnchorBlock([30n], 64, 20n), 0n);
+  });
+
+  it("retains time-lag, syncing and hash-disagreement gates at ten blocks", () => {
+    const base = healthyProbes(990n).map(p => ({ ...p, anchorBlock: 926n }));
+    for (const change of [ { syncing: true }, { headTimestamp: nowSeconds - 6n }, { anchorHash: `0x${'ff'.repeat(32)}` } ]) {
+      const probes = base.map((p, i) => i === 0 ? { ...p, ...change } : p);
+      const result = evaluateRpcHealth({ config, observedAt: now, previous: previous(), probes });
+      assert.equal(result.allowBulk, false);
+    }
+  });
+
   it("uses a confirmation-depth anchor when reference heads are close", () => {
     assert.equal(calculateReferenceAnchorBlock([1_000n, 990n], 64), 926n);
   });

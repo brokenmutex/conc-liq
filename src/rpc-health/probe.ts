@@ -211,6 +211,21 @@ export function calculateReferenceAnchorBlock(
   return lowest > depth ? lowest - depth : 0n;
 }
 
+/** Keep the full confirmation depth on every node during an ordinary small lag.
+ * Bound the adjustment: a badly lagging private node cannot drag public reads
+ * arbitrarily far into history. Larger lag keeps the reference-derived anchor.
+ */
+export function calculateMonitorAnchorBlock(
+  referenceHeads: readonly bigint[], confirmationDepth: number, privateHead: bigint | null,
+): bigint | null {
+  const referenceAnchor = calculateReferenceAnchorBlock(referenceHeads, confirmationDepth);
+  if (referenceAnchor === null || privateHead === null) return referenceAnchor;
+  const highest = referenceHeads.reduce((a, b) => a > b ? a : b);
+  if (highest - privateHead > 10n) return referenceAnchor;
+  const privateAnchor = privateHead > BigInt(confirmationDepth) ? privateHead - BigInt(confirmationDepth) : 0n;
+  return privateAnchor < referenceAnchor ? privateAnchor : referenceAnchor;
+}
+
 async function probeAnchor(input: {
   readonly anchorBlock: bigint;
   readonly latest: RpcEndpointProbe;
@@ -277,18 +292,20 @@ export async function runRpcHealthProbe(input: {
     target,
     timeoutMs: input.config.requestTimeoutMs,
   })));
-  // Derive the quorum anchor from references only. A lagging private head must
-  // not drag the anchor outside a public provider's recent-block window; if it
-  // cannot serve the reference-confirmed anchor, the policy opens explicitly.
+  // Allow at most ten blocks of private lag without losing confirmation depth.
+  // Larger delays retain the reference anchor and existing readiness checks.
   const usableReferenceHeads = probes
     .filter((probe) =>
       probe.role === "reference" && probe.error === null &&
       probe.chainId === input.config.expectedChainId && probe.headBlock !== null
     )
     .map((probe) => probe.headBlock!);
-  const anchorBlock = calculateReferenceAnchorBlock(
+  const privateProbe = probes.find(probe => probe.role === "private");
+  const anchorBlock = calculateMonitorAnchorBlock(
     usableReferenceHeads,
     input.config.confirmationDepth,
+    privateProbe?.error === null && privateProbe.chainId === input.config.expectedChainId && privateProbe.syncing === false
+      ? privateProbe.headBlock : null,
   );
   if (anchorBlock !== null) {
     probes = await Promise.all(probes.map((latest, index) => probeAnchor({
