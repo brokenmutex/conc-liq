@@ -36,6 +36,7 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly feeAccounting?: "initialized_boundaries_v1";
   readonly lpAllocationPpm?: number;
   readonly inventoryExitPpm?: number;
+  readonly reentry?: { readonly cooldownSeconds: number; readonly previousSessionId?: string };
 }
 export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy | TransactionPaperPolicy;
 export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
@@ -111,6 +112,7 @@ export interface PaperState {
   entryRange: { tickLower: number; tickUpper: number } | null;
   execution?: PaperExecutionLedger;
   reference?: PaperReferenceDecision | null;
+  reentryStoppedAt?: string;
 }
 export function initialPaperState(): PaperState {
   return { status: "waiting", action: "wait", reasons: [], last: null, position: null,

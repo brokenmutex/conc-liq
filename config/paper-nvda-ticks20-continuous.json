@@ -1,0 +1,24 @@
+{
+  "mode": "guarded",
+  "executionBasis": "nitro_fork_v1",
+  "budgetQuote": "1000000000",
+  "halfWidthSpacings": 2,
+  "feeAccounting": "initialized_boundaries_v1",
+  "lpAllocationPpm": 800000,
+  "inventoryExitPpm": 600000,
+  "maxHoldingSeconds": 86400,
+  "maxSourceAgeSeconds": 180,
+  "maxGapSeconds": 900,
+  "maxLiquiditySharePpm": 10000,
+  "maxSlippageBps": 50,
+  "transactionTtlSeconds": 300,
+  "referencePolicy": {
+    "kind": "continuous_bounded_v1",
+    "maxHeldAgeSeconds": 345600,
+    "maxDeviationPpm": 50000,
+    "maxGasPriceAgeSeconds": 86400
+  },
+  "reentry": {
+    "cooldownSeconds": 600
+  }
+}

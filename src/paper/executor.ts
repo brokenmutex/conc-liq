@@ -58,7 +58,7 @@ export class NitroPaperExecutor implements PaperExecutor {
       assert(t[7]&&t[0]>0n,'Paper fee boundary is not initialized');return {gross:String(t[0]),outside0:String(t[2]),outside1:String(t[3])};};
     const lower=await read(range.tickLower),upper=await read(range.tickUpper);
     assert.equal((await client.getBlock({blockNumber:BigInt(cp.block)})).hash.toLowerCase(),cp.hash.toLowerCase());
-    const proof={block:cp.block,hash:cp.hash,...range,lower,upper};boundaryInside(cp,proof);return proof;
+    const proof={block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower,upper};boundaryInside(cp,proof);return proof;
   }
   private async check(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean) {
     const now = new Date().toISOString();

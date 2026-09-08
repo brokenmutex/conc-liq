@@ -30,8 +30,10 @@ const executor={
   await client.query("SET statement_timeout='2s'");await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS boundary_audit_marker boolean");await client.query('SET statement_timeout=0');
   return {block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower:{gross:'100',outside0:'0',outside1:'0'},upper:{gross:'100',outside0:'0',outside1:'0'}};},
  async quote(cp) { calls.quote++; return {...entryArtifact.range,sourceBlock:cp.block,sourceHash:cp.hash,quotedAt:new Date().toISOString(),swapAmountQuote:entryArtifact.entrySwap.amountIn,minRwaOut:entryArtifact.entrySwap.amountOutMinimum}; },
- async enter(cp,p,intent) { calls.entry++; assert.equal(await concurrentStore.tick(stream),null); if(cancelDuringEntry)await concurrentStore.stop(stream); if(invalidateDuringEntry)await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=$1',[cp.id]); await client.query("SET statement_timeout='2s'"); await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS paper_audit_marker boolean"); await client.query('SET statement_timeout=0'); assert.equal(intent.swapAmountQuote,entryArtifact.entrySwap.amountIn); return {result:{...entryArtifact,source:{block:cp.block,hash:cp.hash},policy:p},valuation:valuation(cp)}; },
- async exit(cp,p,inventory) { calls.exit++; if(failExit) { failExit=false; throw new Error('fixture rejected preflight'); } return {result:{...exitArtifact,source:{block:cp.block,hash:cp.hash},policy:p,inventory},valuation:valuation(cp)}; },
+ async enter(cp,p,intent) { calls.entry++; assert.equal(await concurrentStore.tick(stream),null); if(cancelDuringEntry)await concurrentStore.stop(stream); if(invalidateDuringEntry)await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=$1',[cp.id]); await client.query("SET statement_timeout='2s'"); await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS paper_audit_marker boolean"); await client.query('SET statement_timeout=0'); assert.equal(intent.swapAmountQuote,entryArtifact.entrySwap.amountIn); const balances=structuredClone(entryArtifact.balances);const delta=BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote);
+  balances.afterMint.quote=String(BigInt(balances.afterMint.quote)+delta);balances.inventory.quote=String(BigInt(balances.inventory.quote)+delta);
+  return {result:{...entryArtifact,balances,source:{block:cp.block,hash:cp.hash},policy:p},valuation:valuation(cp)}; },
+ async exit(cp,p,inventory) { calls.exit++; if(failExit) { failExit=false; throw new Error('fixture rejected preflight'); } const balances=structuredClone(exitArtifact.balances);balances.afterExit.quote=String(BigInt(balances.afterExit.quote)+BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote));return {result:{...exitArtifact,balances,source:{block:cp.block,hash:cp.hash},policy:p,inventory},valuation:valuation(cp)}; },
 };
 await client.connect();
 let store;
@@ -67,7 +69,7 @@ try {
   await insert('risk_snapshot_canonicality',{risk_run_id:String(index),canonical:true,block_number:block,expected_hash:hash,observed_hash:hash,validated_at:at});
   await client.query('DELETE FROM rpc_health_samples');
   for(let i=0;i<34;i++) {
-   const observed=now-1000-(33-i)*10000,observedAt=new Date(observed).toISOString(),head=10000+i*100,anchor=head-64;
+   const observed=now-1000-(33-i)*10000,observedAt=new Date(observed).toISOString(),head=100000+i*100,anchor=head-64;
    const probe={chainId:4663,error:null,anchorError:null,anchorBlock:String(anchor),anchorHash:hash,headBlock:String(head),headHash:hash,headTimestamp:String(Math.floor(observed/1000))};
    const snapshot={observedAt,state:'healthy',allowBulk:true,reasons:[],privateSyncing:false,anchorBlock:String(anchor),anchorHash:hash,privateAnchorHash:hash,privateHead:String(head),privateHeadTimestamp:probe.headTimestamp,probes:[{...probe,role:'private',name:'fixture-private'},{...probe,role:'reference',name:'fixture-ref-a'},{...probe,role:'reference',name:'fixture-ref-b'}]};
    await insert('rpc_health_samples',{id:String(i+1),observed_at:observedAt,snapshot});
@@ -146,7 +148,65 @@ try {
  const journalRows=(await client.query('SELECT COUNT(*)::int AS n FROM paper_observations')).rows[0].n;
  assert.equal(journalRows,6);assert.equal(allRuns.length,8);
  if(boundaryMode)assert(boundaryReads>=4);
+ let reentryAudit=null;
+ if(process.env.PAPER_TEST_REENTRY==='1') {
+  invalidateDuringEntry=false;
+  await client.query("UPDATE indexer_cursors SET last_scanned_block='50000'");
+  await client.query("UPDATE v3_replay_cursors SET complete_through_block='50000'");
+  const continuous={...policy,maxHoldingSeconds:60,reentry:{cooldownSeconds:600}};
+  const rootId=await store.start(stream,continuous);
+  await checkpoint(9);assert.equal((await store.tick(stream)).action,'signal_entry');
+  await checkpoint(10);assert.equal((await store.tick(stream)).action,'enter');
+  const session=async id=>(await client.query('SELECT * FROM paper_sessions WHERE id=$1',[id])).rows[0];
+  // Advance only the isolated fixture's holding clock; never wait a real minute.
+  await client.query("UPDATE paper_sessions SET state=jsonb_set(state,'{position,enteredAt}',to_jsonb((clock_timestamp()-interval '61 seconds')::text)) WHERE id=$1",[rootId]);
+  await checkpoint(11);assert.equal((await store.tick(stream)).action,'signal_exit');
+  await checkpoint(12);assert.equal((await store.tick(stream)).action,'exit');
+  const root=await session(rootId);
+  assert.equal(root.state.reentryStoppedAt,undefined);
+  const incompatible=new PaperStore(url.toString(),executor,{...identity,buildId:'c'.repeat(64)});
+  try{await assert.rejects(incompatible.tick(stream),/runtime differs/);}finally{await incompatible.close();}
+  await Promise.all([store.tick(stream),concurrentStore.tick(stream)]);
+  let rows=(await client.query('SELECT * FROM paper_sessions WHERE id >= $1 ORDER BY id',[rootId])).rows;
+  assert.equal(rows.length,2);
+  const childId=rows[1].id;
+  assert.equal(rows[1].policy.budgetQuote,root.state.navQuote);
+  assert.equal(rows[1].policy.reentry.previousSessionId,rootId);
+  await store.close();store=new PaperStore(url.toString(),executor,identity);
+  const quotesBefore=calls.quote;
+  await checkpoint(13);assert((await store.tick(stream)).reasons.includes('paper_reentry_cooldown'));
+  assert.equal(calls.quote,quotesBefore);
+  await client.query("UPDATE paper_observations SET observed_at=clock_timestamp()-interval '601 seconds' WHERE session_id=$1 AND action='exit'",[rootId]);
+  await checkpoint(14);
+  await client.query(`UPDATE rpc_health_samples SET snapshot=jsonb_set(snapshot,'{state}','"open"') WHERE id=33`);
+  assert((await store.tick(stream)).reasons.includes('chain_recovery_not_continuously_healthy'));
+  assert.equal(calls.quote,quotesBefore);
+  await checkpoint(15);assert.equal((await store.tick(stream)).action,'signal_entry');
+  await checkpoint(16);assert.equal((await store.tick(stream)).action,'enter');
+  const child=await session(childId);
+  assert.equal(child.state.position.idle0,String(BigInt(entryArtifact.balances.afterMint.quote)+BigInt(root.state.navQuote)-BigInt(entryArtifact.policy.budgetQuote)));
+  const campaign=(await readPaperDashboard(client,stream)).campaign;
+  assert.equal(campaign.valid,true);
+  assert.deepEqual(campaign.sessionIds,[rootId,childId]);
+  assert.equal(campaign.pnlQuote,String(BigInt(child.state.navQuote)-BigInt(continuous.budgetQuote)));
+  assert.equal(campaign.costsPaidQuote,String(BigInt(root.state.costsPaidQuote)+BigInt(child.state.costsPaidQuote)));
+  await store.stop(stream);
+  await checkpoint(17);assert.equal((await store.tick(stream)).action,'exit');
+  assert((await session(childId)).state.reentryStoppedAt);
+  assert.equal(await store.tick(stream),null);
+  await store.stop(stream); // Stopping an already-closed campaign must not reopen it.
+  assert.equal(await store.tick(stream),null);
+  const grandchildId=await store.start(stream,continuous,childId); // Explicit recovery from manual stop.
+  await client.query("UPDATE paper_execution_runs SET status='failed' WHERE id=$1",[root.state.execution.entryRunId]);
+  assert.equal((await store.tick(stream)).status,'invalid');
+  assert.equal(await store.tick(stream),null);
+  assert.equal((await readPaperDashboard(client,stream)).campaign.valid,false);
+  await assert.rejects(store.start(stream,continuous,grandchildId),/evidence invalid/);
+  rows=(await client.query('SELECT id,status FROM paper_sessions WHERE id >= $1 ORDER BY id',[rootId])).rows;
+  assert.equal(rows.length,3);
+  reentryAudit={passed:['automatic successor created once under concurrent ticks','runtime pin enforced before automatic continuation','net cash and gas carried across restart','cooldown prevents quotes','unhealthy recovery prevents quotes','fresh healthy checkpoint quotes then enters later','cumulative performance retains original budget and all costs','manual stop survives exit and idle ticks','explicit continuation after manual stop','revoked ancestor evidence invalidates descendants and stops reentry'],sessions:rows};
+ }
  const result={observedAt:new Date().toISOString(),scope:'isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance',passed:[
   'runtime mismatch rejects before execution','session and execution identities persist','execution identity mismatch revokes evidence','one active session per stream','unconfirmed checkpoint waits without being consumed','quote frozen before a later checkpoint','restart retains quote without duplicate calls','entry uses simulation balances and gas','network preflight holds no transaction lock blocking schema maintenance','idle ticks do not repeat fills','failed exit preflight retains position and charges no gas','later exit replaces reserve with fresh gas exactly once','successful and failed execution evidence persists','concurrent tick is excluded during unlocked preflight','operator cancellation during preflight cannot become a fill','cost evidence revocation hides economics','missing canonical hash hides economics','source revoked during unlocked simulation cannot become a fill'],calls,journalRows,executionRuns:allRuns,fixtureSchemaRemoved:true};
- console.log(JSON.stringify({...result,boundaryMode,boundaryReads}));
+ console.log(JSON.stringify({...result,boundaryMode,boundaryReads,reentryAudit}));
 } finally { await store?.close();await concurrentStore?.close();await client.query('SET search_path=public');await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await client.query(`DROP SCHEMA IF EXISTS ${schema}_template CASCADE`);await client.end(); }

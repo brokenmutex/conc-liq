@@ -859,6 +859,7 @@ function renderPaper(paper, now) {
   setText("paper-execution-proof", "No transaction simulation evidence available.");
   setText("paper-reference", "No paper reference decision recorded yet.");
   setText("paper-lifecycle", "Entry → holding period → withdrawal and sale back to USDG");
+  setText("paper-campaign", "");
   setText("paper-pnl-note", "Unavailable until fills and costs have evidence");
   const receiptCosts = element("paper-receipt-costs");
   receiptCosts.replaceChildren();
@@ -879,6 +880,14 @@ function renderPaper(paper, now) {
     return;
   }
   const { state, policy } = paper;
+  const amount = value => value === null ? "—" : `${displayTokenAmount(value, 6)} USDG`;
+  if (policy.reentry) {
+    const c = paper.campaign;
+    const automation = state.reentryStoppedAt || state.status === "invalid" ? "Automatic reentry stopped" : `Automatic reentry enabled · ${policy.reentry.cooldownSeconds / 60} min cooldown after exit; fresh entry checks required`;
+    setText("paper-campaign", c?.valid
+      ? `${automation}. Experiment from session #${c.rootSessionId} · ${c.sessionIds.length} sessions · cumulative P&L ${amount(c.pnlQuote)} · alpha versus original passive holdings ${amount(c.alphaQuote)} · total estimated gas ${amount(c.costsPaidQuote)}. Marks as of ${c.sourceAt ? dated(c.sourceAt, now) : "entry pending"}. Figures below cover this session.`
+      : `${automation}. Cumulative performance unavailable: prior session evidence is invalid.`);
+  }
   const needsSimulation = policy.executionBasis === "transaction_simulation";
   const usesTransactions = policy.executionBasis === "nitro_fork_v1";
   const rehearsal = paper.execution?.rehearsal;
@@ -910,7 +919,6 @@ function renderPaper(paper, now) {
   const heartbeatFresh = fresh(paper.heartbeatAt, now, 60);
   setText("paper-freshness", `${terminal ? "Session finished" : heartbeatFresh ? "Paper worker responding" : "Paper worker stale or unavailable"} · last heartbeat ${timeAgo(paper.heartbeatAt, now)} · ${state.last ? `valuation/source block ${blockNumber(state.last.block)} at ${dated(state.last.blockTimestamp, now)}` : "awaiting first checkpoint captured after session start"}`);
   element("paper-freshness").classList.toggle("attention", (!terminal && !heartbeatFresh) || state.status === "invalid" || (state.last && !fresh(state.last.blockTimestamp, now, policy.maxSourceAgeSeconds)));
-  const amount = value => value === null ? "—" : `${displayTokenAmount(value, 6)} USDG`;
   setText("paper-nav", state.navQuote === null && !state.position && state.status !== "invalid" ? amount(policy.budgetQuote) : amount(state.navQuote));
   setText("paper-budget", `Initial paper budget ${amount(policy.budgetQuote)}${state.position ? "" : " · uninvested"}`);
   setText("paper-pnl", amount(state.pnlQuote));

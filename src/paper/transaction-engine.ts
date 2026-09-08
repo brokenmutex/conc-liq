@@ -29,7 +29,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     return { ...state, status: "waiting", reasons: [...state.reasons, "paper_transaction_simulation_unavailable"] };
   }
   if (!state.position) {
-    if (!input.chainHealthy || (policy.mode === "guarded" && state.reasons.length)) {
+    if (!input.chainHealthy || state.reasons.includes("paper_reentry_cooldown") || (policy.mode === "guarded" && state.reasons.length)) {
       ledger.intent = null; state.pendingSince = null; state.entryRange = null; state.status = "waiting"; return state;
     }
     if (input.execution.error) {

@@ -1,10 +1,12 @@
+import assert from "node:assert/strict";
+import { continuationPolicy, readPaperChain } from "./reentry.js";
 import { assertRuntimeMatches, type RuntimeIdentity } from "../runtime/identity.js";
 import pg, { type PoolClient } from "pg";
 import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { readRiskGate } from "../risk/gate.js";
 import { USDG } from "../constants.js";
-import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, paperEntryRange, policyHash, type PaperCheckpoint, type PaperInput, type PaperPolicy, type PaperState } from "./engine.js";
+import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POOL, paperEntryRange, policyHash, type PaperCheckpoint, type PaperInput, type PaperPolicy, type PaperState, type TransactionPaperPolicy } from "./engine.js";
 import type { PaperExecutor } from "./executor.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
@@ -53,24 +55,79 @@ export class PaperStore {
   private readonly pool: pg.Pool;
   constructor(connectionString: string, private readonly executor?: PaperExecutor, private readonly runtimeIdentity?: RuntimeIdentity) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
   async assertReady() { await assertSchemaReady(this.pool); }
-  async start(streamKey: string, policy: PaperPolicy): Promise<string> {
-    assertRuntimeMatches(this.runtimeIdentity ?? null, this.runtimeIdentity);
-    policy = paperPolicy(policy);
+  private async insertSession(client: PoolClient, streamKey: string, policy: PaperPolicy): Promise<string> {
     const state = initialPaperState();
     state.reasons = ["awaiting_first_live_checkpoint"];
-    const result = await this.pool.query<{ id: string }>(
+    const result = await client.query<{ id: string }>(
       `INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status,runtime_identity) VALUES($1,$2,$3,$4,'waiting',$5) RETURNING id::text`,
       [streamKey,policyHash(policy),JSON.stringify(policy),JSON.stringify(state),JSON.stringify(this.runtimeIdentity)]);
     return result.rows[0]!.id;
+  }
+  async start(streamKey: string, policy: PaperPolicy, after?: string): Promise<string> {
+    assertRuntimeMatches(this.runtimeIdentity ?? null, this.runtimeIdentity);
+    let next = paperPolicy(policy);
+    assert(!next.reentry?.previousSessionId, "Use --after to validate carried paper funding");
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('conc-liq-paper'),hashtext($1))", [streamKey]);
+      const latest = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE", [streamKey])).rows[0];
+      if (after) {
+        assert(latest?.id === after, "Continue only the latest paper session");
+        await readPaperChain(client, latest);
+        next = continuationPolicy(latest, next);
+      }
+      const id = await this.insertSession(client, streamKey, next);
+      await client.query("COMMIT");
+      return id;
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
+    finally { client.release(); }
+  }
+  /** Caller holds the stream advisory lock. A stopped/invalid session is terminal. */
+  private async maybeReenter(client: PoolClient, streamKey: string) {
+    await client.query("BEGIN");
+    try {
+      const row = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE", [streamKey])).rows[0];
+      if (!row || row.state.status !== "closed" || row.state.reentryStoppedAt || !("reentry" in row.policy) || !row.policy.reentry) {
+        await client.query("COMMIT"); return;
+      }
+      assertRuntimeMatches(row.runtime_identity, this.runtimeIdentity);
+      // Cash conservation and canonical evidence are checked before every successor.
+      let next;
+      try {
+        await readPaperChain(client, row);
+        next = continuationPolicy(row, paperPolicySchema.parse(row.policy) as TransactionPaperPolicy);
+      } catch (error) {
+        row.state.reentryStoppedAt = new Date().toISOString();
+        await this.update(client, row.id, row.state, ["paper_reentry_history_or_cash_invalid", sanitizeRiskError(error)]);
+        await client.query("COMMIT"); return;
+      }
+      // The successor's entry gate enforces cooldown and current recovery/reference
+      // checks, including after a restart or an explicit continuation.
+      await this.insertSession(client, streamKey, next);
+      await client.query("COMMIT");
+    } catch (error) { await client.query("ROLLBACK"); throw error; }
   }
   async stop(streamKey: string): Promise<string | null> {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
-      const row = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 AND status NOT IN ('closed','invalid') ORDER BY id LIMIT 1 FOR UPDATE",[streamKey])).rows[0];
+      // A stop during network preflight must remain possible. Recheck the latest
+      // row after acquiring its lock in case a successor was just committed.
+      let row: PaperSessionRow | undefined;
+      for (;;) {
+        row = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE",[streamKey])).rows[0];
+        const latest = (await client.query<{id:string}>("SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1",[streamKey])).rows[0];
+        if (row?.id === latest?.id) break;
+      }
       if (!row) { await client.query("COMMIT"); return null; }
       const now = (await client.query<{ now: Date }>("SELECT NOW() AS now")).rows[0]!.now.toISOString();
       const state = row.state;
+      state.reentryStoppedAt = now;
+      if (state.status === "closed" || state.status === "invalid") {
+        await this.update(client,row.id,state,["operator_stopped_paper_reentry"]);
+        await client.query("COMMIT"); return row.id;
+      }
       state.status = state.position ? "exit_pending" : "closed";
       state.action = state.position ? "signal_exit" : "wait";
       state.pendingSince = state.position ? now : null;
@@ -86,6 +143,7 @@ export class PaperStore {
     try {
       locked = (await client.query<{locked:boolean}>("SELECT pg_try_advisory_lock(hashtext('conc-liq-paper'),hashtext($1)) AS locked",[streamKey])).rows[0]!.locked;
       if (!locked) return null;
+      await this.maybeReenter(client, streamKey);
       // Bounded boundary reads happen before the DB transaction, under the
       // session advisory lock. Main selection below revalidates source/state.
       let feeProof: BoundaryFeeProof | undefined;
@@ -129,6 +187,15 @@ export class PaperStore {
         await this.update(client, session.id, session.state, session.state.reasons);
         await client.query("COMMIT");
         return { id: session.id, status: session.state.status, action: session.state.action, reasons: session.state.reasons };
+      }
+      if ("reentry" in session.policy && session.policy.reentry?.previousSessionId) {
+        try { await readPaperChain(client, session); }
+        catch {
+          session.state = invalidatePaper(session.state, now, ["paper_continuation_history_invalid"]);
+          await this.update(client, session.id, session.state, session.state.reasons);
+          await client.query("COMMIT");
+          return { id: session.id, status: "invalid", action: "invalidate", reasons: session.state.reasons };
+        }
       }
       // Preserve the journal on reorgs; revoke the result rather than rewriting it.
       const invalidSql = `SELECT COUNT(*)::text AS invalid FROM paper_observations o
@@ -200,6 +267,13 @@ export class PaperStore {
           }
         }
       }
+      if (!session.state.position && "reentry" in session.policy && session.policy.reentry?.previousSessionId) {
+        const exited = (await client.query<{at:Date|null}>("SELECT MAX(observed_at) AS at FROM paper_observations WHERE session_id=$1 AND action='exit'", [session.policy.reentry.previousSessionId])).rows[0]?.at;
+        if (!exited || !Number.isFinite(exited.getTime()) ||
+          Date.parse(cp.blockTimestamp) < exited.getTime() + session.policy.reentry.cooldownSeconds * 1000) {
+          entryReasons.push("paper_reentry_cooldown");
+        }
+      }
       const path = await client.query<{ minimum: number | null; maximum: number | null; count: string }>(
         `SELECT MIN((event_args->>'tick')::int) AS minimum,MAX((event_args->>'tick')::int) AS maximum,COUNT(*)::text AS count
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
@@ -255,7 +329,11 @@ export class PaperStore {
             current.runtime_identity?.nodeVersion !== this.runtimeIdentity?.nodeVersion || current.policy_hash !== session.policy_hash || JSON.stringify(current.state) !== JSON.stringify(session.state);
           const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[session.stream_key,PAPER_NVDA,PAPER_POOL,cp.id])).rows[0];
           const invalidHistory = (await client.query<{invalid:string}>(invalidSql,[session.id])).rows[0]!.invalid !== "0";
-          const sourceChanged = !renewed || renewed.canonical !== true || renewed.covered !== true ||
+          let ancestryInvalid = false;
+          if ("reentry" in session.policy && session.policy.reentry?.previousSessionId) {
+            try { await readPaperChain(client, session); } catch { ancestryInvalid = true; }
+          }
+          const sourceChanged = ancestryInvalid || !renewed || renewed.canonical !== true || renewed.covered !== true ||
             renewed.checkpoint.block !== cp.block || renewed.checkpoint.hash.toLowerCase() !== cp.hash.toLowerCase() || invalidHistory;
           if (changed || sourceChanged) {
             status = "failed";

@@ -1,5 +1,7 @@
 # NVDA narrow-range paper trial — September 8, 2026
 
+Session 5 completed its single-session trial. The subsequent authorized [continuous paper experiment](paper-continuous-reentry-2026-09-08.md) carries its final cash forward and adds guarded automatic reentry; the original policy below remains unchanged.
+
 The user selected a 1,000 USDG fixed ±20-raw-tick candidate for immediate forward paper learning. Policy: [paper-nvda-1000-ticks20.json](../config/paper-nvda-1000-ticks20.json). `halfWidthSpacings: 2` means ±20 raw ticks in this fee-500 pool, total width 40; it does not mean ±20 spacings. Bounds use the nearest feasible grid midpoint, so distances from the starting price can differ slightly between sides.
 
 The entry targets 800 USDG of LP inventory and retains at least 200 USDG in cash. The ±5% reference guard applies to the pool price and the complete range. The existing 1% maximum minted-liquidity/historical-active-liquidity ratio and 50 bps executable swap slippage limit remain. The maximum holding period is 24 hours from simulated entry. There is no scheduled routine recenter and no automatic new session after closure.

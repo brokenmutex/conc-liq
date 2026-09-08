@@ -77,3 +77,25 @@ describe("dashboard evidence semantics", () => {
     assert.equal(summarizeRehearsal({}, evidence.source.streamKey), null);
   });
 });
+
+it("renders continuous paper results separately from session results", () => {
+  const source = readFileSync(new URL("../dashboard/app.js", import.meta.url), "utf8");
+  const nodes = new Map<string, {textContent:string;children:unknown[];classList:unknown;replaceChildren:()=>void}>();
+  const element = (id:string) => {
+    if (!nodes.has(id)) nodes.set(id,{textContent:"",children:[],classList:{add(){},remove(){},toggle(){}},replaceChildren(){}});
+    return nodes.get(id)!;
+  };
+  const render = runInNewContext(source.replace(/refresh\(\);\s*$/, "") + "\nrenderPaper;", {
+    document:{getElementById:element},
+  });
+  // Use a minimal waiting state to exercise the actual DOM rendering path.
+  const now="2026-09-08T12:00:00Z";
+  render({id:"6",createdAt:now,updatedAt:now,heartbeatAt:now,policyHash:"test",
+    policy:{executionBasis:"nitro_fork_v1",mode:"guarded",budgetQuote:"998000000",halfWidthSpacings:2,maxHoldingSeconds:86400,maxSourceAgeSeconds:180,maxSlippageBps:50,reentry:{cooldownSeconds:600}},
+    state:{status:"waiting",position:null,last:null,navQuote:null,pnlQuote:null,alphaQuote:null,holdQuote:null,feeValueQuote:null,costsPaidQuote:"0",exitReserveQuote:"0",intervals:0,observedSwaps:"0",reasons:[]},
+    monitorReasons:[],points:[],campaign:{valid:true,rootSessionId:"5",sessionIds:["5","6"],pnlQuote:"-2000000",alphaQuote:"-3000000",costsPaidQuote:"2000000",sourceAt:now}},now);
+  assert.match(element("paper-campaign").textContent,/Automatic reentry enabled/);
+  assert.match(element("paper-campaign").textContent,/cumulative P&L -2/);
+  assert.match(element("paper-campaign").textContent,/Figures below cover this session/);
+  assert.equal(element("paper-pnl").textContent,"—");
+});
