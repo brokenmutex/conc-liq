@@ -1,3 +1,4 @@
+import {sanitizeRiskError} from './risk/evaluate.js';
 import assert from 'node:assert/strict';
 import {readFile,writeFile} from 'node:fs/promises';
 import {NitroPaperExecutor} from './paper/executor.js';
@@ -26,9 +27,9 @@ async function main(){
    assert(later,'No later fresh checkpoint within probe budget');
    const evidence=await executor.enter(later,policy,quote);
    results.push({candidate,policy,quote,status:'succeeded',evidence});console.log(JSON.stringify({candidate:candidate.id,phase:'round_trip_verified',block:later.block}));
-  }catch(error){const message=error instanceof Error?error.message:'Probe failed';results.push({candidate,status:'unavailable',error:message});console.log(JSON.stringify({candidate:candidate.id,phase:'unavailable',error:message}));}
+  }catch(error){const message=sanitizeRiskError(error);results.push({candidate,status:'unavailable',error:message});console.log(JSON.stringify({candidate:candidate.id,phase:'unavailable',error:message}));}
  }
  await writeFile(output,json({observedAt:new Date().toISOString(),runtimeIdentity:loadRuntimeIdentity(),scope:'Bounded prospective local-fork cash acquisition, mint, removal and cash liquidation probes; no forward fee income or active recenter validation',executionEligible:false,results}),{flag:'wx'});
  }finally{await source.close();await executor.close();}
 }
-main().catch(e=>{console.error(e instanceof Error?e.message:'Probe failed');process.exitCode=1;});
+main().catch(e=>{console.error(sanitizeRiskError(e));process.exitCode=1;});
