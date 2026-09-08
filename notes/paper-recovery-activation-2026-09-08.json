@@ -1,0 +1,64 @@
+{
+  "verifiedAt": "2026-09-08T14:22:28.684Z",
+  "release": "8f3133ff828884314864e99e7600e09c06d24b8130d76e2f2e7ff62b7ac8a82d",
+  "sourceCommit": "83cfa1c3be12c7b9851d1f5b418a2c37b4414835",
+  "session": "8",
+  "status": "waiting",
+  "budget": "995136631",
+  "predecessor": "7",
+  "campaign": {
+    "valid": true,
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6",
+      "7",
+      "8"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "995136631",
+    "pnlQuote": "-4863369",
+    "holdQuote": "999464603",
+    "alphaQuote": "-4327972",
+    "costsPaidQuote": "2521487",
+    "sourceAt": "2026-09-08T16:36:06+03:00"
+  },
+  "recovery": {
+    "session": "7",
+    "run": "13",
+    "repairedAt": "2026-09-08T14:21:04.037Z",
+    "basisHash": "b9663770e3d29e342d73f8e84cea0819467dc70528c483fddaef982e3917a572",
+    "originalRowHash": "bf2935ab90411a84585e5fdbaf56b7681ac50e79587c32d5a89782c73a920e2f",
+    "retainedRowHash": "bf2935ab90411a84585e5fdbaf56b7681ac50e79587c32d5a89782c73a920e2f",
+    "originalRowPreserved": true
+  },
+  "validation": {
+    "unitTests": 272,
+    "isolatedPostgresLifecycle": "passed including overlap coverage deferral"
+  },
+  "executionEligible": false,
+  "postRestartCheck": {
+    "at": "2026-09-08T14:23:35.798Z",
+    "sessions": [
+      {
+        "id": "8",
+        "status": "entry_pending",
+        "action": "signal_entry",
+        "reasons": [],
+        "nav": null,
+        "monitor_reasons": [
+          "awaiting_next_live_checkpoint"
+        ]
+      }
+    ],
+    "executions": [
+      {
+        "id": "14",
+        "action": "quote",
+        "status": "succeeded",
+        "observed_at": "2026-09-08T14:22:32.773Z",
+        "source_block": "57758062"
+      }
+    ]
+  }
+}

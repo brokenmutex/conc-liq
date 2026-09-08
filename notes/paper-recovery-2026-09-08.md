@@ -23,3 +23,11 @@ Files under `data/paper-recovery-2026-09-08/` retain the pre-repair run, live co
 ## Validation
 
 TypeScript and 272 unit tests pass. New recovery cases verify exact preserved losses and unchanged input evidence, and reject changed fees, costs, balances, runtime, failure provenance, sources, missed timing and unhealthy/unsupported history. The isolated PostgreSQL lifecycle also reproduces coverage retraction during exit, verifies unchanged balances/costs, no duplicate retry, and a successful next-checkpoint exit. Existing canonical-revocation, concurrent-stop, restart, cooldown and automatic-continuation cases remain covered.
+
+## Activation
+
+Recovery applied at **14:21:04.037 UTC**. Run 13 is now accepted, with its complete original row retained under `snapshot.recovery.beforeRun`; canonical JSON hashes of the original disk backup and retained DB row match (`bf2935ab90411a84585e5fdbaf56b7681ac50e79587c32d5a89782c73a920e2f`). Session 7 is closed with zero LP liquidity and zero NVDA, after 0.816984 USDG total session costs.
+
+Only the paper worker moved to release `8f3133ff828884314864e99e7600e09c06d24b8130d76e2f2e7ff62b7ac8a82d`, source `83cfa1c`. No schema migration was needed. Explicit `paper start --policy config/paper-nvda-ticks20-continuous.json --after 7` created session **8** at **14:21:27.825 UTC** with **995.136631 USDG**, the same ±20 raw ticks and continuous-reentry policy. The paper timer resumed; the experiment and health services remained running on their own pinned releases.
+
+At the initial activation check, the chain `[5,6,7,8]` validated, with campaign P&L **−4.863369 USDG** and total modeled gas costs **2.521487 USDG**. Session 8 was waiting for its first eligible checkpoint. [Activation evidence](paper-recovery-activation-2026-09-08.json) records the verified accounting and retained failure hash.
