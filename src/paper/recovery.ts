@@ -55,7 +55,7 @@ export function reconcileRecordedExit(session: PaperSessionRow, previous: PaperS
 
 export async function prepareExitRecovery(client: PoolClient, sessionId: string, runId: string, executor: Pick<PaperExecutor, 'boundaryFees'>) {
   const session = (await client.query<PaperSessionRow>('SELECT * FROM paper_sessions WHERE id=$1', [sessionId])).rows[0];assert(session);
-  const latest = (await client.query('SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1', [session.stream_key])).rows[0];assert.equal(latest.id, session.id, 'Only the latest session can be recovered');
+  const latest = (await client.query('SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY paper_sessions.id DESC LIMIT 1', [session.stream_key])).rows[0];assert.equal(latest.id, session.id, 'Only the latest session can be recovered');
   const run = (await client.query('SELECT * FROM paper_execution_runs WHERE id=$1', [runId])).rows[0];assert(run);
   const observation = (await client.query('SELECT * FROM paper_observations WHERE session_id=$1 ORDER BY id DESC LIMIT 1', [sessionId])).rows[0];assert(observation);
   const previous = observation.state as PaperState;

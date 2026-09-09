@@ -210,10 +210,14 @@ try {
  await client.query('UPDATE indexer_cursors SET last_scanned_block=1000000');
  await client.query('UPDATE v3_replay_cursors SET complete_through_block=1000000');
  cancelDuringEntry=false;invalidateDuringEntry=false;failExit=false;
+ // Cross a digit boundary: ORDER BY a text-cast output alias would select an
+ // earlier session and make stop spin while holding the actual latest row.
+ await client.query("SELECT setval(pg_get_serial_sequence('paper_sessions','id'),99)");
  const deferredId=await store.start(stream,policy);
+ assert.equal(deferredId,'100');
  await checkpoint(30);assert.equal((await store.tick(stream)).action,'signal_entry');
  await checkpoint(31);assert.equal((await store.tick(stream)).action,'enter');
- await store.stop(stream);
+ assert.equal(await store.stop(stream),deferredId);
  const beforeDeferred=(await client.query('SELECT state FROM paper_sessions WHERE id=$1',[deferredId])).rows[0].state;
  deferCoverageDuringExit=true;
  await checkpoint(32);assert.deepEqual((await store.tick(stream)).reasons,['paper_event_coverage_deferred']);

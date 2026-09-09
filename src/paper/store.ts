@@ -121,7 +121,7 @@ export class PaperStore {
       let row: PaperSessionRow | undefined;
       for (;;) {
         row = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE",[streamKey])).rows[0];
-        const latest = (await client.query<{id:string}>("SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1",[streamKey])).rows[0];
+        const latest = (await client.query<{id:string}>("SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY paper_sessions.id DESC LIMIT 1",[streamKey])).rows[0];
         if (row?.id === latest?.id) break;
       }
       if (!row) { await client.query("COMMIT"); return null; }
