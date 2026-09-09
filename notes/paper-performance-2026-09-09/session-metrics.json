@@ -5545,7 +5545,7 @@
   ],
   "analysisCodeSha256": {
     "scripts/paper-performance-audit.mjs": "10279dbea3b6966b1174f72b14f28db6a05b18849ff3d7f94b63ce90b87f9745",
-    "scripts/render-paper-performance.py": "099c03b4713657de57c733cc1cb919b16852e82397115605a2833754e35fb375",
+    "scripts/render-paper-performance.py": "54b5dcbf7388919fc48ace9921da26f81e45aaee0acc4109be835d1aaa6f94c6",
     "src/paper/transaction-engine.ts": "1f98018dc5d12bde44f469c71f6f0eabb0904f54cef0e78b5e96abe71755850a",
     "src/paper/reentry.ts": "b14e6e7e1569f1108a7268e7b7b3d55ff342011d6801450f1904584b9724e440",
     "src/paper/reference.ts": "50c2e5174a060280547ecd6895d86817631952a542c3bf0b041b422d01ff5583",
