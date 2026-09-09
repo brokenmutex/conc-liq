@@ -1,5 +1,7 @@
 # Four-candidate learning cohort — 9 September 2026
 
+**Ended at user request on 9 September, 11:49 UTC / 14:49 Vilnius.** The comparison service is stopped and disabled. The transaction-paper campaign continues unchanged. The 24/72-hour review schedule below is historical and cancelled. See [end record](ended.json) and the [paper review](../lp-paper-review-2026-09-09.md); strategy selection is deferred until the research is digested.
+
 This cohort implements the bounded comparison in the [improvement plan](../lp-improvement-plan-2026-09-09.md), after the risk-refresh, anchor and runner-recovery fixes. It is a new modeled cohort, separate from the transaction-paper campaign and its accumulated losses. No old invalid experiment is resumed.
 
 | Candidate | Initial paper budget | Half-width | Management |
@@ -39,11 +41,11 @@ Validation before activation: TypeScript and all **282 unit tests** pass. The ne
 
 ## Activation and first observations
 
-The cohort started **2026-09-09 08:47:33.517 UTC / 11:47:33.517 Europe/Vilnius**, under sealed release `85c5c7a5629047cb8a4d112283a331d90caf5f5678e04e2c2b27116b64b25f72` from commit `2ec4cf9`. `conc-liq-experiment.service` is enabled and polls every 15 seconds. State is `data/lp-comparison-2026-09-09/forward-v2.json`; adjacent `.status.json` and `.status.md` files expose the heartbeat and source age.
+The cohort started **2026-09-09 08:47:33.517 UTC / 11:47:33.517 Europe/Vilnius**, under sealed release `85c5c7a5629047cb8a4d112283a331d90caf5f5678e04e2c2b27116b64b25f72` from commit `2ec4cf9`. At activation, `conc-liq-experiment.service` was enabled and polled every 15 seconds. State is `data/lp-comparison-2026-09-09/forward-v2.json`; adjacent `.status.json` and `.status.md` files now record the ended status.
 
 The [activation snapshot](activation.json) records the pinned runtime, selection hash, immutable state-copy hash, initial actions, decision evidence and eight post-start checkpoint decisions through the check at **08:56:53 UTC**. All four arms had one entry, an open position, no exits and no recenters. Their entry was processed at **08:50:08.890 UTC**, using checkpoint 3205 from **08:49:23 UTC**. Each incurred **0.501937 USDG** in modeled entry gas. Actual modeled LP allocation was **78.6718%** for the two ±20 arms and **79.1544%** for the two ±30 arms. Initial performance is too short to compare management.
 
-The local immutable review files are due on the first running poll after:
+The local immutable review files were scheduled for the first running poll after the following times; both reviews are now cancelled:
 
 - **10 September 08:47:33 UTC / 11:47:33 Vilnius:** reliability and decision coverage.
 - **12 September 08:47:33 UTC / 11:47:33 Vilnius:** initial economics and recenter coverage.
@@ -58,4 +60,17 @@ The [read-only follow-up](paper-followup.json), checked at **08:57:18 UTC**, val
 
 Session 28's first exit signal at **08:38:30 UTC** followed health sample **40212**, at **08:36:20.999 UTC**: `reference_1` failed its latest RPC fetch, leaving the required two-reference hash quorum unavailable. The remaining private/reference depths were 64/65 blocks. Subsequent available references had at least 64 confirmations. This is an observed endpoint-availability failure and recovery-window exit, not a recurrence of the old zero-depth anchor selection bug. Required quorum and recovery safeguards remain enforced. Endpoint failures can therefore still cause turnover; the reliability deployment does not establish that infrastructure exits have been eliminated.
 
-Remaining implementation: collect and validate fresh comparable round-trip quotes (including blocked-admission periods), then evaluate the proposed six-hour/20-observation rolling-median gate in a new version. Reconcile the matching model and transaction-paper baseline before promotion. The current four-arm cohort provides bounded learning while that cost evidence remains explicitly unavailable.
+Fresh comparable round-trip quotes (including blocked-admission periods) and the proposed six-hour/20-observation rolling-median gate remain unfinished. Matching model and transaction-paper accounting must reconcile before any promotion. Future research design and implementation are deferred while the papers are digested; this cohort is ended.
+
+## End record
+
+The end manifest was recorded at **11:49:17.325806 UTC** after stopping and disabling `conc-liq-experiment.service`. The last worker update was **11:48:18.798 UTC**, using source **11:46:44 UTC**. Original state and status were copied to `data/lp-comparison-2026-09-09/ended-2026-09-09/`, with SHA-256 hashes in [ended.json](ended.json). The raw worker ledger remains byte-identical; its `running` field describes its last observation, while the end manifest and adjacent status files record the operator-ended state. Do not resume this cohort.
+
+| Candidate | Last marked NAV, USDG | P&L, USDG | Alpha vs holding, USDG | Recenters |
+|---|---:|---:|---:|---:|
+| ±20 exit/reentry | 995.362184 | −4.637816 | −1.868882 | 0 |
+| ±30 exit/reentry | 996.501007 | −3.498993 | −0.730059 | 0 |
+| ±20 active | 992.639267 | −7.360733 | −4.591799 | 1 |
+| ±30 active | 995.790055 | −4.209945 | −1.441011 | 1 |
+
+All four modeled positions were open at the last observation. These are frozen marks, not cash liquidation results; the archive retains hypothetical liquidation estimates separately. No closing orders or fees were synthesized. The roughly three-hour sample has insufficient recenter, overnight and weekend coverage to establish a winner. The [final operations check](../lp-paper-review-2026-09-09/operations-check.json) at **11:55:10 UTC / 14:55:10 Vilnius** confirmed the archived ledger hash remained unchanged, the comparison stayed disabled, and independent transaction-paper session 31 remained open under its unchanged release with its timer enabled and active.

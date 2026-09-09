@@ -1,6 +1,6 @@
 # LP paper strategy: confirmation and improvement plan
 
-Prepared 9 September 2026. Updated after authorized implementation: **evidence fixes deployed; four modeled arms running; fresh gas admission remains outstanding**. The objective is to reduce unnecessary turnover and obtain a valid comparison of active LP policies, judged by net alpha against a common passive holding benchmark. The original audit below retains its original cutoff. See the [implementation and activation record](lp-comparison-2026-09-09/README.md) for the delivered scope, later observations and remaining limitations.
+Prepared 9 September 2026. Updated after user steering: **evidence fixes deployed; four-arm comparison ended; transaction-paper campaign continues; further strategy investigation deferred pending paper review**. Fresh gas admission remains outstanding. The objective is to reduce unnecessary turnover and evaluate active LP policies by net alpha against a common passive holding benchmark. The original audit below retains its original cutoff. See the [implementation and end record](lp-comparison-2026-09-09/README.md) and [paper review](lp-paper-review-2026-09-09.md). The proposed experiment schedule below is historical, not an active instruction to restart or select a new cohort.
 
 ## What the evidence confirms
 

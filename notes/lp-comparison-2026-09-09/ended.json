@@ -1,0 +1,316 @@
+{
+  "endedAt": "2026-09-09T11:49:17.325806+00:00",
+  "reason": "user_requested_end_to_digest_research_before_selecting_next_experiment",
+  "service": "conc-liq-experiment.service",
+  "serviceState": "inactive",
+  "serviceEnabled": false,
+  "createdAt": "2026-09-09T08:47:33.517Z",
+  "runtime": {
+    "buildId": "85c5c7a5629047cb8a4d112283a331d90caf5f5678e04e2c2b27116b64b25f72",
+    "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+    "nodeVersion": "v24.20.0"
+  },
+  "planHash": "1588a717a0d7290b8c4584e6175d6239c20b6de411c139898fb4b424df068322",
+  "lastWorkerAt": "2026-09-09T11:48:18.798Z",
+  "lastSourceAt": "2026-09-09T11:46:44.000Z",
+  "archives": {
+    "data/lp-comparison-2026-09-09/ended-2026-09-09/forward-v2.json": {
+      "sha256": "f74ad69c5bf344d7a1748984dd51f1421b36a2a63fb4cf9345290671ed049bc3",
+      "bytes": 571179
+    },
+    "data/lp-comparison-2026-09-09/ended-2026-09-09/forward-v2.json.status.json": {
+      "sha256": "327fd6bd9d9067ec96c05b73dbba922824f777884d6cde022387b4e21ba65899",
+      "bytes": 8144
+    },
+    "data/lp-comparison-2026-09-09/ended-2026-09-09/forward-v2.json.status.md": {
+      "sha256": "76c9e7aa187ffb7382acde82c1edea4b1a3f7e9389e442ba241bcc43dd1c2c55",
+      "bytes": 766
+    }
+  },
+  "ledgerStateSha256": "f74ad69c5bf344d7a1748984dd51f1421b36a2a63fb4cf9345290671ed049bc3",
+  "rawWorkerStateUnchanged": true,
+  "settlement": "No closing trades synthesized. Final values are last-source modeled marks and hypothetical liquidation estimates, not cash settlement.",
+  "reviewSchedule": "24h and 72h automatic reviews cancelled by ending the worker.",
+  "finalReport": {
+    "observedAt": "2026-09-09T11:48:18.798Z",
+    "createdAt": "2026-09-09T08:47:33.517Z",
+    "status": "running",
+    "sourceAt": "2026-09-09T11:46:44.000Z",
+    "markFresh": true,
+    "candidates": [
+      {
+        "candidate": {
+          "id": "1000-20-exit_reentry",
+          "budget": "1000000000",
+          "halfWidthTicks": 20,
+          "management": "exit_reentry",
+          "costMultiplier": 1,
+          "feeIncomePpm": 1000000,
+          "entryQuality": {
+            "maxQuoteAgeSeconds": 90,
+            "maxTickDrift": 5,
+            "minAllocationPpm": 720000,
+            "maxRoundTripGasQuote": "1250000",
+            "costBasis": "frozen_scenario"
+          }
+        },
+        "evidenceClass": "modeled_path_with_frozen_fork_cost_scenarios",
+        "executionEligible": false,
+        "invalid": null,
+        "nav": "995362184",
+        "pnl": "-4637816",
+        "alpha": "-1220686",
+        "alphaPpm": "-1220",
+        "commonHold": "997231066",
+        "commonAlpha": "-1868882",
+        "commonAlphaPpm": "-1868",
+        "referenceNav": "995275895",
+        "referenceAlpha": "-941066",
+        "liquidationNav": "995303675",
+        "liquidationAlphaVsHolding": "-1927391",
+        "liquidationBasis": "current modeled swap quote and frozen gas versus marked common holding",
+        "costs": "3007639",
+        "exitReserve": "333297",
+        "feesQuote": "2142908",
+        "cash": "198831925",
+        "rwa": "29199751950951201",
+        "liquidity": "26320393119864970",
+        "entries": 4,
+        "recenters": 0,
+        "exits": 3,
+        "infrastructureExits": 0,
+        "infrastructureExitCosts": "0",
+        "infrastructureReentryCosts": "0",
+        "observations": 176,
+        "eligible": 170,
+        "activeSeconds": 8616.248000000003,
+        "outsideSeconds": 0,
+        "cashSeconds": 2148.7589999999996,
+        "drawdownPpm": "6544",
+        "maxExposurePpm": "695945",
+        "peakSharePpm": "3041",
+        "lastPlacementAllocationPpm": 792772,
+        "blocked": {
+          "missed_forward_decision": 1,
+          "cooldown": 27
+        }
+      },
+      {
+        "candidate": {
+          "id": "1000-30-exit_reentry",
+          "budget": "1000000000",
+          "halfWidthTicks": 30,
+          "management": "exit_reentry",
+          "costMultiplier": 1,
+          "feeIncomePpm": 1000000,
+          "entryQuality": {
+            "maxQuoteAgeSeconds": 90,
+            "maxTickDrift": 5,
+            "minAllocationPpm": 720000,
+            "maxRoundTripGasQuote": "1250000",
+            "costBasis": "frozen_scenario"
+          }
+        },
+        "evidenceClass": "modeled_path_with_frozen_fork_cost_scenarios",
+        "executionEligible": false,
+        "invalid": null,
+        "nav": "996501007",
+        "pnl": "-3498993",
+        "alpha": "-297609",
+        "alphaPpm": "-297",
+        "commonHold": "997231066",
+        "commonAlpha": "-730059",
+        "commonAlphaPpm": "-730",
+        "referenceNav": "996348763",
+        "referenceAlpha": "-108061",
+        "liquidationNav": "996397665",
+        "liquidationAlphaVsHolding": "-833401",
+        "liquidationBasis": "current modeled swap quote and frozen gas versus marked common holding",
+        "costs": "2172405",
+        "exitReserve": "333297",
+        "feesQuote": "1500845",
+        "cash": "202921060",
+        "rwa": "1",
+        "liquidity": "17637644840558345",
+        "entries": 3,
+        "recenters": 0,
+        "exits": 2,
+        "infrastructureExits": 1,
+        "infrastructureExitCosts": "333297",
+        "infrastructureReentryCosts": "501937",
+        "observations": 176,
+        "eligible": 170,
+        "activeSeconds": 9282.467,
+        "outsideSeconds": 0,
+        "cashSeconds": 1482.54,
+        "drawdownPpm": "5143",
+        "maxExposurePpm": "668928",
+        "peakSharePpm": "1841",
+        "lastPlacementAllocationPpm": 795555,
+        "blocked": {
+          "missed_forward_decision": 1,
+          "cooldown": 18
+        }
+      },
+      {
+        "candidate": {
+          "id": "1000-20-recenter-40-1",
+          "budget": "1000000000",
+          "halfWidthTicks": 20,
+          "management": "recenter",
+          "costMultiplier": 1,
+          "feeIncomePpm": 1000000,
+          "entryQuality": {
+            "maxQuoteAgeSeconds": 90,
+            "maxTickDrift": 5,
+            "minAllocationPpm": 720000,
+            "maxRoundTripGasQuote": "1250000",
+            "costBasis": "frozen_scenario"
+          },
+          "recenterRule": {
+            "distancePercent": 40,
+            "persistence": 1
+          }
+        },
+        "evidenceClass": "modeled_path_with_frozen_fork_cost_scenarios",
+        "executionEligible": false,
+        "invalid": null,
+        "nav": "992639267",
+        "pnl": "-7360733",
+        "alpha": "-3943603",
+        "alphaPpm": "-3943",
+        "commonHold": "997231066",
+        "commonAlpha": "-4591799",
+        "commonAlphaPpm": "-4591",
+        "referenceNav": "992410293",
+        "referenceAlpha": "-3806668",
+        "liquidationNav": "992483645",
+        "liquidationAlphaVsHolding": "-4747421",
+        "liquidationBasis": "current modeled swap quote and frozen gas versus marked common holding",
+        "costs": "4487139",
+        "exitReserve": "333297",
+        "feesQuote": "1937788",
+        "cash": "198505422",
+        "rwa": "7913579616479362",
+        "liquidity": "26427874004952150",
+        "entries": 5,
+        "recenters": 1,
+        "exits": 4,
+        "infrastructureExits": 0,
+        "infrastructureExitCosts": "0",
+        "infrastructureReentryCosts": "0",
+        "observations": 176,
+        "eligible": 170,
+        "activeSeconds": 7826.645000000003,
+        "outsideSeconds": 0,
+        "cashSeconds": 2938.362,
+        "drawdownPpm": "8180",
+        "maxExposurePpm": "695945",
+        "peakSharePpm": "3041",
+        "lastPlacementAllocationPpm": 797548,
+        "blocked": {
+          "missed_forward_decision": 1,
+          "recenter_preempted_by_inventory": 8,
+          "cooldown": 36,
+          "recenter_cooldown": 9,
+          "quote_funding": 3,
+          "entry_quote_tick_drift": 1
+        }
+      },
+      {
+        "candidate": {
+          "id": "1000-30-recenter-40-1",
+          "budget": "1000000000",
+          "halfWidthTicks": 30,
+          "management": "recenter",
+          "costMultiplier": 1,
+          "feeIncomePpm": 1000000,
+          "entryQuality": {
+            "maxQuoteAgeSeconds": 90,
+            "maxTickDrift": 5,
+            "minAllocationPpm": 720000,
+            "maxRoundTripGasQuote": "1250000",
+            "costBasis": "frozen_scenario"
+          },
+          "recenterRule": {
+            "distancePercent": 40,
+            "persistence": 1
+          }
+        },
+        "evidenceClass": "modeled_path_with_frozen_fork_cost_scenarios",
+        "executionEligible": false,
+        "invalid": null,
+        "nav": "995790055",
+        "pnl": "-4209945",
+        "alpha": "-1008561",
+        "alphaPpm": "-1008",
+        "commonHold": "997231066",
+        "commonAlpha": "-1441011",
+        "commonAlphaPpm": "-1441",
+        "referenceNav": "995539049",
+        "referenceAlpha": "-917775",
+        "liquidationNav": "995619396",
+        "liquidationAlphaVsHolding": "-1611670",
+        "liquidationBasis": "current modeled swap quote and frozen gas versus marked common holding",
+        "costs": "2816671",
+        "exitReserve": "333297",
+        "feesQuote": "1500973",
+        "cash": "199289513",
+        "rwa": "3859458855766362",
+        "liquidity": "17706472597167812",
+        "entries": 3,
+        "recenters": 1,
+        "exits": 2,
+        "infrastructureExits": 1,
+        "infrastructureExitCosts": "333297",
+        "infrastructureReentryCosts": "501937",
+        "observations": 176,
+        "eligible": 170,
+        "activeSeconds": 9282.467,
+        "outsideSeconds": 0,
+        "cashSeconds": 1482.54,
+        "drawdownPpm": "5143",
+        "maxExposurePpm": "668928",
+        "peakSharePpm": "1841",
+        "lastPlacementAllocationPpm": 798487,
+        "blocked": {
+          "missed_forward_decision": 1,
+          "cooldown": 18,
+          "quote_funding": 1,
+          "recenter_preempted_by_inventory": 2
+        }
+      }
+    ],
+    "executionEligible": false,
+    "decisionClock": "actual_worker_with_current_reference_gate",
+    "nextReviewAt": "2026-09-10T08:47:33.517Z",
+    "quality": {
+      "pausedSeconds": 60.271,
+      "pauseCount": 1,
+      "missedDecisions": 1,
+      "decisions": 175,
+      "availableTimePpm": 994442,
+      "note": "Poll-observed data pauses and skipped checkpoint decisions; heartbeat gaps must also be reviewed"
+    }
+  },
+  "postStartMissedDecisions": 0,
+  "remainingPositions": [
+    {
+      "candidate": "1000-20-exit_reentry",
+      "open": true
+    },
+    {
+      "candidate": "1000-30-exit_reentry",
+      "open": true
+    },
+    {
+      "candidate": "1000-20-recenter-40-1",
+      "open": true
+    },
+    {
+      "candidate": "1000-30-recenter-40-1",
+      "open": true
+    }
+  ],
+  "paperWorkerAction": "none"
+}

@@ -1,0 +1,35 @@
+{
+  "url": "https://raw.githubusercontent.com/AndreyUrus/Uniswap-v3-LP-dynamic-tau-strategies-research/69a5b753cb5c36cdb3a71807e27172a3b03b0608/USDC_ETH_03/tau_5/p1_case3_t5.ipynb",
+  "commit": "69a5b753cb5c36cdb3a71807e27172a3b03b0608",
+  "path": "USDC_ETH_03/tau_5/p1_case3_t5.ipynb",
+  "sha256": "380e8d4e2b9ebf09f6569e31e35efe4c9f608c9e3684c0208b715eeabae5764d",
+  "bytes": 18971943,
+  "codeLines": 1673,
+  "execution": "not executed; static inspection only",
+  "checkedCells": [
+    7,
+    13,
+    17,
+    23,
+    25,
+    26,
+    31,
+    38
+  ],
+  "papers": [
+    {
+      "id": "2410.09983v1",
+      "url": "https://arxiv.org/html/2410.09983v1"
+    },
+    {
+      "id": "2505.15338v1",
+      "url": "https://arxiv.org/html/2505.15338v1"
+    },
+    {
+      "id": "2505.15338v2",
+      "url": "https://arxiv.org/html/2505.15338v2",
+      "revisionDate": "2026-03-30"
+    }
+  ],
+  "scope": "One notebook statically inspected; no return reproduction, model loading, or code execution. Source revision predates paper v2."
+}
