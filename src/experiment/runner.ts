@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile,writeFile,mkdir,rename } from 'node:fs/promises';
+import { readFile,writeFile,mkdir,rename,access,link,unlink } from 'node:fs/promises';
 import { assertRuntimeMatches } from '../runtime/identity.js';
 import type { RuntimeIdentity } from '../runtime/identity.js';
 import { dirname } from 'node:path';
@@ -150,10 +150,23 @@ async function persistForward(path:string,state:LiveState){
  const report={observedAt:state.lastPollAt,createdAt:state.createdAt,status:state.status,reason:state.reason,sourceAt:state.lastFrame.sourceAt,
   markFresh:state.status==='running'&&Date.now()-Date.parse(state.lastFrame.sourceAt)<=180000,
   candidates,executionEligible:false,decisionClock:'actual_worker_with_current_reference_gate',
+  nextReviewAt:elapsed<86400?new Date(Date.parse(state.createdAt)+86400000).toISOString():elapsed<259200?new Date(Date.parse(state.createdAt)+259200000).toISOString():null,
   quality:{pausedSeconds,pauseCount:state.pauseCount,missedDecisions:state.missedDecisions,decisions:state.decisionCount,
    availableTimePpm:elapsed>0?Math.max(0,Math.floor((elapsed-pausedSeconds)*1000000/elapsed)):1000000,
    note:'Poll-observed data pauses and skipped checkpoint decisions; heartbeat gaps must also be reviewed'}};
  await atomic(path+'.status.json',report);await writeFile(path+'.status.md',statusMarkdown(report));
+ // Freeze review evidence locally. This sends no messages and never retunes a candidate.
+ for(const hours of [24,72])if(elapsed>=hours*3600){
+  const reviewPath=`${path}.review-${hours}h.json`;
+  try{await access(reviewPath);continue;}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+  const review={hours,scheduledAt:new Date(Date.parse(state.createdAt)+hours*3600000).toISOString(),...report,
+   minimumRecentersMet:state.candidates.every((c,i)=>c.management!=='recenter'||state.states[i]!.recenters>=10),
+   selectionEligible:false,note:'Review artifact only; assess coverage, overnight/weekend scope, complete costs and paired outcomes before selection',
+   stateSha256:digest(json(state)),state};
+  const temporary=reviewPath+'.tmp';await writeFile(temporary,json(review));
+  try{await link(temporary,reviewPath);}catch(error){if((error as NodeJS.ErrnoException).code!=='EEXIST')throw error;}
+  finally{await unlink(temporary);}
+ }
 }
 function statusMarkdown(report:{observedAt:string;status:string;reason?:string;sourceAt:string;candidates:any[];markFresh?:boolean;quality?:{pausedSeconds:number;missedDecisions:number}}){
  const dollars=(n:string|null)=>n===null?'unavailable':(Number(n)/1e6).toFixed(6);

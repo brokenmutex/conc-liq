@@ -7,21 +7,30 @@ import type { FeeSegment, SwapSource } from '../research/swap.js';
 import type { ExperimentFrame } from './market.js';
 const Q128=1n<<128n, priceX18=(p:bigint)=>(1n<<192n)*10n**30n/p**2n;
 export interface ExperimentCosts {buy:string;sell:string;mint:string;remove:string;revoke:string}
-export interface Candidate {id:string;budget:string;halfWidthTicks:number;management:'exit_reentry'|'recenter';costMultiplier:number;feeIncomePpm:number}
+export interface Candidate {
+ id:string;budget:string;halfWidthTicks:number;management:'exit_reentry'|'recenter';costMultiplier:number;feeIncomePpm:number;
+ recenterRule?:{distancePercent:40|50|70;persistence:1|2};
+ entryQuality?:{maxQuoteAgeSeconds:number;maxTickDrift:number;minAllocationPpm:number;maxRoundTripGasQuote:string;costBasis:'frozen_scenario'};
+}
 interface Position extends TickRange {liquidity:bigint;fee0:bigint;fee1:bigint;enteredAt:number;center:bigint}
-interface Pending {kind:'entry'|'recenter'|'exit';after:number;range:TickRange|null;token:0|1|null;amount:bigint;minimum:bigint;reason:string;target:bigint}
+interface Pending {kind:'entry'|'recenter'|'exit';after:number;range:TickRange|null;token:0|1|null;amount:bigint;minimum:bigint;reason:string;target:bigint;quoteTick?:number}
 export interface PortfolioState {
  benchmark:{cash:bigint;rwa:bigint;after:number|null;minimum:bigint;filled:boolean};
  cash:bigint;rwa:bigint;position:Position|null;pending:Pending|null;lastAt:number|null;lastBlock:string|null;lastTarget:string|null;
  costs:bigint;fees0:bigint;fees1:bigint;hold0:bigint|null;hold1:bigint|null;holdCosts:bigint;lastExit:number;lastMove:number;persistence:number;
  peak:bigint;drawdown:bigint;maxExposure:bigint;peakShare:bigint;entries:number;recenters:number;exits:number;infrastructureExits:number;infrastructureExitCosts:bigint;infrastructureReentryCosts:bigint;lastExitReason:string|null;
  observations:number;eligible:number;activeSeconds:number;outsideSeconds:number;cashSeconds:number;blocked:Record<string,number>;invalid:string|null;
+ lastPlacementAllocationPpm?:number;
 }
 export class ExperimentPortfolio {
  s:PortfolioState;
  actions:Record<string,unknown>[]=[];
  constructor(readonly candidate:Candidate,readonly costModel:ExperimentCosts,state?:PortfolioState){
   assert([10,20,30,40,50].includes(candidate.halfWidthTicks));assert([1,2].includes(candidate.costMultiplier)&&[500000,1000000].includes(candidate.feeIncomePpm));assert(['exit_reentry','recenter'].includes(candidate.management));assert(BigInt(candidate.budget)>0n&&BigInt(candidate.budget)<=10000000000n);
+  if(candidate.recenterRule)assert([40,50,70].includes(candidate.recenterRule.distancePercent)&&[1,2].includes(candidate.recenterRule.persistence));
+  const q=candidate.entryQuality;if(q)assert(Number.isInteger(q.maxQuoteAgeSeconds)&&q.maxQuoteAgeSeconds>0&&q.maxQuoteAgeSeconds<=180&&
+   Number.isInteger(q.maxTickDrift)&&q.maxTickDrift>=0&&q.maxTickDrift<=50&&Number.isInteger(q.minAllocationPpm)&&q.minAllocationPpm>0&&q.minAllocationPpm<=800000&&
+   BigInt(q.maxRoundTripGasQuote)>0n&&q.costBasis==='frozen_scenario');
   this.s=state??{benchmark:{cash:BigInt(candidate.budget),rwa:0n,after:null,minimum:0n,filled:false},cash:BigInt(candidate.budget),rwa:0n,position:null,pending:null,lastAt:null,lastBlock:null,lastTarget:null,costs:0n,fees0:0n,fees1:0n,hold0:null,hold1:null,holdCosts:0n,lastExit:-1e15,lastMove:-1e15,persistence:0,peak:BigInt(candidate.budget),drawdown:0n,maxExposure:0n,peakShare:0n,entries:0,recenters:0,exits:0,infrastructureExits:0,infrastructureExitCosts:0n,infrastructureReentryCosts:0n,lastExitReason:null,observations:0,eligible:0,activeSeconds:0,outsideSeconds:0,cashSeconds:0,blocked:{},invalid:null};
  }
  cost(kind:keyof ExperimentCosts){return BigInt(this.costModel[kind])*BigInt(this.candidate.costMultiplier);}
@@ -62,9 +71,29 @@ export class ExperimentPortfolio {
    while(lo<hi){const mid=(lo+hi)/2n;if(historicalSwapQuote(m,mid,1).amountOut>=want)hi=mid;else lo=mid+1n;}amount=lo;
   }
   const q=token===null?null:historicalSwapQuote(m,amount,token);if(q&&(!q.fullyFilled||!q.passesSlippage)){this.block('quote_slippage');return;}
-  this.s.pending={kind,after:Date.parse(f.observedAt),range,token,amount,minimum:q?q.amountOut*9950n/10000n:0n,reason,target};this.record(f,'signal_'+kind,reason);
+  this.s.pending={kind,after:Date.parse(f.observedAt),range,token,amount,minimum:q?q.amountOut*9950n/10000n:0n,reason,target,quoteTick:m.tick};this.record(f,'signal_'+kind,reason);
  }
- private place(f:ExperimentFrame,m:SwapSource,pending:Pending){
+ private place(f:ExperimentFrame,m:SwapSource,pending:Pending,preflight=false){
+  const quality=this.candidate.entryQuality;
+  if(quality&&!preflight){
+   const age=(Date.parse(f.observedAt)-pending.after)/1000;
+   if(!Number.isFinite(age)||age<0||age>quality.maxQuoteAgeSeconds){this.block('entry_quote_age');return;}
+   if(pending.quoteTick===undefined||Math.abs(m.tick-pending.quoteTick)>quality.maxTickDrift){this.block('entry_quote_tick_drift');return;}
+   const roundTrip=Object.keys(this.costModel).reduce((sum,key)=>sum+this.cost(key as keyof ExperimentCosts),0n);
+   if(pending.kind==='entry'&&roundTrip>BigInt(quality.maxRoundTripGasQuote)){this.block('entry_scenario_gas_cap');return;}
+   // The prospective paper preflight must succeed as a whole. A rejected
+   // acquisition or recenter leaves the accepted inventory and costs intact.
+   const preview=new ExperimentPortfolio(this.candidate,this.costModel,structuredClone(this.s));
+   preview.place(f,m,pending,true);
+   const placed=preview.s.position;
+   if(!placed||preview.s.entries+preview.s.recenters!==this.s.entries+this.s.recenters+1){this.block('placement_preflight_failed');return;}
+   const amounts=positionAmounts(placed.center,placed,placed.liquidity,false),budget=this.gross(m);
+   const deployed=amounts.amount0+nvdaValueQuote(amounts.amount1,priceX18(placed.center));
+   const allocation=budget>0n?deployed*1000000n/budget:0n;
+   if(allocation<BigInt(quality.minAllocationPpm)){this.block('entry_allocation_below_minimum');return;}
+   Object.assign(this.s,preview.s);this.s.lastPlacementAllocationPpm=Number(allocation);this.actions.push(...preview.actions);
+   return;
+  }
   const before=this.s.costs,infra=pending.kind==='entry'&&this.s.lastExitReason==='infrastructure';
   try{
   const r=pending.range!;if(m.tick<r.tickLower||m.tick>=r.tickUpper||!this.allowed(f,r)||!m.ticks.includes(r.tickLower)||!m.ticks.includes(r.tickUpper)){this.block('frozen_range_expired');return;}
@@ -132,6 +161,7 @@ export class ExperimentPortfolio {
   if(exposure!==null&&exposure>s.maxExposure)s.maxExposure=exposure;
   const eligible=this.allowed(f,s.position??undefined);if(eligible)s.eligible++;
   const reason=!f.chainHealthy?'infrastructure':!eligible?'reference_or_token':exposure!==null&&exposure>=600000n?'inventory':s.position&&source-s.position.enteredAt>=86400000?'holding_limit':null;
+  if(reason==='inventory'&&this.candidate.management==='recenter')this.block('recenter_preempted_by_inventory');
   if((s.position||s.rwa>0n)&&reason&&s.pending?.kind!=='exit'){s.pending={kind:'exit',after:at,range:null,token:null,amount:0n,minimum:0n,reason,target:0n};this.record(f,'signal_exit',reason);}
   if(s.pending&&source>s.pending.after){const pending=s.pending;
    if(pending.kind==='exit'){if(f.chainHealthy)this.exit(f,m,pending.reason);}
@@ -141,8 +171,12 @@ export class ExperimentPortfolio {
    else if(this.candidate.management==='recenter'&&eligible){
     const p=s.position,center=priceX18(p.center),now=priceX18(m.price),lower=priceX18(sqrtRatioAtTick(p.tickUpper)),upper=priceX18(sqrtRatioAtTick(p.tickLower));
     const distance=now<center?center-now:now-center,width=now<center?center-lower:upper-center;
-    s.persistence=distance>0n&&distance*100n>=width*70n?s.persistence+1:0;
-    if(s.persistence>=2&&at-s.lastMove>=600000){this.quote(f,m,'recenter','persistent_70_percent');s.persistence=0;}
+    const rule=this.candidate.recenterRule??{distancePercent:70,persistence:2};
+    s.persistence=distance>0n&&distance*100n>=width*BigInt(rule.distancePercent)?s.persistence+1:0;
+    if(s.persistence>=rule.persistence){
+     if(at-s.lastMove>=600000){this.quote(f,m,'recenter',`persistent_${rule.distancePercent}_percent_${rule.persistence}_observations`);s.persistence=0;}
+     else this.block('recenter_cooldown');
+    }else if(s.persistence>0)this.block('recenter_persistence');
    }
   }
   if(s.position&&s.pending?.kind!=='exit'&&ref){
@@ -155,12 +189,16 @@ export class ExperimentPortfolio {
  summary(f:ExperimentFrame,m:SwapSource){const s=this.s,ref=f.referencePrice?BigInt(f.referencePrice):null,nav=s.invalid?null:this.gross(m)-this.reserve();
   const hold=s.hold0===null?BigInt(this.candidate.budget):s.hold0+nvdaValueQuote(s.hold1!,priceX18(m.price));
   const commonHold=s.benchmark.filled?s.benchmark.cash+nvdaValueQuote(s.benchmark.rwa,priceX18(m.price)):null;
+  const balances=this.balances(m),liquidation=balances.amount1>0n?historicalSwapQuote(m,balances.amount1,1):{fullyFilled:true,passesSlippage:true,amountOut:0n};
+  const liquidationNav=!s.invalid&&liquidation.fullyFilled&&liquidation.passesSlippage?balances.amount0+liquidation.amountOut-this.reserve():null;
   const refNav=s.invalid||!ref?null:this.gross(m,ref)-this.reserve(),refHold=!ref?null:s.hold0===null?BigInt(this.candidate.budget):s.hold0+nvdaValueQuote(s.hold1!,ref);
   return {candidate:this.candidate,evidenceClass:'modeled_path_with_frozen_fork_cost_scenarios',executionEligible:false,invalid:s.invalid,
    nav:nav===null?null:String(nav),pnl:nav===null?null:String(nav-BigInt(this.candidate.budget)),alpha:nav===null?null:String(nav-hold),
    alphaPpm:nav===null?null:String((nav-hold)*1000000n/BigInt(this.candidate.budget)),commonHold:commonHold===null?null:String(commonHold),commonAlpha:nav===null||commonHold===null?null:String(nav-commonHold),commonAlphaPpm:nav===null||commonHold===null?null:String((nav-commonHold)*1000000n/BigInt(this.candidate.budget)),referenceNav:refNav===null?null:String(refNav),referenceAlpha:refNav===null||refHold===null?null:String(refNav-refHold),
+   liquidationNav:liquidationNav===null?null:String(liquidationNav),liquidationAlphaVsHolding:liquidationNav===null||commonHold===null?null:String(liquidationNav-commonHold),
+   liquidationBasis:'current modeled swap quote and frozen gas versus marked common holding',
    costs:String(s.costs),exitReserve:String(this.reserve()),feesQuote:String(s.fees0+nvdaValueQuote(s.fees1,priceX18(m.price))),cash:String(s.cash),rwa:String(s.rwa),liquidity:String(s.position?.liquidity??0n),
    entries:s.entries,recenters:s.recenters,exits:s.exits,infrastructureExits:s.infrastructureExits,infrastructureExitCosts:String(s.infrastructureExitCosts),infrastructureReentryCosts:String(s.infrastructureReentryCosts),observations:s.observations,eligible:s.eligible,
-   activeSeconds:s.activeSeconds,outsideSeconds:s.outsideSeconds,cashSeconds:s.cashSeconds,drawdownPpm:String(s.drawdown),maxExposurePpm:String(s.maxExposure),peakSharePpm:String(s.peakShare),blocked:s.blocked};
+   activeSeconds:s.activeSeconds,outsideSeconds:s.outsideSeconds,cashSeconds:s.cashSeconds,drawdownPpm:String(s.drawdown),maxExposurePpm:String(s.maxExposure),peakSharePpm:String(s.peakShare),lastPlacementAllocationPpm:s.lastPlacementAllocationPpm??null,blocked:s.blocked};
  }
 }

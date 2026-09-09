@@ -11,7 +11,8 @@ async function main(){
  if(['start','tick','watch'].includes(command!)&&process.env.LP_EXPERIMENT_LOCK!=='1'){
   const path=command==='start'?args[1]:args[0];if(!path)throw Error('Experiment state path required');
   await mkdir(dirname(path),{recursive:true});
-  execFileSync('/usr/bin/flock',['-n',path+'.lock',process.execPath,...process.argv.slice(1)],{stdio:'inherit',env:{...process.env,LP_EXPERIMENT_LOCK:'1'}});return;
+  try{execFileSync('/usr/bin/flock',['-n',path+'.lock',process.execPath,...process.execArgv,...process.argv.slice(1)],{stdio:'inherit',env:{...process.env,LP_EXPERIMENT_LOCK:'1'}});}
+  catch(error){if((error as {status?:number}).status===2){process.exitCode=2;return;}throw error;}return;
  }
  const source=new ExperimentSource(process.env.DATABASE_URL!);await source.connect();
  try{

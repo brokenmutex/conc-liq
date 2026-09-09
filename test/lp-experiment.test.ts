@@ -38,6 +38,30 @@ describe('bounded LP experiment',()=>{
   p.decision(frame(1660000,tick-16),market(tick-16));assert.equal(pendingKind(p),'recenter');
   p.decision(frame(1720000,tick-16),market(tick-16));assert.equal(p.s.recenters,1);assert.equal(p.s.position?.tickLower,221830);
  });
+ it('can recenter at an earlier frozen trigger while retaining the hard inventory exit',()=>{
+  const p=new ExperimentPortfolio({...portfolio('recenter').candidate,recenterRule:{distancePercent:40,persistence:1}},costs);enter(p);
+  p.decision(frame(1660000,tick-10),market(tick-10));assert.equal(pendingKind(p),'recenter');
+  p.decision(frame(1720000,tick-10),market(tick-10));assert.equal(p.s.recenters,1);
+  const q=new ExperimentPortfolio(p.candidate,costs);enter(q);q.decision(frame(1660000,tick+19),market(tick+19));
+  assert.equal(pendingKind(q),'exit');assert.equal(q.s.pending!.reason,'inventory');assert.equal(q.s.blocked.recenter_preempted_by_inventory,1);
+ });
+ it('preflights allocation, quote age, drift and scenario gas before changing accepted balances',()=>{
+  const quality={maxQuoteAgeSeconds:90,maxTickDrift:5,minAllocationPpm:720000,maxRoundTripGasQuote:'1250000',costBasis:'frozen_scenario' as const};
+  const make=()=>new ExperimentPortfolio({...portfolio().candidate,entryQuality:quality},costs);
+  const good=make();enter(good);assert(good.s.lastPlacementAllocationPpm!>=720000);
+  const marked=good.summary(frame(1060000),market());assert(BigInt(marked.liquidationNav!)<BigInt(marked.nav!), 'Liquidation includes swap execution drag');
+  for(const kind of ['age','drift','allocation','gas'] as const){
+   const q=make();q.decision(frame(),market());const cash=q.s.cash,rwa=q.s.rwa;
+   const f=frame(kind==='age'?1120000:1060000,kind==='drift'?tick-6:tick-5),m=market(f.tick);
+   if(kind==='allocation'){q.s.pending!.amount=q.s.pending!.amount/2n;q.s.pending!.minimum=q.s.pending!.minimum/2n;}
+   if(kind==='gas')q.candidate.entryQuality={...quality,maxRoundTripGasQuote:'1'};
+   q.decision(f,m);assert.equal(q.s.entries,0,kind);assert.equal(q.s.cash,cash,kind);assert.equal(q.s.rwa,rwa,kind);assert.equal(q.s.costs,0n,kind);
+   assert.equal(q.s.blocked[{age:'entry_quote_age',drift:'entry_quote_tick_drift',allocation:'entry_allocation_below_minimum',gas:'entry_scenario_gas_cap'}[kind]],1,kind);
+  }
+  good.candidate.entryQuality={...quality,maxRoundTripGasQuote:'1'};
+  good.decision({...frame(1120000),chainHealthy:false},market());good.decision(frame(1180000),market());
+  assert.equal(good.s.exits,1,'An entry gas cap never blocks a required exit');
+ });
  it('rejects inadmissible liquidity before purchasing inventory',()=>{
   const p=portfolio();p.decision(frame(),{...market(),liquidity:10n**16n});assert.equal(p.s.pending,null);assert.equal(p.s.costs,0n);assert.equal(p.s.rwa,0n);assert.equal(p.s.blocked.liquidity_share_admission,1);
  });
@@ -171,5 +195,14 @@ describe('recoverable forward data pauses',()=>{
   const h=await setup(t);await h.step();await h.step();t.mock.timers.tick(151000);assert.equal((await h.tick()).status,'paused_data');
   h.setValid(false);const state=await h.tick();assert.equal(state.status,'invalid');assert.equal(state.reason,'prior_source_revoked');
   h.setValid(true);h.add();assert.equal((await h.tick()).status,'invalid');
+ });
+ it('freezes a due local review once without changing the portfolio or selecting a winner',async t=>{
+  const {readFile,writeFile}=await import('node:fs/promises');
+  const h=await setup(t);await h.step();const open=await h.step();
+  const state=parse(await readFile(h.path,'utf8'));state.createdAt=new Date(Date.now()-86400000).toISOString();
+  await writeFile(h.path,json(state));await h.tick();
+  const path=h.path+'.review-24h.json',frozen=await readFile(path,'utf8'),review=parse(frozen);
+  assert.equal(review.hours,24);assert.equal(review.selectionEligible,false);assert.equal(json(review.state.states),json(open.states));
+  t.mock.timers.tick(10000);await h.tick();assert.equal(await readFile(path,'utf8'),frozen);
  });
 });

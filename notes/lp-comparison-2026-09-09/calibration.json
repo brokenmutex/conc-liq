@@ -1,0 +1,6278 @@
+{
+  "computedAt": "2026-09-09T08:40:40.097Z",
+  "evidenceClass": "development_calibration_for_prospective_learning",
+  "executionEligible": false,
+  "source": "data/lp-experiment-2026-09-08/source-v2.json",
+  "sourceSha256": "13ce7cbf37ec619b16cb3702dd4d5210664fdf035fce4916ed5e0d05fb959695",
+  "codeSha256": {
+    "scripts/lp-recenter-calibrate.mjs": "a237e4c93c4e7542a4d64368c4a1a8a871c95dc64a39a545737c816a47cb7a47",
+    "src/experiment/portfolio.ts": "c262e896791fa008fbaeb60fe2b85d1d0dc04c6c53776d38c8ad4fefb6b68d98",
+    "src/experiment/market.ts": "00330722f2c7d4310df0af17d19737b276f5ed66590e3030fa2208fd15efaa09",
+    "src/paper/engine.ts": "3bc740eda21ed8fd3ffbc0c859e6d8fa832554ffdb3cd0affad2db1ac42de6d6",
+    "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883"
+  },
+  "split": {
+    "development": [
+      "2026-09-05T12:00:00.000Z",
+      "2026-09-05T18:00:00.000Z",
+      "2026-09-06T00:00:00.000Z",
+      "2026-09-06T06:00:00.000Z",
+      "2026-09-06T12:00:00.000Z",
+      "2026-09-06T18:00:00.000Z",
+      "2026-09-07T00:00:00.000Z",
+      "2026-09-07T06:00:00.000Z"
+    ],
+    "validation": [
+      "2026-09-07T12:00:00.000Z",
+      "2026-09-07T18:00:00.000Z",
+      "2026-09-08T00:00:00.000Z",
+      "2026-09-08T06:00:00.000Z",
+      "2026-09-08T12:00:00.000Z"
+    ]
+  },
+  "scores": [
+    {
+      "rule": {
+        "distancePercent": 40,
+        "persistence": 1
+      },
+      "development": {
+        "pairedWindows": 2,
+        "medianDeltaAlphaRaw": 0,
+        "medianActiveAlphaRaw": -1983560,
+        "recenters": 1,
+        "invalidCells": 0,
+        "noEntryCells": 14,
+        "pairs": [
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-378474",
+            "activeAlphaRaw": "-2174987",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1983560",
+            "recenters": 0
+          }
+        ]
+      },
+      "validation": {
+        "pairedWindows": 10,
+        "medianDeltaAlphaRaw": -750886,
+        "medianActiveAlphaRaw": -9050451,
+        "recenters": 17,
+        "invalidCells": 0,
+        "noEntryCells": 0,
+        "pairs": [
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-750886",
+            "activeAlphaRaw": "-8927244",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-9050451",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-873691",
+            "activeAlphaRaw": "-11061315",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-10536211",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-552354",
+            "activeAlphaRaw": "-11679943",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-8308514",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-4422695",
+            "activeAlphaRaw": "-10836586",
+            "recenters": 5
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-3959096",
+            "activeAlphaRaw": "-11237973",
+            "recenters": 4
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-883173",
+            "activeAlphaRaw": "-2861444",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-1425129",
+            "activeAlphaRaw": "-3272985",
+            "recenters": 2
+          }
+        ]
+      },
+      "stressValidation": {
+        "pairedWindows": 0,
+        "medianDeltaAlphaRaw": null,
+        "medianActiveAlphaRaw": null,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 10,
+        "pairs": []
+      }
+    },
+    {
+      "rule": {
+        "distancePercent": 40,
+        "persistence": 2
+      },
+      "development": {
+        "pairedWindows": 2,
+        "medianDeltaAlphaRaw": 0,
+        "medianActiveAlphaRaw": -1796513,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 14,
+        "pairs": [
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1796513",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1983560",
+            "recenters": 0
+          }
+        ]
+      },
+      "validation": {
+        "pairedWindows": 10,
+        "medianDeltaAlphaRaw": -653392,
+        "medianActiveAlphaRaw": -9050451,
+        "recenters": 16,
+        "invalidCells": 0,
+        "noEntryCells": 0,
+        "pairs": [
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-750199",
+            "activeAlphaRaw": "-8926557",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-9050451",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-874668",
+            "activeAlphaRaw": "-11062292",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-10536211",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-653392",
+            "activeAlphaRaw": "-11780981",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-8308514",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-4664887",
+            "activeAlphaRaw": "-11078778",
+            "recenters": 5
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-4160633",
+            "activeAlphaRaw": "-11439510",
+            "recenters": 4
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-876155",
+            "activeAlphaRaw": "-2854426",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-622541",
+            "activeAlphaRaw": "-2470397",
+            "recenters": 1
+          }
+        ]
+      },
+      "stressValidation": {
+        "pairedWindows": 0,
+        "medianDeltaAlphaRaw": null,
+        "medianActiveAlphaRaw": null,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 10,
+        "pairs": []
+      }
+    },
+    {
+      "rule": {
+        "distancePercent": 50,
+        "persistence": 1
+      },
+      "development": {
+        "pairedWindows": 2,
+        "medianDeltaAlphaRaw": 0,
+        "medianActiveAlphaRaw": -1796513,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 14,
+        "pairs": [
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1796513",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1983560",
+            "recenters": 0
+          }
+        ]
+      },
+      "validation": {
+        "pairedWindows": 10,
+        "medianDeltaAlphaRaw": -754456,
+        "medianActiveAlphaRaw": -8930814,
+        "recenters": 13,
+        "invalidCells": 0,
+        "noEntryCells": 0,
+        "pairs": [
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-754456",
+            "activeAlphaRaw": "-8930814",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-9050451",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-873691",
+            "activeAlphaRaw": "-11061315",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-10536211",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-783388",
+            "activeAlphaRaw": "-11910977",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-8308514",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-894792",
+            "activeAlphaRaw": "-7308683",
+            "recenters": 3
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-4184265",
+            "activeAlphaRaw": "-11463142",
+            "recenters": 4
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-1082701",
+            "activeAlphaRaw": "-3060972",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-598052",
+            "activeAlphaRaw": "-2445908",
+            "recenters": 1
+          }
+        ]
+      },
+      "stressValidation": {
+        "pairedWindows": 0,
+        "medianDeltaAlphaRaw": null,
+        "medianActiveAlphaRaw": null,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 10,
+        "pairs": []
+      }
+    },
+    {
+      "rule": {
+        "distancePercent": 50,
+        "persistence": 2
+      },
+      "development": {
+        "pairedWindows": 2,
+        "medianDeltaAlphaRaw": 0,
+        "medianActiveAlphaRaw": -1796513,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 14,
+        "pairs": [
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1796513",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-1983560",
+            "recenters": 0
+          }
+        ]
+      },
+      "validation": {
+        "pairedWindows": 10,
+        "medianDeltaAlphaRaw": -600105,
+        "medianActiveAlphaRaw": -8924931,
+        "recenters": 13,
+        "invalidCells": 0,
+        "noEntryCells": 0,
+        "pairs": [
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-748573",
+            "activeAlphaRaw": "-8924931",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-07T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-9050451",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-10187624",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-07T18:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-10536211",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-820250",
+            "activeAlphaRaw": "-11947839",
+            "recenters": 1
+          },
+          {
+            "window": "2026-09-08T00:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "0",
+            "activeAlphaRaw": "-8308514",
+            "recenters": 0
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-1489190",
+            "activeAlphaRaw": "-7903081",
+            "recenters": 4
+          },
+          {
+            "window": "2026-09-08T06:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-4277226",
+            "activeAlphaRaw": "-11556103",
+            "recenters": 4
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 20,
+            "deltaAlphaRaw": "-1415934",
+            "activeAlphaRaw": "-3394205",
+            "recenters": 2
+          },
+          {
+            "window": "2026-09-08T12:00:00.000Z",
+            "width": 30,
+            "deltaAlphaRaw": "-600105",
+            "activeAlphaRaw": "-2447961",
+            "recenters": 1
+          }
+        ]
+      },
+      "stressValidation": {
+        "pairedWindows": 0,
+        "medianDeltaAlphaRaw": null,
+        "medianActiveAlphaRaw": null,
+        "recenters": 0,
+        "invalidCells": 0,
+        "noEntryCells": 10,
+        "pairs": []
+      }
+    }
+  ],
+  "selected": [
+    {
+      "id": "1000-20-exit_reentry",
+      "budget": "1000000000",
+      "halfWidthTicks": 20,
+      "management": "exit_reentry",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      }
+    },
+    {
+      "id": "1000-30-exit_reentry",
+      "budget": "1000000000",
+      "halfWidthTicks": 30,
+      "management": "exit_reentry",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      }
+    },
+    {
+      "id": "1000-20-recenter-40-1",
+      "budget": "1000000000",
+      "halfWidthTicks": 20,
+      "management": "recenter",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      },
+      "recenterRule": {
+        "distancePercent": 40,
+        "persistence": 1
+      }
+    },
+    {
+      "id": "1000-30-recenter-40-1",
+      "budget": "1000000000",
+      "halfWidthTicks": 30,
+      "management": "recenter",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      },
+      "recenterRule": {
+        "distancePercent": 40,
+        "persistence": 1
+      }
+    }
+  ],
+  "windows": [
+    {
+      "key": "2026-09-05T12:00:00.000Z",
+      "through": "2026-09-05T17:59:30.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-672768",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-528052",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 59,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 22,
+            "entry_gate": 6,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-05T18:00:00.000Z",
+      "through": "2026-09-05T23:55:33.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "441441",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "586157",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 67,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 7,
+            "entry_quote_age": 28,
+            "pending_entry_expired_or_ineligible": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-06T00:00:00.000Z",
+      "through": "2026-09-06T05:58:37.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "100552",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "245268",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 6,
+            "entry_quote_age": 27,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-06T06:00:00.000Z",
+      "through": "2026-09-06T11:55:01.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-156009",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-11293",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 66,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 30,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_gate": 2
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-06T12:00:00.000Z",
+      "through": "2026-09-06T17:59:01.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "930524",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1075240",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 68,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_quote_age": 25,
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_gate": 8
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-06T18:00:00.000Z",
+      "through": "2026-09-06T23:56:28.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "373375",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "518091",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 35,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "pending_entry_expired_or_ineligible": 5,
+            "entry_quote_age": 2,
+            "entry_gate": 20,
+            "awaiting_confirmation": 9
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-07T00:00:00.000Z",
+      "through": "2026-09-07T05:43:12.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-465179",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-320463",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 50,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "awaiting_confirmation": 3,
+            "entry_gate": 15,
+            "entry_quote_age": 8,
+            "pending_entry_expired_or_ineligible": 9
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-07T06:00:00.000Z",
+      "through": "2026-09-07T11:59:51.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3647926",
+          "alpha": "-1796513",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 3,
+          "costs": "2505702",
+          "fees": "1626757",
+          "observations": 189,
+          "activeSeconds": 8694.748999999996,
+          "maxExposurePpm": "683737",
+          "drawdownPpm": "4294",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "cooldown": 25,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-4026400",
+          "alpha": "-2174987",
+          "entries": 3,
+          "recenters": 1,
+          "exits": 3,
+          "costs": "3149968",
+          "fees": "1531656",
+          "observations": 189,
+          "activeSeconds": 8692.820999999996,
+          "maxExposurePpm": "655048",
+          "drawdownPpm": "4672",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_preempted_by_inventory": 4,
+            "cooldown": 25,
+            "quote_funding": 3,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3647926",
+          "alpha": "-1796513",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 3,
+          "costs": "2505702",
+          "fees": "1626757",
+          "observations": 189,
+          "activeSeconds": 8694.748999999996,
+          "maxExposurePpm": "683737",
+          "drawdownPpm": "4294",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_persistence": 2,
+            "recenter_preempted_by_inventory": 4,
+            "cooldown": 25,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3647926",
+          "alpha": "-1796513",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 3,
+          "costs": "2505702",
+          "fees": "1626757",
+          "observations": 189,
+          "activeSeconds": 8694.748999999996,
+          "maxExposurePpm": "683737",
+          "drawdownPpm": "4294",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_preempted_by_inventory": 4,
+            "cooldown": 25,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3647926",
+          "alpha": "-1796513",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 3,
+          "costs": "2505702",
+          "fees": "1626757",
+          "observations": 189,
+          "activeSeconds": 8694.748999999996,
+          "maxExposurePpm": "683737",
+          "drawdownPpm": "4294",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_preempted_by_inventory": 4,
+            "cooldown": 25,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3834973",
+          "alpha": "-1983560",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 2,
+          "costs": "2172405",
+          "fees": "1313766",
+          "observations": 189,
+          "activeSeconds": 9430.020999999997,
+          "maxExposurePpm": "654279",
+          "drawdownPpm": "3846",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "cooldown": 18
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3834973",
+          "alpha": "-1983560",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 2,
+          "costs": "2172405",
+          "fees": "1313766",
+          "observations": 189,
+          "activeSeconds": 9430.020999999997,
+          "maxExposurePpm": "654279",
+          "drawdownPpm": "3846",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "quote_funding": 2,
+            "recenter_preempted_by_inventory": 2,
+            "cooldown": 18
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3834973",
+          "alpha": "-1983560",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 2,
+          "costs": "2172405",
+          "fees": "1313766",
+          "observations": 189,
+          "activeSeconds": 9430.020999999997,
+          "maxExposurePpm": "654279",
+          "drawdownPpm": "3846",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_persistence": 1,
+            "quote_funding": 1,
+            "recenter_preempted_by_inventory": 2,
+            "cooldown": 18
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3834973",
+          "alpha": "-1983560",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 2,
+          "costs": "2172405",
+          "fees": "1313766",
+          "observations": 189,
+          "activeSeconds": 9430.020999999997,
+          "maxExposurePpm": "654279",
+          "drawdownPpm": "3846",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_preempted_by_inventory": 2,
+            "cooldown": 18
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-3834973",
+          "alpha": "-1983560",
+          "entries": 3,
+          "recenters": 0,
+          "exits": 2,
+          "costs": "2172405",
+          "fees": "1313766",
+          "observations": 189,
+          "activeSeconds": 9430.020999999997,
+          "maxExposurePpm": "654279",
+          "drawdownPpm": "3846",
+          "blocked": {
+            "entry_gate": 14,
+            "pending_entry_expired_or_ineligible": 3,
+            "recenter_preempted_by_inventory": 2,
+            "cooldown": 18
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1996129",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 189,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 18,
+            "pending_entry_expired_or_ineligible": 4,
+            "entry_scenario_gas_cap": 78,
+            "entry_quote_tick_drift": 2,
+            "entry_quote_age": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-07T12:00:00.000Z",
+      "through": "2026-09-07T17:59:09.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-8692427",
+          "alpha": "-8176358",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "3126086",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "727073",
+          "drawdownPpm": "9376",
+          "blocked": {
+            "cooldown": 72,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9443313",
+          "alpha": "-8927244",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 8,
+          "costs": "7828075",
+          "fees": "3125585",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "727073",
+          "drawdownPpm": "9603",
+          "blocked": {
+            "cooldown": 72,
+            "quote_funding": 5,
+            "recenter_cooldown": 2,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9442626",
+          "alpha": "-8926557",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 8,
+          "costs": "7828075",
+          "fees": "3125484",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "727073",
+          "drawdownPpm": "9690",
+          "blocked": {
+            "recenter_persistence": 4,
+            "cooldown": 72,
+            "quote_funding": 3,
+            "recenter_cooldown": 1,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9446883",
+          "alpha": "-8930814",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 8,
+          "costs": "7828075",
+          "fees": "3125326",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "727073",
+          "drawdownPpm": "9866",
+          "blocked": {
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9441000",
+          "alpha": "-8924931",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 8,
+          "costs": "7828075",
+          "fees": "3125229",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "727073",
+          "drawdownPpm": "9879",
+          "blocked": {
+            "recenter_persistence": 1,
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9566520",
+          "alpha": "-9050451",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "2095094",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "618001",
+          "drawdownPpm": "9853",
+          "blocked": {
+            "cooldown": 72,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9566520",
+          "alpha": "-9050451",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "2095094",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "618001",
+          "drawdownPpm": "9853",
+          "blocked": {
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9566520",
+          "alpha": "-9050451",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "2095094",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "618001",
+          "drawdownPpm": "9853",
+          "blocked": {
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9566520",
+          "alpha": "-9050451",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "2095094",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "618001",
+          "drawdownPpm": "9853",
+          "blocked": {
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-9566520",
+          "alpha": "-9050451",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 8,
+          "costs": "7183809",
+          "fees": "2095094",
+          "observations": 347,
+          "activeSeconds": 15478.791000000001,
+          "maxExposurePpm": "618001",
+          "drawdownPpm": "9853",
+          "blocked": {
+            "cooldown": 72,
+            "recenter_preempted_by_inventory": 2,
+            "entry_gate": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "660785",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 347,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 141,
+            "entry_gate": 59,
+            "pending_entry_expired_or_ineligible": 2,
+            "entry_quote_tick_drift": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-07T18:00:00.000Z",
+      "through": "2026-09-07T23:59:49.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-10959504",
+          "alpha": "-10187624",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "1411340",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "627323",
+          "drawdownPpm": "11352",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11833195",
+          "alpha": "-11061315",
+          "entries": 10,
+          "recenters": 1,
+          "exits": 9,
+          "costs": "8663309",
+          "fees": "1410613",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "627323",
+          "drawdownPpm": "12226",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1,
+            "recenter_cooldown": 2,
+            "quote_funding": 4,
+            "recenter_preempted_by_inventory": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11834172",
+          "alpha": "-11062292",
+          "entries": 10,
+          "recenters": 1,
+          "exits": 9,
+          "costs": "8663309",
+          "fees": "1410613",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "627323",
+          "drawdownPpm": "12227",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1,
+            "recenter_persistence": 4,
+            "recenter_cooldown": 1,
+            "quote_funding": 2,
+            "recenter_preempted_by_inventory": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11833195",
+          "alpha": "-11061315",
+          "entries": 10,
+          "recenters": 1,
+          "exits": 9,
+          "costs": "8663309",
+          "fees": "1410613",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "627323",
+          "drawdownPpm": "12226",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1,
+            "recenter_preempted_by_inventory": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-10959504",
+          "alpha": "-10187624",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "1411340",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "627323",
+          "drawdownPpm": "11352",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1,
+            "recenter_persistence": 1,
+            "recenter_preempted_by_inventory": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11308091",
+          "alpha": "-10536211",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "948865",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "550980",
+          "drawdownPpm": "11605",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11308091",
+          "alpha": "-10536211",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "948865",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "550980",
+          "drawdownPpm": "11605",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11308091",
+          "alpha": "-10536211",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "948865",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "550980",
+          "drawdownPpm": "11605",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11308091",
+          "alpha": "-10536211",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "948865",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "550980",
+          "drawdownPpm": "11605",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11308091",
+          "alpha": "-10536211",
+          "entries": 10,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "8019043",
+          "fees": "948865",
+          "observations": 344,
+          "activeSeconds": 14392.929000000006,
+          "maxExposurePpm": "550980",
+          "drawdownPpm": "11605",
+          "blocked": {
+            "entry_gate": 13,
+            "cooldown": 81,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "916596",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 344,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_gate": 64,
+            "entry_scenario_gas_cap": 133,
+            "pending_entry_expired_or_ineligible": 7
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-08T00:00:00.000Z",
+      "through": "2026-09-08T05:59:24.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-10318431",
+          "alpha": "-11127589",
+          "entries": 9,
+          "recenters": 0,
+          "exits": 9,
+          "costs": "7517106",
+          "fees": "2499641",
+          "observations": 349,
+          "activeSeconds": 15305.185000000003,
+          "maxExposurePpm": "632675",
+          "drawdownPpm": "10600",
+          "blocked": {
+            "cooldown": 74,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-10870785",
+          "alpha": "-11679943",
+          "entries": 9,
+          "recenters": 2,
+          "exits": 9,
+          "costs": "8805638",
+          "fees": "3078810",
+          "observations": 349,
+          "activeSeconds": 15428.372000000001,
+          "maxExposurePpm": "632675",
+          "drawdownPpm": "11298",
+          "blocked": {
+            "cooldown": 74,
+            "recenter_preempted_by_inventory": 8,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-10971823",
+          "alpha": "-11780981",
+          "entries": 9,
+          "recenters": 2,
+          "exits": 9,
+          "costs": "8805638",
+          "fees": "3071275",
+          "observations": 349,
+          "activeSeconds": 15428.372000000001,
+          "maxExposurePpm": "632675",
+          "drawdownPpm": "11337",
+          "blocked": {
+            "recenter_persistence": 2,
+            "cooldown": 74,
+            "recenter_preempted_by_inventory": 8,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11101819",
+          "alpha": "-11910977",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 9,
+          "costs": "8161372",
+          "fees": "2499307",
+          "observations": 349,
+          "activeSeconds": 15305.185000000003,
+          "maxExposurePpm": "632675",
+          "drawdownPpm": "11383",
+          "blocked": {
+            "cooldown": 74,
+            "recenter_preempted_by_inventory": 8,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11138681",
+          "alpha": "-11947839",
+          "entries": 9,
+          "recenters": 1,
+          "exits": 9,
+          "costs": "8161372",
+          "fees": "2499280",
+          "observations": 349,
+          "activeSeconds": 15305.185000000003,
+          "maxExposurePpm": "632675",
+          "drawdownPpm": "11420",
+          "blocked": {
+            "recenter_persistence": 2,
+            "cooldown": 74,
+            "recenter_preempted_by_inventory": 8,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7499356",
+          "alpha": "-8308514",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "2239896",
+          "observations": 349,
+          "activeSeconds": 17147.651000000005,
+          "maxExposurePpm": "646258",
+          "drawdownPpm": "8029",
+          "blocked": {
+            "cooldown": 54,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7499356",
+          "alpha": "-8308514",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "2239896",
+          "observations": 349,
+          "activeSeconds": 17147.651000000005,
+          "maxExposurePpm": "646258",
+          "drawdownPpm": "8029",
+          "blocked": {
+            "cooldown": 54,
+            "entry_quote_tick_drift": 1,
+            "quote_funding": 3,
+            "recenter_preempted_by_inventory": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7499356",
+          "alpha": "-8308514",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "2239896",
+          "observations": 349,
+          "activeSeconds": 17147.651000000005,
+          "maxExposurePpm": "646258",
+          "drawdownPpm": "8029",
+          "blocked": {
+            "recenter_persistence": 3,
+            "cooldown": 54,
+            "entry_quote_tick_drift": 1,
+            "recenter_preempted_by_inventory": 2,
+            "quote_funding": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7499356",
+          "alpha": "-8308514",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "2239896",
+          "observations": 349,
+          "activeSeconds": 17147.651000000005,
+          "maxExposurePpm": "646258",
+          "drawdownPpm": "8029",
+          "blocked": {
+            "cooldown": 54,
+            "entry_quote_tick_drift": 1,
+            "recenter_preempted_by_inventory": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7499356",
+          "alpha": "-8308514",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "2239896",
+          "observations": 349,
+          "activeSeconds": 17147.651000000005,
+          "maxExposurePpm": "646258",
+          "drawdownPpm": "8029",
+          "blocked": {
+            "cooldown": 54,
+            "entry_quote_tick_drift": 1,
+            "recenter_preempted_by_inventory": 2
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-664442",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 349,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 153,
+            "entry_gate": 26,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 4
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-08T06:00:00.000Z",
+      "through": "2026-09-08T11:59:46.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-7423321",
+          "alpha": "-6413891",
+          "entries": 7,
+          "recenters": 0,
+          "exits": 6,
+          "costs": "5513341",
+          "fees": "3489408",
+          "observations": 350,
+          "activeSeconds": 13821.576,
+          "maxExposurePpm": "757692",
+          "drawdownPpm": "8550",
+          "blocked": {
+            "cooldown": 54,
+            "entry_allocation_below_minimum": 2
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-11846016",
+          "alpha": "-10836586",
+          "entries": 8,
+          "recenters": 5,
+          "exits": 7,
+          "costs": "9569905",
+          "fees": "4328596",
+          "observations": 350,
+          "activeSeconds": 16402.826999999997,
+          "maxExposurePpm": "757692",
+          "drawdownPpm": "12204",
+          "blocked": {
+            "quote_funding": 13,
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 63,
+            "entry_allocation_below_minimum": 2,
+            "recenter_cooldown": 13,
+            "entry_quote_tick_drift": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-12088208",
+          "alpha": "-11078778",
+          "entries": 8,
+          "recenters": 5,
+          "exits": 7,
+          "costs": "9569905",
+          "fees": "4190467",
+          "observations": 350,
+          "activeSeconds": 16280.148999999996,
+          "maxExposurePpm": "757692",
+          "drawdownPpm": "12453",
+          "blocked": {
+            "recenter_persistence": 16,
+            "quote_funding": 5,
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 63,
+            "entry_allocation_below_minimum": 3,
+            "recenter_cooldown": 10
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-8318113",
+          "alpha": "-7308683",
+          "entries": 7,
+          "recenters": 3,
+          "exits": 6,
+          "costs": "7446139",
+          "fees": "4498630",
+          "observations": 350,
+          "activeSeconds": 16896.093,
+          "maxExposurePpm": "757692",
+          "drawdownPpm": "8680",
+          "blocked": {
+            "recenter_preempted_by_inventory": 7,
+            "cooldown": 54,
+            "quote_funding": 6,
+            "entry_allocation_below_minimum": 4,
+            "recenter_cooldown": 10
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-8912511",
+          "alpha": "-7903081",
+          "entries": 7,
+          "recenters": 4,
+          "exits": 6,
+          "costs": "8090405",
+          "fees": "4618205",
+          "observations": 350,
+          "activeSeconds": 17079.414,
+          "maxExposurePpm": "757692",
+          "drawdownPpm": "9281",
+          "blocked": {
+            "recenter_preempted_by_inventory": 7,
+            "cooldown": 54,
+            "recenter_persistence": 8,
+            "quote_funding": 3,
+            "entry_allocation_below_minimum": 2,
+            "recenter_cooldown": 8
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-8288307",
+          "alpha": "-7278877",
+          "entries": 6,
+          "recenters": 0,
+          "exits": 5,
+          "costs": "4678107",
+          "fees": "2737241",
+          "observations": 350,
+          "activeSeconds": 14990.650999999998,
+          "maxExposurePpm": "771339",
+          "drawdownPpm": "9164",
+          "blocked": {
+            "cooldown": 45,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-12247403",
+          "alpha": "-11237973",
+          "entries": 7,
+          "recenters": 4,
+          "exits": 6,
+          "costs": "8090405",
+          "fees": "2975385",
+          "observations": 350,
+          "activeSeconds": 16956.903,
+          "maxExposurePpm": "771339",
+          "drawdownPpm": "12400",
+          "blocked": {
+            "quote_funding": 5,
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 54,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-12448940",
+          "alpha": "-11439510",
+          "entries": 7,
+          "recenters": 4,
+          "exits": 6,
+          "costs": "8090405",
+          "fees": "2974420",
+          "observations": 350,
+          "activeSeconds": 16956.903,
+          "maxExposurePpm": "771339",
+          "drawdownPpm": "12605",
+          "blocked": {
+            "recenter_persistence": 9,
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 54,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4,
+            "entry_quote_tick_drift": 1,
+            "entry_allocation_below_minimum": 1,
+            "quote_funding": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-12472572",
+          "alpha": "-11463142",
+          "entries": 7,
+          "recenters": 4,
+          "exits": 6,
+          "costs": "8090405",
+          "fees": "2975141",
+          "observations": 350,
+          "activeSeconds": 16956.903,
+          "maxExposurePpm": "771339",
+          "drawdownPpm": "12628",
+          "blocked": {
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 54,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4,
+            "entry_allocation_below_minimum": 1,
+            "quote_funding": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-12565533",
+          "alpha": "-11556103",
+          "entries": 7,
+          "recenters": 4,
+          "exits": 6,
+          "costs": "8090405",
+          "fees": "2973861",
+          "observations": 350,
+          "activeSeconds": 16956.903,
+          "maxExposurePpm": "771339",
+          "drawdownPpm": "12680",
+          "blocked": {
+            "recenter_preempted_by_inventory": 9,
+            "cooldown": 54,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4,
+            "recenter_persistence": 5,
+            "entry_allocation_below_minimum": 1
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "1154146",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 350,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 165,
+            "entry_gate": 9,
+            "entry_quote_tick_drift": 4,
+            "pending_entry_expired_or_ineligible": 1
+          }
+        }
+      ]
+    },
+    {
+      "key": "2026-09-08T12:00:00.000Z",
+      "through": "2026-09-08T13:14:28.000Z",
+      "results": [
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-1197667",
+          "alpha": "-1978271",
+          "entries": 2,
+          "recenters": 0,
+          "exits": 1,
+          "costs": "1337171",
+          "fees": "507223",
+          "observations": 71,
+          "activeSeconds": 2760.9139999999993,
+          "maxExposurePpm": "426441",
+          "drawdownPpm": "1213",
+          "blocked": {
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-20-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-2080840",
+          "alpha": "-2861444",
+          "entries": 2,
+          "recenters": 2,
+          "exits": 1,
+          "costs": "2625703",
+          "fees": "664852",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "440055",
+          "drawdownPpm": "2096",
+          "blocked": {
+            "recenter_cooldown": 5,
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-2073822",
+          "alpha": "-2854426",
+          "entries": 2,
+          "recenters": 2,
+          "exits": 1,
+          "costs": "2625703",
+          "fees": "664788",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "439858",
+          "drawdownPpm": "2089",
+          "blocked": {
+            "recenter_persistence": 3,
+            "recenter_cooldown": 5,
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-2280368",
+          "alpha": "-3060972",
+          "entries": 2,
+          "recenters": 2,
+          "exits": 1,
+          "costs": "2625703",
+          "fees": "662501",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "426440",
+          "drawdownPpm": "2296",
+          "blocked": {
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-2613601",
+          "alpha": "-3394205",
+          "entries": 2,
+          "recenters": 2,
+          "exits": 1,
+          "costs": "2625703",
+          "fees": "660680",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "455022",
+          "drawdownPpm": "2629",
+          "blocked": {
+            "recenter_persistence": 2,
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-20-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-1067252",
+          "alpha": "-1847856",
+          "entries": 2,
+          "recenters": 0,
+          "exits": 1,
+          "costs": "1337171",
+          "fees": "441761",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "417788",
+          "drawdownPpm": "1079",
+          "blocked": {
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-30-exit_reentry",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-2492381",
+          "alpha": "-3272985",
+          "entries": 2,
+          "recenters": 2,
+          "exits": 1,
+          "costs": "2625703",
+          "fees": "444392",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "436696",
+          "drawdownPpm": "2504",
+          "blocked": {
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-1689793",
+          "alpha": "-2470397",
+          "entries": 2,
+          "recenters": 1,
+          "exits": 1,
+          "costs": "1981437",
+          "fees": "443718",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "417788",
+          "drawdownPpm": "1702",
+          "blocked": {
+            "recenter_persistence": 2,
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-40-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-1665304",
+          "alpha": "-2445908",
+          "entries": 2,
+          "recenters": 1,
+          "exits": 1,
+          "costs": "1981437",
+          "fees": "443776",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "430214",
+          "drawdownPpm": "1677",
+          "blocked": {
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-1",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 1,
+          "invalid": null,
+          "pnl": "-1667357",
+          "alpha": "-2447961",
+          "entries": 2,
+          "recenters": 1,
+          "exits": 1,
+          "costs": "1981437",
+          "fees": "443709",
+          "observations": 71,
+          "activeSeconds": 3683.9499999999994,
+          "maxExposurePpm": "429795",
+          "drawdownPpm": "1679",
+          "blocked": {
+            "recenter_persistence": 1,
+            "cooldown": 9
+          }
+        },
+        {
+          "candidate": "1000-30-recenter-50-2",
+          "costMultiplier": 2,
+          "invalid": null,
+          "pnl": "0",
+          "alpha": "-635888",
+          "entries": 0,
+          "recenters": 0,
+          "exits": 0,
+          "costs": "0",
+          "fees": "0",
+          "observations": 71,
+          "activeSeconds": 0,
+          "maxExposurePpm": "0",
+          "drawdownPpm": "0",
+          "blocked": {
+            "entry_scenario_gas_cap": 31,
+            "entry_quote_tick_drift": 1,
+            "pending_entry_expired_or_ineligible": 1,
+            "entry_gate": 4
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Historical checkpoint-only reference gating and capture-plus-30-second clock; current-risk refresh admissibility is not reconstructed",
+    "Frozen fork gas scenarios, not fresh action-specific quotes; the 1.25 USDG cap is a scenario cap, not the proposed fresh rolling gas gate",
+    "Six-hour windows reset candidate capital and are correlated; statistics are not campaign PnL or proof of an optimum",
+    "Selection uses development paired alpha deltas only; validation and future observations must be reported even if negative"
+  ]
+}

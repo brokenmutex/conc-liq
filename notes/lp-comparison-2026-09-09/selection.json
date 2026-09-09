@@ -1,0 +1,188 @@
+{
+  "createdAt": "2026-09-09T08:40:40.097Z",
+  "selected": [
+    {
+      "id": "1000-20-exit_reentry",
+      "budget": "1000000000",
+      "halfWidthTicks": 20,
+      "management": "exit_reentry",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      }
+    },
+    {
+      "id": "1000-30-exit_reentry",
+      "budget": "1000000000",
+      "halfWidthTicks": 30,
+      "management": "exit_reentry",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      }
+    },
+    {
+      "id": "1000-20-recenter-40-1",
+      "budget": "1000000000",
+      "halfWidthTicks": 20,
+      "management": "recenter",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      },
+      "recenterRule": {
+        "distancePercent": 40,
+        "persistence": 1
+      }
+    },
+    {
+      "id": "1000-30-recenter-40-1",
+      "budget": "1000000000",
+      "halfWidthTicks": 30,
+      "management": "recenter",
+      "costMultiplier": 1,
+      "feeIncomePpm": 1000000,
+      "entryQuality": {
+        "maxQuoteAgeSeconds": 90,
+        "maxTickDrift": 5,
+        "minAllocationPpm": 720000,
+        "maxRoundTripGasQuote": "1250000",
+        "costBasis": "frozen_scenario"
+      },
+      "recenterRule": {
+        "distancePercent": 40,
+        "persistence": 1
+      }
+    }
+  ],
+  "costEvidence": {
+    "costs": {
+      "buy": "144716",
+      "sell": "137529",
+      "mint": "357221",
+      "remove": "142329",
+      "revoke": "53439"
+    },
+    "transactions": [
+      {
+        "runId": "10",
+        "sourceBlock": "57709256",
+        "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+        "action": "decrease_and_collect",
+        "group": "remove",
+        "quote": "142329"
+      },
+      {
+        "runId": "10",
+        "sourceBlock": "57709256",
+        "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+        "action": "approve_exit_swap",
+        "group": "sell",
+        "quote": "38895"
+      },
+      {
+        "runId": "10",
+        "sourceBlock": "57709256",
+        "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+        "action": "sell_nvda",
+        "group": "sell",
+        "quote": "98634"
+      },
+      {
+        "runId": "10",
+        "sourceBlock": "57709256",
+        "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+        "action": "revoke_exit_allowance",
+        "group": "revoke",
+        "quote": "25014"
+      },
+      {
+        "runId": "10",
+        "sourceBlock": "57709256",
+        "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+        "action": "revoke_exit_allowance",
+        "group": "revoke",
+        "quote": "28425"
+      },
+      {
+        "runId": "9",
+        "sourceBlock": "57673343",
+        "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+        "action": "approve_entry_swap",
+        "group": "buy",
+        "quote": "35810"
+      },
+      {
+        "runId": "9",
+        "sourceBlock": "57673343",
+        "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+        "action": "buy_nvda",
+        "group": "buy",
+        "quote": "108906"
+      },
+      {
+        "runId": "9",
+        "sourceBlock": "57673343",
+        "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+        "action": "approve_mint_usdg",
+        "group": "mint",
+        "quote": "35810"
+      },
+      {
+        "runId": "9",
+        "sourceBlock": "57673343",
+        "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+        "action": "approve_mint_nvda",
+        "group": "mint",
+        "quote": "39271"
+      },
+      {
+        "runId": "9",
+        "sourceBlock": "57673343",
+        "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+        "action": "mint",
+        "group": "mint",
+        "quote": "282140"
+      }
+    ],
+    "evidenceClass": "frozen_fork_estimates_from_session_6",
+    "limitations": [
+      "Not historical gas quotes or measured mainnet costs",
+      "Recenter cost is composed from remove, optional swap, mint and approval estimates",
+      "Approval estimates are conservatively repeated at each placement"
+    ]
+  },
+  "sourceSha256": "13ce7cbf37ec619b16cb3702dd4d5210664fdf035fce4916ed5e0d05fb959695",
+  "codeSha256": {
+    "scripts/lp-recenter-calibrate.mjs": "a237e4c93c4e7542a4d64368c4a1a8a871c95dc64a39a545737c816a47cb7a47",
+    "src/experiment/portfolio.ts": "c262e896791fa008fbaeb60fe2b85d1d0dc04c6c53776d38c8ad4fefb6b68d98",
+    "src/experiment/market.ts": "00330722f2c7d4310df0af17d19737b276f5ed66590e3030fa2208fd15efaa09",
+    "src/paper/engine.ts": "3bc740eda21ed8fd3ffbc0c859e6d8fa832554ffdb3cd0affad2db1ac42de6d6",
+    "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883"
+  },
+  "selectionRule": "Best median development alpha delta versus the same-width fixed control among exercised 40/50 percent, one/two observation rules; common rule at both widths; prospective learning only",
+  "review": {
+    "reliabilityHours": 24,
+    "economicsHours": 72,
+    "minOvernightWindows": 2,
+    "minRecentersPerActiveCandidate": 10,
+    "weekendStillRequired": true
+  },
+  "missingFreshCostGate": true,
+  "executionEligible": false
+}
