@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import pg from 'pg';
+import {readPaperReferenceGate} from '../../src/paper/reference.ts';
+import {DEFAULT_PAPER_POLICY} from '../../src/paper/engine.ts';
+
+assert(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required');
+const schema=`paper_reference_${process.pid}_${Date.now()}`;
+const db=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});
+await db.connect();
+try {
+  await db.query(`CREATE SCHEMA ${schema}`);
+  await db.query(`SET search_path=${schema}`);
+  await db.query(`CREATE TABLE risk_snapshot_attempts(id bigint PRIMARY KEY,status text,attempted_at timestamptz,completed_at timestamptz,risk_run_id bigint);
+    CREATE TABLE risk_snapshot_runs(id bigint PRIMARY KEY,chain_id integer,block_number bigint,block_hash text,snapshot jsonb);
+    CREATE TABLE risk_snapshot_canonicality(risk_run_id bigint PRIMARY KEY,canonical boolean,block_number bigint,expected_hash text,observed_hash text,validated_at timestamptz);
+    CREATE TABLE v3_strategy_checkpoint_runs(id bigint PRIMARY KEY,risk_run_id bigint,block_number bigint,block_hash text);
+    CREATE TABLE decisions(evidence jsonb)`);
+  const snapshot=JSON.parse(await readFile(new URL('../fixtures/paper-risk-snapshot.json',import.meta.url),'utf8'));
+  const cp=JSON.parse(await readFile(new URL('../fixtures/paper-reference-preflight.json',import.meta.url),'utf8')).cp;
+  const now=Date.now(),at=new Date(now-2000).toISOString(),blockAt=new Date(Math.floor((now-3000)/1000)*1000).toISOString();
+  snapshot.observedAt=at;snapshot.blockTimestamp=blockAt;
+  for(const oracle of [snapshot.quoteOracle,...snapshot.assets.map(a=>a.oracle)])if(oracle?.state)oracle.state.updatedAt=String(Math.floor((now-5000)/1000));
+  cp.blockTimestamp=blockAt;cp.capturedAt=at;
+  await db.query('INSERT INTO risk_snapshot_runs VALUES(1,4663,$1,$2,$3)',[cp.block,cp.hash,snapshot]);
+  await db.query('INSERT INTO risk_snapshot_canonicality VALUES(1,true,$1,$2,$2,clock_timestamp())',[cp.block,cp.hash]);
+  await db.query('INSERT INTO v3_strategy_checkpoint_runs VALUES($1,1,$2,$3)',[cp.id,cp.block,cp.hash]);
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(1,'succeeded',$1,$1,1)",[at]);
+  const read=()=>readPaperReferenceGate(db,cp,DEFAULT_PAPER_POLICY.referencePolicy,new Date(now-1000).toISOString());
+  let gate=await read();assert.equal(gate.eligible,true,gate.reasons.join(','));
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(2,'started',clock_timestamp(),NULL,NULL)");
+  gate=await read();assert.equal(gate.eligible,true,gate.reasons.join(','));assert.equal(gate.evidence.current.selected.id,'1');
+  assert.equal(gate.evidence.current.usingPreviousCompleted,true);
+  await db.query('INSERT INTO decisions VALUES($1)',[gate.evidence]);
+  const frozen=JSON.stringify((await db.query('SELECT evidence FROM decisions')).rows[0]);
+  // The current validation can follow the caller's clock without being future in the SQL view.
+  assert(Date.parse(gate.evidence.current.selected.validatedAt)>Date.parse(gate.evidence.requestedAt));
+  await db.query("UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp()-interval '31 seconds'");
+  gate=await read();assert.equal(gate.eligible,false);assert(gate.evidence.current.failedChecks.includes('canonical_validation_age'));
+  assert.equal(JSON.stringify((await db.query('SELECT evidence FROM decisions')).rows[0]),frozen,'Decision retains the validation as originally read');
+  await db.query('UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp()');
+  await db.query("UPDATE risk_snapshot_attempts SET attempted_at=clock_timestamp()-interval '11 seconds' WHERE id=2");
+  // Keep the in-progress attempt newer than the completed one.
+  await db.query("UPDATE risk_snapshot_attempts SET attempted_at=clock_timestamp()-interval '15 seconds' WHERE id=1");
+  gate=await read();assert.equal(gate.eligible,false);assert(gate.evidence.current.failedChecks.includes('refresh_age_over_10_seconds_or_future'));
+  await db.query("UPDATE risk_snapshot_attempts SET status='failed',completed_at=clock_timestamp() WHERE id=2");
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(3,'started',clock_timestamp(),NULL,NULL)");
+  gate=await read();assert.equal(gate.eligible,false);assert.equal(gate.evidence.current.selected.id,'2');
+  assert(gate.evidence.current.failedChecks.includes('selected_attempt_not_succeeded'));
+  await db.query('DELETE FROM risk_snapshot_attempts WHERE id>1');
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(4,'started',clock_timestamp()-interval '11 seconds',NULL,NULL),(5,'started',clock_timestamp(),NULL,NULL)");
+  gate=await read();assert.equal(gate.eligible,false,'Successive starts cannot keep extending the grace period');
+  assert(gate.evidence.current.failedChecks.includes('refresh_age_over_10_seconds_or_future'));
+  await db.query('DELETE FROM risk_snapshot_attempts WHERE id>1');
+  await db.query('UPDATE risk_snapshot_canonicality SET canonical=false');
+  gate=await read();assert.equal(gate.eligible,false);assert.equal(gate.evidence.sourceProven,false);
+  console.log(JSON.stringify({passed:['completed evidence','bounded refresh','SQL decision clock','immutable validation evidence','refresh expiry','failed attempt precedence','successive refresh bound','canonical revocation'],isolatedSchemaRemoved:true}));
+} finally {
+  await db.query('SET search_path=public');
+  await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+  await db.end();
+}

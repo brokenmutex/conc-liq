@@ -201,13 +201,10 @@ export function calculateReferenceAnchorBlock(
 ): bigint | null {
   if (heads.length === 0) return null;
   const lowest = heads.reduce((result, head) => head < result ? head : result);
-  const highest = heads.reduce((result, head) => head > result ? head : result);
   const depth = BigInt(confirmationDepth);
-
-  // If the slowest reference is already at least `depth` behind the fastest,
-  // its latest block is itself confirmed by the faster reference. Reusing the
-  // returned latest hash also supports head-only public endpoints.
-  if (highest - lowest >= depth) return lowest;
+  // Readiness requires this depth on each participating reference. A slow
+  // reference's latest hash has zero depth on that reference, regardless of
+  // how far ahead another endpoint is. Missing historical reads fail closed.
   return lowest > depth ? lowest - depth : 0n;
 }
 

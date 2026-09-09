@@ -46,7 +46,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "paper": "node --import tsx src/paper.ts",
     "paper:simulate": "node --import tsx src/paper-execute.ts",
-    "test:integration": "node --import tsx test/integration/migrations.mjs && node --import tsx test/integration/paper-lifecycle.mjs",
+    "test:integration": "node --import tsx test/integration/migrations.mjs && node --import tsx test/integration/paper-lifecycle.mjs && node --import tsx test/integration/paper-reference.mjs",
     "release:build": "node scripts/build-release.mjs"
   },
   "dependencies": {

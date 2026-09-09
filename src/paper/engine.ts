@@ -5,7 +5,7 @@ import { USDG } from "../constants.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget, validateTickAndSqrtPrice } from "../simulator/math.js";
 import { advanceTransactionPaper } from "./transaction-engine.js";
 import type { PaperExecutionInput, PaperExecutionLedger } from "./execution-domain.js";
-import type { ContinuousPaperReferencePolicy, PaperReferenceDecision } from "./reference.js";
+import type { ContinuousPaperReferencePolicy, PaperReferenceDecision, PaperReferenceEvidence } from "./reference.js";
 import type { BoundaryFeeProof } from "./boundary-fees.js";
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
@@ -80,6 +80,7 @@ export interface PaperInput {
   readonly swapCount: string;
   readonly execution?: PaperExecutionInput;
   readonly reference?: PaperReferenceDecision | null;
+  readonly referenceEvidence?: PaperReferenceEvidence;
   readonly boundaryFees?: BoundaryFeeProof;
   readonly boundaryContinuity?: boolean;
 }
@@ -112,6 +113,7 @@ export interface PaperState {
   entryRange: { tickLower: number; tickUpper: number } | null;
   execution?: PaperExecutionLedger;
   reference?: PaperReferenceDecision | null;
+  referenceEvidence?: PaperReferenceEvidence;
   reentryStoppedAt?: string;
 }
 export function initialPaperState(): PaperState {
@@ -157,6 +159,7 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
   state.reasons = [...new Set(gates)];
   state.last = cp;
   state.reference = input.reference ?? state.reference;
+  if (input.referenceEvidence) state.referenceEvidence = structuredClone(input.referenceEvidence);
   if ("executionBasis" in policy && policy.executionBasis === "nitro_fork_v1") {
     return advanceTransactionPaper(previous, state, policy, input);
   }

@@ -20,7 +20,7 @@ import { simulatePaperRoundTrip } from "./execution.js";
 import { simulatePaperExit, type PaperExitInventory } from "./execution-exit.js";
 import { openPaperFork } from "./fork.js";
 import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
-import { readPaperReferenceGate } from "./reference.js";
+import { readPaperReferenceGate, PaperReferenceGateError, type PaperReferenceEvidence } from "./reference.js";
 
 export interface PaperExecutor {
   boundaryFees?(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof>;
@@ -61,6 +61,7 @@ export class NitroPaperExecutor implements PaperExecutor {
     const proof={block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower,upper};boundaryInside(cp,proof);return proof;
   }
   private async check(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean) {
+    let referenceEvidence: PaperReferenceEvidence | null = null;
     const now = new Date().toISOString();
     const age = (Date.parse(now) - Date.parse(cp.blockTimestamp)) / 1000;
     assert(Number.isFinite(age) && age >= 0 && age <= policy.maxSourceAgeSeconds, "Paper execution source is stale");
@@ -73,7 +74,8 @@ export class NitroPaperExecutor implements PaperExecutor {
       if (entering && policy.mode === "guarded") {
         if (policy.referencePolicy) {
           const reference = await readPaperReferenceGate(client, cp, policy.referencePolicy, now);
-          assert(reference.eligible, reference.reasons.join(", "));
+          if (!reference.eligible) throw new PaperReferenceGateError(reference);
+          referenceEvidence = reference.evidence;
         } else {
         assert(readiness.session === "regular_session", readiness.reasons.join(", "));
         const risk = await readRiskGate(client, this.config.streamKey, 180, 30, "NVDA");
@@ -84,6 +86,7 @@ export class NitroPaperExecutor implements PaperExecutor {
     } finally { client.release(); }
     await this.gate.assertBulkAllowed();
     assert((Date.now()-Date.parse(cp.blockTimestamp))/1000 <= policy.maxSourceAgeSeconds, "Paper source aged out during preflight");
+    return referenceEvidence;
   }
   private async valuation(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperGasValuation> {
     this.feedDirectory ??= await fetchFeedDirectory(this.riskConfig.feedDirectoryUrl, this.riskConfig.httpTimeoutMs);
@@ -104,7 +107,7 @@ export class NitroPaperExecutor implements PaperExecutor {
       oracleEvidence: { eth, quote, directory: this.feedDirectory.evidence } };
   }
   async quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote> {
-    await this.check(cp, policy, true);
+    const before = await this.check(cp, policy, true);
     const range = paperEntryRange(cp,policy);
     if(policy.feeAccounting)await this.boundaryFees(cp,range);
     const lpBudget=BigInt(policy.budgetQuote)*BigInt(policy.lpAllocationPpm??1000000)/1000000n;
@@ -118,12 +121,12 @@ export class NitroPaperExecutor implements PaperExecutor {
     const minimum = quoted.result[0] * (10000n - BigInt(policy.maxSlippageBps)) / 10000n;
     assert(minimum > 0n, "Paper minimum swap output is zero");
     assert.equal((await client.getBlock({ blockNumber: BigInt(cp.block) })).hash.toLowerCase(), cp.hash.toLowerCase());
-    await this.check(cp, policy, true);
-    return { ...range, sourceBlock: cp.block, sourceHash: cp.hash, quotedAt: new Date().toISOString(), swapAmountQuote: String(amountIn), minRwaOut: String(minimum) };
+    const after = await this.check(cp, policy, true);
+    return { ...range, sourceBlock: cp.block, sourceHash: cp.hash, quotedAt: new Date().toISOString(), swapAmountQuote: String(amountIn), minRwaOut: String(minimum), referenceEvidence:{before,after} };
   }
   private async simulate<T>(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean,
     operation: (fork: Awaited<ReturnType<typeof openPaperFork>>) => Promise<T>) {
-    await this.check(cp, policy, entering);
+    const before = await this.check(cp, policy, entering);
     const valuation = await this.valuation(cp, policy);
     const client = this.client();
     assert.equal(await client.getChainId(), 4663);
@@ -133,8 +136,8 @@ export class NitroPaperExecutor implements PaperExecutor {
       rpcUrl: this.config.rpcUrl, beforeRead: () => this.gate.assertBulkAllowed().then(() => {}) });
     try {
       const result = await operation(fork);
-      await this.check(cp, policy, entering);
-      return { result, valuation };
+      const after = await this.check(cp, policy, entering);
+      return { result, valuation, referenceEvidence:{before,after} };
     } finally { await fork.close(); }
   }
   enter(cp: PaperCheckpoint, policy: TransactionPaperPolicy, intent: PaperEntryQuote) {

@@ -10,7 +10,7 @@ import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POO
 import type { PaperExecutor } from "./executor.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
-import { readPaperReferenceGate } from "./reference.js";
+import { readPaperReferenceGate, PaperReferenceGateError } from "./reference.js";
 
 import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -258,9 +258,11 @@ export class PaperStore {
       if (source.risk_run_id !== risk.snapshotId) entryReasons.push("checkpoint_not_latest_risk_snapshot");
       if (source.deviation_ppm === null || BigInt(source.deviation_ppm) > 5000n || BigInt(source.deviation_ppm) < -5000n) entryReasons.push("oracle_deviation_over_0_5_percent_or_unavailable");
       let reference = null;
+      let referenceEvidence;
       if ("referencePolicy" in session.policy && session.policy.referencePolicy) {
         const gate = await readPaperReferenceGate(client, cp, session.policy.referencePolicy, now);
         reference = gate.reference;
+        referenceEvidence = gate.evidence;
         entryReasons = [...readiness.reasons.filter(r => !r.startsWith("equity_session_")), ...gate.reasons];
         if (!source.pool_unlocked) entryReasons.push("pool_locked");
         entryReasons.push(...source.reasons.filter(r => !["rwa_oracle_price_stale", "quote_oracle_price_stale"].includes(r)));
@@ -297,7 +299,7 @@ export class PaperStore {
         entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
         pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
-        execution: { available: this.executor !== undefined }, reference, boundaryFees:feeProof,boundaryContinuity:feeContinuity };
+        execution: { available: this.executor !== undefined }, reference, referenceEvidence, boundaryFees:feeProof,boundaryContinuity:feeContinuity };
       let state = advancePaper(session.state, session.policy, input);
       if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
         const action = state.reasons.includes("paper_entry_quote_required") ? "quote"
@@ -325,7 +327,7 @@ export class PaperStore {
             }
           } catch (error) {
             status = "failed"; execution = { available: true, error: sanitizeRiskError(error) };
-            evidence = { error: execution.error };
+            evidence = { error: execution.error, ...(error instanceof PaperReferenceGateError ? {referenceGate:error.gate} : {}) };
           }
           await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ");
           await client.query("SET LOCAL statement_timeout = '10s'");

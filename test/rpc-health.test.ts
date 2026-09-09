@@ -247,8 +247,27 @@ describe("RPC health reference anchor", () => {
     assert.equal(calculateReferenceAnchorBlock([1_000n, 990n], 64), 926n);
   });
 
-  it("uses a slow reference head once a faster reference confirms it", () => {
-    assert.equal(calculateReferenceAnchorBlock([2_100n, 1_000n], 64), 1_000n);
+  it("keeps full depth on a slow reference even when another reference is far ahead", () => {
+    assert.equal(calculateReferenceAnchorBlock([2_100n, 1_000n], 64), 936n);
+    for(const spread of [63n,64n,67n,84n]) for(const lag of [0n,1n,10n]) {
+      const samples=Array.from({length:31},(_,i)=>{
+        const at=new Date(Date.parse(now)-300000+i*10000).toISOString(),head=10000n+BigInt(i*100);
+        const anchor=calculateMonitorAnchorBlock([head-spread,head],64,head-lag)!;
+        const probes=healthyProbes().map((p,j)=>({...p,anchorBlock:anchor,
+          headBlock:j===0?head-lag:j===1?head-spread:head,headTimestamp:BigInt(Date.parse(at)/1000)}));
+        const snapshot=evaluateRpcHealth({config,observedAt:at,previous:previous({state:'healthy'}),probes});
+        assert.equal(snapshot.state,'healthy');assert(probes.every(p=>p.headBlock-anchor>=64n));
+        return {id:String(i),snapshot};
+      });
+      const result=evaluateCanaryEntryReadiness({now,sourceBlock:12000n,samples});
+      assert.equal(result.chainEligible,true,`spread=${spread}, lag=${lag}: ${result.reasons}`);
+    }
+  });
+
+  it("does not use a latest-block hash when a reference cannot prove the older anchor",()=>{
+    const probes=healthyProbes().map((p,i)=>i===1?{...p,anchorHash:null,anchorError:'Historical block unavailable'}:p);
+    const result=evaluateRpcHealth({config,observedAt:now,previous:previous(),probes});
+    assert.equal(result.allowBulk,false);assert(result.referenceQuorum<2||result.reasons.length>0);
   });
 
   it("returns no anchor without a usable reference", () => {

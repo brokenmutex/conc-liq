@@ -1,9 +1,11 @@
 import type { PaperRoundTrip } from "./execution.js";
 import type { PaperExitSimulation, PaperExitInventory } from "./execution-exit.js";
 import type { OracleRiskSnapshot, SourceEvidence } from "../risk/domain.js";
+import type { PaperReferenceEvidence } from "./reference.js";
 export interface PaperEntryQuote {
   sourceBlock: string; sourceHash: string; quotedAt: string;
   tickLower: number; tickUpper: number; swapAmountQuote: string; minRwaOut: string;
+  referenceEvidence?: {before:PaperReferenceEvidence|null;after:PaperReferenceEvidence|null};
 }
 export interface PaperGasValuation {
   sourceBlock: string; sourceHash: string; computedAt: string;
