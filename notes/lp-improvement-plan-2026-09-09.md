@@ -1,6 +1,6 @@
 # LP paper strategy: confirmation and improvement plan
 
-Prepared 9 September 2026. Status: **proposed work; no strategy, service or runtime changed**. The objective is to reduce unnecessary turnover and obtain a valid comparison of active LP policies, judged by net alpha against a common passive holding benchmark.
+Prepared 9 September 2026. Updated after authorized implementation: **evidence fixes deployed; four modeled arms running; fresh gas admission remains outstanding**. The objective is to reduce unnecessary turnover and obtain a valid comparison of active LP policies, judged by net alpha against a common passive holding benchmark. The original audit below retains its original cutoff. See the [implementation and activation record](lp-comparison-2026-09-09/README.md) for the delivered scope, later observations and remaining limitations.
 
 ## What the evidence confirms
 
@@ -100,4 +100,4 @@ python3 scripts/verify-paper-performance.py \
 .tools/node/bin/node --import tsx --test test/paper-runtime.test.ts test/paper-reference.test.ts
 ```
 
-The immediate implementation priority is **risk-refresh selection, reference-anchor consistency, then a recoverable and observable comparison runner**. Those changes make subsequent parameter learning interpretable; profitability still has to be demonstrated.
+Implementation tracking at 08:57 UTC: risk-refresh evidence selection, reference-anchor consistency and bounded comparison recovery are deployed. Four paired modeled arms have entered under frozen parameters. Placement age/drift/allocation checks and earlier recenter trials are implemented in that comparison. The fresh transaction-specific and six-hour rolling-median gas gate remains outstanding; the current experiment uses explicitly labeled frozen cost scenarios. The startup availability counter needs the documented pre-start checkpoint classification during review. No parameter winner or profitability conclusion has been established.

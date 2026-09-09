@@ -1,0 +1,254 @@
+{
+  "checkedAt": "2026-09-09T08:57:18.592Z",
+  "chainValid": true,
+  "campaign": {
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "973055960",
+    "pnlQuote": "-26944040",
+    "holdQuote": "992808529",
+    "alphaQuote": "-19752569",
+    "costsPaidQuote": "20930788",
+    "sourceAt": "2026-09-09T11:56:34+03:00"
+  },
+  "sessions": [
+    {
+      "id": "27",
+      "status": "closed",
+      "createdAt": "2026-09-09T07:06:42.781Z",
+      "heartbeatAt": "2026-09-09T08:14:12.701Z",
+      "budget": "975425201",
+      "nav": "974985604",
+      "previousSessionId": "26",
+      "runtime": {
+        "buildId": "8f3133ff828884314864e99e7600e09c06d24b8130d76e2f2e7ff62b7ac8a82d",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "28",
+      "status": "closed",
+      "createdAt": "2026-09-09T08:17:18.723Z",
+      "heartbeatAt": "2026-09-09T08:43:57.604Z",
+      "budget": "974985604",
+      "nav": "973985271",
+      "previousSessionId": "27",
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "29",
+      "status": "open",
+      "createdAt": "2026-09-09T08:44:00.361Z",
+      "heartbeatAt": "2026-09-09T08:57:13.714Z",
+      "budget": "973985271",
+      "nav": "973055960",
+      "previousSessionId": "28",
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    }
+  ],
+  "session28FirstExit": {
+    "id": "1416",
+    "observed_at": "2026-09-09T08:38:30.142Z",
+    "source_at": "2026-09-09T08:36:04.000Z",
+    "action": "signal_exit",
+    "reasons": [
+      "chain_recovery_not_continuously_healthy",
+      "chain_anchor_quorum_unproven",
+      "chain_recovery_unproven"
+    ],
+    "entry_reasons": [
+      "chain_recovery_not_continuously_healthy",
+      "chain_anchor_quorum_unproven"
+    ]
+  },
+  "quorumFailure": {
+    "id": "40212",
+    "snapshot": {
+      "state": "open",
+      "probes": [
+        {
+          "name": "private",
+          "role": "private",
+          "error": null,
+          "chainId": 4663,
+          "syncing": false,
+          "headHash": "0xa22ae599d9a11555684e79d6f196eb5102d881d99ef229e4167e8d41a9d31abf",
+          "headBlock": "58408801",
+          "latencyMs": 7,
+          "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+          "anchorBlock": "58408737",
+          "anchorError": null,
+          "syncingError": null,
+          "headTimestamp": "1788942980"
+        },
+        {
+          "name": "reference_1",
+          "role": "reference",
+          "error": "TypeError: fetch failed; TypeError: fetch failed",
+          "chainId": null,
+          "syncing": null,
+          "headHash": null,
+          "headBlock": null,
+          "latencyMs": 510,
+          "anchorHash": null,
+          "anchorBlock": "58408737",
+          "anchorError": "Latest probe unavailable",
+          "syncingError": null,
+          "headTimestamp": null
+        },
+        {
+          "name": "reference_2",
+          "role": "reference",
+          "error": null,
+          "chainId": 4663,
+          "syncing": null,
+          "headHash": "0x1be41bfdc41014ca207363a8076d5c8a208f2dd6f3af8f9c9b8e5eeec9ff7c46",
+          "headBlock": "58408802",
+          "latencyMs": 83,
+          "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+          "anchorBlock": "58408737",
+          "anchorError": null,
+          "syncingError": null,
+          "headTimestamp": "1788942980"
+        }
+      ],
+      "reasons": [
+        "reference_hash_quorum_unavailable"
+      ],
+      "warnings": [
+        "reference_probe_failed:reference_1"
+      ],
+      "allowBulk": false,
+      "lagBlocks": null,
+      "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+      "lagSeconds": null,
+      "observedAt": "2026-09-09T08:36:20.999Z",
+      "anchorBlock": "58408737",
+      "privateHead": "58408801",
+      "referenceHead": null,
+      "schemaVersion": 1,
+      "privateSyncing": false,
+      "referenceCount": 2,
+      "referenceQuorum": 2,
+      "privateLatencyMs": 7,
+      "privateAnchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+      "consecutiveHealthy": 0,
+      "consecutiveUnhealthy": 1,
+      "privateHeadTimestamp": "1788942980",
+      "referenceHeadTimestamp": null,
+      "privateHeadUnchangedSince": "2026-09-09T08:36:20.999Z",
+      "referenceHeadSpreadBlocks": null
+    }
+  },
+  "latestHealth": {
+    "id": "40337",
+    "snapshot": {
+      "state": "healthy",
+      "probes": [
+        {
+          "name": "private",
+          "role": "private",
+          "error": null,
+          "chainId": 4663,
+          "syncing": false,
+          "headHash": "0xbda4a1a2b424edb7def8e35c4ef3aefda4240d80ceee2fb2d81385a29cef718a",
+          "headBlock": "58421213",
+          "latencyMs": 5,
+          "anchorHash": "0xe3bf0c79f3c653233319458399fd8af51605a294bae10931707ddb0283c4392e",
+          "anchorBlock": "58421141",
+          "anchorError": null,
+          "syncingError": null,
+          "headTimestamp": "1788944232"
+        },
+        {
+          "name": "reference_1",
+          "role": "reference",
+          "error": null,
+          "chainId": 4663,
+          "syncing": null,
+          "headHash": "0x12ce1af0426a276f78c0980f97d72179faabb138bf02698856cf9bed51b51adf",
+          "headBlock": "58421205",
+          "latencyMs": 40,
+          "anchorHash": "0xe3bf0c79f3c653233319458399fd8af51605a294bae10931707ddb0283c4392e",
+          "anchorBlock": "58421141",
+          "anchorError": null,
+          "syncingError": null,
+          "headTimestamp": "1788944231"
+        },
+        {
+          "name": "reference_2",
+          "role": "reference",
+          "error": null,
+          "chainId": 4663,
+          "syncing": null,
+          "headHash": "0xbda4a1a2b424edb7def8e35c4ef3aefda4240d80ceee2fb2d81385a29cef718a",
+          "headBlock": "58421213",
+          "latencyMs": 89,
+          "anchorHash": "0xe3bf0c79f3c653233319458399fd8af51605a294bae10931707ddb0283c4392e",
+          "anchorBlock": "58421141",
+          "anchorError": null,
+          "syncingError": null,
+          "headTimestamp": "1788944232"
+        }
+      ],
+      "reasons": [],
+      "warnings": [],
+      "allowBulk": true,
+      "lagBlocks": "0",
+      "anchorHash": "0xe3bf0c79f3c653233319458399fd8af51605a294bae10931707ddb0283c4392e",
+      "lagSeconds": "0",
+      "observedAt": "2026-09-09T08:57:13.024Z",
+      "anchorBlock": "58421141",
+      "privateHead": "58421213",
+      "referenceHead": "58421213",
+      "schemaVersion": 1,
+      "privateSyncing": false,
+      "referenceCount": 2,
+      "referenceQuorum": 2,
+      "privateLatencyMs": 5,
+      "privateAnchorHash": "0xe3bf0c79f3c653233319458399fd8af51605a294bae10931707ddb0283c4392e",
+      "consecutiveHealthy": 125,
+      "consecutiveUnhealthy": 0,
+      "privateHeadTimestamp": "1788944232",
+      "referenceHeadTimestamp": "1788944232",
+      "privateHeadUnchangedSince": "2026-09-09T08:57:13.024Z",
+      "referenceHeadSpreadBlocks": "8"
+    }
+  }
+}

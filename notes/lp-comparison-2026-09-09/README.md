@@ -33,6 +33,29 @@ Status includes marked NAV and a separate hypothetical liquidation NAV/alpha: th
 
 The runner saves immutable local review artifacts on its first poll after **24 and 72 hours**, including portfolio state, source/evidence history, data-pause coverage and whether each active arm has at least ten recenters. Reviews never automatically select a winner or retune a policy. A terminally stopped worker remains visibly failed; it cannot produce later scheduled reviews until separately audited. At least two overnight windows and a separate new weekend observation are still required. The 72-hour review is a decision point, not a promise of optimal parameters.
 
-Runtime activation and the first accepted observations are recorded below after verification. The previous version-1 comparison remains archived at its original path and invalid status.
+The previous version-1 comparison remains archived at its original path and invalid status.
 
 Validation before activation: TypeScript and all **282 unit tests** pass. The new checks exercise earlier recentering with inventory priority, allocation/age/drift/scenario-cost rejection without ledger changes, liquidation execution drag, immutable scheduled reviews, and pause recovery. A real CLI subprocess check confirms terminal status 2 survives the process lock wrapper and can be handled by `RestartPreventExitStatus=2`.
+
+## Activation and first observations
+
+The cohort started **2026-09-09 08:47:33.517 UTC / 11:47:33.517 Europe/Vilnius**, under sealed release `85c5c7a5629047cb8a4d112283a331d90caf5f5678e04e2c2b27116b64b25f72` from commit `2ec4cf9`. `conc-liq-experiment.service` is enabled and polls every 15 seconds. State is `data/lp-comparison-2026-09-09/forward-v2.json`; adjacent `.status.json` and `.status.md` files expose the heartbeat and source age.
+
+The [activation snapshot](activation.json) records the pinned runtime, selection hash, immutable state-copy hash, initial actions, decision evidence and eight post-start checkpoint decisions through the check at **08:56:53 UTC**. All four arms had one entry, an open position, no exits and no recenters. Their entry was processed at **08:50:08.890 UTC**, using checkpoint 3205 from **08:49:23 UTC**. Each incurred **0.501937 USDG** in modeled entry gas. Actual modeled LP allocation was **78.6718%** for the two ±20 arms and **79.1544%** for the two ±30 arms. Initial performance is too short to compare management.
+
+The local immutable review files are due on the first running poll after:
+
+- **10 September 08:47:33 UTC / 11:47:33 Vilnius:** reliability and decision coverage.
+- **12 September 08:47:33 UTC / 11:47:33 Vilnius:** initial economics and recenter coverage.
+
+The current release has a startup diagnostic defect: checkpoint 3203 is dated **3.517 seconds before cohort creation**. It correctly produces no order but is counted as one missed decision, with **60.271 seconds** accumulated as a startup pause. The activation audit separates this pre-start accounting observation from post-start missed decisions (zero at that check). Raw counters remain intact; do not silently subtract later pauses or infer 100% scheduled availability. Review heartbeat gaps as well as checkpoint decisions. Automatic review artifacts retain the raw counters and need this explicit classification when analyzed. Fix the classifier for a future runtime boundary; do not modify this open cohort's pinned runtime or ledger to improve its statistics.
+
+A brief stop was attempted while investigating that counter. All four entries arrived before the stop completed; the empty-state assertion failed before any archival or reset write. The same state and runtime resumed, with positions, benchmark and all debited costs preserved. Subsequent source checkpoints advanced normally.
+
+## Transaction-paper follow-up
+
+The [read-only follow-up](paper-followup.json), checked at **08:57:18 UTC**, validates the full session 5–29 evidence and cash-continuation chain. Session 27 closed under its original runtime at **974.985604 USDG**; session 28 explicitly continued that amount under the reliability release. Session 28 then closed at **973.985271 USDG**, and automatic reentry opened session 29 with exactly that budget. The campaign's then-current modeled NAV was **973.055960 USDG**, versus holding **992.808529 USDG**, for alpha **−19.752569 USDG**. These are later marks, separate from the original audit cutoff.
+
+Session 28's first exit signal at **08:38:30 UTC** followed health sample **40212**, at **08:36:20.999 UTC**: `reference_1` failed its latest RPC fetch, leaving the required two-reference hash quorum unavailable. The remaining private/reference depths were 64/65 blocks. Subsequent available references had at least 64 confirmations. This is an observed endpoint-availability failure and recovery-window exit, not a recurrence of the old zero-depth anchor selection bug. Required quorum and recovery safeguards remain enforced. Endpoint failures can therefore still cause turnover; the reliability deployment does not establish that infrastructure exits have been eliminated.
+
+Remaining implementation: collect and validate fresh comparable round-trip quotes (including blocked-admission periods), then evaluate the proposed six-hour/20-observation rolling-median gate in a new version. Reconcile the matching model and transaction-paper baseline before promotion. The current four-arm cohort provides bounded learning while that cost evidence remains explicitly unavailable.
