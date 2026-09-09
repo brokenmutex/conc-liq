@@ -1,0 +1,292 @@
+{
+  "scope": "Independent integer verification of frozen audit; no runtime accounting imports",
+  "asOf": "2026-09-09T06:47:20.500Z",
+  "sourceSha256": "3b1260aa4c0c026d4e7b2fa03972066f146337118b36e35422488e662e6018cf",
+  "verifierSha256": "33d5e88f5573edb9ac3c5659b2cb3a4759c361b45a8efd8f36521f6e6db85dee",
+  "sessionsChecked": 22,
+  "closedSessionsChecked": 21,
+  "closedTotalsRaw": {
+    "pnl": "-24561769",
+    "fees": "10018826",
+    "gas": "18381092"
+  },
+  "campaignHoldRaw": "992926932",
+  "campaignAlphaRaw": "-17724561",
+  "primaryExitGroups": {
+    "inventory": [
+      "7",
+      "10",
+      "11",
+      "13",
+      "16",
+      "23"
+    ],
+    "chain": [
+      "5",
+      "6",
+      "12",
+      "14",
+      "15",
+      "17",
+      "19",
+      "25"
+    ],
+    "risk_reference": [
+      "8",
+      "9",
+      "18",
+      "20",
+      "21",
+      "22",
+      "24"
+    ]
+  },
+  "riskRefreshOverlaps": [
+    {
+      "session": "8",
+      "attempt": "8632",
+      "completionAfterDecisionMs": 4,
+      "priorSnapshotAgeMs": 18999,
+      "soleExitReason": true
+    },
+    {
+      "session": "14",
+      "attempt": "9091",
+      "completionAfterDecisionMs": 120,
+      "priorSnapshotAgeMs": 4818,
+      "soleExitReason": false
+    },
+    {
+      "session": "18",
+      "attempt": "9357",
+      "completionAfterDecisionMs": 112,
+      "priorSnapshotAgeMs": 17575,
+      "soleExitReason": true
+    },
+    {
+      "session": "20",
+      "attempt": "9729",
+      "completionAfterDecisionMs": 33,
+      "priorSnapshotAgeMs": 15034,
+      "soleExitReason": true
+    },
+    {
+      "session": "21",
+      "attempt": "9903",
+      "completionAfterDecisionMs": 1767,
+      "priorSnapshotAgeMs": 23500,
+      "soleExitReason": true
+    },
+    {
+      "session": "22",
+      "attempt": "9962",
+      "completionAfterDecisionMs": 115,
+      "priorSnapshotAgeMs": 12970,
+      "soleExitReason": true
+    },
+    {
+      "session": "24",
+      "attempt": "10228",
+      "completionAfterDecisionMs": 106,
+      "priorSnapshotAgeMs": 13989,
+      "soleExitReason": true
+    }
+  ],
+  "anchorFindings": [
+    {
+      "sample": "35807",
+      "privateLagBlocks": "3",
+      "recordedDepths": {
+        "private": 81,
+        "reference_1": 0,
+        "reference_2": 84
+      },
+      "proposedAnchorGeometry": "57971007",
+      "proposedDepths": {
+        "private": 145,
+        "reference_1": 64,
+        "reference_2": 148
+      },
+      "proposedHistoricalHashProof": "unavailable; geometry does not prove canonicality"
+    },
+    {
+      "sample": "39062",
+      "privateLagBlocks": "1",
+      "recordedDepths": {
+        "private": 66,
+        "reference_1": 0,
+        "reference_2": 67
+      },
+      "proposedAnchorGeometry": "58294423",
+      "proposedDepths": {
+        "private": 130,
+        "reference_1": 64,
+        "reference_2": 131
+      },
+      "proposedHistoricalHashProof": "unavailable; geometry does not prove canonicality"
+    }
+  ],
+  "entryBaseFeeMedianWei": 239388000,
+  "sessionChecks": [
+    {
+      "session": "5",
+      "gasRaw": "869274",
+      "feesRaw": "795260",
+      "mintedAllocationPpm": 796283,
+      "entryBaseFeeWei": "256282000"
+    },
+    {
+      "session": "6",
+      "gasRaw": "835229",
+      "feesRaw": "489336",
+      "mintedAllocationPpm": 732364,
+      "entryBaseFeeWei": "245994000"
+    },
+    {
+      "session": "7",
+      "gasRaw": "816984",
+      "feesRaw": "1132089",
+      "mintedAllocationPpm": 793051,
+      "entryBaseFeeWei": "240656000"
+    },
+    {
+      "session": "8",
+      "gasRaw": "854380",
+      "feesRaw": "55680",
+      "mintedAllocationPpm": 392079,
+      "entryBaseFeeWei": "242852000"
+    },
+    {
+      "session": "9",
+      "gasRaw": "815510",
+      "feesRaw": "104200",
+      "mintedAllocationPpm": 524335,
+      "entryBaseFeeWei": "240010000"
+    },
+    {
+      "session": "10",
+      "gasRaw": "822428",
+      "feesRaw": "105648",
+      "mintedAllocationPpm": 652309,
+      "entryBaseFeeWei": "240290000"
+    },
+    {
+      "session": "11",
+      "gasRaw": "835638",
+      "feesRaw": "624730",
+      "mintedAllocationPpm": 774529,
+      "entryBaseFeeWei": "241012000"
+    },
+    {
+      "session": "12",
+      "gasRaw": "821152",
+      "feesRaw": "2251946",
+      "mintedAllocationPpm": 793265,
+      "entryBaseFeeWei": "235942000"
+    },
+    {
+      "session": "13",
+      "gasRaw": "823409",
+      "feesRaw": "814347",
+      "mintedAllocationPpm": 783590,
+      "entryBaseFeeWei": "238700000"
+    },
+    {
+      "session": "14",
+      "gasRaw": "814757",
+      "feesRaw": "158236",
+      "mintedAllocationPpm": 798548,
+      "entryBaseFeeWei": "236120000"
+    },
+    {
+      "session": "15",
+      "gasRaw": "832751",
+      "feesRaw": "114867",
+      "mintedAllocationPpm": 724501,
+      "entryBaseFeeWei": "243666000"
+    },
+    {
+      "session": "16",
+      "gasRaw": "814751",
+      "feesRaw": "196650",
+      "mintedAllocationPpm": 746600,
+      "entryBaseFeeWei": "239084000"
+    },
+    {
+      "session": "17",
+      "gasRaw": "824001",
+      "feesRaw": "170684",
+      "mintedAllocationPpm": 777570,
+      "entryBaseFeeWei": "239892000"
+    },
+    {
+      "session": "18",
+      "gasRaw": "824051",
+      "feesRaw": "426180",
+      "mintedAllocationPpm": 790983,
+      "entryBaseFeeWei": "239388000"
+    },
+    {
+      "session": "19",
+      "gasRaw": "2193784",
+      "feesRaw": "1120117",
+      "mintedAllocationPpm": 797105,
+      "entryBaseFeeWei": "915438000"
+    },
+    {
+      "session": "20",
+      "gasRaw": "799487",
+      "feesRaw": "146833",
+      "mintedAllocationPpm": 793482,
+      "entryBaseFeeWei": "231270000"
+    },
+    {
+      "session": "21",
+      "gasRaw": "780060",
+      "feesRaw": "687886",
+      "mintedAllocationPpm": 790512,
+      "entryBaseFeeWei": "227250000"
+    },
+    {
+      "session": "22",
+      "gasRaw": "758835",
+      "feesRaw": "158177",
+      "mintedAllocationPpm": 792243,
+      "entryBaseFeeWei": "220472000"
+    },
+    {
+      "session": "23",
+      "gasRaw": "759481",
+      "feesRaw": "179092",
+      "mintedAllocationPpm": 797143,
+      "entryBaseFeeWei": "223666000"
+    },
+    {
+      "session": "24",
+      "gasRaw": "745344",
+      "feesRaw": "262074",
+      "mintedAllocationPpm": 783352,
+      "entryBaseFeeWei": "217532000"
+    },
+    {
+      "session": "25",
+      "gasRaw": "739786",
+      "feesRaw": "24794",
+      "mintedAllocationPpm": 799092,
+      "entryBaseFeeWei": "214924000"
+    },
+    {
+      "session": "26",
+      "gasRaw": "438891",
+      "feesRaw": "500595",
+      "mintedAllocationPpm": 782767,
+      "entryBaseFeeWei": "213006000"
+    }
+  ],
+  "limits": [
+    "Does not independently repeat boundary fee-growth accrual or v3 principal decomposition",
+    "DB completed_at is a transaction timestamp, not a precise commit visibility timestamp",
+    "Mutable prior canonical validation timestamps prevent proving every historical fallback admissible",
+    "All returns remain paper estimates, not broadcast transaction proceeds"
+  ]
+}
