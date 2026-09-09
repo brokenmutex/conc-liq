@@ -15,3 +15,9 @@ Runtime activation is recorded below when completed. Existing open paper session
 The upgrade exposed a second operational bug: `SELECT id::text ... ORDER BY id` sorts the output alias as text. Once session 27 existed, the stop path compared it with textual maximum 9 and spun while holding session 27's row lock. The command was terminated and the timer briefly paused; ordering now explicitly uses `paper_sessions.id`. The recovery latest-session check had the same expression and was corrected. An isolated lifecycle regression crosses from one-digit IDs to session 100 and verifies stop returns that session. The lifecycle also passes with initialized boundaries and automatic reentry enabled.
 
 The corrected control path requested session 27's exit at 08:13:10 UTC, retaining its original policy and runtime. The original worker processed the backlog within its existing source-age limits and closed the session at **974.985604 USDG** net cash. No invalidation or capital reset was used to complete the stop.
+
+## Activation
+
+At 08:17:18 UTC, session **28** explicitly continued #27 with **974.985604 USDG**, the same ±20 raw ticks, 80% allocation, 60% inventory exit and ±5% true-price band. The paper worker and health monitor now use sealed release `dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a`, source `2882ee0`. No schema or private environment change was required.
+
+The [08:24:36 UTC activation check](lp-reliability-activation-2026-09-09.json) validates the full carried-cash ancestry and confirms saved reference evidence on session 28. It was still waiting at that check. The latest healthy monitor sample had matching hashes and depths 72/64/72 on private/reference 1/reference 2. The comparison remains a separate service and cohort.

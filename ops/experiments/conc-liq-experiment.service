@@ -11,6 +11,7 @@ Type=simple
 WorkingDirectory=@RELEASE@
 ExecStart=@RELEASE@/bin/node @RELEASE@/launch.mjs @ENV@ lp-experiment watch @STATE@
 Restart=on-failure
+RestartPreventExitStatus=2
 RestartSec=15s
 TimeoutStopSec=30s
 KillMode=control-group

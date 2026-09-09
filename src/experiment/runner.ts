@@ -61,50 +61,101 @@ export async function screen(data:Dataset,path:string){
   scores,selected,windows};
  await writeFile(path,json(result),{flag:'wx'});return result;
 }
-export interface LiveState {version:1;createdAt:string;planHash:string;runtime:RuntimeIdentity;costs:ExperimentCosts;candidates:Candidate[];seed:MarketSeed;lastFrame:ExperimentFrame;sourceIds:string[];states:PortfolioState[];actions:Record<string,unknown>[];status:'running'|'invalid';reason?:string}
+export interface LiveState {
+ version:2;createdAt:string;planHash:string;runtime:RuntimeIdentity;costs:ExperimentCosts;candidates:Candidate[];
+ seed:MarketSeed;lastFrame:ExperimentFrame;sourceIds:string[];states:PortfolioState[];actions:Record<string,unknown>[];
+ status:'running'|'paused_data'|'invalid';reason?:string;lastPollAt:string;lastDecisionSourceAt:string;pausedSince:string|null;pausedSeconds:number;
+ pauseCount:number;missedDecisions:number;decisionCount:number;
+ observations:{checkpointId:string;sourceAt:string;observedAt:string;decisionMade:boolean;
+  referenceEvidence?:ExperimentFrame['referenceEvidence'];healthSampleIds?:readonly string[]}[];
+}
 export async function startForward(source:ExperimentSource,selected:Candidate[],costs:ExperimentCosts,runtime:RuntimeIdentity|undefined,path:string){
  assertRuntimeMatches(runtime??null,runtime);
  assert.equal(JSON.stringify((await source.costs()).costs),JSON.stringify(costs),'Frozen cost evidence changed');
  assert(selected.length>=2&&selected.length<=4,'Forward comparison needs two to four eligible candidates');
  const now=new Date().toISOString(),rows=await source.checkpoints(new Date(Date.now()-180000).toISOString(),now),row=rows.at(-1);assert(row,'Fresh checkpoint unavailable');await source.coverage(row.block,row.target_set_hash);
- const seed=await source.seed(row),health=await source.health(row.observed_at,new Date(new Date(row.observed_at).getTime()+30000).toISOString()),frame=source.frame(row,health,[]);assert(frame.dataValid);
+ const seed=await source.seed(row),frame=await source.liveFrame(row,[]);assert(frame.dataValid);
  const portfolios=selected.map(c=>new ExperimentPortfolio(c,costs));
- const state:LiveState={version:1,createdAt:new Date().toISOString(),planHash:digest(JSON.stringify({selected,costs})),runtime:runtime!,costs,candidates:selected,seed,lastFrame:frame,sourceIds:[frame.id],states:portfolios.map(p=>p.s),actions:[],status:'running'};
- await mkdir(dirname(path),{recursive:true});await writeFile(path,json(state),{flag:'wx'});return state;
+ const createdAt=new Date().toISOString();
+ const state:LiveState={version:2,createdAt,planHash:digest(JSON.stringify({selected,costs})),runtime:runtime!,costs,candidates:selected,
+  seed,lastFrame:{...frame,events:[]},sourceIds:[frame.id],states:portfolios.map(p=>p.s),actions:[],status:'running',
+  lastPollAt:createdAt,lastDecisionSourceAt:frame.sourceAt,pausedSince:null,pausedSeconds:0,pauseCount:0,missedDecisions:0,decisionCount:0,observations:[]};
+ await mkdir(dirname(path),{recursive:true});await writeFile(path,json(state),{flag:'wx'});await persistForward(path,state);return state;
+}
+function pauseForward(state:LiveState,reason:string){
+ if(state.pausedSince===null){state.pausedSince=new Date().toISOString();state.pauseCount++;}
+ state.status='paused_data';state.reason=reason;
+}
+function resumeForward(state:LiveState){
+ if(state.pausedSince!==null){state.pausedSeconds+=(Date.now()-Date.parse(state.pausedSince))/1000;state.pausedSince=null;}
+ state.status='running';delete state.reason;
+}
+function referenceSources(state:LiveState){
+ const sources=new Map<string,{id:string;block:string;hash:string}>();
+ for(const o of state.observations){const e=o.referenceEvidence?.current,s=e?.selected;
+  if(e?.failedChecks.length===0&&s?.riskRunId&&s.blockNumber&&s.blockHash)sources.set(s.riskRunId,{id:s.riskRunId,block:s.blockNumber,hash:s.blockHash});
+ }
+ return [...sources.values()];
 }
 export async function tickForward(source:ExperimentSource,path:string,runtime:RuntimeIdentity|undefined){
- const state:LiveState=parse(await readFile(path,'utf8'));assertRuntimeMatches(state.runtime,runtime);assert.equal(state.planHash,digest(JSON.stringify({selected:state.candidates,costs:state.costs})),'Experiment plan changed');if(state.status!=='running')return state;
- try{assert.equal(JSON.stringify((await source.costs()).costs),JSON.stringify(state.costs));}catch{state.status='invalid';state.reason='cost_evidence_invalid';await persistStopped(path,state);return state;}
- if(!(await source.historyValid(state.sourceIds))){state.status='invalid';state.reason='prior_source_revoked';await persistStopped(path,state);return state;}
+ const state:LiveState=parse(await readFile(path,'utf8'));assertRuntimeMatches(state.runtime,runtime);assert.equal(state.planHash,digest(JSON.stringify({selected:state.candidates,costs:state.costs})),'Experiment plan changed');if(state.status==='invalid')return state;
+ assert.equal(state.version,2,'Start a new comparison version; old cohorts cannot be relabelled');
+ const invalid=async(reason:string)=>{state.status='invalid';state.reason=reason;await persistForward(path,state);return state;};
+ try{assert.equal(JSON.stringify((await source.costs()).costs),JSON.stringify(state.costs));}catch{return invalid('cost_evidence_invalid');}
+ if(!(await source.historyValid(state.sourceIds,referenceSources(state))))return invalid('prior_source_revoked');
+ const age=Date.now()-Date.parse(state.lastFrame.sourceAt);
+ if(age>900000||Date.now()-Date.parse(state.lastDecisionSourceAt)>900000)return invalid('forward_blackout_exceeds_900_seconds');
+ if(age>180000)pauseForward(state,'forward_source_unavailable');
  const rows=(await source.checkpoints(state.lastFrame.sourceAt,new Date().toISOString())).filter(r=>BigInt(r.block)>BigInt(state.lastFrame.block));
- if(!rows.length){if(Date.now()-Date.parse(state.lastFrame.sourceAt)>180000){state.status='invalid';state.reason='forward_source_unavailable';await persistStopped(path,state);}return state;}
- const market=new ExperimentMarket(state.seed),portfolios=state.candidates.map((c,i)=>new ExperimentPortfolio(c,state.costs,state.states[i]));
+ if(!rows.length){await persistForward(path,state);return state;}
+ const market=new ExperimentMarket(state.seed),portfolios=state.candidates.map((c,i)=>new ExperimentPortfolio(c,state.costs,parse(json(state.states[i]))));
  for(const row of rows){
   if(Date.now()<new Date(row.observed_at).getTime()+30000)break;
-  // Never backfill a missed live decision using today's knowledge.
-  if(Date.now()-new Date(row.source_at).getTime()>180000){state.status='invalid';state.reason='missed_forward_decision';break;}
+  if(row.target_set_hash!==state.lastFrame.targetSetHash)return invalid('forward_target_changed');
+  if(new Date(row.source_at).getTime()-Date.parse(state.lastFrame.sourceAt)>900000)return invalid('forward_accounting_gap_exceeds_900_seconds');
   try{await source.coverage(row.block,row.target_set_hash);}catch{break;}
-  const health=await source.health(row.observed_at,new Date(new Date(row.observed_at).getTime()+30000).toISOString()),events=await source.events(state.lastFrame.block,row.block),frame=source.frame(row,health,events);
-  for(const e of events)for(const {segment,protocol} of market.apply(e))for(const p of portfolios)p.accrue(segment,protocol);
-  market.verify(frame);if(Date.parse(frame.sourceAt)>=Date.parse(state.createdAt))for(const p of portfolios)p.decision(frame,market.source());
-  state.lastFrame={...frame,events:[]};state.sourceIds.push(frame.id);state.seed=market.seed();state.states=portfolios.map(p=>p.s);
+  const stale=Date.now()-new Date(row.source_at).getTime()>180000;
+  const events=await source.events(state.lastFrame.block,row.block);
+  // Old frames prove accounting only. Fresh decisions use the actual worker clock and current risk gate.
+  const frame=stale?{...source.frame(row,[],events,new Date().toISOString()),decisionMode:'accounting_only' as const}:await source.liveFrame(row,events);
+  if(!frame.dataValid)return invalid('forward_source_identity_unproven');
+  if(!stale&&frame.reasons.includes('source_ahead_of_confirmed_quorum'))break;
+  const actionable=!stale&&Date.now()-Date.parse(frame.sourceAt)<=180000&&Date.parse(frame.sourceAt)>=Date.parse(state.createdAt);
+  try{
+   for(const e of events)for(const {segment,protocol} of market.apply(e))for(const p of portfolios)p.accrue(segment,protocol);
+   market.verify(frame);
+   if(!actionable){pauseForward(state,'missed_forward_decision');for(const p of portfolios)p.observeWithoutDecision(frame,market.source());state.missedDecisions++;}
+   else{
+    if(state.status==='paused_data')for(const p of portfolios)p.expireEntryIntents(frame);
+    for(const p of portfolios)p.decision(frame,market.source());state.decisionCount++;state.lastDecisionSourceAt=frame.sourceAt;resumeForward(state);
+   }
+  }catch{return invalid('forward_market_or_accounting_reconstruction_failed');}
+  // Copy the accepted ledger so a later failed reconstruction cannot alter it.
+  state.lastFrame={...frame,events:[]};state.sourceIds.push(frame.id);state.seed=market.seed();state.states=parse(json(portfolios.map(p=>p.s)));
+  state.observations.push({checkpointId:frame.id,sourceAt:frame.sourceAt,observedAt:frame.observedAt,decisionMade:actionable,
+   referenceEvidence:frame.referenceEvidence,healthSampleIds:frame.healthSampleIds});
+  state.actions.push(...portfolios.flatMap(p=>p.actions.splice(0).map(a=>({candidate:p.candidate.id,...a}))));
+  if(portfolios.some(p=>p.s.invalid))return invalid('forward_candidate_accounting_invalid');
  }
- if(!(await source.historyValid(state.sourceIds))){state.status='invalid';state.reason='source_revoked_during_tick';}
- state.actions.push(...portfolios.flatMap(p=>p.actions.map(a=>({candidate:p.candidate.id,...a}))));
- await atomic(path,state);
- const report={observedAt:new Date().toISOString(),createdAt:state.createdAt,status:state.status,reason:state.reason,sourceAt:state.lastFrame.sourceAt,sourceIds:state.sourceIds,candidates:state.status==='running'?portfolios.map(p=>p.summary(state.lastFrame,market.source())):[],actions:portfolios.flatMap(p=>p.actions.map(a=>({candidate:p.candidate.id,...a}))),executionEligible:false};
- await atomic(path+'.status.json',report);
- await writeFile(path+'.status.md',statusMarkdown(report));
- // Each commit contains the full restart state; journal is evidence, not the checkpoint authority.
- if(report.actions.length)await writeFile(path+'.actions.jsonl',JSON.stringify(report)+'\n',{flag:'a'});
+ if(!(await source.historyValid(state.sourceIds,referenceSources(state))))return invalid('source_revoked_during_tick');
+ await persistForward(path,state);
  return state;
 }
 
-async function persistStopped(path:string,state:LiveState){
- await atomic(path,state);const report={observedAt:new Date().toISOString(),createdAt:state.createdAt,status:state.status,reason:state.reason,sourceAt:state.lastFrame.sourceAt,candidates:[],executionEligible:false};
+async function persistForward(path:string,state:LiveState){
+ state.lastPollAt=new Date().toISOString();await atomic(path,state);
+ const market=new ExperimentMarket(state.seed),elapsed=(Date.now()-Date.parse(state.createdAt))/1000;
+ const pausedSeconds=state.pausedSeconds+(state.pausedSince?(Date.now()-Date.parse(state.pausedSince))/1000:0);
+ const candidates=state.status==='invalid'?[]:state.candidates.map((c,i)=>new ExperimentPortfolio(c,state.costs,state.states[i]).summary(state.lastFrame,market.source()));
+ const report={observedAt:state.lastPollAt,createdAt:state.createdAt,status:state.status,reason:state.reason,sourceAt:state.lastFrame.sourceAt,
+  markFresh:state.status==='running'&&Date.now()-Date.parse(state.lastFrame.sourceAt)<=180000,
+  candidates,executionEligible:false,decisionClock:'actual_worker_with_current_reference_gate',
+  quality:{pausedSeconds,pauseCount:state.pauseCount,missedDecisions:state.missedDecisions,decisions:state.decisionCount,
+   availableTimePpm:elapsed>0?Math.max(0,Math.floor((elapsed-pausedSeconds)*1000000/elapsed)):1000000,
+   note:'Poll-observed data pauses and skipped checkpoint decisions; heartbeat gaps must also be reviewed'}};
  await atomic(path+'.status.json',report);await writeFile(path+'.status.md',statusMarkdown(report));
 }
-function statusMarkdown(report:{observedAt:string;status:string;reason?:string;sourceAt:string;candidates:any[]}){
+function statusMarkdown(report:{observedAt:string;status:string;reason?:string;sourceAt:string;candidates:any[];markFresh?:boolean;quality?:{pausedSeconds:number;missedDecisions:number}}){
  const dollars=(n:string|null)=>n===null?'unavailable':(Number(n)/1e6).toFixed(6);
- return `# Forward LP comparison\n\nUpdated ${report.observedAt}; source ${report.sourceAt}. Status: ${report.status}${report.reason?' — '+report.reason:''}. Modeled portfolios with frozen fork cost scenarios; no broadcasts.\n\n| Candidate | NAV USDG | P&L USDG | Alpha vs common holding USDG | Estimated costs USDG | Entries | Recenters | Infra exits |\n|---|---:|---:|---:|---:|---:|---:|---:|\n`+report.candidates.map(r=>`| ${r.candidate.id} | ${dollars(r.nav)} | ${dollars(r.pnl)} | ${dollars(r.commonAlpha)} | ${dollars(r.costs)} | ${r.entries} | ${r.recenters} | ${r.infrastructureExits} |`).join('\n')+'\n';
+ return `# Forward LP comparison\n\nUpdated ${report.observedAt}; source ${report.sourceAt}. Status: ${report.status}${report.reason?' — '+report.reason:''}. Modeled portfolios with frozen fork cost scenarios; no broadcasts.\n\nMarks fresh: ${report.markFresh===true?'yes':'no; values are last-source marks'}. Data pause seconds: ${report.quality?.pausedSeconds??'unavailable'}. Skipped checkpoint decisions: ${report.quality?.missedDecisions??'unavailable'}.\n\n| Candidate | NAV USDG | P&L USDG | Alpha vs common holding USDG | Estimated costs USDG | Entries | Recenters | Infra exits |\n|---|---:|---:|---:|---:|---:|---:|---:|\n`+report.candidates.map(r=>`| ${r.candidate.id} | ${dollars(r.nav)} | ${dollars(r.pnl)} | ${dollars(r.commonAlpha)} | ${dollars(r.costs)} | ${r.entries} | ${r.recenters} | ${r.infrastructureExits} |`).join('\n')+'\n';
 }

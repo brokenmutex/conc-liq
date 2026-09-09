@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { reconstructSwap, lowerBound, type FeeSegment, type SwapSource } from '../research/swap.js';
+import type {PaperReferenceEvidence} from '../paper/reference.js';
 export interface MarketSeed {
   price:string; tick:number; liquidity:string; global0:string; global1:string; protocol0:number; protocol1:number;
   ticks:{tick:number;gross:string;net:string}[];
@@ -10,6 +11,8 @@ export interface ExperimentFrame {
   price:string;tick:number;liquidity:string;global0:string;global1:string;
   referencePrice:string|null;referenceEligible:boolean;referenceBasis:string;chainHealthy:boolean;
   reasons:string[];dataValid:boolean;events:ExperimentEvent[];
+  capturedAt?:string; referenceEvidence?:PaperReferenceEvidence; healthSampleIds?:readonly string[];
+  decisionMode?:'historical_checkpoint_only'|'prospective'|'accounting_only';
 }
 const MASK=(1n<<256n)-1n;
 /** Shared canonical market path. Candidate inventory never mutates this book. */

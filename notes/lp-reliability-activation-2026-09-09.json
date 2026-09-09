@@ -1,0 +1,151 @@
+{
+  "checkedAt": "2026-09-09T08:24:36.036Z",
+  "session": "28",
+  "status": "waiting",
+  "budget": "974985604",
+  "nav": null,
+  "sourceAt": "2026-09-09T11:23:45+03:00",
+  "referenceEvidence": {
+    "current": {
+      "latest": {
+        "id": "10612",
+        "status": "succeeded",
+        "riskRunId": "10610",
+        "attemptedAt": "2026-09-09T11:23:51.750788+03:00",
+        "completedAt": "2026-09-09T11:23:52.149746+03:00"
+      },
+      "limits": {
+        "sourceSeconds": 180,
+        "refreshSeconds": 10,
+        "validationSeconds": 30
+      },
+      "version": 1,
+      "selected": {
+        "id": "10612",
+        "status": "succeeded",
+        "blockHash": "0x314af91b81f99b20cf0ffd6f12960694fd6db550cf2bc57653d41050af3d8e92",
+        "canonical": true,
+        "riskRunId": "10610",
+        "attemptedAt": "2026-09-09T11:23:51.750788+03:00",
+        "blockNumber": "58401308",
+        "completedAt": "2026-09-09T11:23:52.149746+03:00",
+        "validatedAt": "2026-09-09T11:24:03.194465+03:00"
+      },
+      "reference": {
+        "basis": "heartbeat_valid",
+        "reasons": [],
+        "eligible": true,
+        "ageSeconds": 57856,
+        "sourceBlock": "58401308",
+        "deviationPpm": "1935",
+        "poolPriceX18": "226366182000000000000",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "referencePriceX18": "225928807791314314059",
+        "referenceUpdatedAt": "2026-09-08T16:19:29.000Z"
+      },
+      "evaluatedAt": "2026-09-09 11:24:09.554703+03",
+      "failedChecks": [],
+      "snapshotSha256": "67234183a6cf9a1e1118c66359d963155595435b11b102bff4309649414536a5",
+      "snapshotSourceAt": "2026-09-09T08:23:45.000Z",
+      "inFlightStartedAt": null,
+      "snapshotObservedAt": "2026-09-09T08:23:52.149Z",
+      "usingPreviousCompleted": false
+    },
+    "requestedAt": "2026-09-09T08:24:09.425Z",
+    "checkpointId": "3182",
+    "sourceProven": true
+  },
+  "runtime": {
+    "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+    "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+    "nodeVersion": "v24.20.0"
+  },
+  "policy": {
+    "mode": "guarded",
+    "budgetQuote": "974985604",
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": 86400,
+    "maxSourceAgeSeconds": 180,
+    "maxGapSeconds": 900,
+    "maxLiquiditySharePpm": 10000,
+    "executionBasis": "nitro_fork_v1",
+    "feeAccounting": "initialized_boundaries_v1",
+    "lpAllocationPpm": 800000,
+    "inventoryExitPpm": 600000,
+    "reentry": {
+      "cooldownSeconds": 600,
+      "previousSessionId": "27"
+    },
+    "maxSlippageBps": 50,
+    "transactionTtlSeconds": 300,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400
+    }
+  },
+  "campaign": {
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "974985604",
+    "pnlQuote": "-25014396",
+    "holdQuote": "992984556",
+    "alphaQuote": "-17998952",
+    "costsPaidQuote": "19817358",
+    "sourceAt": "2026-09-09T11:23:45+03:00"
+  },
+  "health": {
+    "id": "40141",
+    "state": "healthy",
+    "reasons": [],
+    "anchor": "58401669",
+    "depths": [
+      {
+        "name": "private",
+        "depth": "72",
+        "hashMatches": true,
+        "anchorError": null
+      },
+      {
+        "name": "reference_1",
+        "depth": "64",
+        "hashMatches": true,
+        "anchorError": null
+      },
+      {
+        "name": "reference_2",
+        "depth": "72",
+        "hashMatches": true,
+        "anchorError": null
+      }
+    ]
+  }
+}

@@ -91,6 +91,24 @@ export class ExperimentPortfolio {
   this.s.pending=null;this.record(f,'cash_exit',reason);return true;
   }finally{if(reason==='infrastructure')this.s.infrastructureExitCosts+=this.s.costs-before;}
  }
+ expireEntryIntents(f:ExperimentFrame){
+  if(this.s.pending&&this.s.pending.kind!=='exit'){
+   this.record(f,'cancel_pending','data_pause_requires_new_quote');this.s.pending=null;this.block('data_pause_quote_expired');
+  }
+  if(!this.s.benchmark.filled)this.s.benchmark.after=null;
+ }
+ /** Reconstruct ownership and fees across a bounded blackout, never missed orders. */
+ observeWithoutDecision(f:ExperimentFrame,m:SwapSource){
+  const s=this.s,at=Date.parse(f.observedAt);
+  assert(f.dataValid&&(s.lastTarget===null||s.lastTarget===f.targetSetHash));
+  assert(s.lastBlock===null||BigInt(f.block)>BigInt(s.lastBlock));
+  const gap=s.lastAt===null?0:at-s.lastAt;assert(gap>=0&&gap<=900000);
+  if(s.position){if(m.tick>=s.position.tickLower&&m.tick<s.position.tickUpper)s.activeSeconds+=gap/1000;else s.outsideSeconds+=gap/1000;}else s.cashSeconds+=gap/1000;
+  s.lastAt=at;s.lastBlock=f.block;s.lastTarget=f.targetSetHash;s.observations++;
+  this.block('missed_forward_decision');this.expireEntryIntents(f);
+  const nav=this.gross(m)-this.reserve();if(nav>s.peak)s.peak=nav;
+  const dd=s.peak?(s.peak-nav)*1000000n/s.peak:0n;if(dd>s.drawdown)s.drawdown=dd;
+ }
  decision(f:ExperimentFrame,m:SwapSource){
   const at=Date.parse(f.observedAt),source=Date.parse(f.sourceAt),s=this.s;if(s.invalid)return;
   if(!f.dataValid||(s.lastTarget!==null&&s.lastTarget!==f.targetSetHash)||(s.lastBlock!==null&&BigInt(f.block)<=BigInt(s.lastBlock))) {s.invalid='canonical_source_or_order_invalid';return;}
