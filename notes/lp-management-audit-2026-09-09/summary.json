@@ -1,0 +1,5231 @@
+{
+  "asOf": "2026-09-09T12:02:45.205Z",
+  "sources": {
+    "data/lp-management-audit-2026-09-09/paper-source.json": {
+      "sha256": "9f9839611ef19a1d7708b48f461965e6fdb9f43a5934541a39685602bcfec34d",
+      "bytes": 59489496
+    },
+    "data/lp-management-audit-2026-09-09/market-source.json": {
+      "sha256": "f588ef0e751ace968d93b78eb7392be451727b568a3fba4d4cfab57a5afe2c5d",
+      "bytes": 90511991
+    },
+    "data/lp-management-audit-2026-09-09/reconciliation-v2.json": {
+      "sha256": "2b89af76b03a1c8e155b851a48d5afc881d664b2fe5b4ab4bc8479fc991c8e6a",
+      "bytes": 235997
+    },
+    "data/lp-management-audit-2026-09-09/counterfactuals.json": {
+      "sha256": "ac4e4ad05461d814bd8c4b25aad96a2ac6d7972580c24fc6088a84b24e8de2d1",
+      "bytes": 1756474
+    }
+  },
+  "codeSha256": {
+    "scripts/capture-management-audit.mjs": "43fd066ca755ab2726198039a9527834937efa488d57399dca8ab62b53ac1424",
+    "scripts/management-decision-audit.mjs": "68a57ab63e58b55f817c681808cbbee73c7cec01b60d04415b8e0a70bc94cf9d",
+    "scripts/management-counterfactual-audit.mjs": "7cb64ab5387191a6d973b10074dc76f8a7618d273f5499b1a8a33848c9face7e",
+    "scripts/summarize-management-audit.mjs": "5a51552eea8bb27974294394daed7c8ad6b883bdc8d1778f5fed063392187248",
+    "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+    "src/experiment/market.ts": "00330722f2c7d4310df0af17d19737b276f5ed66590e3030fa2208fd15efaa09",
+    "src/experiment/portfolio.ts": "c262e896791fa008fbaeb60fe2b85d1d0dc04c6c53776d38c8ad4fefb6b68d98",
+    "src/experiment/source.ts": "6218a75526592feae4c293d08d34a72743f8d7def2b2e3693762dcb47ab1282e",
+    "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+    "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+    "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+    "src/simulator/math.ts": "3f36220efba65e4a38ced37a2dbfe31280368221f76ae09c7c00ec6f3a46c215",
+    "src/paper/transaction-engine.ts": "1f98018dc5d12bde44f469c71f6f0eabb0904f54cef0e78b5e96abe71755850a"
+  },
+  "reconciliation": {
+    "verifiedCheckpoints": 1563,
+    "sessions": 27,
+    "marks": 1144,
+    "allMarkDifferencesZero": true,
+    "cycle": {
+      "selection": "First completed session under the latest captured runtime, followed by its actual cash-funded child",
+      "ids": [
+        "28",
+        "29"
+      ]
+    },
+    "cycleDetails": [
+      {
+        "id": "28",
+        "status": "closed",
+        "budget": "974985604",
+        "entryCheckpoint": "3184",
+        "entrySwapOut": "1720021757605919152",
+        "liquidity": "25856962903173055",
+        "entryGas": "417158",
+        "entryFillExact": true,
+        "undilutedFees": "200488",
+        "dilutedFees": "200219",
+        "feeDilutionDifference": "-269",
+        "dilutedExitProceeds": "974685338",
+        "exitProceeds": "974685608",
+        "dilutionCashEffect": "-270",
+        "exitCheckpoint": "3199",
+        "exitGas": "283179",
+        "exitSwapOut": "431633769",
+        "exitCash": "973985271",
+        "exitFillExact": true,
+        "marks": 16
+      },
+      {
+        "id": "29",
+        "status": "closed",
+        "budget": "973985271",
+        "entryCheckpoint": "3211",
+        "entrySwapOut": "2150464066641889350",
+        "liquidity": "25657952639732441",
+        "entryGas": "413093",
+        "entryFillExact": true,
+        "undilutedFees": "191703",
+        "dilutedFees": "191427",
+        "feeDilutionDifference": "-276",
+        "dilutedExitProceeds": "973160004",
+        "exitProceeds": "973160280",
+        "dilutionCashEffect": "-276",
+        "exitCheckpoint": "3247",
+        "exitGas": "279529",
+        "exitSwapOut": "640604359",
+        "exitCash": "972467658",
+        "exitFillExact": true,
+        "marks": 36
+      }
+    ],
+    "nativeBridge": [
+      {
+        "session": "28",
+        "bridge": {
+          "costEffect": "-134897",
+          "dilutionCashEffect": "-270",
+          "fundingAndFillResidual": "-521",
+          "total": "-135688"
+        }
+      },
+      {
+        "session": "29",
+        "bridge": {
+          "costEffect": "-142612",
+          "dilutionCashEffect": "-276",
+          "fundingAndFillResidual": "-416",
+          "total": "-143304"
+        }
+      }
+    ],
+    "allSessionResults": [
+      {
+        "id": "5",
+        "status": "closed",
+        "budget": "1000000000",
+        "entryCheckpoint": "1832",
+        "entrySwapOut": "1441394771743151885",
+        "liquidity": "26209862110328812",
+        "entryGas": "520941",
+        "entryFillExact": true,
+        "undilutedFees": "795260",
+        "dilutedFees": "793679",
+        "feeDilutionDifference": "-1581",
+        "dilutedExitProceeds": "1000911676",
+        "exitProceeds": "1000913257",
+        "dilutionCashEffect": "-1581",
+        "exitCheckpoint": "1908",
+        "exitGas": "348333",
+        "exitSwapOut": "3897622",
+        "exitCash": "1000043983",
+        "exitFillExact": true,
+        "marks": 77
+      },
+      {
+        "id": "6",
+        "status": "closed",
+        "budget": "1000043983",
+        "entryCheckpoint": "2004",
+        "entrySwapOut": "1763743268129599177",
+        "liquidity": "24073089213487905",
+        "entryGas": "501934",
+        "entryFillExact": true,
+        "undilutedFees": "489336",
+        "dilutedFees": "488722",
+        "feeDilutionDifference": "-614",
+        "dilutedExitProceeds": "1000802025",
+        "exitProceeds": "1000802639",
+        "dilutionCashEffect": "-614",
+        "exitCheckpoint": "2061",
+        "exitGas": "333295",
+        "exitSwapOut": "67769989",
+        "exitCash": "999967410",
+        "exitFillExact": true,
+        "marks": 58
+      },
+      {
+        "id": "7",
+        "status": "closed",
+        "budget": "999967410",
+        "entryCheckpoint": "2073",
+        "entrySwapOut": "1833868402812925734",
+        "liquidity": "26030599564799223",
+        "entryGas": "489179",
+        "entryFillExact": true,
+        "undilutedFees": "1132089",
+        "dilutedFees": "1128494",
+        "feeDilutionDifference": "-3595",
+        "dilutedExitProceeds": "995950022",
+        "exitProceeds": "995953615",
+        "dilutionCashEffect": "-3593",
+        "exitCheckpoint": "2096",
+        "exitGas": "327805",
+        "exitSwapOut": "788726443",
+        "exitCash": "995136631",
+        "exitFillExact": true,
+        "marks": 24
+      },
+      {
+        "id": "8",
+        "status": "closed",
+        "budget": "995136631",
+        "entryCheckpoint": "2144",
+        "entrySwapOut": "1472736442819151902",
+        "liquidity": "12921811828230486",
+        "entryGas": "516032",
+        "entryFillExact": true,
+        "undilutedFees": "55680",
+        "dilutedFees": "55599",
+        "feeDilutionDifference": "-81",
+        "dilutedExitProceeds": "993726438",
+        "exitProceeds": "993726519",
+        "dilutionCashEffect": "-81",
+        "exitCheckpoint": "2188",
+        "exitGas": "338348",
+        "exitSwapOut": "388913783",
+        "exitCash": "992872139",
+        "exitFillExact": true,
+        "marks": 45
+      },
+      {
+        "id": "9",
+        "status": "closed",
+        "budget": "992872139",
+        "entryCheckpoint": "2201",
+        "entrySwapOut": "1882184868234323612",
+        "liquidity": "17290667497577852",
+        "entryGas": "483878",
+        "entryFillExact": true,
+        "undilutedFees": "104200",
+        "dilutedFees": "104024",
+        "feeDilutionDifference": "-176",
+        "dilutedExitProceeds": "992811903",
+        "exitProceeds": "992812079",
+        "dilutionCashEffect": "-176",
+        "exitCheckpoint": "2210",
+        "exitGas": "331632",
+        "exitSwapOut": "352075256",
+        "exitCash": "991996569",
+        "exitFillExact": true,
+        "marks": 10
+      },
+      {
+        "id": "10",
+        "status": "closed",
+        "budget": "991996569",
+        "entryCheckpoint": "2223",
+        "entrySwapOut": "2073285027072685327",
+        "liquidity": "21485626654250600",
+        "entryGas": "494403",
+        "entryFillExact": true,
+        "undilutedFees": "105648",
+        "dilutedFees": "105428",
+        "feeDilutionDifference": "-220",
+        "dilutedExitProceeds": "990857314",
+        "exitProceeds": "990857534",
+        "dilutionCashEffect": "-220",
+        "exitCheckpoint": "2227",
+        "exitGas": "328025",
+        "exitSwapOut": "646167028",
+        "exitCash": "990035106",
+        "exitFillExact": true,
+        "marks": 5
+      },
+      {
+        "id": "11",
+        "status": "closed",
+        "budget": "990035106",
+        "entryCheckpoint": "2241",
+        "entrySwapOut": "1434204636506410509",
+        "liquidity": "25481135139390175",
+        "entryGas": "502618",
+        "entryFillExact": true,
+        "undilutedFees": "624730",
+        "dilutedFees": "623586",
+        "feeDilutionDifference": "-1144",
+        "dilutedExitProceeds": "989386406",
+        "exitProceeds": "989387549",
+        "dilutionCashEffect": "-1143",
+        "exitCheckpoint": "2254",
+        "exitGas": "333020",
+        "exitSwapOut": "638207817",
+        "exitCash": "988551911",
+        "exitFillExact": true,
+        "marks": 14
+      },
+      {
+        "id": "12",
+        "status": "closed",
+        "budget": "988551911",
+        "entryCheckpoint": "2266",
+        "entrySwapOut": "1558539278400969323",
+        "liquidity": "26085315356871825",
+        "entryGas": "483707",
+        "entryFillExact": true,
+        "undilutedFees": "2251946",
+        "dilutedFees": "2246971",
+        "feeDilutionDifference": "-4975",
+        "dilutedExitProceeds": "990327729",
+        "exitProceeds": "990332703",
+        "dilutionCashEffect": "-4974",
+        "exitCheckpoint": "2376",
+        "exitGas": "337445",
+        "exitSwapOut": "402053172",
+        "exitCash": "989511551",
+        "exitFillExact": true,
+        "marks": 111
+      },
+      {
+        "id": "13",
+        "status": "closed",
+        "budget": "989511551",
+        "entryCheckpoint": "2388",
+        "entrySwapOut": "1490369013932147818",
+        "liquidity": "25790958821489455",
+        "entryGas": "491220",
+        "entryFillExact": true,
+        "undilutedFees": "814347",
+        "dilutedFees": "812583",
+        "feeDilutionDifference": "-1764",
+        "dilutedExitProceeds": "989440116",
+        "exitProceeds": "989441880",
+        "dilutionCashEffect": "-1764",
+        "exitCheckpoint": "2407",
+        "exitGas": "332189",
+        "exitSwapOut": "535430293",
+        "exitCash": "988618471",
+        "exitFillExact": true,
+        "marks": 19
+      },
+      {
+        "id": "14",
+        "status": "closed",
+        "budget": "988618471",
+        "entryCheckpoint": "2417",
+        "entrySwapOut": "2062816664773150886",
+        "liquidity": "26281915468664208",
+        "entryGas": "483681",
+        "entryFillExact": true,
+        "undilutedFees": "158236",
+        "dilutedFees": "157844",
+        "feeDilutionDifference": "-392",
+        "dilutedExitProceeds": "987633952",
+        "exitProceeds": "987634344",
+        "dilutionCashEffect": "-392",
+        "exitCheckpoint": "2423",
+        "exitGas": "331076",
+        "exitSwapOut": "665535034",
+        "exitCash": "986819587",
+        "exitFillExact": true,
+        "marks": 7
+      },
+      {
+        "id": "15",
+        "status": "closed",
+        "budget": "986819587",
+        "entryCheckpoint": "2435",
+        "entrySwapOut": "1880534279309496293",
+        "liquidity": "23813686843433483",
+        "entryGas": "490613",
+        "entryFillExact": true,
+        "undilutedFees": "114867",
+        "dilutedFees": "114595",
+        "feeDilutionDifference": "-272",
+        "dilutedExitProceeds": "986977425",
+        "exitProceeds": "986977697",
+        "dilutionCashEffect": "-272",
+        "exitCheckpoint": "2441",
+        "exitGas": "342138",
+        "exitSwapOut": "222215608",
+        "exitCash": "986144946",
+        "exitFillExact": true,
+        "marks": 7
+      },
+      {
+        "id": "16",
+        "status": "closed",
+        "budget": "986144946",
+        "entryCheckpoint": "2455",
+        "entrySwapOut": "1927814477666965103",
+        "liquidity": "24519260186914040",
+        "entryGas": "478719",
+        "entryFillExact": true,
+        "undilutedFees": "196650",
+        "dilutedFees": "196119",
+        "feeDilutionDifference": "-531",
+        "dilutedExitProceeds": "985513383",
+        "exitProceeds": "985513914",
+        "dilutionCashEffect": "-531",
+        "exitCheckpoint": "2457",
+        "exitGas": "336032",
+        "exitSwapOut": "557171757",
+        "exitCash": "984699163",
+        "exitFillExact": true,
+        "marks": 3
+      },
+      {
+        "id": "17",
+        "status": "closed",
+        "budget": "984699163",
+        "entryCheckpoint": "2471",
+        "entrySwapOut": "1733274842779332982",
+        "liquidity": "25484238963746953",
+        "entryGas": "488705",
+        "entryFillExact": true,
+        "undilutedFees": "170684",
+        "dilutedFees": "170317",
+        "feeDilutionDifference": "-367",
+        "dilutedExitProceeds": "984366756",
+        "exitProceeds": "984367124",
+        "dilutionCashEffect": "-368",
+        "exitCheckpoint": "2486",
+        "exitGas": "335296",
+        "exitSwapOut": "433143384",
+        "exitCash": "983543123",
+        "exitFillExact": true,
+        "marks": 16
+      },
+      {
+        "id": "18",
+        "status": "closed",
+        "budget": "983543123",
+        "entryCheckpoint": "2498",
+        "entrySwapOut": "2170394620002031103",
+        "liquidity": "25901921361121305",
+        "entryGas": "490247",
+        "entryFillExact": true,
+        "undilutedFees": "426180",
+        "dilutedFees": "425305",
+        "feeDilutionDifference": "-875",
+        "dilutedExitProceeds": "983558761",
+        "exitProceeds": "983559636",
+        "dilutionCashEffect": "-875",
+        "exitCheckpoint": "2552",
+        "exitGas": "333804",
+        "exitSwapOut": "462791997",
+        "exitCash": "982735585",
+        "exitFillExact": true,
+        "marks": 55
+      },
+      {
+        "id": "19",
+        "status": "closed",
+        "budget": "982735585",
+        "entryCheckpoint": "2564",
+        "entrySwapOut": "1481857641197946380",
+        "liquidity": "26082627670775362",
+        "entryGas": "1874838",
+        "entryFillExact": true,
+        "undilutedFees": "1120117",
+        "dilutedFees": "1117708",
+        "feeDilutionDifference": "-2409",
+        "dilutedExitProceeds": "983231128",
+        "exitProceeds": "983233537",
+        "dilutionCashEffect": "-2409",
+        "exitCheckpoint": "2693",
+        "exitGas": "318946",
+        "exitSwapOut": "449375947",
+        "exitCash": "981039753",
+        "exitFillExact": true,
+        "marks": 130
+      },
+      {
+        "id": "20",
+        "status": "closed",
+        "budget": "981039753",
+        "entryCheckpoint": "2705",
+        "entrySwapOut": "1976984295734114993",
+        "liquidity": "25913603600164095",
+        "entryGas": "475788",
+        "entryFillExact": true,
+        "undilutedFees": "146833",
+        "dilutedFees": "146534",
+        "feeDilutionDifference": "-299",
+        "dilutedExitProceeds": "980641225",
+        "exitProceeds": "980641525",
+        "dilutionCashEffect": "-300",
+        "exitCheckpoint": "2740",
+        "exitGas": "323699",
+        "exitSwapOut": "480341475",
+        "exitCash": "979842038",
+        "exitFillExact": true,
+        "marks": 36
+      },
+      {
+        "id": "21",
+        "status": "closed",
+        "budget": "979842038",
+        "entryCheckpoint": "2753",
+        "entrySwapOut": "2082928175054595212",
+        "liquidity": "25774067274886132",
+        "entryGas": "465558",
+        "entryFillExact": true,
+        "undilutedFees": "687886",
+        "dilutedFees": "686569",
+        "feeDilutionDifference": "-1317",
+        "dilutedExitProceeds": "980373768",
+        "exitProceeds": "980375085",
+        "dilutionCashEffect": "-1317",
+        "exitCheckpoint": "2827",
+        "exitGas": "314502",
+        "exitSwapOut": "350645403",
+        "exitCash": "979595025",
+        "exitFillExact": true,
+        "marks": 75
+      },
+      {
+        "id": "22",
+        "status": "closed",
+        "budget": "979595025",
+        "entryCheckpoint": "2839",
+        "entrySwapOut": "1623337201913213522",
+        "liquidity": "25817154582736118",
+        "entryGas": "451639",
+        "entryFillExact": true,
+        "undilutedFees": "158177",
+        "dilutedFees": "157896",
+        "feeDilutionDifference": "-281",
+        "dilutedExitProceeds": "979562202",
+        "exitProceeds": "979562482",
+        "dilutionCashEffect": "-280",
+        "exitCheckpoint": "2857",
+        "exitGas": "307196",
+        "exitSwapOut": "286411960",
+        "exitCash": "978803647",
+        "exitFillExact": true,
+        "marks": 19
+      },
+      {
+        "id": "23",
+        "status": "closed",
+        "budget": "978803647",
+        "entryCheckpoint": "2869",
+        "entrySwapOut": "2125248303901157862",
+        "liquidity": "25950793992780116",
+        "entryGas": "457979",
+        "entryFillExact": true,
+        "undilutedFees": "179092",
+        "dilutedFees": "178786",
+        "feeDilutionDifference": "-306",
+        "dilutedExitProceeds": "978095255",
+        "exitProceeds": "978095561",
+        "dilutionCashEffect": "-306",
+        "exitCheckpoint": "2918",
+        "exitGas": "301502",
+        "exitSwapOut": "604021369",
+        "exitCash": "977336080",
+        "exitFillExact": true,
+        "marks": 49
+      },
+      {
+        "id": "24",
+        "status": "closed",
+        "budget": "977336080",
+        "entryCheckpoint": "2930",
+        "entrySwapOut": "1378432258468438874",
+        "liquidity": "25465570361519285",
+        "entryGas": "446312",
+        "entryFillExact": true,
+        "undilutedFees": "262074",
+        "dilutedFees": "261716",
+        "feeDilutionDifference": "-358",
+        "dilutedExitProceeds": "977267036",
+        "exitProceeds": "977267395",
+        "dilutionCashEffect": "-359",
+        "exitCheckpoint": "2990",
+        "exitGas": "299032",
+        "exitSwapOut": "320515038",
+        "exitCash": "976522051",
+        "exitFillExact": true,
+        "marks": 61
+      },
+      {
+        "id": "25",
+        "status": "closed",
+        "budget": "976522051",
+        "entryCheckpoint": "3002",
+        "entrySwapOut": "1480315715963870422",
+        "liquidity": "25956560442382127",
+        "entryGas": "442714",
+        "entryFillExact": true,
+        "undilutedFees": "24794",
+        "dilutedFees": "24760",
+        "feeDilutionDifference": "-34",
+        "dilutedExitProceeds": "976177983",
+        "exitProceeds": "976178017",
+        "dilutionCashEffect": "-34",
+        "exitCheckpoint": "3014",
+        "exitGas": "297072",
+        "exitSwapOut": "349684776",
+        "exitCash": "975438231",
+        "exitFillExact": true,
+        "marks": 13
+      },
+      {
+        "id": "26",
+        "status": "closed",
+        "budget": "975438231",
+        "entryCheckpoint": "3026",
+        "entrySwapOut": "1580856597377111021",
+        "liquidity": "25398864387668163",
+        "entryGas": "438891",
+        "entryFillExact": true,
+        "undilutedFees": "993474",
+        "dilutedFees": "992205",
+        "feeDilutionDifference": "-1269",
+        "dilutedExitProceeds": "976153301",
+        "exitProceeds": "976154570",
+        "dilutionCashEffect": "-1269",
+        "exitCheckpoint": "3106",
+        "exitGas": "290478",
+        "exitSwapOut": "322579205",
+        "exitCash": "975425201",
+        "exitFillExact": true,
+        "marks": 81
+      },
+      {
+        "id": "27",
+        "status": "closed",
+        "budget": "975425201",
+        "entryCheckpoint": "3119",
+        "entrySwapOut": "1426110336303778063",
+        "liquidity": "25829877832416745",
+        "entryGas": "422162",
+        "entryFillExact": true,
+        "undilutedFees": "341620",
+        "dilutedFees": "341182",
+        "feeDilutionDifference": "-438",
+        "dilutedExitProceeds": "975692062",
+        "exitProceeds": "975692501",
+        "dilutionCashEffect": "-439",
+        "exitCheckpoint": "3172",
+        "exitGas": "284735",
+        "exitSwapOut": "185416392",
+        "exitCash": "974985604",
+        "exitFillExact": true,
+        "marks": 54
+      },
+      {
+        "id": "28",
+        "status": "closed",
+        "budget": "974985604",
+        "entryCheckpoint": "3184",
+        "entrySwapOut": "1720021757605919152",
+        "liquidity": "25856962903173055",
+        "entryGas": "417158",
+        "entryFillExact": true,
+        "undilutedFees": "200488",
+        "dilutedFees": "200219",
+        "feeDilutionDifference": "-269",
+        "dilutedExitProceeds": "974685338",
+        "exitProceeds": "974685608",
+        "dilutionCashEffect": "-270",
+        "exitCheckpoint": "3199",
+        "exitGas": "283179",
+        "exitSwapOut": "431633769",
+        "exitCash": "973985271",
+        "exitFillExact": true,
+        "marks": 16
+      },
+      {
+        "id": "29",
+        "status": "closed",
+        "budget": "973985271",
+        "entryCheckpoint": "3211",
+        "entrySwapOut": "2150464066641889350",
+        "liquidity": "25657952639732441",
+        "entryGas": "413093",
+        "entryFillExact": true,
+        "undilutedFees": "191703",
+        "dilutedFees": "191427",
+        "feeDilutionDifference": "-276",
+        "dilutedExitProceeds": "973160004",
+        "exitProceeds": "973160280",
+        "dilutionCashEffect": "-276",
+        "exitCheckpoint": "3247",
+        "exitGas": "279529",
+        "exitSwapOut": "640604359",
+        "exitCash": "972467658",
+        "exitFillExact": true,
+        "marks": 36
+      },
+      {
+        "id": "30",
+        "status": "closed",
+        "budget": "972467658",
+        "entryCheckpoint": "3259",
+        "entrySwapOut": "1587666045383811763",
+        "liquidity": "25755323835799655",
+        "entryGas": "405224",
+        "entryFillExact": true,
+        "undilutedFees": "202024",
+        "dilutedFees": "201652",
+        "feeDilutionDifference": "-372",
+        "dilutedExitProceeds": "970743035",
+        "exitProceeds": "970743407",
+        "dilutionCashEffect": "-372",
+        "exitCheckpoint": "3271",
+        "exitGas": "270892",
+        "exitSwapOut": "771891995",
+        "exitCash": "970067291",
+        "exitFillExact": true,
+        "marks": 12
+      },
+      {
+        "id": "31",
+        "status": "open",
+        "budget": "970067291",
+        "entryCheckpoint": "3283",
+        "entrySwapOut": "1639317058413902257",
+        "liquidity": "25815377293201221",
+        "entryGas": "397384",
+        "entryFillExact": true,
+        "undilutedFees": "1818646",
+        "dilutedFees": "1814323",
+        "feeDilutionDifference": "-4323",
+        "marks": 111
+      }
+    ],
+    "limitations": [
+      "Exact agreement with paper does not establish real-world fee or execution accuracy",
+      "Undiluted paper fee growth and added-liquidity experiment fee sharing are different conventions",
+      "Original model also changes funding, reserve and acquisition amounts; native delta is not solely fee dilution or strategy alpha"
+    ]
+  },
+  "performance": {
+    "campaign": {
+      "rootSessionId": "5",
+      "sessionIds": [
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31"
+      ],
+      "initialBudgetQuote": "1000000000",
+      "navQuote": "971387563",
+      "pnlQuote": "-28612437",
+      "holdQuote": "991032586",
+      "alphaQuote": "-19645023",
+      "costsPaidQuote": "22283817",
+      "sourceAt": "2026-09-09T15:02:08+03:00"
+    },
+    "totals": {
+      "completed": 26,
+      "open": 1,
+      "winning": 2,
+      "positiveSessionAlpha": 2,
+      "pnl": "-29932709",
+      "fees": "11948135",
+      "gas": "21886433",
+      "sessionAlphaSum": "-16909644",
+      "holdingMinutes": 1055.15,
+      "decomposition": {
+        "benchmarkMarketMove": "-3904206",
+        "entryExecutionDrag": "5166034",
+        "lpInventoryVersusHolding": "-5210032",
+        "marginalFeeValue": "11948151",
+        "exitExecutionDrag": "5714155",
+        "gas": "21886433",
+        "reserve": "0"
+      }
+    },
+    "exitGroups": [
+      {
+        "group": "infrastructure",
+        "count": 10,
+        "ids": [
+          "5",
+          "6",
+          "12",
+          "14",
+          "15",
+          "17",
+          "19",
+          "25",
+          "26",
+          "28"
+        ],
+        "pnl": "-6495530",
+        "fees": "6319202",
+        "costs": "9360440"
+      },
+      {
+        "group": "inventory",
+        "count": 8,
+        "ids": [
+          "7",
+          "10",
+          "11",
+          "13",
+          "16",
+          "23",
+          "29",
+          "30"
+        ],
+        "pnl": "-15999847",
+        "fees": "3446283",
+        "costs": "6241429"
+      },
+      {
+        "group": "reference_or_risk",
+        "count": 7,
+        "ids": [
+          "8",
+          "9",
+          "18",
+          "20",
+          "21",
+          "22",
+          "24"
+        ],
+        "pnl": "-6997735",
+        "fees": "1841030",
+        "costs": "5577667"
+      },
+      {
+        "group": "operator_upgrade",
+        "count": 1,
+        "ids": [
+          "27"
+        ],
+        "pnl": "-439597",
+        "fees": "341620",
+        "costs": "706897"
+      }
+    ]
+  },
+  "buffer": [
+    {
+      "session": "5",
+      "entryTick": 221896,
+      "lower": 221880,
+      "upper": 221920,
+      "lowerExposurePpm": "3555",
+      "upperExposurePpm": "800913",
+      "firstGuardTickAtEntryReference": 221910,
+      "ticksFromEntryToGuard": 14,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 221863,
+      "signalInside": false
+    },
+    {
+      "session": "6",
+      "entryTick": 221868,
+      "lower": 221850,
+      "upper": 221890,
+      "lowerExposurePpm": "67355",
+      "upperExposurePpm": "800399",
+      "firstGuardTickAtEntryReference": 221880,
+      "ticksFromEntryToGuard": 12,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 221841,
+      "signalInside": false
+    },
+    {
+      "session": "7",
+      "entryTick": 221841,
+      "lower": 221820,
+      "upper": 221860,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "794000",
+      "firstGuardTickAtEntryReference": 221851,
+      "ticksFromEntryToGuard": 10,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 221855,
+      "signalInside": true
+    },
+    {
+      "session": "8",
+      "entryTick": 222014,
+      "lower": 221980,
+      "upper": 222020,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "392487",
+      "firstGuardTickAtEntryReference": null,
+      "ticksFromEntryToGuard": null,
+      "guardBeforeRiskyBoundary": false,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222042,
+      "signalInside": false
+    },
+    {
+      "session": "9",
+      "entryTick": 222072,
+      "lower": 222040,
+      "upper": 222080,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "525027",
+      "firstGuardTickAtEntryReference": null,
+      "ticksFromEntryToGuard": null,
+      "guardBeforeRiskyBoundary": false,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222064,
+      "signalInside": true
+    },
+    {
+      "session": "10",
+      "entryTick": 222069,
+      "lower": 222040,
+      "upper": 222080,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "653086",
+      "firstGuardTickAtEntryReference": 222077,
+      "ticksFromEntryToGuard": 8,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222078,
+      "signalInside": true
+    },
+    {
+      "session": "11",
+      "entryTick": 222086,
+      "lower": 222070,
+      "upper": 222110,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "775779",
+      "firstGuardTickAtEntryReference": 222101,
+      "ticksFromEntryToGuard": 15,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222106,
+      "signalInside": true
+    },
+    {
+      "session": "12",
+      "entryTick": 222107,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "6552",
+      "upperExposurePpm": "800546",
+      "firstGuardTickAtEntryReference": 222120,
+      "ticksFromEntryToGuard": 13,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222112,
+      "signalInside": true
+    },
+    {
+      "session": "13",
+      "entryTick": 222106,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "16230",
+      "upperExposurePpm": "800538",
+      "firstGuardTickAtEntryReference": 222120,
+      "ticksFromEntryToGuard": 14,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222125,
+      "signalInside": true
+    },
+    {
+      "session": "14",
+      "entryTick": 222123,
+      "lower": 222100,
+      "upper": 222140,
+      "lowerExposurePpm": "1216",
+      "upperExposurePpm": "800743",
+      "firstGuardTickAtEntryReference": 222130,
+      "ticksFromEntryToGuard": 7,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222126,
+      "signalInside": true
+    },
+    {
+      "session": "15",
+      "entryTick": 222133,
+      "lower": 222110,
+      "upper": 222150,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "725625",
+      "firstGuardTickAtEntryReference": 222144,
+      "ticksFromEntryToGuard": 11,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222122,
+      "signalInside": true
+    },
+    {
+      "session": "16",
+      "entryTick": 222130,
+      "lower": 222110,
+      "upper": 222150,
+      "lowerExposurePpm": "53270",
+      "upperExposurePpm": "800867",
+      "firstGuardTickAtEntryReference": 222140,
+      "ticksFromEntryToGuard": 10,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222145,
+      "signalInside": true
+    },
+    {
+      "session": "17",
+      "entryTick": 222119,
+      "lower": 222100,
+      "upper": 222140,
+      "lowerExposurePpm": "22245",
+      "upperExposurePpm": "800721",
+      "firstGuardTickAtEntryReference": 222130,
+      "ticksFromEntryToGuard": 11,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222121,
+      "signalInside": true
+    },
+    {
+      "session": "18",
+      "entryTick": 222125,
+      "lower": 222100,
+      "upper": 222140,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "791998",
+      "firstGuardTickAtEntryReference": 222131,
+      "ticksFromEntryToGuard": 6,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222123,
+      "signalInside": true
+    },
+    {
+      "session": "19",
+      "entryTick": 222126,
+      "lower": 222110,
+      "upper": 222150,
+      "lowerExposurePpm": "2734",
+      "upperExposurePpm": "802797",
+      "firstGuardTickAtEntryReference": 222140,
+      "ticksFromEntryToGuard": 14,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222131,
+      "signalInside": true
+    },
+    {
+      "session": "20",
+      "entryTick": 222122,
+      "lower": 222100,
+      "upper": 222140,
+      "lowerExposurePpm": "6294",
+      "upperExposurePpm": "800721",
+      "firstGuardTickAtEntryReference": 222130,
+      "ticksFromEntryToGuard": 8,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222124,
+      "signalInside": true
+    },
+    {
+      "session": "21",
+      "entryTick": 222113,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "9245",
+      "upperExposurePpm": "800566",
+      "firstGuardTickAtEntryReference": 222120,
+      "ticksFromEntryToGuard": 7,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222107,
+      "signalInside": true
+    },
+    {
+      "session": "22",
+      "entryTick": 222108,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "792938",
+      "firstGuardTickAtEntryReference": 222121,
+      "ticksFromEntryToGuard": 13,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222106,
+      "signalInside": true
+    },
+    {
+      "session": "23",
+      "entryTick": 222104,
+      "lower": 222080,
+      "upper": 222120,
+      "lowerExposurePpm": "2606",
+      "upperExposurePpm": "800402",
+      "firstGuardTickAtEntryReference": 222110,
+      "ticksFromEntryToGuard": 6,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222109,
+      "signalInside": true
+    },
+    {
+      "session": "24",
+      "entryTick": 222106,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "783988",
+      "firstGuardTickAtEntryReference": 222121,
+      "ticksFromEntryToGuard": 15,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "reference_or_risk",
+      "signalTick": 222106,
+      "signalInside": true
+    },
+    {
+      "session": "25",
+      "entryTick": 222107,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "799758",
+      "firstGuardTickAtEntryReference": 222121,
+      "ticksFromEntryToGuard": 14,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222107,
+      "signalInside": true
+    },
+    {
+      "session": "26",
+      "entryTick": 222107,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "17040",
+      "upperExposurePpm": "800491",
+      "firstGuardTickAtEntryReference": 222120,
+      "ticksFromEntryToGuard": 13,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222105,
+      "signalInside": true
+    },
+    {
+      "session": "27",
+      "entryTick": 222106,
+      "lower": 222090,
+      "upper": 222130,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "796731",
+      "firstGuardTickAtEntryReference": 222121,
+      "ticksFromEntryToGuard": 15,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "operator_upgrade",
+      "signalTick": 222099,
+      "signalInside": true
+    },
+    {
+      "session": "28",
+      "entryTick": 222099,
+      "lower": 222080,
+      "upper": 222120,
+      "lowerExposurePpm": "2219",
+      "upperExposurePpm": "800307",
+      "firstGuardTickAtEntryReference": 222110,
+      "ticksFromEntryToGuard": 11,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "infrastructure",
+      "signalTick": 222095,
+      "signalInside": true
+    },
+    {
+      "session": "29",
+      "entryTick": 222105,
+      "lower": 222080,
+      "upper": 222120,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "792591",
+      "firstGuardTickAtEntryReference": 222111,
+      "ticksFromEntryToGuard": 6,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222113,
+      "signalInside": true
+    },
+    {
+      "session": "30",
+      "entryTick": 222128,
+      "lower": 222110,
+      "upper": 222150,
+      "lowerExposurePpm": "0",
+      "upperExposurePpm": "796315",
+      "firstGuardTickAtEntryReference": 222141,
+      "ticksFromEntryToGuard": 13,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast",
+      "exitGroup": "inventory",
+      "signalTick": 222141,
+      "signalInside": true
+    },
+    {
+      "session": "31",
+      "entryTick": 222178,
+      "lower": 222160,
+      "upper": 222200,
+      "lowerExposurePpm": "2637",
+      "upperExposurePpm": "800695",
+      "firstGuardTickAtEntryReference": 222190,
+      "ticksFromEntryToGuard": 12,
+      "guardBeforeRiskyBoundary": true,
+      "assumption": "Entry inventory, reference, gas and reserve held fixed; integer tick sensitivity, not a future price forecast"
+    }
+  ],
+  "design": {
+    "scope": "Retrospective diagnostic; no strategy selected or deployed",
+    "anchors": "Last recorded eligible open observation before each first exit signal; excludes the documented operator upgrade",
+    "horizonMinutes": 30,
+    "actions": "Wait; one attempted recenter at existing width; exit to cash. All retain mandatory guards and delayed execution. No subsequent entry or routine recenter.",
+    "costs": {
+      "costs": {
+        "buy": "144716",
+        "sell": "137529",
+        "mint": "357221",
+        "remove": "142329",
+        "revoke": "53439"
+      },
+      "transactions": [
+        {
+          "runId": "9",
+          "sourceBlock": "57673343",
+          "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "action": "approve_entry_swap",
+          "group": "buy",
+          "quote": "35810"
+        },
+        {
+          "runId": "9",
+          "sourceBlock": "57673343",
+          "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "action": "buy_nvda",
+          "group": "buy",
+          "quote": "108906"
+        },
+        {
+          "runId": "9",
+          "sourceBlock": "57673343",
+          "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "action": "approve_mint_usdg",
+          "group": "mint",
+          "quote": "35810"
+        },
+        {
+          "runId": "9",
+          "sourceBlock": "57673343",
+          "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "action": "approve_mint_nvda",
+          "group": "mint",
+          "quote": "39271"
+        },
+        {
+          "runId": "9",
+          "sourceBlock": "57673343",
+          "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+          "action": "mint",
+          "group": "mint",
+          "quote": "282140"
+        },
+        {
+          "runId": "10",
+          "sourceBlock": "57709256",
+          "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+          "action": "decrease_and_collect",
+          "group": "remove",
+          "quote": "142329"
+        },
+        {
+          "runId": "10",
+          "sourceBlock": "57709256",
+          "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+          "action": "approve_exit_swap",
+          "group": "sell",
+          "quote": "38895"
+        },
+        {
+          "runId": "10",
+          "sourceBlock": "57709256",
+          "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+          "action": "sell_nvda",
+          "group": "sell",
+          "quote": "98634"
+        },
+        {
+          "runId": "10",
+          "sourceBlock": "57709256",
+          "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+          "action": "revoke_exit_allowance",
+          "group": "revoke",
+          "quote": "25014"
+        },
+        {
+          "runId": "10",
+          "sourceBlock": "57709256",
+          "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+          "action": "revoke_exit_allowance",
+          "group": "revoke",
+          "quote": "28425"
+        }
+      ],
+      "evidenceClass": "frozen_fork_estimates_from_session_6",
+      "limitations": [
+        "Not historical gas quotes or measured mainnet costs",
+        "Recenter cost is composed from remove, optional swap, mint and approval estimates",
+        "Approval estimates are conservatively repeated at each placement"
+      ]
+    },
+    "feeModel": "Already earned paper fees retained; future fees use existing modeled added-liquidity dilution",
+    "gateBoundary": "Recorded paper decision gates, with inventory recomputed per branch. No orders on frames without observations. Historical current-risk evidence was not immutable before the reliability release.",
+    "recenterConstraints": "Existing model preview, 90-second quote age, five-tick drift, 72% minimum placement, ten-minute cooldown and 60% inventory priority",
+    "limitations": [
+      "Anchors are selected retrospectively before known exits; this is neither a deployable rule nor an untouched performance test",
+      "Overlapping 30-minute windows and common market exposure are correlated; do not sum their deltas into campaign profits",
+      "Only future action costs are doubled in the stress scenario; accrued fees and sunk entry costs remain fixed",
+      "Frozen scenario costs are not fresh quotes; counterfactual cash and fees are modeled, not fork-reproduced",
+      "Operational gates are held as recorded; this does not establish which past infrastructure exits were avoidable",
+      "A rejected recenter follows guarded waiting; report executed and unexecuted intentions separately"
+    ]
+  },
+  "summary": [
+    {
+      "costMultiplier": 1,
+      "completeCases": 25,
+      "recenterExecuted": 0,
+      "recenterPositive": 0,
+      "recenterMedianDeltaExecuted": null,
+      "exitMedianDelta": "0",
+      "latestRuntimeCases": [
+        {
+          "session": "28",
+          "pair": {
+            "costMultiplier": 1,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "0"
+          }
+        },
+        {
+          "session": "29",
+          "pair": {
+            "costMultiplier": 1,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "-40005"
+          }
+        },
+        {
+          "session": "30",
+          "pair": {
+            "costMultiplier": 1,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "764118"
+          }
+        }
+      ]
+    },
+    {
+      "costMultiplier": 2,
+      "completeCases": 25,
+      "recenterExecuted": 0,
+      "recenterPositive": 0,
+      "recenterMedianDeltaExecuted": null,
+      "exitMedianDelta": "0",
+      "latestRuntimeCases": [
+        {
+          "session": "28",
+          "pair": {
+            "costMultiplier": 2,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "0"
+          }
+        },
+        {
+          "session": "29",
+          "pair": {
+            "costMultiplier": 2,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "-40005"
+          }
+        },
+        {
+          "session": "30",
+          "pair": {
+            "costMultiplier": 2,
+            "complete": true,
+            "recenterExecuted": false,
+            "exitExecuted": true,
+            "recenterMinusWait": "0",
+            "exitMinusWait": "764118"
+          }
+        }
+      ]
+    }
+  ],
+  "recenterDisposition": {
+    "initialBlocks": {
+      "recenter_cooldown": 9,
+      "quote_rejected": 9
+    },
+    "quotedThenSafetyExit": {
+      "infrastructure": 2,
+      "inventory": 1,
+      "reference_or_token": 4
+    }
+  },
+  "comparisons": [
+    {
+      "session": "5",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "275",
+      "anchorSourceAt": "2026-09-08T10:13:14.000Z",
+      "anchorObservedAt": "2026-09-08T10:13:28.778Z",
+      "anchorBeforeSignalSeconds": 191.005,
+      "horizonSourceAt": "2026-09-08T10:44:02.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "1000059019",
+          "liquidationNav": "1000059019",
+          "alphaVsAnchorHolding": "-332041",
+          "futureGas": "333297",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3887",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "1000059019",
+          "liquidationNav": "1000059019",
+          "alphaVsAnchorHolding": "-332041",
+          "futureGas": "333297",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3887",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "1000059019",
+          "liquidationNav": "1000059019",
+          "alphaVsAnchorHolding": "-332041",
+          "futureGas": "333297",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3887",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999725722",
+          "liquidationNav": "999725722",
+          "alphaVsAnchorHolding": "-665338",
+          "futureGas": "666594",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3889",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999725722",
+          "liquidationNav": "999725722",
+          "alphaVsAnchorHolding": "-665338",
+          "futureGas": "666594",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3889",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999725722",
+          "liquidationNav": "999725722",
+          "alphaVsAnchorHolding": "-665338",
+          "futureGas": "666594",
+          "drawdownPpm": "1",
+          "maxExposurePpm": "3889",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 6,
+          "accountingOnly": 22,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "6",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "334",
+      "anchorSourceAt": "2026-09-08T12:51:57.000Z",
+      "anchorObservedAt": "2026-09-08T12:52:20.860Z",
+      "anchorBeforeSignalSeconds": 188.939,
+      "horizonSourceAt": "2026-09-08T13:22:43.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999967408",
+          "liquidationNav": "999967408",
+          "alphaVsAnchorHolding": "-384813",
+          "futureGas": "333297",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67817",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999967408",
+          "liquidationNav": "999967408",
+          "alphaVsAnchorHolding": "-384813",
+          "futureGas": "333297",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67817",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999967408",
+          "liquidationNav": "999967408",
+          "alphaVsAnchorHolding": "-384813",
+          "futureGas": "333297",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67817",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999634111",
+          "liquidationNav": "999634111",
+          "alphaVsAnchorHolding": "-718110",
+          "futureGas": "666594",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67839",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999634111",
+          "liquidationNav": "999634111",
+          "alphaVsAnchorHolding": "-718110",
+          "futureGas": "666594",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67839",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "999634111",
+          "liquidationNav": "999634111",
+          "alphaVsAnchorHolding": "-718110",
+          "futureGas": "666594",
+          "drawdownPpm": "32",
+          "maxExposurePpm": "67839",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "7",
+      "exitGroup": "inventory",
+      "anchorObservation": "373",
+      "anchorSourceAt": "2026-09-08T13:34:03.000Z",
+      "anchorObservedAt": "2026-09-08T13:34:23.957Z",
+      "anchorBeforeSignalSeconds": 63.875,
+      "horizonSourceAt": "2026-09-08T14:04:47.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "3777314"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "3777314"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "995130410",
+          "liquidationNav": "995130410",
+          "alphaVsAnchorHolding": "1534207",
+          "futureGas": "333297",
+          "drawdownPpm": "4590",
+          "maxExposurePpm": "792592",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "995130410",
+          "liquidationNav": "995130410",
+          "alphaVsAnchorHolding": "1534207",
+          "futureGas": "333297",
+          "drawdownPpm": "4590",
+          "maxExposurePpm": "792592",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "998907724",
+          "liquidationNav": "998907724",
+          "alphaVsAnchorHolding": "5311521",
+          "futureGas": "333297",
+          "drawdownPpm": "812",
+          "maxExposurePpm": "698130",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "994797113",
+          "liquidationNav": "994797113",
+          "alphaVsAnchorHolding": "1200910",
+          "futureGas": "666594",
+          "drawdownPpm": "4592",
+          "maxExposurePpm": "792857",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "994797113",
+          "liquidationNav": "994797113",
+          "alphaVsAnchorHolding": "1200910",
+          "futureGas": "666594",
+          "drawdownPpm": "4592",
+          "maxExposurePpm": "792857",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "998574427",
+          "liquidationNav": "998574427",
+          "alphaVsAnchorHolding": "4978224",
+          "futureGas": "666594",
+          "drawdownPpm": "812",
+          "maxExposurePpm": "698363",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 2,
+          "accountingOnly": 28,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "8",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "419",
+      "anchorSourceAt": "2026-09-08T15:08:14.000Z",
+      "anchorObservedAt": "2026-09-08T15:08:38.855Z",
+      "anchorBeforeSignalSeconds": 63.13,
+      "horizonSourceAt": "2026-09-08T15:38:56.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "43707"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "43707"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992877190",
+          "liquidationNav": "992877190",
+          "alphaVsAnchorHolding": "683392",
+          "futureGas": "333297",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "391235",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992877190",
+          "liquidationNav": "992877190",
+          "alphaVsAnchorHolding": "683392",
+          "futureGas": "333297",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "391235",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992920897",
+          "liquidationNav": "992920897",
+          "alphaVsAnchorHolding": "727099",
+          "futureGas": "333297",
+          "drawdownPpm": "213",
+          "maxExposurePpm": "391235",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992543893",
+          "liquidationNav": "992543893",
+          "alphaVsAnchorHolding": "350095",
+          "futureGas": "666594",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "391367",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992543893",
+          "liquidationNav": "992543893",
+          "alphaVsAnchorHolding": "350095",
+          "futureGas": "666594",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "391367",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992587600",
+          "liquidationNav": "992587600",
+          "alphaVsAnchorHolding": "393802",
+          "futureGas": "666594",
+          "drawdownPpm": "213",
+          "maxExposurePpm": "391367",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "9",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "440",
+      "anchorSourceAt": "2026-09-08T15:30:45.000Z",
+      "anchorObservedAt": "2026-09-08T15:31:13.942Z",
+      "anchorBeforeSignalSeconds": 63.878,
+      "horizonSourceAt": "2026-09-08T16:01:27.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "83232"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "83232"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "991994837",
+          "liquidationNav": "991994837",
+          "alphaVsAnchorHolding": "156197",
+          "futureGas": "333297",
+          "drawdownPpm": "245",
+          "maxExposurePpm": "355017",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "991994837",
+          "liquidationNav": "991994837",
+          "alphaVsAnchorHolding": "156197",
+          "futureGas": "333297",
+          "drawdownPpm": "245",
+          "maxExposurePpm": "355017",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "992078069",
+          "liquidationNav": "992078069",
+          "alphaVsAnchorHolding": "239429",
+          "futureGas": "333297",
+          "drawdownPpm": "125",
+          "maxExposurePpm": "0",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "991661540",
+          "liquidationNav": "991661540",
+          "alphaVsAnchorHolding": "-177100",
+          "futureGas": "666594",
+          "drawdownPpm": "245",
+          "maxExposurePpm": "355136",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "991661540",
+          "liquidationNav": "991661540",
+          "alphaVsAnchorHolding": "-177100",
+          "futureGas": "666594",
+          "drawdownPpm": "245",
+          "maxExposurePpm": "355136",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "991744772",
+          "liquidationNav": "991744772",
+          "alphaVsAnchorHolding": "-93868",
+          "futureGas": "666594",
+          "drawdownPpm": "125",
+          "maxExposurePpm": "0",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "10",
+      "exitGroup": "inventory",
+      "anchorObservation": "456",
+      "anchorSourceAt": "2026-09-08T15:48:09.000Z",
+      "anchorObservedAt": "2026-09-08T15:48:27.826Z",
+      "anchorBeforeSignalSeconds": 79.976,
+      "horizonSourceAt": "2026-09-08T16:18:55.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "167231"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "167231"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "990029736",
+          "liquidationNav": "990029736",
+          "alphaVsAnchorHolding": "605098",
+          "futureGas": "333297",
+          "drawdownPpm": "653",
+          "maxExposurePpm": "653094",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "990029736",
+          "liquidationNav": "990029736",
+          "alphaVsAnchorHolding": "605098",
+          "futureGas": "333297",
+          "drawdownPpm": "653",
+          "maxExposurePpm": "653094",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "990196967",
+          "liquidationNav": "990196967",
+          "alphaVsAnchorHolding": "772329",
+          "futureGas": "333297",
+          "drawdownPpm": "485",
+          "maxExposurePpm": "630360",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989696439",
+          "liquidationNav": "989696439",
+          "alphaVsAnchorHolding": "271801",
+          "futureGas": "666594",
+          "drawdownPpm": "654",
+          "maxExposurePpm": "653314",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "989696439",
+          "liquidationNav": "989696439",
+          "alphaVsAnchorHolding": "271801",
+          "futureGas": "666594",
+          "drawdownPpm": "654",
+          "maxExposurePpm": "653314",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989863670",
+          "liquidationNav": "989863670",
+          "alphaVsAnchorHolding": "439032",
+          "futureGas": "666594",
+          "drawdownPpm": "485",
+          "maxExposurePpm": "630572",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 2,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "11",
+      "exitGroup": "inventory",
+      "anchorObservation": "481",
+      "anchorSourceAt": "2026-09-08T16:15:51.000Z",
+      "anchorObservedAt": "2026-09-08T16:16:13.844Z",
+      "anchorBeforeSignalSeconds": 62.957,
+      "horizonSourceAt": "2026-09-08T16:46:34.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-266161"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-266161"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "988551338",
+          "liquidationNav": "988551338",
+          "alphaVsAnchorHolding": "-567223",
+          "futureGas": "333297",
+          "drawdownPpm": "520",
+          "maxExposurePpm": "703910",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "988551338",
+          "liquidationNav": "988551338",
+          "alphaVsAnchorHolding": "-567223",
+          "futureGas": "333297",
+          "drawdownPpm": "520",
+          "maxExposurePpm": "703910",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "988285177",
+          "liquidationNav": "988285177",
+          "alphaVsAnchorHolding": "-833384",
+          "futureGas": "333297",
+          "drawdownPpm": "790",
+          "maxExposurePpm": "703910",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "988218041",
+          "liquidationNav": "988218041",
+          "alphaVsAnchorHolding": "-900520",
+          "futureGas": "666594",
+          "drawdownPpm": "521",
+          "maxExposurePpm": "704147",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "988218041",
+          "liquidationNav": "988218041",
+          "alphaVsAnchorHolding": "-900520",
+          "futureGas": "666594",
+          "drawdownPpm": "521",
+          "maxExposurePpm": "704147",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "987951880",
+          "liquidationNav": "987951880",
+          "alphaVsAnchorHolding": "-1166681",
+          "futureGas": "666594",
+          "drawdownPpm": "790",
+          "maxExposurePpm": "704147",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "12",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "599",
+      "anchorSourceAt": "2026-09-08T18:16:37.000Z",
+      "anchorObservedAt": "2026-09-08T18:16:57.873Z",
+      "anchorBeforeSignalSeconds": 189.036,
+      "horizonSourceAt": "2026-09-08T18:47:17.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989515548",
+          "liquidationNav": "989515548",
+          "alphaVsAnchorHolding": "-651704",
+          "futureGas": "333297",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444295",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "989515548",
+          "liquidationNav": "989515548",
+          "alphaVsAnchorHolding": "-651704",
+          "futureGas": "333297",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444295",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989515548",
+          "liquidationNav": "989515548",
+          "alphaVsAnchorHolding": "-651704",
+          "futureGas": "333297",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444295",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989182251",
+          "liquidationNav": "989182251",
+          "alphaVsAnchorHolding": "-985001",
+          "futureGas": "666594",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444445",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "989182251",
+          "liquidationNav": "989182251",
+          "alphaVsAnchorHolding": "-985001",
+          "futureGas": "666594",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444445",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "989182251",
+          "liquidationNav": "989182251",
+          "alphaVsAnchorHolding": "-985001",
+          "futureGas": "666594",
+          "drawdownPpm": "217",
+          "maxExposurePpm": "444445",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "13",
+      "exitGroup": "inventory",
+      "anchorObservation": "628",
+      "anchorSourceAt": "2026-09-08T18:48:19.000Z",
+      "anchorObservedAt": "2026-09-08T18:48:37.834Z",
+      "anchorBeforeSignalSeconds": 63.981,
+      "horizonSourceAt": "2026-09-08T19:19:02.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-842669"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-842669"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "988616691",
+          "liquidationNav": "988616691",
+          "alphaVsAnchorHolding": "396093",
+          "futureGas": "333297",
+          "drawdownPpm": "722",
+          "maxExposurePpm": "719976",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "988616691",
+          "liquidationNav": "988616691",
+          "alphaVsAnchorHolding": "396093",
+          "futureGas": "333297",
+          "drawdownPpm": "722",
+          "maxExposurePpm": "719976",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "987774022",
+          "liquidationNav": "987774022",
+          "alphaVsAnchorHolding": "-446576",
+          "futureGas": "333297",
+          "drawdownPpm": "1085",
+          "maxExposurePpm": "719976",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "988283394",
+          "liquidationNav": "988283394",
+          "alphaVsAnchorHolding": "62796",
+          "futureGas": "666594",
+          "drawdownPpm": "723",
+          "maxExposurePpm": "720218",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "988283394",
+          "liquidationNav": "988283394",
+          "alphaVsAnchorHolding": "62796",
+          "futureGas": "666594",
+          "drawdownPpm": "723",
+          "maxExposurePpm": "720218",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "987440725",
+          "liquidationNav": "987440725",
+          "alphaVsAnchorHolding": "-779873",
+          "futureGas": "666594",
+          "drawdownPpm": "1085",
+          "maxExposurePpm": "720218",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 23,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "14",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "645",
+      "anchorSourceAt": "2026-09-08T19:08:45.000Z",
+      "anchorObservedAt": "2026-09-08T19:09:22.366Z",
+      "anchorBeforeSignalSeconds": 160.482,
+      "horizonSourceAt": "2026-09-08T19:39:32.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986816974",
+          "liquidationNav": "986816974",
+          "alphaVsAnchorHolding": "-1137978",
+          "futureGas": "333297",
+          "drawdownPpm": "759",
+          "maxExposurePpm": "691646",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "986816974",
+          "liquidationNav": "986816974",
+          "alphaVsAnchorHolding": "-1137978",
+          "futureGas": "333297",
+          "drawdownPpm": "759",
+          "maxExposurePpm": "691646",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986816974",
+          "liquidationNav": "986816974",
+          "alphaVsAnchorHolding": "-1137978",
+          "futureGas": "333297",
+          "drawdownPpm": "759",
+          "maxExposurePpm": "691646",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986483677",
+          "liquidationNav": "986483677",
+          "alphaVsAnchorHolding": "-1471275",
+          "futureGas": "666594",
+          "drawdownPpm": "760",
+          "maxExposurePpm": "691880",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "986483677",
+          "liquidationNav": "986483677",
+          "alphaVsAnchorHolding": "-1471275",
+          "futureGas": "666594",
+          "drawdownPpm": "760",
+          "maxExposurePpm": "691880",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986483677",
+          "liquidationNav": "986483677",
+          "alphaVsAnchorHolding": "-1471275",
+          "futureGas": "666594",
+          "drawdownPpm": "760",
+          "maxExposurePpm": "691880",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 24,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "15",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "663",
+      "anchorSourceAt": "2026-09-08T19:31:20.000Z",
+      "anchorObservedAt": "2026-09-08T19:31:55.393Z",
+      "anchorBeforeSignalSeconds": 175.514,
+      "horizonSourceAt": "2026-09-08T20:02:08.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986153515",
+          "liquidationNav": "986153515",
+          "alphaVsAnchorHolding": "-492278",
+          "futureGas": "333297",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230824",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "986153515",
+          "liquidationNav": "986153515",
+          "alphaVsAnchorHolding": "-492278",
+          "futureGas": "333297",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230824",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "986153515",
+          "liquidationNav": "986153515",
+          "alphaVsAnchorHolding": "-492278",
+          "futureGas": "333297",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230824",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "985820218",
+          "liquidationNav": "985820218",
+          "alphaVsAnchorHolding": "-825575",
+          "futureGas": "666594",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230902",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "985820218",
+          "liquidationNav": "985820218",
+          "alphaVsAnchorHolding": "-825575",
+          "futureGas": "666594",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230902",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "985820218",
+          "liquidationNav": "985820218",
+          "alphaVsAnchorHolding": "-825575",
+          "futureGas": "666594",
+          "drawdownPpm": "101",
+          "maxExposurePpm": "230902",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "16",
+      "exitGroup": "inventory",
+      "anchorObservation": "683",
+      "anchorSourceAt": "2026-09-08T19:53:55.000Z",
+      "anchorObservedAt": "2026-09-08T19:54:36.274Z",
+      "anchorBeforeSignalSeconds": 33.556,
+      "horizonSourceAt": "2026-09-08T20:24:42.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-648373"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-648373"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "984701367",
+          "liquidationNav": "984701367",
+          "alphaVsAnchorHolding": "-1142881",
+          "futureGas": "333297",
+          "drawdownPpm": "715",
+          "maxExposurePpm": "717437",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "984701367",
+          "liquidationNav": "984701367",
+          "alphaVsAnchorHolding": "-1142881",
+          "futureGas": "333297",
+          "drawdownPpm": "715",
+          "maxExposurePpm": "717437",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "984052994",
+          "liquidationNav": "984052994",
+          "alphaVsAnchorHolding": "-1791254",
+          "futureGas": "333297",
+          "drawdownPpm": "1076",
+          "maxExposurePpm": "717437",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "984368070",
+          "liquidationNav": "984368070",
+          "alphaVsAnchorHolding": "-1476178",
+          "futureGas": "666594",
+          "drawdownPpm": "715",
+          "maxExposurePpm": "717680",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "984368070",
+          "liquidationNav": "984368070",
+          "alphaVsAnchorHolding": "-1476178",
+          "futureGas": "666594",
+          "drawdownPpm": "715",
+          "maxExposurePpm": "717680",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "983719697",
+          "liquidationNav": "983719697",
+          "alphaVsAnchorHolding": "-2124551",
+          "futureGas": "666594",
+          "drawdownPpm": "1077",
+          "maxExposurePpm": "717680",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "17",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "708",
+      "anchorSourceAt": "2026-09-08T20:19:34.000Z",
+      "anchorObservedAt": "2026-09-08T20:19:59.737Z",
+      "anchorBeforeSignalSeconds": 63.05,
+      "horizonSourceAt": "2026-09-08T20:50:18.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "983545049",
+          "liquidationNav": "983545049",
+          "alphaVsAnchorHolding": "-371306",
+          "futureGas": "333297",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445591",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "983545049",
+          "liquidationNav": "983545049",
+          "alphaVsAnchorHolding": "-371306",
+          "futureGas": "333297",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445591",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "983545049",
+          "liquidationNav": "983545049",
+          "alphaVsAnchorHolding": "-371306",
+          "futureGas": "333297",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445591",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "983211752",
+          "liquidationNav": "983211752",
+          "alphaVsAnchorHolding": "-704603",
+          "futureGas": "666594",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445742",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "983211752",
+          "liquidationNav": "983211752",
+          "alphaVsAnchorHolding": "-704603",
+          "futureGas": "666594",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445742",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "983211752",
+          "liquidationNav": "983211752",
+          "alphaVsAnchorHolding": "-704603",
+          "futureGas": "666594",
+          "drawdownPpm": "221",
+          "maxExposurePpm": "445742",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "18",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "778",
+      "anchorSourceAt": "2026-09-08T21:31:14.000Z",
+      "anchorObservedAt": "2026-09-08T21:31:37.797Z",
+      "anchorBeforeSignalSeconds": 62.861,
+      "horizonSourceAt": "2026-09-08T22:02:00.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "12318"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "12318"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982736083",
+          "liquidationNav": "982736083",
+          "alphaVsAnchorHolding": "-526869",
+          "futureGas": "333297",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "471163",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982736083",
+          "liquidationNav": "982736083",
+          "alphaVsAnchorHolding": "-526869",
+          "futureGas": "333297",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "471163",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982748401",
+          "liquidationNav": "982748401",
+          "alphaVsAnchorHolding": "-514551",
+          "futureGas": "333297",
+          "drawdownPpm": "228",
+          "maxExposurePpm": "465977",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982402786",
+          "liquidationNav": "982402786",
+          "alphaVsAnchorHolding": "-860166",
+          "futureGas": "666594",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "471323",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982402786",
+          "liquidationNav": "982402786",
+          "alphaVsAnchorHolding": "-860166",
+          "futureGas": "666594",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "471323",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "982415104",
+          "liquidationNav": "982415104",
+          "alphaVsAnchorHolding": "-847848",
+          "futureGas": "666594",
+          "drawdownPpm": "229",
+          "maxExposurePpm": "466135",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "19",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "915",
+      "anchorSourceAt": "2026-09-08T23:51:24.000Z",
+      "anchorObservedAt": "2026-09-08T23:51:50.825Z",
+      "anchorBeforeSignalSeconds": 190.963,
+      "horizonSourceAt": "2026-09-09T00:22:11.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "981025291",
+          "liquidationNav": "981025291",
+          "alphaVsAnchorHolding": "-860260",
+          "futureGas": "333297",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458532",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "981025291",
+          "liquidationNav": "981025291",
+          "alphaVsAnchorHolding": "-860260",
+          "futureGas": "333297",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458532",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "981025291",
+          "liquidationNav": "981025291",
+          "alphaVsAnchorHolding": "-860260",
+          "futureGas": "333297",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458532",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "980691994",
+          "liquidationNav": "980691994",
+          "alphaVsAnchorHolding": "-1193557",
+          "futureGas": "666594",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458687",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "980691994",
+          "liquidationNav": "980691994",
+          "alphaVsAnchorHolding": "-1193557",
+          "futureGas": "666594",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458687",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "980691994",
+          "liquidationNav": "980691994",
+          "alphaVsAnchorHolding": "-1193557",
+          "futureGas": "666594",
+          "drawdownPpm": "257",
+          "maxExposurePpm": "458687",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "20",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "966",
+      "anchorSourceAt": "2026-09-09T00:45:45.000Z",
+      "anchorObservedAt": "2026-09-09T00:46:06.871Z",
+      "anchorBeforeSignalSeconds": 63.169,
+      "horizonSourceAt": "2026-09-09T01:16:30.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-11028"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-11028"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979832430",
+          "liquidationNav": "979832430",
+          "alphaVsAnchorHolding": "-1234082",
+          "futureGas": "333297",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "493759",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "979832430",
+          "liquidationNav": "979832430",
+          "alphaVsAnchorHolding": "-1234082",
+          "futureGas": "333297",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "493759",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979821402",
+          "liquidationNav": "979821402",
+          "alphaVsAnchorHolding": "-1245110",
+          "futureGas": "333297",
+          "drawdownPpm": "258",
+          "maxExposurePpm": "493759",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979499133",
+          "liquidationNav": "979499133",
+          "alphaVsAnchorHolding": "-1567379",
+          "futureGas": "666594",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "493927",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "979499133",
+          "liquidationNav": "979499133",
+          "alphaVsAnchorHolding": "-1567379",
+          "futureGas": "666594",
+          "drawdownPpm": "246",
+          "maxExposurePpm": "493927",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979488105",
+          "liquidationNav": "979488105",
+          "alphaVsAnchorHolding": "-1578407",
+          "futureGas": "666594",
+          "drawdownPpm": "258",
+          "maxExposurePpm": "493927",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "21",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "1052",
+      "anchorSourceAt": "2026-09-09T02:15:02.000Z",
+      "anchorObservedAt": "2026-09-09T02:15:14.877Z",
+      "anchorBeforeSignalSeconds": 79.876,
+      "horizonSourceAt": "2026-09-09T02:45:50.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "17457"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "17457"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979576224",
+          "liquidationNav": "979576224",
+          "alphaVsAnchorHolding": "-536531",
+          "futureGas": "333297",
+          "drawdownPpm": "192",
+          "maxExposurePpm": "357807",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "979576224",
+          "liquidationNav": "979576224",
+          "alphaVsAnchorHolding": "-536531",
+          "futureGas": "333297",
+          "drawdownPpm": "192",
+          "maxExposurePpm": "357807",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979593681",
+          "liquidationNav": "979593681",
+          "alphaVsAnchorHolding": "-519074",
+          "futureGas": "333297",
+          "drawdownPpm": "173",
+          "maxExposurePpm": "348484",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979242927",
+          "liquidationNav": "979242927",
+          "alphaVsAnchorHolding": "-869828",
+          "futureGas": "666594",
+          "drawdownPpm": "192",
+          "maxExposurePpm": "357929",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "979242927",
+          "liquidationNav": "979242927",
+          "alphaVsAnchorHolding": "-869828",
+          "futureGas": "666594",
+          "drawdownPpm": "192",
+          "maxExposurePpm": "357929",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "979260384",
+          "liquidationNav": "979260384",
+          "alphaVsAnchorHolding": "-852371",
+          "futureGas": "666594",
+          "drawdownPpm": "173",
+          "maxExposurePpm": "348602",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "22",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "1082",
+      "anchorSourceAt": "2026-09-09T02:45:50.000Z",
+      "anchorObservedAt": "2026-09-09T02:46:08.874Z",
+      "anchorBeforeSignalSeconds": 64,
+      "horizonSourceAt": "2026-09-09T03:16:36.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-103047"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-103047"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978777502",
+          "liquidationNav": "978777502",
+          "alphaVsAnchorHolding": "-348678",
+          "futureGas": "333297",
+          "drawdownPpm": "61",
+          "maxExposurePpm": "331604",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978777502",
+          "liquidationNav": "978777502",
+          "alphaVsAnchorHolding": "-348678",
+          "futureGas": "333297",
+          "drawdownPpm": "61",
+          "maxExposurePpm": "331604",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978674455",
+          "liquidationNav": "978674455",
+          "alphaVsAnchorHolding": "-451725",
+          "futureGas": "333297",
+          "drawdownPpm": "165",
+          "maxExposurePpm": "331604",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978444205",
+          "liquidationNav": "978444205",
+          "alphaVsAnchorHolding": "-681975",
+          "futureGas": "666594",
+          "drawdownPpm": "61",
+          "maxExposurePpm": "331717",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978444205",
+          "liquidationNav": "978444205",
+          "alphaVsAnchorHolding": "-681975",
+          "futureGas": "666594",
+          "drawdownPpm": "61",
+          "maxExposurePpm": "331717",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "978341158",
+          "liquidationNav": "978341158",
+          "alphaVsAnchorHolding": "-785022",
+          "futureGas": "666594",
+          "drawdownPpm": "165",
+          "maxExposurePpm": "331717",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "23",
+      "exitGroup": "inventory",
+      "anchorObservation": "1142",
+      "anchorSourceAt": "2026-09-09T03:48:17.000Z",
+      "anchorObservedAt": "2026-09-09T03:48:39.905Z",
+      "anchorBeforeSignalSeconds": 61.846,
+      "horizonSourceAt": "2026-09-09T04:19:00.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "33619"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "33619"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "977304235",
+          "liquidationNav": "977304235",
+          "alphaVsAnchorHolding": "-667664",
+          "futureGas": "333297",
+          "drawdownPpm": "341",
+          "maxExposurePpm": "617972",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "977304235",
+          "liquidationNav": "977304235",
+          "alphaVsAnchorHolding": "-667664",
+          "futureGas": "333297",
+          "drawdownPpm": "341",
+          "maxExposurePpm": "617972",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "977337854",
+          "liquidationNav": "977337854",
+          "alphaVsAnchorHolding": "-634045",
+          "futureGas": "333297",
+          "drawdownPpm": "306",
+          "maxExposurePpm": "600473",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976970938",
+          "liquidationNav": "976970938",
+          "alphaVsAnchorHolding": "-1000961",
+          "futureGas": "666594",
+          "drawdownPpm": "341",
+          "maxExposurePpm": "618183",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "976970938",
+          "liquidationNav": "976970938",
+          "alphaVsAnchorHolding": "-1000961",
+          "futureGas": "666594",
+          "drawdownPpm": "341",
+          "maxExposurePpm": "618183",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "977004557",
+          "liquidationNav": "977004557",
+          "alphaVsAnchorHolding": "-967342",
+          "futureGas": "666594",
+          "drawdownPpm": "307",
+          "maxExposurePpm": "600678",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "24",
+      "exitGroup": "reference_or_risk",
+      "anchorObservation": "1214",
+      "anchorSourceAt": "2026-09-09T05:03:07.000Z",
+      "anchorObservedAt": "2026-09-09T05:03:26.854Z",
+      "anchorBeforeSignalSeconds": 64.141,
+      "horizonSourceAt": "2026-09-09T05:33:55.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-8471"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-8471"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976487776",
+          "liquidationNav": "976487776",
+          "alphaVsAnchorHolding": "-448307",
+          "futureGas": "333297",
+          "drawdownPpm": "157",
+          "maxExposurePpm": "330555",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976487776",
+          "liquidationNav": "976487776",
+          "alphaVsAnchorHolding": "-448307",
+          "futureGas": "333297",
+          "drawdownPpm": "157",
+          "maxExposurePpm": "330555",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976479305",
+          "liquidationNav": "976479305",
+          "alphaVsAnchorHolding": "-456778",
+          "futureGas": "333297",
+          "drawdownPpm": "162",
+          "maxExposurePpm": "330555",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976154479",
+          "liquidationNav": "976154479",
+          "alphaVsAnchorHolding": "-781604",
+          "futureGas": "666594",
+          "drawdownPpm": "157",
+          "maxExposurePpm": "330668",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976154479",
+          "liquidationNav": "976154479",
+          "alphaVsAnchorHolding": "-781604",
+          "futureGas": "666594",
+          "drawdownPpm": "157",
+          "maxExposurePpm": "330668",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "reference_or_token"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "976146008",
+          "liquidationNav": "976146008",
+          "alphaVsAnchorHolding": "-790075",
+          "futureGas": "666594",
+          "drawdownPpm": "162",
+          "maxExposurePpm": "330668",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "25",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "1234",
+      "anchorSourceAt": "2026-09-09T05:23:38.000Z",
+      "anchorObservedAt": "2026-09-09T05:23:51.827Z",
+      "anchorBeforeSignalSeconds": 94.493,
+      "horizonSourceAt": "2026-09-09T05:54:23.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975401992",
+          "liquidationNav": "975401992",
+          "alphaVsAnchorHolding": "-469873",
+          "futureGas": "333297",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358361",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "975401992",
+          "liquidationNav": "975401992",
+          "alphaVsAnchorHolding": "-469873",
+          "futureGas": "333297",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358361",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975401992",
+          "liquidationNav": "975401992",
+          "alphaVsAnchorHolding": "-469873",
+          "futureGas": "333297",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358361",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975068695",
+          "liquidationNav": "975068695",
+          "alphaVsAnchorHolding": "-803170",
+          "futureGas": "666594",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358483",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "975068695",
+          "liquidationNav": "975068695",
+          "alphaVsAnchorHolding": "-803170",
+          "futureGas": "666594",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358483",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975068695",
+          "liquidationNav": "975068695",
+          "alphaVsAnchorHolding": "-803170",
+          "futureGas": "666594",
+          "drawdownPpm": "178",
+          "maxExposurePpm": "358483",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 30,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "26",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "1326",
+      "anchorSourceAt": "2026-09-09T06:57:52.000Z",
+      "anchorObservedAt": "2026-09-09T06:58:16.906Z",
+      "anchorBeforeSignalSeconds": 189.972,
+      "horizonSourceAt": "2026-09-09T07:28:32.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975382166",
+          "liquidationNav": "975382166",
+          "alphaVsAnchorHolding": "-356110",
+          "futureGas": "333297",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330541",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "975382166",
+          "liquidationNav": "975382166",
+          "alphaVsAnchorHolding": "-356110",
+          "futureGas": "333297",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330541",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975382166",
+          "liquidationNav": "975382166",
+          "alphaVsAnchorHolding": "-356110",
+          "futureGas": "333297",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330541",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975048869",
+          "liquidationNav": "975048869",
+          "alphaVsAnchorHolding": "-689407",
+          "futureGas": "666594",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330654",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "975048869",
+          "liquidationNav": "975048869",
+          "alphaVsAnchorHolding": "-689407",
+          "futureGas": "666594",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330654",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "975048869",
+          "liquidationNav": "975048869",
+          "alphaVsAnchorHolding": "-689407",
+          "futureGas": "666594",
+          "drawdownPpm": "155",
+          "maxExposurePpm": "330654",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 27,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "28",
+      "exitGroup": "infrastructure",
+      "anchorObservation": "1415",
+      "anchorSourceAt": "2026-09-09T08:35:02.000Z",
+      "anchorObservedAt": "2026-09-09T08:35:18.923Z",
+      "anchorBeforeSignalSeconds": 191.219,
+      "horizonSourceAt": "2026-09-09T09:05:45.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "0"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "973935010",
+          "liquidationNav": "973935010",
+          "alphaVsAnchorHolding": "-358134",
+          "futureGas": "333297",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453686",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "973935010",
+          "liquidationNav": "973935010",
+          "alphaVsAnchorHolding": "-358134",
+          "futureGas": "333297",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453686",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "973935010",
+          "liquidationNav": "973935010",
+          "alphaVsAnchorHolding": "-358134",
+          "futureGas": "333297",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453686",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "973601713",
+          "liquidationNav": "973601713",
+          "alphaVsAnchorHolding": "-691431",
+          "futureGas": "666594",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453841",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "973601713",
+          "liquidationNav": "973601713",
+          "alphaVsAnchorHolding": "-691431",
+          "futureGas": "666594",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453841",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "infrastructure"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "973601713",
+          "liquidationNav": "973601713",
+          "alphaVsAnchorHolding": "-691431",
+          "futureGas": "666594",
+          "drawdownPpm": "375",
+          "maxExposurePpm": "453841",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 28,
+          "accountingOnly": 0,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "29",
+      "exitGroup": "inventory",
+      "anchorObservation": "1461",
+      "anchorSourceAt": "2026-09-09T09:24:13.000Z",
+      "anchorObservedAt": "2026-09-09T09:24:42.750Z",
+      "anchorBeforeSignalSeconds": 48.153,
+      "horizonSourceAt": "2026-09-09T09:55:04.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-40005"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "-40005"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "972413802",
+          "liquidationNav": "972413802",
+          "alphaVsAnchorHolding": "955712",
+          "futureGas": "333297",
+          "drawdownPpm": "515",
+          "maxExposurePpm": "662575",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "972413802",
+          "liquidationNav": "972413802",
+          "alphaVsAnchorHolding": "955712",
+          "futureGas": "333297",
+          "drawdownPpm": "515",
+          "maxExposurePpm": "662575",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "972373797",
+          "liquidationNav": "972373797",
+          "alphaVsAnchorHolding": "915707",
+          "futureGas": "333297",
+          "drawdownPpm": "556",
+          "maxExposurePpm": "662575",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "972080505",
+          "liquidationNav": "972080505",
+          "alphaVsAnchorHolding": "622415",
+          "futureGas": "666594",
+          "drawdownPpm": "515",
+          "maxExposurePpm": "662802",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "quote_rejected",
+          "invalid": null,
+          "nav": "972080505",
+          "liquidationNav": "972080505",
+          "alphaVsAnchorHolding": "622415",
+          "futureGas": "666594",
+          "drawdownPpm": "515",
+          "maxExposurePpm": "662802",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {
+            "quote_funding": 1
+          },
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "972040500",
+          "liquidationNav": "972040500",
+          "alphaVsAnchorHolding": "582410",
+          "futureGas": "666594",
+          "drawdownPpm": "557",
+          "maxExposurePpm": "662802",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    },
+    {
+      "session": "30",
+      "exitGroup": "inventory",
+      "anchorObservation": "1489",
+      "anchorSourceAt": "2026-09-09T09:54:02.000Z",
+      "anchorObservedAt": "2026-09-09T09:54:28.893Z",
+      "anchorBeforeSignalSeconds": 63.608,
+      "horizonSourceAt": "2026-09-09T10:24:46.000Z",
+      "paired": [
+        {
+          "costMultiplier": 1,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "764118"
+        },
+        {
+          "costMultiplier": 2,
+          "complete": true,
+          "recenterExecuted": false,
+          "exitExecuted": true,
+          "recenterMinusWait": "0",
+          "exitMinusWait": "764118"
+        }
+      ],
+      "branches": [
+        {
+          "action": "wait",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "970004672",
+          "liquidationNav": "970004672",
+          "alphaVsAnchorHolding": "526158",
+          "futureGas": "333297",
+          "drawdownPpm": "1332",
+          "maxExposurePpm": "795500",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 1,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "970004672",
+          "liquidationNav": "970004672",
+          "alphaVsAnchorHolding": "526158",
+          "futureGas": "333297",
+          "drawdownPpm": "1332",
+          "maxExposurePpm": "795500",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 1,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "970768790",
+          "liquidationNav": "970768790",
+          "alphaVsAnchorHolding": "1290276",
+          "futureGas": "333297",
+          "drawdownPpm": "545",
+          "maxExposurePpm": "618325",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        },
+        {
+          "action": "wait",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "969671375",
+          "liquidationNav": "969671375",
+          "alphaVsAnchorHolding": "192861",
+          "futureGas": "666594",
+          "drawdownPpm": "1332",
+          "maxExposurePpm": "795774",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "recenter",
+          "costMultiplier": 2,
+          "initialBlock": "recenter_cooldown",
+          "invalid": null,
+          "nav": "969671375",
+          "liquidationNav": "969671375",
+          "alphaVsAnchorHolding": "192861",
+          "futureGas": "666594",
+          "drawdownPpm": "1332",
+          "maxExposurePpm": "795774",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "inventory"
+          ]
+        },
+        {
+          "action": "exit",
+          "costMultiplier": 2,
+          "initialBlock": null,
+          "invalid": null,
+          "nav": "970435493",
+          "liquidationNav": "970435493",
+          "alphaVsAnchorHolding": "956979",
+          "futureGas": "666594",
+          "drawdownPpm": "545",
+          "maxExposurePpm": "618537",
+          "recenters": 0,
+          "exits": 1,
+          "blocked": {},
+          "decisionObservations": 29,
+          "accountingOnly": 1,
+          "exitReasons": [
+            "diagnostic_exit"
+          ]
+        }
+      ]
+    }
+  ],
+  "inventoryRiskIllustration": {
+    "budgetUSDG": 1000,
+    "rows": [
+      {
+        "exposurePercent": 60,
+        "riskyValueUSDG": 600,
+        "lossAt5PercentFurtherDeclineUSDG": 30,
+        "lossAt10PercentFurtherDeclineUSDG": 60
+      },
+      {
+        "exposurePercent": 80,
+        "riskyValueUSDG": 800,
+        "lossAt5PercentFurtherDeclineUSDG": 40,
+        "lossAt10PercentFurtherDeclineUSDG": 80
+      }
+    ],
+    "scope": "Static NVDA holdings after the LP becomes one-sided, with remaining assets held as cash. Arithmetic illustration, not a forecast or backtest; excludes fees, trading costs and issuer/reference risks."
+  }
+}

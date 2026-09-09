@@ -45,3 +45,5 @@ The research decision should distinguish three questions:
 These are questions for the next design discussion, not a selected experiment grid. Keep absolute wealth, a common passive-holding comparator, fees and execution drag separate. Any learned allocation must be tested against simpler rules under the same capital, timing and reference constraints. Retain adverse and unavailable-data episodes with explicit provenance. A separate unseen weekend remains necessary for a weekend-specific conclusion.
 
 The useful research direction is to examine when management adds value before choosing a larger parameter search or ML stack. The paper trade continues collecting operational evidence while the comparison remains ended.
+
+The authorized [management and inventory-cap audit](lp-management-audit-2026-09-09/README.md) subsequently reconciles recorded actions across 27 sessions, examines shared-inventory action outcomes, and quantifies the conflict between 80% LP allocation and the 60% inventory exit. It selects no replacement cap or new forward experiment.

@@ -1,0 +1,57 @@
+{
+  "checkedAt": "2026-09-09T12:20:02.095Z",
+  "paper": {
+    "session": "31",
+    "status": "open",
+    "heartbeatAt": "2026-09-09T12:19:53.664Z",
+    "runtime": {
+      "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "chainValid": true,
+    "campaign": {
+      "rootSessionId": "5",
+      "sessionIds": [
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31"
+      ],
+      "initialBudgetQuote": "1000000000",
+      "navQuote": "971425475",
+      "pnlQuote": "-28574525",
+      "holdQuote": "990611813",
+      "alphaQuote": "-19186338",
+      "costsPaidQuote": "22283817",
+      "sourceAt": "2026-09-09T15:19:34+03:00"
+    }
+  },
+  "paperTimer": "ActiveState=active\nUnitFileState=enabled",
+  "comparison": "MainPID=0\nActiveState=inactive\nUnitFileState=disabled",
+  "comparisonLedgerUnchanged": true,
+  "scope": "Read-only research and local artifacts only; no paper runtime/configuration change, restart or session control; comparison remains ended."
+}
