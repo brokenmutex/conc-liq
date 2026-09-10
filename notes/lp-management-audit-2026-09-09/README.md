@@ -2,6 +2,8 @@
 
 Frozen evidence cutoff: **9 September 2026, 12:02:45 UTC / 15:02:45 Vilnius**. The paper campaign continues under its existing sealed runtime. The four-strategy comparison remains ended. This is a retrospective audit, with no policy change or new forward comparison.
 
+The [10 September follow-up](../paper-performance-2026-09-10/README.md) covers the next 18 completed sessions, including new inventory, chain-health and multiplier-transition evidence. The figures below retain their original cutoff.
+
 ## Conclusion and the user's inventory-limit question
 
 **The 60% cap has not been established as an economically appropriate setting.** It conflicts with allowing a normally filled 80%-allocated LP position to become one-sided in NVDA. A legitimate portfolio exposure ceiling can still be 60%, but then allocation, intervention rules and the willingness to remain outside the earning range must be designed around that ceiling.

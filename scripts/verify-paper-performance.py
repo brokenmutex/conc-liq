@@ -1,4 +1,4 @@
-"""Independent integer checks of the frozen September 9 paper audit.
+"""Independent integer checks of a frozen paper audit.
 
 No database access, runtime imports, or writes except the requested new output.
 Usage: python3 scripts/verify-paper-performance.py SOURCE METRICS OUTPUT
@@ -36,14 +36,22 @@ closed = [s for s in sessions if s["status"] == "closed"]
 runs = {r["id"]: r for r in d["executions"]}
 metrics = {s["id"]: s for s in audit["sessions"]}
 checks, overlaps = [], []
-groups = {"inventory": [], "chain": [], "risk_reference": []}
+groups = {"inventory": [], "chain": [], "risk_reference": [], "unclassified": []}
 entry_actions = {"approve_entry_swap", "buy_nvda", "approve_mint_usdg", "approve_mint_nvda", "mint"}
 for index, session in enumerate(sessions):
     sid, state = session["id"], session["state"]
     if index:
         assert session["policy"]["reentry"]["previousSessionId"] == sessions[index-1]["id"]
         assert session["policy"]["budgetQuote"] == sessions[index-1]["state"]["navQuote"]
-    entry_run = runs[state["execution"]["entryRunId"]]
+    entry_run_id = (state.get("execution") or {}).get("entryRunId")
+    if entry_run_id is None:
+        assert session["status"] in ("waiting", "entry_pending") and state["position"] is None
+        assert int(state["costsPaidQuote"]) == int(state["exitReserveQuote"]) == 0
+        assert state["navQuote"] in (None, session["policy"]["budgetQuote"])
+        assert not any(r["session_id"] == sid and r["action"] == "entry" and r["status"] == "succeeded" for r in d["executions"])
+        checks.append({"session": sid, "status": session["status"], "carriedCashRaw": session["policy"]["budgetQuote"], "gasRaw": "0"})
+        continue
+    entry_run = runs[entry_run_id]
     entry_result = entry_run["snapshot"]["result"]
     entry_txs = [t for t in entry_result["transactions"] if t["action"] in entry_actions]
     entry_wei = sum(int(t["estimate"]["totalFeeWei"]) for t in entry_txs)
@@ -74,7 +82,7 @@ for index, session in enumerate(sessions):
         continue
     signal = signals[0]
     reasons = signal["state"]["reasons"]
-    group = "inventory" if "paper_inventory_threshold_exit_to_cash" in reasons else "chain" if any(r.startswith("chain_") for r in reasons) else "risk_reference"
+    group = "inventory" if "paper_inventory_threshold_exit_to_cash" in reasons else "chain" if any(r.startswith("chain_") for r in reasons) else "risk_reference" if reasons else "unclassified"
     groups[group].append(sid)
     if "paper_current_risk_evidence_unavailable" in reasons:
         now = milliseconds(signal["state"]["pendingSince"])
@@ -91,9 +99,11 @@ totals = {k: str(sum(int(s["state"][field]) for s in closed)) for k, field in
 assert all(totals[k] == audit["totals"][k] for k in totals)
 assert int(totals["pnl"]) == int(closed[-1]["state"]["navQuote"]) - int(closed[0]["policy"]["budgetQuote"])
 root, last = sessions[0]["state"], sessions[-1]["state"]
-holding = marked_value(root["position"]["hold0"], root["position"]["hold1"], last["last"]) - int(root["execution"]["holdGasQuote"])
+mark = next(s["state"]["last"] for s in reversed(sessions) if s["state"]["last"] is not None)
+nav = last["navQuote"] if last["navQuote"] is not None else sessions[-1]["policy"]["budgetQuote"]
+holding = marked_value(root["position"]["hold0"], root["position"]["hold1"], mark) - int(root["execution"]["holdGasQuote"])
 assert holding == int(audit["campaign"]["holdQuote"])
-assert int(last["navQuote"]) - holding == int(audit["campaign"]["alphaQuote"])
+assert int(nav) - holding == int(audit["campaign"]["alphaQuote"])
 anchors = []
 for sample_id in ["35807", "39062"]:
     sample = next(h["snapshot"] for h in d["health"] if h["id"] == sample_id)
@@ -110,7 +120,7 @@ result = {"scope": "Independent integer verification of frozen audit; no runtime
           "asOf": d["asOf"], "sourceSha256": source_hash,
           "verifierSha256": hashlib.sha256(open(__file__, "rb").read()).hexdigest(),
           "sessionsChecked": len(sessions), "closedSessionsChecked": len(closed), "closedTotalsRaw": totals,
-          "campaignHoldRaw": str(holding), "campaignAlphaRaw": str(int(last["navQuote"]) - holding),
+          "campaignHoldRaw": str(holding), "campaignAlphaRaw": str(int(nav) - holding),
           "primaryExitGroups": groups, "riskRefreshOverlaps": overlaps, "anchorFindings": anchors,
           "entryBaseFeeMedianWei": statistics.median(int(c["entryBaseFeeWei"]) for c in checks[:len(closed)]),
           "sessionChecks": checks,

@@ -1,0 +1,322 @@
+{
+  "scope": "Read-only recorded source snapshots surrounding session 42 exit and session 43 reentry; not a claim of a real-world corporate action",
+  "rows": [
+    {
+      "id": "12380",
+      "block_number": "58952311",
+      "block_hash": "0xeaa8ac6c62d3afa22c3aaaeca3e688411d530a1fbac15c48c993a41acdb3ce76",
+      "block_timestamp": "2026-09-09T23:50:07.000Z",
+      "observed_at": "2026-09-09T23:50:15.491Z",
+      "canonical": true,
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "0",
+        "oraclePaused": false,
+        "uiMultiplier": "1000000000000000000",
+        "newUIMultiplier": "1000000000000000000"
+      },
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": false,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000000000000000000",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "oracle": {
+        "answer": "22348480000",
+        "roundId": "18446744073709552625",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788980671",
+        "updatedAt": "1788980683",
+        "description": "RHNVDA / USD",
+        "answeredInRound": "18446744073709552625"
+      }
+    },
+    {
+      "id": "12382",
+      "block_number": "58952918",
+      "block_hash": "0x779368fc305a5bf847628401d1f9d234db44278e9cc5be4875492a5b34db84f2",
+      "block_timestamp": "2026-09-09T23:51:08.000Z",
+      "observed_at": "2026-09-09T23:51:15.504Z",
+      "canonical": true,
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "1788998430",
+        "oraclePaused": false,
+        "uiMultiplier": "1000000000000000000",
+        "newUIMultiplier": "1000775159164630595"
+      },
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": true,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "corporate_action_pending",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000000000000000000",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "oracle": {
+        "answer": "22348480000",
+        "roundId": "18446744073709552625",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788980671",
+        "updatedAt": "1788980683",
+        "description": "RHNVDA / USD",
+        "answeredInRound": "18446744073709552625"
+      }
+    },
+    {
+      "id": "12383",
+      "block_number": "58953449",
+      "block_hash": "0x820f3eefa8787ca87680e27f8317672cdf7f79967b095a0439ffe50ee0a2407c",
+      "block_timestamp": "2026-09-09T23:52:00.000Z",
+      "observed_at": "2026-09-09T23:52:07.989Z",
+      "canonical": true,
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "1788998430",
+        "oraclePaused": false,
+        "uiMultiplier": "1000000000000000000",
+        "newUIMultiplier": "1000775159164630595"
+      },
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": true,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "corporate_action_pending",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000000000000000000",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "oracle": {
+        "answer": "22348480000",
+        "roundId": "18446744073709552625",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788980671",
+        "updatedAt": "1788980683",
+        "description": "RHNVDA / USD",
+        "answeredInRound": "18446744073709552625"
+      }
+    },
+    {
+      "id": "12406",
+      "block_number": "58960245",
+      "block_hash": "0x6f1084ca79262ba969dacfc2784e0ef259619c954d813acec4871733a799b1b4",
+      "block_timestamp": "2026-09-10T00:03:27.000Z",
+      "observed_at": "2026-09-10T00:03:35.759Z",
+      "canonical": true,
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "1788998430",
+        "oraclePaused": false,
+        "uiMultiplier": "1000775159164630595",
+        "newUIMultiplier": "1000775159164630595"
+      },
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": false,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000775159164630595",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "oracle": {
+        "answer": "22348480000",
+        "roundId": "18446744073709552625",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788980671",
+        "updatedAt": "1788980683",
+        "description": "RHNVDA / USD",
+        "answeredInRound": "18446744073709552625"
+      }
+    },
+    {
+      "id": "12407",
+      "block_number": "58960772",
+      "block_hash": "0x1389cc6cf92dc2a153323608b09d9574ff67b05f39fa5ac08105b329b9d24a44",
+      "block_timestamp": "2026-09-10T00:04:18.000Z",
+      "observed_at": "2026-09-10T00:04:25.840Z",
+      "canonical": true,
+      "onchain": {
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+        "effectiveAt": "1788998430",
+        "oraclePaused": false,
+        "uiMultiplier": "1000775159164630595",
+        "newUIMultiplier": "1000775159164630595"
+      },
+      "flags": {
+        "registryActive": true,
+        "multiplierConsistent": true,
+        "corporateActionPending": false,
+        "tradingCapabilitiesComplete": true,
+        "tradingCapabilitiesTradable": true
+      },
+      "reasons": [
+        "sequencer_feed_unavailable",
+        "oracle_price_stale",
+        "quote_oracle_unavailable"
+      ],
+      "registry": {
+        "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+        "isin": "US67066G1040",
+        "name": "NVIDIA • Robinhood Token",
+        "status": "ASSET_STATUS_ACTIVE",
+        "symbol": "NVDA",
+        "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "decimals": 18,
+        "currentMultiplier": "1.000775159164630595",
+        "pendingMultiplier": null,
+        "tradingCapabilities": {
+          "market": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "extended": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          },
+          "overnight": {
+            "whole": "TRADING_STATUS_TRADABLE",
+            "fractional": "TRADING_STATUS_TRADABLE"
+          }
+        },
+        "pendingMultiplierEffectiveTime": null
+      },
+      "oracle": {
+        "answer": "22348480000",
+        "roundId": "18446744073709552625",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788980671",
+        "updatedAt": "1788980683",
+        "description": "RHNVDA / USD",
+        "answeredInRound": "18446744073709552625"
+      }
+    }
+  ]
+}

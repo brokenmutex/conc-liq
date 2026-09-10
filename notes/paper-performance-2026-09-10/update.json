@@ -1,0 +1,2261 @@
+{
+  "asOf": "2026-09-10T06:33:52.702Z",
+  "previousAsOf": "2026-09-09T12:02:45.205Z",
+  "sourceSha256": "24f4680a7c81863910c2703542c13cd14a8d52ad60550f8c3b87e13528560811",
+  "previousSourceSha256": "9f9839611ef19a1d7708b48f461965e6fdb9f43a5934541a39685602bcfec34d",
+  "scriptSha256": "dc1ed3bad0e1007be7749f3ed6079dad2205d78209714ecbf1693eb1dffd7b76",
+  "oldClosedUnchanged": 26,
+  "newSessionIds": [
+    "32",
+    "33",
+    "34",
+    "35",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+    "43",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48",
+    "49"
+  ],
+  "newlyClosedIds": [
+    "31",
+    "32",
+    "33",
+    "34",
+    "35",
+    "36",
+    "37",
+    "38",
+    "39",
+    "40",
+    "41",
+    "42",
+    "43",
+    "44",
+    "45",
+    "46",
+    "47",
+    "48"
+  ],
+  "newlyClosed": {
+    "count": 18,
+    "winning": 2,
+    "positiveSessionAlpha": 3,
+    "pnl": "-16091685",
+    "fees": "8887153",
+    "costs": "10929497",
+    "initialCash": "970067291",
+    "finalCash": "953975606",
+    "feeIntervals": 947,
+    "groups": [
+      {
+        "group": "chain",
+        "ids": [
+          "31",
+          "32",
+          "36",
+          "38",
+          "39",
+          "40",
+          "41",
+          "44",
+          "46",
+          "47"
+        ],
+        "count": 10,
+        "pnl": "-2427931",
+        "fees": "7024308",
+        "costs": "6152886"
+      },
+      {
+        "group": "inventory",
+        "ids": [
+          "33",
+          "34",
+          "35",
+          "43",
+          "45",
+          "48"
+        ],
+        "count": 6,
+        "pnl": "-11716861",
+        "fees": "1044851",
+        "costs": "3562774"
+      },
+      {
+        "group": "quote_reference",
+        "ids": [
+          "37"
+        ],
+        "count": 1,
+        "pnl": "-56353",
+        "fees": "335744",
+        "costs": "623191"
+      },
+      {
+        "group": "token_safety",
+        "ids": [
+          "42"
+        ],
+        "count": 1,
+        "pnl": "-1890540",
+        "fees": "482250",
+        "costs": "590646"
+      }
+    ],
+    "decomposition": {
+      "benchmarkMarketMove": "-3536221",
+      "entryExecutionDrag": "3445576",
+      "lpInventoryVersusHolding": "-3088511",
+      "marginalFeeValue": "8887164",
+      "exitExecutionDrag": "3979044",
+      "gas": "10929497",
+      "reserve": "0"
+    }
+  },
+  "sincePreviousMark": {
+    "navChange": "-17411957",
+    "holdingChange": "-2866709",
+    "alphaChange": "-14545248"
+  },
+  "campaign": {
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "49"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "953975606",
+    "pnlQuote": "-46024394",
+    "holdQuote": "988165877",
+    "alphaQuote": "-34190271",
+    "costsPaidQuote": "32815930",
+    "sourceAt": "2026-09-10T09:32:38+03:00"
+  },
+  "latestSession": {
+    "id": "49",
+    "status": "waiting",
+    "heartbeatAt": "2026-09-10T06:33:42.731Z",
+    "reasons": [
+      "paper_reentry_cooldown"
+    ]
+  },
+  "reports": [
+    {
+      "id": "31",
+      "group": "chain",
+      "entryAt": "2026-09-09T10:09:27.000Z",
+      "exitAt": "2026-09-09T13:21:56.000Z",
+      "holdingMinutes": 192.48333333333332,
+      "pnl": "1809354",
+      "alpha": "1992185",
+      "fees": "2698254",
+      "costs": "656433",
+      "decomposition": {
+        "benchmarkMarketMove": "116997",
+        "entryExecutionDrag": "184899",
+        "lpInventoryVersusHolding": "-9525",
+        "marginalFeeValue": "2698254",
+        "exitExecutionDrag": "155040",
+        "gas": "656433",
+        "reserve": "0"
+      },
+      "signalObservation": "1684",
+      "signalAt": "2026-09-09T13:17:22.818Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222168,
+      "range": [
+        222160,
+        222200
+      ],
+      "signalExposurePpm": 169696,
+      "actualAllocationPpm": 797175,
+      "quoteToEntrySeconds": 41.03,
+      "quoteToEntryTickMove": 0,
+      "exitDelaySeconds": 428,
+      "verifiedFeeIntervals": 186,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T13:17:22.372Z",
+          "chainEligible": false,
+          "session": "closed",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy",
+            "equity_session_closed"
+          ],
+          "sampleIds": [
+            "41864",
+            "41865",
+            "41866",
+            "41867",
+            "41868",
+            "41869",
+            "41870",
+            "41871",
+            "41872",
+            "41873",
+            "41874",
+            "41875",
+            "41876",
+            "41877",
+            "41878",
+            "41879",
+            "41880",
+            "41881",
+            "41882",
+            "41883",
+            "41884",
+            "41885",
+            "41886",
+            "41887",
+            "41888",
+            "41889",
+            "41890",
+            "41891",
+            "41892",
+            "41893",
+            "41894"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "41881",
+            "at": "2026-09-09T13:15:07.763Z",
+            "state": "open",
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "lagBlocks": "0",
+            "lagSeconds": "0",
+            "depths": {
+              "private": "69",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": true,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "32",
+      "group": "chain",
+      "entryAt": "2026-09-09T13:34:13.000Z",
+      "exitAt": "2026-09-09T13:47:34.000Z",
+      "holdingMinutes": 13.35,
+      "pnl": "-852121",
+      "alpha": "-507607",
+      "fees": "300406",
+      "costs": "727158",
+      "decomposition": {
+        "benchmarkMarketMove": "9789",
+        "entryExecutionDrag": "218170",
+        "lpInventoryVersusHolding": "-16",
+        "marginalFeeValue": "300407",
+        "exitExecutionDrag": "216973",
+        "gas": "727158",
+        "reserve": "0"
+      },
+      "signalObservation": "1709",
+      "signalAt": "2026-09-09T13:42:45.919Z",
+      "exitReasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": false,
+      "signalTick": 222126,
+      "range": [
+        222140,
+        222180
+      ],
+      "signalExposurePpm": 288378,
+      "actualAllocationPpm": 512284,
+      "quoteToEntrySeconds": 39.076,
+      "quoteToEntryTickMove": -10,
+      "exitDelaySeconds": 307,
+      "verifiedFeeIntervals": 13,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T13:42:45.797Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_anchor_quorum_unproven"
+          ],
+          "sampleIds": [
+            "42016",
+            "42017",
+            "42018",
+            "42019",
+            "42020",
+            "42021",
+            "42022",
+            "42023",
+            "42024",
+            "42025",
+            "42026",
+            "42027",
+            "42028",
+            "42029",
+            "42030",
+            "42031",
+            "42032",
+            "42033",
+            "42034",
+            "42035",
+            "42036",
+            "42037",
+            "42038",
+            "42039",
+            "42040",
+            "42041",
+            "42042",
+            "42043",
+            "42044",
+            "42045",
+            "42046"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "42045",
+            "at": "2026-09-09T13:42:31.461Z",
+            "state": "healthy",
+            "reasons": [],
+            "lagBlocks": "11",
+            "lagSeconds": "2",
+            "depths": {
+              "private": "61",
+              "reference_1": "64",
+              "reference_2": "72"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "33",
+      "group": "inventory",
+      "entryAt": "2026-09-09T14:00:55.000Z",
+      "exitAt": "2026-09-09T14:02:57.000Z",
+      "holdingMinutes": 2.033333333333333,
+      "pnl": "-3032631",
+      "alpha": "-1401630",
+      "fees": "99258",
+      "costs": "677979",
+      "decomposition": {
+        "benchmarkMarketMove": "-1305750",
+        "entryExecutionDrag": "216045",
+        "lpInventoryVersusHolding": "-586996",
+        "marginalFeeValue": "99258",
+        "exitExecutionDrag": "345119",
+        "gas": "677979",
+        "reserve": "0"
+      },
+      "signalObservation": "1728",
+      "signalAt": "2026-09-09T14:02:22.961Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": false,
+      "signalTick": 222184,
+      "range": [
+        222140,
+        222180
+      ],
+      "signalExposurePpm": 704848,
+      "actualAllocationPpm": 704361,
+      "quoteToEntrySeconds": 37.857,
+      "quoteToEntryTickMove": 3,
+      "exitDelaySeconds": 60,
+      "verifiedFeeIntervals": 2,
+      "failedPreflights": [
+        {
+          "id": "103",
+          "action": "quote",
+          "at": "2026-09-09T13:59:13.929Z",
+          "source": "58600518",
+          "error": "AssertionError: Paper chain recovery is not continuously healthy",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "34",
+      "group": "inventory",
+      "entryAt": "2026-09-09T14:16:19.000Z",
+      "exitAt": "2026-09-09T14:22:25.000Z",
+      "holdingMinutes": 6.1,
+      "pnl": "-1846535",
+      "alpha": "-911442",
+      "fees": "162282",
+      "costs": "636450",
+      "decomposition": {
+        "benchmarkMarketMove": "-627644",
+        "entryExecutionDrag": "197499",
+        "lpInventoryVersusHolding": "-214502",
+        "marginalFeeValue": "162283",
+        "exitExecutionDrag": "332723",
+        "gas": "636450",
+        "reserve": "0"
+      },
+      "signalObservation": "1746",
+      "signalAt": "2026-09-09T14:22:02.026Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": true,
+      "signalTick": 222208,
+      "range": [
+        222170,
+        222210
+      ],
+      "signalExposurePpm": 654283,
+      "actualAllocationPpm": 687289,
+      "quoteToEntrySeconds": 40.09,
+      "quoteToEntryTickMove": 3,
+      "exitDelaySeconds": 61,
+      "verifiedFeeIntervals": 6,
+      "failedPreflights": [
+        {
+          "id": "107",
+          "action": "quote",
+          "at": "2026-09-09T14:14:35.102Z",
+          "source": "58609663",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "35",
+      "group": "inventory",
+      "entryAt": "2026-09-09T14:34:40.000Z",
+      "exitAt": "2026-09-09T14:38:44.000Z",
+      "holdingMinutes": 4.066666666666666,
+      "pnl": "-2044658",
+      "alpha": "-1077099",
+      "fees": "177985",
+      "costs": "628848",
+      "decomposition": {
+        "benchmarkMarketMove": "-701585",
+        "entryExecutionDrag": "157523",
+        "lpInventoryVersusHolding": "-406801",
+        "marginalFeeValue": "177985",
+        "exitExecutionDrag": "327886",
+        "gas": "628848",
+        "reserve": "0"
+      },
+      "signalObservation": "1762",
+      "signalAt": "2026-09-09T14:38:11.823Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": false,
+      "signalTick": 222181,
+      "range": [
+        222140,
+        222180
+      ],
+      "signalExposurePpm": 674927,
+      "actualAllocationPpm": 674583,
+      "quoteToEntrySeconds": 27.022,
+      "quoteToEntryTickMove": 3,
+      "exitDelaySeconds": 61,
+      "verifiedFeeIntervals": 4,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "36",
+      "group": "chain",
+      "entryAt": "2026-09-09T14:50:59.000Z",
+      "exitAt": "2026-09-09T15:14:33.000Z",
+      "holdingMinutes": 23.566666666666666,
+      "pnl": "-1017836",
+      "alpha": "-352465",
+      "fees": "624004",
+      "costs": "635223",
+      "decomposition": {
+        "benchmarkMarketMove": "-405375",
+        "entryExecutionDrag": "150348",
+        "lpInventoryVersusHolding": "-172423",
+        "marginalFeeValue": "624005",
+        "exitExecutionDrag": "278472",
+        "gas": "635223",
+        "reserve": "0"
+      },
+      "signalObservation": "1791",
+      "signalAt": "2026-09-09T15:09:52.819Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222178,
+      "range": [
+        222160,
+        222200
+      ],
+      "signalExposurePpm": 360548,
+      "actualAllocationPpm": 775710,
+      "quoteToEntrySeconds": 38.065,
+      "quoteToEntryTickMove": 1,
+      "exitDelaySeconds": 307,
+      "verifiedFeeIntervals": 21,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T15:09:52.411Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy"
+          ],
+          "sampleIds": [
+            "42538",
+            "42539",
+            "42540",
+            "42541",
+            "42542",
+            "42543",
+            "42544",
+            "42545",
+            "42546",
+            "42547",
+            "42548",
+            "42549",
+            "42550",
+            "42551",
+            "42552",
+            "42553",
+            "42554",
+            "42555",
+            "42556",
+            "42557",
+            "42558",
+            "42559",
+            "42560",
+            "42561",
+            "42562",
+            "42563",
+            "42564",
+            "42565",
+            "42566",
+            "42567"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 30,
+        "faults": [
+          {
+            "id": "42551",
+            "at": "2026-09-09T15:07:02.502Z",
+            "state": "open",
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "lagBlocks": "7",
+            "lagSeconds": "1",
+            "depths": {
+              "private": "64",
+              "reference_1": "64",
+              "reference_2": "71"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": true,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "37",
+      "group": "quote_reference",
+      "entryAt": "2026-09-09T15:26:48.000Z",
+      "exitAt": "2026-09-09T15:32:56.000Z",
+      "holdingMinutes": 6.133333333333334,
+      "pnl": "-56353",
+      "alpha": "-542509",
+      "fees": "335744",
+      "costs": "623191",
+      "decomposition": {
+        "benchmarkMarketMove": "830336",
+        "entryExecutionDrag": "237490",
+        "lpInventoryVersusHolding": "-291891",
+        "marginalFeeValue": "335744",
+        "exitExecutionDrag": "69861",
+        "gas": "623191",
+        "reserve": "0"
+      },
+      "signalObservation": "1813",
+      "signalAt": "2026-09-09T15:32:20.311Z",
+      "exitReasons": [
+        "paper_usdg_oracle_price_stale"
+      ],
+      "signalInside": true,
+      "signalTick": 222198,
+      "range": [
+        222190,
+        222230
+      ],
+      "signalExposurePpm": null,
+      "actualAllocationPpm": 788758,
+      "quoteToEntrySeconds": 28.9,
+      "quoteToEntryTickMove": 0,
+      "exitDelaySeconds": 59,
+      "verifiedFeeIntervals": 6,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "38",
+      "group": "chain",
+      "entryAt": "2026-09-09T15:45:15.000Z",
+      "exitAt": "2026-09-09T16:10:54.000Z",
+      "holdingMinutes": 25.65,
+      "pnl": "-891754",
+      "alpha": "-499463",
+      "fees": "266695",
+      "costs": "635509",
+      "decomposition": {
+        "benchmarkMarketMove": "-57786",
+        "entryExecutionDrag": "225380",
+        "lpInventoryVersusHolding": "-1699",
+        "marginalFeeValue": "266696",
+        "exitExecutionDrag": "238076",
+        "gas": "635509",
+        "reserve": "0"
+      },
+      "signalObservation": "1841",
+      "signalAt": "2026-09-09T16:03:00.881Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222186,
+      "range": [
+        222170,
+        222210
+      ],
+      "signalExposurePpm": 333087,
+      "actualAllocationPpm": 778893,
+      "quoteToEntrySeconds": 16.129,
+      "quoteToEntryTickMove": -1,
+      "exitDelaySeconds": 491,
+      "verifiedFeeIntervals": 21,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T16:03:00.745Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy",
+            "chain_anchor_quorum_unproven"
+          ],
+          "sampleIds": [
+            "42856",
+            "42857",
+            "42858",
+            "42859",
+            "42860",
+            "42861",
+            "42862",
+            "42863",
+            "42864",
+            "42865",
+            "42866",
+            "42867",
+            "42868",
+            "42869",
+            "42870",
+            "42871",
+            "42872",
+            "42873",
+            "42874",
+            "42875",
+            "42876",
+            "42877",
+            "42878",
+            "42879",
+            "42880",
+            "42881",
+            "42882",
+            "42883",
+            "42884",
+            "42885"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 30,
+        "faults": [
+          {
+            "id": "42869",
+            "at": "2026-09-09T16:00:10.287Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "lagBlocks": "32",
+            "lagSeconds": "3",
+            "depths": {
+              "private": "39",
+              "reference_1": "64",
+              "reference_2": "71"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "39",
+      "group": "chain",
+      "entryAt": "2026-09-09T16:24:13.000Z",
+      "exitAt": "2026-09-09T16:46:51.000Z",
+      "holdingMinutes": 22.633333333333333,
+      "pnl": "-9453",
+      "alpha": "-63412",
+      "fees": "637926",
+      "costs": "641784",
+      "decomposition": {
+        "benchmarkMarketMove": "337484",
+        "entryExecutionDrag": "172812",
+        "lpInventoryVersusHolding": "-88723",
+        "marginalFeeValue": "637927",
+        "exitExecutionDrag": "81545",
+        "gas": "641784",
+        "reserve": "0"
+      },
+      "signalObservation": "1874",
+      "signalAt": "2026-09-09T16:42:07.845Z",
+      "exitReasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222197,
+      "range": [
+        222190,
+        222230
+      ],
+      "signalExposurePpm": 179861,
+      "actualAllocationPpm": 773048,
+      "quoteToEntrySeconds": 96.095,
+      "quoteToEntryTickMove": 0,
+      "exitDelaySeconds": 308,
+      "verifiedFeeIntervals": 20,
+      "failedPreflights": [
+        {
+          "id": "124",
+          "action": "entry",
+          "at": "2026-09-09T16:23:54.508Z",
+          "source": "58686350",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T16:42:07.701Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_anchor_quorum_unproven",
+            "chain_recovery_not_continuously_healthy"
+          ],
+          "sampleIds": [
+            "43090",
+            "43091",
+            "43092",
+            "43093",
+            "43094",
+            "43095",
+            "43096",
+            "43097",
+            "43098",
+            "43099",
+            "43100",
+            "43101",
+            "43102",
+            "43103",
+            "43104",
+            "43105",
+            "43106",
+            "43107",
+            "43108",
+            "43109",
+            "43110",
+            "43111",
+            "43112",
+            "43113",
+            "43114",
+            "43115",
+            "43116",
+            "43117",
+            "43118",
+            "43119",
+            "43120"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "43102",
+            "at": "2026-09-09T16:39:05.327Z",
+            "state": "healthy",
+            "reasons": [],
+            "lagBlocks": "11",
+            "lagSeconds": "2",
+            "depths": {
+              "private": "57",
+              "reference_1": "64",
+              "reference_2": "68"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28"
+              }
+            ]
+          },
+          {
+            "id": "43104",
+            "at": "2026-09-09T16:39:25.385Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "lagBlocks": "35",
+            "lagSeconds": "4",
+            "depths": {
+              "private": "37",
+              "reference_1": "64",
+              "reference_2": "72"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "40",
+      "group": "chain",
+      "entryAt": "2026-09-09T16:59:10.000Z",
+      "exitAt": "2026-09-09T18:38:37.000Z",
+      "holdingMinutes": 99.45,
+      "pnl": "-114851",
+      "alpha": "258111",
+      "fees": "985919",
+      "costs": "620814",
+      "decomposition": {
+        "benchmarkMarketMove": "-73187",
+        "entryExecutionDrag": "192191",
+        "lpInventoryVersusHolding": "-3616",
+        "marginalFeeValue": "985920",
+        "exitExecutionDrag": "210963",
+        "gas": "620814",
+        "reserve": "0"
+      },
+      "signalObservation": "1980",
+      "signalAt": "2026-09-09T18:33:43.953Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222191,
+      "range": [
+        222170,
+        222210
+      ],
+      "signalExposurePpm": 431296,
+      "actualAllocationPpm": 795450,
+      "quoteToEntrySeconds": 36.942,
+      "quoteToEntryTickMove": 1,
+      "exitDelaySeconds": 311,
+      "verifiedFeeIntervals": 94,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T18:33:43.791Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy",
+            "chain_anchor_quorum_unproven"
+          ],
+          "sampleIds": [
+            "43758",
+            "43759",
+            "43760",
+            "43761",
+            "43762",
+            "43763",
+            "43764",
+            "43765",
+            "43766",
+            "43767",
+            "43768",
+            "43769",
+            "43770",
+            "43771",
+            "43772",
+            "43773",
+            "43774",
+            "43775",
+            "43776",
+            "43777",
+            "43778",
+            "43779",
+            "43780",
+            "43781",
+            "43782",
+            "43783",
+            "43784",
+            "43785",
+            "43786",
+            "43787",
+            "43788"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "43767",
+            "at": "2026-09-09T18:30:10.207Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "lagBlocks": "49",
+            "lagSeconds": "5",
+            "depths": {
+              "private": "23",
+              "reference_1": "64",
+              "reference_2": "72"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364"
+              }
+            ]
+          },
+          {
+            "id": "43768",
+            "at": "2026-09-09T18:30:20.214Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "lagBlocks": "46",
+            "lagSeconds": "5",
+            "depths": {
+              "private": "18",
+              "reference_1": "64",
+              "reference_2": "64"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8"
+              }
+            ]
+          },
+          {
+            "id": "43769",
+            "at": "2026-09-09T18:30:30.244Z",
+            "state": "open",
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "lagBlocks": "75",
+            "lagSeconds": "8",
+            "depths": {
+              "private": "-10",
+              "reference_1": "64",
+              "reference_2": "65"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": "Error: RPC returned no block",
+                "anchorHash": null
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x7aaf10a8abc3f99312c9d30a9c88171f2a2180342fd7161ca109edafdd38d425"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x7aaf10a8abc3f99312c9d30a9c88171f2a2180342fd7161ca109edafdd38d425"
+              }
+            ]
+          },
+          {
+            "id": "43770",
+            "at": "2026-09-09T18:30:40.267Z",
+            "state": "open",
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_hard",
+              "private_time_lag_soft"
+            ],
+            "lagBlocks": "107",
+            "lagSeconds": "11",
+            "depths": {
+              "private": "-37",
+              "reference_1": "64",
+              "reference_2": "70"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": "Error: RPC returned no block",
+                "anchorHash": null
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x2db29f9f91560df54b7c969ca5e790f217b5aea4662c7aaf237360b1a79ce198"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x2db29f9f91560df54b7c969ca5e790f217b5aea4662c7aaf237360b1a79ce198"
+              }
+            ]
+          },
+          {
+            "id": "43771",
+            "at": "2026-09-09T18:30:50.280Z",
+            "state": "open",
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "lagBlocks": "88",
+            "lagSeconds": "9",
+            "depths": {
+              "private": "-19",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": "Error: RPC returned no block",
+                "anchorHash": null
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x2d448380ec6f002b6ae4f777238b0c82c288b4cee607d9e72caaa2f35ddf7f05"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x2d448380ec6f002b6ae4f777238b0c82c288b4cee607d9e72caaa2f35ddf7f05"
+              }
+            ]
+          },
+          {
+            "id": "43772",
+            "at": "2026-09-09T18:31:00.298Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "lagBlocks": "62",
+            "lagSeconds": "6",
+            "depths": {
+              "private": "7",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "41",
+      "group": "chain",
+      "entryAt": "2026-09-09T18:59:08.000Z",
+      "exitAt": "2026-09-09T19:19:39.000Z",
+      "holdingMinutes": 20.516666666666666,
+      "pnl": "-120856",
+      "alpha": "-179940",
+      "fees": "496050",
+      "costs": "627986",
+      "decomposition": {
+        "benchmarkMarketMove": "319701",
+        "entryExecutionDrag": "151751",
+        "lpInventoryVersusHolding": "-104234",
+        "marginalFeeValue": "496051",
+        "exitExecutionDrag": "52637",
+        "gas": "627986",
+        "reserve": "0"
+      },
+      "signalObservation": "2015",
+      "signalAt": "2026-09-09T19:13:53.941Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222207,
+      "range": [
+        222190,
+        222230
+      ],
+      "signalExposurePpm": 344876,
+      "actualAllocationPpm": 780148,
+      "quoteToEntrySeconds": 37.014,
+      "quoteToEntryTickMove": 1,
+      "exitDelaySeconds": 368,
+      "verifiedFeeIntervals": 17,
+      "failedPreflights": [
+        {
+          "id": "133",
+          "action": "exit",
+          "at": "2026-09-09T19:19:08.823Z",
+          "source": "58790695",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-09T19:13:53.785Z",
+          "chainEligible": false,
+          "session": "regular_session",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy"
+          ],
+          "sampleIds": [
+            "43998",
+            "43999",
+            "44000",
+            "44001",
+            "44002",
+            "44003",
+            "44004",
+            "44005",
+            "44006",
+            "44007",
+            "44008",
+            "44009",
+            "44010",
+            "44011",
+            "44012",
+            "44013",
+            "44014",
+            "44015",
+            "44016",
+            "44017",
+            "44018",
+            "44019",
+            "44020",
+            "44021",
+            "44022",
+            "44023",
+            "44024",
+            "44025",
+            "44026",
+            "44027",
+            "44028"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "44012",
+            "at": "2026-09-09T19:11:05.561Z",
+            "state": "open",
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "lagBlocks": "0",
+            "lagSeconds": "0",
+            "depths": {
+              "private": "77",
+              "reference_1": "64",
+              "reference_2": "76"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": true,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa"
+              }
+            ]
+          },
+          {
+            "id": "44013",
+            "at": "2026-09-09T19:11:15.575Z",
+            "state": "open",
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "lagBlocks": "0",
+            "lagSeconds": "0",
+            "depths": {
+              "private": "71",
+              "reference_1": "64",
+              "reference_2": "65"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": true,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376"
+              }
+            ]
+          },
+          {
+            "id": "44014",
+            "at": "2026-09-09T19:11:25.636Z",
+            "state": "open",
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "lagBlocks": "1",
+            "lagSeconds": "0",
+            "depths": {
+              "private": "68",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": true,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "42",
+      "group": "token_safety",
+      "entryAt": "2026-09-09T19:33:02.000Z",
+      "exitAt": "2026-09-09T23:52:00.000Z",
+      "holdingMinutes": 258.96666666666664,
+      "pnl": "-1890540",
+      "alpha": "-728014",
+      "fees": "482250",
+      "costs": "590646",
+      "decomposition": {
+        "benchmarkMarketMove": "-893435",
+        "entryExecutionDrag": "163215",
+        "lpInventoryVersusHolding": "-446214",
+        "marginalFeeValue": "482250",
+        "exitExecutionDrag": "279280",
+        "gas": "590646",
+        "reserve": "0"
+      },
+      "signalObservation": "2284",
+      "signalAt": "2026-09-09T23:51:18.905Z",
+      "exitReasons": [
+        "corporate_action_pending",
+        "paper_token_safety_check_failed",
+        "token_multiplier_transition"
+      ],
+      "signalInside": false,
+      "signalTick": 222220,
+      "range": [
+        222170,
+        222210
+      ],
+      "signalExposurePpm": 580325,
+      "actualAllocationPpm": 580567,
+      "quoteToEntrySeconds": 102.001,
+      "quoteToEntryTickMove": 7,
+      "exitDelaySeconds": 61,
+      "verifiedFeeIntervals": 253,
+      "failedPreflights": [
+        {
+          "id": "136",
+          "action": "entry",
+          "at": "2026-09-09T19:32:38.631Z",
+          "source": "58798665",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "43",
+      "group": "inventory",
+      "entryAt": "2026-09-10T00:04:18.000Z",
+      "exitAt": "2026-09-10T00:21:43.000Z",
+      "holdingMinutes": 17.416666666666668,
+      "pnl": "-1455306",
+      "alpha": "-716730",
+      "fees": "146515",
+      "costs": "562658",
+      "decomposition": {
+        "benchmarkMarketMove": "-419749",
+        "entryExecutionDrag": "221933",
+        "lpInventoryVersusHolding": "-85776",
+        "marginalFeeValue": "146516",
+        "exitExecutionDrag": "311706",
+        "gas": "562658",
+        "reserve": "0"
+      },
+      "signalObservation": "2312",
+      "signalAt": "2026-09-10T00:20:08.911Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": true,
+      "signalTick": 222220,
+      "range": [
+        222190,
+        222230
+      ],
+      "signalExposurePpm": 600115,
+      "actualAllocationPpm": 787407,
+      "quoteToEntrySeconds": 37.293,
+      "quoteToEntryTickMove": 0,
+      "exitDelaySeconds": 122,
+      "verifiedFeeIntervals": 16,
+      "failedPreflights": [
+        {
+          "id": "141",
+          "action": "exit",
+          "at": "2026-09-10T00:21:25.781Z",
+          "source": "58970504",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "44",
+      "group": "chain",
+      "entryAt": "2026-09-10T00:34:03.000Z",
+      "exitAt": "2026-09-10T01:01:46.000Z",
+      "holdingMinutes": 27.716666666666665,
+      "pnl": "-1041752",
+      "alpha": "-608551",
+      "fees": "98616",
+      "costs": "564616",
+      "decomposition": {
+        "benchmarkMarketMove": "-166725",
+        "entryExecutionDrag": "168624",
+        "lpInventoryVersusHolding": "-23622",
+        "marginalFeeValue": "98617",
+        "exitExecutionDrag": "216782",
+        "gas": "564616",
+        "reserve": "0"
+      },
+      "signalObservation": "2348",
+      "signalAt": "2026-09-10T00:58:02.911Z",
+      "exitReasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222233,
+      "range": [
+        222210,
+        222250
+      ],
+      "signalExposurePpm": 467396,
+      "actualAllocationPpm": 799018,
+      "quoteToEntrySeconds": 38.159,
+      "quoteToEntryTickMove": 0,
+      "exitDelaySeconds": 248,
+      "verifiedFeeIntervals": 27,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-10T00:58:02.736Z",
+          "chainEligible": false,
+          "session": "closed",
+          "reasons": [
+            "chain_anchor_quorum_unproven",
+            "equity_session_closed"
+          ],
+          "sampleIds": [
+            "46059",
+            "46060",
+            "46061",
+            "46062",
+            "46063",
+            "46064",
+            "46065",
+            "46066",
+            "46067",
+            "46068",
+            "46069",
+            "46070",
+            "46071",
+            "46072",
+            "46073",
+            "46074",
+            "46075",
+            "46076",
+            "46077",
+            "46078",
+            "46079",
+            "46080",
+            "46081",
+            "46082",
+            "46083",
+            "46084",
+            "46085",
+            "46086",
+            "46087",
+            "46088"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 30,
+        "faults": [
+          {
+            "id": "46084",
+            "at": "2026-09-10T00:57:12.760Z",
+            "state": "healthy",
+            "reasons": [],
+            "lagBlocks": "11",
+            "lagSeconds": "1",
+            "depths": {
+              "private": "60",
+              "reference_1": "64",
+              "reference_2": "71"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "45",
+      "group": "inventory",
+      "entryAt": "2026-09-10T01:14:01.000Z",
+      "exitAt": "2026-09-10T01:30:27.000Z",
+      "holdingMinutes": 16.433333333333334,
+      "pnl": "-1502950",
+      "alpha": "-678090",
+      "fees": "218540",
+      "costs": "547668",
+      "decomposition": {
+        "benchmarkMarketMove": "-520074",
+        "entryExecutionDrag": "209254",
+        "lpInventoryVersusHolding": "-130265",
+        "marginalFeeValue": "218541",
+        "exitExecutionDrag": "314230",
+        "gas": "547668",
+        "reserve": "0"
+      },
+      "signalObservation": "2378",
+      "signalAt": "2026-09-10T01:30:07.857Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": true,
+      "signalTick": 222247,
+      "range": [
+        222210,
+        222250
+      ],
+      "signalExposurePpm": 643051,
+      "actualAllocationPpm": 692836,
+      "quoteToEntrySeconds": 17.99,
+      "quoteToEntryTickMove": 4,
+      "exitDelaySeconds": 60,
+      "verifiedFeeIntervals": 16,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    },
+    {
+      "id": "46",
+      "group": "chain",
+      "entryAt": "2026-09-10T01:43:46.000Z",
+      "exitAt": "2026-09-10T04:41:49.000Z",
+      "holdingMinutes": 178.05,
+      "pnl": "401524",
+      "alpha": "100374",
+      "fees": "809996",
+      "costs": "530255",
+      "decomposition": {
+        "benchmarkMarketMove": "563415",
+        "entryExecutionDrag": "169422",
+        "lpInventoryVersusHolding": "-249560",
+        "marginalFeeValue": "809996",
+        "exitExecutionDrag": "22650",
+        "gas": "530255",
+        "reserve": "0"
+      },
+      "signalObservation": "2560",
+      "signalAt": "2026-09-10T04:37:12.930Z",
+      "exitReasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": false,
+      "signalTick": 222239,
+      "range": [
+        222240,
+        222280
+      ],
+      "signalExposurePpm": 47410,
+      "actualAllocationPpm": 752896,
+      "quoteToEntrySeconds": 101.128,
+      "quoteToEntryTickMove": -1,
+      "exitDelaySeconds": 305,
+      "verifiedFeeIntervals": 174,
+      "failedPreflights": [
+        {
+          "id": "150",
+          "action": "entry",
+          "at": "2026-09-10T01:43:22.446Z",
+          "source": "59019319",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-10T04:37:12.764Z",
+          "chainEligible": false,
+          "session": "closed",
+          "reasons": [
+            "chain_anchor_quorum_unproven",
+            "equity_session_closed"
+          ],
+          "sampleIds": [
+            "47371",
+            "47372",
+            "47373",
+            "47374",
+            "47375",
+            "47376",
+            "47377",
+            "47378",
+            "47379",
+            "47380",
+            "47381",
+            "47382",
+            "47383",
+            "47384",
+            "47385",
+            "47386",
+            "47387",
+            "47388",
+            "47389",
+            "47390",
+            "47391",
+            "47392",
+            "47393",
+            "47394",
+            "47395",
+            "47396",
+            "47397",
+            "47398",
+            "47399",
+            "47400",
+            "47401"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "47400",
+            "at": "2026-09-10T04:37:02.281Z",
+            "state": "healthy",
+            "reasons": [],
+            "lagBlocks": "14",
+            "lagSeconds": "1",
+            "depths": {
+              "private": "55",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "47",
+      "group": "chain",
+      "entryAt": "2026-09-10T04:54:08.000Z",
+      "exitAt": "2026-09-10T05:14:43.000Z",
+      "holdingMinutes": 20.583333333333332,
+      "pnl": "-590186",
+      "alpha": "-483410",
+      "fees": "106442",
+      "costs": "513108",
+      "decomposition": {
+        "benchmarkMarketMove": "172302",
+        "entryExecutionDrag": "189042",
+        "lpInventoryVersusHolding": "-18389",
+        "marginalFeeValue": "106443",
+        "exitExecutionDrag": "148392",
+        "gas": "513108",
+        "reserve": "0"
+      },
+      "signalObservation": "2590",
+      "signalAt": "2026-09-10T05:09:49.917Z",
+      "exitReasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "signalInside": true,
+      "signalTick": 222235,
+      "range": [
+        222220,
+        222260
+      ],
+      "signalExposurePpm": 344374,
+      "actualAllocationPpm": 744306,
+      "quoteToEntrySeconds": 42.976,
+      "quoteToEntryTickMove": -1,
+      "exitDelaySeconds": 309,
+      "verifiedFeeIntervals": 18,
+      "failedPreflights": [],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      },
+      "chain": {
+        "productionGateReproduced": true,
+        "gate": {
+          "policy": "robinhood_quorum_recovery_regular_session_v1",
+          "evaluatedAt": "2026-09-10T05:09:49.735Z",
+          "chainEligible": false,
+          "session": "closed",
+          "reasons": [
+            "chain_recovery_not_continuously_healthy",
+            "chain_anchor_quorum_unproven",
+            "equity_session_closed"
+          ],
+          "sampleIds": [
+            "47566",
+            "47567",
+            "47568",
+            "47569",
+            "47570",
+            "47571",
+            "47572",
+            "47573",
+            "47574",
+            "47575",
+            "47576",
+            "47577",
+            "47578",
+            "47579",
+            "47580",
+            "47581",
+            "47582",
+            "47583",
+            "47584",
+            "47585",
+            "47586",
+            "47587",
+            "47588",
+            "47589",
+            "47590",
+            "47591",
+            "47592",
+            "47593",
+            "47594",
+            "47595",
+            "47596"
+          ],
+          "recoverySeconds": 300
+        },
+        "sampleCount": 31,
+        "faults": [
+          {
+            "id": "47583",
+            "at": "2026-09-10T05:07:36.237Z",
+            "state": "degraded",
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "lagBlocks": "27",
+            "lagSeconds": "2",
+            "depths": {
+              "private": "42",
+              "reference_1": "64",
+              "reference_2": "69"
+            },
+            "probes": [
+              {
+                "name": "private",
+                "syncing": false,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a"
+              },
+              {
+                "name": "reference_1",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a"
+              },
+              {
+                "name": "reference_2",
+                "syncing": null,
+                "error": null,
+                "anchorError": null,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "48",
+      "group": "inventory",
+      "entryAt": "2026-09-10T05:27:03.000Z",
+      "exitAt": "2026-09-10T06:22:23.000Z",
+      "holdingMinutes": 55.333333333333336,
+      "pnl": "-1834781",
+      "alpha": "-810827",
+      "fees": "240271",
+      "costs": "509171",
+      "decomposition": {
+        "benchmarkMarketMove": "-714935",
+        "entryExecutionDrag": "219978",
+        "lpInventoryVersusHolding": "-254259",
+        "marginalFeeValue": "240271",
+        "exitExecutionDrag": "376709",
+        "gas": "509171",
+        "reserve": "0"
+      },
+      "signalObservation": "2659",
+      "signalAt": "2026-09-10T06:20:42.852Z",
+      "exitReasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "signalInside": true,
+      "signalTick": 222248,
+      "range": [
+        222210,
+        222250
+      ],
+      "signalExposurePpm": 765781,
+      "actualAllocationPpm": 795960,
+      "quoteToEntrySeconds": 31.045,
+      "quoteToEntryTickMove": 1,
+      "exitDelaySeconds": 122,
+      "verifiedFeeIntervals": 53,
+      "failedPreflights": [
+        {
+          "id": "158",
+          "action": "exit",
+          "at": "2026-09-10T06:21:58.790Z",
+          "source": "59184958",
+          "error": "paper_event_coverage_deferred",
+          "preflightError": null
+        }
+      ],
+      "sourceValid": true,
+      "runtime": {
+        "buildId": "dd0fb92a59d105191985975a715819d31ce96c783e6494d178725913daa16f7a",
+        "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+        "nodeVersion": "v24.20.0"
+      }
+    }
+  ],
+  "limitations": [
+    "Newly closed cycles include all of session 31, which was already open at the previous cutoff; this differs from mark-to-mark changes",
+    "Per-session alphas reset holdings and cannot be summed into campaign alpha",
+    "First-exit categories do not establish losses avoided by removing a guard",
+    "Recorded chain evidence is replayed, not replaced with hypothetical historical hashes",
+    "No policy changes, new comparison, funded execution or realized live PnL"
+  ]
+}
