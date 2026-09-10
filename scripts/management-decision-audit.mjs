@@ -85,10 +85,12 @@ for(const s of sessions){if(s.policy.reentry?.previousSessionId){const parent=re
 // All data-derived costs below remain source-block fork estimates. Future
 // counterfactual operation costs use one frozen scenario, never claimed measured.
 const currentBuild=sessions.at(-1).runtime_identity.buildId;
-const first=sessions.find(s=>s.status==='closed'&&s.runtime_identity.buildId===currentBuild);
-const child=sessions.find(s=>s.policy.reentry?.previousSessionId===first.id);
-assert(first&&child&&results.has(child.id));
-const cycleIds=[first.id,child.id],native=[];
+// A newly activated runtime can have no completed cycle yet. Reconcile all
+// recorded actions regardless; label the newest available completed parent/child
+// example explicitly instead of treating the new waiting child as evidence.
+const pair=sessions.map(parent=>({parent,child:sessions.find(s=>s.policy.reentry?.previousSessionId===parent.id)}))
+ .filter(({parent,child})=>parent.status==='closed'&&child?.status==='closed'&&results.has(parent.id)&&results.has(child.id)).at(-1);
+const cycleIds=pair?[pair.parent.id,pair.child.id]:[],native=[];
 function recordedFrame(f,o){
  const reasons=o.entry_reasons;
  return {...f,observedAt:new Date(o.observed_at).toISOString(),referencePrice:o.state.reference?.referencePriceX18??f.referencePrice,
@@ -112,7 +114,7 @@ for(const id of cycleIds){
 }
 
 const outputData={asOf:paper.asOf,source:{paperPath,paperSha256:data.manifest.paperSha256,marketPath,marketSha256:fs.readFileSync(marketPath+'.sha256','utf8').trim()},
- verifiedCheckpoints,sessions:[...results.values()],cycle:{selection:'First completed session under the latest captured runtime, followed by its actual cash-funded child',ids:cycleIds},native,
+ verifiedCheckpoints,sessions:[...results.values()],cycle:{selection:'Newest available completed parent and cash-funded child; latest captured runtime may still be waiting',latestCapturedBuild:currentBuild,ids:cycleIds},native,
  scope:'Exact recorded-action arithmetic reconciliation; canonical swaps and mint rounding independently replayed, gas uses the saved fork estimates. No funded execution or return reproduction on a new fork.',
  limitations:['Exact agreement with paper does not establish real-world fee or execution accuracy','Undiluted paper fee growth and added-liquidity experiment fee sharing are different conventions','Original model also changes funding, reserve and acquisition amounts; native delta is not solely fee dilution or strategy alpha']};
 fs.writeFileSync(output,json(outputData),{flag:'wx'});

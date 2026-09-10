@@ -88,9 +88,13 @@ for index, session in enumerate(sessions):
         now = milliseconds(signal["state"]["pendingSince"])
         attempt = max((a for a in d["attempts"] if milliseconds(a["attempted_at"]) <= now), key=lambda a: (milliseconds(a["attempted_at"]), int(a["id"])))
         prior = max((a for a in d["attempts"] if a["status"] == "succeeded" and milliseconds(a["completed_at"]) <= now), key=lambda a: (milliseconds(a["attempted_at"]), int(a["id"])))
-        delay = milliseconds(attempt["completed_at"]) - now
-        assert delay > 0
+        delay = milliseconds(attempt["completed_at"]) - now if attempt["completed_at"] else None
+        # A current-risk failure can be a stale canonical validation rather
+        # than an overlapping refresh. Preserve the saved predicate instead
+        # of assuming every newer session repeats the original six races.
         overlaps.append({"session": sid, "attempt": attempt["id"], "completionAfterDecisionMs": delay,
+                         "completionOverlap": delay is not None and delay > 0,
+                         "savedFailedChecks": signal["state"].get("referenceEvidence", {}).get("current", {}).get("failedChecks"),
                          "priorSnapshotAgeMs": now - milliseconds(prior["snapshot_observed_at"]),
                          "soleExitReason": len(reasons) == 1})
 

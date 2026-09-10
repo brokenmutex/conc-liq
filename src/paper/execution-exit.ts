@@ -44,7 +44,7 @@ export function priorGrowthForFee(growth: bigint, liquidity: bigint, fee: bigint
 // separately estimated fees on a fresh owned fork, then price/execute the real
 // exit calls on Nitro with that prestate. Restoration is never strategy income
 // or a charged transaction. No stale entry-time pool storage is copied forward.
-export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionPolicy, inventory: PaperExitInventory,
+export async function restorePaperPosition(fork: PaperFork, policy: PaperExecutionPolicy, inventory: PaperExitInventory,
   onTransaction?: (tx: PaperTransaction) => void) {
   const context = await createPaperExecutionContext(fork, policy, onTransaction);
   const { local, sourceSlot, balances, send, approve, quoteSwap, swap, transactions } = context;
@@ -124,6 +124,13 @@ export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionP
   await fork.rpc("anvil_setBalance", [PAPER_ACCOUNT, toHex(nativeBalance)]);
   const before = await balances();
   assert.equal(before.quote, inventory.idle0); assert.equal(before.rwa, inventory.idle1);
+  return {context,tokenId,position,principal,fees,before,nftBase,coreBase,liquidity};
+}
+
+export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionPolicy, inventory: PaperExitInventory,
+  onTransaction?: (tx: PaperTransaction) => void) {
+  const {context,tokenId,position,principal,fees,before,nftBase,coreBase,liquidity}=await restorePaperPosition(fork,policy,inventory,onTransaction);
+  const {local,sourceSlot,balances,send,approve,quoteSwap,swap,transactions}=context;
   const exit = buildCanaryExit({ operator: PAPER_ACCOUNT, owner: PAPER_ACCOUNT, tokenId,
     source: { rwaSymbol: "NVDA", rwaAddress: NVDA, fee: 500, token0: USDG, token1: NVDA }, position,
     sqrtPriceX96: sourceSlot[0], blockTimestamp: fork.source.timestamp, slippageBps: policy.maxSlippageBps, ttlSeconds: policy.transactionTtlSeconds });
