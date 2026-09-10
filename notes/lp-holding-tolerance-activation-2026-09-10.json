@@ -1,0 +1,192 @@
+{
+  "verifiedAt": "2026-09-10T12:22:22.200Z",
+  "health": {
+    "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+    "sourceCommit": "b6e781341617908faadb177f159889f2cca24039",
+    "softLagBlocks": "30",
+    "confirmationDepth": 64,
+    "hardLagBlocks": "100",
+    "samples": [
+      {
+        "id": "50185",
+        "observedAt": "2026-09-10T12:22:13.359Z",
+        "state": "healthy",
+        "allowBulk": true,
+        "lagBlocks": "0",
+        "reasons": [],
+        "anchorBlock": "59399482",
+        "proofs": [
+          {
+            "name": "private",
+            "role": "private",
+            "depth": "71",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_1",
+            "role": "reference",
+            "depth": "64",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_2",
+            "role": "reference",
+            "depth": "71",
+            "hashMatches": true,
+            "readError": null
+          }
+        ]
+      },
+      {
+        "id": "50184",
+        "observedAt": "2026-09-10T12:22:03.362Z",
+        "state": "healthy",
+        "allowBulk": true,
+        "lagBlocks": "0",
+        "reasons": [],
+        "anchorBlock": "59399383",
+        "proofs": [
+          {
+            "name": "private",
+            "role": "private",
+            "depth": "71",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_1",
+            "role": "reference",
+            "depth": "64",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_2",
+            "role": "reference",
+            "depth": "67",
+            "hashMatches": true,
+            "readError": null
+          }
+        ]
+      },
+      {
+        "id": "50183",
+        "observedAt": "2026-09-10T12:21:53.318Z",
+        "state": "healthy",
+        "allowBulk": true,
+        "lagBlocks": "0",
+        "reasons": [],
+        "anchorBlock": "59399284",
+        "proofs": [
+          {
+            "name": "private",
+            "role": "private",
+            "depth": "71",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_1",
+            "role": "reference",
+            "depth": "64",
+            "hashMatches": true,
+            "readError": null
+          },
+          {
+            "name": "reference_2",
+            "role": "reference",
+            "depth": "71",
+            "hashMatches": true,
+            "readError": null
+          }
+        ]
+      }
+    ]
+  },
+  "paper": {
+    "sessionId": "54",
+    "status": "open",
+    "budgetQuote": "949059307",
+    "policyHash": "0d4905e9af00dd0441f7107ecbb8d5f150f16749fc210c8b5e1cdfba35fa09e2",
+    "runtimeIdentity": {
+      "buildId": "81087b0e63143aa12916aadf70e7e9e18162c1936e63e300ba90e5d21b5950b1",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "holdingPolicy": null,
+    "usdgGraceSeconds": 1800,
+    "sourceAt": "2026-09-10T15:20:57+03:00",
+    "ancestryValidated": [
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "49",
+      "50",
+      "51",
+      "52",
+      "53",
+      "54"
+    ]
+  },
+  "handoff": {
+    "status": "queued_for_normal_cash_exit",
+    "parentId": "54",
+    "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+    "policy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "chainPauseSeconds": 60,
+      "riskPauseSeconds": 30
+    },
+    "hookPresent": true
+  },
+  "comparison": {
+    "active": false,
+    "enabled": false,
+    "ledgerSha256": "f74ad69c5bf344d7a1748984dd51f1421b36a2a63fb4cf9345290671ed049bc3"
+  },
+  "executionEligible": false
+}
