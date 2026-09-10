@@ -1,0 +1,22 @@
+{
+  "checkedAt": "2026-09-10T14:33:37.231Z",
+  "httpStatus": 200,
+  "session": "55",
+  "status": "open",
+  "campaignValid": true,
+  "heartbeat": "2026-09-10T14:33:35.450Z",
+  "source": {
+    "id": "4925",
+    "hash": "0x74b3c7f591c7fc78afe463f4afa4bd588c44df51e9c18a37718a7b26f950d763",
+    "tick": 222449,
+    "block": "59477425",
+    "liquidity": "9415076014281325704",
+    "capturedAt": "2026-09-10T17:33:10.927+03:00",
+    "feeGrowth0": "19436405893468478586563296916050",
+    "feeGrowth1": "90235161516165103115289796923592350188801",
+    "sqrtPriceX96": "5358841771744394483707884384970006",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+    "blockTimestamp": "2026-09-10T17:33:04+03:00"
+  },
+  "points": 116
+}

@@ -1,0 +1,18 @@
+{
+  "passed": true,
+  "baselineEntriesExact": 50,
+  "candidateEntriesFilled": 50,
+  "pairedRows": 568,
+  "calendarTests": 4,
+  "checks": [
+    "source digests",
+    "entry swap/mint parity from JS replay",
+    "delayed fresh entry source",
+    "fork gas and oracle units",
+    "fork mint balance conservation",
+    "all paired deltas and aggregate counts",
+    "Pnl and alpha identities",
+    "window nonoverlap and duration",
+    "range crossing and return aggregates"
+  ]
+}

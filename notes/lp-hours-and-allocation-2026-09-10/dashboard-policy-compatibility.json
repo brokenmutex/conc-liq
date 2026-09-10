@@ -1,0 +1,35 @@
+{
+  "checkedAt": "2026-09-10T14:32:32.808Z",
+  "session": "55",
+  "results": [
+    {
+      "buildId": "f30da7e894227a4ba2e684a5d24fb0f6aadb296a1712919662ba84c8c0ee7f1c",
+      "valid": false,
+      "issues": [
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "usdgHeartbeatGraceSeconds"
+          ],
+          "path": [
+            "referencePolicy"
+          ],
+          "message": "Unrecognized key: \"usdgHeartbeatGraceSeconds\""
+        },
+        {
+          "code": "unrecognized_keys",
+          "keys": [
+            "holdingPolicy"
+          ],
+          "path": [],
+          "message": "Unrecognized key: \"holdingPolicy\""
+        }
+      ]
+    },
+    {
+      "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+      "valid": true,
+      "issues": []
+    }
+  ]
+}

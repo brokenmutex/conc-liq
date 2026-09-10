@@ -1,0 +1,132 @@
+{
+  "capturedAt": "2026-09-10T14:43:47.139Z",
+  "scope": "Independent local fork; no paper store mutation",
+  "sessionId": "9",
+  "cp": {
+    "id": "4935",
+    "block": "59483547",
+    "hash": "0xfe93d988987569a87bfa541967f84d43bab23bb53238b589023a94024b7f554a",
+    "blockTimestamp": "2026-09-10T14:43:21.000Z",
+    "capturedAt": "2026-09-10T14:43:27.911Z",
+    "tick": 222445,
+    "sqrtPriceX96": "5357727195527317075442569946137206",
+    "liquidity": "9455754165258725591",
+    "feeGrowth0": "19439656327355796667764662475502",
+    "feeGrowth1": "90248233411759247045345604128522407708117",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"
+  },
+  "policy": {
+    "mode": "guarded",
+    "reentry": {
+      "cooldownSeconds": 600,
+      "previousSessionId": "8"
+    },
+    "budgetQuote": "992872139",
+    "feeAccounting": "initialized_boundaries_v1",
+    "maxGapSeconds": 900,
+    "executionBasis": "nitro_fork_v1",
+    "maxSlippageBps": 50,
+    "lpAllocationPpm": 550000,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxDeviationPpm": 50000,
+      "maxHeldAgeSeconds": 345600,
+      "maxGasPriceAgeSeconds": 86400
+    },
+    "inventoryExitPpm": 600000,
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": 86400,
+    "maxSourceAgeSeconds": 180,
+    "maxLiquiditySharePpm": 10000,
+    "transactionTtlSeconds": 300
+  },
+  "entryGasQuote": "266653",
+  "exitGasQuote": "178544",
+  "source": {
+    "block": "59483547",
+    "hash": "0xfe93d988987569a87bfa541967f84d43bab23bb53238b589023a94024b7f554a",
+    "timestamp": "1789051401"
+  },
+  "range": {
+    "tickLower": 222430,
+    "tickUpper": 222470
+  },
+  "liquidity": "18281127341975082",
+  "minted0": "331445724",
+  "minted1": "955360608600869040",
+  "balances": {
+    "before": {
+      "quote": "992872139",
+      "rwa": "0",
+      "native": "1000000000000000000"
+    },
+    "inventory": {
+      "quote": "778238187",
+      "rwa": "981030658169286399",
+      "native": "999755494434803254"
+    },
+    "afterMint": {
+      "quote": "446792463",
+      "rwa": "25670049568417359",
+      "native": "999109827095794300"
+    },
+    "afterCollect": {
+      "quote": "778238186",
+      "rwa": "981030658169286398",
+      "native": "998890936978283317"
+    },
+    "afterExit": {
+      "quote": "992657557",
+      "rwa": "0",
+      "native": "998592723772897539"
+    }
+  },
+  "transactions": [
+    {
+      "action": "approve_entry_swap",
+      "estimateFeeWei": "7558633346000"
+    },
+    {
+      "action": "buy_nvda",
+      "estimateFeeWei": "22860749186000"
+    },
+    {
+      "action": "approve_mint_usdg",
+      "estimateFeeWei": "7558633346000"
+    },
+    {
+      "action": "approve_mint_nvda",
+      "estimateFeeWei": "8289160264000"
+    },
+    {
+      "action": "mint",
+      "estimateFeeWei": "63326001618000"
+    },
+    {
+      "action": "decrease_and_collect",
+      "estimateFeeWei": "32934899206000"
+    },
+    {
+      "action": "approve_exit_swap",
+      "estimateFeeWei": "8289160264000"
+    },
+    {
+      "action": "sell_nvda",
+      "estimateFeeWei": "20786145292000"
+    },
+    {
+      "action": "revoke_usdg_manager",
+      "estimateFeeWei": "5320518940000"
+    },
+    {
+      "action": "revoke_nvda_manager",
+      "estimateFeeWei": "6050017490000"
+    }
+  ],
+  "limitations": [
+    "Current-state local round trip; no forward holding interval or LP fee-income result",
+    "Gas uses pinned Nitro estimates with paper account state, not mainnet receipts",
+    "1 ETH is local gas fixture funding; token budget and native gas charges are separate",
+    "No intervening third-party transactions within the simulated sequence"
+  ]
+}

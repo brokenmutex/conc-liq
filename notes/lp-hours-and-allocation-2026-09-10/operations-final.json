@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-09-10T14:59:18.739305+00:00",
+  "httpStatus": 200,
+  "session": "55",
+  "status": "open",
+  "heartbeat": "2026-09-10T14:59:10.226Z",
+  "source": "2026-09-10T17:58:38+03:00",
+  "policy": {
+    "mode": "guarded",
+    "budgetQuote": "946816524",
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": 86400,
+    "maxSourceAgeSeconds": 180,
+    "maxGapSeconds": 900,
+    "maxLiquiditySharePpm": 10000,
+    "executionBasis": "nitro_fork_v1",
+    "feeAccounting": "initialized_boundaries_v1",
+    "lpAllocationPpm": 800000,
+    "inventoryExitPpm": 600000,
+    "reentry": {
+      "cooldownSeconds": 600,
+      "previousSessionId": "54"
+    },
+    "holdingPolicy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "chainPauseSeconds": 60,
+      "riskPauseSeconds": 30
+    },
+    "maxSlippageBps": 50,
+    "transactionTtlSeconds": 300,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    }
+  },
+  "campaignValid": true,
+  "navQuote": "939930996",
+  "feeValueQuote": "1274626",
+  "costsPaidQuote": "868343",
+  "exitReserveQuote": "586325",
+  "dashboardRelease": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+  "comparisonLedgerSha256": "f74ad69c5bf344d7a1748984dd51f1421b36a2a63fb4cf9345290671ed049bc3"
+}

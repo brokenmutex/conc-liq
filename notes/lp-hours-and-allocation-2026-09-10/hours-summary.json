@@ -1,0 +1,1445 @@
+{
+  "sourceSha256": "3afa2e1b00b9bcc99079b89030a08d35f86760d8ac6ecc7683ab96b3a68f8ad6",
+  "manifest": {
+    "capturedAt": "2026-09-10T14:42:55.756Z",
+    "from": "2026-09-05T00:00:00Z",
+    "to": "2026-09-10T14:35:00Z",
+    "pool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+    "stream": "robinhood-v3-rwa-usdg-v1",
+    "checkpoints": 4926,
+    "events": 601996,
+    "canonical": true,
+    "eventCursorCoverage": true,
+    "marketVerifiedAtEveryCheckpoint": true,
+    "eventTime": "Events belong to the interval between actual source block timestamps; observed_at is not market time"
+  },
+  "first": "2026-09-05T12:32:48.000Z",
+  "last": "2026-09-10T14:34:04.000Z",
+  "calendar": {
+    "zone": "America/New_York",
+    "holidays": [
+      "2026-01-01",
+      "2026-01-19",
+      "2026-02-16",
+      "2026-04-03",
+      "2026-05-25",
+      "2026-06-19",
+      "2026-07-03",
+      "2026-09-07",
+      "2026-11-26",
+      "2026-12-25"
+    ],
+    "earlyClose": [
+      "2026-11-27",
+      "2026-12-24"
+    ],
+    "source": "https://www.nasdaq.com/market-activity/stock-market-holiday-schedule"
+  },
+  "coverage": [
+    {
+      "regime": "afterhours",
+      "hours": 7.966944444444445,
+      "days": [
+        "2026-09-08",
+        "2026-09-09"
+      ],
+      "intervals": 465,
+      "checkpointGapSeconds": {
+        "n": 465,
+        "mean": 61.67956989247312,
+        "median": 61.0,
+        "p90": 63.0,
+        "p95": 63.0,
+        "max": 184.0
+      },
+      "swapsPerHour": 3359.255256092884,
+      "volumePerHour": 641658.0801068302
+    },
+    {
+      "regime": "holiday",
+      "hours": 20.47861111111111,
+      "days": [
+        "2026-09-07"
+      ],
+      "intervals": 1110,
+      "checkpointGapSeconds": {
+        "n": 1110,
+        "mean": 66.41711711711712,
+        "median": 61.0,
+        "p90": 63.0,
+        "p95": 63.0,
+        "max": 320.0
+      },
+      "swapsPerHour": 6001.237063060375,
+      "volumePerHour": 1147676.017013626
+    },
+    {
+      "regime": "overnight",
+      "hours": 19.945555555555554,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "intervals": 1161,
+      "checkpointGapSeconds": {
+        "n": 1161,
+        "mean": 61.84668389319552,
+        "median": 62.0,
+        "p90": 63.0,
+        "p95": 63.0,
+        "max": 186.0
+      },
+      "swapsPerHour": 3623.8649657400706,
+      "volumePerHour": 847206.5757452068
+    },
+    {
+      "regime": "premarket",
+      "hours": 16.458055555555557,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "intervals": 956,
+      "checkpointGapSeconds": {
+        "n": 956,
+        "mean": 61.97594142259414,
+        "median": 61.0,
+        "p90": 63.0,
+        "p95": 63.0,
+        "max": 186.0
+      },
+      "swapsPerHour": 5841.455551992438,
+      "volumePerHour": 1366234.7913826208
+    },
+    {
+      "regime": "regular",
+      "hours": 14.0175,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "intervals": 796,
+      "checkpointGapSeconds": {
+        "n": 796,
+        "mean": 63.39572864321608,
+        "median": 62.0,
+        "p90": 63.0,
+        "p95": 63.0,
+        "max": 246.0
+      },
+      "swapsPerHour": 5955.555555555556,
+      "volumePerHour": 2309163.2050735885
+    },
+    {
+      "regime": "weekend",
+      "hours": 31.954722222222223,
+      "days": [
+        "2026-09-05",
+        "2026-09-06"
+      ],
+      "intervals": 372,
+      "checkpointGapSeconds": {
+        "n": 372,
+        "mean": 309.23924731182797,
+        "median": 309.0,
+        "p90": 316.90000000000003,
+        "p95": 320.0,
+        "max": 412.0
+      },
+      "swapsPerHour": 4436.809026660987,
+      "volumePerHour": 740431.8149752205
+    }
+  ],
+  "aggregates": [
+    {
+      "horizonMinutes": 30,
+      "regime": "afterhours",
+      "n": 14,
+      "days": [
+        "2026-09-08",
+        "2026-09-09"
+      ],
+      "durationMinutes": {
+        "n": 14,
+        "mean": 30.705952380952382,
+        "median": 30.708333333333332,
+        "p90": 30.766666666666666,
+        "p95": 30.778333333333332,
+        "max": 30.8
+      },
+      "absoluteReturnPct": {
+        "n": 14,
+        "mean": 0.02351492576758945,
+        "median": 0.01698749146576417,
+        "p90": 0.05743570014250636,
+        "p95": 0.07308827082469549,
+        "max": 0.07855306435892162
+      },
+      "peakExcursionTicks": {
+        "n": 14,
+        "mean": 3.642857142857143,
+        "median": 3.0,
+        "p90": 6.400000000000002,
+        "p95": 7.699999999999999,
+        "max": 9
+      },
+      "downPriceTicks": {
+        "n": 14,
+        "mean": 2.642857142857143,
+        "median": 2.5,
+        "p90": 4.0,
+        "p95": 5.749999999999998,
+        "max": 9
+      },
+      "crossingPct": {
+        "10": 0.0,
+        "20": 0.0,
+        "30": 0.0,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 654093.0961654867,
+      "swapsPerHour": 3532.865506145078
+    },
+    {
+      "horizonMinutes": 30,
+      "regime": "holiday",
+      "n": 37,
+      "days": [
+        "2026-09-07"
+      ],
+      "durationMinutes": {
+        "n": 37,
+        "mean": 30.68963963963964,
+        "median": 30.716666666666665,
+        "p90": 30.78,
+        "p95": 30.803333333333335,
+        "max": 30.816666666666666
+      },
+      "absoluteReturnPct": {
+        "n": 37,
+        "mean": 0.06939032583852893,
+        "median": 0.04960314616486716,
+        "p90": 0.12735223711300536,
+        "p95": 0.17687901331346223,
+        "max": 0.339045311813746
+      },
+      "peakExcursionTicks": {
+        "n": 37,
+        "mean": 8.594594594594595,
+        "median": 6,
+        "p90": 15.799999999999997,
+        "p95": 18.39999999999999,
+        "max": 42
+      },
+      "downPriceTicks": {
+        "n": 37,
+        "mean": 4.648648648648648,
+        "median": 2,
+        "p90": 13.199999999999996,
+        "p95": 17.199999999999996,
+        "max": 20
+      },
+      "crossingPct": {
+        "10": 35.13513513513514,
+        "20": 5.405405405405405,
+        "30": 2.7027027027027026,
+        "40": 2.7027027027027026,
+        "50": 0.0
+      },
+      "volumePerHour": 1086017.747511465,
+      "swapsPerHour": 5581.001306306968
+    },
+    {
+      "horizonMinutes": 30,
+      "regime": "overnight",
+      "n": 37,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "durationMinutes": {
+        "n": 37,
+        "mean": 30.795045045045047,
+        "median": 30.733333333333334,
+        "p90": 30.80666666666667,
+        "p95": 30.85,
+        "max": 32.833333333333336
+      },
+      "absoluteReturnPct": {
+        "n": 37,
+        "mean": 0.06372021214367664,
+        "median": 0.04058815904601776,
+        "p90": 0.12442034438293167,
+        "p95": 0.1664587884735089,
+        "max": 0.2852989482682422
+      },
+      "peakExcursionTicks": {
+        "n": 37,
+        "mean": 9.162162162162161,
+        "median": 6,
+        "p90": 21.4,
+        "p95": 24.39999999999999,
+        "max": 37
+      },
+      "downPriceTicks": {
+        "n": 37,
+        "mean": 6.162162162162162,
+        "median": 3,
+        "p90": 17.999999999999993,
+        "p95": 22.799999999999983,
+        "max": 37
+      },
+      "crossingPct": {
+        "10": 32.432432432432435,
+        "20": 13.513513513513514,
+        "30": 2.7027027027027026,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 851555.4797637799,
+      "swapsPerHour": 3687.0445403349677
+    },
+    {
+      "horizonMinutes": 30,
+      "regime": "premarket",
+      "n": 30,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "durationMinutes": {
+        "n": 30,
+        "mean": 30.729444444444443,
+        "median": 30.716666666666665,
+        "p90": 30.783333333333335,
+        "p95": 30.783333333333335,
+        "max": 30.833333333333332
+      },
+      "absoluteReturnPct": {
+        "n": 30,
+        "mean": 0.1255216701585112,
+        "median": 0.07511543692626521,
+        "p90": 0.3135911953858661,
+        "p95": 0.31873374490759887,
+        "max": 0.7052810787290587
+      },
+      "peakExcursionTicks": {
+        "n": 30,
+        "mean": 16.3,
+        "median": 10.5,
+        "p90": 32.0,
+        "p95": 37.49999999999997,
+        "max": 83
+      },
+      "downPriceTicks": {
+        "n": 30,
+        "mean": 11.6,
+        "median": 7.0,
+        "p90": 29.300000000000004,
+        "p95": 37.49999999999997,
+        "max": 83
+      },
+      "crossingPct": {
+        "10": 53.333333333333336,
+        "20": 26.666666666666668,
+        "30": 13.333333333333334,
+        "40": 6.666666666666667,
+        "50": 3.3333333333333335
+      },
+      "volumePerHour": 1340583.699025698,
+      "swapsPerHour": 5830.303906857342
+    },
+    {
+      "horizonMinutes": 30,
+      "regime": "regular",
+      "n": 26,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "durationMinutes": {
+        "n": 26,
+        "mean": 30.809615384615384,
+        "median": 30.733333333333334,
+        "p90": 30.808333333333334,
+        "p95": 30.816666666666666,
+        "max": 32.86666666666667
+      },
+      "absoluteReturnPct": {
+        "n": 26,
+        "mean": 0.226026518684662,
+        "median": 0.12895742326978765,
+        "p90": 0.49769945142476013,
+        "p95": 1.0073028522110032,
+        "max": 1.3710715393971618
+      },
+      "peakExcursionTicks": {
+        "n": 26,
+        "mean": 31.423076923076923,
+        "median": 21.0,
+        "p90": 62.5,
+        "p95": 106.5,
+        "max": 145
+      },
+      "downPriceTicks": {
+        "n": 26,
+        "mean": 26.5,
+        "median": 19.5,
+        "p90": 58.0,
+        "p95": 106.5,
+        "max": 145
+      },
+      "crossingPct": {
+        "10": 80.76923076923077,
+        "20": 57.69230769230769,
+        "30": 30.76923076923077,
+        "40": 19.23076923076923,
+        "50": 15.384615384615385
+      },
+      "volumePerHour": 2312654.5857185195,
+      "swapsPerHour": 6047.412770738406
+    },
+    {
+      "horizonMinutes": 30,
+      "regime": "weekend",
+      "n": 52,
+      "days": [
+        "2026-09-05",
+        "2026-09-06"
+      ],
+      "durationMinutes": {
+        "n": 52,
+        "mean": 31.046153846153846,
+        "median": 30.991666666666667,
+        "p90": 31.428333333333335,
+        "p95": 31.5,
+        "max": 34.95
+      },
+      "absoluteReturnPct": {
+        "n": 52,
+        "mean": 0.024838145495206583,
+        "median": 0.01811670054953085,
+        "p90": 0.06232790163903877,
+        "p95": 0.0778194775362134,
+        "max": 0.11957440876633196
+      },
+      "peakExcursionTicks": {
+        "n": 52,
+        "mean": 3.6153846153846154,
+        "median": 3.0,
+        "p90": 7.899999999999999,
+        "p95": 9.0,
+        "max": 13
+      },
+      "downPriceTicks": {
+        "n": 52,
+        "mean": 1.7692307692307692,
+        "median": 1.0,
+        "p90": 3.8999999999999986,
+        "p95": 6.8999999999999915,
+        "max": 9
+      },
+      "crossingPct": {
+        "10": 3.8461538461538463,
+        "20": 0.0,
+        "30": 0.0,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 711442.2524511643,
+      "swapsPerHour": 4373.525768087214
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "afterhours",
+      "n": 2,
+      "days": [
+        "2026-09-08",
+        "2026-09-09"
+      ],
+      "durationMinutes": {
+        "n": 2,
+        "mean": 120.84166666666667,
+        "median": 120.84166666666667,
+        "p90": 120.84833333333333,
+        "p95": 120.84916666666666,
+        "max": 120.85
+      },
+      "absoluteReturnPct": {
+        "n": 2,
+        "mean": 0.06596657517899951,
+        "median": 0.06596657517899951,
+        "p90": 0.08861554515500858,
+        "p95": 0.09144666640200971,
+        "max": 0.09427778764901085
+      },
+      "peakExcursionTicks": {
+        "n": 2,
+        "mean": 9,
+        "median": 9.0,
+        "p90": 10.6,
+        "p95": 10.8,
+        "max": 11
+      },
+      "downPriceTicks": {
+        "n": 2,
+        "mean": 9,
+        "median": 9.0,
+        "p90": 10.6,
+        "p95": 10.8,
+        "max": 11
+      },
+      "crossingPct": {
+        "10": 50.0,
+        "20": 0.0,
+        "30": 0.0,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 666082.3148733741,
+      "swapsPerHour": 3795.3796289911043
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "holiday",
+      "n": 9,
+      "days": [
+        "2026-09-07"
+      ],
+      "durationMinutes": {
+        "n": 9,
+        "mean": 120.70925925925926,
+        "median": 120.81666666666666,
+        "p90": 120.97,
+        "p95": 120.97666666666667,
+        "max": 120.98333333333333
+      },
+      "absoluteReturnPct": {
+        "n": 9,
+        "mean": 0.14609176962698317,
+        "median": 0.19134224433512426,
+        "p90": 0.27813533128530965,
+        "p95": 0.2797839947558489,
+        "max": 0.2814326582263882
+      },
+      "peakExcursionTicks": {
+        "n": 9,
+        "mean": 21.11111111111111,
+        "median": 27,
+        "p90": 31.8,
+        "p95": 33.4,
+        "max": 35
+      },
+      "downPriceTicks": {
+        "n": 9,
+        "mean": 13.88888888888889,
+        "median": 10,
+        "p90": 29.4,
+        "p95": 30.2,
+        "max": 31
+      },
+      "crossingPct": {
+        "10": 77.77777777777777,
+        "20": 55.55555555555556,
+        "30": 22.22222222222222,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 1074180.6948063143,
+      "swapsPerHour": 5561.572802724636
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "overnight",
+      "n": 7,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "durationMinutes": {
+        "n": 7,
+        "mean": 120.7904761904762,
+        "median": 120.93333333333334,
+        "p90": 120.98,
+        "p95": 120.99,
+        "max": 121.0
+      },
+      "absoluteReturnPct": {
+        "n": 7,
+        "mean": 0.18131637314087495,
+        "median": 0.17062814430051088,
+        "p90": 0.35535674987827726,
+        "p95": 0.378530644404873,
+        "max": 0.40170453893146885
+      },
+      "peakExcursionTicks": {
+        "n": 7,
+        "mean": 22.857142857142858,
+        "median": 17,
+        "p90": 45.800000000000004,
+        "p95": 49.39999999999999,
+        "max": 53
+      },
+      "downPriceTicks": {
+        "n": 7,
+        "mean": 16,
+        "median": 6,
+        "p90": 45.800000000000004,
+        "p95": 49.39999999999999,
+        "max": 53
+      },
+      "crossingPct": {
+        "10": 57.142857142857146,
+        "20": 42.857142857142854,
+        "30": 42.857142857142854,
+        "40": 28.571428571428573,
+        "50": 14.285714285714286
+      },
+      "volumePerHour": 769572.2578256959,
+      "swapsPerHour": 3145.564929433099
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "premarket",
+      "n": 6,
+      "days": [
+        "2026-09-08",
+        "2026-09-09",
+        "2026-09-10"
+      ],
+      "durationMinutes": {
+        "n": 6,
+        "mean": 120.71111111111111,
+        "median": 120.82499999999999,
+        "p90": 120.93333333333334,
+        "p95": 120.94166666666666,
+        "max": 120.95
+      },
+      "absoluteReturnPct": {
+        "n": 6,
+        "mean": 0.27014759244711567,
+        "median": 0.16988338747343512,
+        "p90": 0.5570822871666048,
+        "p95": 0.6173851988619666,
+        "max": 0.6776881105573285
+      },
+      "peakExcursionTicks": {
+        "n": 6,
+        "mean": 37.666666666666664,
+        "median": 31.0,
+        "p90": 56.0,
+        "p95": 62.0,
+        "max": 68
+      },
+      "downPriceTicks": {
+        "n": 6,
+        "mean": 34,
+        "median": 31.0,
+        "p90": 56.0,
+        "p95": 62.0,
+        "max": 68
+      },
+      "crossingPct": {
+        "10": 100.0,
+        "20": 100.0,
+        "30": 50.0,
+        "40": 33.333333333333336,
+        "50": 16.666666666666668
+      },
+      "volumePerHour": 1316444.3505828425,
+      "swapsPerHour": 5520.535714285715
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "regular",
+      "n": 6,
+      "days": [
+        "2026-09-08",
+        "2026-09-09"
+      ],
+      "durationMinutes": {
+        "n": 6,
+        "mean": 120.89444444444445,
+        "median": 120.875,
+        "p90": 121.35833333333333,
+        "p95": 121.54583333333333,
+        "max": 121.73333333333333
+      },
+      "absoluteReturnPct": {
+        "n": 6,
+        "mean": 0.6582165098736473,
+        "median": 0.3958463253551814,
+        "p90": 1.547224877165293,
+        "p95": 2.013215725017006,
+        "max": 2.4792065728687196
+      },
+      "peakExcursionTicks": {
+        "n": 6,
+        "mean": 77.16666666666667,
+        "median": 45.5,
+        "p90": 162.5,
+        "p95": 212.25,
+        "max": 262
+      },
+      "downPriceTicks": {
+        "n": 6,
+        "mean": 70.83333333333333,
+        "median": 41.5,
+        "p90": 162.5,
+        "p95": 212.25,
+        "max": 262
+      },
+      "crossingPct": {
+        "10": 100.0,
+        "20": 83.33333333333333,
+        "30": 66.66666666666667,
+        "40": 50.0,
+        "50": 50.0
+      },
+      "volumePerHour": 2228555.8374815034,
+      "swapsPerHour": 6077.946785533753
+    },
+    {
+      "horizonMinutes": 120,
+      "regime": "weekend",
+      "n": 7,
+      "days": [
+        "2026-09-05",
+        "2026-09-06"
+      ],
+      "durationMinutes": {
+        "n": 7,
+        "mean": 123.0047619047619,
+        "median": 123.28333333333333,
+        "p90": 124.60333333333334,
+        "p95": 124.71833333333333,
+        "max": 124.83333333333333
+      },
+      "absoluteReturnPct": {
+        "n": 7,
+        "mean": 0.06418127936501491,
+        "median": 0.04371334463637577,
+        "p90": 0.12207330820510622,
+        "p95": 0.13073137270818155,
+        "max": 0.13938943721125696
+      },
+      "peakExcursionTicks": {
+        "n": 7,
+        "mean": 8.571428571428571,
+        "median": 6,
+        "p90": 13.200000000000001,
+        "p95": 14.099999999999998,
+        "max": 15
+      },
+      "downPriceTicks": {
+        "n": 7,
+        "mean": 5.428571428571429,
+        "median": 4,
+        "p90": 12.0,
+        "p95": 12.0,
+        "max": 12
+      },
+      "crossingPct": {
+        "10": 42.857142857142854,
+        "20": 0.0,
+        "30": 0.0,
+        "40": 0.0,
+        "50": 0.0
+      },
+      "volumePerHour": 752520.792366699,
+      "swapsPerHour": 4957.020634121792
+    }
+  ],
+  "rejectedAnchors": {
+    "30/gap": 125,
+    "30/transition": 222,
+    "120/gap": 257,
+    "120/transition": 899
+  },
+  "allowInternalCheckpointGaps": false,
+  "paperRegimes": [
+    {
+      "regime": "afterhours",
+      "holdingHours": 7.277222222222222,
+      "exitSignals": 4,
+      "inventoryExitSignals": 0,
+      "inventoryExitsPerHoldingHour": 0.0
+    },
+    {
+      "regime": "overnight",
+      "holdingHours": 12.549722222222222,
+      "exitSignals": 15,
+      "inventoryExitSignals": 5,
+      "inventoryExitsPerHoldingHour": 0.3984151928993559
+    },
+    {
+      "regime": "premarket",
+      "holdingHours": 11.125555555555556,
+      "exitSignals": 11,
+      "inventoryExitSignals": 6,
+      "inventoryExitsPerHoldingHour": 0.5392989114151603
+    },
+    {
+      "regime": "regular",
+      "holdingHours": 8.04138888888889,
+      "exitSignals": 20,
+      "inventoryExitSignals": 8,
+      "inventoryExitsPerHoldingHour": 0.9948530173753842
+    }
+  ],
+  "sessions": [
+    {
+      "session": "5",
+      "entry": "2026-09-08T09:01:35.000Z",
+      "end": "2026-09-08T10:21:26.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 4791.0
+      }
+    },
+    {
+      "session": "6",
+      "entry": "2026-09-08T11:59:46.000Z",
+      "end": "2026-09-08T13:00:09.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 3623.0
+      }
+    },
+    {
+      "session": "7",
+      "entry": "2026-09-08T13:12:25.000Z",
+      "end": "2026-09-08T13:36:06.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 1080.0,
+        "regular": 341.0
+      }
+    },
+    {
+      "session": "8",
+      "entry": "2026-09-08T14:25:17.000Z",
+      "end": "2026-09-08T15:10:16.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 2699.0
+      }
+    },
+    {
+      "session": "9",
+      "entry": "2026-09-08T15:23:32.000Z",
+      "end": "2026-09-08T15:32:47.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_usdg_oracle_price_stale"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 555.0
+      }
+    },
+    {
+      "session": "10",
+      "entry": "2026-09-08T15:46:05.000Z",
+      "end": "2026-09-08T15:50:12.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 247.0
+      }
+    },
+    {
+      "session": "11",
+      "entry": "2026-09-08T16:04:32.000Z",
+      "end": "2026-09-08T16:17:54.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 802.0
+      }
+    },
+    {
+      "session": "12",
+      "entry": "2026-09-08T16:30:11.000Z",
+      "end": "2026-09-08T18:24:46.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 6875.0
+      }
+    },
+    {
+      "session": "13",
+      "entry": "2026-09-08T18:37:02.000Z",
+      "end": "2026-09-08T18:56:29.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1167.0
+      }
+    },
+    {
+      "session": "14",
+      "entry": "2026-09-08T19:08:45.000Z",
+      "end": "2026-09-08T19:19:02.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "paper_current_risk_evidence_unavailable",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 617.0
+      }
+    },
+    {
+      "session": "15",
+      "entry": "2026-09-08T19:31:20.000Z",
+      "end": "2026-09-08T19:39:32.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 492.0
+      }
+    },
+    {
+      "session": "16",
+      "entry": "2026-09-08T19:53:55.000Z",
+      "end": "2026-09-08T19:55:59.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 124.0
+      }
+    },
+    {
+      "session": "17",
+      "entry": "2026-09-08T20:10:19.000Z",
+      "end": "2026-09-08T20:25:42.000Z",
+      "signalRegime": "afterhours",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "afterhours": 923.0
+      }
+    },
+    {
+      "session": "18",
+      "entry": "2026-09-08T20:38:00.000Z",
+      "end": "2026-09-08T21:33:16.000Z",
+      "signalRegime": "afterhours",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "afterhours": 3316.0
+      }
+    },
+    {
+      "session": "19",
+      "entry": "2026-09-08T21:45:36.000Z",
+      "end": "2026-09-08T23:59:37.000Z",
+      "signalRegime": "afterhours",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "afterhours": 8041.0
+      }
+    },
+    {
+      "session": "20",
+      "entry": "2026-09-09T00:11:52.000Z",
+      "end": "2026-09-09T00:47:49.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 2157.0
+      }
+    },
+    {
+      "session": "21",
+      "entry": "2026-09-09T01:01:08.000Z",
+      "end": "2026-09-09T02:17:05.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 4557.0
+      }
+    },
+    {
+      "session": "22",
+      "entry": "2026-09-09T02:29:27.000Z",
+      "end": "2026-09-09T02:47:55.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1108.0
+      }
+    },
+    {
+      "session": "23",
+      "entry": "2026-09-09T03:00:12.000Z",
+      "end": "2026-09-09T03:51:22.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 3070.0
+      }
+    },
+    {
+      "session": "24",
+      "entry": "2026-09-09T04:03:38.000Z",
+      "end": "2026-09-09T05:05:11.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_current_risk_evidence_unavailable"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 3693.0
+      }
+    },
+    {
+      "session": "25",
+      "entry": "2026-09-09T05:17:28.000Z",
+      "end": "2026-09-09T05:29:49.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 741.0
+      }
+    },
+    {
+      "session": "26",
+      "entry": "2026-09-09T05:42:06.000Z",
+      "end": "2026-09-09T07:06:04.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 5038.0
+      }
+    },
+    {
+      "session": "27",
+      "entry": "2026-09-09T07:19:21.000Z",
+      "end": "2026-09-09T08:13:31.000Z",
+      "signalRegime": "premarket",
+      "reasons": [],
+      "holdingSecondsByRegime": {
+        "overnight": 2460.0,
+        "premarket": 790.0
+      }
+    },
+    {
+      "session": "28",
+      "entry": "2026-09-09T08:25:48.000Z",
+      "end": "2026-09-09T08:43:15.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 1047.0
+      }
+    },
+    {
+      "session": "29",
+      "entry": "2026-09-09T08:55:33.000Z",
+      "end": "2026-09-09T09:32:29.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 2216.0
+      }
+    },
+    {
+      "session": "30",
+      "entry": "2026-09-09T09:44:49.000Z",
+      "end": "2026-09-09T09:57:08.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 739.0
+      }
+    },
+    {
+      "session": "31",
+      "entry": "2026-09-09T10:09:27.000Z",
+      "end": "2026-09-09T13:21:56.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 11549.0
+      }
+    },
+    {
+      "session": "32",
+      "entry": "2026-09-09T13:34:13.000Z",
+      "end": "2026-09-09T13:47:34.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 801.0
+      }
+    },
+    {
+      "session": "33",
+      "entry": "2026-09-09T14:00:55.000Z",
+      "end": "2026-09-09T14:02:57.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 122.0
+      }
+    },
+    {
+      "session": "34",
+      "entry": "2026-09-09T14:16:19.000Z",
+      "end": "2026-09-09T14:22:25.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 366.0
+      }
+    },
+    {
+      "session": "35",
+      "entry": "2026-09-09T14:34:40.000Z",
+      "end": "2026-09-09T14:38:44.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 244.0
+      }
+    },
+    {
+      "session": "36",
+      "entry": "2026-09-09T14:50:59.000Z",
+      "end": "2026-09-09T15:14:33.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1414.0
+      }
+    },
+    {
+      "session": "37",
+      "entry": "2026-09-09T15:26:48.000Z",
+      "end": "2026-09-09T15:32:56.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "paper_usdg_oracle_price_stale"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 368.0
+      }
+    },
+    {
+      "session": "38",
+      "entry": "2026-09-09T15:45:15.000Z",
+      "end": "2026-09-09T16:10:54.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1539.0
+      }
+    },
+    {
+      "session": "39",
+      "entry": "2026-09-09T16:24:13.000Z",
+      "end": "2026-09-09T16:46:51.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1358.0
+      }
+    },
+    {
+      "session": "40",
+      "entry": "2026-09-09T16:59:10.000Z",
+      "end": "2026-09-09T18:38:37.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 5967.0
+      }
+    },
+    {
+      "session": "41",
+      "entry": "2026-09-09T18:59:08.000Z",
+      "end": "2026-09-09T19:19:39.000Z",
+      "signalRegime": "regular",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1231.0
+      }
+    },
+    {
+      "session": "42",
+      "entry": "2026-09-09T19:33:02.000Z",
+      "end": "2026-09-09T23:52:00.000Z",
+      "signalRegime": "afterhours",
+      "reasons": [
+        "corporate_action_pending",
+        "paper_token_safety_check_failed",
+        "token_multiplier_transition"
+      ],
+      "holdingSecondsByRegime": {
+        "regular": 1620.0,
+        "afterhours": 13918.0
+      }
+    },
+    {
+      "session": "43",
+      "entry": "2026-09-10T00:04:18.000Z",
+      "end": "2026-09-10T00:21:43.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1045.0
+      }
+    },
+    {
+      "session": "44",
+      "entry": "2026-09-10T00:34:03.000Z",
+      "end": "2026-09-10T01:01:46.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1663.0
+      }
+    },
+    {
+      "session": "45",
+      "entry": "2026-09-10T01:14:01.000Z",
+      "end": "2026-09-10T01:30:27.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 986.0
+      }
+    },
+    {
+      "session": "46",
+      "entry": "2026-09-10T01:43:46.000Z",
+      "end": "2026-09-10T04:41:49.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 10683.0
+      }
+    },
+    {
+      "session": "47",
+      "entry": "2026-09-10T04:54:08.000Z",
+      "end": "2026-09-10T05:14:43.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1235.0
+      }
+    },
+    {
+      "session": "48",
+      "entry": "2026-09-10T05:27:03.000Z",
+      "end": "2026-09-10T06:22:23.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 3320.0
+      }
+    },
+    {
+      "session": "49",
+      "entry": "2026-09-10T06:34:43.000Z",
+      "end": "2026-09-10T07:00:18.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "chain_recovery_not_continuously_healthy",
+        "chain_anchor_quorum_unproven",
+        "paper_current_risk_evidence_unavailable",
+        "chain_recovery_unproven"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1535.0
+      }
+    },
+    {
+      "session": "50",
+      "entry": "2026-09-10T07:12:39.000Z",
+      "end": "2026-09-10T07:34:07.000Z",
+      "signalRegime": "overnight",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 1288.0
+      }
+    },
+    {
+      "session": "51",
+      "entry": "2026-09-10T07:50:29.000Z",
+      "end": "2026-09-10T08:01:46.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "overnight": 600.0,
+        "premarket": 77.0
+      }
+    },
+    {
+      "session": "52",
+      "entry": "2026-09-10T08:14:00.000Z",
+      "end": "2026-09-10T11:48:06.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 12846.0
+      }
+    },
+    {
+      "session": "53",
+      "entry": "2026-09-10T12:00:23.000Z",
+      "end": "2026-09-10T12:05:32.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 309.0
+      }
+    },
+    {
+      "session": "54",
+      "entry": "2026-09-10T12:17:53.000Z",
+      "end": "2026-09-10T12:34:18.000Z",
+      "signalRegime": "premarket",
+      "reasons": [
+        "paper_inventory_threshold_exit_to_cash"
+      ],
+      "holdingSecondsByRegime": {
+        "premarket": 985.0
+      }
+    }
+  ],
+  "method": {
+    "windows": "Consecutive nonoverlapping source-clock windows within each horizon, ending at the first checkpoint at least 30 or 120 minutes later; at most 6 minutes overshoot; transitions checked every minute and excluded",
+    "checkpointGaps": "Exclude windows with checkpoint gaps over 10 minutes; complete-events sensitivity includes these intervals",
+    "path": "All recorded Swap endpoints between the start and end blocks plus checkpoint endpoints; captures reversals missed by checkpoint-only returns; sub-swap path is monotonic",
+    "widths": "Excursions from the initial raw tick, before tick-spacing rounding or execution; diagnostic range crossings, not strategy results",
+    "sample": "One partial weekend and one holiday, overlapping 30 and 120 minute analyses; no independent holdout",
+    "paper": "Frozen completed-session cohort from prior audit, since Sep 8; exposure split into at-most-one-minute bins; signal regime is not entry regime; legacy infrastructure guards are confounders"
+  }
+}

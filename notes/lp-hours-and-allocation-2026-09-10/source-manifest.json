@@ -1,0 +1,37 @@
+[
+  {
+    "path": "data/lp-allocation-55-2026-09-10/hours-market.json",
+    "sha256": "3afa2e1b00b9bcc99079b89030a08d35f86760d8ac6ecc7683ab96b3a68f8ad6",
+    "bytes": 243523216
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/allocation-comparison-v2.json",
+    "sha256": "9c7f6f824209db410bde62a72f5349136cba86def9c5faf3b89042cc822ff1e8",
+    "bytes": 1256160
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/fork55.json",
+    "sha256": "696d035aee4891bc8a2b90afbbe2f16b3b3833d0b11f4f597a9bd0893ed654a0",
+    "bytes": 66480
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/hours-summary.json",
+    "sha256": "78377a0f1f966d75d1e75718dcf5c5e5185942f668d453dab48208e1c237ea9a",
+    "bytes": 36719
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/hours-windows.csv",
+    "sha256": "ec36b5522c92523a741b138d1d205d35228eeb6ac3e698187943262ec23c3b38",
+    "bytes": 54214
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/complete-events/hours-summary.json",
+    "sha256": "b45aca1ac5ddb387ce0b0b3785a6f1bc444c46710ba18476462aeb211d7ceb5b",
+    "bytes": 36658
+  },
+  {
+    "path": "data/lp-allocation-55-2026-09-10/complete-events/hours-windows.csv",
+    "sha256": "833e043e002e845b34862d93cac25fa2254f109f6f1f635f12bd01dbe676c0e9",
+    "bytes": 64618
+  }
+]
