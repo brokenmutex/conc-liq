@@ -9,7 +9,7 @@ import pg from 'pg';
 import { hash, verifyRelease } from './release-files.mjs';
 
 const [planPath, mode] = process.argv.slice(2);
-assert(planPath?.startsWith('/') && (!mode || mode === '--check'), 'Usage: activate-paper-release.mjs /absolute/plan.json [--check]');
+assert(planPath?.startsWith('/') && (!mode || ['--check','--arm'].includes(mode)), 'Usage: activate-paper-release.mjs /absolute/plan.json [--check|--arm]');
 const plan = JSON.parse(readFileSync(planPath, 'utf8'));
 const env = parseEnv(readFileSync(plan.envFile, 'utf8'));
 const db = new pg.Client({connectionString:env.DATABASE_URL,
@@ -48,7 +48,16 @@ try {
   }
   if (!alreadyStarted && row.state.status !== 'closed' && mode !== '--check') {
     // Leave the existing timer, worker and open position untouched.
+  } else if (mode === '--arm') {
+    // This runs synchronously inside the old worker's ExecStartPost. Stop its
+    // timer before returning, so no automatic successor can start while the
+    // separate activation service verifies the release and waits for us to end.
+    systemctl('stop','conc-liq-paper.timer');
+    try { systemctl('start','--no-block','conc-liq-usdg-grace-activation.service'); }
+    catch(error) { systemctl('start','conc-liq-paper.timer');throw error; }
+    console.log(JSON.stringify({status:'cash_exit_handoff_armed',sessionId:row.id}));
   } else {
+    if (mode !== '--check') { systemctl('stop','conc-liq-paper.timer');paused=true; }
     const release = verifyRelease(plan.release);
     assert.equal(release.buildId,plan.buildId);
     const policy = JSON.parse(readFileSync(join(plan.release,plan.policyFile),'utf8'));
@@ -68,7 +77,6 @@ try {
     if (mode === '--check') {
       console.log(JSON.stringify({status:'plan_verified',sessionId:row.id,positionStatus:row.state.status,buildId:plan.buildId}));
     } else {
-      systemctl('stop','conc-liq-paper.timer');paused=true;
       // The old worker must finish before its unit or immutable runtime changes.
       const deadline=Date.now()+30000;
       while (!['inactive','failed'].includes(systemctl('show','conc-liq-paper.service','--property=ActiveState','--value').trim())) {
