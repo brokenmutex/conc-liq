@@ -1,0 +1,2035 @@
+{
+  "checkedAt": "2026-09-10T13:07:37.181Z",
+  "sessionId": "55",
+  "status": "open",
+  "policy": {
+    "mode": "guarded",
+    "budgetQuote": "946816524",
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": 86400,
+    "maxSourceAgeSeconds": 180,
+    "maxGapSeconds": 900,
+    "maxLiquiditySharePpm": 10000,
+    "executionBasis": "nitro_fork_v1",
+    "feeAccounting": "initialized_boundaries_v1",
+    "lpAllocationPpm": 800000,
+    "inventoryExitPpm": 600000,
+    "reentry": {
+      "cooldownSeconds": 600,
+      "previousSessionId": "54"
+    },
+    "holdingPolicy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "chainPauseSeconds": 60,
+      "riskPauseSeconds": 30
+    },
+    "maxSlippageBps": 50,
+    "transactionTtlSeconds": 300,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    }
+  },
+  "policyHash": "da12490d5751103a5e33bce1970906c8482cfb0671f4ac393f8dba4a9caa46ba",
+  "runtime": {
+    "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+    "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+    "nodeVersion": "v24.20.0"
+  },
+  "source": {
+    "id": "4841",
+    "hash": "0xe6774dad3850a6694dc681aa9b278db4fc9802425e6a480fa8015689bfe269a2",
+    "tick": 222347,
+    "block": "59426243",
+    "liquidity": "10275816992495633826",
+    "capturedAt": "2026-09-10T16:07:09.963+03:00",
+    "feeGrowth0": "19401692189167574650084012207776",
+    "feeGrowth1": "90033178252388151431338187909011088682389",
+    "sqrtPriceX96": "5331639587194384186647218438132058",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+    "blockTimestamp": "2026-09-10T16:07:03+03:00"
+  },
+  "holding": {
+    "events": [
+      {
+        "at": "2026-09-10T13:00:52.917Z",
+        "reasons": [
+          "paper_holding_risk_pause"
+        ]
+      },
+      {
+        "at": "2026-09-10T13:01:08.955Z",
+        "reasons": []
+      }
+    ],
+    "paused": false,
+    "reasons": [],
+    "checkedAt": "2026-09-10T13:07:29.362Z",
+    "riskSince": null,
+    "chainSince": null,
+    "lastResume": {
+      "at": "2026-09-10T13:01:40.917Z",
+      "toBlock": "59422602",
+      "fromBlock": "59421999"
+    },
+    "exitReasons": [],
+    "lastHealthAt": "2026-09-10T13:07:19.281Z",
+    "riskEvidence": {
+      "latest": {
+        "id": "13924",
+        "status": "succeeded",
+        "riskRunId": "13922",
+        "attemptedAt": "2026-09-10T16:07:09.762499+03:00",
+        "completedAt": "2026-09-10T16:07:09.949432+03:00"
+      },
+      "limits": {
+        "sourceSeconds": 180,
+        "refreshSeconds": 10,
+        "validationSeconds": 30
+      },
+      "version": 1,
+      "selected": {
+        "id": "13924",
+        "status": "succeeded",
+        "blockHash": "0xe6774dad3850a6694dc681aa9b278db4fc9802425e6a480fa8015689bfe269a2",
+        "canonical": true,
+        "riskRunId": "13922",
+        "attemptedAt": "2026-09-10T16:07:09.762499+03:00",
+        "blockNumber": "59426243",
+        "completedAt": "2026-09-10T16:07:09.949432+03:00",
+        "validatedAt": "2026-09-10T16:07:28.028863+03:00",
+        "canonicalObservedHash": "0xe6774dad3850a6694dc681aa9b278db4fc9802425e6a480fa8015689bfe269a2"
+      },
+      "reference": {
+        "basis": "heartbeat_valid",
+        "reasons": [],
+        "eligible": true,
+        "ageSeconds": 1770,
+        "sourceBlock": "59426243",
+        "deviationPpm": "-1878",
+        "poolPriceX18": "220825194000000000000",
+        "maxAgeSeconds": 345600,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "warnings": [],
+          "updatedAt": "1788967939",
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 77684,
+          "acceptedMaxAgeSeconds": 88200,
+          "heartbeatMaxAgeSeconds": 86400
+        },
+        "maxDeviationPpm": 50000,
+        "referencePriceX18": "221240689644646715322",
+        "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+      },
+      "evaluatedAt": "2026-09-10 16:07:29.362546+03",
+      "failedChecks": [],
+      "snapshotSha256": "b7a1dc864db05d38f4ada5f8fc1f3962a72689f674fb32bdb3067721d7c66d85",
+      "snapshotSourceAt": "2026-09-10T13:07:03.000Z",
+      "inFlightStartedAt": null,
+      "snapshotObservedAt": "2026-09-10T13:07:09.949Z",
+      "usingPreviousCompleted": false
+    },
+    "healthSampleId": "50455",
+    "lastPrivateHead": "59426399",
+    "resumeFromPause": false
+  },
+  "executionEligible": false,
+  "ancestryValid": true,
+  "campaign": {
+    "rootSessionId": "5",
+    "sessionIds": [
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "10",
+      "11",
+      "12",
+      "13",
+      "14",
+      "15",
+      "16",
+      "17",
+      "18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+      "24",
+      "25",
+      "26",
+      "27",
+      "28",
+      "29",
+      "30",
+      "31",
+      "32",
+      "33",
+      "34",
+      "35",
+      "36",
+      "37",
+      "38",
+      "39",
+      "40",
+      "41",
+      "42",
+      "43",
+      "44",
+      "45",
+      "46",
+      "47",
+      "48",
+      "49",
+      "50",
+      "51",
+      "52",
+      "53",
+      "54",
+      "55"
+    ],
+    "initialBudgetQuote": "1000000000",
+    "navQuote": "945108916",
+    "pnlQuote": "-54891084",
+    "holdQuote": "984989726",
+    "alphaQuote": "-39880810",
+    "costsPaidQuote": "36956705",
+    "sourceAt": "2026-09-10T16:07:03+03:00"
+  },
+  "observations": [
+    {
+      "id": "3020",
+      "checkpoint_id": "4810",
+      "observed_at": "2026-09-10T12:35:45.897Z",
+      "source_at": "2026-09-10T12:35:18.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3021",
+      "checkpoint_id": "4811",
+      "observed_at": "2026-09-10T12:36:49.816Z",
+      "source_at": "2026-09-10T12:36:19.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3022",
+      "checkpoint_id": "4812",
+      "observed_at": "2026-09-10T12:37:36.301Z",
+      "source_at": "2026-09-10T12:37:21.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3023",
+      "checkpoint_id": "4813",
+      "observed_at": "2026-09-10T12:38:39.842Z",
+      "source_at": "2026-09-10T12:38:21.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3024",
+      "checkpoint_id": "4814",
+      "observed_at": "2026-09-10T12:39:42.937Z",
+      "source_at": "2026-09-10T12:39:23.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3025",
+      "checkpoint_id": "4815",
+      "observed_at": "2026-09-10T12:40:46.976Z",
+      "source_at": "2026-09-10T12:40:24.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3026",
+      "checkpoint_id": "4816",
+      "observed_at": "2026-09-10T12:41:48.900Z",
+      "source_at": "2026-09-10T12:41:26.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3027",
+      "checkpoint_id": "4817",
+      "observed_at": "2026-09-10T12:42:50.971Z",
+      "source_at": "2026-09-10T12:42:27.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3028",
+      "checkpoint_id": "4818",
+      "observed_at": "2026-09-10T12:43:54.971Z",
+      "source_at": "2026-09-10T12:43:30.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3029",
+      "checkpoint_id": "4819",
+      "observed_at": "2026-09-10T12:44:59.814Z",
+      "source_at": "2026-09-10T12:44:31.000Z",
+      "action": "wait",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3030",
+      "checkpoint_id": "4820",
+      "observed_at": "2026-09-10T12:46:03.404Z",
+      "source_at": "2026-09-10T12:45:34.000Z",
+      "action": "signal_entry",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": null,
+      "costs": "0"
+    },
+    {
+      "id": "3031",
+      "checkpoint_id": "4821",
+      "observed_at": "2026-09-10T12:47:23.234Z",
+      "source_at": "2026-09-10T12:46:34.000Z",
+      "action": "enter",
+      "holding": null,
+      "resumed_intervals": null,
+      "nav": "945185523",
+      "costs": "868343"
+    },
+    {
+      "id": "3032",
+      "checkpoint_id": "4822",
+      "observed_at": "2026-09-10T12:47:56.276Z",
+      "source_at": "2026-09-10T12:47:36.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:47:56.255Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:47:46.730Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13888",
+            "status": "succeeded",
+            "riskRunId": "13886",
+            "attemptedAt": "2026-09-10T15:47:42.757146+03:00",
+            "completedAt": "2026-09-10T15:47:42.942871+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13888",
+            "status": "succeeded",
+            "blockHash": "0xd2d9a65c7d5acda7caec232c2d6d7c294539103df1687657a84a622081f313ec",
+            "canonical": true,
+            "riskRunId": "13886",
+            "attemptedAt": "2026-09-10T15:47:42.757146+03:00",
+            "blockNumber": "59414642",
+            "completedAt": "2026-09-10T15:47:42.942871+03:00",
+            "validatedAt": "2026-09-10T15:47:52.329387+03:00",
+            "canonicalObservedHash": "0xd2d9a65c7d5acda7caec232c2d6d7c294539103df1687657a84a622081f313ec"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 603,
+            "sourceBlock": "59414642",
+            "deviationPpm": "-672",
+            "poolPriceX18": "221091861000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76517,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:47:56.255386+03",
+          "failedChecks": [],
+          "snapshotSha256": "b34fb19d266c5867c855126c3d6bddd79398cfbc139f56b62c7210fa77743e91",
+          "snapshotSourceAt": "2026-09-10T12:47:36.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:47:42.942Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50338",
+        "lastPrivateHead": "59414740",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944990114",
+      "costs": "868343"
+    },
+    {
+      "id": "3033",
+      "checkpoint_id": "4823",
+      "observed_at": "2026-09-10T12:49:00.234Z",
+      "source_at": "2026-09-10T12:48:38.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:49:00.213Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:48:56.810Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13890",
+            "status": "succeeded",
+            "riskRunId": "13888",
+            "attemptedAt": "2026-09-10T15:48:52.00427+03:00",
+            "completedAt": "2026-09-10T15:48:52.158282+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13890",
+            "status": "succeeded",
+            "blockHash": "0x34aca8824ea49868fc397fb0a104720adaf3f4e544c3545de75f5d70b4759301",
+            "canonical": true,
+            "riskRunId": "13888",
+            "attemptedAt": "2026-09-10T15:48:52.00427+03:00",
+            "blockNumber": "59415309",
+            "completedAt": "2026-09-10T15:48:52.158282+03:00",
+            "validatedAt": "2026-09-10T15:48:52.166537+03:00",
+            "canonicalObservedHash": "0x34aca8824ea49868fc397fb0a104720adaf3f4e544c3545de75f5d70b4759301"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 670,
+            "sourceBlock": "59415309",
+            "deviationPpm": "-1305",
+            "poolPriceX18": "220951782000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76584,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:49:00.213514+03",
+          "failedChecks": [],
+          "snapshotSha256": "ca5e4b3af9f1c4eb5060d23d375abb7c0cc30b3ac76a1e1373e6884182d05537",
+          "snapshotSourceAt": "2026-09-10T12:48:43.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:48:52.158Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50345",
+        "lastPrivateHead": "59415432",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945015795",
+      "costs": "868343"
+    },
+    {
+      "id": "3034",
+      "checkpoint_id": "4824",
+      "observed_at": "2026-09-10T12:50:03.455Z",
+      "source_at": "2026-09-10T12:49:38.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:50:03.434Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:49:56.837Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13892",
+            "status": "succeeded",
+            "riskRunId": "13890",
+            "attemptedAt": "2026-09-10T15:49:52.018171+03:00",
+            "completedAt": "2026-09-10T15:49:52.14161+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13892",
+            "status": "succeeded",
+            "blockHash": "0x6fbf533c11c70d718e545768dfa9566b6599d1bbfd9c70634daf17f34037eb26",
+            "canonical": true,
+            "riskRunId": "13890",
+            "attemptedAt": "2026-09-10T15:49:52.018171+03:00",
+            "blockNumber": "59415901",
+            "completedAt": "2026-09-10T15:49:52.14161+03:00",
+            "validatedAt": "2026-09-10T15:50:02.050708+03:00",
+            "canonicalObservedHash": "0x6fbf533c11c70d718e545768dfa9566b6599d1bbfd9c70634daf17f34037eb26"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 730,
+            "sourceBlock": "59415901",
+            "deviationPpm": "-1360",
+            "poolPriceX18": "220939742000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76644,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:50:03.434706+03",
+          "failedChecks": [],
+          "snapshotSha256": "9d33dca56ce0ee81e6972a90a22ec63b4d51c98b91bbdff0889b4160438a8039",
+          "snapshotSourceAt": "2026-09-10T12:49:43.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:49:52.141Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50351",
+        "lastPrivateHead": "59416026",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945339486",
+      "costs": "868343"
+    },
+    {
+      "id": "3035",
+      "checkpoint_id": "4825",
+      "observed_at": "2026-09-10T12:51:07.272Z",
+      "source_at": "2026-09-10T12:50:39.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:51:07.253Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:50:56.965Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13894",
+            "status": "succeeded",
+            "riskRunId": "13892",
+            "attemptedAt": "2026-09-10T15:51:02.015288+03:00",
+            "completedAt": "2026-09-10T15:51:02.179468+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13894",
+            "status": "succeeded",
+            "blockHash": "0xc6862cfe40aaa859e9774a9e0d50d56caa2773db55d49ab807eb2c863c9ee320",
+            "canonical": true,
+            "riskRunId": "13892",
+            "attemptedAt": "2026-09-10T15:51:02.015288+03:00",
+            "blockNumber": "59416585",
+            "completedAt": "2026-09-10T15:51:02.179468+03:00",
+            "validatedAt": "2026-09-10T15:51:02.188991+03:00",
+            "canonicalObservedHash": "0xc6862cfe40aaa859e9774a9e0d50d56caa2773db55d49ab807eb2c863c9ee320"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 800,
+            "sourceBlock": "59416585",
+            "deviationPpm": "-680",
+            "poolPriceX18": "221090099000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76714,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:51:07.253677+03",
+          "failedChecks": [],
+          "snapshotSha256": "9b80d9ca643258cf2ef48eed82a6ae9e570256839587fb8b625098047b01ecda",
+          "snapshotSourceAt": "2026-09-10T12:50:53.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:51:02.179Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50357",
+        "lastPrivateHead": "59416613",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945360654",
+      "costs": "868343"
+    },
+    {
+      "id": "3036",
+      "checkpoint_id": "4826",
+      "observed_at": "2026-09-10T12:52:10.314Z",
+      "source_at": "2026-09-10T12:51:42.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:52:10.294Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:52:07.147Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13896",
+            "status": "succeeded",
+            "riskRunId": "13894",
+            "attemptedAt": "2026-09-10T15:52:02.086001+03:00",
+            "completedAt": "2026-09-10T15:52:02.563466+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13896",
+            "status": "succeeded",
+            "blockHash": "0x05a5fc918a3888b31e127536639892b1df4289025e6deabddc5e7c0fa4405fc4",
+            "canonical": true,
+            "riskRunId": "13894",
+            "attemptedAt": "2026-09-10T15:52:02.086001+03:00",
+            "blockNumber": "59417228",
+            "completedAt": "2026-09-10T15:52:02.563466+03:00",
+            "validatedAt": "2026-09-10T15:52:02.574599+03:00",
+            "canonicalObservedHash": "0x05a5fc918a3888b31e127536639892b1df4289025e6deabddc5e7c0fa4405fc4"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 862,
+            "sourceBlock": "59417228",
+            "deviationPpm": "-651",
+            "poolPriceX18": "221096628000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76776,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:52:10.294329+03",
+          "failedChecks": [],
+          "snapshotSha256": "d81d6db3374cdd5b23dc7d051450b5c068771cd22387380bb7c0f65b33f14ac2",
+          "snapshotSourceAt": "2026-09-10T12:51:55.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:52:02.563Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50364",
+        "lastPrivateHead": "59417351",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945350356",
+      "costs": "868343"
+    },
+    {
+      "id": "3037",
+      "checkpoint_id": "4827",
+      "observed_at": "2026-09-10T12:52:58.429Z",
+      "source_at": "2026-09-10T12:52:43.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:52:58.409Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:52:57.217Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13897",
+            "status": "succeeded",
+            "riskRunId": "13895",
+            "attemptedAt": "2026-09-10T15:52:49.794971+03:00",
+            "completedAt": "2026-09-10T15:52:49.982312+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13897",
+            "status": "succeeded",
+            "blockHash": "0xb332bd032b578976aa8c0dd3da91f8ac1a33048c8e92cdd0e78ede0293006754",
+            "canonical": true,
+            "riskRunId": "13895",
+            "attemptedAt": "2026-09-10T15:52:49.794971+03:00",
+            "blockNumber": "59417709",
+            "completedAt": "2026-09-10T15:52:49.982312+03:00",
+            "validatedAt": "2026-09-10T15:52:52.083823+03:00",
+            "canonicalObservedHash": "0xb332bd032b578976aa8c0dd3da91f8ac1a33048c8e92cdd0e78ede0293006754"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 910,
+            "sourceBlock": "59417709",
+            "deviationPpm": "-733",
+            "poolPriceX18": "221078412000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76824,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:52:58.409981+03",
+          "failedChecks": [],
+          "snapshotSha256": "2aecb25d6d8fe9de86d5f9cf9c514e3753241328932f7227848cb9c5893c1385",
+          "snapshotSourceAt": "2026-09-10T12:52:43.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:52:49.981Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50369",
+        "lastPrivateHead": "59417845",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945267559",
+      "costs": "868343"
+    },
+    {
+      "id": "3038",
+      "checkpoint_id": "4828",
+      "observed_at": "2026-09-10T12:54:18.351Z",
+      "source_at": "2026-09-10T12:53:43.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:54:18.331Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:54:17.364Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13899",
+            "status": "succeeded",
+            "riskRunId": "13897",
+            "attemptedAt": "2026-09-10T15:53:50.722371+03:00",
+            "completedAt": "2026-09-10T15:53:50.905843+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13899",
+            "status": "succeeded",
+            "blockHash": "0xe75d0782050b54826f67a8d0e6f6443299899070616f74cf714a93604ee329f4",
+            "canonical": true,
+            "riskRunId": "13897",
+            "attemptedAt": "2026-09-10T15:53:50.722371+03:00",
+            "blockNumber": "59418307",
+            "completedAt": "2026-09-10T15:53:50.905843+03:00",
+            "validatedAt": "2026-09-10T15:54:12.082841+03:00",
+            "canonicalObservedHash": "0xe75d0782050b54826f67a8d0e6f6443299899070616f74cf714a93604ee329f4"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 970,
+            "sourceBlock": "59418307",
+            "deviationPpm": "-1057",
+            "poolPriceX18": "221006752000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76884,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:54:18.331894+03",
+          "failedChecks": [],
+          "snapshotSha256": "effa1aab2352b7f0b9f0a902f9182150e3c1a2c55e303387840e01d9707c8ae0",
+          "snapshotSourceAt": "2026-09-10T12:53:43.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:53:50.905Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50377",
+        "lastPrivateHead": "59418634",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945070854",
+      "costs": "868343"
+    },
+    {
+      "id": "3039",
+      "checkpoint_id": "4829",
+      "observed_at": "2026-09-10T12:55:06.360Z",
+      "source_at": "2026-09-10T12:54:46.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:55:06.341Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:54:57.467Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13901",
+            "status": "succeeded",
+            "riskRunId": "13899",
+            "attemptedAt": "2026-09-10T15:54:52.801233+03:00",
+            "completedAt": "2026-09-10T15:54:52.957229+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13901",
+            "status": "succeeded",
+            "blockHash": "0xfee72a7e6192c4bc8eef8804b13918dce3451dbdca84389f224d2191c33ba604",
+            "canonical": true,
+            "riskRunId": "13899",
+            "attemptedAt": "2026-09-10T15:54:52.801233+03:00",
+            "blockNumber": "59418920",
+            "completedAt": "2026-09-10T15:54:52.957229+03:00",
+            "validatedAt": "2026-09-10T15:55:02.109905+03:00",
+            "canonicalObservedHash": "0xfee72a7e6192c4bc8eef8804b13918dce3451dbdca84389f224d2191c33ba604"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1033,
+            "sourceBlock": "59418920",
+            "deviationPpm": "-1592",
+            "poolPriceX18": "220888380000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76947,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:55:06.341501+03",
+          "failedChecks": [],
+          "snapshotSha256": "635bdff1c14405267a1a3eac607b2a645f01819cf340c15689516effbd7d8f7f",
+          "snapshotSourceAt": "2026-09-10T12:54:46.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:54:52.956Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50381",
+        "lastPrivateHead": "59419029",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945027127",
+      "costs": "868343"
+    },
+    {
+      "id": "3040",
+      "checkpoint_id": "4830",
+      "observed_at": "2026-09-10T12:56:10.245Z",
+      "source_at": "2026-09-10T12:55:49.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:56:10.223Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:56:07.572Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13903",
+            "status": "succeeded",
+            "riskRunId": "13901",
+            "attemptedAt": "2026-09-10T15:55:55.799961+03:00",
+            "completedAt": "2026-09-10T15:55:55.994242+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13903",
+            "status": "succeeded",
+            "blockHash": "0x3d7f3e014eea95def612b90f26d5105babf6f89018792674e275dbe31c7d08de",
+            "canonical": true,
+            "riskRunId": "13901",
+            "attemptedAt": "2026-09-10T15:55:55.799961+03:00",
+            "blockNumber": "59419540",
+            "completedAt": "2026-09-10T15:55:55.994242+03:00",
+            "validatedAt": "2026-09-10T15:56:02.108751+03:00",
+            "canonicalObservedHash": "0x3d7f3e014eea95def612b90f26d5105babf6f89018792674e275dbe31c7d08de"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1096,
+            "sourceBlock": "59419540",
+            "deviationPpm": "-1729",
+            "poolPriceX18": "220858087000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77010,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:56:10.223039+03",
+          "failedChecks": [],
+          "snapshotSha256": "ddd9e405e21c3ad52faf6c32616622df847164982e7c926e538e9f837aa71052",
+          "snapshotSourceAt": "2026-09-10T12:55:49.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:55:55.993Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50388",
+        "lastPrivateHead": "59419719",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945017018",
+      "costs": "868343"
+    },
+    {
+      "id": "3041",
+      "checkpoint_id": "4831",
+      "observed_at": "2026-09-10T12:57:28.285Z",
+      "source_at": "2026-09-10T12:56:50.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:57:28.264Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:57:27.826Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13905",
+            "status": "succeeded",
+            "riskRunId": "13903",
+            "attemptedAt": "2026-09-10T15:56:56.728015+03:00",
+            "completedAt": "2026-09-10T15:56:56.878469+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13905",
+            "status": "succeeded",
+            "blockHash": "0x70ad19e5325477ea406d03326f9d6413fdfba788e4b4fda75a06f1c28bab4596",
+            "canonical": true,
+            "riskRunId": "13903",
+            "attemptedAt": "2026-09-10T15:56:56.728015+03:00",
+            "blockNumber": "59420125",
+            "completedAt": "2026-09-10T15:56:56.878469+03:00",
+            "validatedAt": "2026-09-10T15:57:22.130832+03:00",
+            "canonicalObservedHash": "0x70ad19e5325477ea406d03326f9d6413fdfba788e4b4fda75a06f1c28bab4596"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1157,
+            "sourceBlock": "59420125",
+            "deviationPpm": "-1785",
+            "poolPriceX18": "220845613000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77071,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:57:28.264915+03",
+          "failedChecks": [],
+          "snapshotSha256": "6744caa7331831441b73379cbec15e7d7f40f086f008606bb716283c26ccbd19",
+          "snapshotSourceAt": "2026-09-10T12:56:50.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:56:56.878Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50396",
+        "lastPrivateHead": "59420494",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944992974",
+      "costs": "868343"
+    },
+    {
+      "id": "3042",
+      "checkpoint_id": "4832",
+      "observed_at": "2026-09-10T12:58:15.273Z",
+      "source_at": "2026-09-10T12:57:50.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:58:15.253Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:58:07.825Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13907",
+            "status": "succeeded",
+            "riskRunId": "13905",
+            "attemptedAt": "2026-09-10T15:57:57.713725+03:00",
+            "completedAt": "2026-09-10T15:57:57.874466+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13907",
+            "status": "succeeded",
+            "blockHash": "0x3c78b44224c09d0906eb1def2e269fbdcd62c9cc9c025d98aa0ee46c360df930",
+            "canonical": true,
+            "riskRunId": "13905",
+            "attemptedAt": "2026-09-10T15:57:57.713725+03:00",
+            "blockNumber": "59420722",
+            "completedAt": "2026-09-10T15:57:57.874466+03:00",
+            "validatedAt": "2026-09-10T15:58:12.141335+03:00",
+            "canonicalObservedHash": "0x3c78b44224c09d0906eb1def2e269fbdcd62c9cc9c025d98aa0ee46c360df930"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1217,
+            "sourceBlock": "59420722",
+            "deviationPpm": "-1872",
+            "poolPriceX18": "220826449000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77131,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:58:15.253809+03",
+          "failedChecks": [],
+          "snapshotSha256": "54f9dcf412d132cee8a8a573f26e49bdc499e1a2cb4ab3091201ff2b96734f24",
+          "snapshotSourceAt": "2026-09-10T12:57:50.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:57:57.874Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50400",
+        "lastPrivateHead": "59420890",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944915112",
+      "costs": "868343"
+    },
+    {
+      "id": "3043",
+      "checkpoint_id": "4833",
+      "observed_at": "2026-09-10T12:59:19.224Z",
+      "source_at": "2026-09-10T12:58:53.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T12:59:19.203Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T12:59:17.975Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13909",
+            "status": "succeeded",
+            "riskRunId": "13907",
+            "attemptedAt": "2026-09-10T15:58:59.743214+03:00",
+            "completedAt": "2026-09-10T15:58:59.917208+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13909",
+            "status": "succeeded",
+            "blockHash": "0x2ad458f10a6e81728b9da603e3d2fb3ca86f4c939cc965fddf10a7b0a641863d",
+            "canonical": true,
+            "riskRunId": "13907",
+            "attemptedAt": "2026-09-10T15:58:59.743214+03:00",
+            "blockNumber": "59421392",
+            "completedAt": "2026-09-10T15:58:59.917208+03:00",
+            "validatedAt": "2026-09-10T15:59:12.33379+03:00",
+            "canonicalObservedHash": "0x2ad458f10a6e81728b9da603e3d2fb3ca86f4c939cc965fddf10a7b0a641863d"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1280,
+            "sourceBlock": "59421392",
+            "deviationPpm": "-2046",
+            "poolPriceX18": "220788008000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77194,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 15:59:19.203113+03",
+          "failedChecks": [],
+          "snapshotSha256": "ad9dc0c8e1084a731539164f53951b7097ca2e9ba355b412fa5f035d14b9919d",
+          "snapshotSourceAt": "2026-09-10T12:58:53.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T12:58:59.916Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50407",
+        "lastPrivateHead": "59421630",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944915550",
+      "costs": "868343"
+    },
+    {
+      "id": "3044",
+      "checkpoint_id": "4834",
+      "observed_at": "2026-09-10T13:00:22.053Z",
+      "source_at": "2026-09-10T12:59:55.000Z",
+      "action": "mark",
+      "holding": {
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:00:22.033Z",
+        "riskSince": null,
+        "chainSince": null,
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:00:18.118Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13911",
+            "status": "succeeded",
+            "riskRunId": "13909",
+            "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+            "completedAt": "2026-09-10T16:00:02.11891+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13911",
+            "status": "succeeded",
+            "blockHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+            "canonical": true,
+            "riskRunId": "13909",
+            "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+            "blockNumber": "59421999",
+            "completedAt": "2026-09-10T16:00:02.11891+03:00",
+            "validatedAt": "2026-09-10T16:00:12.355137+03:00",
+            "canonicalObservedHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1342,
+            "sourceBlock": "59421999",
+            "deviationPpm": "-2055",
+            "poolPriceX18": "220785940000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77256,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:00:22.033799+03",
+          "failedChecks": [],
+          "snapshotSha256": "b2816c4301984afe2b36f1cebf08d6fecb973700bf025307750e5684610e1019",
+          "snapshotSourceAt": "2026-09-10T12:59:55.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:00:02.118Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50413",
+        "lastPrivateHead": "59422225",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944620578",
+      "costs": "868343"
+    },
+    {
+      "id": "3045",
+      "checkpoint_id": "4835",
+      "observed_at": "2026-09-10T13:01:41.231Z",
+      "source_at": "2026-09-10T13:00:56.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:01:41.210Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:01:38.283Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13913",
+            "status": "succeeded",
+            "riskRunId": "13911",
+            "attemptedAt": "2026-09-10T16:01:37.98417+03:00",
+            "completedAt": "2026-09-10T16:01:38.132442+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13913",
+            "status": "succeeded",
+            "blockHash": "0x4c13d037fb4cf739b9b8bef9667a8a0519776f4f5208adbb08a89343a3c99682",
+            "canonical": true,
+            "riskRunId": "13911",
+            "attemptedAt": "2026-09-10T16:01:37.98417+03:00",
+            "blockNumber": "59422931",
+            "completedAt": "2026-09-10T16:01:38.132442+03:00",
+            "validatedAt": "2026-09-10T16:01:38.142599+03:00",
+            "canonicalObservedHash": "0x4c13d037fb4cf739b9b8bef9667a8a0519776f4f5208adbb08a89343a3c99682"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1436,
+            "sourceBlock": "59422931",
+            "deviationPpm": "-2608",
+            "poolPriceX18": "220663523000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77350,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:01:41.210612+03",
+          "failedChecks": [],
+          "snapshotSha256": "2fd08add76f2e110ede7d77d66cc4db8282139f3761a28d1bc13c92c1540bb67",
+          "snapshotSourceAt": "2026-09-10T13:01:29.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:01:38.132Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50421",
+        "lastPrivateHead": "59423012",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944848841",
+      "costs": "868343"
+    },
+    {
+      "id": "3046",
+      "checkpoint_id": "4836",
+      "observed_at": "2026-09-10T13:02:13.339Z",
+      "source_at": "2026-09-10T13:01:58.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:02:13.319Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:02:08.328Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13914",
+            "status": "succeeded",
+            "riskRunId": "13912",
+            "attemptedAt": "2026-09-10T16:02:04.745628+03:00",
+            "completedAt": "2026-09-10T16:02:04.909377+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13914",
+            "status": "succeeded",
+            "blockHash": "0x58ff095fefd30eb00f0b8e4f6d433c12e60c61139acc7c62ef224685d0ccd948",
+            "canonical": true,
+            "riskRunId": "13912",
+            "attemptedAt": "2026-09-10T16:02:04.745628+03:00",
+            "blockNumber": "59423209",
+            "completedAt": "2026-09-10T16:02:04.909377+03:00",
+            "validatedAt": "2026-09-10T16:02:07.960513+03:00",
+            "canonicalObservedHash": "0x58ff095fefd30eb00f0b8e4f6d433c12e60c61139acc7c62ef224685d0ccd948"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1465,
+            "sourceBlock": "59423209",
+            "deviationPpm": "-2194",
+            "poolPriceX18": "220755148000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77379,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:02:13.319096+03",
+          "failedChecks": [],
+          "snapshotSha256": "a72eb1d0db47bb6e9414445375653fd781a13f6bd6619832caced5a73674f698",
+          "snapshotSourceAt": "2026-09-10T13:01:58.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:02:04.908Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50424",
+        "lastPrivateHead": "59423308",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "944965789",
+      "costs": "868343"
+    },
+    {
+      "id": "3047",
+      "checkpoint_id": "4837",
+      "observed_at": "2026-09-10T13:03:16.208Z",
+      "source_at": "2026-09-10T13:02:59.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:03:16.187Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:03:08.492Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13916",
+            "status": "succeeded",
+            "riskRunId": "13914",
+            "attemptedAt": "2026-09-10T16:03:06.384883+03:00",
+            "completedAt": "2026-09-10T16:03:06.71055+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13916",
+            "status": "succeeded",
+            "blockHash": "0xe8ea9227ec36d16ef2988c5955cbbacf6c9de2c46e8161f66b739f4e2bb4c670",
+            "canonical": true,
+            "riskRunId": "13914",
+            "attemptedAt": "2026-09-10T16:03:06.384883+03:00",
+            "blockNumber": "59423817",
+            "completedAt": "2026-09-10T16:03:06.71055+03:00",
+            "validatedAt": "2026-09-10T16:03:07.942063+03:00",
+            "canonicalObservedHash": "0xe8ea9227ec36d16ef2988c5955cbbacf6c9de2c46e8161f66b739f4e2bb4c670"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1526,
+            "sourceBlock": "59423817",
+            "deviationPpm": "-2011",
+            "poolPriceX18": "220795612000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77440,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:03:16.187855+03",
+          "failedChecks": [],
+          "snapshotSha256": "ac5b17895a2d4fe5606b714d0b0008a0498ccc8039da478c242869f138eb5c96",
+          "snapshotSourceAt": "2026-09-10T13:02:59.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:03:06.709Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50430",
+        "lastPrivateHead": "59423900",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945090794",
+      "costs": "868343"
+    },
+    {
+      "id": "3048",
+      "checkpoint_id": "4838",
+      "observed_at": "2026-09-10T13:04:19.311Z",
+      "source_at": "2026-09-10T13:04:01.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:04:19.284Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:04:18.965Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13918",
+            "status": "succeeded",
+            "riskRunId": "13916",
+            "attemptedAt": "2026-09-10T16:04:07.790078+03:00",
+            "completedAt": "2026-09-10T16:04:07.988238+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13918",
+            "status": "succeeded",
+            "blockHash": "0x22cd7946be1c7fddf1bf9be18d42a68f7b9411e585008eb9ba5e04e296f1c4e8",
+            "canonical": true,
+            "riskRunId": "13916",
+            "attemptedAt": "2026-09-10T16:04:07.790078+03:00",
+            "blockNumber": "59424423",
+            "completedAt": "2026-09-10T16:04:07.988238+03:00",
+            "validatedAt": "2026-09-10T16:04:17.972025+03:00",
+            "canonicalObservedHash": "0x22cd7946be1c7fddf1bf9be18d42a68f7b9411e585008eb9ba5e04e296f1c4e8"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1588,
+            "sourceBlock": "59424423",
+            "deviationPpm": "-1818",
+            "poolPriceX18": "220838271000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77502,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:04:19.284095+03",
+          "failedChecks": [],
+          "snapshotSha256": "446577e0c700413faf3165f45cf4f55ea686f1d4fb16bcdd7d48e3efb508b479",
+          "snapshotSourceAt": "2026-09-10T13:04:01.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:04:07.987Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50437",
+        "lastPrivateHead": "59424597",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945081049",
+      "costs": "868343"
+    },
+    {
+      "id": "3049",
+      "checkpoint_id": "4839",
+      "observed_at": "2026-09-10T13:05:23.262Z",
+      "source_at": "2026-09-10T13:05:02.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:05:23.241Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:05:19.059Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13920",
+            "status": "succeeded",
+            "riskRunId": "13918",
+            "attemptedAt": "2026-09-10T16:05:08.784701+03:00",
+            "completedAt": "2026-09-10T16:05:08.966562+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13920",
+            "status": "succeeded",
+            "blockHash": "0x2fa52044f046441948b29301bede0bca7a3b4690742770ae5b53b0a7a3a7b88a",
+            "canonical": true,
+            "riskRunId": "13918",
+            "attemptedAt": "2026-09-10T16:05:08.784701+03:00",
+            "blockNumber": "59425064",
+            "completedAt": "2026-09-10T16:05:08.966562+03:00",
+            "validatedAt": "2026-09-10T16:05:17.995204+03:00",
+            "canonicalObservedHash": "0x2fa52044f046441948b29301bede0bca7a3b4690742770ae5b53b0a7a3a7b88a"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1649,
+            "sourceBlock": "59425064",
+            "deviationPpm": "-1859",
+            "poolPriceX18": "220829211000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77563,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:05:23.241323+03",
+          "failedChecks": [],
+          "snapshotSha256": "f88aec2b35879275daaf23f28f022756c403913d3187139a7244d67ed16c11a3",
+          "snapshotSourceAt": "2026-09-10T13:05:02.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:05:08.966Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50443",
+        "lastPrivateHead": "59425228",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945077194",
+      "costs": "868343"
+    },
+    {
+      "id": "3050",
+      "checkpoint_id": "4840",
+      "observed_at": "2026-09-10T13:06:26.318Z",
+      "source_at": "2026-09-10T13:06:03.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:06:26.299Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:06:19.191Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13922",
+            "status": "succeeded",
+            "riskRunId": "13920",
+            "attemptedAt": "2026-09-10T16:06:09.798105+03:00",
+            "completedAt": "2026-09-10T16:06:09.976639+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13922",
+            "status": "succeeded",
+            "blockHash": "0x83b12c6243900ecdc6d66fbc0b6b82e5b27eb2bc08f01c2123aa504f69af273b",
+            "canonical": true,
+            "riskRunId": "13920",
+            "attemptedAt": "2026-09-10T16:06:09.798105+03:00",
+            "blockNumber": "59425665",
+            "completedAt": "2026-09-10T16:06:09.976639+03:00",
+            "validatedAt": "2026-09-10T16:06:18.024077+03:00",
+            "canonicalObservedHash": "0x83b12c6243900ecdc6d66fbc0b6b82e5b27eb2bc08f01c2123aa504f69af273b"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1710,
+            "sourceBlock": "59425665",
+            "deviationPpm": "-1886",
+            "poolPriceX18": "220823219000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77624,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:06:26.299047+03",
+          "failedChecks": [],
+          "snapshotSha256": "2b84a872775831a0342ac33d3232f1194b11959d747ebddcf4a2848b0f522edd",
+          "snapshotSourceAt": "2026-09-10T13:06:03.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:06:09.976Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50449",
+        "lastPrivateHead": "59425821",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945102399",
+      "costs": "868343"
+    },
+    {
+      "id": "3051",
+      "checkpoint_id": "4841",
+      "observed_at": "2026-09-10T13:07:29.386Z",
+      "source_at": "2026-09-10T13:07:03.000Z",
+      "action": "mark",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          }
+        ],
+        "paused": false,
+        "reasons": [],
+        "checkedAt": "2026-09-10T13:07:29.362Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T13:01:40.917Z",
+          "toBlock": "59422602",
+          "fromBlock": "59421999"
+        },
+        "exitReasons": [],
+        "lastHealthAt": "2026-09-10T13:07:19.281Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "13924",
+            "status": "succeeded",
+            "riskRunId": "13922",
+            "attemptedAt": "2026-09-10T16:07:09.762499+03:00",
+            "completedAt": "2026-09-10T16:07:09.949432+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "13924",
+            "status": "succeeded",
+            "blockHash": "0xe6774dad3850a6694dc681aa9b278db4fc9802425e6a480fa8015689bfe269a2",
+            "canonical": true,
+            "riskRunId": "13922",
+            "attemptedAt": "2026-09-10T16:07:09.762499+03:00",
+            "blockNumber": "59426243",
+            "completedAt": "2026-09-10T16:07:09.949432+03:00",
+            "validatedAt": "2026-09-10T16:07:28.028863+03:00",
+            "canonicalObservedHash": "0xe6774dad3850a6694dc681aa9b278db4fc9802425e6a480fa8015689bfe269a2"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 1770,
+            "sourceBlock": "59426243",
+            "deviationPpm": "-1878",
+            "poolPriceX18": "220825194000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 77684,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "221240689644646715322",
+            "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+          },
+          "evaluatedAt": "2026-09-10 16:07:29.362546+03",
+          "failedChecks": [],
+          "snapshotSha256": "b7a1dc864db05d38f4ada5f8fc1f3962a72689f674fb32bdb3067721d7c66d85",
+          "snapshotSourceAt": "2026-09-10T13:07:03.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T13:07:09.949Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "50455",
+        "lastPrivateHead": "59426399",
+        "resumeFromPause": false
+      },
+      "resumed_intervals": null,
+      "nav": "945108916",
+      "costs": "868343"
+    }
+  ],
+  "health": {
+    "id": "50456",
+    "state": "healthy",
+    "lagBlocks": "0",
+    "reasons": []
+  },
+  "services": {
+    "conc-liq-paper.timer": "ActiveState=active\nSubState=waiting\nUnitFileState=enabled",
+    "conc-liq-experiment.service": "ExecMainStartTimestamp=n/a\nActiveState=inactive\nSubState=dead\nUnitFileState=disabled",
+    "conc-liq-rpc-health.service": "ExecMainStartTimestamp=Thu 2026-09-10 15:20:41 EEST\nActiveState=active\nSubState=running\nUnitFileState=enabled",
+    "conc-liq-paper-release-activation.service": "ExecMainStartTimestamp=n/a\nActiveState=inactive\nSubState=dead\nUnitFileState=static"
+  },
+  "comparisonLedger": {
+    "path": "data/lp-comparison-2026-09-09/forward-v2.json",
+    "sha256": "f74ad69c5bf344d7a1748984dd51f1421b36a2a63fb4cf9345290671ed049bc3"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "sessions": 50,
+  "scenarioRows": 1392,
+  "aggregates": 96,
+  "forkActions": 4,
+  "checks": [
+    "input hashes",
+    "recorded money totals",
+    "common anchors and horizons",
+    "paired deltas",
+    "action timing and counts",
+    "aggregate statistics",
+    "fork gas units and oracle conversion"
+  ]
+}

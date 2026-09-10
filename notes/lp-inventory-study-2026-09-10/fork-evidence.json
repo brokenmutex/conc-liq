@@ -1,0 +1,390 @@
+[
+  {
+    "sessionId": "54",
+    "observationId": "3017",
+    "action": "exit",
+    "paperSha256": "79e3c9be947cebcd4d84053effb1f8f64811d00480f96cc26a940b727c23011d",
+    "marketSha256": "89441148ab200df51b0d99e7900a12d5a1e66f16d416534579e9cb654bc8ba5a",
+    "valuation": {
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "computedAt": "2026-09-10T12:54:14.953Z",
+      "ethUsdAnswer": "245985040000",
+      "ethUsdDecimals": 8,
+      "quoteUsdAnswer": "99985174",
+      "quoteUsdDecimals": 8
+    },
+    "gasQuote": "1124903",
+    "source": {
+      "block": "59404884",
+      "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "timestamp": "1789043473"
+    },
+    "balances": {
+      "before": {
+        "quote": "269753971",
+        "rwa": "27",
+        "native": "999894040519250000"
+      },
+      "afterCollect": {
+        "quote": "456748908",
+        "rwa": "2215945852816295154",
+        "native": "999665573652148806"
+      },
+      "afterExit": {
+        "quote": "948714627",
+        "rwa": "0",
+        "native": "999341497841245039"
+      }
+    },
+    "plan": null,
+    "position": null,
+    "retainedLiquidity": null,
+    "principalAfter": null,
+    "priceAfter": null,
+    "transactions": [
+      {
+        "action": "decrease_and_collect",
+        "totalFeeWei": "196360777712000"
+      },
+      {
+        "action": "approve_exit_swap",
+        "totalFeeWei": "53002236896000"
+      },
+      {
+        "action": "sell_nvda",
+        "totalFeeWei": "135169512744000"
+      },
+      {
+        "action": "revoke_exit_allowance",
+        "totalFeeWei": "34020262160000"
+      },
+      {
+        "action": "revoke_exit_allowance",
+        "totalFeeWei": "38684794360000"
+      }
+    ],
+    "upstream": {
+      "requests": 17,
+      "rejected": 1,
+      "methods": {
+        "eth_getBlockByNumber": 2,
+        "eth_call": 10,
+        "eth_estimateGas": 5
+      },
+      "maxRequests": 600
+    },
+    "limitations": [
+      "NFT, idle balances and allowances restored on the local fork only",
+      "Fee inputs remain estimates from observed fee growth; restoring them does not turn them into realized mainnet income",
+      "Gas and token proceeds are simulations at the source block; no intervening third-party transactions"
+    ]
+  },
+  {
+    "sessionId": "54",
+    "observationId": "3017",
+    "action": "recenter",
+    "paperSha256": "79e3c9be947cebcd4d84053effb1f8f64811d00480f96cc26a940b727c23011d",
+    "marketSha256": "89441148ab200df51b0d99e7900a12d5a1e66f16d416534579e9cb654bc8ba5a",
+    "valuation": {
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "computedAt": "2026-09-10T12:52:09.109Z",
+      "ethUsdAnswer": "245985040000",
+      "ethUsdDecimals": 8,
+      "quoteUsdAnswer": "99985174",
+      "quoteUsdDecimals": 8
+    },
+    "gasQuote": "2032078",
+    "source": {
+      "block": "59404884",
+      "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "timestamp": "1789043473"
+    },
+    "balances": {
+      "before": {
+        "quote": "269753971",
+        "rwa": "27",
+        "native": "999894040519250000"
+      },
+      "afterCollect": {
+        "quote": "456748908",
+        "rwa": "2215945852816295154",
+        "native": "999655235947951570"
+      },
+      "afterSwap": {
+        "quote": "588086833",
+        "rwa": "1624365898562491039",
+        "native": "999409724695707412"
+      },
+      "after": {
+        "quote": "189792457",
+        "rwa": "14",
+        "native": "998855907019258121"
+      }
+    },
+    "plan": {
+      "range": {
+        "tickLower": 222270,
+        "tickUpper": 222310
+      },
+      "reserve": "189792457",
+      "token": 1,
+      "amount": "591579954253804115",
+      "swap": {
+        "amountIn": "591579954253804115",
+        "amountOut": "131337925",
+        "feeInput": "295789977126903",
+        "sqrtPriceAfter": "5315973594971309145495447047299840",
+        "tickAfter": 222289,
+        "liquidityAfter": "10474273390680546786",
+        "fullyFilled": true,
+        "passesSlippage": true,
+        "idealOutput": "131403737",
+        "outputShortfall": "65812"
+      },
+      "mint": {
+        "liquidity": "25480828149111624",
+        "amount0": "398294376",
+        "amount1": "1624365898562491025",
+        "idle0": "189792457",
+        "idle1": "14"
+      },
+      "price": "5315973594971309145495447047299840",
+      "tick": 222289
+    },
+    "position": {
+      "tickLower": 222270,
+      "tickUpper": 222310,
+      "liquidity": "25480828149111624",
+      "minted0": "398294376",
+      "minted1": "1624365898562491025"
+    },
+    "retainedLiquidity": null,
+    "principalAfter": null,
+    "priceAfter": null,
+    "transactions": [
+      {
+        "action": "decrease_and_collect",
+        "totalFeeWei": "199918151344000"
+      },
+      {
+        "action": "approve_recenter_swap",
+        "totalFeeWei": "53002236896000"
+      },
+      {
+        "action": "recenter_sell_nvda",
+        "totalFeeWei": "140114327848000"
+      },
+      {
+        "action": "approve_recenter_mint_usdg",
+        "totalFeeWei": "33913409440000"
+      },
+      {
+        "action": "approve_recenter_mint_nvda",
+        "totalFeeWei": "38575475808000"
+      },
+      {
+        "action": "recenter_mint",
+        "totalFeeWei": "360452033984000"
+      }
+    ],
+    "upstream": {
+      "requests": 152,
+      "rejected": 2,
+      "methods": {
+        "eth_getBlockByNumber": 2,
+        "eth_getBalance": 15,
+        "eth_getTransactionCount": 15,
+        "eth_getCode": 15,
+        "eth_getStorageAt": 87,
+        "eth_call": 12,
+        "eth_estimateGas": 6
+      },
+      "maxRequests": 600
+    },
+    "limitations": [
+      "Pinned historical source and hypothetical restored NFT; no strategy profitability claim",
+      "Actual local calls and Nitro estimates with prestate overrides; no mainnet transaction receipts",
+      "A single intervention, with no intervening third-party transactions"
+    ]
+  },
+  {
+    "sessionId": "54",
+    "observationId": "3017",
+    "action": "preserve",
+    "paperSha256": "79e3c9be947cebcd4d84053effb1f8f64811d00480f96cc26a940b727c23011d",
+    "marketSha256": "89441148ab200df51b0d99e7900a12d5a1e66f16d416534579e9cb654bc8ba5a",
+    "valuation": {
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "computedAt": "2026-09-10T12:58:24.397Z",
+      "ethUsdAnswer": "245985040000",
+      "ethUsdDecimals": 8,
+      "quoteUsdAnswer": "99985174",
+      "quoteUsdDecimals": 8
+    },
+    "gasQuote": "1469617",
+    "source": {
+      "block": "59404884",
+      "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "timestamp": "1789043473"
+    },
+    "balances": {
+      "before": {
+        "quote": "269753971",
+        "rwa": "27",
+        "native": "999894040519250000"
+      },
+      "afterCollect": {
+        "quote": "456748908",
+        "rwa": "2215945852816295154",
+        "native": "999655235947951570"
+      },
+      "afterSwap": {
+        "quote": "456748908",
+        "rwa": "2215945852816295154",
+        "native": "999655235947951570"
+      },
+      "after": {
+        "quote": "189792457",
+        "rwa": "1129052047234566918",
+        "native": "999135103207323962"
+      }
+    },
+    "plan": {
+      "range": {
+        "tickLower": 222270,
+        "tickUpper": 222310
+      },
+      "reserve": "189792457",
+      "token": null,
+      "amount": "0",
+      "swap": null,
+      "mint": {
+        "liquidity": "17064813216680597",
+        "amount0": "266956451",
+        "amount1": "1086893805581728236",
+        "idle0": "189792457",
+        "idle1": "1129052047234566918"
+      },
+      "price": "5315969122455067483810359816030375",
+      "tick": 222288
+    },
+    "position": {
+      "tickLower": 222270,
+      "tickUpper": 222310,
+      "liquidity": "17064813216680597",
+      "minted0": "266956451",
+      "minted1": "1086893805581728236"
+    },
+    "retainedLiquidity": null,
+    "principalAfter": null,
+    "priceAfter": null,
+    "transactions": [
+      {
+        "action": "decrease_and_collect",
+        "totalFeeWei": "196360777712000"
+      },
+      {
+        "action": "approve_recenter_mint_nvda",
+        "totalFeeWei": "38575475808000"
+      },
+      {
+        "action": "recenter_mint",
+        "totalFeeWei": "362416480144000"
+      }
+    ],
+    "upstream": {
+      "requests": 11,
+      "rejected": 1,
+      "methods": {
+        "eth_getBlockByNumber": 2,
+        "eth_call": 6,
+        "eth_estimateGas": 3
+      },
+      "maxRequests": 600
+    },
+    "limitations": [
+      "Pinned historical source and hypothetical restored NFT; no strategy profitability claim",
+      "Actual local calls and Nitro estimates with prestate overrides; no mainnet transaction receipts",
+      "A single intervention, with no intervening third-party transactions"
+    ]
+  },
+  {
+    "sessionId": "54",
+    "observationId": "3017",
+    "action": "trim",
+    "paperSha256": "79e3c9be947cebcd4d84053effb1f8f64811d00480f96cc26a940b727c23011d",
+    "marketSha256": "89441148ab200df51b0d99e7900a12d5a1e66f16d416534579e9cb654bc8ba5a",
+    "valuation": {
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "computedAt": "2026-09-10T13:04:54.335Z",
+      "ethUsdAnswer": "245985040000",
+      "ethUsdDecimals": 8,
+      "quoteUsdAnswer": "99985174",
+      "quoteUsdDecimals": 8
+    },
+    "gasQuote": "978091",
+    "source": {
+      "block": "59404884",
+      "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "timestamp": "1789043473"
+    },
+    "balances": {
+      "before": {
+        "quote": "269753971",
+        "rwa": "27",
+        "native": "999894040519250000"
+      },
+      "afterCollect": {
+        "quote": "316637859",
+        "rwa": "554756774483668310",
+        "native": "999645986304579626"
+      },
+      "after": {
+        "quote": "439800598",
+        "rwa": "0",
+        "native": "999405739414175468"
+      }
+    },
+    "plan": null,
+    "position": null,
+    "retainedLiquidity": "17090654019597153",
+    "principalAfter": {
+      "amount0": "139910414",
+      "amount1": "1662092337001309334"
+    },
+    "priceAfter": "5315973309745063099857825790329776",
+    "transactions": [
+      {
+        "action": "trim_and_collect",
+        "totalFeeWei": "209391055944000"
+      },
+      {
+        "action": "approve_trim_swap",
+        "totalFeeWei": "53002236896000"
+      },
+      {
+        "action": "trim_sell_nvda",
+        "totalFeeWei": "135169512744000"
+      }
+    ],
+    "upstream": {
+      "requests": 11,
+      "rejected": 1,
+      "methods": {
+        "eth_getBlockByNumber": 2,
+        "eth_call": 6,
+        "eth_estimateGas": 3
+      },
+      "maxRequests": 600
+    },
+    "limitations": [
+      "Single 25 percent trim proof; no optimal threshold or future fee benefit claim",
+      "Retained LP can earn marginal fees on its own sale; these are not realized in principalAfter",
+      "Owned historical fork and Nitro estimates; no mainnet receipt"
+    ]
+  }
+]

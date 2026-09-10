@@ -1,0 +1,582 @@
+[
+  {
+    "checkedAt": "2026-09-10T13:00:05.359Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4833",
+      "hash": "0x2ad458f10a6e81728b9da603e3d2fb3ca86f4c939cc965fddf10a7b0a641863d",
+      "tick": 222349,
+      "block": "59421392",
+      "liquidity": "10317439888943126272",
+      "capturedAt": "2026-09-10T15:58:59.931+03:00",
+      "feeGrowth0": "19399620280249176855067346763520",
+      "feeGrowth1": "90024447423600039145855769037047468794223",
+      "sqrtPriceX96": "5332045861823448515201017434420940",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T15:58:53+03:00"
+    },
+    "holding": {
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-10T12:59:51.216Z",
+      "riskSince": null,
+      "chainSince": null,
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T12:59:48.050Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13910",
+          "status": "succeeded",
+          "riskRunId": "13908",
+          "attemptedAt": "2026-09-10T15:59:32.361717+03:00",
+          "completedAt": "2026-09-10T15:59:32.542729+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13910",
+          "status": "succeeded",
+          "blockHash": "0xb92b9dedb22b072e8d175216c5276f8be44cabc8bc4845f0efea625210cdc2fb",
+          "canonical": true,
+          "riskRunId": "13908",
+          "attemptedAt": "2026-09-10T15:59:32.361717+03:00",
+          "blockNumber": "59421693",
+          "completedAt": "2026-09-10T15:59:32.542729+03:00",
+          "validatedAt": "2026-09-10T15:59:42.363614+03:00",
+          "canonicalObservedHash": "0xb92b9dedb22b072e8d175216c5276f8be44cabc8bc4845f0efea625210cdc2fb"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 1311,
+          "sourceBlock": "59421693",
+          "deviationPpm": "-2055",
+          "poolPriceX18": "220785940000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 77225,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "221240689644646715322",
+          "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+        },
+        "evaluatedAt": "2026-09-10 15:59:51.21611+03",
+        "failedChecks": [],
+        "snapshotSha256": "bac830f5d559d4682ab0c0319a1977e91a144cde6fd274e0d9b11ef089c484df",
+        "snapshotSourceAt": "2026-09-10T12:59:24.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T12:59:32.542Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50410",
+      "lastPrivateHead": "59421927",
+      "resumeFromPause": false
+    },
+    "nav": "944915550",
+    "costs": "868343",
+    "checks": []
+  },
+  {
+    "checkedAt": "2026-09-10T13:00:35.390Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4834",
+      "hash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+      "tick": 222354,
+      "block": "59421999",
+      "liquidity": "8780219208438246304",
+      "capturedAt": "2026-09-10T16:00:02.136+03:00",
+      "feeGrowth0": "19399702867222768056141205639035",
+      "feeGrowth1": "90027204510022569886632016064294009677379",
+      "sqrtPriceX96": "5333524680615929306547028636443640",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T15:59:55+03:00"
+    },
+    "holding": {
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-10T13:00:22.033Z",
+      "riskSince": null,
+      "chainSince": null,
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T13:00:18.118Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13911",
+          "status": "succeeded",
+          "riskRunId": "13909",
+          "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+          "completedAt": "2026-09-10T16:00:02.11891+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13911",
+          "status": "succeeded",
+          "blockHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+          "canonical": true,
+          "riskRunId": "13909",
+          "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+          "blockNumber": "59421999",
+          "completedAt": "2026-09-10T16:00:02.11891+03:00",
+          "validatedAt": "2026-09-10T16:00:12.355137+03:00",
+          "canonicalObservedHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 1342,
+          "sourceBlock": "59421999",
+          "deviationPpm": "-2055",
+          "poolPriceX18": "220785940000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 77256,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "221240689644646715322",
+          "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+        },
+        "evaluatedAt": "2026-09-10 16:00:22.033799+03",
+        "failedChecks": [],
+        "snapshotSha256": "b2816c4301984afe2b36f1cebf08d6fecb973700bf025307750e5684610e1019",
+        "snapshotSourceAt": "2026-09-10T12:59:55.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T13:00:02.118Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50413",
+      "lastPrivateHead": "59422225",
+      "resumeFromPause": false
+    },
+    "nav": "944620578",
+    "costs": "868343",
+    "checks": []
+  },
+  {
+    "checkedAt": "2026-09-10T13:01:05.419Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4834",
+      "hash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+      "tick": 222354,
+      "block": "59421999",
+      "liquidity": "8780219208438246304",
+      "capturedAt": "2026-09-10T16:00:02.136+03:00",
+      "feeGrowth0": "19399702867222768056141205639035",
+      "feeGrowth1": "90027204510022569886632016064294009677379",
+      "sqrtPriceX96": "5333524680615929306547028636443640",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T15:59:55+03:00"
+    },
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        }
+      ],
+      "paused": true,
+      "reasons": [
+        "paper_holding_risk_pause"
+      ],
+      "checkedAt": "2026-09-10T13:00:52.917Z",
+      "riskSince": "2026-09-10T13:00:52.917Z",
+      "chainSince": null,
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T13:00:48.213Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13911",
+          "status": "succeeded",
+          "riskRunId": "13909",
+          "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+          "completedAt": "2026-09-10T16:00:02.11891+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13911",
+          "status": "succeeded",
+          "blockHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+          "canonical": true,
+          "riskRunId": "13909",
+          "attemptedAt": "2026-09-10T16:00:01.758085+03:00",
+          "blockNumber": "59421999",
+          "completedAt": "2026-09-10T16:00:02.11891+03:00",
+          "validatedAt": "2026-09-10T16:00:12.355137+03:00",
+          "canonicalObservedHash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8"
+        },
+        "reference": null,
+        "evaluatedAt": "2026-09-10 16:00:52.917729+03",
+        "failedChecks": [
+          "canonical_validation_age"
+        ],
+        "snapshotSha256": "b2816c4301984afe2b36f1cebf08d6fecb973700bf025307750e5684610e1019",
+        "snapshotSourceAt": "2026-09-10T12:59:55.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T13:00:02.118Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50416",
+      "lastPrivateHead": "59422520",
+      "resumeFromPause": true,
+      "retryRequestedAt": "2026-09-10T13:00:52.917Z"
+    },
+    "nav": "944620578",
+    "costs": "868343",
+    "checks": [
+      "unchanged_paused_accounting"
+    ]
+  },
+  {
+    "checkedAt": "2026-09-10T13:01:35.710Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4834",
+      "hash": "0x5f7c3edf408d900887b44aa91c799c448d66d392b4e487b63f588ac27bef39b8",
+      "tick": 222354,
+      "block": "59421999",
+      "liquidity": "8780219208438246304",
+      "capturedAt": "2026-09-10T16:00:02.136+03:00",
+      "feeGrowth0": "19399702867222768056141205639035",
+      "feeGrowth1": "90027204510022569886632016064294009677379",
+      "sqrtPriceX96": "5333524680615929306547028636443640",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T15:59:55+03:00"
+    },
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:01:08.955Z",
+          "reasons": []
+        }
+      ],
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-10T13:01:25.316Z",
+      "riskSince": null,
+      "chainSince": null,
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T13:01:18.282Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13912",
+          "status": "succeeded",
+          "riskRunId": "13910",
+          "attemptedAt": "2026-09-10T16:01:02.738198+03:00",
+          "completedAt": "2026-09-10T16:01:02.86865+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13912",
+          "status": "succeeded",
+          "blockHash": "0xa443ff61c113d967fa46fdd59a3af45a87889e5c4cce97027e24495be2c0427b",
+          "canonical": true,
+          "riskRunId": "13910",
+          "attemptedAt": "2026-09-10T16:01:02.738198+03:00",
+          "blockNumber": "59422602",
+          "completedAt": "2026-09-10T16:01:02.86865+03:00",
+          "validatedAt": "2026-09-10T16:01:02.892397+03:00",
+          "canonicalObservedHash": "0xa443ff61c113d967fa46fdd59a3af45a87889e5c4cce97027e24495be2c0427b"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 1403,
+          "sourceBlock": "59422602",
+          "deviationPpm": "-2608",
+          "poolPriceX18": "220663523000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 77317,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "221240689644646715322",
+          "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+        },
+        "evaluatedAt": "2026-09-10 16:01:25.316953+03",
+        "failedChecks": [],
+        "snapshotSha256": "3cac633bfa36ef08d7c7acf4780d7768859cb2bccc998eec1f1420bb102c701e",
+        "snapshotSourceAt": "2026-09-10T13:00:56.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T13:01:02.868Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50419",
+      "lastPrivateHead": "59422817",
+      "resumeFromPause": true
+    },
+    "nav": "944620578",
+    "costs": "868343",
+    "checks": []
+  },
+  {
+    "checkedAt": "2026-09-10T13:02:05.741Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4835",
+      "hash": "0xa443ff61c113d967fa46fdd59a3af45a87889e5c4cce97027e24495be2c0427b",
+      "tick": 222350,
+      "block": "59422602",
+      "liquidity": "9901565976872623570",
+      "capturedAt": "2026-09-10T16:01:02.882+03:00",
+      "feeGrowth0": "19400533702889978671136012135248",
+      "feeGrowth1": "90029185656030440466867334523962828588195",
+      "sqrtPriceX96": "5332417721805007780916660025506350",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T16:00:56+03:00"
+    },
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:01:08.955Z",
+          "reasons": []
+        }
+      ],
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-10T13:01:57.196Z",
+      "riskSince": null,
+      "chainSince": null,
+      "lastResume": {
+        "at": "2026-09-10T13:01:40.917Z",
+        "toBlock": "59422602",
+        "fromBlock": "59421999"
+      },
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T13:01:48.288Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13913",
+          "status": "succeeded",
+          "riskRunId": "13911",
+          "attemptedAt": "2026-09-10T16:01:37.98417+03:00",
+          "completedAt": "2026-09-10T16:01:38.132442+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13913",
+          "status": "succeeded",
+          "blockHash": "0x4c13d037fb4cf739b9b8bef9667a8a0519776f4f5208adbb08a89343a3c99682",
+          "canonical": true,
+          "riskRunId": "13911",
+          "attemptedAt": "2026-09-10T16:01:37.98417+03:00",
+          "blockNumber": "59422931",
+          "completedAt": "2026-09-10T16:01:38.132442+03:00",
+          "validatedAt": "2026-09-10T16:01:47.907353+03:00",
+          "canonicalObservedHash": "0x4c13d037fb4cf739b9b8bef9667a8a0519776f4f5208adbb08a89343a3c99682"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 1436,
+          "sourceBlock": "59422931",
+          "deviationPpm": "-2194",
+          "poolPriceX18": "220755148000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 77350,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "221240689644646715322",
+          "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+        },
+        "evaluatedAt": "2026-09-10 16:01:57.196358+03",
+        "failedChecks": [],
+        "snapshotSha256": "2fd08add76f2e110ede7d77d66cc4db8282139f3761a28d1bc13c92c1540bb67",
+        "snapshotSourceAt": "2026-09-10T13:01:29.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T13:01:38.132Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50422",
+      "lastPrivateHead": "59423111",
+      "resumeFromPause": false
+    },
+    "nav": "944848841",
+    "costs": "868343",
+    "checks": []
+  },
+  {
+    "checkedAt": "2026-09-10T13:02:35.770Z",
+    "sessionId": "55",
+    "status": "open",
+    "action": "mark",
+    "source": {
+      "id": "4836",
+      "hash": "0x58ff095fefd30eb00f0b8e4f6d433c12e60c61139acc7c62ef224685d0ccd948",
+      "tick": 222348,
+      "block": "59423209",
+      "liquidity": "10256681051278665430",
+      "capturedAt": "2026-09-10T16:02:04.922+03:00",
+      "feeGrowth0": "19400852765929217560227950489877",
+      "feeGrowth1": "90029843417379058263813235388848742074871",
+      "sqrtPriceX96": "5331929078076814845579797072188363",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T16:01:58+03:00"
+    },
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:01:08.955Z",
+          "reasons": []
+        }
+      ],
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-10T13:02:29.049Z",
+      "riskSince": null,
+      "chainSince": null,
+      "lastResume": {
+        "at": "2026-09-10T13:01:40.917Z",
+        "toBlock": "59422602",
+        "fromBlock": "59421999"
+      },
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-10T13:02:28.376Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "13914",
+          "status": "succeeded",
+          "riskRunId": "13912",
+          "attemptedAt": "2026-09-10T16:02:04.745628+03:00",
+          "completedAt": "2026-09-10T16:02:04.909377+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "13914",
+          "status": "succeeded",
+          "blockHash": "0x58ff095fefd30eb00f0b8e4f6d433c12e60c61139acc7c62ef224685d0ccd948",
+          "canonical": true,
+          "riskRunId": "13912",
+          "attemptedAt": "2026-09-10T16:02:04.745628+03:00",
+          "blockNumber": "59423209",
+          "completedAt": "2026-09-10T16:02:04.909377+03:00",
+          "validatedAt": "2026-09-10T16:02:27.950412+03:00",
+          "canonicalObservedHash": "0x58ff095fefd30eb00f0b8e4f6d433c12e60c61139acc7c62ef224685d0ccd948"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 1465,
+          "sourceBlock": "59423209",
+          "deviationPpm": "-2011",
+          "poolPriceX18": "220795612000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 77379,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "221240689644646715322",
+          "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+        },
+        "evaluatedAt": "2026-09-10 16:02:29.049539+03",
+        "failedChecks": [],
+        "snapshotSha256": "a72eb1d0db47bb6e9414445375653fd781a13f6bd6619832caced5a73674f698",
+        "snapshotSourceAt": "2026-09-10T13:01:58.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T13:02:04.908Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "50426",
+      "lastPrivateHead": "59423505",
+      "resumeFromPause": false
+    },
+    "nav": "944965789",
+    "costs": "868343",
+    "checks": []
+  }
+]

@@ -13,7 +13,7 @@ unit=lambda v:int(v)/1e6
 def write(n,obj): (out/n).write_text(json.dumps(obj,indent=2)+'\n')
 def table_csv(name,rows):
  with (out/name).open('w') as f:
-  w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
+  w=csv.DictWriter(f,fieldnames=list(rows[0]),lineterminator='\n');w.writeheader();w.writerows(rows)
 rows=[]
 for r in a['rows']:
  row={k:v for k,v in r.items() if k not in ['actions','rejected','terminalExecution']}
