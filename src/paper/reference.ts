@@ -6,12 +6,14 @@ import { regularEquitySession } from '../canary-plan/entry-readiness.js';
 import { quoteValue } from '../simulator/math.js';
 import { USDG } from '../constants.js';
 import { PAPER_NVDA, type PaperCheckpoint } from './engine.js';
+import { evaluatePaperUsdgOracle, type PaperUsdgFreshness } from './usdg-oracle.js';
 
 export interface ContinuousPaperReferencePolicy {
   kind: 'continuous_bounded_v1';
   maxHeldAgeSeconds: number;
   maxDeviationPpm: number;
   maxGasPriceAgeSeconds: number;
+  usdgHeartbeatGraceSeconds?: number;
 }
 export interface PaperReferenceDecision {
   eligible: boolean; reasons: string[];
@@ -20,6 +22,7 @@ export interface PaperReferenceDecision {
   poolPriceX18: string; deviationPpm: string | null;
   referenceUpdatedAt: string | null; sourceBlock: string;
   maxAgeSeconds: number; maxDeviationPpm: number;
+  usdgFreshness?: PaperUsdgFreshness;
 }
 
 // Require a held quote to have updated during the most recent equity session.
@@ -60,7 +63,10 @@ export function evaluatePaperReference(input: {
   const replaced=new Set(['sequencer_feed_unavailable','oracle_price_stale','quote_oracle_unavailable']);
   decision.reasons.push(...asset.reasons.filter(r=>!replaced.has(r)));
   if (!asset.onchain || asset.onchain.oraclePaused || !asset.flags.registryActive || !asset.flags.multiplierConsistent || asset.flags.corporateActionPending || !asset.flags.tradingCapabilitiesComplete || !asset.flags.tradingCapabilitiesTradable) decision.reasons.push('paper_token_safety_check_failed');
-  const quote=heartbeatOracle(snapshot.quoteOracle,sourceTime,policy.maxGasPriceAgeSeconds);
+  const quote=snapshot.quoteOracle ? evaluatePaperUsdgOracle({feed:snapshot.quoteOracle.feed,
+    state:snapshot.quoteOracle.state,blockTimestamp:sourceTime,maxPriceAgeSeconds:policy.maxGasPriceAgeSeconds},
+    policy.usdgHeartbeatGraceSeconds) : null;
+  if (quote?.freshness) decision.usdgFreshness=quote.freshness;
   const oracle=heartbeatOracle(asset.oracle,sourceTime,86400);
   if (!quote?.executionEligible || !quote.state) decision.reasons.push(...(quote?.reasons??['oracle_missing']).map(r=>`paper_usdg_${r}`));
   if (!oracle?.state) {decision.reasons.push('paper_equity_oracle_missing');return decision;}

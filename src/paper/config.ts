@@ -27,6 +27,7 @@ const transactionPolicySchema = strategy.extend({
     maxHeldAgeSeconds: z.number().int().min(86400).max(345600),
     maxDeviationPpm: z.number().int().min(1).max(50000),
     maxGasPriceAgeSeconds: z.number().int().min(300).max(86400),
+    usdgHeartbeatGraceSeconds: z.number().int().min(0).max(1800).optional(),
   }).strict().optional(),
 }).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG");
 const illustrativePolicySchema = strategy.extend({

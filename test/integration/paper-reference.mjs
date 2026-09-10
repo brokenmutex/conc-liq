@@ -28,6 +28,22 @@ try {
   await db.query("INSERT INTO risk_snapshot_attempts VALUES(1,'succeeded',$1,$1,1)",[at]);
   const read=()=>readPaperReferenceGate(db,cp,DEFAULT_PAPER_POLICY.referencePolicy,new Date(now-1000).toISOString());
   let gate=await read();assert.equal(gate.eligible,true,gate.reasons.join(','));
+  const originalQuoteTimestamp=snapshot.quoteOracle.state.updatedAt;
+  snapshot.quoteOracle.state.updatedAt=String(Math.floor(Date.parse(blockAt)/1000)-86404);
+  await db.query('UPDATE risk_snapshot_runs SET snapshot=$1 WHERE id=1',[snapshot]);
+  assert.deepEqual((await read()).reasons,['paper_usdg_oracle_price_stale']);
+  const gracePolicy={...DEFAULT_PAPER_POLICY.referencePolicy,usdgHeartbeatGraceSeconds:1800};
+  gate=await readPaperReferenceGate(db,cp,gracePolicy,new Date(now-1000).toISOString());
+  assert.equal(gate.eligible,true,gate.reasons.join(','));
+  assert.equal(gate.reference.usdgFreshness.basis,'heartbeat_grace');
+  assert.equal(gate.evidence.current.reference.usdgFreshness.basis,'heartbeat_grace');
+  assert.deepEqual(gate.reasons,[],'Grace warning must not become an exit reason');
+  snapshot.quoteOracle.state.updatedAt=String(Math.floor(Date.parse(blockAt)/1000)-88201);
+  await db.query('UPDATE risk_snapshot_runs SET snapshot=$1 WHERE id=1',[snapshot]);
+  gate=await readPaperReferenceGate(db,cp,gracePolicy,new Date(now-1000).toISOString());
+  assert.deepEqual(gate.reasons,['paper_usdg_oracle_price_stale']);
+  snapshot.quoteOracle.state.updatedAt=originalQuoteTimestamp;
+  await db.query('UPDATE risk_snapshot_runs SET snapshot=$1 WHERE id=1',[snapshot]);
   await db.query("INSERT INTO risk_snapshot_attempts VALUES(2,'started',clock_timestamp(),NULL,NULL)");
   gate=await read();assert.equal(gate.eligible,true,gate.reasons.join(','));assert.equal(gate.evidence.current.selected.id,'1');
   assert.equal(gate.evidence.current.usingPreviousCompleted,true);
@@ -54,7 +70,7 @@ try {
   await db.query('DELETE FROM risk_snapshot_attempts WHERE id>1');
   await db.query('UPDATE risk_snapshot_canonicality SET canonical=false');
   gate=await read();assert.equal(gate.eligible,false);assert.equal(gate.evidence.sourceProven,false);
-  console.log(JSON.stringify({passed:['completed evidence','bounded refresh','SQL decision clock','immutable validation evidence','refresh expiry','failed attempt precedence','successive refresh bound','canonical revocation'],isolatedSchemaRemoved:true}));
+  console.log(JSON.stringify({passed:['completed evidence','USDG grace in source and current evidence','USDG grace expiry','bounded refresh','SQL decision clock','immutable validation evidence','refresh expiry','failed attempt precedence','successive refresh bound','canonical revocation'],isolatedSchemaRemoved:true}));
 } finally {
   await db.query('SET search_path=public');
   await db.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);

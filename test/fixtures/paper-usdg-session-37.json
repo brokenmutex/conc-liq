@@ -1,0 +1,198 @@
+{
+  "provenance": {
+    "sessionId": "37",
+    "observationId": "1813",
+    "riskRunId": "11430",
+    "source": "data/paper-performance-2026-09-10/source.json",
+    "purpose": "Recorded stale-reference decision, not a performance counterfactual"
+  },
+  "snapshot": {
+    "assets": [
+      {
+        "flags": {
+          "registryActive": true,
+          "multiplierConsistent": true,
+          "corporateActionPending": false,
+          "tradingCapabilitiesComplete": true,
+          "tradingCapabilitiesTradable": true
+        },
+        "oracle": {
+          "feed": {
+            "name": "Robinhood NVDA / USD",
+            "address": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+            "decimals": 8,
+            "baseAsset": "NVDA",
+            "quoteAsset": "USD",
+            "marketHours": "us_equities_24/5",
+            "productTypeCode": "primaryTokenizedPrice",
+            "heartbeatSeconds": 86400
+          },
+          "flags": {
+            "priceFresh": false,
+            "decimalsMatch": true,
+            "roundComplete": true,
+            "answerPositive": true,
+            "descriptionMatches": true,
+            "timestampNotFuture": true
+          },
+          "state": {
+            "answer": "22461500000",
+            "roundId": "18446744073709552624",
+            "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+            "decimals": 8,
+            "startedAt": "1788961885",
+            "updatedAt": "1788961898",
+            "description": "RHNVDA / USD",
+            "answeredInRound": "18446744073709552624"
+          },
+          "reasons": [
+            "oracle_price_stale"
+          ],
+          "readError": null,
+          "maxAgeSeconds": 300,
+          "priceAgeSeconds": 6019,
+          "executionEligible": false
+        },
+        "onchain": {
+          "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+          "effectiveAt": "0",
+          "oraclePaused": false,
+          "uiMultiplier": "1000000000000000000",
+          "newUIMultiplier": "1000000000000000000"
+        },
+        "reasons": [
+          "sequencer_feed_unavailable",
+          "oracle_price_stale",
+          "quote_oracle_unavailable"
+        ],
+        "registry": {
+          "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+          "isin": "US67066G1040",
+          "name": "NVIDIA • Robinhood Token",
+          "status": "ASSET_STATUS_ACTIVE",
+          "symbol": "NVDA",
+          "address": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+          "decimals": 18,
+          "currentMultiplier": "1.000000000000000000",
+          "pendingMultiplier": null,
+          "tradingCapabilities": {
+            "market": {
+              "whole": "TRADING_STATUS_TRADABLE",
+              "fractional": "TRADING_STATUS_TRADABLE"
+            },
+            "extended": {
+              "whole": "TRADING_STATUS_TRADABLE",
+              "fractional": "TRADING_STATUS_TRADABLE"
+            },
+            "overnight": {
+              "whole": "TRADING_STATUS_TRADABLE",
+              "fractional": "TRADING_STATUS_TRADABLE"
+            }
+          },
+          "pendingMultiplierEffectiveTime": null
+        },
+        "onchainReadError": null,
+        "executionEligible": false
+      }
+    ],
+    "chainId": 4663,
+    "reasons": [
+      "sequencer_feed_unavailable",
+      "quote_oracle_price_stale",
+      "asset_ineligible:NVDA"
+    ],
+    "registry": {
+      "url": "https://api.robinhood.com/rhj/assets",
+      "sha256": "sha256:4e27fdc9149fcf95b22893bb7f6606d96671bf43d8e410418af592db99f87ec6",
+      "fetchedAt": "2026-09-09T15:32:02.885Z"
+    },
+    "blockHash": "0x5294012435cf657558dcdcdd7d6ed6d77003092e34d516a41bcc7e49f8344724",
+    "sequencer": {
+      "status": "unavailable",
+      "reasons": [
+        "sequencer_feed_unavailable"
+      ],
+      "executionEligible": false
+    },
+    "observedAt": "2026-09-09T15:32:04.737Z",
+    "blockNumber": "58655847",
+    "quoteOracle": {
+      "feed": {
+        "name": "USDG / USD",
+        "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+        "decimals": 8,
+        "baseAsset": "USDG",
+        "quoteAsset": "USD",
+        "marketHours": "Crypto",
+        "productTypeCode": "RefPrice",
+        "heartbeatSeconds": 86400
+      },
+      "flags": {
+        "priceFresh": false,
+        "decimalsMatch": true,
+        "roundComplete": true,
+        "answerPositive": true,
+        "descriptionMatches": true,
+        "timestampNotFuture": true
+      },
+      "state": {
+        "answer": "99982823",
+        "roundId": "18446744073709551712",
+        "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+        "decimals": 8,
+        "startedAt": "1788881501",
+        "updatedAt": "1788881513",
+        "description": "USDG / USD",
+        "answeredInRound": "18446744073709551712"
+      },
+      "reasons": [
+        "oracle_price_stale"
+      ],
+      "readError": null,
+      "maxAgeSeconds": 300,
+      "priceAgeSeconds": 86404,
+      "executionEligible": false
+    },
+    "feedDirectory": {
+      "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+      "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+      "fetchedAt": "2026-09-09T15:32:02.824Z"
+    },
+    "marketSession": {
+      "policy": "robinhood_stock_tokens_24_7",
+      "status": "open_24_7",
+      "reasons": [],
+      "evidence": {
+        "url": "https://robinhood.com/rhj/stocktokens/",
+        "sha256": "sha256:2af7d6a6818180dec025276721b7e8ffaf1067fbf7ba381ff45df31d7dbe1db1",
+        "fetchedAt": "2026-09-09T15:32:04.514Z"
+      },
+      "executionEligible": true
+    },
+    "schemaVersion": 2,
+    "blockTimestamp": "2026-09-09T15:31:57.000Z",
+    "executionEligible": false
+  },
+  "checkpoint": {
+    "id": "3594",
+    "hash": "0x5294012435cf657558dcdcdd7d6ed6d77003092e34d516a41bcc7e49f8344724",
+    "tick": 222198,
+    "block": "58655847",
+    "liquidity": "10635777318189727732",
+    "capturedAt": "2026-09-09T18:32:04.75+03:00",
+    "feeGrowth0": "19311238276225562806970672765826",
+    "feeGrowth1": "89564254860905410862126853462480692604055",
+    "sqrtPriceX96": "5292026688838575242825707714563131",
+    "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+    "blockTimestamp": "2026-09-09T18:31:57+03:00"
+  },
+  "policy": {
+    "kind": "continuous_bounded_v1",
+    "maxDeviationPpm": 50000,
+    "maxHeldAgeSeconds": 345600,
+    "maxGasPriceAgeSeconds": 86400
+  },
+  "expectedReasons": [
+    "paper_usdg_oracle_price_stale"
+  ]
+}

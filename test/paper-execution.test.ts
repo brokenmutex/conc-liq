@@ -11,6 +11,8 @@ import type { PaperRoundTrip } from "../src/paper/execution.js";
 import type { PaperExitSimulation } from "../src/paper/execution-exit.js";
 import type { PaperEntryQuote, PaperGasValuation } from "../src/paper/execution-domain.js";
 import type {BoundaryFeeProof} from "../src/paper/boundary-fees.js";
+import { readFileSync } from "node:fs";
+import { evaluatePaperReference } from "../src/paper/reference.js";
 
 const Q128 = 1n << 128n;
 const source = { number: 100n, hash: `0x${"1".repeat(64)}` as Hex, timestamp: 1n };
@@ -49,6 +51,15 @@ describe("paper initialized-boundary accounting lifecycle",()=>{
   function proof(index:number,upper0="0",upper1="0"):BoundaryFeeProof{return {block:input(index).checkpoint.block,hash:input(index).checkpoint.hash,
     tickLower:-200,tickUpper:200,lower:{gross:"100",outside0:"0",outside1:"0"},upper:{gross:"100",outside0:upper0,outside1:upper1}};}
   function start(){return advancePaper(pending(),policy,{...input(2),boundaryFees:proof(2),execution:{available:true,entry:entry()}});}
+  it("keeps the position open when the USDG reference has only a grace warning",()=>{
+    const saved=JSON.parse(readFileSync(new URL('./fixtures/paper-usdg-session-37.json',import.meta.url),'utf8'));
+    const reference=evaluatePaperReference({...saved,policy:{...saved.policy,usdgHeartbeatGraceSeconds:1800}});
+    const r=advancePaper(start(),policy,{...input(3),boundaryFees:proof(3),boundaryContinuity:true,
+      entryReasons:reference.reasons,reference});
+    assert.equal(r.status,"open");assert.equal(r.action,"mark");
+    assert.deepEqual(r.reference?.usdgFreshness?.warnings,["paper_usdg_heartbeat_grace"]);
+    assert.deepEqual(r.reasons,[]);
+  });
   it("keeps an out-of-range position valid and credits no fees for an entirely inactive interval",()=>{
     const i=input(3),p=proof(3,i.checkpoint.feeGrowth0,i.checkpoint.feeGrowth1);
     const crossed=advancePaper(start(),policy,{...i,checkpoint:{...i.checkpoint,tick:201,sqrtPriceX96:String(sqrtRatioAtTick(201))},pathMaxTick:201,boundaryFees:p,boundaryContinuity:true});

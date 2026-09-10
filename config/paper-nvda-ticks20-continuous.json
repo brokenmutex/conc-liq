@@ -16,7 +16,8 @@
     "kind": "continuous_bounded_v1",
     "maxHeldAgeSeconds": 345600,
     "maxDeviationPpm": 50000,
-    "maxGasPriceAgeSeconds": 86400
+    "maxGasPriceAgeSeconds": 86400,
+    "usdgHeartbeatGraceSeconds": 1800
   },
   "reentry": {
     "cooldownSeconds": 600

@@ -7,6 +7,7 @@ import { loadIndexerConfig } from "../indexer/config.js";
 import { loadRiskConfig } from "../risk/config.js";
 import { fetchFeedDirectory, selectOracleFeed } from "../risk/source.js";
 import { evaluateOracleRisk } from "../risk/evaluate.js";
+import { evaluatePaperUsdgOracle } from "./usdg-oracle.js";
 import { ViemRiskChainReader } from "../risk/reader.js";
 import { readRiskGate } from "../risk/gate.js";
 import { PostgresRpcHealthGate } from "../rpc-health/store.js";
@@ -98,8 +99,8 @@ export class NitroPaperExecutor implements PaperExecutor {
     const maxPriceAgeSeconds = policy.referencePolicy?.maxGasPriceAgeSeconds ?? this.riskConfig.maxPriceAgeSeconds;
     const eth = evaluateOracleRisk({ feed: ethFeed, blockTimestamp, maxPriceAgeSeconds,
       state: await reader.readOracle(ethFeed.address, BigInt(cp.block)) });
-    const quote = evaluateOracleRisk({ feed: quoteFeed, blockTimestamp, maxPriceAgeSeconds,
-      state: await reader.readOracle(quoteFeed.address, BigInt(cp.block)) });
+    const quote = evaluatePaperUsdgOracle({ feed: quoteFeed, blockTimestamp, maxPriceAgeSeconds,
+      state: await reader.readOracle(quoteFeed.address, BigInt(cp.block)) }, policy.referencePolicy?.usdgHeartbeatGraceSeconds);
     assert(eth.executionEligible && eth.state, `Paper ETH gas valuation unavailable: ${eth.reasons.join(", ")}`);
     assert(quote.executionEligible && quote.state, `Paper USDG gas valuation unavailable: ${quote.reasons.join(", ")}`);
     return { sourceBlock: cp.block, sourceHash: cp.hash, computedAt: new Date().toISOString(),
