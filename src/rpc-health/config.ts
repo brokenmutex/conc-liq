@@ -23,7 +23,7 @@ const monitorEnvironmentSchema = z.object({
     DEFAULT_RPC_HEALTH_REFERENCES.join(","),
   ),
   RPC_HEALTH_REQUEST_TIMEOUT_MS: positiveInteger.default(5_000),
-  RPC_HEALTH_SOFT_LAG_BLOCKS: nonnegativeInteger.default(20),
+  RPC_HEALTH_SOFT_LAG_BLOCKS: nonnegativeInteger.default(30),
   RPC_HEALTH_SOFT_LAG_SECONDS: nonnegativeInteger.default(5),
   RPC_HEALTH_SOFT_LATENCY_MS: positiveInteger.default(2_000),
   RPC_HEALTH_STALL_SECONDS: positiveInteger.default(30),

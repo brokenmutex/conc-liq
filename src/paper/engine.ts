@@ -8,6 +8,8 @@ import type { PaperExecutionInput, PaperExecutionLedger } from "./execution-doma
 import type { ContinuousPaperReferencePolicy, PaperReferenceDecision, PaperReferenceEvidence } from "./reference.js";
 import type { BoundaryFeeProof } from "./boundary-fees.js";
 
+import type { PaperHoldingPolicy, PaperHoldingState } from "./holding.js";
+
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
 interface PaperStrategy {
@@ -33,6 +35,7 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly maxSlippageBps: number;
   readonly transactionTtlSeconds: number;
   readonly referencePolicy?: ContinuousPaperReferencePolicy;
+  readonly holdingPolicy?: PaperHoldingPolicy;
   readonly feeAccounting?: "initialized_boundaries_v1";
   readonly lpAllocationPpm?: number;
   readonly inventoryExitPpm?: number;
@@ -75,6 +78,7 @@ export interface PaperInput {
   readonly dataReasons: readonly string[];
   readonly entryReasons: readonly string[];
   readonly chainHealthy: boolean;
+  readonly holdingChainReady?: boolean;
   readonly pathMinTick: number;
   readonly pathMaxTick: number;
   readonly swapCount: string;
@@ -115,6 +119,7 @@ export interface PaperState {
   reference?: PaperReferenceDecision | null;
   referenceEvidence?: PaperReferenceEvidence;
   reentryStoppedAt?: string;
+  holding?: PaperHoldingState;
 }
 export function initialPaperState(): PaperState {
   return { status: "waiting", action: "wait", reasons: [], last: null, position: null,
@@ -154,7 +159,7 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
     ? invalidatePaper(previous, input.now, ["source_stale_or_worker_missed_decision"])
     : { ...state, status: "waiting", last: cp, reasons: ["source_stale"] };
   const gates = [...input.entryReasons];
-  if (!input.chainHealthy) gates.push("chain_recovery_unproven");
+  if (!(previous.position && "holdingPolicy" in policy && policy.holdingPolicy ? input.holdingChainReady === true : input.chainHealthy)) gates.push("chain_recovery_unproven");
   if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
   state.reasons = [...new Set(gates)];
   state.last = cp;

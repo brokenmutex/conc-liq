@@ -21,5 +21,11 @@
   },
   "reentry": {
     "cooldownSeconds": 600
+  },
+  "holdingPolicy": {
+    "kind": "bounded_infrastructure_v1",
+    "maxLagBlocks": 30,
+    "chainPauseSeconds": 60,
+    "riskPauseSeconds": 30
   }
 }

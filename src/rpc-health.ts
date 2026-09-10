@@ -61,7 +61,7 @@ Environment:
   RH_INDEXER_RPC_URL                   Private read node
   RPC_HEALTH_REFERENCE_URLS            Comma-separated independent read RPCs
   RPC_HEALTH_REFERENCE_QUORUM          Matching anchor hashes required (default 2)
-  RPC_HEALTH_SOFT_LAG_BLOCKS            Degraded threshold (default 20)
+  RPC_HEALTH_SOFT_LAG_BLOCKS            Degraded threshold (default 30)
   RPC_HEALTH_HARD_LAG_BLOCKS            Open threshold (default 100)
   RPC_HEALTH_RECOVERY_SAMPLES           Clean samples before healthy (default 12)
   RPC_HEALTH_POLL_INTERVAL_MS           Probe cadence (default 10000)

@@ -53,7 +53,7 @@ try {
     // timer before returning, so no automatic successor can start while the
     // separate activation service verifies the release and waits for us to end.
     systemctl('stop','conc-liq-paper.timer');
-    try { systemctl('start','--no-block','conc-liq-usdg-grace-activation.service'); }
+    try { systemctl('start','--no-block',plan.activationService ?? 'conc-liq-usdg-grace-activation.service'); }
     catch(error) { systemctl('start','conc-liq-paper.timer');throw error; }
     console.log(JSON.stringify({status:'cash_exit_handoff_armed',sessionId:row.id}));
   } else {
@@ -65,8 +65,13 @@ try {
     assert.equal(configHash,plan.configHash,'Runtime configuration changed');
     const normalize = value => {
       const p=structuredClone(value);delete p.budgetQuote;delete p.reentry.previousSessionId;
+      if(plan.holdingPolicy) delete p.holdingPolicy;
       delete p.referencePolicy.usdgHeartbeatGraceSeconds;return p;
     };
+    if(plan.holdingPolicy){
+      assert.deepEqual(plan.holdingPolicy,{kind:'bounded_infrastructure_v1',maxLagBlocks:30,chainPauseSeconds:60,riskPauseSeconds:30});
+      assert.deepEqual(policy.holdingPolicy,plan.holdingPolicy,'Holding policy differs from reviewed bounds');
+    }
     assert.deepEqual(normalize(row.policy),normalize(policy),'Unexpected policy change');
     assert.equal(policy.referencePolicy.usdgHeartbeatGraceSeconds,1800);
     const currentUnit=readFileSync(plan.unitPath,'utf8');

@@ -10,7 +10,8 @@ import { advancePaper, initialPaperState, invalidatePaper, PAPER_NVDA, PAPER_POO
 import type { PaperExecutor } from "./executor.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
-import { readPaperReferenceGate, PaperReferenceGateError } from "./reference.js";
+import { readPaperReferenceGate, readPaperRiskSources, evaluatePaperCurrentRisk, PaperReferenceGateError } from "./reference.js";
+import { advanceHolding } from "./holding.js";
 
 import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -59,6 +60,34 @@ export class PaperStore {
   private readonly pool: pg.Pool;
   constructor(connectionString: string, private readonly executor?: PaperExecutor, private readonly runtimeIdentity?: RuntimeIdentity) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
   async assertReady() { await assertSchemaReady(this.pool); }
+  /** Called under a row lock, before any boundary RPC or source wait can hide an outage. */
+  private async observeHolding(client: PoolClient, session: PaperSessionRow, now: string) {
+    if (!session.state.position || !session.state.last || !("holdingPolicy" in session.policy) ||
+      !session.policy.holdingPolicy || !session.policy.referencePolicy) return;
+    assertRuntimeMatches(session.runtime_identity,this.runtimeIdentity);
+    try { await readPaperChain(client,session); }
+    catch {
+      session.state=invalidatePaper(session.state,now,['paper_continuation_history_invalid']);
+      await this.update(client,session.id,session.state,session.state.reasons);
+      return;
+    }
+    const samples=(await client.query<{id:string;snapshot:RpcHealthEvaluation}>(
+      "SELECT id::text,snapshot FROM rpc_health_samples WHERE observed_at >= NOW()-INTERVAL '16 minutes' ORDER BY observed_at DESC,id DESC LIMIT 128")).rows;
+    const riskRead=await readPaperRiskSources(client,session.state.last);
+    const risk=evaluatePaperCurrentRisk(riskRead,session.state.last,session.policy.referencePolicy);
+    // The prior checkpoint's price is not a current pool price. Evaluate the
+    // price band again at the fresh checkpoint below, never against this old mark.
+    const reasons=risk.reasons.filter(r=>r!=='paper_reference_band_exceeded');
+    const previous=session.state.holding ?? {
+      checkedAt:session.state.position.enteredAt,lastHealthAt:session.state.position.enteredAt,
+      chainSince:null,riskSince:null,paused:false,resumeFromPause:false,exitReasons:[],reasons:[],healthSampleId:null,riskEvidence:null,
+    };
+    session.state.holding=advanceHolding({now:new Date(riskRead.evaluatedAt).toISOString(),policy:session.policy.holdingPolicy,previous,samples,
+      risk:{...risk,reasons,eligible:!reasons.length},riskRead});
+    if(session.state.holding.paused && Date.parse(now)-Date.parse(session.state.last.blockTimestamp)>session.policy.maxGapSeconds*1000)
+      session.state=invalidatePaper(session.state,now,['checkpoint_gap_prevents_forward_decision_proof']);
+    await this.update(client,session.id,session.state,session.state.holding?.reasons ?? session.state.reasons);
+  }
   private async insertSession(client: PoolClient, streamKey: string, policy: PaperPolicy): Promise<string> {
     const state = initialPaperState();
     state.reasons = ["awaiting_first_live_checkpoint"];
@@ -151,7 +180,23 @@ export class PaperStore {
       // Bounded boundary reads happen before the DB transaction, under the
       // session advisory lock. Main selection below revalidates source/state.
       let feeProof: BoundaryFeeProof | undefined;
-      const preview=(await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 AND status NOT IN ('closed','invalid') ORDER BY id LIMIT 1",[streamKey])).rows[0];
+      await client.query('BEGIN');
+      const preview=(await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 AND status NOT IN ('closed','invalid') ORDER BY id LIMIT 1 FOR UPDATE",[streamKey])).rows[0];
+      if(preview) await this.observeHolding(client,preview,(await client.query<{now:Date}>('SELECT clock_timestamp() AS now')).rows[0]!.now.toISOString());
+      let retry=false;
+      const holding=preview?.state.holding;
+      if(holding?.riskSince && !holding.reasons.includes('paper_holding_chain_pause') && !holding.retryRequestedAt && !holding.exitReasons.length && this.executor?.refreshRisk){
+        holding.retryRequestedAt=holding.checkedAt;retry=true;
+        await this.update(client,preview!.id,preview!.state,holding.reasons);
+      }
+      await client.query('COMMIT');
+      if(retry){
+        const checks=holding!.riskEvidence?.failedChecks ?? [];
+        try { await this.executor!.refreshRisk!(holding!.riskEvidence?.selected?.riskRunId ?? null,checks.length===1&&checks[0]==='canonical_validation_age'); }
+        catch(error){await client.query("UPDATE paper_sessions SET state=jsonb_set(state,'{holding,retryError}',$2::jsonb) WHERE id=$1",[preview!.id,JSON.stringify(sanitizeRiskError(error))]);}
+      }
+      if(preview && (holding?.paused || preview.state.status==='invalid')) return {id:preview.id,status:preview.state.status,
+        action:preview.state.status==='invalid'?'invalidate':'wait',reasons:holding?.reasons ?? preview.state.reasons};
       if(preview&&"feeAccounting" in preview.policy&&preview.policy.feeAccounting){
         assertRuntimeMatches(preview.runtime_identity,this.runtimeIdentity);
         const range=preview.state.position??preview.state.entryRange;
@@ -160,7 +205,7 @@ export class PaperStore {
             AND c.captured_at >= $4 AND c.block_timestamp >= $4
             AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
             AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
-            AND c.block_number > $6 ORDER BY c.block_number,c.id LIMIT 1`,
+            AND c.block_number > $6 ORDER BY c.block_number ${preview.state.holding?.resumeFromPause?'DESC':'ASC'},c.id LIMIT 1`,
             [preview.stream_key,PAPER_NVDA,PAPER_POOL,preview.created_at,preview.id,preview.state.last?.block??"0"])).rows[0];
           if(source?.covered===true&&source.canonical===true){
             try{
@@ -217,11 +262,16 @@ export class PaperStore {
         await client.query("COMMIT");
         return { id: session.id, status: session.state.status, action: session.state.action, reasons: session.state.reasons };
       }
+      await this.observeHolding(client,session,now);
+      if(session.state.holding?.paused || session.state.status==='invalid'){
+        await client.query('COMMIT');
+        return {id:session.id,status:session.state.status,action:session.state.status==='invalid'?'invalidate':'wait',reasons:session.state.holding?.reasons ?? session.state.reasons};
+      }
       const source = (await client.query<SourceRow>(`${sourceSql}
         AND c.captured_at >= $4 AND c.block_timestamp >= $4
         AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
             AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
-        AND c.block_number > $6 ORDER BY c.block_number,c.id LIMIT 1`,
+        AND c.block_number > $6 ORDER BY c.block_number ${session.state.holding?.resumeFromPause?'DESC':'ASC'},c.id LIMIT 1`,
         [session.stream_key,PAPER_NVDA,PAPER_POOL,session.created_at,session.id,session.state.last?.block ?? "0"])).rows[0];
       if (!source) {
         await client.query("UPDATE paper_sessions SET heartbeat_at=NOW(),monitor_reasons=$2 WHERE id=$1",[session.id,JSON.stringify(["awaiting_next_live_checkpoint"])]);
@@ -261,6 +311,18 @@ export class PaperStore {
       let referenceEvidence;
       if ("referencePolicy" in session.policy && session.policy.referencePolicy) {
         const gate = await readPaperReferenceGate(client, cp, session.policy.referencePolicy, now);
+        if(session.state.position && "holdingPolicy" in session.policy && session.policy.holdingPolicy &&
+          gate.evidence.current.failedChecks.length && !session.state.holding?.exitReasons.length){
+          // Capture a failure which raced the earlier holding read. Reuse the
+          // same first-failure clock; the next tick requests/rechecks real proof.
+          const h=session.state.holding!;
+          h.riskSince ??= gate.evidence.current.evaluatedAt;
+          h.riskEvidence=gate.evidence.current;h.paused=true;h.resumeFromPause=true;
+          h.reasons=['paper_holding_risk_pause'];
+          await this.update(client,session.id,session.state,h.reasons);
+          await client.query('COMMIT');
+          return {id:session.id,status:session.state.status,action:'wait',reasons:h.reasons};
+        }
         reference = gate.reference;
         referenceEvidence = gate.evidence;
         entryReasons = [...readiness.reasons.filter(r => !r.startsWith("equity_session_")), ...gate.reasons];
@@ -282,6 +344,13 @@ export class PaperStore {
           entryReasons.push("paper_reentry_cooldown");
         }
       }
+      const holdingReady=!!session.state.position && !!session.state.holding && !session.state.holding.paused;
+      if(holdingReady){
+        // Only recovery/history reasons are replaced. Current reference, pool,
+        // canonicality and all transaction preflight checks remain in force.
+        entryReasons=entryReasons.filter(r=>!readiness.reasons.includes(r));
+        entryReasons.push(...session.state.holding!.exitReasons);
+      }
       const path = await client.query<{ minimum: number | null; maximum: number | null; count: string }>(
         `SELECT MIN((event_args->>'tick')::int) AS minimum,MAX((event_args->>'tick')::int) AS maximum,COUNT(*)::text AS count
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
@@ -296,7 +365,7 @@ export class PaperStore {
         feeContinuity=boundaryContinuity(session.state.position.boundaryFees,feeProof,changes.rows);
       }
       const input: PaperInput = { now, checkpoint: cp, dataReasons,
-        entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible,
+        entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible, holdingChainReady:holdingReady,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
         pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
         execution: { available: this.executor !== undefined }, reference, referenceEvidence, boundaryFees:feeProof,boundaryContinuity:feeContinuity };
@@ -378,6 +447,10 @@ export class PaperStore {
           if (execution.exit) execution.exit.runId = saved.rows[0]!.id;
           state = advancePaper(session.state, session.policy, { ...input, now: new Date().toISOString(), execution });
         }
+      }
+      if(state.holding?.resumeFromPause && state.last?.block===cp.block && state.status!=='invalid'){
+        state.holding.lastResume={at:now,fromBlock:session.state.last!.block,toBlock:cp.block};
+        state.holding.resumeFromPause=false;
       }
       await client.query(`INSERT INTO paper_observations(session_id,checkpoint_id,block_number,block_hash,source_at,action,state,entry_reasons,observed_at)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp())`,[session.id,cp.id,cp.block,cp.hash,cp.blockTimestamp,state.action,JSON.stringify(state),JSON.stringify([...new Set(entryReasons)])]);

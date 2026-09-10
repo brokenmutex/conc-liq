@@ -10,19 +10,21 @@ import {inventory,releaseId,hash} from '../../scripts/release-files.mjs';
 const root=mkdtempSync(join(tmpdir(),'paper-handoff-'));
 try {
   const release=join(root,'release');mkdirSync(join(release,'config'),{recursive:true});
-  const policy={mode:'guarded',budgetQuote:'1000',reentry:{cooldownSeconds:600},referencePolicy:{maxGasPriceAgeSeconds:86400,usdgHeartbeatGraceSeconds:1800}};
+  const holdingPolicy={kind:'bounded_infrastructure_v1',maxLagBlocks:30,chainPauseSeconds:60,riskPauseSeconds:30};
+  const policy={mode:'guarded',budgetQuote:'1000',reentry:{cooldownSeconds:600},referencePolicy:{maxGasPriceAgeSeconds:86400,usdgHeartbeatGraceSeconds:1800},holdingPolicy};
   writeFileSync(join(release,'config/policy.json'),JSON.stringify(policy));
   const manifest={format:1,sourceCommit:'fixture',nodeVersion:process.version,files:inventory(release)};
   manifest.buildId=releaseId(manifest);writeFileSync(join(release,'release.json'),JSON.stringify(manifest));
   const envFile=join(root,'runtime.env');writeFileSync(envFile,'DATABASE_URL=postgresql://fixture.invalid/isolated\n');
   const oldUnit='old reviewed unit\n',newUnit=`ExecStart=${release}/bin/node ${release}/launch.mjs ${envFile} paper tick\n`;
-  const plan={parentId:'53',parentPolicyHash:'old-policy',streamKey:'fixture',previousBuildId:'old',buildId:manifest.buildId,release,envFile,
+  const plan={parentId:'53',parentPolicyHash:'old-policy',streamKey:'fixture',previousBuildId:'old',buildId:manifest.buildId,release,envFile,holdingPolicy,
     configHash:hash(JSON.stringify({DATABASE_URL:'postgresql://fixture.invalid/isolated'})),policyFile:'config/policy.json',
     unitPath:join(root,'installed.service'),preparedUnitPath:join(root,'new.service'),previousUnitPath:join(root,'old.service'),
     previousUnitSha256:hash(oldUnit),preparedUnitSha256:hash(newUnit),hookPath:join(root,'hook.conf'),
     parentEvidencePath:join(root,'parent.json'),resultPath:join(root,'result.json')};
   const parent={id:'53',policy_hash:'old-policy',policy:{...policy,referencePolicy:{maxGasPriceAgeSeconds:86400}},
     state:{status:'closed',action:'exit'},runtime_identity:{buildId:'old'}};
+  delete parent.policy.holdingPolicy;
   const hooks=join(root,'hooks.mjs'),trace=join(root,'trace.json');
   writeFileSync(hooks,`
 import {registerHooks} from 'node:module';import fs from 'node:fs';

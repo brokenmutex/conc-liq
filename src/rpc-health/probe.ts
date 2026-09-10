@@ -213,12 +213,12 @@ export function calculateReferenceAnchorBlock(
  * arbitrarily far into history. Larger lag keeps the reference-derived anchor.
  */
 export function calculateMonitorAnchorBlock(
-  referenceHeads: readonly bigint[], confirmationDepth: number, privateHead: bigint | null,
+  referenceHeads: readonly bigint[], confirmationDepth: number, privateHead: bigint | null, maxLagBlocks: bigint = 30n,
 ): bigint | null {
   const referenceAnchor = calculateReferenceAnchorBlock(referenceHeads, confirmationDepth);
   if (referenceAnchor === null || privateHead === null) return referenceAnchor;
   const highest = referenceHeads.reduce((a, b) => a > b ? a : b);
-  if (highest - privateHead > 10n) return referenceAnchor;
+  if (highest - privateHead > maxLagBlocks) return referenceAnchor;
   const privateAnchor = privateHead > BigInt(confirmationDepth) ? privateHead - BigInt(confirmationDepth) : 0n;
   return privateAnchor < referenceAnchor ? privateAnchor : referenceAnchor;
 }
@@ -289,7 +289,7 @@ export async function runRpcHealthProbe(input: {
     target,
     timeoutMs: input.config.requestTimeoutMs,
   })));
-  // Allow at most ten blocks of private lag without losing confirmation depth.
+  // Share the monitor soft-lag bound without reducing confirmation depth.
   // Larger delays retain the reference anchor and existing readiness checks.
   const usableReferenceHeads = probes
     .filter((probe) =>
@@ -303,6 +303,7 @@ export async function runRpcHealthProbe(input: {
     input.config.confirmationDepth,
     privateProbe?.error === null && privateProbe.chainId === input.config.expectedChainId && privateProbe.syncing === false
       ? privateProbe.headBlock : null,
+    input.config.softLagBlocks,
   );
   if (anchorBlock !== null) {
     probes = await Promise.all(probes.map((latest, index) => probeAnchor({

@@ -15,8 +15,10 @@ const schema=`paper_execution_audit_${process.pid}_${Date.now()}`;
 const client=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});
 const entryArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/round-trip.json',import.meta.url),'utf8'));
 const exitArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/restored-exit.json',import.meta.url),'utf8')).result;
+const holdingMode=process.env.PAPER_TEST_HOLDING==='1';
+const riskFixture=JSON.parse(await readFile(new URL('../fixtures/paper-risk-snapshot.json',import.meta.url),'utf8'));
 const boundaryMode=process.env.PAPER_TEST_BOUNDARIES==='1';
-const policy={...DEFAULT_PAPER_POLICY,mode:'research',referencePolicy:undefined,...(boundaryMode?{feeAccounting:'initialized_boundaries_v1'}:{})}; // Isolated mechanics fixture; never a live session.
+const policy={...DEFAULT_PAPER_POLICY,mode:'research',referencePolicy:undefined,...(boundaryMode?{feeAccounting:'initialized_boundaries_v1'}:{}),...(holdingMode?{mode:'guarded',referencePolicy:{...DEFAULT_PAPER_POLICY.referencePolicy,maxDeviationPpm:50000},holdingPolicy:{kind:'bounded_infrastructure_v1',maxLagBlocks:30,chainPauseSeconds:60,riskPauseSeconds:30}}:{})}; // Isolated mechanics fixture; never a live session.
 const stream='paper-execution-fixture';
 const calls={quote:0,entry:0,exit:0};
 const valuation=cp=>({sourceBlock:cp.block,sourceHash:cp.hash,computedAt:new Date().toISOString(),ethUsdAnswer:'200000000000',ethUsdDecimals:8,quoteUsdAnswer:'100000000',quoteUsdDecimals:8});
@@ -27,6 +29,7 @@ let invalidateDuringEntry=false;
 let concurrentStore;
 let boundaryReads=0;
 const executor={
+ async refreshRisk(runId,validationOnly){assert(validationOnly);await client.query('UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp() WHERE risk_run_id=$1',[runId]);},
  async boundaryFees(cp,range) {boundaryReads++;assert.equal(await concurrentStore.tick(stream),null);
   await client.query("SET statement_timeout='2s'");await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS boundary_audit_marker boolean");await client.query('SET statement_timeout=0');
   return {block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower:{gross:'100',outside0:'0',outside1:'0'},upper:{gross:'100',outside0:'0',outside1:'0'}};},
@@ -68,11 +71,18 @@ try {
   await insert('v3_strategy_checkpoint_runs',{id:String(index),stream_key:stream,chain_id:4663,block_number:block,block_hash:hash,block_timestamp:at,captured_at:at,target_set_hash:'fixture',risk_run_id:String(index)});
   await insert('v3_strategy_pool_checkpoints',{checkpoint_run_id:String(index),pool_address:PAPER_POOL,rwa_address:PAPER_NVDA,rwa_symbol:'NVDA',fee:500,tick:221830,sqrt_price_x96:String(sqrtRatioAtTick(221830)),liquidity:'100000000000000000000',fee_growth_global0_x128:'0',fee_growth_global1_x128:'0',token0:USDG,token1:PAPER_NVDA,token_decimals:18,pool_unlocked:true,status:'valid',reasons:[],deviation_ppm:'0'});
   await insert('risk_snapshot_canonicality',{risk_run_id:String(index),canonical:true,block_number:block,expected_hash:hash,observed_hash:hash,validated_at:at});
+  if(holdingMode){
+   const snapshot=structuredClone(riskFixture);
+   snapshot.blockNumber=block;snapshot.blockHash=hash;snapshot.blockTimestamp=at;snapshot.observedAt=at;
+   for(const oracle of [snapshot.quoteOracle,...snapshot.assets.map(a=>a.oracle)])if(oracle?.state)oracle.state.updatedAt=String(Math.floor((now-5000)/1000));
+   await insert('risk_snapshot_runs',{id:String(index),chain_id:4663,block_number:block,block_hash:hash,snapshot});
+   await insert('risk_snapshot_attempts',{id:String(index),status:'succeeded',attempted_at:at,completed_at:at,risk_run_id:String(index)});
+  }
   await client.query('DELETE FROM rpc_health_samples');
   for(let i=0;i<34;i++) {
    const observed=now-1000-(33-i)*10000,observedAt=new Date(observed).toISOString(),head=100000+i*100,anchor=head-64;
    const probe={chainId:4663,error:null,anchorError:null,anchorBlock:String(anchor),anchorHash:hash,headBlock:String(head),headHash:hash,headTimestamp:String(Math.floor(observed/1000))};
-   const snapshot={observedAt,state:'healthy',allowBulk:true,reasons:[],privateSyncing:false,anchorBlock:String(anchor),anchorHash:hash,privateAnchorHash:hash,privateHead:String(head),privateHeadTimestamp:probe.headTimestamp,probes:[{...probe,role:'private',name:'fixture-private'},{...probe,role:'reference',name:'fixture-ref-a'},{...probe,role:'reference',name:'fixture-ref-b'}]};
+   const snapshot={observedAt,state:'healthy',allowBulk:true,reasons:[],warnings:[],lagBlocks:'0',privateSyncing:false,anchorBlock:String(anchor),anchorHash:hash,privateAnchorHash:hash,privateHead:String(head),privateHeadTimestamp:probe.headTimestamp,probes:[{...probe,role:'private',name:'fixture-private'},{...probe,role:'reference',name:'fixture-ref-a'},{...probe,role:'reference',name:'fixture-ref-b'}]};
    await insert('rpc_health_samples',{id:String(i+1),observed_at:observedAt,snapshot});
   }
  };
@@ -102,6 +112,42 @@ try {
  assert.equal(open.state.position.idle0,entryArtifact.balances.afterMint.quote);
  assert.equal((await store.tick(stream)).action,'wait');
  assert.deepEqual(calls,{quote:1,entry:1,exit:0});
+ if(holdingMode){
+  const saved=structuredClone((await row()).state),readsBefore=boundaryReads;
+  const health=(await client.query('SELECT * FROM rpc_health_samples ORDER BY observed_at DESC LIMIT 1')).rows[0];
+  const fault={...health.snapshot,observedAt:new Date().toISOString(),state:'open',allowBulk:false,reasons:['private_reports_syncing'],warnings:[],lagBlocks:'7'};
+  await client.query('UPDATE rpc_health_samples SET snapshot=$1,observed_at=$2 WHERE id=$3',[fault,fault.observedAt,health.id]);
+  assert.equal((await store.tick(stream)).action,'wait');
+  let paused=(await row()).state;
+  assert(paused.holding.paused);assert.equal(paused.status,'open');
+  assert.deepEqual(paused.position,saved.position);assert.equal(paused.navQuote,saved.navQuote);
+  assert.equal(boundaryReads,readsBefore,'No boundary RPC during pause');
+  const since=paused.holding.chainSince;
+  await store.close();store=new PaperStore(url.toString(),executor,identity);
+  assert.equal((await store.tick(stream)).action,'wait');assert.equal((await row()).state.holding.chainSince,since);
+  await checkpoint(3);
+  await client.query(`UPDATE rpc_health_samples SET snapshot=snapshot || '{"state":"half_open","allowBulk":false,"reasons":["recovery_hysteresis"]}'::jsonb WHERE id=10`);
+  const resumed=await store.tick(stream);assert.equal(resumed.action,'mark',JSON.stringify(resumed));
+  let resumedState=(await row()).state;
+  assert.equal(resumedState.status,'open');assert.equal(resumedState.holding.lastResume.fromBlock,'2000');
+  assert.equal(resumedState.holding.lastResume.toBlock,'3000');assert.equal(resumedState.holding.resumeFromPause,false);
+  assert.equal(resumedState.costsPaidQuote,saved.costsPaidQuote);assert.deepEqual(calls,{quote:1,entry:1,exit:0});
+  await client.query("UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp()-interval '31 seconds' WHERE risk_run_id=3");
+  assert((await store.tick(stream)).reasons.includes('paper_holding_risk_pause'));
+  assert.equal((await row()).state.status,'open');
+  // The stub performs an actual isolated DB refresh only when explicitly requested.
+  assert.equal((await store.tick(stream)).action,'wait');
+  assert.equal((await row()).state.holding.riskSince,null);
+  await checkpoint(4);assert.equal((await store.tick(stream)).action,'mark');
+  await client.query("UPDATE risk_snapshot_runs SET snapshot=jsonb_set(snapshot,'{assets,0,onchain,oraclePaused}','true') WHERE id=4");
+  await checkpoint(5);
+  await client.query("UPDATE risk_snapshot_runs SET snapshot=jsonb_set(snapshot,'{assets,0,onchain,oraclePaused}','true') WHERE id=5");
+  assert.equal((await store.tick(stream)).action,'signal_exit');
+  assert((await row()).state.holding.exitReasons.includes('paper_token_safety_check_failed'));
+  await client.query('UPDATE risk_snapshot_canonicality SET canonical=false WHERE risk_run_id=2');
+  assert.equal((await store.tick(stream)).status,'invalid','Revoked accounting cannot be hidden by a pause');
+  console.log(JSON.stringify({passed:['holding pause before RPC','unchanged accounting','persisted first-failure time across restart','exact interval resume','no duplicate fills or costs','explicit validation retry','hard issuer exit','history revocation'],scope:'isolated DB with stub executor',calls}));
+ } else {
  assert.equal(await store.stop(stream),id);
  await checkpoint(3);
  const failed=await store.tick(stream);
@@ -231,4 +277,5 @@ try {
  const result={observedAt:new Date().toISOString(),scope:'isolated PostgreSQL lifecycle with stub executor and synthetic health; not performance',passed:[
   'temporary preflight coverage retraction preserves state and costs, skips duplicate simulation and exits at the next fresh checkpoint','runtime mismatch rejects before execution','session and execution identities persist','execution identity mismatch revokes evidence','one active session per stream','unconfirmed checkpoint waits without being consumed','quote frozen before a later checkpoint','restart retains quote without duplicate calls','entry uses simulation balances and gas','network preflight holds no transaction lock blocking schema maintenance','idle ticks do not repeat fills','failed exit preflight retains position and charges no gas','later exit replaces reserve with fresh gas exactly once','successful and failed execution evidence persists','concurrent tick is excluded during unlocked preflight','operator cancellation during preflight cannot become a fill','cost evidence revocation hides economics','missing canonical hash hides economics','source revoked during unlocked simulation cannot become a fill'],calls,journalRows,executionRuns:allRuns,fixtureSchemaRemoved:true};
  console.log(JSON.stringify({...result,boundaryMode,boundaryReads,reentryAudit}));
+ }
 } finally { await store?.close();await concurrentStore?.close();await client.query('SET search_path=public');await client.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await client.query(`DROP SCHEMA IF EXISTS ${schema}_template CASCADE`);await client.end(); }

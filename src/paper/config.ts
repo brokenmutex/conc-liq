@@ -20,6 +20,12 @@ const transactionPolicySchema = strategy.extend({
     cooldownSeconds: z.number().int().min(600).max(86400),
     previousSessionId: z.string().regex(/^[1-9]\d*$/).optional(),
   }).strict().optional(),
+  holdingPolicy: z.object({
+    kind: z.literal("bounded_infrastructure_v1"),
+    maxLagBlocks: z.literal(30),
+    chainPauseSeconds: z.literal(60),
+    riskPauseSeconds: z.literal(30),
+  }).strict().optional(),
   maxSlippageBps: z.number().int().min(1).max(500),
   transactionTtlSeconds: z.number().int().min(60).max(1800),
   referencePolicy: z.object({
@@ -29,7 +35,9 @@ const transactionPolicySchema = strategy.extend({
     maxGasPriceAgeSeconds: z.number().int().min(300).max(86400),
     usdgHeartbeatGraceSeconds: z.number().int().min(0).max(1800).optional(),
   }).strict().optional(),
-}).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG");
+}).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG")
+  .refine(p => !p.holdingPolicy || (!!p.referencePolicy && p.feeAccounting === 'initialized_boundaries_v1'),
+    "Holding pauses require continuous reference and initialized-boundary accounting");
 const illustrativePolicySchema = strategy.extend({
   entryCostQuote: raw.transform(String), exitCostQuote: raw.transform(String),
   slippageBps: z.number().int().min(0).max(1000),

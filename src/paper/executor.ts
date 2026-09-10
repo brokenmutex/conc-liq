@@ -11,6 +11,8 @@ import { evaluatePaperUsdgOracle } from "./usdg-oracle.js";
 import { ViemRiskChainReader } from "../risk/reader.js";
 import { readRiskGate } from "../risk/gate.js";
 import { PostgresRpcHealthGate } from "../rpc-health/store.js";
+import { PostgresRiskStore, collectAndSaveRiskSnapshot } from "../risk/store.js";
+import { collectRiskSnapshot } from "../risk/runner.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js";
 import { centeredRange, sizeLiquidityForQuoteBudget } from "../simulator/math.js";
@@ -24,6 +26,7 @@ import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
 import { readPaperReferenceGate, PaperReferenceGateError, type PaperReferenceEvidence } from "./reference.js";
 
 export interface PaperExecutor {
+  refreshRisk?(riskRunId: string | null, validationOnly: boolean): Promise<void>;
   boundaryFees?(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof>;
   quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote>;
   enter(cp: PaperCheckpoint, policy: TransactionPaperPolicy, intent: PaperEntryQuote): Promise<{
@@ -39,10 +42,34 @@ export class NitroPaperExecutor implements PaperExecutor {
   private readonly riskConfig = loadRiskConfig();
   private readonly gate: PostgresRpcHealthGate;
   private readonly database: pg.Pool;
+  private readonly riskStore: PostgresRiskStore;
   private feedDirectory: Awaited<ReturnType<typeof fetchFeedDirectory>> | undefined;
   constructor(connectionString: string) {
     this.gate = new PostgresRpcHealthGate({ connectionString, enabled: true, cacheMs: 2000, maxSampleAgeSeconds: 30 });
     this.database = new pg.Pool({ connectionString, max: 1, statement_timeout: 10000 });
+    this.riskStore = new PostgresRiskStore(connectionString);
+  }
+  async refreshRisk(riskRunId: string | null, validationOnly: boolean): Promise<void> {
+    const deadline=Date.now()+20000;
+    let requests=0;
+    const client=createRobinhoodClient(this.config.rpcUrl, Math.min(this.config.rpcTimeoutMs,5000), {
+      beforeRequest:async()=>{
+        assert(Date.now()<deadline && ++requests<=256,'Paper risk retry budget exhausted');
+        await this.gate.assertBulkAllowed();
+      },retryCount:0,
+    });
+    await this.gate.assertBulkAllowed();
+    const reader=new ViemRiskChainReader(client);
+    if(validationOnly && riskRunId) {
+      await this.riskStore.validateRunCanonical(riskRunId,n=>reader.getBlock(n));
+    } else {
+      const head=await client.getBlockNumber();
+      const blockNumber=head-64n;
+      assert(blockNumber>=0n,'Risk retry has no confirmed source');
+      await collectAndSaveRiskSnapshot({blockNumber,store:this.riskStore,
+        collect:()=>collectRiskSnapshot({blockNumber,config:{...this.riskConfig,httpTimeoutMs:5000},reader})});
+      await this.riskStore.validateLatestCanonical(n=>reader.getBlock(n));
+    }
   }
   private client() {
     let requests = 0;
@@ -147,5 +174,5 @@ export class NitroPaperExecutor implements PaperExecutor {
   exit(cp: PaperCheckpoint, policy: TransactionPaperPolicy, inventory: PaperExitInventory) {
     return this.simulate(cp, policy, false, fork => simulatePaperExit(fork, policy, inventory));
   }
-  async close() { await this.gate.close(); await this.database.end(); }
+  async close() { await this.gate.close(); await this.database.end(); await this.riskStore.close(); }
 }

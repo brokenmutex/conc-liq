@@ -1,0 +1,1620 @@
+{
+  "provenance": "Read-only first-exit recovery-window samples on 2026-09-10. Original anchors and hashes; no hypothetical reads.",
+  "rows": [
+    {
+      "sessionId": "28",
+      "signalAt": "2026-09-09T08:38:30.033Z",
+      "samples": [
+        {
+          "id": "40212",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xa22ae599d9a11555684e79d6f196eb5102d881d99ef229e4167e8d41a9d31abf",
+                "headBlock": "58408801",
+                "latencyMs": 7,
+                "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+                "anchorBlock": "58408737",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788942980"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": "TypeError: fetch failed; TypeError: fetch failed",
+                "chainId": null,
+                "syncing": null,
+                "headHash": null,
+                "headBlock": null,
+                "latencyMs": 510,
+                "anchorHash": null,
+                "anchorBlock": "58408737",
+                "anchorError": "Latest probe unavailable",
+                "syncingError": null,
+                "headTimestamp": null
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x1be41bfdc41014ca207363a8076d5c8a208f2dd6f3af8f9c9b8e5eeec9ff7c46",
+                "headBlock": "58408802",
+                "latencyMs": 83,
+                "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+                "anchorBlock": "58408737",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788942980"
+              }
+            ],
+            "reasons": [
+              "reference_hash_quorum_unavailable"
+            ],
+            "warnings": [
+              "reference_probe_failed:reference_1"
+            ],
+            "allowBulk": false,
+            "lagBlocks": null,
+            "anchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+            "lagSeconds": null,
+            "observedAt": "2026-09-09T08:36:20.999Z",
+            "anchorBlock": "58408737",
+            "privateHead": "58408801",
+            "referenceHead": null,
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 7,
+            "privateAnchorHash": "0xb0f074e0350527c860fdcea86b0e852b9a047a04c24d952f1404ef96a1687cdc",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788942980",
+            "referenceHeadTimestamp": null,
+            "privateHeadUnchangedSince": "2026-09-09T08:36:20.999Z",
+            "referenceHeadSpreadBlocks": null
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "31",
+      "signalAt": "2026-09-09T13:17:22.372Z",
+      "samples": [
+        {
+          "id": "41881",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": true,
+                "headHash": "0x8ef423d67ad34ff3c72d723c56bcf64d5fc5fb70edf8210dc4ca8fbd5ef7146c",
+                "headBlock": "58574513",
+                "latencyMs": 5,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97",
+                "anchorBlock": "58574444",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788959707"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xe203024313ab3bdb74ae3ae553d654cb412361df1ceb8e70d07c065a4c3caafa",
+                "headBlock": "58574508",
+                "latencyMs": 37,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97",
+                "anchorBlock": "58574444",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788959707"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x8ef423d67ad34ff3c72d723c56bcf64d5fc5fb70edf8210dc4ca8fbd5ef7146c",
+                "headBlock": "58574513",
+                "latencyMs": 88,
+                "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97",
+                "anchorBlock": "58574444",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788959707"
+              }
+            ],
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "0",
+            "anchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97",
+            "lagSeconds": "0",
+            "observedAt": "2026-09-09T13:15:07.763Z",
+            "anchorBlock": "58574444",
+            "privateHead": "58574513",
+            "referenceHead": "58574513",
+            "schemaVersion": 1,
+            "privateSyncing": true,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0xec28ae81d3dc096faaaef534bd2febadf8cdd8f8984fd3c71545e8c91a35fb97",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788959707",
+            "referenceHeadTimestamp": "1788959707",
+            "privateHeadUnchangedSince": "2026-09-09T13:15:07.763Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "32",
+      "signalAt": "2026-09-09T13:42:45.797Z",
+      "samples": [
+        {
+          "id": "42045",
+          "snapshot": {
+            "state": "healthy",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xd93536830e8e5a7326de46427b078e0c9099a17a06573ff6bc6dfcb471bf9986",
+                "headBlock": "58590765",
+                "latencyMs": 7,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c",
+                "anchorBlock": "58590704",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788961349"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xeb26578768caaa328cc9696af8a4637b957da4b3d84d0f4626164cdbb1605aef",
+                "headBlock": "58590768",
+                "latencyMs": 45,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c",
+                "anchorBlock": "58590704",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788961350"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x8b7318b5feb780ceefb0a61738e2c584dd081b8577b707d767064dc6120e8c48",
+                "headBlock": "58590776",
+                "latencyMs": 121,
+                "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c",
+                "anchorBlock": "58590704",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788961351"
+              }
+            ],
+            "reasons": [],
+            "warnings": [],
+            "allowBulk": true,
+            "lagBlocks": "11",
+            "anchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c",
+            "lagSeconds": "2",
+            "observedAt": "2026-09-09T13:42:31.461Z",
+            "anchorBlock": "58590704",
+            "privateHead": "58590765",
+            "referenceHead": "58590776",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 7,
+            "privateAnchorHash": "0x916542262cff33baa01b97ffd59111791387c8cb3824c4a3c5a96632372bbe1c",
+            "consecutiveHealthy": 164,
+            "consecutiveUnhealthy": 0,
+            "privateHeadTimestamp": "1788961349",
+            "referenceHeadTimestamp": "1788961351",
+            "privateHeadUnchangedSince": "2026-09-09T13:42:31.461Z",
+            "referenceHeadSpreadBlocks": "8"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "36",
+      "signalAt": "2026-09-09T15:09:52.411Z",
+      "samples": [
+        {
+          "id": "42551",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": true,
+                "headHash": "0xd4c2129a73fbac69f2787d2c51c52f430e8ca383df88a416556cf5b25b5ce849",
+                "headBlock": "58641042",
+                "latencyMs": 131,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92",
+                "anchorBlock": "58640978",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788966421"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xd4c2129a73fbac69f2787d2c51c52f430e8ca383df88a416556cf5b25b5ce849",
+                "headBlock": "58641042",
+                "latencyMs": 42,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92",
+                "anchorBlock": "58640978",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788966421"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x14441257376f23a82e5a39c3010308625509c31d86b172a2c5fc1adc107fa460",
+                "headBlock": "58641049",
+                "latencyMs": 91,
+                "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92",
+                "anchorBlock": "58640978",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788966422"
+              }
+            ],
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "7",
+            "anchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92",
+            "lagSeconds": "1",
+            "observedAt": "2026-09-09T15:07:02.502Z",
+            "anchorBlock": "58640978",
+            "privateHead": "58641042",
+            "referenceHead": "58641049",
+            "schemaVersion": 1,
+            "privateSyncing": true,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 131,
+            "privateAnchorHash": "0xf9667e266633a3fa6c2aa40511a93d291e39bf4f004a8d8149c98ec646762a92",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788966421",
+            "referenceHeadTimestamp": "1788966422",
+            "privateHeadUnchangedSince": "2026-09-09T15:07:02.502Z",
+            "referenceHeadSpreadBlocks": "7"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "38",
+      "signalAt": "2026-09-09T16:03:00.745Z",
+      "samples": [
+        {
+          "id": "42869",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x9177a73aa446e8a34277ee61fe228b96a61e7dbfba5b04923adb00431c7960ff",
+                "headBlock": "58672610",
+                "latencyMs": 5,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab",
+                "anchorBlock": "58672571",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788969606"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x146a8a122c87db8ea6257f7a97c92d985825bbf1f170ecfed83db8c8ffb8f5f5",
+                "headBlock": "58672635",
+                "latencyMs": 44,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab",
+                "anchorBlock": "58672571",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788969609"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xec2c13689e48cdd664f1b7d9e89cc12dad0c7aca271f7f6c0ad79e2bd2b75555",
+                "headBlock": "58672642",
+                "latencyMs": 100,
+                "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab",
+                "anchorBlock": "58672571",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788969609"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "32",
+            "anchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab",
+            "lagSeconds": "3",
+            "observedAt": "2026-09-09T16:00:10.287Z",
+            "anchorBlock": "58672571",
+            "privateHead": "58672610",
+            "referenceHead": "58672642",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x256c881b723b2e7ea5330baa6ac0e07b791527380963a08316582e832a9aa9ab",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788969606",
+            "referenceHeadTimestamp": "1788969609",
+            "privateHeadUnchangedSince": "2026-09-09T16:00:10.287Z",
+            "referenceHeadSpreadBlocks": "7"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "39",
+      "signalAt": "2026-09-09T16:42:07.701Z",
+      "samples": [
+        {
+          "id": "43102",
+          "snapshot": {
+            "state": "healthy",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x51034d889b9ae4e1415a0968b3b54d46243a0142fb911a3a598db06a55d33082",
+                "headBlock": "58695797",
+                "latencyMs": 5,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28",
+                "anchorBlock": "58695740",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971943"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xe50e7091c8a5ab3993a78f3dbd0bdf73108464ea89b93621ca4d052ca0e992f6",
+                "headBlock": "58695804",
+                "latencyMs": 52,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28",
+                "anchorBlock": "58695740",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971944"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x3618554e7d8afcbba7cd4b3195ba189b3c6a6a71e16a2a961eddef6e531cc3e0",
+                "headBlock": "58695808",
+                "latencyMs": 94,
+                "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28",
+                "anchorBlock": "58695740",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971945"
+              }
+            ],
+            "reasons": [],
+            "warnings": [],
+            "allowBulk": true,
+            "lagBlocks": "11",
+            "anchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28",
+            "lagSeconds": "2",
+            "observedAt": "2026-09-09T16:39:05.327Z",
+            "anchorBlock": "58695740",
+            "privateHead": "58695797",
+            "referenceHead": "58695808",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x79f4c492d720d3fbbc4c929f387323906040c1414ff53dd1706c6f7d2e1e2a28",
+            "consecutiveHealthy": 214,
+            "consecutiveUnhealthy": 0,
+            "privateHeadTimestamp": "1788971943",
+            "referenceHeadTimestamp": "1788971945",
+            "privateHeadUnchangedSince": "2026-09-09T16:39:05.327Z",
+            "referenceHeadSpreadBlocks": "4"
+          }
+        },
+        {
+          "id": "43104",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xb2c5d39ab83bca564c329c6ffbea5f917df416aed221c637d95f7f00726e50e2",
+                "headBlock": "58695968",
+                "latencyMs": 7,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651",
+                "anchorBlock": "58695931",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971961"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x252f3181fbb8cc00903d010d6b5f58a2a3733f47236b3348e8d445672d96bb34",
+                "headBlock": "58695995",
+                "latencyMs": 57,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651",
+                "anchorBlock": "58695931",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971964"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x80ea71673fbf2a28ecf6a036d91e86dbbd0c5296faed1acd0604317b5b055a3a",
+                "headBlock": "58696003",
+                "latencyMs": 103,
+                "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651",
+                "anchorBlock": "58695931",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788971965"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "35",
+            "anchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651",
+            "lagSeconds": "4",
+            "observedAt": "2026-09-09T16:39:25.385Z",
+            "anchorBlock": "58695931",
+            "privateHead": "58695968",
+            "referenceHead": "58696003",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 7,
+            "privateAnchorHash": "0x85475a282efc4b660d05f6cfeea4b16a30d7753bff0f8a051d027a68b72f8651",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788971961",
+            "referenceHeadTimestamp": "1788971965",
+            "privateHeadUnchangedSince": "2026-09-09T16:39:25.385Z",
+            "referenceHeadSpreadBlocks": "8"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "40",
+      "signalAt": "2026-09-09T18:33:43.791Z",
+      "samples": [
+        {
+          "id": "43767",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xb975247978da26c74305521a69b4fcd73083b8594a91f14f038964bb4771838e",
+                "headBlock": "58761773",
+                "latencyMs": 4,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364",
+                "anchorBlock": "58761750",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978604"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x415790ba469e8aeb35c0d00e4092cc793aaaa11af1ab1325dd46c76d9eb2f024",
+                "headBlock": "58761814",
+                "latencyMs": 51,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364",
+                "anchorBlock": "58761750",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978608"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x2097ca1c73ea1d3e5bb4e315865e346fb8a7bcfe752cc1ad622b7c298fcccc2b",
+                "headBlock": "58761822",
+                "latencyMs": 101,
+                "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364",
+                "anchorBlock": "58761750",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978609"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "49",
+            "anchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364",
+            "lagSeconds": "5",
+            "observedAt": "2026-09-09T18:30:10.207Z",
+            "anchorBlock": "58761750",
+            "privateHead": "58761773",
+            "referenceHead": "58761822",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 4,
+            "privateAnchorHash": "0x746824d291ebaca187adce8582af41c2cecf5211e71588b33b40e1c70f637364",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788978604",
+            "referenceHeadTimestamp": "1788978609",
+            "privateHeadUnchangedSince": "2026-09-09T18:30:10.207Z",
+            "referenceHeadSpreadBlocks": "8"
+          }
+        },
+        {
+          "id": "43768",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x928c377acc9766d3ad616d774062a4d988e4aff3f3f513fe1e7d33a5ccbe6358",
+                "headBlock": "58761869",
+                "latencyMs": 4,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8",
+                "anchorBlock": "58761851",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978614"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xc9bdf426708b38c2a54a1172c14a33de4478443118fc2d87c999bc0b8da7ee74",
+                "headBlock": "58761915",
+                "latencyMs": 42,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8",
+                "anchorBlock": "58761851",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978619"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xc9bdf426708b38c2a54a1172c14a33de4478443118fc2d87c999bc0b8da7ee74",
+                "headBlock": "58761915",
+                "latencyMs": 98,
+                "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8",
+                "anchorBlock": "58761851",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978619"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "46",
+            "anchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8",
+            "lagSeconds": "5",
+            "observedAt": "2026-09-09T18:30:20.214Z",
+            "anchorBlock": "58761851",
+            "privateHead": "58761869",
+            "referenceHead": "58761915",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 4,
+            "privateAnchorHash": "0x59b1be6a719e5f38c6a331aa9010b67bac4e39d9bd352e2f207d87e73e6e62b8",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 2,
+            "privateHeadTimestamp": "1788978614",
+            "referenceHeadTimestamp": "1788978619",
+            "privateHeadUnchangedSince": "2026-09-09T18:30:20.214Z",
+            "referenceHeadSpreadBlocks": "0"
+          }
+        },
+        {
+          "id": "43769",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xa58b7d1708d2ccf6617534594d7463a9714d083054e99d96a654530c86e9526f",
+                "headBlock": "58761936",
+                "latencyMs": 6,
+                "anchorHash": null,
+                "anchorBlock": "58761946",
+                "anchorError": "Error: RPC returned no block",
+                "syncingError": null,
+                "headTimestamp": "1788978621"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x4af2db9e1a210070e2ea02479e92afc8fc13b71fbdec21599eeef53241895b5b",
+                "headBlock": "58762010",
+                "latencyMs": 63,
+                "anchorHash": "0x7aaf10a8abc3f99312c9d30a9c88171f2a2180342fd7161ca109edafdd38d425",
+                "anchorBlock": "58761946",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978629"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x6c55c92615d4e778cbb24f8116bee80e640d6dd752f96bb0225d6ed64ab5e35d",
+                "headBlock": "58762011",
+                "latencyMs": 104,
+                "anchorHash": "0x7aaf10a8abc3f99312c9d30a9c88171f2a2180342fd7161ca109edafdd38d425",
+                "anchorBlock": "58761946",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978629"
+              }
+            ],
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "75",
+            "anchorHash": "0x7aaf10a8abc3f99312c9d30a9c88171f2a2180342fd7161ca109edafdd38d425",
+            "lagSeconds": "8",
+            "observedAt": "2026-09-09T18:30:30.244Z",
+            "anchorBlock": "58761946",
+            "privateHead": "58761936",
+            "referenceHead": "58762011",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 6,
+            "privateAnchorHash": null,
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 3,
+            "privateHeadTimestamp": "1788978621",
+            "referenceHeadTimestamp": "1788978629",
+            "privateHeadUnchangedSince": "2026-09-09T18:30:30.244Z",
+            "referenceHeadSpreadBlocks": "1"
+          }
+        },
+        {
+          "id": "43770",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x7a19546525f9e6034844b88f23eaca51411ee18b0c67e98eb62cd649e479bb20",
+                "headBlock": "58762007",
+                "latencyMs": 5,
+                "anchorHash": null,
+                "anchorBlock": "58762044",
+                "anchorError": "Error: RPC returned no block",
+                "syncingError": null,
+                "headTimestamp": "1788978628"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x5fa7d1066c09886a99e8b69e4382ba0cef7e7ef5b1e64766a2ae8227ffc28269",
+                "headBlock": "58762108",
+                "latencyMs": 48,
+                "anchorHash": "0x2db29f9f91560df54b7c969ca5e790f217b5aea4662c7aaf237360b1a79ce198",
+                "anchorBlock": "58762044",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978639"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x61e01885cb10343b6bf9ab8405a114d23a7f6ec366dad421ce79d77bb829e830",
+                "headBlock": "58762114",
+                "latencyMs": 121,
+                "anchorHash": "0x2db29f9f91560df54b7c969ca5e790f217b5aea4662c7aaf237360b1a79ce198",
+                "anchorBlock": "58762044",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978639"
+              }
+            ],
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_hard",
+              "private_time_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "107",
+            "anchorHash": "0x2db29f9f91560df54b7c969ca5e790f217b5aea4662c7aaf237360b1a79ce198",
+            "lagSeconds": "11",
+            "observedAt": "2026-09-09T18:30:40.267Z",
+            "anchorBlock": "58762044",
+            "privateHead": "58762007",
+            "referenceHead": "58762114",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": null,
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 4,
+            "privateHeadTimestamp": "1788978628",
+            "referenceHeadTimestamp": "1788978639",
+            "privateHeadUnchangedSince": "2026-09-09T18:30:40.267Z",
+            "referenceHeadSpreadBlocks": "6"
+          }
+        },
+        {
+          "id": "43771",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x7b36e9eff41669138e17479e7f9abef82cc5791da4d1cf19fa38a617ca88fc39",
+                "headBlock": "58762124",
+                "latencyMs": 6,
+                "anchorHash": null,
+                "anchorBlock": "58762143",
+                "anchorError": "Error: RPC returned no block",
+                "syncingError": null,
+                "headTimestamp": "1788978640"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xdaf54db92cbbf12320edfeea10cd990bf0c096f82b06bfc159158fd68cdf18f0",
+                "headBlock": "58762207",
+                "latencyMs": 76,
+                "anchorHash": "0x2d448380ec6f002b6ae4f777238b0c82c288b4cee607d9e72caaa2f35ddf7f05",
+                "anchorBlock": "58762143",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978649"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x86dd339a9f5025fd4a2f40fafa7e4d56c68f500f6539c1cd7d7634da4e399ff9",
+                "headBlock": "58762212",
+                "latencyMs": 122,
+                "anchorHash": "0x2d448380ec6f002b6ae4f777238b0c82c288b4cee607d9e72caaa2f35ddf7f05",
+                "anchorBlock": "58762143",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978649"
+              }
+            ],
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "88",
+            "anchorHash": "0x2d448380ec6f002b6ae4f777238b0c82c288b4cee607d9e72caaa2f35ddf7f05",
+            "lagSeconds": "9",
+            "observedAt": "2026-09-09T18:30:50.280Z",
+            "anchorBlock": "58762143",
+            "privateHead": "58762124",
+            "referenceHead": "58762212",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 6,
+            "privateAnchorHash": null,
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 5,
+            "privateHeadTimestamp": "1788978640",
+            "referenceHeadTimestamp": "1788978649",
+            "privateHeadUnchangedSince": "2026-09-09T18:30:50.280Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        },
+        {
+          "id": "43772",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0x133e71397a39584ee3cb48ef81031a28fc55eed9ee86d602112d667458372304",
+                "headBlock": "58762251",
+                "latencyMs": 4,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960",
+                "anchorBlock": "58762244",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978653"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x04baa8690a1527a28c8b5c7949ae64f065122cad9d5879cbcde142ecdf79ef3b",
+                "headBlock": "58762308",
+                "latencyMs": 48,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960",
+                "anchorBlock": "58762244",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978659"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xa2dc7b58053a566aac1dd03529e6889735c086885c7a7c6c9543d160db00f918",
+                "headBlock": "58762313",
+                "latencyMs": 100,
+                "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960",
+                "anchorBlock": "58762244",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788978659"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft",
+              "private_time_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "62",
+            "anchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960",
+            "lagSeconds": "6",
+            "observedAt": "2026-09-09T18:31:00.298Z",
+            "anchorBlock": "58762244",
+            "privateHead": "58762251",
+            "referenceHead": "58762313",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 4,
+            "privateAnchorHash": "0x05eadf60ded200af2f6e583a4b1e7574694b9e7a4052a4ebb4e392fe38e1c960",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 6,
+            "privateHeadTimestamp": "1788978653",
+            "referenceHeadTimestamp": "1788978659",
+            "privateHeadUnchangedSince": "2026-09-09T18:31:00.298Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "41",
+      "signalAt": "2026-09-09T19:13:53.785Z",
+      "samples": [
+        {
+          "id": "44012",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": true,
+                "headHash": "0x5ff95e0235373ae453517ceef00c317c87cd2a9a7ad047a684e5d73b3bbfd3b5",
+                "headBlock": "58786204",
+                "latencyMs": 5,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa",
+                "anchorBlock": "58786127",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981065"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xe97e9c4dd85da765ce239252ef3ecc5ca304595848750b6f0e2c2b91cf564b9d",
+                "headBlock": "58786191",
+                "latencyMs": 55,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa",
+                "anchorBlock": "58786127",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981064"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xaf9db63e90b649490bf5e0d4328f79f625ea029e2ac45ffbd25fb59757f50009",
+                "headBlock": "58786203",
+                "latencyMs": 102,
+                "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa",
+                "anchorBlock": "58786127",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981065"
+              }
+            ],
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "0",
+            "anchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa",
+            "lagSeconds": "0",
+            "observedAt": "2026-09-09T19:11:05.561Z",
+            "anchorBlock": "58786127",
+            "privateHead": "58786204",
+            "referenceHead": "58786203",
+            "schemaVersion": 1,
+            "privateSyncing": true,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x9150ec768d2a078ac71b9b9467728d54d71fb7ca239d4489858999c4046e50fa",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1788981065",
+            "referenceHeadTimestamp": "1788981065",
+            "privateHeadUnchangedSince": "2026-09-09T19:11:05.561Z",
+            "referenceHeadSpreadBlocks": "12"
+          }
+        },
+        {
+          "id": "44013",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": true,
+                "headHash": "0xf9909bb2b0b7a9f370da65fa3f1af19b79a8441fdbca6305d7b127b78d4f101d",
+                "headBlock": "58786302",
+                "latencyMs": 5,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376",
+                "anchorBlock": "58786231",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981075"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x5735e9f886f7fff8d8c8660b89bedb0d9e448284ca8655f7b6852d011b0927d2",
+                "headBlock": "58786295",
+                "latencyMs": 43,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376",
+                "anchorBlock": "58786231",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981074"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xa16628b8cf5bf08dd1753d3a8103ab1bf586e91629780737ca4edf6cd7607f05",
+                "headBlock": "58786296",
+                "latencyMs": 98,
+                "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376",
+                "anchorBlock": "58786231",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981074"
+              }
+            ],
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "0",
+            "anchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376",
+            "lagSeconds": "0",
+            "observedAt": "2026-09-09T19:11:15.575Z",
+            "anchorBlock": "58786231",
+            "privateHead": "58786302",
+            "referenceHead": "58786296",
+            "schemaVersion": 1,
+            "privateSyncing": true,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x0c5f350f7eabd4f3ef6580c84256c84902a4b95f8e36ac2b756c696a6e1ff376",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 2,
+            "privateHeadTimestamp": "1788981075",
+            "referenceHeadTimestamp": "1788981074",
+            "privateHeadUnchangedSince": "2026-09-09T19:11:15.575Z",
+            "referenceHeadSpreadBlocks": "1"
+          }
+        },
+        {
+          "id": "44014",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": true,
+                "headHash": "0x90df67eef124e68b566321889d69cb629a6b1841d04c352a01230daaf536fdd2",
+                "headBlock": "58786399",
+                "latencyMs": 6,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0",
+                "anchorBlock": "58786331",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981085"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xa2976aa02bd2f8adef16246aac12a584b472678d753690c5bcf0f8a2257b6dc4",
+                "headBlock": "58786395",
+                "latencyMs": 75,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0",
+                "anchorBlock": "58786331",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981084"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x538388d6376d15bcbbb2f4692b5abe9b36d6cf69ff5dc759c962a285dde59dfd",
+                "headBlock": "58786400",
+                "latencyMs": 137,
+                "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0",
+                "anchorBlock": "58786331",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1788981085"
+              }
+            ],
+            "reasons": [
+              "private_reports_syncing"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "1",
+            "anchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0",
+            "lagSeconds": "0",
+            "observedAt": "2026-09-09T19:11:25.636Z",
+            "anchorBlock": "58786331",
+            "privateHead": "58786399",
+            "referenceHead": "58786400",
+            "schemaVersion": 1,
+            "privateSyncing": true,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 6,
+            "privateAnchorHash": "0xa4b4a1b9f898e71c38c829dfd0586ac8d44ddc37611e6d69e7780498fff47bc0",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 3,
+            "privateHeadTimestamp": "1788981085",
+            "referenceHeadTimestamp": "1788981085",
+            "privateHeadUnchangedSince": "2026-09-09T19:11:25.636Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "44",
+      "signalAt": "2026-09-10T00:58:02.736Z",
+      "samples": [
+        {
+          "id": "46084",
+          "snapshot": {
+            "state": "healthy",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xc6aab8e13d6f144ec71b41f622625a51b27a251f0b696a1da22cf21048dfbdb9",
+                "headBlock": "58992228",
+                "latencyMs": 5,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a",
+                "anchorBlock": "58992168",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789001831"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x8e3937e51eab1a90038c6e63fa6f3691495fb66a7f2fecd3fae1d444688ab713",
+                "headBlock": "58992232",
+                "latencyMs": 40,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a",
+                "anchorBlock": "58992168",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789001831"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x3a6b55f6ca1117579fdf16003cfb95852a7e94fa1c36aa619bd82bf8b651be27",
+                "headBlock": "58992239",
+                "latencyMs": 97,
+                "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a",
+                "anchorBlock": "58992168",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789001832"
+              }
+            ],
+            "reasons": [],
+            "warnings": [],
+            "allowBulk": true,
+            "lagBlocks": "11",
+            "anchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a",
+            "lagSeconds": "1",
+            "observedAt": "2026-09-10T00:57:12.760Z",
+            "anchorBlock": "58992168",
+            "privateHead": "58992228",
+            "referenceHead": "58992239",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x91ca5ba279370ed3bd0a98ba8c6ef192df89747a24130d3167e272b49c7d131a",
+            "consecutiveHealthy": 2070,
+            "consecutiveUnhealthy": 0,
+            "privateHeadTimestamp": "1789001831",
+            "referenceHeadTimestamp": "1789001832",
+            "privateHeadUnchangedSince": "2026-09-10T00:57:12.760Z",
+            "referenceHeadSpreadBlocks": "7"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "46",
+      "signalAt": "2026-09-10T04:37:12.764Z",
+      "samples": [
+        {
+          "id": "47400",
+          "snapshot": {
+            "state": "healthy",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xf1cdedc83bffd5b28f3e60aef6e20dd01ea4f530b35aebee86562f945f8139c9",
+                "headBlock": "59122937",
+                "latencyMs": 5,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19",
+                "anchorBlock": "59122882",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789015020"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x769c8ec7f862c553a6168f3882f98278c23b4ebb7d5da0d06e9c7ad13fd846be",
+                "headBlock": "59122946",
+                "latencyMs": 55,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19",
+                "anchorBlock": "59122882",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789015021"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x5a9292d05f926736477de0ace71a9b0d637b57cfd2dd316885b5be956370ef64",
+                "headBlock": "59122951",
+                "latencyMs": 95,
+                "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19",
+                "anchorBlock": "59122882",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789015021"
+              }
+            ],
+            "reasons": [],
+            "warnings": [],
+            "allowBulk": true,
+            "lagBlocks": "14",
+            "anchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19",
+            "lagSeconds": "1",
+            "observedAt": "2026-09-10T04:37:02.281Z",
+            "anchorBlock": "59122882",
+            "privateHead": "59122937",
+            "referenceHead": "59122951",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 5,
+            "privateAnchorHash": "0x8eeecf3f653f96075ca5338de22f13dbbfdddc39982d9c5904d2e7b1b12edf19",
+            "consecutiveHealthy": 3386,
+            "consecutiveUnhealthy": 0,
+            "privateHeadTimestamp": "1789015020",
+            "referenceHeadTimestamp": "1789015021",
+            "privateHeadUnchangedSince": "2026-09-10T04:37:02.281Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "47",
+      "signalAt": "2026-09-10T05:09:49.735Z",
+      "samples": [
+        {
+          "id": "47583",
+          "snapshot": {
+            "state": "degraded",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xeeca88562b5514a7d8009899cc896ff114b1dcc2d46bbb2d651d043a45bf9704",
+                "headBlock": "59141095",
+                "latencyMs": 8,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a",
+                "anchorBlock": "59141053",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789016853"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xbb9ed90782cdc2ad669e59cc91f2f95116d5ee6f529807bcfc9a79f81b434d7d",
+                "headBlock": "59141117",
+                "latencyMs": 38,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a",
+                "anchorBlock": "59141053",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789016855"
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0xc7e58e74f3deac762d39b53c14e0c64b0cd21fa4571bcd1bfc6756176de844e7",
+                "headBlock": "59141122",
+                "latencyMs": 93,
+                "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a",
+                "anchorBlock": "59141053",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789016855"
+              }
+            ],
+            "reasons": [
+              "private_block_lag_soft"
+            ],
+            "warnings": [],
+            "allowBulk": false,
+            "lagBlocks": "27",
+            "anchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a",
+            "lagSeconds": "2",
+            "observedAt": "2026-09-10T05:07:36.237Z",
+            "anchorBlock": "59141053",
+            "privateHead": "59141095",
+            "referenceHead": "59141122",
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 8,
+            "privateAnchorHash": "0xf6c8766e3ac9a3c35bcaf078ffa1a5d7dbe901cb30ba43bab30a48db38a8172a",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1789016853",
+            "referenceHeadTimestamp": "1789016855",
+            "privateHeadUnchangedSince": "2026-09-10T05:07:36.237Z",
+            "referenceHeadSpreadBlocks": "5"
+          }
+        }
+      ]
+    },
+    {
+      "sessionId": "49",
+      "signalAt": "2026-09-10T06:54:35.736Z",
+      "samples": [
+        {
+          "id": "48211",
+          "snapshot": {
+            "state": "open",
+            "probes": [
+              {
+                "name": "private",
+                "role": "private",
+                "error": null,
+                "chainId": 4663,
+                "syncing": false,
+                "headHash": "0xb7a86c1b668ebcfea0e8c7b10b6168f20ace709b00c72f47b0155686d3f82e27",
+                "headBlock": "59203462",
+                "latencyMs": 4,
+                "anchorHash": "0xd925d06d30436b1cc16b9ad678b613375bf7e030a61ed65b35039b90f25b580d",
+                "anchorBlock": "59203397",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789023150"
+              },
+              {
+                "name": "reference_1",
+                "role": "reference",
+                "error": "TimeoutError: The operation was aborted due to timeout; TimeoutError: The operation was aborted due to timeout",
+                "chainId": null,
+                "syncing": null,
+                "headHash": null,
+                "headBlock": null,
+                "latencyMs": 5003,
+                "anchorHash": null,
+                "anchorBlock": "59203397",
+                "anchorError": "Latest probe unavailable",
+                "syncingError": null,
+                "headTimestamp": null
+              },
+              {
+                "name": "reference_2",
+                "role": "reference",
+                "error": null,
+                "chainId": 4663,
+                "syncing": null,
+                "headHash": "0x8be182ac05ebea7b10ca9bfac337ed1b382aeb3b84b5facd4e37bf09924e0b7e",
+                "headBlock": "59203461",
+                "latencyMs": 95,
+                "anchorHash": "0xd925d06d30436b1cc16b9ad678b613375bf7e030a61ed65b35039b90f25b580d",
+                "anchorBlock": "59203397",
+                "anchorError": null,
+                "syncingError": null,
+                "headTimestamp": "1789023150"
+              }
+            ],
+            "reasons": [
+              "reference_hash_quorum_unavailable"
+            ],
+            "warnings": [
+              "reference_probe_failed:reference_1"
+            ],
+            "allowBulk": false,
+            "lagBlocks": null,
+            "anchorHash": "0xd925d06d30436b1cc16b9ad678b613375bf7e030a61ed65b35039b90f25b580d",
+            "lagSeconds": null,
+            "observedAt": "2026-09-10T06:52:35.275Z",
+            "anchorBlock": "59203397",
+            "privateHead": "59203462",
+            "referenceHead": null,
+            "schemaVersion": 1,
+            "privateSyncing": false,
+            "referenceCount": 2,
+            "referenceQuorum": 2,
+            "privateLatencyMs": 4,
+            "privateAnchorHash": "0xd925d06d30436b1cc16b9ad678b613375bf7e030a61ed65b35039b90f25b580d",
+            "consecutiveHealthy": 0,
+            "consecutiveUnhealthy": 1,
+            "privateHeadTimestamp": "1789023150",
+            "referenceHeadTimestamp": null,
+            "privateHeadUnchangedSince": "2026-09-10T06:52:35.275Z",
+            "referenceHeadSpreadBlocks": null
+          }
+        }
+      ]
+    }
+  ]
+}

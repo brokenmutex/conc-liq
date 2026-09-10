@@ -207,8 +207,8 @@ describe("RPC health configuration", () => {
 });
 
 describe("RPC health reference anchor", () => {
-  it("preserves 64 confirmations on all nodes through ten blocks of private lag", () => {
-    for (const lag of [0n, 1n, 5n, 10n]) {
+  it("preserves 64 confirmations on all nodes through thirty blocks of private lag", () => {
+    for (const lag of [0n, 1n, 10n, 11n, 14n, 20n, 27n, 30n]) {
       const samples = Array.from({ length: 31 }, (_, i) => {
         const at = new Date(Date.parse(now) - 300000 + i * 10000).toISOString();
         const head = 1000n + BigInt(i * 100);
@@ -216,7 +216,7 @@ describe("RPC health reference anchor", () => {
         const probes = healthyProbes().map((p, j) => ({ ...p, anchorBlock: anchor,
           headBlock: j === 0 ? head - lag : j === 1 ? head : head - 1n,
           headTimestamp: BigInt(Date.parse(at) / 1000) }));
-        const snapshot = evaluateRpcHealth({ config, observedAt: at, previous: previous({ state: 'healthy' }), probes });
+        const snapshot = evaluateRpcHealth({ config: {...config,softLagBlocks:30n}, observedAt: at, previous: previous({ state: 'healthy' }), probes });
         assert.equal(snapshot.state, 'healthy');
         return { id: String(i), snapshot };
       });
@@ -227,8 +227,8 @@ describe("RPC health reference anchor", () => {
 
   it("bounds anchor adjustment and keeps unknown or larger lag on the reference policy", () => {
     assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 990n), 926n);
-    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 989n), 936n);
-    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 1n), 936n);
+    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 970n), 906n);
+    assert.equal(calculateMonitorAnchorBlock([1000n, 1000n], 64, 969n), 936n);
     assert.equal(calculateMonitorAnchorBlock([1000n], 64, null), 936n);
     assert.equal(calculateMonitorAnchorBlock([], 64, 990n), null);
     assert.equal(calculateMonitorAnchorBlock([30n], 64, 20n), 0n);
