@@ -16,6 +16,7 @@ const transactionPolicySchema = strategy.extend({
   feeAccounting: z.literal("initialized_boundaries_v1").optional(),
   lpAllocationPpm: z.number().int().min(100000).max(1000000).optional(),
   inventoryExitPpm: z.number().int().min(100000).max(1000000).optional(),
+  tradingHours:z.object({kind:z.literal('us_equity_off_hours_v1'),entryCutoffSeconds:z.literal(1800),exitLeadSeconds:z.literal(600)}).strict().optional(),
   reentry: z.object({
     cooldownSeconds: z.number().int().min(600).max(86400),
     previousSessionId: z.string().regex(/^[1-9]\d*$/).optional(),

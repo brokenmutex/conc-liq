@@ -21,11 +21,24 @@ export const evidenceHash = (value: unknown): string => {
 /** Reconcile an already recorded timely exit, never simulate a missed past order. */
 export function reconcileRecordedExit(session: PaperSessionRow, previous: PaperState, run: any, input: PaperInput) {
   assert.equal(session.state.status, 'invalid');
-  assert.deepEqual(session.state.reasons, ['paper_source_changed_during_preflight']);
-  assert.deepEqual(session.state, invalidatePaper(previous, session.state.invalidatedAt!, session.state.reasons), 'Invalid state differs from the last accepted ledger');
+  const stateRejection=run.snapshot.error==='paper_session_changed_during_preflight';
+  if(stateRejection){
+    assert.deepEqual(session.state.reasons,['source_stale_or_worker_missed_decision']);
+    assert.deepEqual(run.snapshot.checks,{ancestryInvalid:false,sourcePresent:true,canonical:true,coverageIdentityValid:true,covered:true,blockMatches:true,hashMatches:true,invalidHistory:false});
+    assert(!session.state.reentryStoppedAt&&!previous.reentryStoppedAt,'A stopped session cannot recover a rejected state preflight');
+    assert(Date.parse(session.state.invalidatedAt!)>Date.parse(String(run.observed_at)),'Invalidation must follow the saved exit');
+    // Holding observations may advance while the financial ledger remains at
+    // the pre-exit source. Every other persisted field must still agree.
+    const withoutHolding=(s:PaperState)=>{const x=structuredClone(s);delete x.holding;return x;};
+    assert.deepEqual(withoutHolding(session.state),withoutHolding(invalidatePaper(previous,session.state.invalidatedAt!,session.state.reasons)),
+      'Rejected exit financial ledger changed');
+  }else{
+    assert.deepEqual(session.state.reasons, ['paper_source_changed_during_preflight']);
+    assert.deepEqual(session.state, invalidatePaper(previous, session.state.invalidatedAt!, session.state.reasons), 'Invalid state differs from the last accepted ledger');
+  }
   assert.equal(previous.status, 'exit_pending');assert(previous.pendingSince && previous.position && previous.execution?.entryRunId);
   assert.equal(run.session_id, session.id);assert.equal(run.action, 'exit');assert.equal(run.status, 'failed');
-  assert.equal(run.snapshot.error, 'paper_source_changed_during_preflight');
+  assert(['paper_source_changed_during_preflight','paper_session_changed_during_preflight'].includes(run.snapshot.error));
   assert.equal(run.policy_hash, session.policy_hash);assert.deepEqual(run.runtime_identity, session.runtime_identity);
   const policy = paperPolicySchema.parse(session.policy) as TransactionPaperPolicy;
   assert.equal(policyHash(policy), session.policy_hash);assert.equal(policy.executionBasis, 'nitro_fork_v1');
@@ -57,7 +70,14 @@ export async function prepareExitRecovery(client: PoolClient, sessionId: string,
   const session = (await client.query<PaperSessionRow>('SELECT * FROM paper_sessions WHERE id=$1', [sessionId])).rows[0];assert(session);
   const latest = (await client.query('SELECT id::text FROM paper_sessions WHERE stream_key=$1 ORDER BY paper_sessions.id DESC LIMIT 1', [session.stream_key])).rows[0];assert.equal(latest.id, session.id, 'Only the latest session can be recovered');
   const run = (await client.query('SELECT * FROM paper_execution_runs WHERE id=$1', [runId])).rows[0];assert(run);
-  const observation = (await client.query('SELECT * FROM paper_observations WHERE session_id=$1 ORDER BY id DESC LIMIT 1', [sessionId])).rows[0];assert(observation);
+  const stateRejection=run.snapshot.error==='paper_session_changed_during_preflight';
+  const observation = (await client.query(`SELECT * FROM paper_observations WHERE session_id=$1
+    AND ($2::timestamptz IS NULL OR observed_at<$2) ORDER BY id DESC LIMIT 1`, [sessionId,stateRejection?run.observed_at:null])).rows[0];assert(observation);
+  const later=stateRejection?(await client.query('SELECT * FROM paper_observations WHERE session_id=$1 AND id>$2 ORDER BY id',[sessionId,observation.id])).rows:[];
+  if(stateRejection){
+    assert.equal(later.length,1,'Only the subsequent stale invalidation may follow a rejected exit');
+    assert.equal(later[0].action,'invalidate');assert.deepEqual(later[0].state,session.state);
+  }
   const previous = observation.state as PaperState;
   const chain = await readPaperChain(client, { ...session, state: previous });
   const source = (await client.query(`${sourceSql} AND c.id=$4`, [session.stream_key, PAPER_NVDA, PAPER_POOL, run.checkpoint_id])).rows[0];
@@ -65,7 +85,9 @@ export async function prepareExitRecovery(client: PoolClient, sessionId: string,
   assert.equal(source.token0.toLowerCase(), USDG.toLowerCase());assert.equal(source.token1.toLowerCase(), PAPER_NVDA);assert.equal(source.token_decimals, 18);
   const cp = source.checkpoint;
   assert(cp.block === run.source_block && cp.hash.toLowerCase() === run.source_hash.toLowerCase());
-  assert.equal((await client.query('SELECT count(*)::int AS n FROM paper_observations WHERE session_id=$1 AND checkpoint_id=$2', [sessionId, cp.id])).rows[0].n, 0);
+  const atSource=(await client.query('SELECT id::text FROM paper_observations WHERE session_id=$1 AND checkpoint_id=$2',[sessionId,cp.id])).rows;
+  if(stateRejection){assert.equal(atSource.length,1);assert.equal(atSource[0].id,later[0].id,'Only the audited stale observation can be superseded');}
+  else assert.equal(atSource.length,0);
   // Corroborate the stored boundary proof against the current node's historical block.
   assert(executor.boundaryFees);const proof = await executor.boundaryFees(cp, previous.position!);
   assert.deepEqual(proof, run.snapshot.preflight.result.inventory.boundaryFees);
@@ -81,6 +103,6 @@ export async function prepareExitRecovery(client: PoolClient, sessionId: string,
     pathMinTick: Math.min(previous.last!.tick, cp.tick, swaps.minimum ?? cp.tick), pathMaxTick: Math.max(previous.last!.tick, cp.tick, swaps.maximum ?? cp.tick), swapCount: swaps.count,
     reference, boundaryFees: proof, boundaryContinuity: boundaryContinuity(previous.position!.boundaryFees!, proof, changes), execution: { available: true } };
   const recovered = reconcileRecordedExit(session, previous, run, input);
-  const basis = { sessionId, runId, sessionHash: evidenceHash(session), runHash: evidenceHash(run), observationHash: evidenceHash(observation), ancestorHashes: chain.slice(0,-1).map(evidenceHash), healthEvidenceHash: evidenceHash(health), healthSampleIds: health.map(s=>s.id), input, recovered };
-  return { basis, basisHash: evidenceHash(basis), session, run, observation };
+  const basis = { sessionId, runId, sessionHash: evidenceHash(session), runHash: evidenceHash(run), observationHash: evidenceHash(observation), laterObservationHashes:later.map(evidenceHash), ancestorHashes: chain.slice(0,-1).map(evidenceHash), healthEvidenceHash: evidenceHash(health), healthSampleIds: health.map(s=>s.id), input, recovered };
+  return { basis, basisHash: evidenceHash(basis), session, run, observation, supersededObservation:stateRejection?later[0]:null };
 }

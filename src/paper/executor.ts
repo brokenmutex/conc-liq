@@ -22,6 +22,7 @@ import type { PaperEntryQuote, PaperGasValuation } from "./execution-domain.js";
 import { simulatePaperRoundTrip } from "./execution.js";
 import { simulatePaperExit, type PaperExitInventory } from "./execution-exit.js";
 import { openPaperFork } from "./fork.js";
+import { paperTradingWindow } from './trading-hours.js';
 import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
 import { readPaperReferenceGate, PaperReferenceGateError, type PaperReferenceEvidence } from "./reference.js";
 
@@ -91,6 +92,8 @@ export class NitroPaperExecutor implements PaperExecutor {
   private async check(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean) {
     let referenceEvidence: PaperReferenceEvidence | null = null;
     const now = new Date().toISOString();
+    if(entering&&policy.tradingHours)assert(paperTradingWindow(now,policy.tradingHours).entryAllowed&&
+      paperTradingWindow(cp.blockTimestamp,policy.tradingHours).entryAllowed,'Paper off-hours entry window is closed');
     const age = (Date.parse(now) - Date.parse(cp.blockTimestamp)) / 1000;
     assert(Number.isFinite(age) && age >= 0 && age <= policy.maxSourceAgeSeconds, "Paper execution source is stale");
     const client = await this.database.connect();

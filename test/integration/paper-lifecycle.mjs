@@ -144,8 +144,17 @@ try {
   await client.query("UPDATE risk_snapshot_runs SET snapshot=jsonb_set(snapshot,'{assets,0,onchain,oraclePaused}','true') WHERE id=5");
   assert.equal((await store.tick(stream)).action,'signal_exit');
   assert((await row()).state.holding.exitReasons.includes('paper_token_safety_check_failed'));
+  const exitPending=structuredClone((await row()).state);
   await client.query('UPDATE risk_snapshot_canonicality SET canonical=false WHERE risk_run_id=2');
   assert.equal((await store.tick(stream)).status,'invalid','Revoked accounting cannot be hidden by a pause');
+  // Restore only this isolated fixture to exercise the complete held-position
+  // exit. Nested holding evidence gets reordered by PostgreSQL jsonb on write.
+  await client.query('UPDATE risk_snapshot_canonicality SET canonical=true WHERE risk_run_id=2');
+  await client.query("UPDATE paper_sessions SET state=$2,status='exit_pending' WHERE id=$1",[id,JSON.stringify(exitPending)]);
+  await checkpoint(6);assert((await store.tick(stream)).reasons.includes('paper_exit_preflight_failed'));
+  await checkpoint(7);assert.equal((await store.tick(stream)).action,'exit');
+  assert.equal(await paperExecutionEvidenceValid(client,await row()),true);
+  assert.equal((await client.query("SELECT count(*)::int AS n FROM paper_execution_runs WHERE snapshot->>'error'='paper_session_changed_during_preflight'")).rows[0].n,0);
   console.log(JSON.stringify({passed:['holding pause before RPC','unchanged accounting','persisted first-failure time across restart','exact interval resume','no duplicate fills or costs','explicit validation retry','hard issuer exit','history revocation'],scope:'isolated DB with stub executor',calls}));
  } else {
  assert.equal(await store.stop(stream),id);

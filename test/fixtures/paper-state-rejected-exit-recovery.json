@@ -1,0 +1,2463 @@
+{
+  "session": {
+    "id": "55",
+    "stream_key": "robinhood-v3-rwa-usdg-v1",
+    "created_at": "2026-09-10T12:34:56.360Z",
+    "updated_at": "2026-09-10T15:29:26.904Z",
+    "heartbeat_at": "2026-09-10T15:29:26.904Z",
+    "policy_hash": "da12490d5751103a5e33bce1970906c8482cfb0671f4ac393f8dba4a9caa46ba",
+    "policy": {
+      "mode": "guarded",
+      "reentry": {
+        "cooldownSeconds": 600,
+        "previousSessionId": "54"
+      },
+      "budgetQuote": "946816524",
+      "feeAccounting": "initialized_boundaries_v1",
+      "holdingPolicy": {
+        "kind": "bounded_infrastructure_v1",
+        "maxLagBlocks": 30,
+        "riskPauseSeconds": 30,
+        "chainPauseSeconds": 60
+      },
+      "maxGapSeconds": 900,
+      "executionBasis": "nitro_fork_v1",
+      "maxSlippageBps": 50,
+      "lpAllocationPpm": 800000,
+      "referencePolicy": {
+        "kind": "continuous_bounded_v1",
+        "maxDeviationPpm": 50000,
+        "maxHeldAgeSeconds": 345600,
+        "maxGasPriceAgeSeconds": 86400,
+        "usdgHeartbeatGraceSeconds": 1800
+      },
+      "inventoryExitPpm": 600000,
+      "halfWidthSpacings": 2,
+      "maxHoldingSeconds": 86400,
+      "maxSourceAgeSeconds": 180,
+      "maxLiquiditySharePpm": 10000,
+      "transactionTtlSeconds": 300
+    },
+    "state": {
+      "last": {
+        "id": "4971",
+        "hash": "0x7c4faf88c67324c91834e26451f4c3d08bdb2e8cf526521d56a3d5f3fe56bbf4",
+        "tick": 222459,
+        "block": "59508519",
+        "liquidity": "11855081120977600485",
+        "capturedAt": "2026-09-10T18:25:26.903+03:00",
+        "feeGrowth0": "19462638495014444932176078787286",
+        "feeGrowth1": "90359449142912614020971993863848442763976",
+        "sqrtPriceX96": "5361493093795413197601712568502748",
+        "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+        "blockTimestamp": "2026-09-10T18:25:20+03:00"
+      },
+      "action": "invalidate",
+      "status": "invalid",
+      "holding": {
+        "events": [
+          {
+            "at": "2026-09-10T13:00:52.917Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:01:08.955Z",
+            "reasons": []
+          },
+          {
+            "at": "2026-09-10T13:22:05.061Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T13:22:20.926Z",
+            "reasons": []
+          },
+          {
+            "at": "2026-09-10T14:39:21.913Z",
+            "reasons": [
+              "paper_holding_risk_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T14:39:37.866Z",
+            "reasons": []
+          },
+          {
+            "at": "2026-09-10T15:16:49.865Z",
+            "reasons": [
+              "private_block_lag_soft",
+              "chain_anchor_quorum_unproven",
+              "paper_holding_chain_pause"
+            ]
+          },
+          {
+            "at": "2026-09-10T15:17:04.980Z",
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_time_lag_soft",
+              "private_block_lag_soft",
+              "chain_anchor_quorum_unproven",
+              "paper_holding_chain_pause",
+              "private_block_lag_hard"
+            ]
+          },
+          {
+            "at": "2026-09-10T15:17:51.912Z",
+            "reasons": [
+              "private_confirmed_anchor_unavailable",
+              "private_time_lag_soft",
+              "private_block_lag_soft",
+              "chain_anchor_quorum_unproven",
+              "paper_holding_chain_pause",
+              "private_block_lag_hard",
+              "paper_chain_pause_expired"
+            ]
+          },
+          {
+            "at": "2026-09-10T15:19:42.914Z",
+            "reasons": [
+              "paper_holding_chain_pause",
+              "private_block_lag_hard",
+              "paper_chain_pause_expired"
+            ]
+          },
+          {
+            "at": "2026-09-10T15:21:33.932Z",
+            "reasons": [
+              "paper_holding_risk_pause",
+              "private_block_lag_hard",
+              "paper_chain_pause_expired"
+            ]
+          },
+          {
+            "at": "2026-09-10T15:21:49.888Z",
+            "reasons": [
+              "private_block_lag_hard",
+              "paper_chain_pause_expired"
+            ]
+          }
+        ],
+        "paused": false,
+        "reasons": [
+          "private_block_lag_hard",
+          "paper_chain_pause_expired"
+        ],
+        "checkedAt": "2026-09-10T15:29:26.883Z",
+        "riskSince": null,
+        "chainSince": null,
+        "lastResume": {
+          "at": "2026-09-10T15:22:37.337Z",
+          "toBlock": "59506694",
+          "fromBlock": "59503006"
+        },
+        "exitReasons": [
+          "private_block_lag_hard",
+          "paper_chain_pause_expired"
+        ],
+        "lastHealthAt": "2026-09-10T15:29:18.203Z",
+        "riskEvidence": {
+          "latest": {
+            "id": "14190",
+            "status": "succeeded",
+            "riskRunId": "14188",
+            "attemptedAt": "2026-09-10T18:28:52.727185+03:00",
+            "completedAt": "2026-09-10T18:28:52.866709+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "14190",
+            "status": "succeeded",
+            "blockHash": "0xb90a49dd7a33d08e26d1448f3b2b6448ac034abc5bcdcde7b64e18d8a2cd0a52",
+            "canonical": true,
+            "riskRunId": "14188",
+            "attemptedAt": "2026-09-10T18:28:52.727185+03:00",
+            "blockNumber": "59510568",
+            "completedAt": "2026-09-10T18:28:52.866709+03:00",
+            "validatedAt": "2026-09-10T18:29:22.772967+03:00",
+            "canonicalObservedHash": "0xb90a49dd7a33d08e26d1448f3b2b6448ac034abc5bcdcde7b64e18d8a2cd0a52"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 5979,
+            "sourceBlock": "59510568",
+            "deviationPpm": "-32",
+            "poolPriceX18": "218367330000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 86185,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "218374444955209059295",
+            "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+          },
+          "evaluatedAt": "2026-09-10 18:29:26.883753+03",
+          "failedChecks": [],
+          "snapshotSha256": "0dac6c03fd5cc5ff603b0c2419192a9fe9188d6d0533655f32d804b5edb1f4e6",
+          "snapshotSourceAt": "2026-09-10T15:28:44.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T15:28:52.866Z",
+          "usingPreviousCompleted": false
+        },
+        "healthSampleId": "51305",
+        "lastPrivateHead": "59510900",
+        "resumeFromPause": false
+      },
+      "reasons": [
+        "source_stale_or_worker_missed_decision"
+      ],
+      "navQuote": null,
+      "pnlQuote": null,
+      "position": {
+        "fee0": "603825",
+        "fee1": "3071261072587357",
+        "hold0": "595805230",
+        "hold1": "1586828940263083224",
+        "idle0": "396200109",
+        "idle1": "11",
+        "enteredAt": "2026-09-10T15:46:34+03:00",
+        "liquidity": "18520349990485886",
+        "tickLower": 222310,
+        "tickUpper": 222350,
+        "boundaryFees": {
+          "hash": "0x7c4faf88c67324c91834e26451f4c3d08bdb2e8cf526521d56a3d5f3fe56bbf4",
+          "block": "59508519",
+          "lower": {
+            "gross": "3315035758427642938",
+            "outside0": "15846411116747169712989857963832",
+            "outside1": "73575212046832648774748780118024195556097"
+          },
+          "upper": {
+            "gross": "17923898770924511",
+            "outside0": "12946766306242423630916387689017",
+            "outside1": "60499113007320387940847753584806060124175"
+          },
+          "tickLower": 222310,
+          "tickUpper": 222350
+        },
+        "feeRemainder0": "131535940985160235756028636780366117388",
+        "feeRemainder1": "255277761259427636782196670295343804750"
+      },
+      "execution": {
+        "intent": {
+          "quotedAt": "2026-09-10T12:46:03.216Z",
+          "minRwaOut": "1577788659077917013",
+          "tickLower": 222310,
+          "tickUpper": 222350,
+          "sourceHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+          "sourceBlock": "59413478",
+          "swapAmountQuote": "351011294",
+          "referenceEvidence": {
+            "after": {
+              "current": {
+                "latest": {
+                  "id": "13884",
+                  "status": "succeeded",
+                  "riskRunId": "13882",
+                  "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                  "completedAt": "2026-09-10T15:45:41.891877+03:00"
+                },
+                "limits": {
+                  "sourceSeconds": 180,
+                  "refreshSeconds": 10,
+                  "validationSeconds": 30
+                },
+                "version": 1,
+                "selected": {
+                  "id": "13884",
+                  "status": "succeeded",
+                  "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                  "canonical": true,
+                  "riskRunId": "13882",
+                  "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                  "blockNumber": "59413478",
+                  "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                  "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                  "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+                },
+                "reference": {
+                  "basis": "heartbeat_valid",
+                  "reasons": [],
+                  "eligible": true,
+                  "ageSeconds": 481,
+                  "sourceBlock": "59413478",
+                  "deviationPpm": "27",
+                  "poolPriceX18": "221246865000000000000",
+                  "maxAgeSeconds": 345600,
+                  "usdgFreshness": {
+                    "basis": "heartbeat_valid",
+                    "warnings": [],
+                    "updatedAt": "1788967939",
+                    "graceSeconds": 1800,
+                    "priceAgeSeconds": 76395,
+                    "acceptedMaxAgeSeconds": 88200,
+                    "heartbeatMaxAgeSeconds": 86400
+                  },
+                  "maxDeviationPpm": 50000,
+                  "referencePriceX18": "221240689644646715322",
+                  "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+                },
+                "evaluatedAt": "2026-09-10 15:46:03.209603+03",
+                "failedChecks": [],
+                "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+                "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+                "inFlightStartedAt": null,
+                "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+                "usingPreviousCompleted": false
+              },
+              "requestedAt": "2026-09-10T12:46:03.205Z",
+              "checkpointId": "4820",
+              "sourceProven": true
+            },
+            "before": {
+              "current": {
+                "latest": {
+                  "id": "13884",
+                  "status": "succeeded",
+                  "riskRunId": "13882",
+                  "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                  "completedAt": "2026-09-10T15:45:41.891877+03:00"
+                },
+                "limits": {
+                  "sourceSeconds": 180,
+                  "refreshSeconds": 10,
+                  "validationSeconds": 30
+                },
+                "version": 1,
+                "selected": {
+                  "id": "13884",
+                  "status": "succeeded",
+                  "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                  "canonical": true,
+                  "riskRunId": "13882",
+                  "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                  "blockNumber": "59413478",
+                  "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                  "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                  "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+                },
+                "reference": {
+                  "basis": "heartbeat_valid",
+                  "reasons": [],
+                  "eligible": true,
+                  "ageSeconds": 481,
+                  "sourceBlock": "59413478",
+                  "deviationPpm": "27",
+                  "poolPriceX18": "221246865000000000000",
+                  "maxAgeSeconds": 345600,
+                  "usdgFreshness": {
+                    "basis": "heartbeat_valid",
+                    "warnings": [],
+                    "updatedAt": "1788967939",
+                    "graceSeconds": 1800,
+                    "priceAgeSeconds": 76395,
+                    "acceptedMaxAgeSeconds": 88200,
+                    "heartbeatMaxAgeSeconds": 86400
+                  },
+                  "maxDeviationPpm": 50000,
+                  "referencePriceX18": "221240689644646715322",
+                  "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+                },
+                "evaluatedAt": "2026-09-10 15:46:03.124208+03",
+                "failedChecks": [],
+                "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+                "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+                "inFlightStartedAt": null,
+                "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+                "usingPreviousCompleted": false
+              },
+              "requestedAt": "2026-09-10T12:46:03.112Z",
+              "checkpointId": "4820",
+              "sourceProven": true
+            }
+          }
+        },
+        "exitRunId": null,
+        "allowances": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "396200109",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "0",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "11",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          }
+        ],
+        "earnedFee0": "603825",
+        "earnedFee1": "3071261072587357",
+        "entryRunId": "181",
+        "gasSpentWei": "356958514660000",
+        "holdGasQuote": "251146",
+        "lastValuation": {
+          "computedAt": "2026-09-10T12:47:08.276Z",
+          "sourceHash": "0xd558283a6b86feb541ed0f6ffd0b7bbe75bfb6bf224a8905f1c28eaec7e06d41",
+          "sourceBlock": "59414035",
+          "ethUsdAnswer": "243225444435",
+          "ethUsdDecimals": 8,
+          "oracleEvidence": {
+            "eth": {
+              "feed": {
+                "name": "ETH / USD",
+                "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+                "decimals": 8,
+                "baseAsset": "ETH",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "243225444435",
+                "roundId": "18446744073709553693",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1789043942",
+                "updatedAt": "1789043954",
+                "description": "ETH / USD",
+                "answeredInRound": "18446744073709553693"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 440,
+              "executionEligible": true
+            },
+            "quote": {
+              "feed": {
+                "name": "USDG / USD",
+                "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+                "decimals": 8,
+                "baseAsset": "USDG",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "99985174",
+                "roundId": "18446744073709551713",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788967926",
+                "updatedAt": "1788967939",
+                "description": "USDG / USD",
+                "answeredInRound": "18446744073709551713"
+              },
+              "reasons": [],
+              "freshness": {
+                "basis": "heartbeat_valid",
+                "warnings": [],
+                "updatedAt": "1788967939",
+                "graceSeconds": 1800,
+                "priceAgeSeconds": 76455,
+                "acceptedMaxAgeSeconds": 88200,
+                "heartbeatMaxAgeSeconds": 86400
+              },
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 76455,
+              "executionEligible": true
+            },
+            "directory": {
+              "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+              "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+              "fetchedAt": "2026-09-10T12:47:08.240Z"
+            }
+          },
+          "quoteUsdAnswer": "99985174",
+          "quoteUsdDecimals": 8
+        },
+        "exitReserveWei": "241026351280000"
+      },
+      "holdQuote": null,
+      "intervals": 150,
+      "reference": {
+        "basis": "heartbeat_valid",
+        "reasons": [],
+        "eligible": true,
+        "ageSeconds": 5775,
+        "sourceBlock": "59508519",
+        "deviationPpm": "-32",
+        "poolPriceX18": "218367330000000000000",
+        "maxAgeSeconds": 345600,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "warnings": [],
+          "updatedAt": "1788967939",
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 85981,
+          "acceptedMaxAgeSeconds": 88200,
+          "heartbeatMaxAgeSeconds": 86400
+        },
+        "maxDeviationPpm": 50000,
+        "referencePriceX18": "218374444955209059295",
+        "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+      },
+      "alphaQuote": null,
+      "entryRange": {
+        "tickLower": 222310,
+        "tickUpper": 222350
+      },
+      "peakNavQuote": "946816524",
+      "pendingSince": "2026-09-10T15:22:37.337Z",
+      "feeValueQuote": null,
+      "invalidatedAt": "2026-09-10T15:29:26.376Z",
+      "observedSwaps": "34128",
+      "costsPaidQuote": "868343",
+      "maxDrawdownPpm": "8436",
+      "exitReserveQuote": "586325",
+      "referenceEvidence": {
+        "current": {
+          "latest": {
+            "id": "14184",
+            "status": "succeeded",
+            "riskRunId": "14182",
+            "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+            "completedAt": "2026-09-10T18:25:42.942671+03:00"
+          },
+          "limits": {
+            "sourceSeconds": 180,
+            "refreshSeconds": 10,
+            "validationSeconds": 30
+          },
+          "version": 1,
+          "selected": {
+            "id": "14184",
+            "status": "succeeded",
+            "blockHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa",
+            "canonical": true,
+            "riskRunId": "14182",
+            "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+            "blockNumber": "59508699",
+            "completedAt": "2026-09-10T18:25:42.942671+03:00",
+            "validatedAt": "2026-09-10T18:25:42.95255+03:00",
+            "canonicalObservedHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa"
+          },
+          "reference": {
+            "basis": "heartbeat_valid",
+            "reasons": [],
+            "eligible": true,
+            "ageSeconds": 5789,
+            "sourceBlock": "59508699",
+            "deviationPpm": "-32",
+            "poolPriceX18": "218367330000000000000",
+            "maxAgeSeconds": 345600,
+            "usdgFreshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 85995,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "maxDeviationPpm": 50000,
+            "referencePriceX18": "218374444955209059295",
+            "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+          },
+          "evaluatedAt": "2026-09-10 18:25:47.364044+03",
+          "failedChecks": [],
+          "snapshotSha256": "c8fa45dd1b5e8cfdd84fc57b89d3ae856e932af6c5e5381ad3405108f0020b0a",
+          "snapshotSourceAt": "2026-09-10T15:25:34.000Z",
+          "inFlightStartedAt": null,
+          "snapshotObservedAt": "2026-09-10T15:25:42.942Z",
+          "usingPreviousCompleted": false
+        },
+        "requestedAt": "2026-09-10T15:25:47.026Z",
+        "checkpointId": "4971",
+        "sourceProven": true
+      }
+    },
+    "status": "invalid",
+    "monitor_reasons": [],
+    "execution_eligible": false,
+    "runtime_identity": {
+      "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    }
+  },
+  "previous": {
+    "last": {
+      "id": "4971",
+      "hash": "0x7c4faf88c67324c91834e26451f4c3d08bdb2e8cf526521d56a3d5f3fe56bbf4",
+      "tick": 222459,
+      "block": "59508519",
+      "liquidity": "11855081120977600485",
+      "capturedAt": "2026-09-10T18:25:26.903+03:00",
+      "feeGrowth0": "19462638495014444932176078787286",
+      "feeGrowth1": "90359449142912614020971993863848442763976",
+      "sqrtPriceX96": "5361493093795413197601712568502748",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T18:25:20+03:00"
+    },
+    "action": "signal_exit",
+    "status": "exit_pending",
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:01:08.955Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T13:22:05.061Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:22:20.926Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T14:39:21.913Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T14:39:37.866Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T15:16:49.865Z",
+          "reasons": [
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:17:04.980Z",
+          "reasons": [
+            "private_confirmed_anchor_unavailable",
+            "private_time_lag_soft",
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause",
+            "private_block_lag_hard"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:17:51.912Z",
+          "reasons": [
+            "private_confirmed_anchor_unavailable",
+            "private_time_lag_soft",
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:19:42.914Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:21:33.932Z",
+          "reasons": [
+            "paper_holding_risk_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:21:49.888Z",
+          "reasons": [
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        }
+      ],
+      "paused": false,
+      "reasons": [
+        "private_block_lag_hard",
+        "paper_chain_pause_expired"
+      ],
+      "checkedAt": "2026-09-10T15:25:47.348Z",
+      "riskSince": null,
+      "chainSince": null,
+      "lastResume": {
+        "at": "2026-09-10T15:22:37.337Z",
+        "toBlock": "59506694",
+        "fromBlock": "59503006"
+      },
+      "exitReasons": [
+        "private_block_lag_hard",
+        "paper_chain_pause_expired"
+      ],
+      "lastHealthAt": "2026-09-10T15:25:37.772Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "14184",
+          "status": "succeeded",
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "14184",
+          "status": "succeeded",
+          "blockHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa",
+          "canonical": true,
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "blockNumber": "59508699",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00",
+          "validatedAt": "2026-09-10T18:25:42.95255+03:00",
+          "canonicalObservedHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 5789,
+          "sourceBlock": "59508699",
+          "deviationPpm": "-125",
+          "poolPriceX18": "218347067000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 85995,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "218374444955209059295",
+          "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+        },
+        "evaluatedAt": "2026-09-10 18:25:47.348859+03",
+        "failedChecks": [],
+        "snapshotSha256": "c8fa45dd1b5e8cfdd84fc57b89d3ae856e932af6c5e5381ad3405108f0020b0a",
+        "snapshotSourceAt": "2026-09-10T15:25:34.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T15:25:42.942Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "51283",
+      "lastPrivateHead": "59508728",
+      "resumeFromPause": false
+    },
+    "reasons": [
+      "private_block_lag_hard",
+      "paper_chain_pause_expired"
+    ],
+    "navQuote": "939818975",
+    "pnlQuote": "-6997549",
+    "position": {
+      "fee0": "603825",
+      "fee1": "3071261072587357",
+      "hold0": "595805230",
+      "hold1": "1586828940263083224",
+      "idle0": "396200109",
+      "idle1": "11",
+      "enteredAt": "2026-09-10T15:46:34+03:00",
+      "liquidity": "18520349990485886",
+      "tickLower": 222310,
+      "tickUpper": 222350,
+      "boundaryFees": {
+        "hash": "0x7c4faf88c67324c91834e26451f4c3d08bdb2e8cf526521d56a3d5f3fe56bbf4",
+        "block": "59508519",
+        "lower": {
+          "gross": "3315035758427642938",
+          "outside0": "15846411116747169712989857963832",
+          "outside1": "73575212046832648774748780118024195556097"
+        },
+        "upper": {
+          "gross": "17923898770924511",
+          "outside0": "12946766306242423630916387689017",
+          "outside1": "60499113007320387940847753584806060124175"
+        },
+        "tickLower": 222310,
+        "tickUpper": 222350
+      },
+      "feeRemainder0": "131535940985160235756028636780366117388",
+      "feeRemainder1": "255277761259427636782196670295343804750"
+    },
+    "execution": {
+      "intent": {
+        "quotedAt": "2026-09-10T12:46:03.216Z",
+        "minRwaOut": "1577788659077917013",
+        "tickLower": 222310,
+        "tickUpper": 222350,
+        "sourceHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+        "sourceBlock": "59413478",
+        "swapAmountQuote": "351011294",
+        "referenceEvidence": {
+          "after": {
+            "current": {
+              "latest": {
+                "id": "13884",
+                "status": "succeeded",
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00"
+              },
+              "limits": {
+                "sourceSeconds": 180,
+                "refreshSeconds": 10,
+                "validationSeconds": 30
+              },
+              "version": 1,
+              "selected": {
+                "id": "13884",
+                "status": "succeeded",
+                "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                "canonical": true,
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "blockNumber": "59413478",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+              },
+              "reference": {
+                "basis": "heartbeat_valid",
+                "reasons": [],
+                "eligible": true,
+                "ageSeconds": 481,
+                "sourceBlock": "59413478",
+                "deviationPpm": "27",
+                "poolPriceX18": "221246865000000000000",
+                "maxAgeSeconds": 345600,
+                "usdgFreshness": {
+                  "basis": "heartbeat_valid",
+                  "warnings": [],
+                  "updatedAt": "1788967939",
+                  "graceSeconds": 1800,
+                  "priceAgeSeconds": 76395,
+                  "acceptedMaxAgeSeconds": 88200,
+                  "heartbeatMaxAgeSeconds": 86400
+                },
+                "maxDeviationPpm": 50000,
+                "referencePriceX18": "221240689644646715322",
+                "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+              },
+              "evaluatedAt": "2026-09-10 15:46:03.209603+03",
+              "failedChecks": [],
+              "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+              "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+              "inFlightStartedAt": null,
+              "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+              "usingPreviousCompleted": false
+            },
+            "requestedAt": "2026-09-10T12:46:03.205Z",
+            "checkpointId": "4820",
+            "sourceProven": true
+          },
+          "before": {
+            "current": {
+              "latest": {
+                "id": "13884",
+                "status": "succeeded",
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00"
+              },
+              "limits": {
+                "sourceSeconds": 180,
+                "refreshSeconds": 10,
+                "validationSeconds": 30
+              },
+              "version": 1,
+              "selected": {
+                "id": "13884",
+                "status": "succeeded",
+                "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                "canonical": true,
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "blockNumber": "59413478",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+              },
+              "reference": {
+                "basis": "heartbeat_valid",
+                "reasons": [],
+                "eligible": true,
+                "ageSeconds": 481,
+                "sourceBlock": "59413478",
+                "deviationPpm": "27",
+                "poolPriceX18": "221246865000000000000",
+                "maxAgeSeconds": 345600,
+                "usdgFreshness": {
+                  "basis": "heartbeat_valid",
+                  "warnings": [],
+                  "updatedAt": "1788967939",
+                  "graceSeconds": 1800,
+                  "priceAgeSeconds": 76395,
+                  "acceptedMaxAgeSeconds": 88200,
+                  "heartbeatMaxAgeSeconds": 86400
+                },
+                "maxDeviationPpm": 50000,
+                "referencePriceX18": "221240689644646715322",
+                "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+              },
+              "evaluatedAt": "2026-09-10 15:46:03.124208+03",
+              "failedChecks": [],
+              "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+              "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+              "inFlightStartedAt": null,
+              "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+              "usingPreviousCompleted": false
+            },
+            "requestedAt": "2026-09-10T12:46:03.112Z",
+            "checkpointId": "4820",
+            "sourceProven": true
+          }
+        }
+      },
+      "exitRunId": null,
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "396200109",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "11",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "earnedFee0": "603825",
+      "earnedFee1": "3071261072587357",
+      "entryRunId": "181",
+      "gasSpentWei": "356958514660000",
+      "holdGasQuote": "251146",
+      "lastValuation": {
+        "computedAt": "2026-09-10T12:47:08.276Z",
+        "sourceHash": "0xd558283a6b86feb541ed0f6ffd0b7bbe75bfb6bf224a8905f1c28eaec7e06d41",
+        "sourceBlock": "59414035",
+        "ethUsdAnswer": "243225444435",
+        "ethUsdDecimals": 8,
+        "oracleEvidence": {
+          "eth": {
+            "feed": {
+              "name": "ETH / USD",
+              "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+              "decimals": 8,
+              "baseAsset": "ETH",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "243225444435",
+              "roundId": "18446744073709553693",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1789043942",
+              "updatedAt": "1789043954",
+              "description": "ETH / USD",
+              "answeredInRound": "18446744073709553693"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 440,
+            "executionEligible": true
+          },
+          "quote": {
+            "feed": {
+              "name": "USDG / USD",
+              "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+              "decimals": 8,
+              "baseAsset": "USDG",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "99985174",
+              "roundId": "18446744073709551713",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788967926",
+              "updatedAt": "1788967939",
+              "description": "USDG / USD",
+              "answeredInRound": "18446744073709551713"
+            },
+            "reasons": [],
+            "freshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 76455,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 76455,
+            "executionEligible": true
+          },
+          "directory": {
+            "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+            "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+            "fetchedAt": "2026-09-10T12:47:08.240Z"
+          }
+        },
+        "quoteUsdAnswer": "99985174",
+        "quoteUsdDecimals": 8
+      },
+      "exitReserveWei": "241026351280000"
+    },
+    "holdQuote": "942065684",
+    "intervals": 150,
+    "reference": {
+      "basis": "heartbeat_valid",
+      "reasons": [],
+      "eligible": true,
+      "ageSeconds": 5775,
+      "sourceBlock": "59508519",
+      "deviationPpm": "-32",
+      "poolPriceX18": "218367330000000000000",
+      "maxAgeSeconds": 345600,
+      "usdgFreshness": {
+        "basis": "heartbeat_valid",
+        "warnings": [],
+        "updatedAt": "1788967939",
+        "graceSeconds": 1800,
+        "priceAgeSeconds": 85981,
+        "acceptedMaxAgeSeconds": 88200,
+        "heartbeatMaxAgeSeconds": 86400
+      },
+      "maxDeviationPpm": 50000,
+      "referencePriceX18": "218374444955209059295",
+      "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+    },
+    "alphaQuote": "-2246709",
+    "entryRange": {
+      "tickLower": 222310,
+      "tickUpper": 222350
+    },
+    "peakNavQuote": "946816524",
+    "pendingSince": "2026-09-10T15:22:37.337Z",
+    "feeValueQuote": "1274488",
+    "invalidatedAt": null,
+    "observedSwaps": "34128",
+    "costsPaidQuote": "868343",
+    "maxDrawdownPpm": "8436",
+    "exitReserveQuote": "586325",
+    "referenceEvidence": {
+      "current": {
+        "latest": {
+          "id": "14184",
+          "status": "succeeded",
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "14184",
+          "status": "succeeded",
+          "blockHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa",
+          "canonical": true,
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "blockNumber": "59508699",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00",
+          "validatedAt": "2026-09-10T18:25:42.95255+03:00",
+          "canonicalObservedHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 5789,
+          "sourceBlock": "59508699",
+          "deviationPpm": "-32",
+          "poolPriceX18": "218367330000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 85995,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "218374444955209059295",
+          "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+        },
+        "evaluatedAt": "2026-09-10 18:25:47.364044+03",
+        "failedChecks": [],
+        "snapshotSha256": "c8fa45dd1b5e8cfdd84fc57b89d3ae856e932af6c5e5381ad3405108f0020b0a",
+        "snapshotSourceAt": "2026-09-10T15:25:34.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T15:25:42.942Z",
+        "usingPreviousCompleted": false
+      },
+      "requestedAt": "2026-09-10T15:25:47.026Z",
+      "checkpointId": "4971",
+      "sourceProven": true
+    }
+  },
+  "run": {
+    "id": "182",
+    "session_id": "55",
+    "checkpoint_id": "4972",
+    "source_block": "59509161",
+    "source_hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+    "policy_hash": "da12490d5751103a5e33bce1970906c8482cfb0671f4ac393f8dba4a9caa46ba",
+    "action": "exit",
+    "observed_at": "2026-09-10T15:27:03.615Z",
+    "status": "failed",
+    "snapshot": {
+      "error": "paper_session_changed_during_preflight",
+      "checks": {
+        "covered": true,
+        "canonical": true,
+        "hashMatches": true,
+        "blockMatches": true,
+        "sourcePresent": true,
+        "invalidHistory": false,
+        "ancestryInvalid": false,
+        "coverageIdentityValid": true
+      },
+      "preflight": {
+        "result": {
+          "scope": "paper_restored_position_exit",
+          "policy": {
+            "mode": "guarded",
+            "reentry": {
+              "cooldownSeconds": 600,
+              "previousSessionId": "54"
+            },
+            "budgetQuote": "946816524",
+            "feeAccounting": "initialized_boundaries_v1",
+            "holdingPolicy": {
+              "kind": "bounded_infrastructure_v1",
+              "maxLagBlocks": 30,
+              "riskPauseSeconds": 30,
+              "chainPauseSeconds": 60
+            },
+            "maxGapSeconds": 900,
+            "executionBasis": "nitro_fork_v1",
+            "maxSlippageBps": 50,
+            "lpAllocationPpm": 800000,
+            "referencePolicy": {
+              "kind": "continuous_bounded_v1",
+              "maxDeviationPpm": 50000,
+              "maxHeldAgeSeconds": 345600,
+              "maxGasPriceAgeSeconds": 86400,
+              "usdgHeartbeatGraceSeconds": 1800
+            },
+            "inventoryExitPpm": 600000,
+            "halfWidthSpacings": 2,
+            "maxHoldingSeconds": 86400,
+            "maxSourceAgeSeconds": 180,
+            "maxLiquiditySharePpm": 10000,
+            "transactionTtlSeconds": 300
+          },
+          "source": {
+            "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+            "block": "59509161",
+            "timestamp": "1789053981"
+          },
+          "balances": {
+            "before": {
+              "rwa": "11",
+              "quote": "396200109",
+              "native": "999643041485340000"
+            },
+            "afterExit": {
+              "rwa": "0",
+              "quote": "941015855",
+              "native": "999143657063187466"
+            },
+            "afterCollect": {
+              "rwa": "2493366144128945801",
+              "quote": "396803934",
+              "native": "999435572301455772"
+            }
+          },
+          "exitSwap": {
+            "amountIn": "2493366144128945801",
+            "actualOut": "544211921",
+            "amountOut": "544211921",
+            "ticksCrossed": 1,
+            "sqrtPriceAfter": "5361430257592658359566018567197908",
+            "amountOutMinimum": "541490861"
+          },
+          "upstream": {
+            "methods": {
+              "eth_call": 10,
+              "eth_getCode": 15,
+              "eth_getBalance": 15,
+              "eth_estimateGas": 5,
+              "eth_getStorageAt": 63,
+              "eth_getBlockByNumber": 2,
+              "eth_getTransactionCount": 15
+            },
+            "rejected": 2,
+            "requests": 125,
+            "maxRequests": 400
+          },
+          "inventory": {
+            "fee0": "603825",
+            "fee1": "3071261072587357",
+            "hold0": "595805230",
+            "hold1": "1586828940263083224",
+            "idle0": "396200109",
+            "idle1": "11",
+            "enteredAt": "2026-09-10T15:46:34+03:00",
+            "liquidity": "18520349990485886",
+            "tickLower": 222310,
+            "tickUpper": 222350,
+            "allowances": [
+              {
+                "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+                "amount": "0",
+                "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+              },
+              {
+                "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+                "amount": "396200109",
+                "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+              },
+              {
+                "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "amount": "0",
+                "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+              },
+              {
+                "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "amount": "11",
+                "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+              }
+            ],
+            "boundaryFees": {
+              "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "block": "59509161",
+              "lower": {
+                "gross": "3315035758427642938",
+                "outside0": "15846411116747169712989857963832",
+                "outside1": "73575212046832648774748780118024195556097"
+              },
+              "upper": {
+                "gross": "17923898770924511",
+                "outside0": "12946766306242423630916387689017",
+                "outside1": "60499113007320387940847753584806060124175"
+              },
+              "tickLower": 222310,
+              "tickUpper": 222350
+            },
+            "feeRemainder0": "131535940985160235756028636780366117388",
+            "feeRemainder1": "255277761259427636782196670295343804750",
+            "nativeBalanceWei": "999643041485340000"
+          },
+          "computedAt": "2026-09-10T15:27:03.431Z",
+          "limitations": [
+            "NFT, idle balances and allowances restored on the local fork only",
+            "Fee inputs remain estimates from observed fee growth; restoring them does not turn them into realized mainnet income",
+            "Gas and token proceeds are simulations at the source block; no intervening third-party transactions"
+          ],
+          "totalGasWei": "75058155600000",
+          "storageProof": {
+            "nftBase": "79172022603647033857484345009049554142447304609303579656233385483017428915690",
+            "coreBase": "3970066403261794282731362642130529152354900172623222266391531647551352780870"
+          },
+          "transactions": [
+            {
+              "to": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "action": "decrease_and_collect",
+              "calldata": "0xac9650d8000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000a40c49ccbe00000000000000000000000000000000000000000000000000000000001114e80000000000000000000000000000000000000000000000000041cc29024c7f7e000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000022631173b5182da0000000000000000000000000000000000000000000000000000000006aa2cd49000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084fc6f786500000000000000000000000000000000000000000000000000000000001114e8000000000000000000000000000000000000000000000000000000000000c0de00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000",
+              "estimate": {
+                "gas": "235001",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "136560000",
+                "totalFeeWei": "32091736560000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "32091736560000",
+                "parentBaseFeeWei": "0"
+              },
+              "localHash": "0x8d9820bea0e5be78b3fc9ce80eb81607d37c8fa9a08a15568786137cc7666918",
+              "returnData": "0x00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000228f4e00828c1421000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000936b1000000000000000000000000000000000000000000000000229a374c33ca8e7e",
+              "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "sourceBlock": "59509161",
+              "localGasUsed": "203202",
+              "stateOverrides": {
+                "0x0000000000000000000000000000000000000000": {
+                  "balance": "0x39d13b70d5184eb3"
+                },
+                "0x000000000000000000000000000000000000c0de": {
+                  "nonce": "0x7",
+                  "balance": "0xddf720cc5ecbd60"
+                },
+                "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000004": "0x00000000000000000000000000000000000000000000000001518000699cea00",
+                    "0x26a6e445158751f5e312bf5878e7bc62c37e7e853693d6d3ffe5015bba1a7a21": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x2e9fc7ab894bfcce3abfe3d4251db4346591996742119c6564f078c17d3da20f": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc": "0x00000000000000000000000068184c449e1a8f34fa18d289737129fd27b66f8f",
+                    "0x817d7af0d343a5e423b4a668699f5160f711afd17f0eef0a91a470ee29bb1d11": "0x00000000000000000000000000000000000000000000000000000000179d88ad",
+                    "0xade71f6abbbd3b58f6154a3f60ab7e1ddda904c73a1a68ed868eea1898f937eb": "0x000000000000000000000000000000000000000000000000000002740ab92241"
+                  }
+                },
+                "0x68184c449e1a8f34fa18d289737129fd27b66f8f": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0x73991a25c818bf1f1128deaab1492d45638de0d3": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000002": "0x00000000000000000000000000000000000000000000000000000000000c0ac2",
+                    "0x23171c53024315f1649bfea2271e36f140155e15cc8c8a437e57480f5eff8000": "0x0000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168",
+                    "0x23171c53024315f1649bfea2271e36f140155e15cc8c8a437e57480f5eff8001": "0x0000000000000000000001f4d0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                    "0x405787fa12a823e0f2b7631cc41b3ba8828b3321ca811111fa75cd3aa3d37051": "0x000000000000000000000000000000000000000000000000000000000000c0de",
+                    "0x7ca43bde5b425d22e92b1363d0b4e74056dadd4ee4b28fb027001da5ef56be2b": "0x00000000000000000000000000000000000000000000000000000000000c0ac2",
+                    "0xaf09c6dc09c1a9d4d569eb5067987452d242f3de13b8d18b064e32ecdfcfd5eb": "0x00000000000000000041cc29024c7f7e03648e0364660000000000000002c0c6",
+                    "0xaf09c6dc09c1a9d4d569eb5067987452d242f3de13b8d18b064e32ecdfcfd5ec": "0xffffffffffffffffffffffffffffffffffffffdb42e50258638090bcefee9798",
+                    "0xaf09c6dc09c1a9d4d569eb5067987452d242f3de13b8d18b064e32ecdfcfd5ed": "0xffffffffffffffffffffffffffffffd9682efbfa901ad1b77ca5e5b9f31c1c59",
+                    "0xaf09c6dc09c1a9d4d569eb5067987452d242f3de13b8d18b064e32ecdfcfd5ee": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                },
+                "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0d09bc3457965c745cfe411ca4db6857fc79654955c752b2494923f227d7e480": "0x0000000000000000000000000000000000000000000004eb186748d88a7e1786",
+                    "0x395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d01": "0x0000000000000000000000000000000000000000000000000de377b4760af643",
+                    "0x395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d02": "0x000000000000000000000000000000000000000000000000000000006aa1f31e",
+                    "0x621cc14a9f834f18b9eef1b0322155410c22fe10b859fe64ec33940b0f469811": "0x000000000000000000000000000000000000000000000000000000000000000b",
+                    "0x8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                },
+                "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0001441770177003530364fb00000000000108568dabf73d9afbd75610a90db3",
+                    "0x0000000000000000000000000000000000000000000000000000000000000001": "0x00000000000000000000000000000000000000f5a88c8f7feb2e5a24963222d3",
+                    "0x0000000000000000000000000000000000000000000000000000000000000002": "0x000000000000000000000000000001098c42cd3792eed37590579ae1e73cb3b4",
+                    "0x0000000000000000000000000000000000000000000000000000000000000004": "0x000000000000000000000000000000000000000000000000a485b577f74f3fe5",
+                    "0x000000000000000000000000000000000000000000000000000000000000035b": "0x01000000000000000038052a94d4d936eefb10bd680000e52558e9736aa2cc18",
+                    "0x08c6fa5b375659d2392be937c0cb77b8a0fa7158a257c116309ccd94c612b846": "0x0000000000000000000000000000000000000000000000000041cc29024c7f7e",
+                    "0x08c6fa5b375659d2392be937c0cb77b8a0fa7158a257c116309ccd94c612b847": "0xffffffffffffffffffffffffffffffffffffffdb66be078ab8c6250a6e647301",
+                    "0x08c6fa5b375659d2392be937c0cb77b8a0fa7158a257c116309ccd94c612b848": "0xffffffffffffffffffffffffffffffd992a2ee2ee45f40f282489912f0b6250e",
+                    "0x08c6fa5b375659d2392be937c0cb77b8a0fa7158a257c116309ccd94c612b849": "0x0000000000000000000ae94bb13e7a5e000000000000000000000000000936b2",
+                    "0xa0783d63ff8c70abf57b7da76cea3955b8a785e3a242d52f70deedb07aac89ad": "0xffffffffffffffffffd3871cd674e5a90000000000000000008179d9e587a35d",
+                    "0xa0783d63ff8c70abf57b7da76cea3955b8a785e3a242d52f70deedb07aac89ae": "0x00000000000000000000000000000000000000a369421572821dad7f54f15239",
+                    "0xa0783d63ff8c70abf57b7da76cea3955b8a785e3a242d52f70deedb07aac89af": "0x000000000000000000000000000000b1ca7955c05e6ac674166eeeb5dbb4680f",
+                    "0xb6ab0afe11384b43fdf340e7edbcc32ce641117b4f9a8a5be0dd38d61d705159": "0x00000000000000002e3619a9f6d308c600000000000000002e432b9e61189bb8",
+                    "0xb6ab0afe11384b43fdf340e7edbcc32ce641117b4f9a8a5be0dd38d61d70515a": "0x00000000000000000000000000000000000000c802840de7c9578874e68cdf38",
+                    "0xb6ab0afe11384b43fdf340e7edbcc32ce641117b4f9a8a5be0dd38d61d70515b": "0x000000000000000000000000000000d837d667917a0b8581942655a2eafe4301"
+                  }
+                },
+                "0xe10b6f6b275de231345c20d14ab812db62151b00": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "0x7ad7158c042b6044018d6db0aa24918cff7717294aabeebd8ebb8033cdde8388": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0xea9f54fe83677e1aff317eed0bd2da243807a924551b4e177082629d543a6f67": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                }
+              },
+              "stateOverrideHash": "3949c19a8add3a0db60117d8c13f77a8bc9ae9fcd1e58ce4d26cb99daf357094",
+              "localEffectiveGasPriceWei": "1020999714"
+            },
+            {
+              "to": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "action": "approve_exit_swap",
+              "calldata": "0x095ea7b3000000000000000000000000caf681a66d020601342297493863e78c959e5cb2000000000000000000000000000000000000000000000000229a374c33ca8e89",
+              "estimate": {
+                "gas": "64484",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "136560000",
+                "totalFeeWei": "8805935040000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "8805935040000",
+                "parentBaseFeeWei": "0"
+              },
+              "localHash": "0x852a413bc55dd7f4dd7716832c7b0c05504b03438dfb6697382f7ce555e34f80",
+              "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "sourceBlock": "59509161",
+              "localGasUsed": "63649",
+              "stateOverrides": {
+                "0x0000000000000000000000000000000000000000": {
+                  "balance": "0x39d1f4407c1f62b3"
+                },
+                "0x000000000000000000000000000000000000c0de": {
+                  "nonce": "0x8",
+                  "balance": "0xddeb55b96eae19c"
+                },
+                "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x17aeb6391b55972c015e5aa2045fad872ade34cff924a51304109b70ca33b757": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                },
+                "0xe10b6f6b275de231345c20d14ab812db62151b00": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "0x69054a56dd13f28d82cd282f24e81b5d138787181738737440f6520bee905212": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x7ad7158c042b6044018d6db0aa24918cff7717294aabeebd8ebb8033cdde8388": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                }
+              },
+              "stateOverrideHash": "061da374cc024b9c23f01929e0f0bbebabc1d4adaa4c1975ff4e5eb43ba2b89c",
+              "localEffectiveGasPriceWei": "1018374750"
+            },
+            {
+              "to": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "action": "sell_nvda",
+              "calldata": "0x5ae401dc000000000000000000000000000000000000000000000000000000006aa2cd4900000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e404e45aaf000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec0000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d16800000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000000000000000000000000000000000000000c0de000000000000000000000000000000000000000000000000229a374c33ca8e890000000000000000000000000000000000000000000000000000000020467ead000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+              "estimate": {
+                "gas": "161695",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "136560000",
+                "totalFeeWei": "22081069200000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "22081069200000",
+                "parentBaseFeeWei": "0"
+              },
+              "localHash": "0x363290c11f80e6e8d7d9928fa8ce6f2698437e11d14c13967959e76707fc7ede",
+              "returnData": "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000207003d1",
+              "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "sourceBlock": "59509161",
+              "localGasUsed": "146036",
+              "stateOverrides": {
+                "0x0000000000000000000000000000000000000000": {
+                  "balance": "0x39d22e23ec286cb3"
+                },
+                "0x000000000000000000000000000000000000c0de": {
+                  "nonce": "0x9",
+                  "balance": "0xdde7a67d9322c7e"
+                },
+                "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000004": "0x00000000000000000000000000000000000000000000000001518000699cea00",
+                    "0x26a6e445158751f5e312bf5878e7bc62c37e7e853693d6d3ffe5015bba1a7a21": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x2e9fc7ab894bfcce3abfe3d4251db4346591996742119c6564f078c17d3da20f": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc": "0x00000000000000000000000068184c449e1a8f34fa18d289737129fd27b66f8f",
+                    "0x817d7af0d343a5e423b4a668699f5160f711afd17f0eef0a91a470ee29bb1d11": "0x0000000000000000000000000000000000000000000000000000000017a6bf5e",
+                    "0xade71f6abbbd3b58f6154a3f60ab7e1ddda904c73a1a68ed868eea1898f937eb": "0x000000000000000000000000000000000000000000000000000002740aafeb90"
+                  }
+                },
+                "0x68184c449e1a8f34fa18d289737129fd27b66f8f": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xcaf681a66d020601342297493863e78c959e5cb2": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0d09bc3457965c745cfe411ca4db6857fc79654955c752b2494923f227d7e480": "0x0000000000000000000000000000000000000000000004eaf5cd118c56b38908",
+                    "0x17aeb6391b55972c015e5aa2045fad872ade34cff924a51304109b70ca33b757": "0x000000000000000000000000000000000000000000000000229a374c33ca8e89",
+                    "0x395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d01": "0x0000000000000000000000000000000000000000000000000de377b4760af643",
+                    "0x395525728d1d6f4af44d273368682dd92b28e7464d750ef3212d3cb7f5959d02": "0x000000000000000000000000000000000000000000000000000000006aa1f31e",
+                    "0x621cc14a9f834f18b9eef1b0322155410c22fe10b859fe64ec33940b0f469811": "0x000000000000000000000000000000000000000000000000229a374c33ca8e89",
+                    "0x8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                },
+                "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0001441770177003530364fb00000000000108568dabf73d9afbd75610a90db3",
+                    "0x0000000000000000000000000000000000000000000000000000000000000002": "0x000000000000000000000000000001098c42cd3792eed37590579ae1e73cb3b4",
+                    "0x0000000000000000000000000000000000000000000000000000000000000003": "0x00000000000000001378491900ea9f890000000000000000000000000cd6d973",
+                    "0x0000000000000000000000000000000000000000000000000000000000000004": "0x000000000000000000000000000000000000000000000000a485b577f74f3fe5",
+                    "0x6c618598a722acfb4a0048eacd0596accc832184a491631e6c3694d342d041a1": "0xfffffffffffffffffffffffffffdffffffffffffefbdef243ae71514010772a5"
+                  }
+                },
+                "0xe10b6f6b275de231345c20d14ab812db62151b00": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "0x69054a56dd13f28d82cd282f24e81b5d138787181738737440f6520bee905212": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x7ad7158c042b6044018d6db0aa24918cff7717294aabeebd8ebb8033cdde8388": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0xea9f54fe83677e1aff317eed0bd2da243807a924551b4e177082629d543a6f67": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                }
+              },
+              "stateOverrideHash": "fb97090cac74b515bcf6d214b34c9382e6551189cb65f370bf0e65cefbdefd5b",
+              "localEffectiveGasPriceWei": "1016077907"
+            },
+            {
+              "to": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "action": "revoke_exit_allowance",
+              "calldata": "0x095ea7b300000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d30000000000000000000000000000000000000000000000000000000000000000",
+              "estimate": {
+                "gas": "41390",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "136560000",
+                "totalFeeWei": "5652218400000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5652218400000",
+                "parentBaseFeeWei": "0"
+              },
+              "localHash": "0xbd4a3f54db3231d10776781b579e99de1f7b4069ac24a6d5dbb3ea263ff84cd7",
+              "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "sourceBlock": "59509161",
+              "localGasUsed": "36040",
+              "stateOverrides": {
+                "0x0000000000000000000000000000000000000000": {
+                  "balance": "0x39d2b2f5940ff4b3"
+                },
+                "0x000000000000000000000000000000000000c0de": {
+                  "nonce": "0xa",
+                  "balance": "0xdddf373845fa0e2"
+                },
+                "0x5fc5360d0400a0fd4f2af552add042d716f1d168": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000004": "0x00000000000000000000000000000000000000000000000001518000699cea00",
+                    "0x286b464b57d5909fbfc46d4b3b6e5d68f08664905789f5171f0697caccd83f09": "0x00000000000000000000000000000000000000000000000000000000179d88ad",
+                    "0x2e9fc7ab894bfcce3abfe3d4251db4346591996742119c6564f078c17d3da20f": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc": "0x00000000000000000000000068184c449e1a8f34fa18d289737129fd27b66f8f",
+                    "0xb29bda020784e4e137456bc29285e9b5533737ab58a812983e46092958283e85": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                },
+                "0x68184c449e1a8f34fa18d289737129fd27b66f8f": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                }
+              },
+              "stateOverrideHash": "69cc1a9630974058cd19e9fac8e1ddef1ba1eaf061ce430cb25d2a568a5bfaba",
+              "localEffectiveGasPriceWei": "1014068169"
+            },
+            {
+              "to": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "action": "revoke_exit_allowance",
+              "calldata": "0x095ea7b300000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d30000000000000000000000000000000000000000000000000000000000000000",
+              "estimate": {
+                "gas": "47065",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component",
+                "parentGas": "0",
+                "baseFeeWei": "136560000",
+                "totalFeeWei": "6427196400000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "6427196400000",
+                "parentBaseFeeWei": "0"
+              },
+              "localHash": "0xa336e4a3aa389c3fbbebbaacf16dba232fba2b36b4830b8a9b14bdcc3d062ecb",
+              "returnData": "0x0000000000000000000000000000000000000000000000000000000000000001",
+              "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+              "sourceBlock": "59509161",
+              "localGasUsed": "41653",
+              "stateOverrides": {
+                "0x0000000000000000000000000000000000000000": {
+                  "balance": "0x39d2d3bccb75c4b3"
+                },
+                "0x000000000000000000000000000000000000c0de": {
+                  "nonce": "0xb",
+                  "balance": "0xdddd236406b3fda"
+                },
+                "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2": {
+                  "nonce": "0x1",
+                  "balance": "0x0"
+                },
+                "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x8d25ea8ee309999a79f0af498fbab0e424669497170669bd9e93b81a62babc01": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0xff2f3b7b5a0e85b3419739aec0b6b6215ab9c5182dd0badbd66ef62911ba9eb7": "0x000000000000000000000000000000000000000000000000000000000000000b"
+                  }
+                },
+                "0xe10b6f6b275de231345c20d14ab812db62151b00": {
+                  "nonce": "0x1",
+                  "balance": "0x0",
+                  "stateDiff": {
+                    "0x0000000000000000000000000000000000000000000000000000000000000001": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "0x7ad7158c042b6044018d6db0aa24918cff7717294aabeebd8ebb8033cdde8388": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                    "0xa4598a70fe22eea7e7d4dcc51b74ebd18f3f400f205c9579ef0bbd580afb2cf4": "0x0000000000000000000000000000000000000000000000000000000000000000"
+                  }
+                }
+              },
+              "stateOverrideHash": "352f916875851796775012ca48ae9a4aeeff83ddbb1befc93159126a9463281b",
+              "localEffectiveGasPriceWei": "1012309648"
+            }
+          ],
+          "schemaVersion": 1,
+          "restoredTokenId": "1119464",
+          "executionEligible": false,
+          "restoredLiquidity": "18520349990485886",
+          "broadcastAuthorized": false
+        },
+        "valuation": {
+          "computedAt": "2026-09-10T15:26:50.908Z",
+          "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+          "sourceBlock": "59509161",
+          "ethUsdAnswer": "243275120000",
+          "ethUsdDecimals": 8,
+          "oracleEvidence": {
+            "eth": {
+              "feed": {
+                "name": "ETH / USD",
+                "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+                "decimals": 8,
+                "baseAsset": "ETH",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "243275120000",
+                "roundId": "18446744073709553697",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1789048383",
+                "updatedAt": "1789048396",
+                "description": "ETH / USD",
+                "answeredInRound": "18446744073709553697"
+              },
+              "reasons": [],
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 5585,
+              "executionEligible": true
+            },
+            "quote": {
+              "feed": {
+                "name": "USDG / USD",
+                "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+                "decimals": 8,
+                "baseAsset": "USDG",
+                "quoteAsset": "USD",
+                "marketHours": "Crypto",
+                "productTypeCode": "RefPrice",
+                "heartbeatSeconds": 86400
+              },
+              "flags": {
+                "priceFresh": true,
+                "decimalsMatch": true,
+                "roundComplete": true,
+                "answerPositive": true,
+                "descriptionMatches": true,
+                "timestampNotFuture": true
+              },
+              "state": {
+                "answer": "99985174",
+                "roundId": "18446744073709551713",
+                "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+                "decimals": 8,
+                "startedAt": "1788967926",
+                "updatedAt": "1788967939",
+                "description": "USDG / USD",
+                "answeredInRound": "18446744073709551713"
+              },
+              "reasons": [],
+              "freshness": {
+                "basis": "heartbeat_valid",
+                "warnings": [],
+                "updatedAt": "1788967939",
+                "graceSeconds": 1800,
+                "priceAgeSeconds": 86042,
+                "acceptedMaxAgeSeconds": 88200,
+                "heartbeatMaxAgeSeconds": 86400
+              },
+              "readError": null,
+              "maxAgeSeconds": 86400,
+              "priceAgeSeconds": 86042,
+              "executionEligible": true
+            },
+            "directory": {
+              "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+              "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+              "fetchedAt": "2026-09-10T15:26:50.878Z"
+            }
+          },
+          "quoteUsdAnswer": "99985174",
+          "quoteUsdDecimals": 8
+        },
+        "referenceEvidence": {
+          "after": null,
+          "before": null
+        }
+      }
+    },
+    "execution_eligible": false,
+    "runtime_identity": {
+      "buildId": "95a464c4442302aa72e351ac8afd43b2eb173520f05ebb8f9b39abfe1c9de77a",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    }
+  },
+  "input": {
+    "now": "2026-09-10T15:27:03.615Z",
+    "checkpoint": {
+      "id": "4972",
+      "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "tick": 222459,
+      "block": "59509161",
+      "liquidity": "11855081120977600485",
+      "capturedAt": "2026-09-10T18:26:28.558+03:00",
+      "feeGrowth0": "19463063224917584859329895473875",
+      "feeGrowth1": "90361266007348235559868245003503012721588",
+      "sqrtPriceX96": "5361413602620528629125162480504243",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T18:26:21+03:00"
+    },
+    "dataReasons": [],
+    "entryReasons": [],
+    "chainHealthy": true,
+    "pathMinTick": 222458,
+    "pathMaxTick": 222460,
+    "swapCount": "605",
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "heartbeat_valid",
+      "ageSeconds": 5836,
+      "referencePriceX18": "218374444955209059295",
+      "poolPriceX18": "218373806000000000000",
+      "deviationPpm": "-2",
+      "referenceUpdatedAt": "2026-09-10T13:49:05.000Z",
+      "sourceBlock": "59509161",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "usdgFreshness": {
+        "basis": "heartbeat_valid",
+        "heartbeatMaxAgeSeconds": 86400,
+        "acceptedMaxAgeSeconds": 88200,
+        "graceSeconds": 1800,
+        "priceAgeSeconds": 86042,
+        "updatedAt": "1788967939",
+        "warnings": []
+      }
+    },
+    "boundaryFees": {
+      "block": "59509161",
+      "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "tickLower": 222310,
+      "tickUpper": 222350,
+      "lower": {
+        "gross": "3315035758427642938",
+        "outside0": "15846411116747169712989857963832",
+        "outside1": "73575212046832648774748780118024195556097"
+      },
+      "upper": {
+        "gross": "17923898770924511",
+        "outside0": "12946766306242423630916387689017",
+        "outside1": "60499113007320387940847753584806060124175"
+      }
+    },
+    "boundaryContinuity": true,
+    "execution": {
+      "available": true
+    }
+  },
+  "expected": {
+    "last": {
+      "id": "4972",
+      "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "tick": 222459,
+      "block": "59509161",
+      "liquidity": "11855081120977600485",
+      "capturedAt": "2026-09-10T18:26:28.558+03:00",
+      "feeGrowth0": "19463063224917584859329895473875",
+      "feeGrowth1": "90361266007348235559868245003503012721588",
+      "sqrtPriceX96": "5361413602620528629125162480504243",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-10T18:26:21+03:00"
+    },
+    "action": "exit",
+    "status": "closed",
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-10T13:00:52.917Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:01:08.955Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T13:22:05.061Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T13:22:20.926Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T14:39:21.913Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T14:39:37.866Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-10T15:16:49.865Z",
+          "reasons": [
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:17:04.980Z",
+          "reasons": [
+            "private_confirmed_anchor_unavailable",
+            "private_time_lag_soft",
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause",
+            "private_block_lag_hard"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:17:51.912Z",
+          "reasons": [
+            "private_confirmed_anchor_unavailable",
+            "private_time_lag_soft",
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:19:42.914Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:21:33.932Z",
+          "reasons": [
+            "paper_holding_risk_pause",
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-10T15:21:49.888Z",
+          "reasons": [
+            "private_block_lag_hard",
+            "paper_chain_pause_expired"
+          ]
+        }
+      ],
+      "paused": false,
+      "reasons": [
+        "private_block_lag_hard",
+        "paper_chain_pause_expired"
+      ],
+      "checkedAt": "2026-09-10T15:25:47.348Z",
+      "riskSince": null,
+      "chainSince": null,
+      "lastResume": {
+        "at": "2026-09-10T15:22:37.337Z",
+        "toBlock": "59506694",
+        "fromBlock": "59503006"
+      },
+      "exitReasons": [
+        "private_block_lag_hard",
+        "paper_chain_pause_expired"
+      ],
+      "lastHealthAt": "2026-09-10T15:25:37.772Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "14184",
+          "status": "succeeded",
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "14184",
+          "status": "succeeded",
+          "blockHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa",
+          "canonical": true,
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "blockNumber": "59508699",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00",
+          "validatedAt": "2026-09-10T18:25:42.95255+03:00",
+          "canonicalObservedHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 5789,
+          "sourceBlock": "59508699",
+          "deviationPpm": "-125",
+          "poolPriceX18": "218347067000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 85995,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "218374444955209059295",
+          "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+        },
+        "evaluatedAt": "2026-09-10 18:25:47.348859+03",
+        "failedChecks": [],
+        "snapshotSha256": "c8fa45dd1b5e8cfdd84fc57b89d3ae856e932af6c5e5381ad3405108f0020b0a",
+        "snapshotSourceAt": "2026-09-10T15:25:34.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T15:25:42.942Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "51283",
+      "lastPrivateHead": "59508728",
+      "resumeFromPause": false
+    },
+    "reasons": [
+      "chain_recovery_unproven"
+    ],
+    "navQuote": "939964887",
+    "pnlQuote": "-6851637",
+    "position": {
+      "fee0": "0",
+      "fee1": "0",
+      "hold0": "595805230",
+      "hold1": "1586828940263083224",
+      "idle0": "941015855",
+      "idle1": "0",
+      "enteredAt": "2026-09-10T15:46:34+03:00",
+      "liquidity": "0",
+      "tickLower": 222310,
+      "tickUpper": 222350,
+      "boundaryFees": {
+        "block": "59509161",
+        "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+        "tickLower": 222310,
+        "tickUpper": 222350,
+        "lower": {
+          "gross": "3315035758427642938",
+          "outside0": "15846411116747169712989857963832",
+          "outside1": "73575212046832648774748780118024195556097"
+        },
+        "upper": {
+          "gross": "17923898770924511",
+          "outside0": "12946766306242423630916387689017",
+          "outside1": "60499113007320387940847753584806060124175"
+        }
+      },
+      "feeRemainder0": "131535940985160235756028636780366117388",
+      "feeRemainder1": "255277761259427636782196670295343804750"
+    },
+    "execution": {
+      "intent": {
+        "quotedAt": "2026-09-10T12:46:03.216Z",
+        "minRwaOut": "1577788659077917013",
+        "tickLower": 222310,
+        "tickUpper": 222350,
+        "sourceHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+        "sourceBlock": "59413478",
+        "swapAmountQuote": "351011294",
+        "referenceEvidence": {
+          "after": {
+            "current": {
+              "latest": {
+                "id": "13884",
+                "status": "succeeded",
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00"
+              },
+              "limits": {
+                "sourceSeconds": 180,
+                "refreshSeconds": 10,
+                "validationSeconds": 30
+              },
+              "version": 1,
+              "selected": {
+                "id": "13884",
+                "status": "succeeded",
+                "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                "canonical": true,
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "blockNumber": "59413478",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+              },
+              "reference": {
+                "basis": "heartbeat_valid",
+                "reasons": [],
+                "eligible": true,
+                "ageSeconds": 481,
+                "sourceBlock": "59413478",
+                "deviationPpm": "27",
+                "poolPriceX18": "221246865000000000000",
+                "maxAgeSeconds": 345600,
+                "usdgFreshness": {
+                  "basis": "heartbeat_valid",
+                  "warnings": [],
+                  "updatedAt": "1788967939",
+                  "graceSeconds": 1800,
+                  "priceAgeSeconds": 76395,
+                  "acceptedMaxAgeSeconds": 88200,
+                  "heartbeatMaxAgeSeconds": 86400
+                },
+                "maxDeviationPpm": 50000,
+                "referencePriceX18": "221240689644646715322",
+                "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+              },
+              "evaluatedAt": "2026-09-10 15:46:03.209603+03",
+              "failedChecks": [],
+              "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+              "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+              "inFlightStartedAt": null,
+              "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+              "usingPreviousCompleted": false
+            },
+            "requestedAt": "2026-09-10T12:46:03.205Z",
+            "checkpointId": "4820",
+            "sourceProven": true
+          },
+          "before": {
+            "current": {
+              "latest": {
+                "id": "13884",
+                "status": "succeeded",
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00"
+              },
+              "limits": {
+                "sourceSeconds": 180,
+                "refreshSeconds": 10,
+                "validationSeconds": 30
+              },
+              "version": 1,
+              "selected": {
+                "id": "13884",
+                "status": "succeeded",
+                "blockHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647",
+                "canonical": true,
+                "riskRunId": "13882",
+                "attemptedAt": "2026-09-10T15:45:41.722439+03:00",
+                "blockNumber": "59413478",
+                "completedAt": "2026-09-10T15:45:41.891877+03:00",
+                "validatedAt": "2026-09-10T15:46:01.977779+03:00",
+                "canonicalObservedHash": "0x734e0f43f405b04c0edd151195c89cdb736e754f043348e8d140d206a2616647"
+              },
+              "reference": {
+                "basis": "heartbeat_valid",
+                "reasons": [],
+                "eligible": true,
+                "ageSeconds": 481,
+                "sourceBlock": "59413478",
+                "deviationPpm": "27",
+                "poolPriceX18": "221246865000000000000",
+                "maxAgeSeconds": 345600,
+                "usdgFreshness": {
+                  "basis": "heartbeat_valid",
+                  "warnings": [],
+                  "updatedAt": "1788967939",
+                  "graceSeconds": 1800,
+                  "priceAgeSeconds": 76395,
+                  "acceptedMaxAgeSeconds": 88200,
+                  "heartbeatMaxAgeSeconds": 86400
+                },
+                "maxDeviationPpm": 50000,
+                "referencePriceX18": "221240689644646715322",
+                "referenceUpdatedAt": "2026-09-10T12:37:33.000Z"
+              },
+              "evaluatedAt": "2026-09-10 15:46:03.124208+03",
+              "failedChecks": [],
+              "snapshotSha256": "50413e47716742530cbbcdc5a3f5e522456fcb8d9cb4dba80185301ea052a1bf",
+              "snapshotSourceAt": "2026-09-10T12:45:34.000Z",
+              "inFlightStartedAt": null,
+              "snapshotObservedAt": "2026-09-10T12:45:41.891Z",
+              "usingPreviousCompleted": false
+            },
+            "requestedAt": "2026-09-10T12:46:03.112Z",
+            "checkpointId": "4820",
+            "sourceProven": true
+          }
+        }
+      },
+      "exitRunId": "182",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "396200109",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "0",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "11",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "earnedFee0": "603825",
+      "earnedFee1": "3071261072587357",
+      "entryRunId": "181",
+      "gasSpentWei": "432016670260000",
+      "holdGasQuote": "251146",
+      "lastValuation": {
+        "computedAt": "2026-09-10T15:26:50.908Z",
+        "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+        "sourceBlock": "59509161",
+        "ethUsdAnswer": "243275120000",
+        "ethUsdDecimals": 8,
+        "oracleEvidence": {
+          "eth": {
+            "feed": {
+              "name": "ETH / USD",
+              "address": "0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9",
+              "decimals": 8,
+              "baseAsset": "ETH",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "243275120000",
+              "roundId": "18446744073709553697",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1789048383",
+              "updatedAt": "1789048396",
+              "description": "ETH / USD",
+              "answeredInRound": "18446744073709553697"
+            },
+            "reasons": [],
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 5585,
+            "executionEligible": true
+          },
+          "quote": {
+            "feed": {
+              "name": "USDG / USD",
+              "address": "0x61B7e5650328764B076A108EFF5fa7282a1B9aD2",
+              "decimals": 8,
+              "baseAsset": "USDG",
+              "quoteAsset": "USD",
+              "marketHours": "Crypto",
+              "productTypeCode": "RefPrice",
+              "heartbeatSeconds": 86400
+            },
+            "flags": {
+              "priceFresh": true,
+              "decimalsMatch": true,
+              "roundComplete": true,
+              "answerPositive": true,
+              "descriptionMatches": true,
+              "timestampNotFuture": true
+            },
+            "state": {
+              "answer": "99985174",
+              "roundId": "18446744073709551713",
+              "codeHash": "0xbd6f524cdc4268b6bd1bb6f77a8821faeea9c52ee9e0afa0b6d948ce82c966c2",
+              "decimals": 8,
+              "startedAt": "1788967926",
+              "updatedAt": "1788967939",
+              "description": "USDG / USD",
+              "answeredInRound": "18446744073709551713"
+            },
+            "reasons": [],
+            "freshness": {
+              "basis": "heartbeat_valid",
+              "warnings": [],
+              "updatedAt": "1788967939",
+              "graceSeconds": 1800,
+              "priceAgeSeconds": 86042,
+              "acceptedMaxAgeSeconds": 88200,
+              "heartbeatMaxAgeSeconds": 86400
+            },
+            "readError": null,
+            "maxAgeSeconds": 86400,
+            "priceAgeSeconds": 86042,
+            "executionEligible": true
+          },
+          "directory": {
+            "url": "https://reference-data-directory.vercel.app/feeds-robinhood-mainnet.json",
+            "sha256": "sha256:2ae1ea5f432cab06904134759033d7c6434c323171f954120c4933fdde42e85d",
+            "fetchedAt": "2026-09-10T15:26:50.878Z"
+          }
+        },
+        "quoteUsdAnswer": "99985174",
+        "quoteUsdDecimals": 8
+      },
+      "exitReserveWei": "0"
+    },
+    "holdQuote": "942075959",
+    "intervals": 151,
+    "reference": {
+      "eligible": true,
+      "reasons": [],
+      "basis": "heartbeat_valid",
+      "ageSeconds": 5836,
+      "referencePriceX18": "218374444955209059295",
+      "poolPriceX18": "218373806000000000000",
+      "deviationPpm": "-2",
+      "referenceUpdatedAt": "2026-09-10T13:49:05.000Z",
+      "sourceBlock": "59509161",
+      "maxAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "usdgFreshness": {
+        "basis": "heartbeat_valid",
+        "heartbeatMaxAgeSeconds": 86400,
+        "acceptedMaxAgeSeconds": 88200,
+        "graceSeconds": 1800,
+        "priceAgeSeconds": 86042,
+        "updatedAt": "1788967939",
+        "warnings": []
+      }
+    },
+    "alphaQuote": "-2111072",
+    "entryRange": {
+      "tickLower": 222310,
+      "tickUpper": 222350
+    },
+    "peakNavQuote": "946816524",
+    "pendingSince": null,
+    "feeValueQuote": "1274507",
+    "invalidatedAt": null,
+    "observedSwaps": "34733",
+    "costsPaidQuote": "1050968",
+    "maxDrawdownPpm": "8436",
+    "exitReserveQuote": "0",
+    "referenceEvidence": {
+      "current": {
+        "latest": {
+          "id": "14184",
+          "status": "succeeded",
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "14184",
+          "status": "succeeded",
+          "blockHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa",
+          "canonical": true,
+          "riskRunId": "14182",
+          "attemptedAt": "2026-09-10T18:25:42.77089+03:00",
+          "blockNumber": "59508699",
+          "completedAt": "2026-09-10T18:25:42.942671+03:00",
+          "validatedAt": "2026-09-10T18:25:42.95255+03:00",
+          "canonicalObservedHash": "0xd6b5a24dd999a66bbf03db3e0b4673077491d2935ff9fe6f001699afd716c3aa"
+        },
+        "reference": {
+          "basis": "heartbeat_valid",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 5789,
+          "sourceBlock": "59508699",
+          "deviationPpm": "-32",
+          "poolPriceX18": "218367330000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1788967939",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 85995,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "218374444955209059295",
+          "referenceUpdatedAt": "2026-09-10T13:49:05.000Z"
+        },
+        "evaluatedAt": "2026-09-10 18:25:47.364044+03",
+        "failedChecks": [],
+        "snapshotSha256": "c8fa45dd1b5e8cfdd84fc57b89d3ae856e932af6c5e5381ad3405108f0020b0a",
+        "snapshotSourceAt": "2026-09-10T15:25:34.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-10T15:25:42.942Z",
+        "usingPreviousCompleted": false
+      },
+      "requestedAt": "2026-09-10T15:25:47.026Z",
+      "checkpointId": "4971",
+      "sourceProven": true
+    }
+  }
+}

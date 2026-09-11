@@ -9,6 +9,7 @@ import type { ContinuousPaperReferencePolicy, PaperReferenceDecision, PaperRefer
 import type { BoundaryFeeProof } from "./boundary-fees.js";
 
 import type { PaperHoldingPolicy, PaperHoldingState } from "./holding.js";
+import { paperTradingWindow,type PaperTradingHours } from './trading-hours.js';
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
@@ -36,6 +37,7 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly transactionTtlSeconds: number;
   readonly referencePolicy?: ContinuousPaperReferencePolicy;
   readonly holdingPolicy?: PaperHoldingPolicy;
+  readonly tradingHours?: PaperTradingHours;
   readonly feeAccounting?: "initialized_boundaries_v1";
   readonly lpAllocationPpm?: number;
   readonly inventoryExitPpm?: number;
@@ -159,6 +161,11 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
     ? invalidatePaper(previous, input.now, ["source_stale_or_worker_missed_decision"])
     : { ...state, status: "waiting", last: cp, reasons: ["source_stale"] };
   const gates = [...input.entryReasons];
+  if('tradingHours' in policy&&policy.tradingHours){
+    const clock=paperTradingWindow(input.now,policy.tradingHours),source=paperTradingWindow(cp.blockTimestamp,policy.tradingHours);
+    if(previous.position){if(clock.exitRequired)gates.push('paper_scheduled_cash_exit');}
+    else if(!clock.entryAllowed||!source.entryAllowed)gates.push('paper_off_hours_entry_closed');
+  }
   if (!(previous.position && "holdingPolicy" in policy && policy.holdingPolicy ? input.holdingChainReady === true : input.chainHealthy)) gates.push("chain_recovery_unproven");
   if (BigInt(cp.liquidity) <= 0n) gates.push("pool_liquidity_zero");
   state.reasons = [...new Set(gates)];

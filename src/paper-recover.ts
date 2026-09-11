@@ -39,13 +39,18 @@ async function main() {
   const state = { ...prepared.basis.recovered, reentryStoppedAt: repairedAt };
   const recovery = { version: 1, repairedAt, runtime, basisHash: prepared.basisHash,
     reason: 'audited_saved_exit_after_preflight_consistency_failure', beforeRun: prepared.run, beforeSession: prepared.session,
-    priorObservationHash: evidenceHash(prepared.observation), input: prepared.basis.input };
+    priorObservationHash: evidenceHash(prepared.observation), beforeObservation:prepared.supersededObservation, input: prepared.basis.input };
   const snapshot = { ...prepared.run.snapshot.preflight, recovery };
   // The unique execution key remains intact; the complete original failed row
   // is preserved inside this recovery envelope and in the audit file.
   await client.query("UPDATE paper_execution_runs SET status='succeeded',snapshot=$2 WHERE id=$1", [runId, JSON.stringify(snapshot)]);
   const cp = prepared.basis.input.checkpoint;
-  await client.query(`INSERT INTO paper_observations(session_id,checkpoint_id,block_number,block_hash,source_at,action,state,entry_reasons,observed_at)
+  if(prepared.supersededObservation){
+    // The source has a unique observation key. Preserve the complete original
+    // stale invalidation in the recovery envelope before reconciling that row.
+    await client.query(`UPDATE paper_observations SET action='exit',state=$2,entry_reasons=$3,observed_at=$4 WHERE id=$1`,
+      [prepared.supersededObservation.id,JSON.stringify(state),JSON.stringify(['paper_saved_exit_recovered']),prepared.run.observed_at]);
+  }else await client.query(`INSERT INTO paper_observations(session_id,checkpoint_id,block_number,block_hash,source_at,action,state,entry_reasons,observed_at)
     VALUES($1,$2,$3,$4,$5,'exit',$6,$7,$8)`, [sessionId,cp.id,cp.block,cp.hash,cp.blockTimestamp,JSON.stringify(state),JSON.stringify(['paper_saved_exit_recovered']),prepared.run.observed_at]);
   await client.query("UPDATE paper_sessions SET state=$2,status='closed',updated_at=clock_timestamp(),heartbeat_at=clock_timestamp(),monitor_reasons=$3 WHERE id=$1",
     [sessionId,JSON.stringify(state),JSON.stringify(['paper_saved_exit_recovered','operator_stopped_paper_reentry'])]);

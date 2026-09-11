@@ -12,6 +12,7 @@ import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
 import { readPaperReferenceGate, readPaperRiskSources, evaluatePaperCurrentRisk, PaperReferenceGateError } from "./reference.js";
 import { advanceHolding } from "./holding.js";
+import { samePersistedPaperState } from './preflight.js';
 
 import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -62,6 +63,7 @@ export class PaperStore {
   async assertReady() { await assertSchemaReady(this.pool); }
   /** Called under a row lock, before any boundary RPC or source wait can hide an outage. */
   private async observeHolding(client: PoolClient, session: PaperSessionRow, now: string) {
+    if (session.state.status === 'invalid' || session.state.status === 'closed') return;
     if (!session.state.position || !session.state.last || !("holdingPolicy" in session.policy) ||
       !session.policy.holdingPolicy || !session.policy.referencePolicy) return;
     assertRuntimeMatches(session.runtime_identity,this.runtimeIdentity);
@@ -403,7 +405,7 @@ export class PaperStore {
           const current = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE id=$1 FOR UPDATE",[session.id])).rows[0]!;
           const changed = current.runtime_identity?.buildId !== this.runtimeIdentity?.buildId ||
             current.runtime_identity?.configHash !== this.runtimeIdentity?.configHash ||
-            current.runtime_identity?.nodeVersion !== this.runtimeIdentity?.nodeVersion || current.policy_hash !== session.policy_hash || JSON.stringify(current.state) !== JSON.stringify(session.state);
+            current.runtime_identity?.nodeVersion !== this.runtimeIdentity?.nodeVersion || current.policy_hash !== session.policy_hash || !samePersistedPaperState(current.state,session.state);
           const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[session.stream_key,PAPER_NVDA,PAPER_POOL,cp.id])).rows[0];
           const invalidHistory = (await client.query<{invalid:string}>(invalidSql,[session.id])).rows[0]!.invalid !== "0";
           let ancestryInvalid = false;

@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import { reconcileRecordedExit, evidenceHash } from '../src/paper/recovery.js';
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/paper-saved-exit-recovery.json', import.meta.url), 'utf8'));
 const recover = (f: typeof fixture) => reconcileRecordedExit(f.session, f.previous, f.run, f.input);
+const stateFixture = JSON.parse(readFileSync(new URL('./fixtures/paper-state-rejected-exit-recovery.json', import.meta.url), 'utf8'));
 describe('saved paper exit recovery', () => {
  it('reconciles the saved inventory, costs and loss without altering the original evidence', () => {
   const f = structuredClone(fixture), hash = evidenceHash(f);
@@ -29,5 +30,26 @@ describe('saved paper exit recovery', () => {
    (f:any) => { f.run.snapshot.error = 'canonical_hash_mismatch'; },
    (f:any) => { f.run.snapshot.preflight.result.executionEligible = true; },
   ]) { const f=structuredClone(fixture);mutate(f);assert.throws(()=>recover(f)); }
+ });
+});
+describe('recorded state-rejected exit followed by stale invalidation', () => {
+ it('reconciles session 55 from the saved timely fork without erasing its loss', () => {
+  const f=structuredClone(stateFixture),before=evidenceHash(f);
+  assert.deepEqual(recover(f),f.expected);assert.equal(f.expected.navQuote,'939964887');
+  assert.equal(f.expected.pnlQuote,'-6851637');assert.equal(evidenceHash(f),before);
+ });
+ it('rejects operator cancellation, ledger changes, source failures, and an unrelated invalidation', () => {
+  for(const mutate of [
+   (f:any)=>{f.session.state.reentryStoppedAt=f.run.observed_at;},
+   (f:any)=>{f.previous.reentryStoppedAt=f.run.observed_at;},
+   (f:any)=>{f.session.state.position.idle0='1';},
+   (f:any)=>{f.session.state.last.block='1';},
+   (f:any)=>{f.run.snapshot.checks.ancestryInvalid=true;},
+   (f:any)=>{f.run.snapshot.checks.canonical=false;},
+   (f:any)=>{f.run.snapshot.checks.covered=false;},
+   (f:any)=>{f.session.state.reasons=['checkpoint_canonicality_unproven'];},
+   (f:any)=>{f.session.state.invalidatedAt=f.previous.last.blockTimestamp;},
+   (f:any)=>{f.run.snapshot.preflight.result.inventory.fee0='0';},
+  ]){const f=structuredClone(stateFixture);mutate(f);assert.throws(()=>recover(f));}
  });
 });
