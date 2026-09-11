@@ -19,7 +19,8 @@ const transactionPolicySchema = strategy.extend({
   lpAllocationPpm: z.number().int().min(100000).max(1000000).optional(),
   inventoryExitPpm: z.number().int().min(100000).max(1000000).optional(),
   recenter: z.object({kind:z.literal('outside_range_v1'),maxQuoteAgeSeconds:z.literal(90)}).strict().optional(),
-  tradingHours:z.object({kind:z.literal('us_equity_off_hours_v1'),entryCutoffSeconds:z.literal(1800),exitLeadSeconds:z.literal(600)}).strict().optional(),
+  tradingHours:z.union([z.object({kind:z.literal('us_equity_off_hours_v1'),entryCutoffSeconds:z.literal(1800),exitLeadSeconds:z.literal(600)}).strict(),
+    z.object({kind:z.literal('continuous_v1')}).strict()]).optional(),
   reentry: z.object({
     cooldownSeconds: z.number().int().min(600).max(86400),
     previousSessionId: z.string().regex(/^[1-9]\d*$/).optional(),
@@ -40,7 +41,7 @@ const transactionPolicySchema = strategy.extend({
     usdgHeartbeatGraceSeconds: z.number().int().min(0).max(1800).optional(),
   }).strict().optional(),
 }).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG")
-  .refine(p => p.maxHoldingSeconds !== null || !!p.tradingHours, "No routine timeout requires a trading-window exit")
+  .refine(p => p.maxHoldingSeconds !== null || !!p.tradingHours, "No routine timeout requires an explicit trading schedule")
   .refine(p => p.maxLiquiditySharePpm <= 10000 || !!p.recenter, "Only the active paper experiment supports a pool share above 1 percent")
   .refine(p => !p.recenter || (p.feeAccounting === 'initialized_boundaries_v1' && !!p.tradingHours && !!p.referencePolicy &&
     p.lpAllocationPpm === 1000000 && p.inventoryExitPpm === undefined),

@@ -854,7 +854,79 @@ function renderSource(prefix, source, now) {
   setText(`${prefix}-time`, timeAgo(source.fetchedAt, now));
 }
 
+const sessionNames = {market:"Market",regular:"Market",premarket:"Premarket",non_market:"Non-market",afterhours:"After-hours",overnight:"Overnight",weekend:"Weekend",holiday:"Holiday",mixed_boundary:"Mixed boundary",unknown:"Unknown",calendar_unavailable:"Unknown calendar"};
+const sessionColors = {market:"#46d7df",premarket:"#f6bb68",non_market:"#8a84ed",unknown:"#9c9c9c"};
+function renderSessionPerformance(report, now) {
+  const table=element("paper-session-totals"),boundaryTable=element("paper-session-boundaries"),chart=element("paper-session-chart");
+  table.replaceChildren();boundaryTable.replaceChildren();chart.replaceChildren();
+  element("paper-session-empty").classList.remove("hidden");
+  setText("paper-session-reconciliation", "");setText("paper-session-chart-note", "");
+  if(!report?.valid){setText("paper-session-status",report?.reason??"Session attribution is unavailable until campaign history is validated.");return;}
+  const day=element("paper-session-day"),grouping=element("paper-session-grouping"),metric=element("paper-session-metric");
+  const selectedDay=day.value||"all";
+  const options=[{value:"all",label:"Whole campaign"},...report.days.filter(d=>d.day!=="mixed_boundary").map(d=>({value:d.day,label:d.day})).reverse()];
+  day.replaceChildren(...options.map(o=>{const option=document.createElement("option");option.value=o.value;option.textContent=o.label;return option;}));
+  day.value=options.some(o=>o.value===selectedDay)?selectedDay:"all";
+  for(const control of [day,grouping,metric])control.onchange=()=>renderSessionPerformance(report,now);
+  const money=v=>v===null||v===undefined?"—":displayTokenAmount(v,6,6);
+  const selected=day.value==="all"?report:report.days.find(d=>d.day===day.value);
+  const buckets=selected?.[grouping.value||"grouped"]??[];
+  setText("paper-session-status",`${report.markCount.toLocaleString()} recorded marks · ${report.boundaryCount} session boundaries · through ${report.sourceThrough?dated(report.sourceThrough,now):"first mark pending"}. All session totals use the complete campaign history; chart points may be sampled.`);
+  for(const b of buckets){
+    const row=document.createElement("tr");
+    row.append(cell(sessionNames[b.key]??b.key),cell(`${b.hours.toFixed(2)} / ${b.activeHours.toFixed(2)}`,"number"),cell(money(b.netPnlQuote),"number mono"),
+      cell(money(b.alphaQuote),"number mono"),cell(money(b.feeIncomeQuote),"number mono"),cell(money(b.gasQuote),"number mono"),cell(money(b.swapCostVsSpotQuote),"number mono"),
+      cell(money(b.pnlPerHourQuote),"number mono"),cell(b.returnBpsPerHour===null?"—":b.returnBpsPerHour.toFixed(3),"number"),
+      cell(`${b.recenters} / ${b.swaps}`,"number"),cell(b.sampledInRangePercent===null?"—":`${b.sampledInRangePercent.toFixed(1)}%`,"number"));
+    if(b.key==="mixed_boundary")row.className="attention";table.append(row);
+  }
+  const mixed=report.grouped.find(b=>b.key==="mixed_boundary");
+  setText("paper-session-reconciliation",`Campaign reconciliation: ${money(report.netPnlQuote)} USDG net P&L − ${money(report.exitReserveQuote)} USDG exit reserve = ${money(report.navPnlQuote)} USDG dashboard P&L. Mixed-boundary contribution: ${money(mixed?.netPnlQuote)} USDG. Rates use observed hours and capital; sparse sessions are not rankings.`);
+  const ny=at=>new Date(at).toLocaleString("en-GB",{timeZone:"America/New_York",hour12:false});
+  const ticks=p=>p.tickLower===null||p.tickLower===undefined?"Cash":`${p.tickLower}–${p.tickUpper}`;
+  const exposure=p=>p.exposurePpm===undefined?"—":`${(Number(p.exposurePpm)/10000).toFixed(1)}%`;
+  for(const b of report.boundaries.filter(b=>day.value==="all"||b.from.day===day.value||b.to.day===day.value).slice(-30).reverse()){
+    const row=document.createElement("tr");row.append(cell(ny(b.at)),cell(`${sessionNames[b.from.regime]} → ${sessionNames[b.to.regime]}`),
+      cell(`${new Date(b.before.sourceAt).toISOString().slice(11,19)} → ${new Date(b.after.sourceAt).toISOString().slice(11,19)}`),
+      cell(`${money(b.before.navQuote)} → ${money(b.after.navQuote)}`,"number mono"),cell(`${exposure(b.before)} → ${exposure(b.after)}`),cell(`${ticks(b.before)} → ${ticks(b.after)}`));
+    row.title=`Bracketed marks, not exact boundary values. Before: ${b.before.sourceAt}; after: ${b.after.sourceAt}`;boundaryTable.append(row);
+  }
+  const points=report.timeline.filter(p=>day.value==="all"||p.day===day.value);
+  if(!points.length){setText("paper-session-chart-note","No marked observations for this period yet.");return;}
+  element("paper-session-empty").classList.add("hidden");
+  const mode=metric.value||"value",width=Math.max(chart.clientWidth,500),height=230;
+  chart.setAttribute("viewBox",`0 0 ${width} ${height}`);
+  const first=Date.parse(points[0].sourceAt),last=Date.parse(points.at(-1).sourceAt),span=Math.max(last-first,1);
+  const x=at=>75+(Date.parse(at)-first)/span*(width-95);
+  const fields=mode==="value"?[["navQuote","#5fe0a5"],["holdQuote","#46d7df"]]:mode==="inventory"?[["exposurePpm","#f6bb68"]]:[["tick","#f6bb68"],["tickLower","#8a84ed"],["tickUpper","#8a84ed"]];
+  const scale=mode==="value"?1e6:mode==="inventory"?1e4:1;
+  const values=points.flatMap(p=>fields.map(([key])=>p[key])).filter(v=>v!==null&&v!==undefined).map(v=>Number(v)/scale);
+  const low=mode==="inventory"?0:Math.min(...values),high=mode==="inventory"?100:Math.max(...values),spread=Math.max(high-low,mode==="range"?10:.01);
+  const y=v=>195-((Number(v)/scale-low)+spread*.1)/(spread*1.2)*170;
+  for(let i=0;i<points.length-1;i++){
+    const p=points[i],next=points[i+1];chart.append(svgNode("rect",{x:x(p.sourceAt),y:20,width:Math.max(0,x(next.sourceAt)-x(p.sourceAt)),height:180,fill:sessionColors[p.group]??"#9c9c9c",opacity:.07}));
+  }
+  for(const mark of [low,high]){const label=svgNode("text",{x:0,y:y(mark*scale),fill:"#8592a5","font-size":12});label.textContent=mode==="range"?Math.round(mark).toString():mark.toFixed(2);chart.append(label);}
+  for(const [field,color] of fields){
+    let line=[],previousPoint=null;const flush=()=>{if(line.length)chart.append(svgNode("polyline",{points:line.join(" "),stroke:color,"stroke-width":2,fill:"none"}));line=[];previousPoint=null;};
+    for(const p of points){if(p[field]===null||p[field]===undefined){flush();continue;}if(mode==="range"&&field!=="tick"&&previousPoint)line.push(`${x(p.sourceAt)},${y(previousPoint[field])}`);line.push(`${x(p.sourceAt)},${y(p[field])}`);previousPoint=p;}
+    flush();
+  }
+  for(const b of report.boundaries){const at=Date.parse(b.at);if(at<first||at>last)continue;
+    const line=svgNode("line",{x1:x(b.at),x2:x(b.at),y1:15,y2:200,stroke:"#8592a5","stroke-dasharray":"3 4",opacity:.8});
+    const title=svgNode("title");title.textContent=`${ny(b.at)} New York · ${sessionNames[b.from.regime]} → ${sessionNames[b.to.regime]} · bracketed values`;line.append(title);chart.append(line);
+  }
+  for(const p of points){
+    const field=fields[0][0];if(p[field]===null||p[field]===undefined)continue;
+    const dot=svgNode("circle",{cx:x(p.sourceAt),cy:y(p[field]),r:p.action==="recenter"?4:2,fill:p.action==="recenter"?"#ff8290":fields[0][1]});
+    const title=svgNode("title");title.textContent=`${ny(p.sourceAt)} New York · ${sessionNames[p.regime]} · ${p.action}\nNAV ${money(p.navQuote)} USDG · USDG tokens ${money(p.usdg)} · NVDA ${displayTokenAmount(p.nvda,18,6)}\nNVDA exposure ${exposure(p)} · range ${ticks(p)} · pool tick ${p.tick}\nPool price ${displayTokenAmount(p.priceQuoteX18,18,4)} USDG/NVDA · block ${p.block}\nFees in interval ${money(p.feesThisIntervalQuote)} USDG · gas at mark ${money(p.gasThisMarkQuote)} USDG · ${p.attribution}`;
+    dot.append(title);chart.append(dot);
+  }
+  setText("paper-session-chart-note",`${new Date(first).toISOString()} → ${new Date(last).toISOString()}. ${mode==="range"?"Orange: pool tick; purple: LP range. Tick prices move inversely to USDG/NVDA; hover for the quoted price.":mode==="inventory"?"NVDA share of gross token inventory (%).":"Green: NAV after exit reserve; cyan: original passive holdings."} Background: cyan market, amber premarket, purple non-market. Dashed lines: session boundaries. Red points: recenter. Hover over points for balances and costs.${report.chartSampled?" Chart sampled; all marks remain in the database and totals.":""}`);
+}
+
 function renderPaper(paper, now) {
+  renderSessionPerformance(paper?.performance, now);
   element("paper-execution-runs").replaceChildren();
   setText("paper-execution-proof", "No transaction simulation evidence available.");
   setText("paper-reference", "No paper reference decision recorded yet.");
@@ -923,7 +995,7 @@ function renderPaper(paper, now) {
   setText("paper-budget", `Initial paper budget ${amount(policy.budgetQuote)}${state.position ? "" : " · uninvested"}`);
   setText("paper-pnl", amount(state.pnlQuote));
   if (state.position) {
-    const holding = policy.maxHoldingSeconds === null ? "scheduled cash exit before excluded US market hours; no routine holding timeout"
+    const holding = policy.maxHoldingSeconds === null ? (policy.tradingHours?.kind === "continuous_v1" ? "continuous operation; no scheduled cash exit or routine timeout" : "scheduled cash exit before excluded US market hours; no routine holding timeout")
       : `holding time limit ${new Date(Date.parse(state.position.enteredAt) + policy.maxHoldingSeconds * 1000).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")}; an exit condition may trigger earlier`;
     setText("paper-lifecycle", `Entry source ${new Date(state.position.enteredAt).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · ${terminal ? "session finished" : holding}. ${state.status === "exit_pending" ? "Exit requested; awaiting its simulation." : ""}`);
     setText("paper-pnl-note", state.status === "invalid" ? "Performance unavailable; source or coverage invalidated" : state.status === "closed" ? "Simulated cash result; includes estimated LP fee income" : "Simulated NAV; includes estimated LP fees and an exit gas reserve");
@@ -945,9 +1017,9 @@ function renderPaper(paper, now) {
     : usesTransactions ? `Swap quote and range fixed before a later fill; ${policy.maxSlippageBps / 100}% maximum swap slippage. Inventory purchase, LP entry and cash exit use actual contract calls in simulation. Gas is estimated on the node and charged separately to the LP allocation. LP fee income remains an estimate from observed growth.`
     : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
   const referencePolicy = policy.referencePolicy;
-  const hours = policy.tradingHours ? "After-hours, overnight and weekends only; premarket excluded. " : referencePolicy ? "24/7 evaluation. " : "";
+  const hours = policy.tradingHours?.kind === "continuous_v1" ? "24/7 operation across all market sessions. " : policy.tradingHours ? "After-hours, overnight and weekends only; premarket excluded. " : referencePolicy ? "24/7 evaluation. " : "";
   const management = policy.recenter ? `Recenter when outside range, using only the net swap required; ${state.execution?.recenterRunIds?.length ?? 0} completed moves.` : "No recentering.";
-  const holdingLimit = policy.maxHoldingSeconds === null ? "Scheduled window exit; no routine timeout." : `Holding limit ${duration(String(policy.maxHoldingSeconds))}.`;
+  const holdingLimit = policy.maxHoldingSeconds === null ? (policy.tradingHours?.kind === "continuous_v1" ? "No scheduled exit or routine timeout." : "Scheduled window exit; no routine timeout.") : `Holding limit ${duration(String(policy.maxHoldingSeconds))}.`;
   const allocation = usesTransactions ? ` Target allocation ${(policy.lpAllocationPpm ?? 1000000) / 10000}%; ${policy.inventoryExitPpm ? `NVDA inventory exit at ${policy.inventoryExitPpm / 10000}%` : "no inventory cap"}.` : "";
   setText("paper-policy", `${hours}Range ±${policy.halfWidthSpacings * 10} raw ticks${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}. ${management}${allocation} ${holdingLimit} ${costPolicy} Pool checkpoints arrive about every minute.`);
   if (referencePolicy) setText("paper-reference", state.reference

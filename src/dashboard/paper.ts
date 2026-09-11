@@ -5,6 +5,7 @@ import { readPaperReceiptCosts } from "./paper-costs.js";
 import { readPaperExecutionDashboard } from "./paper-execution.js";
 import { paperExecutionEvidenceValid } from "../paper/evidence.js";
 import { readPaperChain, paperCampaignSummary } from "../paper/reentry.js";
+import {readSessionPerformance} from '../paper/session-performance-store.js';
 interface PaperPoint {
   checkpointId: string; block: string; observedAt: string; sourceAt: string;
   action: string; navQuote: string | null; holdQuote: string | null;
@@ -28,16 +29,19 @@ export async function readPaperDashboard(client: PoolClient, streamKey: string) 
       OR LOWER(v.observed_hash) IS DISTINCT FROM LOWER(o.block_hash))) AS canonical`,[row.id])).rows[0]!.canonical;
   const executionValid = !("executionBasis" in row.policy && row.policy.executionBasis === "nitro_fork_v1") || await paperExecutionEvidenceValid(client,row);
   let campaign = null;
+  let performance:Awaited<ReturnType<typeof readSessionPerformance>>|{valid:false;reason:string}|null=null;
   if ("reentry" in row.policy && row.policy.reentry) {
     try {
-      campaign = { valid: true, ...paperCampaignSummary(await readPaperChain(client, row)) };
+      const chain=await readPaperChain(client,row);
+      campaign = { valid: true, ...paperCampaignSummary(chain) };
+      try{performance=await readSessionPerformance(client,chain);}catch{performance={valid:false,reason:'Position history cannot be fully reconciled for session attribution'};}
     } catch { campaign = { valid: false }; }
   }
   const campaignValid = campaign?.valid !== false;
   return { id: row.id, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
     heartbeatAt: row.heartbeat_at?.toISOString() ?? null, policy: row.policy, policyHash: row.policy_hash,
     state: valid && executionValid && campaignValid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),[!campaignValid ? "paper_continuation_history_invalid" : !valid ? "prior_paper_source_no_longer_canonical" : "paper_execution_evidence_invalid"]),
-    monitorReasons: row.monitor_reasons, sourceCanonical: valid, campaign,
+    monitorReasons: row.monitor_reasons, sourceCanonical: valid, campaign,performance,
     points: valid && executionValid && campaignValid ? points.rows.reverse().map(p=>p.point) : [],
     execution: await readPaperExecutionDashboard(client, row.id),
     receiptCosts: await readPaperReceiptCosts(client, streamKey), executionEligible: false as const };

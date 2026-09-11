@@ -1,4 +1,4 @@
-export interface PaperTradingHours {
+export type PaperTradingHours = {kind:'continuous_v1'} | {
  kind:'us_equity_off_hours_v1'; entryCutoffSeconds:1800; exitLeadSeconds:600;
 }
 const holidays=new Set(['2026-01-01','2026-01-19','2026-02-16','2026-04-03','2026-05-25','2026-06-19','2026-07-03','2026-09-07','2026-11-26','2026-12-25']);
@@ -17,6 +17,7 @@ const deadlines=new Map<string,number>();
 /** 2026 Nasdaq calendar; unsupported years and holidays fail closed. */
 export function paperTradingWindow(at:string|number,policy:PaperTradingHours){
  const time=typeof at==='number'?at:Date.parse(at),session=equityHours(time);
+ if(policy.kind==='continuous_v1')return {...session,allowed:Number.isFinite(time),entryAllowed:Number.isFinite(time),exitRequired:!Number.isFinite(time),excludedAt:null};
  if(!session.allowed)return {...session,entryAllowed:false,exitRequired:true,excludedAt:null};
  let end=deadlines.get(session.key);
  if(end===undefined){
