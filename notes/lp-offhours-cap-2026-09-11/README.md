@@ -2,6 +2,8 @@
 
 **Keep the paper cap at 60% while the frozen 60/70/80% comparison receives a complete weekend of new data.** In three complete historical trading windows, 80% improved average net cash P&L by **1.908411 USDG per window** relative to 60%. Its average P&L remained **−2.025651 USDG**, and it spent substantially longer outside its LP range. This is evidence that repeated liquidation and reentry can be expensive; it does not establish profitability or an optimal cap.
 
+The [recenter follow-up](../lp-recenter-study-2026-09-11/README.md) now crosses these caps with explicit range moves, existing-token redeployment and net balancing swaps, including a control for different cost snapshots.
+
 ## Controlled historical comparison
 
 Each allowed window starts with **939.964887 USDG**. All candidates use **80% LP allocation, ±20 raw ticks**, a 600-second cooldown after a full cash exit, and a 24-hour maximum holding period. Only the inventory exit threshold differs. Remaining net cash funds each subsequent entry within the same window. Capital resets between windows, so these results are not a continuous campaign return. New entry quotes recenter around the current price; there is no separate in-position recenter operation.

@@ -1,0 +1,22 @@
+{
+  "verifiedAt": "2026-09-11T08:12:56.838255+00:00",
+  "resultsSha256": "4552fb7ac72d788e262e6077d89d0d9c9accd9af7f1da07b90a02f1ec4c349bb",
+  "baselineEveryFieldAndActionMatchesPrior": true,
+  "gasConservedAcrossAllCycles": true,
+  "allMovesRequireLaterSource": true,
+  "noMoveBreachesCapAtFill": true,
+  "noSwapPolicyContainsNoSwap": true,
+  "everyRangeFortyRawTicksWide": true,
+  "aggregatesIndependentlyChecked": true,
+  "finalReplayCodeMatchesFrozenCapsule": true,
+  "validationSchedule": {
+    "capsule": "/root/conc-liq/data/lp-recenter-validation-capsule-b8baf07cf181",
+    "planSha256": "b8baf07cf181fc750528801c4c2c69abf3cdbc66a0ef302190feee6e66705e47",
+    "dependencyRelease": "/root/conc-liq-releases/b4909be4c608676f7a2f0ea9fb55159bca2ea25fe475d25d9c691cf01a8fac38",
+    "capture": "/root/conc-liq/data/lp-cap-validation-2026-09-14/market.json",
+    "output": "/root/conc-liq/data/lp-recenter-validation-2026-09-14",
+    "timer": "conc-liq-recenter-validation.timer",
+    "scheduledAt": "2026-09-14T08:35:00.000Z",
+    "dependsOn": "conc-liq-cap-validation.service"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "budgetQuote": "939964887",
+  "caps": [
+    600000,
+    700000,
+    800000
+  ],
+  "lpAllocationPpm": 800000,
+  "halfWidthRawTicks": 20,
+  "cooldownSeconds": 600,
+  "maxHoldingSeconds": 86400,
+  "tradingHours": {
+    "kind": "us_equity_off_hours_v1",
+    "entryCutoffSeconds": 1800,
+    "exitLeadSeconds": 600
+  },
+  "prospective": {
+    "captureFrom": "2026-09-11T19:50:00.000Z",
+    "allowedFrom": "2026-09-11T20:00:00.000Z",
+    "cashDeadline": "2026-09-14T08:00:00.000Z",
+    "captureTo": "2026-09-14T08:30:00.000Z",
+    "scheduledAt": "2026-09-14T08:35:00.000Z",
+    "selection": "No automatic promotion. Evaluate all nine cap/range policies on common data; inspect net PnL, alpha, drawdown, actual deployment, range downtime, cost and failed-action counts. Paper policy remains unchanged."
+  },
+  "version": 1,
+  "frozenAt": "2026-09-11T08:07:33.702616+00:00",
+  "rangePolicies": [
+    "hold_range",
+    "preserve_tokens",
+    "net_swap"
+  ],
+  "recenterRules": {
+    "displacementTicks": 10,
+    "confirmations": 2,
+    "persistenceSeconds": 60,
+    "cooldownSeconds": 600,
+    "quoteMaxAgeSeconds": 90,
+    "maxFillDriftTicks": 5
+  },
+  "profiles": [
+    {
+      "id": "saved_fork_costs",
+      "entry": "868343",
+      "exit": "182625",
+      "buy": "251146",
+      "feePpm": 1000000,
+      "recenter": {
+        "remove": "491842",
+        "mint": "1065129",
+        "buy": "408392",
+        "sell": "475109"
+      }
+    },
+    {
+      "id": "double_gas_half_fees",
+      "entry": "1736686",
+      "exit": "365250",
+      "buy": "502292",
+      "feePpm": 500000,
+      "recenter": {
+        "remove": "983684",
+        "mint": "2130258",
+        "buy": "816784",
+        "sell": "950218"
+      }
+    },
+    {
+      "id": "common_components",
+      "entry": "1473521",
+      "exit": "1124903",
+      "buy": "408392",
+      "feePpm": 1000000,
+      "recenter": {
+        "remove": "491842",
+        "mint": "1065129",
+        "buy": "408392",
+        "sell": "475109"
+      },
+      "evidence": "Entry is modeled as the same buy-plus-mint components charged to recentering. Exit uses the saved full exit at the sell-recenter source. Component scenario, not an independently executed entry bundle."
+    }
+  ],
+  "codeHashes": {
+    "scripts/replay-offhours-recenter.mjs": "37486b949d53629dd51a2c64413d7d00b8ef1494f1e8319ee64b929156a2dced",
+    "scripts/run-recenter-validation.mjs": "e7583cabfd9df79aba8ab92df627b3338d346b690dfc2256fbcd4983f4e28461",
+    "src/abi.ts": "cf2a76ff5b273b9545caab095dc54b4c4cccaeadb48dd602ecc733a86e9ea948",
+    "src/accounting/math.ts": "76b2b60da4863048c8e8237a7e1881d4be8696a11236dfebba4dff1938920766",
+    "src/action-cost/domain.ts": "d3d4537269251c2b4989ba82f7b2d37f2108893a63f5544614dd896f710070dc",
+    "src/action-cost/valuation-domain.ts": "c53971c6d10eb8372f5d61b918ff296f0b4cd9c5948edcdc8e2bf492b68aa14c",
+    "src/action-cost/valuation.ts": "ba290f5654b811795aaf489b84199e8b02933f1162bd2bf307255d582e1d4beb",
+    "src/backtest/domain.ts": "9410070a4f281982f097fc66a3ba791063fb0a7bf6362019d6e4117439cc0503",
+    "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+    "src/canary-plan/abi.ts": "6925653dd6fffe69a6f588834cee9002aa9f54bc07fd07edb20d158a88512267",
+    "src/canary-plan/domain.ts": "1748e0e24cea0802f6cf180cac8dca80c1f2fde8a43c0b01c4fcdd3f0a665f4e",
+    "src/canary-plan/entry-readiness.ts": "bf5a855d6c86dfe84c92af7dfba5936a386a35a717a6754d76541729154a2cd3",
+    "src/canary-plan/exit.ts": "992798d9fb29701e08eb168db7cd0d5d113fed514786523433def15986c96dc7",
+    "src/client.ts": "f6a4bf57de8b9eb67d8906c6be6cea7a2cd60dcf0cb2bcd679d3ccd5ea4fcf93",
+    "src/constants.ts": "d559d3e59bc397612311648959e50712e690873510a2c5cf97a9df644633205e",
+    "src/domain.ts": "711da57fd3f3db27dbc9bb1ecf65483b58f6b5ccbfe4d7d9902aed3ab80fec27",
+    "src/experiment/market.ts": "00330722f2c7d4310df0af17d19737b276f5ed66590e3030fa2208fd15efaa09",
+    "src/history/client.ts": "d63e9747f0602071a16333fc3a0e4583af90bbd997678d77ff1b7a340ebaf357",
+    "src/history/hypersync.ts": "e3234ac6c76d8e19e81374f99d00b37d6166c650dce31ab57ef427f0236afa4c",
+    "src/logger.ts": "94e42e459a455a82977b984d40de4f7516ae19a54ba518311aac2f95dbaf0c4c",
+    "src/nft/abi.ts": "433191902affe77cc6de65d044028a7cf0a9c3193598ec96b777edf82dce8d04",
+    "src/paper/boundary-fees.ts": "b17190443feb7ab49fe78f6acea5187a22107a81f7db4020e9315225b8b2ba1f",
+    "src/paper/engine.ts": "492b55edd23050e2803e4e01745cf183ca62f4e1a9d3cba18722df9dfac70108",
+    "src/paper/execution-abi.ts": "248a194ac4e06077945aa4986f1a2df966c94c509d912cf015473dd663ee843d",
+    "src/paper/execution-domain.ts": "41cb052784e5c778ed89bbb60fb664e04027d1592d601a9ca47d1f16539f7ab2",
+    "src/paper/execution-exit.ts": "e839e1e7e52d489f48c8ae86734225762cf7a928ca14263ebac82592e44daa6c",
+    "src/paper/execution-gas.ts": "0e81412b3131f06581cdfe23c02ad13383b43a2115064d416b8cb6ad448cee25",
+    "src/paper/execution.ts": "88d8e5248cf96102fcf456c4875f2d8ec96e7421fb04a39cfcb2044cf4d05402",
+    "src/paper/fork.ts": "e1d87bcf6ff7a097c5defd09cd00972cd00bb7465daa6524ddf063fc83e619df",
+    "src/paper/holding.ts": "11feded803ebbb4434d15b1fe7f194119c88e87145f26e228bdb22d8cf714918",
+    "src/paper/reference.ts": "0097938e64f3bae093d719c1d83551a647d84f35fa5f669c1f042fd4f23494c6",
+    "src/paper/trading-hours.ts": "d3bded88326c038ae1a44e1a34f98bc4901cf8377fd4ac4961db03b31d805da6",
+    "src/paper/transaction-engine.ts": "8e143af82f59ebdbc8e010bdb13cb37ddc7ad258b6c17bb35a388e8996bfc288",
+    "src/paper/usdg-oracle.ts": "5264db55ba54c2f7b4e770ed09861467e9cac5b3fc065cb07dfd286317951083",
+    "src/research/inventory-management.ts": "2f122171453ef743b3ffd465942403df0dd44d8df25fc322b64e49bd0432752a",
+    "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+    "src/research/offhours-cap.ts": "24fcc494647c70c102666ccf812a96d1fd0b5182ca40a06746d75c70392d001f",
+    "src/research/offhours-recenter.ts": "9b7b2e21ce1a7255bea19725e08d61c549014adb22d2a8b2a7cf17ea51250f56",
+    "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+    "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+    "src/risk/abi.ts": "3909f920795641f2b8c27f6ac601fa5a362ee446490bf5847752e07094fd2db5",
+    "src/risk/domain.ts": "ea43a1a984345a68a191186be3421f8a1c3839d8c4f478c95ee70df13248d975",
+    "src/risk/evaluate.ts": "4c6f4d6f45ccf152e5b29d995df4623b871b2257c664f7ce661520cb77f571be",
+    "src/risk/gate.ts": "981092b9f9aaa54c481cb8d7895ee831c60f1cf02c1fc32804dcb847687d91f7",
+    "src/risk/reader.ts": "d52b4897b9d79a120fbb511702b6c46dbc62b9c346c83889c781ce06ad5d20a8",
+    "src/rpc-health/domain.ts": "cbce8fea8cb8ca0ade6842ccf71cf376297dbd00272367b368b22020b90fdbe0",
+    "src/simulator/math.ts": "3f36220efba65e4a38ced37a2dbfe31280368221f76ae09c7c00ec6f3a46c215"
+  },
+  "costEvidenceSha256": "29b804409547425ce965c705e30f6b24f09fe1dc34d8fc9083338abb0fffefcc"
+}

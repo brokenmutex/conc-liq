@@ -1,0 +1,137 @@
+{
+  "evidenceClass": "owned historical Nitro fork transaction estimates, not mainnet receipts",
+  "profiles": {
+    "buy": {
+      "path": "data/lp-recenter-study-2026-09-11/buy-proof.json",
+      "sha256": "2cca8006ec9ab834566db9ed8985f8581451c16927beb788fad1940b8555d91f",
+      "source": {
+        "block": "59404274",
+        "hash": "0x8a21b3b7311a7ab37648a10c77df5dc0a66f9d0354de3104d696edbce747c8b3",
+        "timestamp": "1789043410"
+      },
+      "observationId": "3016",
+      "totalGasQuote": "1838572",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "quote": "453491"
+        },
+        {
+          "action": "approve_recenter_swap",
+          "quote": "109634"
+        },
+        {
+          "action": "recenter_buy_nvda",
+          "quote": "298758"
+        },
+        {
+          "action": "approve_recenter_mint_usdg",
+          "quote": "76929"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "quote": "87504"
+        },
+        {
+          "action": "recenter_mint",
+          "quote": "812257"
+        }
+      ]
+    },
+    "sell": {
+      "path": "data/lp-inventory-study-2026-09-10/recenter-54.json",
+      "sha256": "59c66bf0b54ac1e92f4595f7b38654d29fd0b024eaaeeb36ae62c427d111aa64",
+      "source": {
+        "block": "59404884",
+        "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+        "timestamp": "1789043473"
+      },
+      "observationId": "3017",
+      "totalGasQuote": "2032078",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "quote": "491842"
+        },
+        {
+          "action": "approve_recenter_swap",
+          "quote": "130397"
+        },
+        {
+          "action": "recenter_sell_nvda",
+          "quote": "344712"
+        },
+        {
+          "action": "approve_recenter_mint_usdg",
+          "quote": "83435"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "quote": "94904"
+        },
+        {
+          "action": "recenter_mint",
+          "quote": "886790"
+        }
+      ]
+    },
+    "preserve": {
+      "path": "data/lp-inventory-study-2026-09-10/preserve-54.json",
+      "sha256": "d6478862647341aa102a0552a74aa6ceaff21a0395e348ea288ddb76216cb4ae",
+      "source": {
+        "block": "59404884",
+        "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+        "timestamp": "1789043473"
+      },
+      "observationId": "3017",
+      "totalGasQuote": "1469617",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "quote": "483090"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "quote": "94904"
+        },
+        {
+          "action": "recenter_mint",
+          "quote": "891623"
+        }
+      ]
+    },
+    "exit": {
+      "path": "data/lp-inventory-study-2026-09-10/exit-54.json",
+      "sha256": "b9bd18507b796cd9e760319142cda3aff34c44f03756689d6319cf544bbe2de4",
+      "source": {
+        "block": "59404884",
+        "hash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+        "timestamp": "1789043473"
+      },
+      "observationId": "3017",
+      "totalGasQuote": "1124903",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "quote": "483090"
+        },
+        {
+          "action": "approve_exit_swap",
+          "quote": "130397"
+        },
+        {
+          "action": "sell_nvda",
+          "quote": "332547"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "quote": "83698"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "quote": "95173"
+        }
+      ]
+    }
+  }
+}
