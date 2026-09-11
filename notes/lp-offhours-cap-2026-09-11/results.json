@@ -1,0 +1,3196 @@
+{
+  "computedAt": "2026-09-11T07:32:05.936Z",
+  "captureSha256": "9e15475bb6a0f65b47dbdf15c110d5deccb796251c5ebb045cadb599b29817f5",
+  "planSha256": "93251f7196733c61487c720670c0413a782b2a2d240a20580ab1b6d6602efe0c",
+  "manifest": {
+    "capturedAt": "2026-09-11T07:19:56.902Z",
+    "from": "2026-09-05T12:32:48.000Z",
+    "to": "2026-09-11T07:18:05.000Z",
+    "checkpoints": 5839,
+    "events": 717465,
+    "healthSamples": 49880,
+    "canonical": true,
+    "marketReconciled": true,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    },
+    "timing": "Historical checkpoint capture plus 30 seconds; missing contemporary preflight evidence is not reconstructed"
+  },
+  "plan": {
+    "version": 1,
+    "frozenAt": "2026-09-11T07:31:43.528712+00:00",
+    "budgetQuote": "939964887",
+    "caps": [
+      600000,
+      700000,
+      800000
+    ],
+    "lpAllocationPpm": 800000,
+    "halfWidthRawTicks": 20,
+    "cooldownSeconds": 600,
+    "maxHoldingSeconds": 86400,
+    "tradingHours": {
+      "kind": "us_equity_off_hours_v1",
+      "entryCutoffSeconds": 1800,
+      "exitLeadSeconds": 600
+    },
+    "profiles": [
+      {
+        "id": "saved_fork_costs",
+        "entry": "868343",
+        "exit": "182625",
+        "buy": "251146",
+        "feePpm": 1000000
+      },
+      {
+        "id": "double_gas_half_fees",
+        "entry": "1736686",
+        "exit": "365250",
+        "buy": "502292",
+        "feePpm": 500000
+      }
+    ],
+    "costEvidence": {
+      "entryRunId": "181",
+      "exitRunId": "182",
+      "source": "Saved local Nitro fork estimates; not realized on-chain transactions or future cost quotes",
+      "entryGasQuote": "868343",
+      "exitGasQuote": "182625",
+      "buyGasQuote": "251146"
+    },
+    "prospective": {
+      "captureFrom": "2026-09-11T19:50:00.000Z",
+      "allowedFrom": "2026-09-11T20:00:00.000Z",
+      "cashDeadline": "2026-09-14T08:00:00.000Z",
+      "captureTo": "2026-09-14T08:30:00.000Z",
+      "scheduledAt": "2026-09-14T08:35:00.000Z",
+      "selection": "No automatic promotion. Compare net cash PnL, alpha versus common passive inventory, drawdown, exposure, exit/reentry costs, unavailable windows and late cash exits. Keep 60 percent paper policy pending review."
+    },
+    "codeHashes": {
+      "scripts/capture-cap-study.mjs": "2e91157340504fb3a932d51e6112b1b0bfab7a8cd0bde9ec0c0dd9b765b8dff4",
+      "scripts/replay-offhours-caps.mjs": "5ef483069cf718d0d999ff4ab84b0b7f80a6646e9b82363ac1d2b0035473bc29",
+      "scripts/run-cap-validation.mjs": "d712191b621b5fc302417b45221356563fc3d30efa00524bf85ccce1e450dbec",
+      "src/abi.ts": "cf2a76ff5b273b9545caab095dc54b4c4cccaeadb48dd602ecc733a86e9ea948",
+      "src/accounting/math.ts": "76b2b60da4863048c8e8237a7e1881d4be8696a11236dfebba4dff1938920766",
+      "src/action-cost/domain.ts": "d3d4537269251c2b4989ba82f7b2d37f2108893a63f5544614dd896f710070dc",
+      "src/action-cost/valuation-domain.ts": "c53971c6d10eb8372f5d61b918ff296f0b4cd9c5948edcdc8e2bf492b68aa14c",
+      "src/action-cost/valuation.ts": "ba290f5654b811795aaf489b84199e8b02933f1162bd2bf307255d582e1d4beb",
+      "src/backtest/domain.ts": "9410070a4f281982f097fc66a3ba791063fb0a7bf6362019d6e4117439cc0503",
+      "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+      "src/canary-plan/abi.ts": "6925653dd6fffe69a6f588834cee9002aa9f54bc07fd07edb20d158a88512267",
+      "src/canary-plan/domain.ts": "1748e0e24cea0802f6cf180cac8dca80c1f2fde8a43c0b01c4fcdd3f0a665f4e",
+      "src/canary-plan/entry-readiness.ts": "bf5a855d6c86dfe84c92af7dfba5936a386a35a717a6754d76541729154a2cd3",
+      "src/canary-plan/exit.ts": "992798d9fb29701e08eb168db7cd0d5d113fed514786523433def15986c96dc7",
+      "src/client.ts": "f6a4bf57de8b9eb67d8906c6be6cea7a2cd60dcf0cb2bcd679d3ccd5ea4fcf93",
+      "src/constants.ts": "d559d3e59bc397612311648959e50712e690873510a2c5cf97a9df644633205e",
+      "src/domain.ts": "711da57fd3f3db27dbc9bb1ecf65483b58f6b5ccbfe4d7d9902aed3ab80fec27",
+      "src/experiment/market.ts": "00330722f2c7d4310df0af17d19737b276f5ed66590e3030fa2208fd15efaa09",
+      "src/experiment/portfolio.ts": "c262e896791fa008fbaeb60fe2b85d1d0dc04c6c53776d38c8ad4fefb6b68d98",
+      "src/experiment/source.ts": "6218a75526592feae4c293d08d34a72743f8d7def2b2e3693762dcb47ab1282e",
+      "src/history/client.ts": "d63e9747f0602071a16333fc3a0e4583af90bbd997678d77ff1b7a340ebaf357",
+      "src/history/hypersync.ts": "e3234ac6c76d8e19e81374f99d00b37d6166c650dce31ab57ef427f0236afa4c",
+      "src/logger.ts": "94e42e459a455a82977b984d40de4f7516ae19a54ba518311aac2f95dbaf0c4c",
+      "src/nft/abi.ts": "433191902affe77cc6de65d044028a7cf0a9c3193598ec96b777edf82dce8d04",
+      "src/paper/boundary-fees.ts": "b17190443feb7ab49fe78f6acea5187a22107a81f7db4020e9315225b8b2ba1f",
+      "src/paper/engine.ts": "492b55edd23050e2803e4e01745cf183ca62f4e1a9d3cba18722df9dfac70108",
+      "src/paper/execution-abi.ts": "248a194ac4e06077945aa4986f1a2df966c94c509d912cf015473dd663ee843d",
+      "src/paper/execution-domain.ts": "41cb052784e5c778ed89bbb60fb664e04027d1592d601a9ca47d1f16539f7ab2",
+      "src/paper/execution-exit.ts": "e839e1e7e52d489f48c8ae86734225762cf7a928ca14263ebac82592e44daa6c",
+      "src/paper/execution-gas.ts": "0e81412b3131f06581cdfe23c02ad13383b43a2115064d416b8cb6ad448cee25",
+      "src/paper/execution.ts": "88d8e5248cf96102fcf456c4875f2d8ec96e7421fb04a39cfcb2044cf4d05402",
+      "src/paper/fork.ts": "e1d87bcf6ff7a097c5defd09cd00972cd00bb7465daa6524ddf063fc83e619df",
+      "src/paper/holding.ts": "11feded803ebbb4434d15b1fe7f194119c88e87145f26e228bdb22d8cf714918",
+      "src/paper/reference.ts": "0097938e64f3bae093d719c1d83551a647d84f35fa5f669c1f042fd4f23494c6",
+      "src/paper/trading-hours.ts": "d3bded88326c038ae1a44e1a34f98bc4901cf8377fd4ac4961db03b31d805da6",
+      "src/paper/transaction-engine.ts": "8e143af82f59ebdbc8e010bdb13cb37ddc7ad258b6c17bb35a388e8996bfc288",
+      "src/paper/usdg-oracle.ts": "5264db55ba54c2f7b4e770ed09861467e9cac5b3fc065cb07dfd286317951083",
+      "src/research/inventory-management.ts": "2f122171453ef743b3ffd465942403df0dd44d8df25fc322b64e49bd0432752a",
+      "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+      "src/research/offhours-cap.ts": "24fcc494647c70c102666ccf812a96d1fd0b5182ca40a06746d75c70392d001f",
+      "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+      "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+      "src/risk/abi.ts": "3909f920795641f2b8c27f6ac601fa5a362ee446490bf5847752e07094fd2db5",
+      "src/risk/domain.ts": "ea43a1a984345a68a191186be3421f8a1c3839d8c4f478c95ee70df13248d975",
+      "src/risk/evaluate.ts": "4c6f4d6f45ccf152e5b29d995df4623b871b2257c664f7ce661520cb77f571be",
+      "src/risk/gate.ts": "981092b9f9aaa54c481cb8d7895ee831c60f1cf02c1fc32804dcb847687d91f7",
+      "src/risk/reader.ts": "d52b4897b9d79a120fbb511702b6c46dbc62b9c346c83889c781ce06ad5d20a8",
+      "src/rpc-health/domain.ts": "cbce8fea8cb8ca0ade6842ccf71cf376297dbd00272367b368b22020b90fdbe0",
+      "src/simulator/math.ts": "3f36220efba65e4a38ced37a2dbfe31280368221f76ae09c7c00ec6f3a46c215"
+    }
+  },
+  "windows": [
+    {
+      "startAt": "2026-09-05T12:32:48.000Z",
+      "excludedAt": "2026-09-07T04:00:00.000Z",
+      "endAt": "2026-09-07T04:00:36.000Z",
+      "partialStart": true,
+      "partialEnd": false,
+      "results": [
+        {
+          "profile": "saved_fork_costs",
+          "cap": 600000,
+          "nav": "940834880",
+          "pnl": "869993",
+          "hold": "940693677",
+          "alpha": "141203",
+          "fees": "2633752",
+          "gas": "1919311",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "344740",
+          "maxDrawdown": "1212004",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "940890539",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288622010"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "940890539",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 700000,
+          "nav": "940834880",
+          "pnl": "869993",
+          "hold": "940693677",
+          "alpha": "141203",
+          "fees": "2633752",
+          "gas": "1919311",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "344740",
+          "maxDrawdown": "1212004",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "940890539",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288622010"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "940890539",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 800000,
+          "nav": "940834880",
+          "pnl": "869993",
+          "hold": "940693677",
+          "alpha": "141203",
+          "fees": "2633752",
+          "gas": "1919311",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "344740",
+          "maxDrawdown": "1212004",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "940890539",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288622010"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "940890539",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 600000,
+          "nav": "937597007",
+          "pnl": "-2367880",
+          "hold": "940442531",
+          "alpha": "-2845524",
+          "fees": "1316088",
+          "gas": "3838622",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "345119",
+          "maxDrawdown": "2988728",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "938888347",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288007829"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "938888347",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 700000,
+          "nav": "937597007",
+          "pnl": "-2367880",
+          "hold": "940442531",
+          "alpha": "-2845524",
+          "fees": "1316088",
+          "gas": "3838622",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "345119",
+          "maxDrawdown": "2988728",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "938888347",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288007829"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "938888347",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 800000,
+          "nav": "937597007",
+          "pnl": "-2367880",
+          "hold": "940442531",
+          "alpha": "-2845524",
+          "fees": "1316088",
+          "gas": "3838622",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": "unobserved_holding_decisions",
+          "maxExposurePpm": "345119",
+          "maxDrawdown": "2988728",
+          "holdingSeconds": 16385,
+          "outsideSeconds": 3997,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-05T12:33:24.000Z",
+              "checkpoint": "1",
+              "amount": "283348518"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T12:35:53.000Z",
+              "sourceAt": "2026-09-05T12:35:16.000Z",
+              "checkpoint": "2",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221890,
+                "tickUpper": 221930
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-05T15:46:51.000Z",
+              "sourceAt": "2026-09-05T15:46:14.000Z",
+              "checkpoint": "38",
+              "reason": "holding_guard",
+              "cash": "938888347",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-05T16:02:12.000Z",
+              "checkpoint": "41",
+              "amount": "288007829"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-05T16:07:27.000Z",
+              "sourceAt": "2026-09-05T16:06:50.000Z",
+              "checkpoint": "42",
+              "budget": "938888347",
+              "range": {
+                "tickLower": 221870,
+                "tickUpper": 221910
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        }
+      ]
+    },
+    {
+      "startAt": "2026-09-08T03:59:29.000Z",
+      "excludedAt": "2026-09-08T08:00:00.000Z",
+      "endAt": "2026-09-08T08:00:12.000Z",
+      "partialStart": false,
+      "partialEnd": false,
+      "results": [
+        {
+          "profile": "saved_fork_costs",
+          "cap": 600000,
+          "nav": "930657063",
+          "pnl": "-9307824",
+          "hold": "936758154",
+          "alpha": "-6101091",
+          "fees": "960234",
+          "gas": "5254840",
+          "entries": 5,
+          "exits": 5,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "703927",
+          "maxDrawdown": "9307824",
+          "holdingSeconds": 10512,
+          "outsideSeconds": 0,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:08:44.000Z",
+              "sourceAt": "2026-09-08T05:08:07.000Z",
+              "checkpoint": "1604",
+              "reason": "inventory_cap",
+              "cash": "938179769",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T05:20:00.000Z",
+              "checkpoint": "1615",
+              "amount": "450399021"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T05:21:02.000Z",
+              "sourceAt": "2026-09-08T05:20:26.000Z",
+              "checkpoint": "1616",
+              "budget": "938179769",
+              "range": {
+                "tickLower": 221810,
+                "tickUpper": 221850
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:53:51.000Z",
+              "sourceAt": "2026-09-08T05:53:15.000Z",
+              "checkpoint": "1648",
+              "reason": "inventory_cap",
+              "cash": "936141288",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:05:08.000Z",
+              "checkpoint": "1659",
+              "amount": "458528139"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:06:10.000Z",
+              "sourceAt": "2026-09-08T06:05:33.000Z",
+              "checkpoint": "1660",
+              "budget": "936141288",
+              "range": {
+                "tickLower": 221830,
+                "tickUpper": 221870
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:20:30.000Z",
+              "sourceAt": "2026-09-08T06:19:54.000Z",
+              "checkpoint": "1674",
+              "reason": "inventory_cap",
+              "cash": "934243388",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:31:46.000Z",
+              "checkpoint": "1685",
+              "amount": "300950125"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:32:47.000Z",
+              "sourceAt": "2026-09-08T06:32:11.000Z",
+              "checkpoint": "1686",
+              "budget": "934243388",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:59:22.000Z",
+              "sourceAt": "2026-09-08T06:58:46.000Z",
+              "checkpoint": "1712",
+              "reason": "inventory_cap",
+              "cash": "932331569",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T07:15:44.000Z",
+              "checkpoint": "1728",
+              "amount": "349396469"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T07:16:46.000Z",
+              "sourceAt": "2026-09-08T07:16:10.000Z",
+              "checkpoint": "1729",
+              "budget": "932331569",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "930657063",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 700000,
+          "nav": "931602914",
+          "pnl": "-8361973",
+          "hold": "936758154",
+          "alpha": "-5155240",
+          "fees": "1199401",
+          "gas": "4203872",
+          "entries": 4,
+          "exits": 4,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "790904",
+          "maxDrawdown": "8361973",
+          "holdingSeconds": 11250,
+          "outsideSeconds": 0,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:14:53.000Z",
+              "sourceAt": "2026-09-08T05:14:17.000Z",
+              "checkpoint": "1610",
+              "reason": "inventory_cap",
+              "cash": "937761577",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T05:26:10.000Z",
+              "checkpoint": "1621",
+              "amount": "373911252"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T05:27:12.000Z",
+              "sourceAt": "2026-09-08T05:26:35.000Z",
+              "checkpoint": "1622",
+              "budget": "937761577",
+              "range": {
+                "tickLower": 221810,
+                "tickUpper": 221850
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:54:52.000Z",
+              "sourceAt": "2026-09-08T05:54:16.000Z",
+              "checkpoint": "1649",
+              "reason": "inventory_cap",
+              "cash": "935564433",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:06:10.000Z",
+              "checkpoint": "1660",
+              "amount": "316556068"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:07:11.000Z",
+              "sourceAt": "2026-09-08T06:06:34.000Z",
+              "checkpoint": "1661",
+              "budget": "935564433",
+              "range": {
+                "tickLower": 221840,
+                "tickUpper": 221880
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:59:22.000Z",
+              "sourceAt": "2026-09-08T06:58:46.000Z",
+              "checkpoint": "1712",
+              "reason": "inventory_cap",
+              "cash": "933278055",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T07:15:44.000Z",
+              "checkpoint": "1728",
+              "amount": "349751170"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T07:16:46.000Z",
+              "sourceAt": "2026-09-08T07:16:10.000Z",
+              "checkpoint": "1729",
+              "budget": "933278055",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "931602914",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "945851"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 800000,
+          "nav": "934133934",
+          "pnl": "-5830953",
+          "hold": "936758154",
+          "alpha": "-2624220",
+          "fees": "362931",
+          "gas": "1050968",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "794326",
+          "maxDrawdown": "5830953",
+          "holdingSeconds": 13770,
+          "outsideSeconds": 9034,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "934133934",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "3476871"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 600000,
+          "nav": "924940284",
+          "pnl": "-15024603",
+          "hold": "936507008",
+          "alpha": "-11566724",
+          "fees": "482377",
+          "gas": "10509680",
+          "entries": 5,
+          "exits": 5,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "672136",
+          "maxDrawdown": "15024603",
+          "holdingSeconds": 10512,
+          "outsideSeconds": 0,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:08:44.000Z",
+              "sourceAt": "2026-09-08T05:08:07.000Z",
+              "checkpoint": "1604",
+              "reason": "inventory_cap",
+              "cash": "937015164",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T05:20:00.000Z",
+              "checkpoint": "1615",
+              "amount": "449839921"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T05:21:02.000Z",
+              "sourceAt": "2026-09-08T05:20:26.000Z",
+              "checkpoint": "1616",
+              "budget": "937015164",
+              "range": {
+                "tickLower": 221810,
+                "tickUpper": 221850
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:52:50.000Z",
+              "sourceAt": "2026-09-08T05:52:13.000Z",
+              "checkpoint": "1647",
+              "reason": "inventory_cap",
+              "cash": "933935605",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:04:06.000Z",
+              "checkpoint": "1658",
+              "amount": "431109727"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:05:08.000Z",
+              "sourceAt": "2026-09-08T06:04:31.000Z",
+              "checkpoint": "1659",
+              "budget": "933935605",
+              "range": {
+                "tickLower": 221830,
+                "tickUpper": 221870
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:20:30.000Z",
+              "sourceAt": "2026-09-08T06:19:54.000Z",
+              "checkpoint": "1674",
+              "reason": "inventory_cap",
+              "cash": "930837120",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:31:46.000Z",
+              "checkpoint": "1685",
+              "amount": "299852855"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:32:47.000Z",
+              "sourceAt": "2026-09-08T06:32:11.000Z",
+              "checkpoint": "1686",
+              "budget": "930837120",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:59:22.000Z",
+              "sourceAt": "2026-09-08T06:58:46.000Z",
+              "checkpoint": "1712",
+              "reason": "inventory_cap",
+              "cash": "927752187",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T07:15:44.000Z",
+              "checkpoint": "1728",
+              "amount": "347680320"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T07:16:46.000Z",
+              "sourceAt": "2026-09-08T07:16:10.000Z",
+              "checkpoint": "1729",
+              "budget": "927752187",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "924940284",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 700000,
+          "nav": "926808050",
+          "pnl": "-13156837",
+          "hold": "936507008",
+          "alpha": "-9698958",
+          "fees": "598558",
+          "gas": "8407744",
+          "entries": 4,
+          "exits": 4,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "791833",
+          "maxDrawdown": "13156837",
+          "holdingSeconds": 11250,
+          "outsideSeconds": 0,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:14:53.000Z",
+              "sourceAt": "2026-09-08T05:14:17.000Z",
+              "checkpoint": "1610",
+              "reason": "inventory_cap",
+              "cash": "936542663",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T05:26:10.000Z",
+              "checkpoint": "1621",
+              "amount": "373425238"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T05:27:12.000Z",
+              "sourceAt": "2026-09-08T05:26:35.000Z",
+              "checkpoint": "1622",
+              "budget": "936542663",
+              "range": {
+                "tickLower": 221810,
+                "tickUpper": 221850
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T05:54:52.000Z",
+              "sourceAt": "2026-09-08T05:54:16.000Z",
+              "checkpoint": "1649",
+              "reason": "inventory_cap",
+              "cash": "933198104",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T06:06:10.000Z",
+              "checkpoint": "1660",
+              "amount": "315755400"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T06:07:11.000Z",
+              "sourceAt": "2026-09-08T06:06:34.000Z",
+              "checkpoint": "1661",
+              "budget": "933198104",
+              "range": {
+                "tickLower": 221840,
+                "tickUpper": 221880
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T06:59:22.000Z",
+              "sourceAt": "2026-09-08T06:58:46.000Z",
+              "checkpoint": "1712",
+              "reason": "inventory_cap",
+              "cash": "929621388",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-08T07:15:44.000Z",
+              "checkpoint": "1728",
+              "amount": "348380814"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T07:16:46.000Z",
+              "sourceAt": "2026-09-08T07:16:10.000Z",
+              "checkpoint": "1729",
+              "budget": "929621388",
+              "range": {
+                "tickLower": 221850,
+                "tickUpper": 221890
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "926808050",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "1867766"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 800000,
+          "nav": "932902240",
+          "pnl": "-7062647",
+          "hold": "936507008",
+          "alpha": "-3604768",
+          "fees": "181446",
+          "gas": "2101936",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "795238",
+          "maxDrawdown": "7062647",
+          "holdingSeconds": 13770,
+          "outsideSeconds": 9034,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T04:01:06.000Z",
+              "checkpoint": "1538",
+              "amount": "409435372"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T04:02:08.000Z",
+              "sourceAt": "2026-09-08T04:01:31.000Z",
+              "checkpoint": "1539",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 221790,
+                "tickUpper": 221830
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-08T07:51:36.000Z",
+              "sourceAt": "2026-09-08T07:51:01.000Z",
+              "checkpoint": "1763",
+              "reason": "scheduled_cash_exit",
+              "cash": "932902240",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "7961956"
+        }
+      ]
+    },
+    {
+      "startAt": "2026-09-08T20:00:07.000Z",
+      "excludedAt": "2026-09-09T08:00:00.000Z",
+      "endAt": "2026-09-09T08:00:13.000Z",
+      "partialStart": false,
+      "partialEnd": false,
+      "results": [
+        {
+          "profile": "saved_fork_costs",
+          "cap": 600000,
+          "nav": "942166524",
+          "pnl": "2201637",
+          "hold": "940413534",
+          "alpha": "1752990",
+          "fees": "5108591",
+          "gas": "2101936",
+          "entries": 2,
+          "exits": 2,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "632340",
+          "maxDrawdown": "2229217",
+          "holdingSeconds": 41857,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T00:01:15.000Z",
+              "sourceAt": "2026-09-09T00:00:38.000Z",
+              "checkpoint": "2694",
+              "reason": "inventory_cap",
+              "cash": "939636749",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-09T00:12:29.000Z",
+              "checkpoint": "2705",
+              "amount": "426034697"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T00:13:31.000Z",
+              "sourceAt": "2026-09-09T00:12:55.000Z",
+              "checkpoint": "2706",
+              "budget": "939636749",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "942166524",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 700000,
+          "nav": "944109537",
+          "pnl": "4144650",
+          "hold": "940413534",
+          "alpha": "3696003",
+          "fees": "4947254",
+          "gas": "1050968",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "632340",
+          "maxDrawdown": "1063841",
+          "holdingSeconds": 42594,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "944109537",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "1943013"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 800000,
+          "nav": "944109537",
+          "pnl": "4144650",
+          "hold": "940413534",
+          "alpha": "3696003",
+          "fees": "4947254",
+          "gas": "1050968",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "632340",
+          "maxDrawdown": "1063841",
+          "holdingSeconds": 42594,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "944109537",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "1943013"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 600000,
+          "nav": "937506623",
+          "pnl": "-2458264",
+          "hold": "940162388",
+          "alpha": "-2655765",
+          "fees": "2550703",
+          "gas": "4203872",
+          "entries": 2,
+          "exits": 2,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "633155",
+          "maxDrawdown": "4365767",
+          "holdingSeconds": 41857,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T00:01:15.000Z",
+              "sourceAt": "2026-09-09T00:00:38.000Z",
+              "checkpoint": "2694",
+              "reason": "inventory_cap",
+              "cash": "937686427",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-09T00:12:29.000Z",
+              "checkpoint": "2705",
+              "amount": "425150414"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T00:13:31.000Z",
+              "sourceAt": "2026-09-09T00:12:55.000Z",
+              "checkpoint": "2706",
+              "budget": "937686427",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "937506623",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 700000,
+          "nav": "940583580",
+          "pnl": "618693",
+          "hold": "940162388",
+          "alpha": "421192",
+          "fees": "2473458",
+          "gas": "2101936",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "633155",
+          "maxDrawdown": "1932184",
+          "holdingSeconds": 42594,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "940583580",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "3076957"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 800000,
+          "nav": "940583580",
+          "pnl": "618693",
+          "hold": "940162388",
+          "alpha": "421192",
+          "fees": "2473458",
+          "gas": "2101936",
+          "entries": 1,
+          "exits": 1,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "633155",
+          "maxDrawdown": "1932184",
+          "holdingSeconds": 42594,
+          "outsideSeconds": 245,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-08T20:00:43.000Z",
+              "checkpoint": "2461",
+              "amount": "389078542"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-08T20:01:44.000Z",
+              "sourceAt": "2026-09-08T20:01:07.000Z",
+              "checkpoint": "2462",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222100,
+                "tickUpper": 222140
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T07:51:38.000Z",
+              "sourceAt": "2026-09-09T07:51:01.000Z",
+              "checkpoint": "3150",
+              "reason": "scheduled_cash_exit",
+              "cash": "940583580",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "3076957"
+        }
+      ]
+    },
+    {
+      "startAt": "2026-09-09T19:59:38.000Z",
+      "excludedAt": "2026-09-10T08:00:00.000Z",
+      "endAt": "2026-09-10T08:00:43.000Z",
+      "partialStart": false,
+      "partialEnd": false,
+      "results": [
+        {
+          "profile": "saved_fork_costs",
+          "cap": 600000,
+          "nav": "935268889",
+          "pnl": "-4695998",
+          "hold": "937770525",
+          "alpha": "-2501636",
+          "fees": "3887149",
+          "gas": "5254840",
+          "entries": 5,
+          "exits": 5,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "671104",
+          "maxDrawdown": "7603476",
+          "holdingSeconds": 39571,
+          "outsideSeconds": 1350,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T21:44:43.000Z",
+              "sourceAt": "2026-09-09T21:44:06.000Z",
+              "checkpoint": "3944",
+              "reason": "inventory_cap",
+              "cash": "938263083",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-09T21:56:00.000Z",
+              "checkpoint": "3955",
+              "amount": "369411287"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T21:57:02.000Z",
+              "sourceAt": "2026-09-09T21:56:26.000Z",
+              "checkpoint": "3956",
+              "budget": "938263083",
+              "range": {
+                "tickLower": 222200,
+                "tickUpper": 222240
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "937289112",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "432002643"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "937289112",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T00:21:18.000Z",
+              "sourceAt": "2026-09-10T00:20:41.000Z",
+              "checkpoint": "4097",
+              "reason": "inventory_cap",
+              "cash": "935489186",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:32:36.000Z",
+              "checkpoint": "4108",
+              "amount": "327443044"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:33:38.000Z",
+              "sourceAt": "2026-09-10T00:33:01.000Z",
+              "checkpoint": "4109",
+              "budget": "935489186",
+              "range": {
+                "tickLower": 222210,
+                "tickUpper": 222250
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T01:26:58.000Z",
+              "sourceAt": "2026-09-10T01:26:21.000Z",
+              "checkpoint": "4161",
+              "reason": "inventory_cap",
+              "cash": "933508169",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T01:38:14.000Z",
+              "checkpoint": "4172",
+              "amount": "462663505"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T01:39:15.000Z",
+              "sourceAt": "2026-09-10T01:38:39.000Z",
+              "checkpoint": "4173",
+              "budget": "933508169",
+              "range": {
+                "tickLower": 222230,
+                "tickUpper": 222270
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "935268889",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 700000,
+          "nav": "935092179",
+          "pnl": "-4872708",
+          "hold": "937770525",
+          "alpha": "-2678346",
+          "fees": "3149182",
+          "gas": "4203872",
+          "entries": 4,
+          "exits": 4,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "754024",
+          "maxDrawdown": "6464654",
+          "holdingSeconds": 40311,
+          "outsideSeconds": 12848,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "938798093",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "432698142"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "938798093",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T00:24:24.000Z",
+              "sourceAt": "2026-09-10T00:23:47.000Z",
+              "checkpoint": "4100",
+              "reason": "inventory_cap",
+              "cash": "936719493",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:35:42.000Z",
+              "checkpoint": "4111",
+              "amount": "329306505"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:36:44.000Z",
+              "sourceAt": "2026-09-10T00:36:07.000Z",
+              "checkpoint": "4112",
+              "budget": "936719493",
+              "range": {
+                "tickLower": 222210,
+                "tickUpper": 222250
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T01:31:04.000Z",
+              "sourceAt": "2026-09-10T01:30:27.000Z",
+              "checkpoint": "4165",
+              "reason": "inventory_cap",
+              "cash": "934534182",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T01:42:19.000Z",
+              "checkpoint": "4176",
+              "amount": "329962227"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T01:43:21.000Z",
+              "sourceAt": "2026-09-10T01:42:45.000Z",
+              "checkpoint": "4177",
+              "budget": "934534182",
+              "range": {
+                "tickLower": 222240,
+                "tickUpper": 222280
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "935092179",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "-176710"
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 800000,
+          "nav": "935574238",
+          "pnl": "-4390649",
+          "hold": "937770525",
+          "alpha": "-2196287",
+          "fees": "1300766",
+          "gas": "2101936",
+          "entries": 2,
+          "exits": 2,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "788269",
+          "maxDrawdown": "5922370",
+          "holdingSeconds": 41789,
+          "outsideSeconds": 23421,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "938798093",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "432698142"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "938798093",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "935574238",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "305349"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 600000,
+          "nav": "928069827",
+          "pnl": "-11895060",
+          "hold": "937519379",
+          "alpha": "-9449552",
+          "fees": "1935534",
+          "gas": "10509680",
+          "entries": 5,
+          "exits": 5,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "671862",
+          "maxDrawdown": "13297790",
+          "holdingSeconds": 39571,
+          "outsideSeconds": 1350,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T21:44:43.000Z",
+              "sourceAt": "2026-09-09T21:44:06.000Z",
+              "checkpoint": "3944",
+              "reason": "inventory_cap",
+              "cash": "937033544",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-09T21:56:00.000Z",
+              "checkpoint": "3955",
+              "amount": "368927196"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T21:57:02.000Z",
+              "sourceAt": "2026-09-09T21:56:26.000Z",
+              "checkpoint": "3956",
+              "budget": "937033544",
+              "range": {
+                "tickLower": 222200,
+                "tickUpper": 222240
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "934781927",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "430847065"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "934781927",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T00:21:18.000Z",
+              "sourceAt": "2026-09-10T00:20:41.000Z",
+              "checkpoint": "4097",
+              "reason": "inventory_cap",
+              "cash": "931869540",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:32:36.000Z",
+              "checkpoint": "4108",
+              "amount": "326176084"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:33:38.000Z",
+              "sourceAt": "2026-09-10T00:33:01.000Z",
+              "checkpoint": "4109",
+              "budget": "931869540",
+              "range": {
+                "tickLower": 222210,
+                "tickUpper": 222250
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T01:26:58.000Z",
+              "sourceAt": "2026-09-10T01:26:21.000Z",
+              "checkpoint": "4161",
+              "reason": "inventory_cap",
+              "cash": "928684305",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T01:38:14.000Z",
+              "checkpoint": "4172",
+              "amount": "460272711"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T01:39:15.000Z",
+              "sourceAt": "2026-09-10T01:38:39.000Z",
+              "checkpoint": "4173",
+              "budget": "928684305",
+              "range": {
+                "tickLower": 222230,
+                "tickUpper": 222270
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "928069827",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "0"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 700000,
+          "nav": "929316256",
+          "pnl": "-10648631",
+          "hold": "937519379",
+          "alpha": "-8203123",
+          "fees": "1570498",
+          "gas": "8407744",
+          "entries": 4,
+          "exits": 4,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "754896",
+          "maxDrawdown": "11294573",
+          "holdingSeconds": 40311,
+          "outsideSeconds": 12848,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "937245896",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "431982724"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "937245896",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T00:24:24.000Z",
+              "sourceAt": "2026-09-10T00:23:47.000Z",
+              "checkpoint": "4100",
+              "reason": "inventory_cap",
+              "cash": "934015919",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:35:42.000Z",
+              "checkpoint": "4111",
+              "amount": "328356055"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:36:44.000Z",
+              "sourceAt": "2026-09-10T00:36:07.000Z",
+              "checkpoint": "4112",
+              "budget": "934015919",
+              "range": {
+                "tickLower": 222210,
+                "tickUpper": 222250
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T01:31:04.000Z",
+              "sourceAt": "2026-09-10T01:30:27.000Z",
+              "checkpoint": "4165",
+              "reason": "inventory_cap",
+              "cash": "930571901",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T01:42:19.000Z",
+              "checkpoint": "4176",
+              "amount": "328563238"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T01:43:21.000Z",
+              "sourceAt": "2026-09-10T01:42:45.000Z",
+              "checkpoint": "4177",
+              "budget": "930571901",
+              "range": {
+                "tickLower": 222240,
+                "tickUpper": 222280
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "929316256",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "1246429"
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 800000,
+          "nav": "932826204",
+          "pnl": "-7138683",
+          "hold": "937519379",
+          "alpha": "-4693175",
+          "fees": "650065",
+          "gas": "4203872",
+          "entries": 2,
+          "exits": 2,
+          "positionOpen": false,
+          "invalid": null,
+          "maxExposurePpm": "789166",
+          "maxDrawdown": "8466892",
+          "holdingSeconds": 41789,
+          "outsideSeconds": 23421,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-09T20:01:16.000Z",
+              "checkpoint": "3843",
+              "amount": "391672556"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-09T20:02:18.000Z",
+              "sourceAt": "2026-09-09T20:01:42.000Z",
+              "checkpoint": "3844",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-09T23:52:38.000Z",
+              "sourceAt": "2026-09-09T23:52:00.000Z",
+              "checkpoint": "4069",
+              "reason": "holding_guard",
+              "cash": "937245896",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T00:03:54.000Z",
+              "checkpoint": "4080",
+              "amount": "431982724"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T00:04:55.000Z",
+              "sourceAt": "2026-09-10T00:04:18.000Z",
+              "checkpoint": "4081",
+              "budget": "937245896",
+              "range": {
+                "tickLower": 222190,
+                "tickUpper": 222230
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T07:51:07.000Z",
+              "sourceAt": "2026-09-10T07:50:29.000Z",
+              "checkpoint": "4532",
+              "reason": "scheduled_cash_exit",
+              "cash": "932826204",
+              "lateSeconds": 0
+            }
+          ],
+          "rejections": {},
+          "available": true,
+          "delta": "4756377"
+        }
+      ]
+    },
+    {
+      "startAt": "2026-09-10T20:00:01.000Z",
+      "excludedAt": "2026-09-11T08:00:00.000Z",
+      "endAt": "2026-09-11T07:18:05.000Z",
+      "partialStart": false,
+      "partialEnd": true,
+      "results": [
+        {
+          "profile": "saved_fork_costs",
+          "cap": 600000,
+          "nav": "934964112",
+          "pnl": "-5000775",
+          "hold": "941252550",
+          "alpha": "-6288438",
+          "fees": "3910174",
+          "gas": "5072215",
+          "entries": 5,
+          "exits": 4,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "724577",
+          "maxDrawdown": "7121820",
+          "holdingSeconds": 37673,
+          "outsideSeconds": 9046,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:12:06.000Z",
+              "sourceAt": "2026-09-10T23:11:29.000Z",
+              "checkpoint": "5369",
+              "reason": "inventory_cap",
+              "cash": "939865912",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:23:23.000Z",
+              "checkpoint": "5380",
+              "amount": "404265453"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:24:25.000Z",
+              "sourceAt": "2026-09-10T23:23:48.000Z",
+              "checkpoint": "5381",
+              "budget": "939865912",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:26:26.000Z",
+              "sourceAt": "2026-09-10T23:25:50.000Z",
+              "checkpoint": "5383",
+              "reason": "inventory_cap",
+              "cash": "938069326",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:37:40.000Z",
+              "checkpoint": "5394",
+              "amount": "421633266"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:38:42.000Z",
+              "sourceAt": "2026-09-10T23:38:05.000Z",
+              "checkpoint": "5395",
+              "budget": "938069326",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "935919469",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "325824503"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "935919469",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-11T04:02:58.000Z",
+              "sourceAt": "2026-09-11T04:02:22.000Z",
+              "checkpoint": "5653",
+              "reason": "inventory_cap",
+              "cash": "934833583",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T04:14:16.000Z",
+              "checkpoint": "5664",
+              "amount": "466845157"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T04:15:18.000Z",
+              "sourceAt": "2026-09-11T04:14:42.000Z",
+              "checkpoint": "5665",
+              "budget": "934833583",
+              "range": {
+                "tickLower": 222440,
+                "tickUpper": 222480
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 700000,
+          "nav": "937044311",
+          "pnl": "-2920576",
+          "hold": "941252550",
+          "alpha": "-4208239",
+          "fees": "4117898",
+          "gas": "4021247",
+          "entries": 4,
+          "exits": 3,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "750091",
+          "maxDrawdown": "5137381",
+          "holdingSeconds": 38412,
+          "outsideSeconds": 9046,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:26:26.000Z",
+              "sourceAt": "2026-09-10T23:25:50.000Z",
+              "checkpoint": "5383",
+              "reason": "inventory_cap",
+              "cash": "940149816",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:37:40.000Z",
+              "checkpoint": "5394",
+              "amount": "422568382"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:38:42.000Z",
+              "sourceAt": "2026-09-10T23:38:05.000Z",
+              "checkpoint": "5395",
+              "budget": "940149816",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "937997506",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "326547936"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "937997506",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-11T04:02:58.000Z",
+              "sourceAt": "2026-09-11T04:02:22.000Z",
+              "checkpoint": "5653",
+              "reason": "inventory_cap",
+              "cash": "936911529",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T04:14:16.000Z",
+              "checkpoint": "5664",
+              "amount": "467882860"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T04:15:18.000Z",
+              "sourceAt": "2026-09-11T04:14:42.000Z",
+              "checkpoint": "5665",
+              "budget": "936911529",
+              "range": {
+                "tickLower": 222440,
+                "tickUpper": 222480
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "saved_fork_costs",
+          "cap": 800000,
+          "nav": "940465933",
+          "pnl": "501046",
+          "hold": "941252550",
+          "alpha": "-786617",
+          "fees": "4510782",
+          "gas": "1919311",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "800018",
+          "maxDrawdown": "2911525",
+          "holdingSeconds": 39887,
+          "outsideSeconds": 8130,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "868343"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "939214419",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "326971584"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "939214419",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "868343"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 600000,
+          "nav": "927941707",
+          "pnl": "-12023180",
+          "hold": "941001404",
+          "alpha": "-13059697",
+          "fees": "1950484",
+          "gas": "10144430",
+          "entries": 5,
+          "exits": 4,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "725378",
+          "maxDrawdown": "13085067",
+          "holdingSeconds": 37673,
+          "outsideSeconds": 9046,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:12:06.000Z",
+              "sourceAt": "2026-09-10T23:11:29.000Z",
+              "checkpoint": "5369",
+              "reason": "inventory_cap",
+              "cash": "937846737",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:23:23.000Z",
+              "checkpoint": "5380",
+              "amount": "403396943"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:24:25.000Z",
+              "sourceAt": "2026-09-10T23:23:48.000Z",
+              "checkpoint": "5381",
+              "budget": "937846737",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:26:26.000Z",
+              "sourceAt": "2026-09-10T23:25:50.000Z",
+              "checkpoint": "5383",
+              "reason": "inventory_cap",
+              "cash": "934909820",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:37:40.000Z",
+              "checkpoint": "5394",
+              "amount": "420213166"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:38:42.000Z",
+              "sourceAt": "2026-09-10T23:38:05.000Z",
+              "checkpoint": "5395",
+              "budget": "934909820",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "931627018",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "324330159"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "931627018",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-11T04:02:58.000Z",
+              "sourceAt": "2026-09-11T04:02:22.000Z",
+              "checkpoint": "5653",
+              "reason": "inventory_cap",
+              "cash": "928849868",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T04:14:16.000Z",
+              "checkpoint": "5664",
+              "amount": "463856959"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T04:15:18.000Z",
+              "sourceAt": "2026-09-11T04:14:42.000Z",
+              "checkpoint": "5665",
+              "budget": "928849868",
+              "range": {
+                "tickLower": 222440,
+                "tickUpper": 222480
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 700000,
+          "nav": "930966273",
+          "pnl": "-8998614",
+          "hold": "941001404",
+          "alpha": "-10035131",
+          "fees": "2055432",
+          "gas": "8042494",
+          "entries": 4,
+          "exits": 3,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "751200",
+          "maxDrawdown": "10064009",
+          "holdingSeconds": 38412,
+          "outsideSeconds": 9046,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:26:26.000Z",
+              "sourceAt": "2026-09-10T23:25:50.000Z",
+              "checkpoint": "5383",
+              "reason": "inventory_cap",
+              "cash": "937937700",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-10T23:37:40.000Z",
+              "checkpoint": "5394",
+              "amount": "421574105"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T23:38:42.000Z",
+              "sourceAt": "2026-09-10T23:38:05.000Z",
+              "checkpoint": "5395",
+              "budget": "937937700",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "934651051",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "325382924"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "934651051",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-11T04:02:58.000Z",
+              "sourceAt": "2026-09-11T04:02:22.000Z",
+              "checkpoint": "5653",
+              "reason": "inventory_cap",
+              "cash": "931871690",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T04:14:16.000Z",
+              "checkpoint": "5664",
+              "amount": "465366022"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T04:15:18.000Z",
+              "sourceAt": "2026-09-11T04:14:42.000Z",
+              "checkpoint": "5665",
+              "budget": "931871690",
+              "range": {
+                "tickLower": 222440,
+                "tickUpper": 222480
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        },
+        {
+          "profile": "double_gas_half_fees",
+          "cap": 800000,
+          "nav": "936287660",
+          "pnl": "-3677227",
+          "hold": "941001404",
+          "alpha": "-4713744",
+          "fees": "2252803",
+          "gas": "3838622",
+          "entries": 2,
+          "exits": 1,
+          "positionOpen": true,
+          "invalid": null,
+          "maxExposurePpm": "801277",
+          "maxDrawdown": "5209224",
+          "holdingSeconds": 39887,
+          "outsideSeconds": 8130,
+          "lateExitSeconds": 0,
+          "actions": [
+            {
+              "kind": "quote",
+              "at": "2026-09-10T20:00:38.000Z",
+              "checkpoint": "5182",
+              "amount": "349005161"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-10T20:01:39.000Z",
+              "sourceAt": "2026-09-10T20:01:03.000Z",
+              "checkpoint": "5183",
+              "budget": "939964887",
+              "range": {
+                "tickLower": 222420,
+                "tickUpper": 222460
+              },
+              "gas": "1736686"
+            },
+            {
+              "kind": "exit",
+              "at": "2026-09-10T23:58:04.000Z",
+              "sourceAt": "2026-09-10T23:57:30.000Z",
+              "checkpoint": "5414",
+              "reason": "inventory_cap",
+              "cash": "936906055",
+              "lateSeconds": 0
+            },
+            {
+              "kind": "quote",
+              "at": "2026-09-11T00:09:20.000Z",
+              "checkpoint": "5425",
+              "amount": "326167966"
+            },
+            {
+              "kind": "entry",
+              "at": "2026-09-11T00:10:22.000Z",
+              "sourceAt": "2026-09-11T00:09:45.000Z",
+              "checkpoint": "5426",
+              "budget": "936906055",
+              "range": {
+                "tickLower": 222430,
+                "tickUpper": 222470
+              },
+              "gas": "1736686"
+            }
+          ],
+          "rejections": {},
+          "available": false,
+          "delta": null
+        }
+      ]
+    }
+  ],
+  "aggregates": [
+    {
+      "profile": "saved_fork_costs",
+      "cap": 600000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -3.9340616666666666,
+      "meanAlpha": -2.2832456666666667,
+      "meanDelta": 0,
+      "worstDelta": 0,
+      "worstPnl": -9.307824,
+      "maxDrawdown": 9.307824,
+      "entries": 12,
+      "exits": 12,
+      "gas": 12.611616,
+      "fees": 9.955974,
+      "inventoryExits": 8,
+      "scheduledExits": 3,
+      "holdingHours": 25.538888888888888,
+      "outsideHours": 0.44305555555555554,
+      "lateExitSeconds": 0
+    },
+    {
+      "profile": "saved_fork_costs",
+      "cap": 700000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -3.0300103333333333,
+      "meanAlpha": -1.3791943333333334,
+      "meanDelta": 0.9040513333333333,
+      "worstDelta": -0.17671,
+      "worstPnl": -8.361973,
+      "maxDrawdown": 8.361973,
+      "entries": 9,
+      "exits": 9,
+      "gas": 9.458712,
+      "fees": 9.295837,
+      "inventoryExits": 5,
+      "scheduledExits": 3,
+      "holdingHours": 26.154166666666665,
+      "outsideHours": 3.6369444444444445,
+      "lateExitSeconds": 0
+    },
+    {
+      "profile": "saved_fork_costs",
+      "cap": 800000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -2.025650666666667,
+      "meanAlpha": -0.37483466666666665,
+      "meanDelta": 1.908411,
+      "worstDelta": 0.305349,
+      "worstPnl": -5.830953,
+      "maxDrawdown": 5.92237,
+      "entries": 4,
+      "exits": 4,
+      "gas": 4.203872,
+      "fees": 6.610951,
+      "inventoryExits": 0,
+      "scheduledExits": 3,
+      "holdingHours": 27.264722222222222,
+      "outsideHours": 9.083333333333334,
+      "lateExitSeconds": 0
+    },
+    {
+      "profile": "double_gas_half_fees",
+      "cap": 600000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -9.792642333333333,
+      "meanAlpha": -7.890680333333333,
+      "meanDelta": 0,
+      "worstDelta": 0,
+      "worstPnl": -15.024603,
+      "maxDrawdown": 15.024603,
+      "entries": 12,
+      "exits": 12,
+      "gas": 25.223232,
+      "fees": 4.968614,
+      "inventoryExits": 8,
+      "scheduledExits": 3,
+      "holdingHours": 25.538888888888888,
+      "outsideHours": 0.44305555555555554,
+      "lateExitSeconds": 0
+    },
+    {
+      "profile": "double_gas_half_fees",
+      "cap": 700000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -7.728925,
+      "meanAlpha": -5.826963,
+      "meanDelta": 2.0637173333333334,
+      "worstDelta": 1.246429,
+      "worstPnl": -13.156837,
+      "maxDrawdown": 13.156837,
+      "entries": 9,
+      "exits": 9,
+      "gas": 18.917424,
+      "fees": 4.642514,
+      "inventoryExits": 5,
+      "scheduledExits": 3,
+      "holdingHours": 26.154166666666665,
+      "outsideHours": 3.6369444444444445,
+      "lateExitSeconds": 0
+    },
+    {
+      "profile": "double_gas_half_fees",
+      "cap": 800000,
+      "windows": 5,
+      "available": 3,
+      "traded": 3,
+      "meanPnl": -4.527545666666667,
+      "meanAlpha": -2.6255836666666665,
+      "meanDelta": 5.2650966666666665,
+      "worstDelta": 3.076957,
+      "worstPnl": -7.138683,
+      "maxDrawdown": 8.466892,
+      "entries": 4,
+      "exits": 4,
+      "gas": 8.407744,
+      "fees": 3.304969,
+      "inventoryExits": 0,
+      "scheduledExits": 3,
+      "holdingHours": 27.264722222222222,
+      "outsideHours": 9.083333333333334,
+      "lateExitSeconds": 0
+    }
+  ],
+  "method": {
+    "scope": "Independent allowed trading windows with common starting cash, compounding after each full cash exit and 600 second cooldown; caps are the sole policy difference",
+    "timing": "Quote decisions use checkpoint capture plus 30 seconds and require a later source to fill; schedule uses New York calendar; no new entries within 30 minutes of exclusion and exits requested 10 minutes before",
+    "guards": "Canonical checkpoint and source reference gates, captured chain entry readiness, and 30-block bounded holding evaluated from stored raw health samples. Current-risk refresh timing is approximated by source reference eligibility; historical ETH gas-feed freshness is not proven.",
+    "costs": "Saved fork entry/exit estimates reused across sizes and dates; 2x gas plus 50 percent modeled fees sensitivity. Hypothetical entry failures incur no transaction gas because checks precede mint; partial transaction failures are not modeled.",
+    "fees": "Canonical crossing-aware fee segments with added-liquidity dilution, retained Q128 remainder, and unchanged subsequent historical price path",
+    "benchmark": "One common initial acquired-token passive holding benchmark per window and profile, including buy gas. It remains invested after the LP exits; absolute cash Pnl is also reported.",
+    "exclusions": "Partial first/last windows and any paired window with missed holding decisions, unreconciled data or unresolved scheduled exit are unavailable for ranking. Full event coverage alone cannot prove missed decisions.",
+    "inference": "Retrospective correlated windows, no profitability or optimal-cap claim. Prospective validation remains a model on captured data, not actual simultaneous fork executions."
+  }
+}

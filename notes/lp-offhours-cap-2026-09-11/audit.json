@@ -1,0 +1,27 @@
+{
+  "checkedAt": "2026-09-11T07:35:50.645535+00:00",
+  "resultSha256": "855915b36d45f82e6764e23db3d714a4e28096742d85dc272e6177926c24c574",
+  "aggregationIndependentlyChecked": true,
+  "gasConservation": true,
+  "pnlAndAlphaIdentities": true,
+  "closedCyclesBalanced": true,
+  "lateDeadlineAccountingFixChangedHistoricalAggregates": false,
+  "recovery": {
+    "action": "recovered",
+    "repairedAt": "2026-09-11T07:20:08.674Z",
+    "sessionId": "55",
+    "runId": "182",
+    "finalCash": "939964887",
+    "sessionPnl": "-6851637",
+    "reentryStopped": true,
+    "executionEligible": false
+  },
+  "validationSchedule": {
+    "capsule": "/root/conc-liq/data/lp-cap-validation-capsule-93251f719673",
+    "planSha256": "93251f7196733c61487c720670c0413a782b2a2d240a20580ab1b6d6602efe0c",
+    "dependencyRelease": "/root/conc-liq-releases/b4909be4c608676f7a2f0ea9fb55159bca2ea25fe475d25d9c691cf01a8fac38",
+    "output": "/root/conc-liq/data/lp-cap-validation-2026-09-14",
+    "timer": "conc-liq-cap-validation.timer",
+    "scheduledAt": "2026-09-14T08:35:00.000Z"
+  }
+}
