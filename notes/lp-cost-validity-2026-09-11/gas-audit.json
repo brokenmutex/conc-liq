@@ -1,0 +1,6433 @@
+{
+  "capturedAt": "2026-09-11T09:04:11.625Z",
+  "captureSha256": "6c8c372227700051955740391440b617199fac183599698187297b280781107f",
+  "costEvidenceSha256": "29b804409547425ce965c705e30f6b24f09fe1dc34d8fc9083338abb0fffefcc",
+  "auditCodeSha256": "0d8483c172fef702d91d3d0dcb89d2d74536424c1e2c002c87340f2e4b5bbc1b",
+  "checks": {
+    "gasTimesPrice": true,
+    "parentChargedOnce": true,
+    "oracleUnitConversion": true,
+    "transactionSum": true,
+    "roundingLessThanOneMicroPerTransaction": true
+  },
+  "groups": [
+    {
+      "action": "entry",
+      "costUSDG": {
+        "n": 52,
+        "min": 0.237331,
+        "median": 0.4151255,
+        "p90": 0.501934,
+        "max": 1.874838
+      },
+      "gasPriceGwei": {
+        "n": 52,
+        "min": 0.117536,
+        "median": 0.199992,
+        "p90": 0.242852,
+        "max": 0.915438
+      },
+      "estimateVsLocalGas": {
+        "n": 52,
+        "min": 1.013296321583598,
+        "median": 1.0230513164540675,
+        "p90": 1.0240194146823536,
+        "max": 1.0406621615063876
+      }
+    },
+    {
+      "action": "exit",
+      "costUSDG": {
+        "n": 52,
+        "min": 0.162201,
+        "median": 0.281354,
+        "p90": 0.336032,
+        "max": 0.635029
+      },
+      "gasPriceGwei": {
+        "n": 52,
+        "min": 0.11761,
+        "median": 0.198373,
+        "p90": 0.240788,
+        "max": 0.465256
+      },
+      "estimateVsLocalGas": {
+        "n": 52,
+        "min": 1.0977208726748322,
+        "median": 1.116879530575014,
+        "p90": 1.1370094702065805,
+        "max": 1.1380061002356445
+      }
+    }
+  ],
+  "proofs": [
+    {
+      "name": "buy",
+      "sourceBlock": "59404274",
+      "sourceHash": "0x8a21b3b7311a7ab37648a10c77df5dc0a66f9d0354de3104d696edbce747c8b3",
+      "gas": "986102",
+      "localGas": "935490",
+      "feeWei": "747321345108000",
+      "quote": 1.838572,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0541021282964007,
+      "localGasAtSourcePriceQuote": 1.744207,
+      "gasPriceGwei": 0.757854,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "243226",
+          "localGas": "212015",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "453491"
+        },
+        {
+          "action": "approve_recenter_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "109634"
+        },
+        {
+          "action": "recenter_buy_nvda",
+          "gas": "160236",
+          "localGas": "149410",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "298758"
+        },
+        {
+          "action": "approve_recenter_mint_usdg",
+          "gas": "41260",
+          "localGas": "40888",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "76929"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "gas": "46932",
+          "localGas": "46549",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "87504"
+        },
+        {
+          "action": "recenter_mint",
+          "gas": "435647",
+          "localGas": "428640",
+          "gasPriceGwei": 0.757854,
+          "parentGas": "0",
+          "quote": "812257"
+        }
+      ]
+    },
+    {
+      "name": "sell",
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "gas": "1004905",
+      "localGas": "954011",
+      "feeWei": "825975635320000",
+      "quote": 2.032078,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0533473932690502,
+      "localGasAtSourcePriceQuote": 1.929163,
+      "gasPriceGwei": 0.821944,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "243226",
+          "localGas": "212015",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "491842"
+        },
+        {
+          "action": "approve_recenter_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "130397"
+        },
+        {
+          "action": "recenter_sell_nvda",
+          "gas": "170467",
+          "localGas": "159404",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "344712"
+        },
+        {
+          "action": "approve_recenter_mint_usdg",
+          "gas": "41260",
+          "localGas": "40888",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "83435"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "gas": "46932",
+          "localGas": "46549",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "94904"
+        },
+        {
+          "action": "recenter_mint",
+          "gas": "438536",
+          "localGas": "431506",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "886790"
+        }
+      ]
+    },
+    {
+      "name": "preserve",
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "gas": "726756",
+      "localGas": "685681",
+      "feeWei": "597352733664000",
+      "quote": 1.469617,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0599039495042155,
+      "localGasAtSourcePriceQuote": 1.386557,
+      "gasPriceGwei": 0.821944,
+      "perTransactionRoundingDifferenceMicro": "0",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "238898",
+          "localGas": "212015",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "483090"
+        },
+        {
+          "action": "approve_recenter_mint_nvda",
+          "gas": "46932",
+          "localGas": "46549",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "94904"
+        },
+        {
+          "action": "recenter_mint",
+          "gas": "440926",
+          "localGas": "427117",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "891623"
+        }
+      ]
+    },
+    {
+      "name": "exit",
+      "sourceBlock": "59404884",
+      "sourceHash": "0xd7bc3217a2ea719e56a573707b92bd3d2fc38299ee0d48b890f91e574fd2fc9c",
+      "gas": "556288",
+      "localGas": "498783",
+      "feeWei": "457237583872000",
+      "quote": 1.124903,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1152906173626607,
+      "localGasAtSourcePriceQuote": 1.008619,
+      "gasPriceGwei": 0.821944,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "238898",
+          "localGas": "202837",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "483090"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "130397"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "164451",
+          "localGas": "154604",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "332547"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "83698"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.821944,
+          "parentGas": "0",
+          "quote": "95173"
+        }
+      ]
+    }
+  ],
+  "campaign": [
+    {
+      "id": "6",
+      "session": "5",
+      "action": "entry",
+      "sourceBlock": "57567392",
+      "sourceHash": "0x1f84d9342aa88fca995e9ba0fe6ad8a91ddc17bbbcd0d49126956422306489fa",
+      "observedAt": "2026-09-08T09:02:13.240Z",
+      "gas": "821044",
+      "localGas": "802544",
+      "feeWei": "210418798408000",
+      "quote": 0.520941,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230516956079667,
+      "localGasAtSourcePriceQuote": 0.509203,
+      "gasPriceGwei": 0.256282,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.256282,
+          "parentGas": "0",
+          "quote": "37309"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178832",
+          "localGas": "167574",
+          "gasPriceGwei": 0.256282,
+          "parentGas": "0",
+          "quote": "113467"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.256282,
+          "parentGas": "0",
+          "quote": "37309"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64472",
+          "localGas": "63637",
+          "gasPriceGwei": 0.256282,
+          "parentGas": "0",
+          "quote": "40907"
+        },
+        {
+          "action": "mint",
+          "gas": "460138",
+          "localGas": "455357",
+          "gasPriceGwei": 0.256282,
+          "parentGas": "0",
+          "quote": "291951"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "session": "5",
+      "action": "exit",
+      "sourceBlock": "57614886",
+      "sourceHash": "0xdcd28f244ec561b55a92845bb5aac9e8f0460d4647963338f78ccfa35a1cc893",
+      "observedAt": "2026-09-08T10:21:55.548Z",
+      "gas": "553026",
+      "localGas": "489697",
+      "feeWei": "139938805092000",
+      "quote": 0.348333,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1293228261557657,
+      "localGasAtSourcePriceQuote": 0.308444,
+      "gasPriceGwei": 0.253042,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236419",
+          "localGas": "200392",
+          "gasPriceGwei": 0.253042,
+          "parentGas": "0",
+          "quote": "148913"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64472",
+          "localGas": "63637",
+          "gasPriceGwei": 0.253042,
+          "parentGas": "0",
+          "quote": "40609"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163680",
+          "localGas": "147975",
+          "gasPriceGwei": 0.253042,
+          "parentGas": "0",
+          "quote": "103097"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.253042,
+          "parentGas": "0",
+          "quote": "26071"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.253042,
+          "parentGas": "0",
+          "quote": "29645"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "session": "6",
+      "action": "entry",
+      "sourceBlock": "57673343",
+      "sourceHash": "0x28a1eadc49e7c5693a221e23fd0a16b5667e4f28a1338dd931f2639c25bdf8bb",
+      "observedAt": "2026-09-08T12:00:25.370Z",
+      "gas": "824198",
+      "localGas": "805673",
+      "feeWei": "202747762812000",
+      "quote": 0.501934,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0229931994742283,
+      "localGasAtSourcePriceQuote": 0.490653,
+      "gasPriceGwei": 0.245994,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.245994,
+          "parentGas": "0",
+          "quote": "35810"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178827",
+          "localGas": "167569",
+          "gasPriceGwei": 0.245994,
+          "parentGas": "0",
+          "quote": "108906"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.245994,
+          "parentGas": "0",
+          "quote": "35810"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.245994,
+          "parentGas": "0",
+          "quote": "39271"
+        },
+        {
+          "action": "mint",
+          "gas": "463285",
+          "localGas": "458479",
+          "gasPriceGwei": 0.245994,
+          "parentGas": "0",
+          "quote": "282140"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "session": "6",
+      "action": "exit",
+      "sourceBlock": "57709256",
+      "sourceHash": "0x33fc3e3bd2df56c0599216e9f4e4b609795581894a12cc2c2c69b4802f5387be",
+      "observedAt": "2026-09-08T13:00:43.323Z",
+      "gas": "554462",
+      "localGas": "489721",
+      "feeWei": "134628918220000",
+      "quote": 0.333295,
+      "parentQuote": 0.000727,
+      "estimateVsLocalGas": 1.1321997627220397,
+      "localGasAtSourcePriceQuote": 0.294379,
+      "gasPriceGwei": 0.24281,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236775",
+          "localGas": "200392",
+          "gasPriceGwei": 0.24281,
+          "parentGas": "305",
+          "quote": "142329"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64704",
+          "localGas": "63649",
+          "gasPriceGwei": 0.24281,
+          "parentGas": "190",
+          "quote": "38895"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "164085",
+          "localGas": "147987",
+          "gasPriceGwei": 0.24281,
+          "parentGas": "333",
+          "quote": "98634"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41612",
+          "localGas": "36040",
+          "gasPriceGwei": 0.24281,
+          "parentGas": "190",
+          "quote": "25014"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47286",
+          "localGas": "41653",
+          "gasPriceGwei": 0.24281,
+          "parentGas": "190",
+          "quote": "28425"
+        }
+      ]
+    },
+    {
+      "id": "12",
+      "session": "7",
+      "action": "entry",
+      "sourceBlock": "57716555",
+      "sourceHash": "0x4220951e1cd3e473019d3ae3c0612e8e8678a0137b46e31d840e7f7198d469b3",
+      "observedAt": "2026-09-08T13:13:03.182Z",
+      "gas": "821070",
+      "localGas": "802569",
+      "feeWei": "197595421920000",
+      "quote": 0.489179,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230522235471342,
+      "localGasAtSourcePriceQuote": 0.478156,
+      "gasPriceGwei": 0.240656,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.240656,
+          "parentGas": "0",
+          "quote": "35033"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178795",
+          "localGas": "167537",
+          "gasPriceGwei": 0.240656,
+          "parentGas": "0",
+          "quote": "106523"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.240656,
+          "parentGas": "0",
+          "quote": "35033"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.240656,
+          "parentGas": "0",
+          "quote": "38419"
+        },
+        {
+          "action": "mint",
+          "gas": "460189",
+          "localGas": "455407",
+          "gasPriceGwei": 0.240656,
+          "parentGas": "0",
+          "quote": "274173"
+        }
+      ]
+    },
+    {
+      "id": "13",
+      "session": "7",
+      "action": "exit",
+      "sourceBlock": "57730617",
+      "sourceHash": "0xd1413baf8ad7117c3f348df42b32b091a3deb99f6fd9d20e5c1363318cd13fcf",
+      "observedAt": "2026-09-08T13:36:41.630Z",
+      "gas": "553134",
+      "localGas": "489802",
+      "feeWei": "133188029592000",
+      "quote": 0.327805,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1293012278430876,
+      "localGasAtSourcePriceQuote": 0.290272,
+      "gasPriceGwei": 0.240788,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236459",
+          "localGas": "200431",
+          "gasPriceGwei": 0.240788,
+          "parentGas": "0",
+          "quote": "140133"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.240788,
+          "parentGas": "0",
+          "quote": "38216"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163736",
+          "localGas": "148029",
+          "gasPriceGwei": 0.240788,
+          "parentGas": "0",
+          "quote": "97035"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.240788,
+          "parentGas": "0",
+          "quote": "24529"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.240788,
+          "parentGas": "0",
+          "quote": "27893"
+        }
+      ]
+    },
+    {
+      "id": "17",
+      "session": "8",
+      "action": "entry",
+      "sourceBlock": "57759875",
+      "sourceHash": "0xea7d4b1ded300b2610571286f4c842d36fc4f54380017a76b911b5a464088bf4",
+      "observedAt": "2026-09-08T14:25:57.293Z",
+      "gas": "857193",
+      "localGas": "837848",
+      "feeWei": "208171034436000",
+      "quote": 0.516032,
+      "parentQuote": 0.000286,
+      "estimateVsLocalGas": 1.0230889135022103,
+      "localGasAtSourcePriceQuote": 0.504386,
+      "gasPriceGwei": 0.242852,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58884",
+          "localGas": "57988",
+          "gasPriceGwei": 0.242852,
+          "parentGas": "73",
+          "quote": "35449"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "180077",
+          "localGas": "168644",
+          "gasPriceGwei": 0.242852,
+          "parentGas": "128",
+          "quote": "108407"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58884",
+          "localGas": "57988",
+          "gasPriceGwei": 0.242852,
+          "parentGas": "73",
+          "quote": "35449"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64568",
+          "localGas": "63649",
+          "gasPriceGwei": 0.242852,
+          "parentGas": "73",
+          "quote": "38871"
+        },
+        {
+          "action": "mint",
+          "gas": "494780",
+          "localGas": "489579",
+          "gasPriceGwei": 0.242852,
+          "parentGas": "128",
+          "quote": "297859"
+        }
+      ]
+    },
+    {
+      "id": "18",
+      "session": "8",
+      "action": "exit",
+      "sourceBlock": "57786631",
+      "sourceHash": "0x40f384b744278e7245d17f7869ccbc1eec86bab3dcea8d047679d1948b11773b",
+      "observedAt": "2026-09-08T15:10:57.610Z",
+      "gas": "553105",
+      "localGas": "489774",
+      "feeWei": "136491933270000",
+      "quote": 0.338348,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1293065781360383,
+      "localGasAtSourcePriceQuote": 0.299607,
+      "gasPriceGwei": 0.246774,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236444",
+          "localGas": "200417",
+          "gasPriceGwei": 0.246774,
+          "parentGas": "0",
+          "quote": "144639"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.246774,
+          "parentGas": "0",
+          "quote": "39447"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163722",
+          "localGas": "148015",
+          "gasPriceGwei": 0.246774,
+          "parentGas": "0",
+          "quote": "100153"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.246774,
+          "parentGas": "0",
+          "quote": "25320"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.246774,
+          "parentGas": "0",
+          "quote": "28791"
+        }
+      ]
+    },
+    {
+      "id": "21",
+      "session": "9",
+      "action": "entry",
+      "sourceBlock": "57794503",
+      "sourceHash": "0x817f45b5a314987290530c2c880c07d72c6a357941ba536d1593e2d71ac11ac6",
+      "observedAt": "2026-09-08T15:24:05.246Z",
+      "gas": "813300",
+      "localGas": "802628",
+      "feeWei": "195200133000000",
+      "quote": 0.483878,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.013296321583598,
+      "localGasAtSourcePriceQuote": 0.477529,
+      "gasPriceGwei": 0.24001,
+      "perTransactionRoundingDifferenceMicro": "4",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.24001,
+          "parentGas": "0",
+          "quote": "34985"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178911",
+          "localGas": "167652",
+          "gasPriceGwei": 0.24001,
+          "parentGas": "0",
+          "quote": "106445"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.24001,
+          "parentGas": "0",
+          "quote": "34985"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.24001,
+          "parentGas": "0",
+          "quote": "38366"
+        },
+        {
+          "action": "mint",
+          "gas": "452303",
+          "localGas": "455351",
+          "gasPriceGwei": 0.24001,
+          "parentGas": "0",
+          "quote": "269101"
+        }
+      ]
+    },
+    {
+      "id": "22",
+      "session": "9",
+      "action": "exit",
+      "sourceBlock": "57800008",
+      "sourceHash": "0x91b7248a8eda38c8a1802b426892fcc5f492a4c28d5e608be9ea0d164b418092",
+      "observedAt": "2026-09-08T15:33:18.666Z",
+      "gas": "562178",
+      "localGas": "494235",
+      "feeWei": "133780374304000",
+      "quote": 0.331632,
+      "parentQuote": 0.000114,
+      "estimateVsLocalGas": 1.1374710411039284,
+      "localGasAtSourcePriceQuote": 0.291552,
+      "gasPriceGwei": 0.237968,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245326",
+          "localGas": "204852",
+          "gasPriceGwei": 0.237968,
+          "parentGas": "50",
+          "quote": "144719"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64519",
+          "localGas": "63649",
+          "gasPriceGwei": 0.237968,
+          "parentGas": "30",
+          "quote": "38061"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163809",
+          "localGas": "148041",
+          "gasPriceGwei": 0.237968,
+          "parentGas": "52",
+          "quote": "96632"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41425",
+          "localGas": "36040",
+          "gasPriceGwei": 0.237968,
+          "parentGas": "30",
+          "quote": "24437"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47099",
+          "localGas": "41653",
+          "gasPriceGwei": 0.237968,
+          "parentGas": "30",
+          "quote": "27784"
+        }
+      ]
+    },
+    {
+      "id": "25",
+      "session": "10",
+      "action": "entry",
+      "sourceBlock": "57807932",
+      "sourceHash": "0xde6d976750869dff51be55efb27d2dd23ea839158db802280783e1970d50375c",
+      "observedAt": "2026-09-08T15:46:50.360Z",
+      "gas": "825152",
+      "localGas": "803621",
+      "feeWei": "198275774080000",
+      "quote": 0.494403,
+      "parentQuote": 0.001555,
+      "estimateVsLocalGas": 1.0267924805349786,
+      "localGasAtSourcePriceQuote": 0.481502,
+      "gasPriceGwei": 0.24029,
+      "perTransactionRoundingDifferenceMicro": "0",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "59259",
+          "localGas": "57988",
+          "gasPriceGwei": 0.24029,
+          "parentGas": "398",
+          "quote": "35506"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "180744",
+          "localGas": "168645",
+          "gasPriceGwei": 0.24029,
+          "parentGas": "695",
+          "quote": "108296"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "59259",
+          "localGas": "57988",
+          "gasPriceGwei": 0.24029,
+          "parentGas": "398",
+          "quote": "35506"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64942",
+          "localGas": "63649",
+          "gasPriceGwei": 0.24029,
+          "parentGas": "398",
+          "quote": "38911"
+        },
+        {
+          "action": "mint",
+          "gas": "460948",
+          "localGas": "455351",
+          "gasPriceGwei": 0.24029,
+          "parentGas": "706",
+          "quote": "276184"
+        }
+      ]
+    },
+    {
+      "id": "26",
+      "session": "10",
+      "action": "exit",
+      "sourceBlock": "57810366",
+      "sourceHash": "0x45e934a0752a2bef12de3f8944f9af49421c2e67c3b68cf599106e59384db319",
+      "observedAt": "2026-09-08T15:50:47.633Z",
+      "gas": "556051",
+      "localGas": "489724",
+      "feeWei": "131551657682000",
+      "quote": 0.328025,
+      "parentQuote": 0.001523,
+      "estimateVsLocalGas": 1.1354375117413074,
+      "localGasAtSourcePriceQuote": 0.288898,
+      "gasPriceGwei": 0.236582,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "237190",
+          "localGas": "200403",
+          "gasPriceGwei": 0.236582,
+          "parentGas": "656",
+          "quote": "139923"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64949",
+          "localGas": "63649",
+          "gasPriceGwei": 0.236582,
+          "parentGas": "404",
+          "quote": "38315"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "164520",
+          "localGas": "147979",
+          "gasPriceGwei": 0.236582,
+          "parentGas": "713",
+          "quote": "97054"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41859",
+          "localGas": "36040",
+          "gasPriceGwei": 0.236582,
+          "parentGas": "404",
+          "quote": "24694"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47533",
+          "localGas": "41653",
+          "gasPriceGwei": 0.236582,
+          "parentGas": "404",
+          "quote": "28041"
+        }
+      ]
+    },
+    {
+      "id": "30",
+      "session": "11",
+      "action": "entry",
+      "sourceBlock": "57818902",
+      "sourceHash": "0x322e6d4b49422b264811c169bbb56f1f745eabd44100d9c905df233174b81376",
+      "observedAt": "2026-09-08T16:05:04.248Z",
+      "gas": "836350",
+      "localGas": "803671",
+      "feeWei": "201570386200000",
+      "quote": 0.502618,
+      "parentQuote": 0.007348,
+      "estimateVsLocalGas": 1.0406621615063876,
+      "localGasAtSourcePriceQuote": 0.482979,
+      "gasPriceGwei": 0.241012,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "60948",
+          "localGas": "57988",
+          "gasPriceGwei": 0.241012,
+          "parentGas": "1866",
+          "quote": "36628"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "183658",
+          "localGas": "168527",
+          "gasPriceGwei": 0.241012,
+          "parentGas": "3283",
+          "quote": "110373"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "60948",
+          "localGas": "57988",
+          "gasPriceGwei": 0.241012,
+          "parentGas": "1866",
+          "quote": "36628"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "66632",
+          "localGas": "63649",
+          "gasPriceGwei": 0.241012,
+          "parentGas": "1866",
+          "quote": "40044"
+        },
+        {
+          "action": "mint",
+          "gas": "464164",
+          "localGas": "455519",
+          "gasPriceGwei": 0.241012,
+          "parentGas": "3345",
+          "quote": "278947"
+        }
+      ]
+    },
+    {
+      "id": "31",
+      "session": "11",
+      "action": "exit",
+      "sourceBlock": "57826827",
+      "sourceHash": "0x626592867d04cd6f30f1ee23793a6dfbd27160eef3351c9131c7e020df1a9f1d",
+      "observedAt": "2026-09-08T16:18:32.402Z",
+      "gas": "563260",
+      "localGas": "513115",
+      "feeWei": "133554578600000",
+      "quote": 0.33302,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977266304824456,
+      "localGasAtSourcePriceQuote": 0.303372,
+      "gasPriceGwei": 0.23711,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246554",
+          "localGas": "223714",
+          "gasPriceGwei": 0.23711,
+          "parentGas": "0",
+          "quote": "145772"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.23711,
+          "parentGas": "0",
+          "quote": "38126"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163767",
+          "localGas": "148059",
+          "gasPriceGwei": 0.23711,
+          "parentGas": "0",
+          "quote": "96825"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.23711,
+          "parentGas": "0",
+          "quote": "24472"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.23711,
+          "parentGas": "0",
+          "quote": "27827"
+        }
+      ]
+    },
+    {
+      "id": "33",
+      "session": "12",
+      "action": "entry",
+      "sourceBlock": "57834135",
+      "sourceHash": "0x7cb0526e60e3991aa71119146698927da54981d0f2815598872f1527cc7e4d48",
+      "observedAt": "2026-09-08T16:30:43.311Z",
+      "gas": "822178",
+      "localGas": "803653",
+      "feeWei": "193986321676000",
+      "quote": 0.483707,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023050993401381,
+      "localGasAtSourcePriceQuote": 0.472808,
+      "gasPriceGwei": 0.235942,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.235942,
+          "parentGas": "0",
+          "quote": "34594"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179885",
+          "localGas": "168603",
+          "gasPriceGwei": 0.235942,
+          "parentGas": "0",
+          "quote": "105831"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.235942,
+          "parentGas": "0",
+          "quote": "34594"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.235942,
+          "parentGas": "0",
+          "quote": "37938"
+        },
+        {
+          "action": "mint",
+          "gas": "460207",
+          "localGas": "455425",
+          "gasPriceGwei": 0.235942,
+          "parentGas": "0",
+          "quote": "270751"
+        }
+      ]
+    },
+    {
+      "id": "34",
+      "session": "12",
+      "action": "exit",
+      "sourceBlock": "57902343",
+      "sourceHash": "0x2aa116fb48d38656c47422899e1afdce6d1bed3fc63e359adc8cdb0b01df3005",
+      "observedAt": "2026-09-08T18:25:14.495Z",
+      "gas": "562148",
+      "localGas": "512029",
+      "feeWei": "135329260928000",
+      "quote": 0.337445,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0978831277134693,
+      "localGasAtSourcePriceQuote": 0.30736,
+      "gasPriceGwei": 0.240736,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246511",
+          "localGas": "223672",
+          "gasPriceGwei": 0.240736,
+          "parentGas": "0",
+          "quote": "147975"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.240736,
+          "parentGas": "0",
+          "quote": "38709"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162698",
+          "localGas": "147015",
+          "gasPriceGwei": 0.240736,
+          "parentGas": "0",
+          "quote": "97664"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.240736,
+          "parentGas": "0",
+          "quote": "24846"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.240736,
+          "parentGas": "0",
+          "quote": "28253"
+        }
+      ]
+    },
+    {
+      "id": "36",
+      "session": "13",
+      "action": "entry",
+      "sourceBlock": "57909613",
+      "sourceHash": "0xdbf61d1fc485ac0235c4619b01cee6f45b2419eb0148c52fcf3588b8d0e23b30",
+      "observedAt": "2026-09-08T18:37:37.356Z",
+      "gas": "825302",
+      "localGas": "806753",
+      "feeWei": "196999587400000",
+      "quote": 0.49122,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0229921673672115,
+      "localGasAtSourcePriceQuote": 0.48018,
+      "gasPriceGwei": 0.2387,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.2387,
+          "parentGas": "0",
+          "quote": "34999"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179875",
+          "localGas": "168593",
+          "gasPriceGwei": 0.2387,
+          "parentGas": "0",
+          "quote": "107062"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.2387,
+          "parentGas": "0",
+          "quote": "34999"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.2387,
+          "parentGas": "0",
+          "quote": "38381"
+        },
+        {
+          "action": "mint",
+          "gas": "463341",
+          "localGas": "458535",
+          "gasPriceGwei": 0.2387,
+          "parentGas": "0",
+          "quote": "275781"
+        }
+      ]
+    },
+    {
+      "id": "38",
+      "session": "13",
+      "action": "exit",
+      "sourceBlock": "57921181",
+      "sourceHash": "0x8dc551554d5f72fbc9a2b0092106ca59e43540b7eb37071804b1e28c4e0483be",
+      "observedAt": "2026-09-08T18:57:15.683Z",
+      "gas": "562148",
+      "localGas": "512029",
+      "feeWei": "134007088832000",
+      "quote": 0.332189,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0978831277134693,
+      "localGasAtSourcePriceQuote": 0.302573,
+      "gasPriceGwei": 0.238384,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246511",
+          "localGas": "223672",
+          "gasPriceGwei": 0.238384,
+          "parentGas": "0",
+          "quote": "145671"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.238384,
+          "parentGas": "0",
+          "quote": "38106"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162698",
+          "localGas": "147015",
+          "gasPriceGwei": 0.238384,
+          "parentGas": "0",
+          "quote": "96143"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.238384,
+          "parentGas": "0",
+          "quote": "24459"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.238384,
+          "parentGas": "0",
+          "quote": "27813"
+        }
+      ]
+    },
+    {
+      "id": "40",
+      "session": "14",
+      "action": "entry",
+      "sourceBlock": "57928460",
+      "sourceHash": "0x5b7c75e5a82ef1f4d1e09de920e46d7ca15bdba1345f31e9828eabe21fff63d0",
+      "observedAt": "2026-09-08T19:09:22.364Z",
+      "gas": "822180",
+      "localGas": "803655",
+      "feeWei": "194133141600000",
+      "quote": 0.483681,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230509360359856,
+      "localGasAtSourcePriceQuote": 0.472783,
+      "gasPriceGwei": 0.23612,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.23612,
+          "parentGas": "0",
+          "quote": "34593"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179859",
+          "localGas": "168577",
+          "gasPriceGwei": 0.23612,
+          "parentGas": "0",
+          "quote": "105810"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.23612,
+          "parentGas": "0",
+          "quote": "34593"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.23612,
+          "parentGas": "0",
+          "quote": "37936"
+        },
+        {
+          "action": "mint",
+          "gas": "460235",
+          "localGas": "455453",
+          "gasPriceGwei": 0.23612,
+          "parentGas": "0",
+          "quote": "270752"
+        }
+      ]
+    },
+    {
+      "id": "41",
+      "session": "14",
+      "action": "exit",
+      "sourceBlock": "57934599",
+      "sourceHash": "0xa9144026a193a22183a89518dea30ce4565128a7f9b10d0e232eaacbd7c3f316",
+      "observedAt": "2026-09-08T19:19:26.754Z",
+      "gas": "562024",
+      "localGas": "494303",
+      "feeWei": "132882706464000",
+      "quote": 0.331076,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1370030123224015,
+      "localGasAtSourcePriceQuote": 0.291183,
+      "gasPriceGwei": 0.236436,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245325",
+          "localGas": "204908",
+          "gasPriceGwei": 0.236436,
+          "parentGas": "0",
+          "quote": "144516"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.236436,
+          "parentGas": "0",
+          "quote": "37987"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163760",
+          "localGas": "148053",
+          "gasPriceGwei": 0.236436,
+          "parentGas": "0",
+          "quote": "96468"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.236436,
+          "parentGas": "0",
+          "quote": "24382"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.236436,
+          "parentGas": "0",
+          "quote": "27725"
+        }
+      ]
+    },
+    {
+      "id": "43",
+      "session": "15",
+      "action": "entry",
+      "sourceBlock": "57941917",
+      "sourceHash": "0x0daff6b8b1b76714609f9f6a9ca1ff7e158fc8a8458667b061b24aee4128ff3c",
+      "observedAt": "2026-09-08T19:31:55.391Z",
+      "gas": "808136",
+      "localGas": "789722",
+      "feeWei": "196915266576000",
+      "quote": 0.490613,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0233170660055058,
+      "localGasAtSourcePriceQuote": 0.479434,
+      "gasPriceGwei": 0.243666,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.243666,
+          "parentGas": "0",
+          "quote": "35698"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179878",
+          "localGas": "168596",
+          "gasPriceGwei": 0.243666,
+          "parentGas": "0",
+          "quote": "109203"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.243666,
+          "parentGas": "0",
+          "quote": "35698"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.243666,
+          "parentGas": "0",
+          "quote": "39148"
+        },
+        {
+          "action": "mint",
+          "gas": "446172",
+          "localGas": "441501",
+          "gasPriceGwei": 0.243666,
+          "parentGas": "0",
+          "quote": "270868"
+        }
+      ]
+    },
+    {
+      "id": "44",
+      "session": "15",
+      "action": "exit",
+      "sourceBlock": "57946771",
+      "sourceHash": "0xede0dd5cbe66644c58b0967c1b7861cd3eeb64b916a44865c7773525d2358335",
+      "observedAt": "2026-09-08T19:40:04.900Z",
+      "gas": "563235",
+      "localGas": "513091",
+      "feeWei": "137322325350000",
+      "quote": 0.342138,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977292527056604,
+      "localGasAtSourcePriceQuote": 0.311678,
+      "gasPriceGwei": 0.24381,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246540",
+          "localGas": "223700",
+          "gasPriceGwei": 0.24381,
+          "parentGas": "0",
+          "quote": "149761"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.24381,
+          "parentGas": "0",
+          "quote": "39171"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163756",
+          "localGas": "148049",
+          "gasPriceGwei": 0.24381,
+          "parentGas": "0",
+          "quote": "99474"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.24381,
+          "parentGas": "0",
+          "quote": "25143"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.24381,
+          "parentGas": "0",
+          "quote": "28590"
+        }
+      ]
+    },
+    {
+      "id": "46",
+      "session": "16",
+      "action": "entry",
+      "sourceBlock": "57955331",
+      "sourceHash": "0x0e8582b4ca45b8926209e4dca432b1e23bef9c8a737c4d81a428779019661cd8",
+      "observedAt": "2026-09-08T19:54:36.271Z",
+      "gas": "808136",
+      "localGas": "789722",
+      "feeWei": "193212387424000",
+      "quote": 0.478719,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0233170660055058,
+      "localGasAtSourcePriceQuote": 0.467811,
+      "gasPriceGwei": 0.239084,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239084,
+          "parentGas": "0",
+          "quote": "34833"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179888",
+          "localGas": "168606",
+          "gasPriceGwei": 0.239084,
+          "parentGas": "0",
+          "quote": "106562"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239084,
+          "parentGas": "0",
+          "quote": "34833"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.239084,
+          "parentGas": "0",
+          "quote": "38199"
+        },
+        {
+          "action": "mint",
+          "gas": "446162",
+          "localGas": "441491",
+          "gasPriceGwei": 0.239084,
+          "parentGas": "0",
+          "quote": "264295"
+        }
+      ]
+    },
+    {
+      "id": "47",
+      "session": "16",
+      "action": "exit",
+      "sourceBlock": "57956578",
+      "sourceHash": "0x98479e12fddaa2828dbaee69368cbdd27a28142d1d6fd6a1f8b8cc6214d0d9e4",
+      "observedAt": "2026-09-08T19:56:26.737Z",
+      "gas": "563280",
+      "localGas": "513135",
+      "feeWei": "135623178720000",
+      "quote": 0.336032,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977228214797277,
+      "localGasAtSourcePriceQuote": 0.306117,
+      "gasPriceGwei": 0.240774,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246540",
+          "localGas": "223700",
+          "gasPriceGwei": 0.240774,
+          "parentGas": "0",
+          "quote": "147077"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.240774,
+          "parentGas": "0",
+          "quote": "38469"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163801",
+          "localGas": "148093",
+          "gasPriceGwei": 0.240774,
+          "parentGas": "0",
+          "quote": "97718"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.240774,
+          "parentGas": "0",
+          "quote": "24692"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.240774,
+          "parentGas": "0",
+          "quote": "28078"
+        }
+      ]
+    },
+    {
+      "id": "51",
+      "session": "17",
+      "action": "entry",
+      "sourceBlock": "57965092",
+      "sourceHash": "0xba6a54cd3d357d2e50945d0a1b15fb08569fed2e6cc4ecaa57b172dfaf7b01c0",
+      "observedAt": "2026-09-08T20:10:59.311Z",
+      "gas": "822214",
+      "localGas": "803688",
+      "feeWei": "197242560888000",
+      "quote": 0.488705,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023051233812126,
+      "localGasAtSourcePriceQuote": 0.477693,
+      "gasPriceGwei": 0.239892,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239892,
+          "parentGas": "0",
+          "quote": "34950"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179893",
+          "localGas": "168610",
+          "gasPriceGwei": 0.239892,
+          "parentGas": "0",
+          "quote": "106925"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239892,
+          "parentGas": "0",
+          "quote": "34950"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.239892,
+          "parentGas": "0",
+          "quote": "38328"
+        },
+        {
+          "action": "mint",
+          "gas": "460235",
+          "localGas": "455453",
+          "gasPriceGwei": 0.239892,
+          "parentGas": "0",
+          "quote": "273553"
+        }
+      ]
+    },
+    {
+      "id": "52",
+      "session": "17",
+      "action": "exit",
+      "sourceBlock": "57974236",
+      "sourceHash": "0x38cedc411d3e41c5d2ee9c3202d1cc51854225f301d529a51fd7884a47f54e54",
+      "observedAt": "2026-09-08T20:26:15.689Z",
+      "gas": "560968",
+      "localGas": "493271",
+      "feeWei": "134613247088000",
+      "quote": 0.335296,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.137240989233099,
+      "localGasAtSourcePriceQuote": 0.294833,
+      "gasPriceGwei": 0.239966,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245325",
+          "localGas": "204908",
+          "gasPriceGwei": 0.239966,
+          "parentGas": "0",
+          "quote": "146634"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.239966,
+          "parentGas": "0",
+          "quote": "38543"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162704",
+          "localGas": "147021",
+          "gasPriceGwei": 0.239966,
+          "parentGas": "0",
+          "quote": "97250"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.239966,
+          "parentGas": "0",
+          "quote": "24740"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.239966,
+          "parentGas": "0",
+          "quote": "28132"
+        }
+      ]
+    },
+    {
+      "id": "54",
+      "session": "18",
+      "action": "entry",
+      "sourceBlock": "57981564",
+      "sourceHash": "0x40ed7c4033d06bcb5d591cffc0a61aed87fa01abd042442c27a281429f8b0978",
+      "observedAt": "2026-09-08T20:38:42.301Z",
+      "gas": "822190",
+      "localGas": "803665",
+      "feeWei": "196822419720000",
+      "quote": 0.490247,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230506492132916,
+      "localGasAtSourcePriceQuote": 0.479201,
+      "gasPriceGwei": 0.239388,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239388,
+          "parentGas": "0",
+          "quote": "35062"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179859",
+          "localGas": "168577",
+          "gasPriceGwei": 0.239388,
+          "parentGas": "0",
+          "quote": "107245"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.239388,
+          "parentGas": "0",
+          "quote": "35062"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.239388,
+          "parentGas": "0",
+          "quote": "38450"
+        },
+        {
+          "action": "mint",
+          "gas": "460245",
+          "localGas": "455463",
+          "gasPriceGwei": 0.239388,
+          "parentGas": "0",
+          "quote": "274431"
+        }
+      ]
+    },
+    {
+      "id": "55",
+      "session": "18",
+      "action": "exit",
+      "sourceBlock": "58014440",
+      "sourceHash": "0xdb9e85b35331bd3038f2a776ba3d3039e0d65bac5f6416b50c9bec08463babf2",
+      "observedAt": "2026-09-08T21:33:56.686Z",
+      "gas": "562031",
+      "localGas": "494309",
+      "feeWei": "134014043826000",
+      "quote": 0.333804,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1370033723844801,
+      "localGasAtSourcePriceQuote": 0.293582,
+      "gasPriceGwei": 0.238446,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245325",
+          "localGas": "204908",
+          "gasPriceGwei": 0.238446,
+          "parentGas": "0",
+          "quote": "145705"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.238446,
+          "parentGas": "0",
+          "quote": "38299"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163767",
+          "localGas": "148059",
+          "gasPriceGwei": 0.238446,
+          "parentGas": "0",
+          "quote": "97266"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.238446,
+          "parentGas": "0",
+          "quote": "24583"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.238446,
+          "parentGas": "0",
+          "quote": "27953"
+        }
+      ]
+    },
+    {
+      "id": "57",
+      "session": "19",
+      "action": "entry",
+      "sourceBlock": "58021759",
+      "sourceHash": "0xd2021ba3246d5106f3f73384d18dcb43c71723a031440ab704c3014040caf40e",
+      "observedAt": "2026-09-08T21:46:18.206Z",
+      "gas": "822232",
+      "localGas": "803707",
+      "feeWei": "752702417616000",
+      "quote": 1.874838,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230494446359184,
+      "localGasAtSourcePriceQuote": 1.832597,
+      "gasPriceGwei": 0.915438,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.915438,
+          "parentGas": "0",
+          "quote": "134077"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179883",
+          "localGas": "168601",
+          "gasPriceGwei": 0.915438,
+          "parentGas": "0",
+          "quote": "410166"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.915438,
+          "parentGas": "0",
+          "quote": "134077"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.915438,
+          "parentGas": "0",
+          "quote": "147036"
+        },
+        {
+          "action": "mint",
+          "gas": "460263",
+          "localGas": "455481",
+          "gasPriceGwei": 0.915438,
+          "parentGas": "0",
+          "quote": "1049483"
+        }
+      ]
+    },
+    {
+      "id": "58",
+      "session": "19",
+      "action": "exit",
+      "sourceBlock": "58101486",
+      "sourceHash": "0xd1d0935fb73cb15895a081d2621da6647f6273a40c5d0a6ca891039e192c2a25",
+      "observedAt": "2026-09-09T00:00:17.597Z",
+      "gas": "561003",
+      "localGas": "502483",
+      "feeWei": "128048934750000",
+      "quote": 0.318946,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1164616514389543,
+      "localGasAtSourcePriceQuote": 0.285676,
+      "gasPriceGwei": 0.22825,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245340",
+          "localGas": "214100",
+          "gasPriceGwei": 0.22825,
+          "parentGas": "0",
+          "quote": "139483"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.22825,
+          "parentGas": "0",
+          "quote": "36661"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162724",
+          "localGas": "147041",
+          "gasPriceGwei": 0.22825,
+          "parentGas": "0",
+          "quote": "92513"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.22825,
+          "parentGas": "0",
+          "quote": "23532"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.22825,
+          "parentGas": "0",
+          "quote": "26758"
+        }
+      ]
+    },
+    {
+      "id": "60",
+      "session": "20",
+      "action": "entry",
+      "sourceBlock": "58108777",
+      "sourceHash": "0x4ce3564d9a9d85580312b938ad84354f5d4a81e5cbf40620b93441fdfae7518a",
+      "observedAt": "2026-09-09T00:12:30.284Z",
+      "gas": "825950",
+      "localGas": "806781",
+      "feeWei": "191017456500000",
+      "quote": 0.475788,
+      "parentQuote": 0.000309,
+      "estimateVsLocalGas": 1.0237598555246095,
+      "localGasAtSourcePriceQuote": 0.464746,
+      "gasPriceGwei": 0.23127,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58895",
+          "localGas": "57988",
+          "gasPriceGwei": 0.23127,
+          "parentGas": "82",
+          "quote": "33927"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "180044",
+          "localGas": "168593",
+          "gasPriceGwei": 0.23127,
+          "parentGas": "144",
+          "quote": "103715"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58895",
+          "localGas": "57988",
+          "gasPriceGwei": 0.23127,
+          "parentGas": "82",
+          "quote": "33927"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64579",
+          "localGas": "63649",
+          "gasPriceGwei": 0.23127,
+          "parentGas": "82",
+          "quote": "37201"
+        },
+        {
+          "action": "mint",
+          "gas": "463537",
+          "localGas": "458563",
+          "gasPriceGwei": 0.23127,
+          "parentGas": "145",
+          "quote": "267021"
+        }
+      ]
+    },
+    {
+      "id": "61",
+      "session": "20",
+      "action": "exit",
+      "sourceBlock": "58130150",
+      "sourceHash": "0x604ff0204e77ec49e846193185abd76157ea50ecb1f4c1be6f85acff0ecb7488",
+      "observedAt": "2026-09-09T00:48:25.095Z",
+      "gas": "563220",
+      "localGas": "513077",
+      "feeWei": "129957382800000",
+      "quote": 0.323699,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977299703553267,
+      "localGasAtSourcePriceQuote": 0.294881,
+      "gasPriceGwei": 0.23074,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246525",
+          "localGas": "223686",
+          "gasPriceGwei": 0.23074,
+          "parentGas": "0",
+          "quote": "141686"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.23074,
+          "parentGas": "0",
+          "quote": "37061"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163756",
+          "localGas": "148049",
+          "gasPriceGwei": 0.23074,
+          "parentGas": "0",
+          "quote": "94116"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.23074,
+          "parentGas": "0",
+          "quote": "23789"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.23074,
+          "parentGas": "0",
+          "quote": "27050"
+        }
+      ]
+    },
+    {
+      "id": "64",
+      "session": "21",
+      "action": "entry",
+      "sourceBlock": "58138069",
+      "sourceHash": "0xa8e2d83880649102651e37bab31feb2b4d6bdb2ba1c11d8ea2b4c028493aaca4",
+      "observedAt": "2026-09-09T01:01:43.264Z",
+      "gas": "822487",
+      "localGas": "803648",
+      "feeWei": "186910170750000",
+      "quote": 0.465558,
+      "parentQuote": 0.000153,
+      "estimateVsLocalGas": 1.023441855140559,
+      "localGasAtSourcePriceQuote": 0.454894,
+      "gasPriceGwei": 0.22725,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58849",
+          "localGas": "57988",
+          "gasPriceGwei": 0.22725,
+          "parentGas": "41",
+          "quote": "33311"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179978",
+          "localGas": "168610",
+          "gasPriceGwei": 0.22725,
+          "parentGas": "73",
+          "quote": "101875"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58849",
+          "localGas": "57988",
+          "gasPriceGwei": 0.22725,
+          "parentGas": "41",
+          "quote": "33311"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64533",
+          "localGas": "63649",
+          "gasPriceGwei": 0.22725,
+          "parentGas": "41",
+          "quote": "36529"
+        },
+        {
+          "action": "mint",
+          "gas": "460278",
+          "localGas": "455413",
+          "gasPriceGwei": 0.22725,
+          "parentGas": "73",
+          "quote": "260534"
+        }
+      ]
+    },
+    {
+      "id": "65",
+      "session": "21",
+      "action": "exit",
+      "sourceBlock": "58183224",
+      "sourceHash": "0x17366f1ac6280c1f59442fa9a175dff47ef229c9336b55eea0fba9451c04ba7d",
+      "observedAt": "2026-09-09T02:17:36.014Z",
+      "gas": "562031",
+      "localGas": "503487",
+      "feeWei": "126264760398000",
+      "quote": 0.314502,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1162770836188423,
+      "localGasAtSourcePriceQuote": 0.281742,
+      "gasPriceGwei": 0.224658,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245311",
+          "localGas": "214072",
+          "gasPriceGwei": 0.224658,
+          "parentGas": "0",
+          "quote": "137272"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.224658,
+          "parentGas": "0",
+          "quote": "36084"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163781",
+          "localGas": "148073",
+          "gasPriceGwei": 0.224658,
+          "parentGas": "0",
+          "quote": "91649"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.224658,
+          "parentGas": "0",
+          "quote": "23162"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.224658,
+          "parentGas": "0",
+          "quote": "26337"
+        }
+      ]
+    },
+    {
+      "id": "67",
+      "session": "22",
+      "action": "entry",
+      "sourceBlock": "58190572",
+      "sourceHash": "0x549709cda978ff6c867baced319a334f71cd11045440cdba3a05039ee327771e",
+      "observedAt": "2026-09-09T02:30:03.272Z",
+      "gas": "822427",
+      "localGas": "803647",
+      "feeWei": "181322125544000",
+      "quote": 0.451639,
+      "parentQuote": 0.000126,
+      "estimateVsLocalGas": 1.0233684689919829,
+      "localGasAtSourcePriceQuote": 0.441326,
+      "gasPriceGwei": 0.220472,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58840",
+          "localGas": "57988",
+          "gasPriceGwei": 0.220472,
+          "parentGas": "35",
+          "quote": "32313"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179937",
+          "localGas": "168587",
+          "gasPriceGwei": 0.220472,
+          "parentGas": "61",
+          "quote": "98814"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58840",
+          "localGas": "57988",
+          "gasPriceGwei": 0.220472,
+          "parentGas": "35",
+          "quote": "32313"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64524",
+          "localGas": "63649",
+          "gasPriceGwei": 0.220472,
+          "parentGas": "35",
+          "quote": "35434"
+        },
+        {
+          "action": "mint",
+          "gas": "460286",
+          "localGas": "455435",
+          "gasPriceGwei": 0.220472,
+          "parentGas": "63",
+          "quote": "252768"
+        }
+      ]
+    },
+    {
+      "id": "68",
+      "session": "22",
+      "action": "exit",
+      "sourceBlock": "58201553",
+      "sourceHash": "0xc464cf8f80fb3573a658f80f7699e49c6ee31c9099668f4c78615ff8d99b12ae",
+      "observedAt": "2026-09-09T02:48:29.804Z",
+      "gas": "562501",
+      "localGas": "503457",
+      "feeWei": "123331719256000",
+      "quote": 0.307196,
+      "parentQuote": 0.00024,
+      "estimateVsLocalGas": 1.117277145813843,
+      "localGasAtSourcePriceQuote": 0.274951,
+      "gasPriceGwei": 0.219256,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245440",
+          "localGas": "214072",
+          "gasPriceGwei": 0.219256,
+          "parentGas": "114",
+          "quote": "134041"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64562",
+          "localGas": "63649",
+          "gasPriceGwei": 0.219256,
+          "parentGas": "68",
+          "quote": "35259"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163888",
+          "localGas": "148043",
+          "gasPriceGwei": 0.219256,
+          "parentGas": "120",
+          "quote": "89504"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41468",
+          "localGas": "36040",
+          "gasPriceGwei": 0.219256,
+          "parentGas": "68",
+          "quote": "22647"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47143",
+          "localGas": "41653",
+          "gasPriceGwei": 0.219256,
+          "parentGas": "68",
+          "quote": "25746"
+        }
+      ]
+    },
+    {
+      "id": "70",
+      "session": "23",
+      "action": "entry",
+      "sourceBlock": "58208862",
+      "sourceHash": "0x224b8cb70971c25928ba34ed841427774f5a08b68301f5238a38924b3050bb75",
+      "observedAt": "2026-09-09T03:00:49.663Z",
+      "gas": "822063",
+      "localGas": "803539",
+      "feeWei": "183867542958000",
+      "quote": 0.457979,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023053019206286,
+      "localGasAtSourcePriceQuote": 0.447659,
+      "gasPriceGwei": 0.223666,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.223666,
+          "parentGas": "0",
+          "quote": "32759"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179855",
+          "localGas": "168573",
+          "gasPriceGwei": 0.223666,
+          "parentGas": "0",
+          "quote": "100199"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.223666,
+          "parentGas": "0",
+          "quote": "32759"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.223666,
+          "parentGas": "0",
+          "quote": "35925"
+        },
+        {
+          "action": "mint",
+          "gas": "460122",
+          "localGas": "455341",
+          "gasPriceGwei": 0.223666,
+          "parentGas": "0",
+          "quote": "256339"
+        }
+      ]
+    },
+    {
+      "id": "72",
+      "session": "23",
+      "action": "exit",
+      "sourceBlock": "58239292",
+      "sourceHash": "0x81ce22550a11bdf4ae7ff2c7b6c2f2c8d5ae71e51998eb4b6cbdc62d769653d3",
+      "observedAt": "2026-09-09T03:51:59.743Z",
+      "gas": "560906",
+      "localGas": "502387",
+      "feeWei": "121045758424000",
+      "quote": 0.301502,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1164819153361851,
+      "localGasAtSourcePriceQuote": 0.270047,
+      "gasPriceGwei": 0.215804,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245269",
+          "localGas": "214030",
+          "gasPriceGwei": 0.215804,
+          "parentGas": "0",
+          "quote": "131839"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.215804,
+          "parentGas": "0",
+          "quote": "34662"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162698",
+          "localGas": "147015",
+          "gasPriceGwei": 0.215804,
+          "parentGas": "0",
+          "quote": "87455"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.215804,
+          "parentGas": "0",
+          "quote": "22249"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.215804,
+          "parentGas": "0",
+          "quote": "25299"
+        }
+      ]
+    },
+    {
+      "id": "74",
+      "session": "24",
+      "action": "entry",
+      "sourceBlock": "58246594",
+      "sourceHash": "0x16478773ed50c4a7da5cdb6b4a0b21785f4bb3325351dcb68a96b0ea525f62b8",
+      "observedAt": "2026-09-09T04:04:22.324Z",
+      "gas": "823711",
+      "localGas": "803653",
+      "feeWei": "179183501252000",
+      "quote": 0.446312,
+      "parentQuote": 0.000718,
+      "estimateVsLocalGas": 1.0249585330982403,
+      "localGasAtSourcePriceQuote": 0.435444,
+      "gasPriceGwei": 0.217532,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "59035",
+          "localGas": "57988",
+          "gasPriceGwei": 0.217532,
+          "parentGas": "203",
+          "quote": "31987"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "180295",
+          "localGas": "168593",
+          "gasPriceGwei": 0.217532,
+          "parentGas": "358",
+          "quote": "97690"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "59035",
+          "localGas": "57988",
+          "gasPriceGwei": 0.217532,
+          "parentGas": "203",
+          "quote": "31987"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64718",
+          "localGas": "63649",
+          "gasPriceGwei": 0.217532,
+          "parentGas": "203",
+          "quote": "35067"
+        },
+        {
+          "action": "mint",
+          "gas": "460628",
+          "localGas": "455435",
+          "gasPriceGwei": 0.217532,
+          "parentGas": "357",
+          "quote": "249583"
+        }
+      ]
+    },
+    {
+      "id": "75",
+      "session": "24",
+      "action": "exit",
+      "sourceBlock": "58283203",
+      "sourceHash": "0x3b28bb01827aa67163f73e50ba0901639b66bd6c59ebacaa3b0d82dfa9896e64",
+      "observedAt": "2026-09-09T05:05:46.773Z",
+      "gas": "562015",
+      "localGas": "503471",
+      "feeWei": "119359621670000",
+      "quote": 0.299032,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1162807788333389,
+      "localGasAtSourcePriceQuote": 0.267882,
+      "gasPriceGwei": 0.212378,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245311",
+          "localGas": "214072",
+          "gasPriceGwei": 0.212378,
+          "parentGas": "0",
+          "quote": "130523"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.212378,
+          "parentGas": "0",
+          "quote": "34310"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163765",
+          "localGas": "148057",
+          "gasPriceGwei": 0.212378,
+          "parentGas": "0",
+          "quote": "87135"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.212378,
+          "parentGas": "0",
+          "quote": "22023"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.212378,
+          "parentGas": "0",
+          "quote": "25042"
+        }
+      ]
+    },
+    {
+      "id": "77",
+      "session": "25",
+      "action": "entry",
+      "sourceBlock": "58290498",
+      "sourceHash": "0x4f1b9d948b2cf0b636ed45af9f75fedc79155b9d017f93d3a145c8bbf7ec2a84",
+      "observedAt": "2026-09-09T05:18:31.020Z",
+      "gas": "822202",
+      "localGas": "803637",
+      "feeWei": "176710942648000",
+      "quote": 0.442714,
+      "parentQuote": 0.000019,
+      "estimateVsLocalGas": 1.0231012260510652,
+      "localGasAtSourcePriceQuote": 0.432717,
+      "gasPriceGwei": 0.214924,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58807",
+          "localGas": "57988",
+          "gasPriceGwei": 0.214924,
+          "parentGas": "5",
+          "quote": "31665"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179870",
+          "localGas": "168577",
+          "gasPriceGwei": 0.214924,
+          "parentGas": "10",
+          "quote": "96851"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58807",
+          "localGas": "57988",
+          "gasPriceGwei": 0.214924,
+          "parentGas": "5",
+          "quote": "31665"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64490",
+          "localGas": "63649",
+          "gasPriceGwei": 0.214924,
+          "parentGas": "5",
+          "quote": "34725"
+        },
+        {
+          "action": "mint",
+          "gas": "460228",
+          "localGas": "455435",
+          "gasPriceGwei": 0.214924,
+          "parentGas": "10",
+          "quote": "247809"
+        }
+      ]
+    },
+    {
+      "id": "78",
+      "session": "25",
+      "action": "exit",
+      "sourceBlock": "58297836",
+      "sourceHash": "0x2566d510a6efbf5e39c1bf877d8aaa348d6ee744387fde22369bbe6ef2cbc392",
+      "observedAt": "2026-09-09T05:30:24.690Z",
+      "gas": "562031",
+      "localGas": "503487",
+      "feeWei": "118577300380000",
+      "quote": 0.297072,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1162770836188423,
+      "localGasAtSourcePriceQuote": 0.266127,
+      "gasPriceGwei": 0.21098,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245311",
+          "localGas": "214072",
+          "gasPriceGwei": 0.21098,
+          "parentGas": "0",
+          "quote": "129664"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.21098,
+          "parentGas": "0",
+          "quote": "34085"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163781",
+          "localGas": "148073",
+          "gasPriceGwei": 0.21098,
+          "parentGas": "0",
+          "quote": "86570"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.21098,
+          "parentGas": "0",
+          "quote": "21878"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.21098,
+          "parentGas": "0",
+          "quote": "24878"
+        }
+      ]
+    },
+    {
+      "id": "80",
+      "session": "26",
+      "action": "entry",
+      "sourceBlock": "58305154",
+      "sourceHash": "0x8075ee86717f1ee8b0b6e1b23633c0d12901e2dfe2bd510e8453afd153e4bb8c",
+      "observedAt": "2026-09-09T05:42:39.368Z",
+      "gas": "822442",
+      "localGas": "803653",
+      "feeWei": "175185080652000",
+      "quote": 0.438891,
+      "parentQuote": 0.000122,
+      "estimateVsLocalGas": 1.0233794933883156,
+      "localGasAtSourcePriceQuote": 0.428864,
+      "gasPriceGwei": 0.213006,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58841",
+          "localGas": "57988",
+          "gasPriceGwei": 0.213006,
+          "parentGas": "35",
+          "quote": "31401"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179958",
+          "localGas": "168603",
+          "gasPriceGwei": 0.213006,
+          "parentGas": "61",
+          "quote": "96034"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58841",
+          "localGas": "57988",
+          "gasPriceGwei": 0.213006,
+          "parentGas": "35",
+          "quote": "31401"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64525",
+          "localGas": "63649",
+          "gasPriceGwei": 0.213006,
+          "parentGas": "35",
+          "quote": "34434"
+        },
+        {
+          "action": "mint",
+          "gas": "460277",
+          "localGas": "455425",
+          "gasPriceGwei": 0.213006,
+          "parentGas": "61",
+          "quote": "245624"
+        }
+      ]
+    },
+    {
+      "id": "81",
+      "session": "26",
+      "action": "exit",
+      "sourceBlock": "58355091",
+      "sourceHash": "0xb8a057b4271d9438e8446ef9d16e4fff9e362dc7c6df3c445b907dd53f8d8dfb",
+      "observedAt": "2026-09-09T07:06:39.731Z",
+      "gas": "562092",
+      "localGas": "494299",
+      "feeWei": "115942716840000",
+      "quote": 0.290478,
+      "parentQuote": 0.000032,
+      "estimateVsLocalGas": 1.137149781812223,
+      "localGasAtSourcePriceQuote": 0.255444,
+      "gasPriceGwei": 0.20627,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245330",
+          "localGas": "204894",
+          "gasPriceGwei": 0.20627,
+          "parentGas": "16",
+          "quote": "126782"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64495",
+          "localGas": "63649",
+          "gasPriceGwei": 0.20627,
+          "parentGas": "9",
+          "quote": "33330"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163790",
+          "localGas": "148063",
+          "gasPriceGwei": 0.20627,
+          "parentGas": "17",
+          "quote": "84644"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41401",
+          "localGas": "36040",
+          "gasPriceGwei": 0.20627,
+          "parentGas": "9",
+          "quote": "21396"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47076",
+          "localGas": "41653",
+          "gasPriceGwei": 0.20627,
+          "parentGas": "9",
+          "quote": "24328"
+        }
+      ]
+    },
+    {
+      "id": "84",
+      "session": "27",
+      "action": "entry",
+      "sourceBlock": "58363005",
+      "sourceHash": "0x22c7f345dc78a6ec63e1a7a70e7f5e5a1bfa4576ea5c6ef3d6603b0d88c3ba50",
+      "observedAt": "2026-09-09T07:19:57.378Z",
+      "gas": "822178",
+      "localGas": "803653",
+      "feeWei": "168503736744000",
+      "quote": 0.422162,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023050993401381,
+      "localGasAtSourcePriceQuote": 0.41265,
+      "gasPriceGwei": 0.204948,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.204948,
+          "parentGas": "0",
+          "quote": "30193"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179875",
+          "localGas": "168593",
+          "gasPriceGwei": 0.204948,
+          "parentGas": "0",
+          "quote": "92360"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.204948,
+          "parentGas": "0",
+          "quote": "30193"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.204948,
+          "parentGas": "0",
+          "quote": "33111"
+        },
+        {
+          "action": "mint",
+          "gas": "460217",
+          "localGas": "455435",
+          "gasPriceGwei": 0.204948,
+          "parentGas": "0",
+          "quote": "236307"
+        }
+      ]
+    },
+    {
+      "id": "85",
+      "session": "27",
+      "action": "exit",
+      "sourceBlock": "58395210",
+      "sourceHash": "0x29faa439a9c704315531a34aec856dada53d597b574448a5aeda5cc381b9ae9a",
+      "observedAt": "2026-09-09T08:14:12.698Z",
+      "gas": "560936",
+      "localGas": "502417",
+      "feeWei": "113054407056000",
+      "quote": 0.284735,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1164749600431514,
+      "localGasAtSourcePriceQuote": 0.25503,
+      "gasPriceGwei": 0.201546,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245299",
+          "localGas": "214060",
+          "gasPriceGwei": 0.201546,
+          "parentGas": "0",
+          "quote": "124516"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.201546,
+          "parentGas": "0",
+          "quote": "32733"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162698",
+          "localGas": "147015",
+          "gasPriceGwei": 0.201546,
+          "parentGas": "0",
+          "quote": "82587"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.201546,
+          "parentGas": "0",
+          "quote": "21010"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.201546,
+          "parentGas": "0",
+          "quote": "23891"
+        }
+      ]
+    },
+    {
+      "id": "87",
+      "session": "28",
+      "action": "entry",
+      "sourceBlock": "58402525",
+      "sourceHash": "0x2c1ce0d107a8d8fa661ab2e5b34c27ad9f278d9e70c4ed1e7b0ae8d70ccd70b0",
+      "observedAt": "2026-09-09T08:26:31.410Z",
+      "gas": "824153",
+      "localGas": "805628",
+      "feeWei": "165633325022000",
+      "quote": 0.417158,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0229944838064218,
+      "localGasAtSourcePriceQuote": 0.407782,
+      "gasPriceGwei": 0.200974,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.200974,
+          "parentGas": "0",
+          "quote": "29764"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178810",
+          "localGas": "167552",
+          "gasPriceGwei": 0.200974,
+          "parentGas": "0",
+          "quote": "90508"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.200974,
+          "parentGas": "0",
+          "quote": "29764"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.200974,
+          "parentGas": "0",
+          "quote": "32640"
+        },
+        {
+          "action": "mint",
+          "gas": "463257",
+          "localGas": "458451",
+          "gasPriceGwei": 0.200974,
+          "parentGas": "0",
+          "quote": "234485"
+        }
+      ]
+    },
+    {
+      "id": "88",
+      "session": "28",
+      "action": "exit",
+      "sourceBlock": "58412911",
+      "sourceHash": "0xd79575e6ed0e059ba0f6dcc8193ce422613ff9b2bd45b294aefa18c9f5113261",
+      "observedAt": "2026-09-09T08:43:57.600Z",
+      "gas": "563179",
+      "localGas": "513035",
+      "feeWei": "112436434634000",
+      "quote": 0.283179,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977399202783436,
+      "localGasAtSourcePriceQuote": 0.257965,
+      "gasPriceGwei": 0.199646,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246469",
+          "localGas": "223630",
+          "gasPriceGwei": 0.199646,
+          "parentGas": "0",
+          "quote": "123930"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.199646,
+          "parentGas": "0",
+          "quote": "32424"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163771",
+          "localGas": "148063",
+          "gasPriceGwei": 0.199646,
+          "parentGas": "0",
+          "quote": "82348"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.199646,
+          "parentGas": "0",
+          "quote": "20812"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.199646,
+          "parentGas": "0",
+          "quote": "23666"
+        }
+      ]
+    },
+    {
+      "id": "90",
+      "session": "29",
+      "action": "entry",
+      "sourceBlock": "58420230",
+      "sourceHash": "0xbee19d0f6cf1976263f3208cc29abb519923d2b8cb21f55275b2510848c592b6",
+      "observedAt": "2026-09-09T08:56:09.168Z",
+      "gas": "824176",
+      "localGas": "805651",
+      "feeWei": "164019265760000",
+      "quote": 0.413093,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.022993827352042,
+      "localGasAtSourcePriceQuote": 0.403808,
+      "gasPriceGwei": 0.19901,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.19901,
+          "parentGas": "0",
+          "quote": "29473"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178823",
+          "localGas": "167565",
+          "gasPriceGwei": 0.19901,
+          "parentGas": "0",
+          "quote": "89630"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.19901,
+          "parentGas": "0",
+          "quote": "29473"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.19901,
+          "parentGas": "0",
+          "quote": "32321"
+        },
+        {
+          "action": "mint",
+          "gas": "463267",
+          "localGas": "458461",
+          "gasPriceGwei": 0.19901,
+          "parentGas": "0",
+          "quote": "232199"
+        }
+      ]
+    },
+    {
+      "id": "92",
+      "session": "29",
+      "action": "exit",
+      "sourceBlock": "58442174",
+      "sourceHash": "0x36f36029ae610790c4c031b68cabc702fbd1e49f082e1ba23d9fa1f7b0aeedc0",
+      "observedAt": "2026-09-09T09:33:22.109Z",
+      "gas": "563101",
+      "localGas": "512959",
+      "feeWei": "110987207100000",
+      "quote": 0.279529,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977505024768062,
+      "localGasAtSourcePriceQuote": 0.254638,
+      "gasPriceGwei": 0.1971,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246456",
+          "localGas": "223618",
+          "gasPriceGwei": 0.1971,
+          "parentGas": "0",
+          "quote": "122343"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.1971,
+          "parentGas": "0",
+          "quote": "32011"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163706",
+          "localGas": "147999",
+          "gasPriceGwei": 0.1971,
+          "parentGas": "0",
+          "quote": "81266"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.1971,
+          "parentGas": "0",
+          "quote": "20547"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.1971,
+          "parentGas": "0",
+          "quote": "23364"
+        }
+      ]
+    },
+    {
+      "id": "94",
+      "session": "30",
+      "action": "entry",
+      "sourceBlock": "58449506",
+      "sourceHash": "0x8c87ba7c41884df4b2cb19ed7e28b5943d03a2c2fdb70eab30b6eb647e2a1e95",
+      "observedAt": "2026-09-09T09:45:28.393Z",
+      "gas": "822208",
+      "localGas": "803683",
+      "feeWei": "161708580608000",
+      "quote": 0.405224,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230501329504296,
+      "localGasAtSourcePriceQuote": 0.396094,
+      "gasPriceGwei": 0.196676,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.196676,
+          "parentGas": "0",
+          "quote": "28980"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179861",
+          "localGas": "168579",
+          "gasPriceGwei": 0.196676,
+          "parentGas": "0",
+          "quote": "88645"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.196676,
+          "parentGas": "0",
+          "quote": "28980"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.196676,
+          "parentGas": "0",
+          "quote": "31781"
+        },
+        {
+          "action": "mint",
+          "gas": "460261",
+          "localGas": "455479",
+          "gasPriceGwei": 0.196676,
+          "parentGas": "0",
+          "quote": "226839"
+        }
+      ]
+    },
+    {
+      "id": "96",
+      "session": "30",
+      "action": "exit",
+      "sourceBlock": "58456832",
+      "sourceHash": "0xbe73b82fb04cc5be64542a2c70e5a77dadbcf3ca04d29a0a652a8f0147d5ed40",
+      "observedAt": "2026-09-09T09:57:37.635Z",
+      "gas": "553186",
+      "localGas": "489854",
+      "feeWei": "108676708816000",
+      "quote": 0.270892,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.129287501990389,
+      "localGasAtSourcePriceQuote": 0.239879,
+      "gasPriceGwei": 0.196456,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236501",
+          "localGas": "200473",
+          "gasPriceGwei": 0.196456,
+          "parentGas": "0",
+          "quote": "115813"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.196456,
+          "parentGas": "0",
+          "quote": "31578"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163746",
+          "localGas": "148039",
+          "gasPriceGwei": 0.196456,
+          "parentGas": "0",
+          "quote": "80186"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.196456,
+          "parentGas": "0",
+          "quote": "20269"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.196456,
+          "parentGas": "0",
+          "quote": "23048"
+        }
+      ]
+    },
+    {
+      "id": "98",
+      "session": "31",
+      "action": "entry",
+      "sourceBlock": "58464149",
+      "sourceHash": "0x1e8ea6fb92efe5937746d601c63e58fafe7bf64bf8a53f6aad043c7d2fbd37cd",
+      "observedAt": "2026-09-09T10:10:03.395Z",
+      "gas": "825359",
+      "localGas": "806808",
+      "feeWei": "159423043004000",
+      "quote": 0.397384,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.022993078898573,
+      "localGasAtSourcePriceQuote": 0.388452,
+      "gasPriceGwei": 0.193156,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.193156,
+          "parentGas": "0",
+          "quote": "28311"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179903",
+          "localGas": "168620",
+          "gasPriceGwei": 0.193156,
+          "parentGas": "0",
+          "quote": "86618"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.193156,
+          "parentGas": "0",
+          "quote": "28311"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.193156,
+          "parentGas": "0",
+          "quote": "31047"
+        },
+        {
+          "action": "mint",
+          "gas": "463370",
+          "localGas": "458563",
+          "gasPriceGwei": 0.193156,
+          "parentGas": "0",
+          "quote": "223098"
+        }
+      ]
+    },
+    {
+      "id": "99",
+      "session": "31",
+      "action": "exit",
+      "sourceBlock": "58578554",
+      "sourceHash": "0x64923edc98fb380c43919c99e3c8508267c7b03221044d70e9529c961b88d657",
+      "observedAt": "2026-09-09T13:22:31.934Z",
+      "gas": "562022",
+      "localGas": "503479",
+      "feeWei": "103404179692000",
+      "quote": 0.259049,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1162769450165746,
+      "localGasAtSourcePriceQuote": 0.232065,
+      "gasPriceGwei": 0.183986,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245325",
+          "localGas": "214086",
+          "gasPriceGwei": 0.183986,
+          "parentGas": "0",
+          "quote": "113076"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.183986,
+          "parentGas": "0",
+          "quote": "29723"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163758",
+          "localGas": "148051",
+          "gasPriceGwei": 0.183986,
+          "parentGas": "0",
+          "quote": "75480"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.183986,
+          "parentGas": "0",
+          "quote": "19078"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.183986,
+          "parentGas": "0",
+          "quote": "21694"
+        }
+      ]
+    },
+    {
+      "id": "101",
+      "session": "32",
+      "action": "entry",
+      "sourceBlock": "58585856",
+      "sourceHash": "0x68239c5de345f902cd07875d3dc81939629e16545d191fcef788f529e70292e0",
+      "observedAt": "2026-09-09T13:34:51.420Z",
+      "gas": "822248",
+      "localGas": "803722",
+      "feeWei": "187184757200000",
+      "quote": 0.468936,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230502586715307,
+      "localGasAtSourcePriceQuote": 0.45837,
+      "gasPriceGwei": 0.22765,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.22765,
+          "parentGas": "0",
+          "quote": "33535"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179899",
+          "localGas": "168616",
+          "gasPriceGwei": 0.22765,
+          "parentGas": "0",
+          "quote": "102598"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.22765,
+          "parentGas": "0",
+          "quote": "33535"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.22765,
+          "parentGas": "0",
+          "quote": "36776"
+        },
+        {
+          "action": "mint",
+          "gas": "460263",
+          "localGas": "455481",
+          "gasPriceGwei": 0.22765,
+          "parentGas": "0",
+          "quote": "262493"
+        }
+      ]
+    },
+    {
+      "id": "102",
+      "session": "32",
+      "action": "exit",
+      "sourceBlock": "58593801",
+      "sourceHash": "0xe2a86b70f960df56d36e4559625dd16664dad5d8dffa94f80fe6b7fe0055036f",
+      "observedAt": "2026-09-09T13:48:00.929Z",
+      "gas": "562015",
+      "localGas": "503471",
+      "feeWei": "103194946240000",
+      "quote": 0.258222,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1162807788333389,
+      "localGasAtSourcePriceQuote": 0.231324,
+      "gasPriceGwei": 0.183616,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245340",
+          "localGas": "214100",
+          "gasPriceGwei": 0.183616,
+          "parentGas": "0",
+          "quote": "112724"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.183616,
+          "parentGas": "0",
+          "quote": "29628"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163736",
+          "localGas": "148029",
+          "gasPriceGwei": 0.183616,
+          "parentGas": "0",
+          "quote": "75230"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.183616,
+          "parentGas": "0",
+          "quote": "19017"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.183616,
+          "parentGas": "0",
+          "quote": "21625"
+        }
+      ]
+    },
+    {
+      "id": "105",
+      "session": "33",
+      "action": "entry",
+      "sourceBlock": "58601730",
+      "sourceHash": "0x5a3194a6f9a707ba6a6c6d352ef60c440cc757d57bded52e3b2fa9f7a916b9b6",
+      "observedAt": "2026-09-09T14:01:33.372Z",
+      "gas": "822218",
+      "localGas": "803693",
+      "feeWei": "150354072352000",
+      "quote": 0.376227,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230498461477207,
+      "localGasAtSourcePriceQuote": 0.367751,
+      "gasPriceGwei": 0.182864,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.182864,
+          "parentGas": "0",
+          "quote": "26906"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179859",
+          "localGas": "168577",
+          "gasPriceGwei": 0.182864,
+          "parentGas": "0",
+          "quote": "82300"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.182864,
+          "parentGas": "0",
+          "quote": "26906"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.182864,
+          "parentGas": "0",
+          "quote": "29507"
+        },
+        {
+          "action": "mint",
+          "gas": "460273",
+          "localGas": "455491",
+          "gasPriceGwei": 0.182864,
+          "parentGas": "0",
+          "quote": "210610"
+        }
+      ]
+    },
+    {
+      "id": "106",
+      "session": "33",
+      "action": "exit",
+      "sourceBlock": "58602959",
+      "sourceHash": "0x6f8fb8016bebe9a44a49cbd41f32bd093764ce4e195e3bb5d07020f23faa2ae8",
+      "observedAt": "2026-09-09T14:03:39.349Z",
+      "gas": "553241",
+      "localGas": "489908",
+      "feeWei": "120591047252000",
+      "quote": 0.301752,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1292752925038987,
+      "localGasAtSourcePriceQuote": 0.267209,
+      "gasPriceGwei": 0.217972,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236501",
+          "localGas": "200473",
+          "gasPriceGwei": 0.217972,
+          "parentGas": "0",
+          "quote": "128994"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.217972,
+          "parentGas": "0",
+          "quote": "35172"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163801",
+          "localGas": "148093",
+          "gasPriceGwei": 0.217972,
+          "parentGas": "0",
+          "quote": "89342"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.217972,
+          "parentGas": "0",
+          "quote": "22576"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.217972,
+          "parentGas": "0",
+          "quote": "25671"
+        }
+      ]
+    },
+    {
+      "id": "109",
+      "session": "34",
+      "action": "entry",
+      "sourceBlock": "58610902",
+      "sourceHash": "0x1146ba20251115b64920cdf70d102fc748daf1a2d07c10df8939984ab0c81e91",
+      "observedAt": "2026-09-09T14:16:57.397Z",
+      "gas": "828760",
+      "localGas": "805744",
+      "feeWei": "151987953920000",
+      "quote": 0.380316,
+      "parentQuote": 0.001769,
+      "estimateVsLocalGas": 1.0285649039893565,
+      "localGasAtSourcePriceQuote": 0.369754,
+      "gasPriceGwei": 0.183392,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "59484",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183392,
+          "parentGas": "590",
+          "quote": "27298"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "180111",
+          "localGas": "167630",
+          "gasPriceGwei": 0.183392,
+          "parentGas": "1035",
+          "quote": "82653"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "59484",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183392,
+          "parentGas": "590",
+          "quote": "27298"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "65167",
+          "localGas": "63649",
+          "gasPriceGwei": 0.183392,
+          "parentGas": "590",
+          "quote": "29905"
+        },
+        {
+          "action": "mint",
+          "gas": "464514",
+          "localGas": "458489",
+          "gasPriceGwei": 0.183392,
+          "parentGas": "1049",
+          "quote": "213165"
+        }
+      ]
+    },
+    {
+      "id": "110",
+      "session": "34",
+      "action": "exit",
+      "sourceBlock": "58614520",
+      "sourceHash": "0xbd489ccf360fd8eca61514685a7f968cab1b3ae2cb5ecfa979dc35590ed96324",
+      "observedAt": "2026-09-09T14:23:01.720Z",
+      "gas": "562054",
+      "localGas": "502759",
+      "feeWei": "102360150372000",
+      "quote": 0.256134,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.117939211431322,
+      "localGasAtSourcePriceQuote": 0.229112,
+      "gasPriceGwei": 0.182118,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246471",
+          "localGas": "214454",
+          "gasPriceGwei": 0.182118,
+          "parentGas": "0",
+          "quote": "112320"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.182118,
+          "parentGas": "0",
+          "quote": "29386"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "162644",
+          "localGas": "146963",
+          "gasPriceGwei": 0.182118,
+          "parentGas": "0",
+          "quote": "74119"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.182118,
+          "parentGas": "0",
+          "quote": "18862"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.182118,
+          "parentGas": "0",
+          "quote": "21448"
+        }
+      ]
+    },
+    {
+      "id": "112",
+      "session": "35",
+      "action": "entry",
+      "sourceBlock": "58621813",
+      "sourceHash": "0x71e1acb549c900d9f27c0aa1d00c7d9bd6501f644d995d9365420b2d30abdf3e",
+      "observedAt": "2026-09-09T14:35:15.416Z",
+      "gas": "822268",
+      "localGas": "803742",
+      "feeWei": "149292622616000",
+      "quote": 0.373571,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230496850979542,
+      "localGasAtSourcePriceQuote": 0.365155,
+      "gasPriceGwei": 0.181562,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.181562,
+          "parentGas": "0",
+          "quote": "26715"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179909",
+          "localGas": "168626",
+          "gasPriceGwei": 0.181562,
+          "parentGas": "0",
+          "quote": "81736"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.181562,
+          "parentGas": "0",
+          "quote": "26715"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.181562,
+          "parentGas": "0",
+          "quote": "29297"
+        },
+        {
+          "action": "mint",
+          "gas": "460273",
+          "localGas": "455491",
+          "gasPriceGwei": 0.181562,
+          "parentGas": "0",
+          "quote": "209111"
+        }
+      ]
+    },
+    {
+      "id": "113",
+      "session": "35",
+      "action": "exit",
+      "sourceBlock": "58624227",
+      "sourceHash": "0x3346fdc14a70b544b74d3178958e27d7b9fe2591618445ebdff6380fff69c7f6",
+      "observedAt": "2026-09-09T14:39:27.713Z",
+      "gas": "553247",
+      "localGas": "489914",
+      "feeWei": "102017640306000",
+      "quote": 0.255277,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1292737092632585,
+      "localGasAtSourcePriceQuote": 0.226054,
+      "gasPriceGwei": 0.184398,
+      "perTransactionRoundingDifferenceMicro": "0",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "236501",
+          "localGas": "200473",
+          "gasPriceGwei": 0.184398,
+          "parentGas": "0",
+          "quote": "109125"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.184398,
+          "parentGas": "0",
+          "quote": "29754"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163807",
+          "localGas": "148099",
+          "gasPriceGwei": 0.184398,
+          "parentGas": "0",
+          "quote": "75583"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.184398,
+          "parentGas": "0",
+          "quote": "19098"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.184398,
+          "parentGas": "0",
+          "quote": "21717"
+        }
+      ]
+    },
+    {
+      "id": "115",
+      "session": "36",
+      "action": "entry",
+      "sourceBlock": "58631497",
+      "sourceHash": "0x46c0861d0f2cbcb8b35b5e811b80c884d629ca3ca12ffa70b7587fbd1ce76184",
+      "observedAt": "2026-09-09T14:51:38.441Z",
+      "gas": "825361",
+      "localGas": "806810",
+      "feeWei": "151518121658000",
+      "quote": 0.37914,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0229930219010672,
+      "localGasAtSourcePriceQuote": 0.370619,
+      "gasPriceGwei": 0.183578,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183578,
+          "parentGas": "0",
+          "quote": "27011"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179895",
+          "localGas": "168612",
+          "gasPriceGwei": 0.183578,
+          "parentGas": "0",
+          "quote": "82637"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183578,
+          "parentGas": "0",
+          "quote": "27011"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.183578,
+          "parentGas": "0",
+          "quote": "29622"
+        },
+        {
+          "action": "mint",
+          "gas": "463380",
+          "localGas": "458573",
+          "gasPriceGwei": 0.183578,
+          "parentGas": "0",
+          "quote": "212860"
+        }
+      ]
+    },
+    {
+      "id": "116",
+      "session": "36",
+      "action": "exit",
+      "sourceBlock": "58645510",
+      "sourceHash": "0x1a396f00d5e5782dfc090e93c0e66ff63a365969617dab52d399e66868dc167e",
+      "observedAt": "2026-09-09T15:15:09.014Z",
+      "gas": "566756",
+      "localGas": "513141",
+      "feeWei": "102917222040000",
+      "quote": 0.256083,
+      "parentQuote": 0.001346,
+      "estimateVsLocalGas": 1.1044839527537265,
+      "localGasAtSourcePriceQuote": 0.231858,
+      "gasPriceGwei": 0.18159,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "247447",
+          "localGas": "223686",
+          "gasPriceGwei": 0.18159,
+          "parentGas": "791",
+          "quote": "111807"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "65015",
+          "localGas": "63649",
+          "gasPriceGwei": 0.18159,
+          "parentGas": "460",
+          "quote": "29377"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "164770",
+          "localGas": "148113",
+          "gasPriceGwei": 0.18159,
+          "parentGas": "806",
+          "quote": "74450"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41925",
+          "localGas": "36040",
+          "gasPriceGwei": 0.18159,
+          "parentGas": "460",
+          "quote": "18944"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47599",
+          "localGas": "41653",
+          "gasPriceGwei": 0.18159,
+          "parentGas": "460",
+          "quote": "21508"
+        }
+      ]
+    },
+    {
+      "id": "118",
+      "session": "37",
+      "action": "entry",
+      "sourceBlock": "58652804",
+      "sourceHash": "0x321d342d15693b4cd39c2ae60e518acc3b2df825f882231011f9deddadd15521",
+      "observedAt": "2026-09-09T15:27:20.476Z",
+      "gas": "825272",
+      "localGas": "806724",
+      "feeWei": "149194322704000",
+      "quote": 0.36901,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.022991754305066,
+      "localGasAtSourcePriceQuote": 0.360716,
+      "gasPriceGwei": 0.180782,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.180782,
+          "parentGas": "0",
+          "quote": "26293"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179806",
+          "localGas": "168526",
+          "gasPriceGwei": 0.180782,
+          "parentGas": "0",
+          "quote": "80398"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.180782,
+          "parentGas": "0",
+          "quote": "26293"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.180782,
+          "parentGas": "0",
+          "quote": "28834"
+        },
+        {
+          "action": "mint",
+          "gas": "463380",
+          "localGas": "458573",
+          "gasPriceGwei": 0.180782,
+          "parentGas": "0",
+          "quote": "207194"
+        }
+      ]
+    },
+    {
+      "id": "119",
+      "session": "37",
+      "action": "exit",
+      "sourceBlock": "58656443",
+      "sourceHash": "0x1e5118ce2e46a2f1a01b58b6ff8ef4b76dbfe7510d497803d10f49da660d6dd2",
+      "observedAt": "2026-09-09T15:33:36.961Z",
+      "gas": "563279",
+      "localGas": "513135",
+      "feeWei": "102770253550000",
+      "quote": 0.254181,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0977208726748322,
+      "localGasAtSourcePriceQuote": 0.231553,
+      "gasPriceGwei": 0.18245,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "246525",
+          "localGas": "223686",
+          "gasPriceGwei": 0.18245,
+          "parentGas": "0",
+          "quote": "111245"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.18245,
+          "parentGas": "0",
+          "quote": "29099"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163815",
+          "localGas": "148107",
+          "gasPriceGwei": 0.18245,
+          "parentGas": "0",
+          "quote": "73922"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.18245,
+          "parentGas": "0",
+          "quote": "18678"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.18245,
+          "parentGas": "0",
+          "quote": "21239"
+        }
+      ]
+    },
+    {
+      "id": "121",
+      "session": "38",
+      "action": "entry",
+      "sourceBlock": "58663775",
+      "sourceHash": "0x97fa4beaee5b4d140729c1162085c3296fa44d3356a06e607e7353444883f3fe",
+      "observedAt": "2026-09-09T15:46:01.430Z",
+      "gas": "822171",
+      "localGas": "803646",
+      "feeWei": "150909487050000",
+      "quote": 0.375807,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230511941825131,
+      "localGasAtSourcePriceQuote": 0.36734,
+      "gasPriceGwei": 0.18355,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.18355,
+          "parentGas": "0",
+          "quote": "26878"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179935",
+          "localGas": "168652",
+          "gasPriceGwei": 0.18355,
+          "parentGas": "0",
+          "quote": "82247"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.18355,
+          "parentGas": "0",
+          "quote": "26878"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.18355,
+          "parentGas": "0",
+          "quote": "29476"
+        },
+        {
+          "action": "mint",
+          "gas": "460150",
+          "localGas": "455369",
+          "gasPriceGwei": 0.18355,
+          "parentGas": "0",
+          "quote": "210331"
+        }
+      ]
+    },
+    {
+      "id": "122",
+      "session": "38",
+      "action": "exit",
+      "sourceBlock": "58679057",
+      "sourceHash": "0x26549ecb67b74f890e78c6c3267b99a8ebd43f6ffde612bd06c34c3bd32193ee",
+      "observedAt": "2026-09-09T16:11:25.998Z",
+      "gas": "562013",
+      "localGas": "503469",
+      "feeWei": "104286008254000",
+      "quote": 0.259702,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.116281240751665,
+      "localGasAtSourcePriceQuote": 0.232649,
+      "gasPriceGwei": 0.185558,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245283",
+          "localGas": "214044",
+          "gasPriceGwei": 0.185558,
+          "parentGas": "0",
+          "quote": "113344"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.185558,
+          "parentGas": "0",
+          "quote": "29798"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163791",
+          "localGas": "148083",
+          "gasPriceGwei": 0.185558,
+          "parentGas": "0",
+          "quote": "75687"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.185558,
+          "parentGas": "0",
+          "quote": "19126"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.185558,
+          "parentGas": "0",
+          "quote": "21749"
+        }
+      ]
+    },
+    {
+      "id": "125",
+      "session": "39",
+      "action": "entry",
+      "sourceBlock": "58686955",
+      "sourceHash": "0x7800a00aa86f4c58b2ce5e393085fc56ba31662b940f0eca56472398b657f410",
+      "observedAt": "2026-09-09T16:24:41.417Z",
+      "gas": "822269",
+      "localGas": "803743",
+      "feeWei": "153116355028000",
+      "quote": 0.381303,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230496564200249,
+      "localGasAtSourcePriceQuote": 0.372712,
+      "gasPriceGwei": 0.186212,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.186212,
+          "parentGas": "0",
+          "quote": "27268"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179948",
+          "localGas": "168665",
+          "gasPriceGwei": 0.186212,
+          "parentGas": "0",
+          "quote": "83446"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.186212,
+          "parentGas": "0",
+          "quote": "27268"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.186212,
+          "parentGas": "0",
+          "quote": "29903"
+        },
+        {
+          "action": "mint",
+          "gas": "460235",
+          "localGas": "455453",
+          "gasPriceGwei": 0.186212,
+          "parentGas": "0",
+          "quote": "213421"
+        }
+      ]
+    },
+    {
+      "id": "126",
+      "session": "39",
+      "action": "exit",
+      "sourceBlock": "58700423",
+      "sourceHash": "0xa4015e4c0171f9a5b2573d28de66f721b5fadd6071a140efd8d43a03ccbdf947",
+      "observedAt": "2026-09-09T16:47:23.965Z",
+      "gas": "564515",
+      "localGas": "503523",
+      "feeWei": "104598984350000",
+      "quote": 0.260481,
+      "parentQuote": 0.00097,
+      "estimateVsLocalGas": 1.1211305143955688,
+      "localGasAtSourcePriceQuote": 0.232338,
+      "gasPriceGwei": 0.18529,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245947",
+          "localGas": "214074",
+          "gasPriceGwei": 0.18529,
+          "parentGas": "545",
+          "quote": "113486"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64862",
+          "localGas": "63649",
+          "gasPriceGwei": 0.18529,
+          "parentGas": "328",
+          "quote": "29929"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "164490",
+          "localGas": "148107",
+          "gasPriceGwei": 0.18529,
+          "parentGas": "573",
+          "quote": "75900"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41771",
+          "localGas": "36040",
+          "gasPriceGwei": 0.18529,
+          "parentGas": "328",
+          "quote": "19275"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47445",
+          "localGas": "41653",
+          "gasPriceGwei": 0.18529,
+          "parentGas": "328",
+          "quote": "21893"
+        }
+      ]
+    },
+    {
+      "id": "128",
+      "session": "40",
+      "action": "entry",
+      "sourceBlock": "58707746",
+      "sourceHash": "0x2dbcdcbafd92745f4ec4b4f670c39f7365a3d13ed1f6bbaaa6f9266036cacd56",
+      "observedAt": "2026-09-09T16:59:50.202Z",
+      "gas": "821907",
+      "localGas": "803388",
+      "feeWei": "148901603562000",
+      "quote": 0.370807,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230511284709256,
+      "localGasAtSourcePriceQuote": 0.362452,
+      "gasPriceGwei": 0.181166,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.181166,
+          "parentGas": "0",
+          "quote": "26529"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179661",
+          "localGas": "168384",
+          "gasPriceGwei": 0.181166,
+          "parentGas": "0",
+          "quote": "81055"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.181166,
+          "parentGas": "0",
+          "quote": "26529"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.181166,
+          "parentGas": "0",
+          "quote": "29093"
+        },
+        {
+          "action": "mint",
+          "gas": "460160",
+          "localGas": "455379",
+          "gasPriceGwei": 0.181166,
+          "parentGas": "0",
+          "quote": "207603"
+        }
+      ]
+    },
+    {
+      "id": "129",
+      "session": "40",
+      "action": "exit",
+      "sourceBlock": "58766865",
+      "sourceHash": "0x616760b4ba76d926113f4ee92dc6f02022db224fd22f47e97935874250c9d291",
+      "observedAt": "2026-09-09T18:39:12.803Z",
+      "gas": "562009",
+      "localGas": "494287",
+      "feeWei": "100392791688000",
+      "quote": 0.250007,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1370094702065805,
+      "localGasAtSourcePriceQuote": 0.219881,
+      "gasPriceGwei": 0.178632,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "245283",
+          "localGas": "204866",
+          "gasPriceGwei": 0.178632,
+          "parentGas": "0",
+          "quote": "109113"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.178632,
+          "parentGas": "0",
+          "quote": "28686"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "163787",
+          "localGas": "148079",
+          "gasPriceGwei": 0.178632,
+          "parentGas": "0",
+          "quote": "72860"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.178632,
+          "parentGas": "0",
+          "quote": "18413"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.178632,
+          "parentGas": "0",
+          "quote": "20937"
+        }
+      ]
+    },
+    {
+      "id": "132",
+      "session": "41",
+      "action": "entry",
+      "sourceBlock": "58779087",
+      "sourceHash": "0x93e838bd644d310be0ad2a3a29968aa9b8b01ab0cabdac4b501fcf4b6fe83227",
+      "observedAt": "2026-09-09T18:59:49.360Z",
+      "gas": "822297",
+      "localGas": "803769",
+      "feeWei": "150556002324000",
+      "quote": 0.374927,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230513990960088,
+      "localGasAtSourcePriceQuote": 0.366479,
+      "gasPriceGwei": 0.183092,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183092,
+          "parentGas": "0",
+          "quote": "26811"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "179966",
+          "localGas": "168681",
+          "gasPriceGwei": 0.183092,
+          "parentGas": "0",
+          "quote": "82056"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.183092,
+          "parentGas": "0",
+          "quote": "26811"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.183092,
+          "parentGas": "0",
+          "quote": "29402"
+        },
+        {
+          "action": "mint",
+          "gas": "460245",
+          "localGas": "455463",
+          "gasPriceGwei": 0.183092,
+          "parentGas": "0",
+          "quote": "209849"
+        }
+      ]
+    },
+    {
+      "id": "134",
+      "session": "41",
+      "action": "exit",
+      "sourceBlock": "58791296",
+      "sourceHash": "0x242a9e9dcd16c5109b8cf7d6e7fec478de5924c5549e54d672317af08c8b96f3",
+      "observedAt": "2026-09-09T19:20:10.949Z",
+      "gas": "568661",
+      "localGas": "503521",
+      "feeWei": "101618583378000",
+      "quote": 0.253059,
+      "parentQuote": 0.002586,
+      "estimateVsLocalGas": 1.1293689836173666,
+      "localGasAtSourcePriceQuote": 0.224071,
+      "gasPriceGwei": 0.178698,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "247051",
+          "localGas": "214086",
+          "gasPriceGwei": 0.178698,
+          "parentGas": "1521",
+          "quote": "109940"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "65494",
+          "localGas": "63649",
+          "gasPriceGwei": 0.178698,
+          "parentGas": "899",
+          "quote": "29146"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "165627",
+          "localGas": "148093",
+          "gasPriceGwei": 0.178698,
+          "parentGas": "1593",
+          "quote": "73706"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "42407",
+          "localGas": "36040",
+          "gasPriceGwei": 0.178698,
+          "parentGas": "899",
+          "quote": "18872"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "48082",
+          "localGas": "41653",
+          "gasPriceGwei": 0.178698,
+          "parentGas": "899",
+          "quote": "21397"
+        }
+      ]
+    },
+    {
+      "id": "137",
+      "session": "42",
+      "action": "entry",
+      "sourceBlock": "58799272",
+      "sourceHash": "0xa88665c9a52b58ac49b88f1c0a30935dd3dcb568ea32af0b3e3bd2507f658d63",
+      "observedAt": "2026-09-09T19:33:42.444Z",
+      "gas": "821135",
+      "localGas": "802634",
+      "feeWei": "146876417450000",
+      "quote": 0.365764,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230503567005633,
+      "localGasAtSourcePriceQuote": 0.357523,
+      "gasPriceGwei": 0.17887,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.17887,
+          "parentGas": "0",
+          "quote": "26193"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "178889",
+          "localGas": "167630",
+          "gasPriceGwei": 0.17887,
+          "parentGas": "0",
+          "quote": "79684"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.17887,
+          "parentGas": "0",
+          "quote": "26193"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.17887,
+          "parentGas": "0",
+          "quote": "28724"
+        },
+        {
+          "action": "mint",
+          "gas": "460160",
+          "localGas": "455379",
+          "gasPriceGwei": 0.17887,
+          "parentGas": "0",
+          "quote": "204972"
+        }
+      ]
+    },
+    {
+      "id": "138",
+      "session": "42",
+      "action": "exit",
+      "sourceBlock": "58953449",
+      "sourceHash": "0x820f3eefa8787ca87680e27f8317672cdf7f79967b095a0439ffe50ee0a2407c",
+      "observedAt": "2026-09-09T23:52:35.624Z",
+      "gas": "547733",
+      "localGas": "484506",
+      "feeWei": "91395823846000",
+      "quote": 0.224882,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1304978679314601,
+      "localGasAtSourcePriceQuote": 0.198923,
+      "gasPriceGwei": 0.166862,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "234294",
+          "localGas": "198296",
+          "gasPriceGwei": 0.166862,
+          "parentGas": "0",
+          "quote": "96194"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.166862,
+          "parentGas": "0",
+          "quote": "26476"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "160500",
+          "localGas": "144868",
+          "gasPriceGwei": 0.166862,
+          "parentGas": "0",
+          "quote": "65897"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.166862,
+          "parentGas": "0",
+          "quote": "16994"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.166862,
+          "parentGas": "0",
+          "quote": "19324"
+        }
+      ]
+    },
+    {
+      "id": "140",
+      "session": "43",
+      "action": "entry",
+      "sourceBlock": "58960772",
+      "sourceHash": "0x1389cc6cf92dc2a153323608b09d9574ff67b05f39fa5ac08105b329b9d24a44",
+      "observedAt": "2026-09-10T00:04:59.280Z",
+      "gas": "821391",
+      "localGas": "802682",
+      "feeWei": "136686033528000",
+      "quote": 0.336319,
+      "parentQuote": 0.00008,
+      "estimateVsLocalGas": 1.023308109562691,
+      "localGasAtSourcePriceQuote": 0.328659,
+      "gasPriceGwei": 0.166408,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58835",
+          "localGas": "57988",
+          "gasPriceGwei": 0.166408,
+          "parentGas": "30",
+          "quote": "24090"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177807",
+          "localGas": "166513",
+          "gasPriceGwei": 0.166408,
+          "parentGas": "52",
+          "quote": "72804"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58835",
+          "localGas": "57988",
+          "gasPriceGwei": 0.166408,
+          "parentGas": "30",
+          "quote": "24090"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64519",
+          "localGas": "63649",
+          "gasPriceGwei": 0.166408,
+          "parentGas": "30",
+          "quote": "26418"
+        },
+        {
+          "action": "mint",
+          "gas": "461395",
+          "localGas": "456544",
+          "gasPriceGwei": 0.166408,
+          "parentGas": "52",
+          "quote": "188919"
+        }
+      ]
+    },
+    {
+      "id": "142",
+      "session": "43",
+      "action": "exit",
+      "sourceBlock": "58971116",
+      "sourceHash": "0x5ded5f859ac80358b9c238f87c5a9fecdb1dfd7b63ae1b6993a1e702944e28ad",
+      "observedAt": "2026-09-10T00:22:13.731Z",
+      "gas": "558994",
+      "localGas": "508929",
+      "feeWei": "91988052640000",
+      "quote": 0.226339,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0983732504927013,
+      "localGasAtSourcePriceQuote": 0.206067,
+      "gasPriceGwei": 0.16456,
+      "perTransactionRoundingDifferenceMicro": "0",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244468",
+          "localGas": "221657",
+          "gasPriceGwei": 0.16456,
+          "parentGas": "0",
+          "quote": "98986"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64472",
+          "localGas": "63637",
+          "gasPriceGwei": 0.16456,
+          "parentGas": "0",
+          "quote": "26105"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161599",
+          "localGas": "145942",
+          "gasPriceGwei": 0.16456,
+          "parentGas": "0",
+          "quote": "65432"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.16456,
+          "parentGas": "0",
+          "quote": "16759"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.16456,
+          "parentGas": "0",
+          "quote": "19057"
+        }
+      ]
+    },
+    {
+      "id": "144",
+      "session": "44",
+      "action": "entry",
+      "sourceBlock": "58978454",
+      "sourceHash": "0x124f328bb5c8a34e13ec83da1bc88fc189c17dbdeea889b1cc02caefa69db967",
+      "observedAt": "2026-09-10T00:34:42.384Z",
+      "gas": "818596",
+      "localGas": "799395",
+      "feeWei": "137440631208000",
+      "quote": 0.338176,
+      "parentQuote": 0.000263,
+      "estimateVsLocalGas": 1.0240194146823536,
+      "localGasAtSourcePriceQuote": 0.330244,
+      "gasPriceGwei": 0.167898,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58914",
+          "localGas": "57988",
+          "gasPriceGwei": 0.167898,
+          "parentGas": "97",
+          "quote": "24339"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177949",
+          "localGas": "166514",
+          "gasPriceGwei": 0.167898,
+          "parentGas": "171",
+          "quote": "73514"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58914",
+          "localGas": "57988",
+          "gasPriceGwei": 0.167898,
+          "parentGas": "97",
+          "quote": "24339"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64598",
+          "localGas": "63649",
+          "gasPriceGwei": 0.167898,
+          "parentGas": "97",
+          "quote": "26687"
+        },
+        {
+          "action": "mint",
+          "gas": "458221",
+          "localGas": "453256",
+          "gasPriceGwei": 0.167898,
+          "parentGas": "173",
+          "quote": "189299"
+        }
+      ]
+    },
+    {
+      "id": "145",
+      "session": "44",
+      "action": "exit",
+      "sourceBlock": "58994963",
+      "sourceHash": "0xd2ec8d78ba4fb2421f4d77b1d3653bcbb2400923047a5bbef3de2a55ed0267a2",
+      "observedAt": "2026-09-10T01:02:45.777Z",
+      "gas": "559000",
+      "localGas": "508845",
+      "feeWei": "92029288000000",
+      "quote": 0.22644,
+      "parentQuote": 0.000032,
+      "estimateVsLocalGas": 1.0985663610726253,
+      "localGasAtSourcePriceQuote": 0.206124,
+      "gasPriceGwei": 0.164632,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244406",
+          "localGas": "221573",
+          "gasPriceGwei": 0.164632,
+          "parentGas": "20",
+          "quote": "99005"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64499",
+          "localGas": "63649",
+          "gasPriceGwei": 0.164632,
+          "parentGas": "12",
+          "quote": "26128"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161612",
+          "localGas": "145930",
+          "gasPriceGwei": 0.164632,
+          "parentGas": "21",
+          "quote": "65466"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41404",
+          "localGas": "36040",
+          "gasPriceGwei": 0.164632,
+          "parentGas": "12",
+          "quote": "16772"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47079",
+          "localGas": "41653",
+          "gasPriceGwei": 0.164632,
+          "parentGas": "12",
+          "quote": "19071"
+        }
+      ]
+    },
+    {
+      "id": "147",
+      "session": "45",
+      "action": "entry",
+      "sourceBlock": "59002237",
+      "sourceHash": "0x4d20a505dd84b461007c8045ef2f297e98923039a91bc738dd2d7c8ec31e3df5",
+      "observedAt": "2026-09-10T01:14:44.440Z",
+      "gas": "804074",
+      "localGas": "785448",
+      "feeWei": "131112306440000",
+      "quote": 0.324525,
+      "parentQuote": 0.000096,
+      "estimateVsLocalGas": 1.023713855022866,
+      "localGasAtSourcePriceQuote": 0.317007,
+      "gasPriceGwei": 0.16306,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58843",
+          "localGas": "57988",
+          "gasPriceGwei": 0.16306,
+          "parentGas": "36",
+          "quote": "23750"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177856",
+          "localGas": "166547",
+          "gasPriceGwei": 0.16306,
+          "parentGas": "64",
+          "quote": "71783"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58843",
+          "localGas": "57988",
+          "gasPriceGwei": 0.16306,
+          "parentGas": "36",
+          "quote": "23750"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64527",
+          "localGas": "63649",
+          "gasPriceGwei": 0.16306,
+          "parentGas": "36",
+          "quote": "26044"
+        },
+        {
+          "action": "mint",
+          "gas": "444005",
+          "localGas": "439276",
+          "gasPriceGwei": 0.16306,
+          "parentGas": "65",
+          "quote": "179201"
+        }
+      ]
+    },
+    {
+      "id": "148",
+      "session": "45",
+      "action": "exit",
+      "sourceBlock": "59012021",
+      "sourceHash": "0xb5a19578bd1c3e4a47e38acb88cce3e6af554f7ebb4a969d42917a2100d52c88",
+      "observedAt": "2026-09-10T01:31:08.793Z",
+      "gas": "559330",
+      "localGas": "508875",
+      "feeWei": "90152809400000",
+      "quote": 0.223143,
+      "parentQuote": 0.000134,
+      "estimateVsLocalGas": 1.0991500859739622,
+      "localGasAtSourcePriceQuote": 0.203015,
+      "gasPriceGwei": 0.16118,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244485",
+          "localGas": "221573",
+          "gasPriceGwei": 0.16118,
+          "parentGas": "87",
+          "quote": "97537"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64545",
+          "localGas": "63649",
+          "gasPriceGwei": 0.16118,
+          "parentGas": "52",
+          "quote": "25751"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161724",
+          "localGas": "145960",
+          "gasPriceGwei": 0.16118,
+          "parentGas": "91",
+          "quote": "64520"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41451",
+          "localGas": "36040",
+          "gasPriceGwei": 0.16118,
+          "parentGas": "52",
+          "quote": "16537"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47125",
+          "localGas": "41653",
+          "gasPriceGwei": 0.16118,
+          "parentGas": "52",
+          "quote": "18801"
+        }
+      ]
+    },
+    {
+      "id": "151",
+      "session": "46",
+      "action": "entry",
+      "sourceBlock": "59019922",
+      "sourceHash": "0xbb8961c3901385d75376de2bbb90a4d435d7e5fe8f1a4bebb87fb11b2194f87e",
+      "observedAt": "2026-09-10T01:44:25.323Z",
+      "gas": "821061",
+      "localGas": "802476",
+      "feeWei": "130890260376000",
+      "quote": 0.322202,
+      "parentQuote": 0.000035,
+      "estimateVsLocalGas": 1.023159571127361,
+      "localGasAtSourcePriceQuote": 0.314909,
+      "gasPriceGwei": 0.159416,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58816",
+          "localGas": "57988",
+          "gasPriceGwei": 0.159416,
+          "parentGas": "13",
+          "quote": "23081"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177774",
+          "localGas": "166513",
+          "gasPriceGwei": 0.159416,
+          "parentGas": "24",
+          "quote": "69763"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58816",
+          "localGas": "57988",
+          "gasPriceGwei": 0.159416,
+          "parentGas": "13",
+          "quote": "23081"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64500",
+          "localGas": "63649",
+          "gasPriceGwei": 0.159416,
+          "parentGas": "13",
+          "quote": "25312"
+        },
+        {
+          "action": "mint",
+          "gas": "461155",
+          "localGas": "456338",
+          "gasPriceGwei": 0.159416,
+          "parentGas": "24",
+          "quote": "180967"
+        }
+      ]
+    },
+    {
+      "id": "152",
+      "session": "46",
+      "action": "exit",
+      "sourceBlock": "59125809",
+      "sourceHash": "0x4e2e1c4d432b22e74e78b2c7366bfb45752655bdd9ac0edc7f16307b8ac9b094",
+      "observedAt": "2026-09-10T04:42:27.724Z",
+      "gas": "548827",
+      "localGas": "485575",
+      "feeWei": "84084687016000",
+      "quote": 0.208053,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1302620604438038,
+      "localGasAtSourcePriceQuote": 0.184075,
+      "gasPriceGwei": 0.153208,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "234305",
+          "localGas": "198307",
+          "gasPriceGwei": 0.153208,
+          "parentGas": "0",
+          "quote": "88822"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.153208,
+          "parentGas": "0",
+          "quote": "24446"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161583",
+          "localGas": "145926",
+          "gasPriceGwei": 0.153208,
+          "parentGas": "0",
+          "quote": "61254"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.153208,
+          "parentGas": "0",
+          "quote": "15691"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.153208,
+          "parentGas": "0",
+          "quote": "17842"
+        }
+      ]
+    },
+    {
+      "id": "154",
+      "session": "47",
+      "action": "entry",
+      "sourceBlock": "59133126",
+      "sourceHash": "0xfaaac991a29b2ec8a17f6909f0f25c6c427e20d7419d8437aa119daab33c8c65",
+      "observedAt": "2026-09-10T04:54:43.401Z",
+      "gas": "804136",
+      "localGas": "785496",
+      "feeWei": "123600528016000",
+      "quote": 0.305828,
+      "parentQuote": 0.000095,
+      "estimateVsLocalGas": 1.023730229052726,
+      "localGasAtSourcePriceQuote": 0.298739,
+      "gasPriceGwei": 0.153706,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58845",
+          "localGas": "57988",
+          "gasPriceGwei": 0.153706,
+          "parentGas": "38",
+          "quote": "22380"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177891",
+          "localGas": "166577",
+          "gasPriceGwei": 0.153706,
+          "parentGas": "67",
+          "quote": "67656"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58845",
+          "localGas": "57988",
+          "gasPriceGwei": 0.153706,
+          "parentGas": "38",
+          "quote": "22380"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64529",
+          "localGas": "63649",
+          "gasPriceGwei": 0.153706,
+          "parentGas": "38",
+          "quote": "24542"
+        },
+        {
+          "action": "mint",
+          "gas": "444026",
+          "localGas": "439294",
+          "gasPriceGwei": 0.153706,
+          "parentGas": "68",
+          "quote": "168872"
+        }
+      ]
+    },
+    {
+      "id": "155",
+      "session": "47",
+      "action": "exit",
+      "sourceBlock": "59145351",
+      "sourceHash": "0xcf7a895d75e15d227fcf1bd63512992a1f2154e98e37ab53ab022891d68750aa",
+      "observedAt": "2026-09-10T05:15:36.089Z",
+      "gas": "559547",
+      "localGas": "508883",
+      "feeWei": "83772019558000",
+      "quote": 0.20728,
+      "parentQuote": 0.000192,
+      "estimateVsLocalGas": 1.0995592307072548,
+      "localGasAtSourcePriceQuote": 0.188512,
+      "gasPriceGwei": 0.149714,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244552",
+          "localGas": "221587",
+          "gasPriceGwei": 0.149714,
+          "parentGas": "134",
+          "quote": "90593"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64576",
+          "localGas": "63649",
+          "gasPriceGwei": 0.149714,
+          "parentGas": "80",
+          "quote": "23922"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161779",
+          "localGas": "145954",
+          "gasPriceGwei": 0.149714,
+          "parentGas": "142",
+          "quote": "59930"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41483",
+          "localGas": "36040",
+          "gasPriceGwei": 0.149714,
+          "parentGas": "80",
+          "quote": "15368"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47157",
+          "localGas": "41653",
+          "gasPriceGwei": 0.149714,
+          "parentGas": "80",
+          "quote": "17469"
+        }
+      ]
+    },
+    {
+      "id": "157",
+      "session": "48",
+      "action": "entry",
+      "sourceBlock": "59152695",
+      "sourceHash": "0xf08e7f95be9dd0617e9f0fa303acbe07f2cb2d110deade15c82b55c5fd32c85a",
+      "observedAt": "2026-09-10T05:27:34.389Z",
+      "gas": "817884",
+      "localGas": "799424",
+      "feeWei": "124413242544000",
+      "quote": 0.307839,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230916259706988,
+      "localGasAtSourcePriceQuote": 0.300891,
+      "gasPriceGwei": 0.152116,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.152116,
+          "parentGas": "0",
+          "quote": "22132"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177767",
+          "localGas": "166533",
+          "gasPriceGwei": 0.152116,
+          "parentGas": "0",
+          "quote": "66909"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.152116,
+          "parentGas": "0",
+          "quote": "22132"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.152116,
+          "parentGas": "0",
+          "quote": "24271"
+        },
+        {
+          "action": "mint",
+          "gas": "458031",
+          "localGas": "453266",
+          "gasPriceGwei": 0.152116,
+          "parentGas": "0",
+          "quote": "172396"
+        }
+      ]
+    },
+    {
+      "id": "159",
+      "session": "48",
+      "action": "exit",
+      "sourceBlock": "59185576",
+      "sourceHash": "0x09c44f8c11fd5449eb151feaa8e25c0bbc31beb5e387b135452c5593fa5d2c16",
+      "observedAt": "2026-09-10T06:23:17.844Z",
+      "gas": "558251",
+      "localGas": "499237",
+      "feeWei": "81368432756000",
+      "quote": 0.201332,
+      "parentQuote": 0.000171,
+      "estimateVsLocalGas": 1.1182083859970315,
+      "localGasAtSourcePriceQuote": 0.180049,
+      "gasPriceGwei": 0.145756,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "243314",
+          "localGas": "211961",
+          "gasPriceGwei": 0.145756,
+          "parentGas": "123",
+          "quote": "87751"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64569",
+          "localGas": "63649",
+          "gasPriceGwei": 0.145756,
+          "parentGas": "74",
+          "quote": "23287"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161742",
+          "localGas": "145934",
+          "gasPriceGwei": 0.145756,
+          "parentGas": "129",
+          "quote": "58332"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41476",
+          "localGas": "36040",
+          "gasPriceGwei": 0.145756,
+          "parentGas": "74",
+          "quote": "14959"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47150",
+          "localGas": "41653",
+          "gasPriceGwei": 0.145756,
+          "parentGas": "74",
+          "quote": "17005"
+        }
+      ]
+    },
+    {
+      "id": "161",
+      "session": "49",
+      "action": "entry",
+      "sourceBlock": "59192914",
+      "sourceHash": "0x83ec340b2b898a96a52a0e44a2a60419737662c6b17d68a013774c07f34ac7cf",
+      "observedAt": "2026-09-10T06:35:24.582Z",
+      "gas": "852437",
+      "localGas": "833707",
+      "feeWei": "124004010390000",
+      "quote": 0.306827,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0224659262786566,
+      "localGasAtSourcePriceQuote": 0.300085,
+      "gasPriceGwei": 0.14547,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.14547,
+          "parentGas": "0",
+          "quote": "21165"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177736",
+          "localGas": "166504",
+          "gasPriceGwei": 0.14547,
+          "parentGas": "0",
+          "quote": "63975"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.14547,
+          "parentGas": "0",
+          "quote": "21165"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.14547,
+          "parentGas": "0",
+          "quote": "23211"
+        },
+        {
+          "action": "mint",
+          "gas": "492615",
+          "localGas": "487578",
+          "gasPriceGwei": 0.14547,
+          "parentGas": "0",
+          "quote": "177312"
+        }
+      ]
+    },
+    {
+      "id": "163",
+      "session": "49",
+      "action": "exit",
+      "sourceBlock": "59208109",
+      "sourceHash": "0x75d58427f363fa2bd1b54e1c29a5aa957c4e104a0c15f94bef9e00ca003f4306",
+      "observedAt": "2026-09-10T07:00:54.840Z",
+      "gas": "557788",
+      "localGas": "490145",
+      "feeWei": "80412949232000",
+      "quote": 0.198968,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1380061002356445,
+      "localGasAtSourcePriceQuote": 0.174839,
+      "gasPriceGwei": 0.144164,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "243240",
+          "localGas": "202851",
+          "gasPriceGwei": 0.144164,
+          "parentGas": "0",
+          "quote": "86766"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.144164,
+          "parentGas": "0",
+          "quote": "23002"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161609",
+          "localGas": "145952",
+          "gasPriceGwei": 0.144164,
+          "parentGas": "0",
+          "quote": "57648"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.144164,
+          "parentGas": "0",
+          "quote": "14765"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.144164,
+          "parentGas": "0",
+          "quote": "16789"
+        }
+      ]
+    },
+    {
+      "id": "165",
+      "session": "50",
+      "action": "entry",
+      "sourceBlock": "59215445",
+      "sourceHash": "0x730c3c44d0c3f0ac3ff1ec5f84834cca7fb23fd783e3d322071d7ec8a20f8341",
+      "observedAt": "2026-09-10T07:13:21.403Z",
+      "gas": "803735",
+      "localGas": "785389",
+      "feeWei": "114755675830000",
+      "quote": 0.283943,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023359125223297,
+      "localGasAtSourcePriceQuote": 0.277462,
+      "gasPriceGwei": 0.142778,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.142778,
+          "parentGas": "0",
+          "quote": "20774"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177691",
+          "localGas": "166460",
+          "gasPriceGwei": 0.142778,
+          "parentGas": "0",
+          "quote": "62775"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.142778,
+          "parentGas": "0",
+          "quote": "20774"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.142778,
+          "parentGas": "0",
+          "quote": "22781"
+        },
+        {
+          "action": "mint",
+          "gas": "443958",
+          "localGas": "439304",
+          "gasPriceGwei": 0.142778,
+          "parentGas": "0",
+          "quote": "156842"
+        }
+      ]
+    },
+    {
+      "id": "166",
+      "session": "50",
+      "action": "exit",
+      "sourceBlock": "59228207",
+      "sourceHash": "0x65b0f5ba7ea4dc7bc9b655aa3b19aa943d50504b8fe0bbfa2fe358950a7dd9ef",
+      "observedAt": "2026-09-10T07:34:47.106Z",
+      "gas": "559375",
+      "localGas": "508899",
+      "feeWei": "80184168750000",
+      "quote": 0.198402,
+      "parentQuote": 0.000125,
+      "estimateVsLocalGas": 1.0991866755485862,
+      "localGasAtSourcePriceQuote": 0.180499,
+      "gasPriceGwei": 0.143346,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244504",
+          "localGas": "221587",
+          "gasPriceGwei": 0.143346,
+          "parentGas": "91",
+          "quote": "86722"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64548",
+          "localGas": "63649",
+          "gasPriceGwei": 0.143346,
+          "parentGas": "55",
+          "quote": "22895"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161741",
+          "localGas": "145970",
+          "gasPriceGwei": 0.143346,
+          "parentGas": "96",
+          "quote": "57368"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41454",
+          "localGas": "36040",
+          "gasPriceGwei": 0.143346,
+          "parentGas": "55",
+          "quote": "14704"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47128",
+          "localGas": "41653",
+          "gasPriceGwei": 0.143346,
+          "parentGas": "55",
+          "quote": "16716"
+        }
+      ]
+    },
+    {
+      "id": "168",
+      "session": "51",
+      "action": "entry",
+      "sourceBlock": "59237922",
+      "sourceHash": "0x0916229bb6c8d50c6393843f5bdee46d37bc4ff51a69ddb955a43d3c2d5526b1",
+      "observedAt": "2026-09-10T07:51:11.390Z",
+      "gas": "803042",
+      "localGas": "784423",
+      "feeWei": "113649716008000",
+      "quote": 0.281207,
+      "parentQuote": 0.00009,
+      "estimateVsLocalGas": 1.0237359179932255,
+      "localGasAtSourcePriceQuote": 0.274687,
+      "gasPriceGwei": 0.141524,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58846",
+          "localGas": "57988",
+          "gasPriceGwei": 0.141524,
+          "parentGas": "39",
+          "quote": "20607"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "176782",
+          "localGas": "165494",
+          "gasPriceGwei": 0.141524,
+          "parentGas": "68",
+          "quote": "61905"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58846",
+          "localGas": "57988",
+          "gasPriceGwei": 0.141524,
+          "parentGas": "39",
+          "quote": "20607"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64530",
+          "localGas": "63649",
+          "gasPriceGwei": 0.141524,
+          "parentGas": "39",
+          "quote": "22597"
+        },
+        {
+          "action": "mint",
+          "gas": "444038",
+          "localGas": "439304",
+          "gasPriceGwei": 0.141524,
+          "parentGas": "70",
+          "quote": "155492"
+        }
+      ]
+    },
+    {
+      "id": "169",
+      "session": "51",
+      "action": "exit",
+      "sourceBlock": "59244629",
+      "sourceHash": "0x2c40d39d0e8afe196ae1a4f445bf43fa9c0725336443eb4ab9c0b8c0755325f6",
+      "observedAt": "2026-09-10T08:02:17.862Z",
+      "gas": "559778",
+      "localGas": "499715",
+      "feeWei": "78297268416000",
+      "quote": 0.193733,
+      "parentQuote": 0.000245,
+      "estimateVsLocalGas": 1.1201945108711966,
+      "localGasAtSourcePriceQuote": 0.172946,
+      "gasPriceGwei": 0.139872,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244608",
+          "localGas": "212409",
+          "gasPriceGwei": 0.139872,
+          "parentGas": "183",
+          "quote": "84657"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64611",
+          "localGas": "63649",
+          "gasPriceGwei": 0.139872,
+          "parentGas": "110",
+          "quote": "22362"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161849",
+          "localGas": "145964",
+          "gasPriceGwei": 0.139872,
+          "parentGas": "194",
+          "quote": "56015"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41518",
+          "localGas": "36040",
+          "gasPriceGwei": 0.139872,
+          "parentGas": "110",
+          "quote": "14369"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47192",
+          "localGas": "41653",
+          "gasPriceGwei": 0.139872,
+          "parentGas": "110",
+          "quote": "16333"
+        }
+      ]
+    },
+    {
+      "id": "171",
+      "session": "52",
+      "action": "entry",
+      "sourceBlock": "59251910",
+      "sourceHash": "0x9aff36a74e775b8305c12584a33a409a169571a9a789ee8730aa46fd709e5a88",
+      "observedAt": "2026-09-10T08:14:30.449Z",
+      "gas": "852386",
+      "localGas": "833657",
+      "feeWei": "119731251876000",
+      "quote": 0.296255,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0224660741767897,
+      "localGasAtSourcePriceQuote": 0.289745,
+      "gasPriceGwei": 0.140466,
+      "perTransactionRoundingDifferenceMicro": "1",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.140466,
+          "parentGas": "0",
+          "quote": "20437"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177695",
+          "localGas": "166464",
+          "gasPriceGwei": 0.140466,
+          "parentGas": "0",
+          "quote": "61760"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.140466,
+          "parentGas": "0",
+          "quote": "20437"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.140466,
+          "parentGas": "0",
+          "quote": "22412"
+        },
+        {
+          "action": "mint",
+          "gas": "492605",
+          "localGas": "487568",
+          "gasPriceGwei": 0.140466,
+          "parentGas": "0",
+          "quote": "171210"
+        }
+      ]
+    },
+    {
+      "id": "172",
+      "session": "52",
+      "action": "exit",
+      "sourceBlock": "59379251",
+      "sourceHash": "0xe7ed5b80f2a85c3a20532775553a7156377216a803554c21fce7115666086ab3",
+      "observedAt": "2026-09-10T11:48:49.893Z",
+      "gas": "557829",
+      "localGas": "490185",
+      "feeWei": "72053656272000",
+      "quote": 0.177268,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1379968787294592,
+      "localGasAtSourcePriceQuote": 0.155772,
+      "gasPriceGwei": 0.129168,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "243203",
+          "localGas": "202815",
+          "gasPriceGwei": 0.129168,
+          "parentGas": "0",
+          "quote": "77286"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.129168,
+          "parentGas": "0",
+          "quote": "20492"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161687",
+          "localGas": "146028",
+          "gasPriceGwei": 0.129168,
+          "parentGas": "0",
+          "quote": "51382"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.129168,
+          "parentGas": "0",
+          "quote": "13153"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.129168,
+          "parentGas": "0",
+          "quote": "14957"
+        }
+      ]
+    },
+    {
+      "id": "174",
+      "session": "53",
+      "action": "entry",
+      "sourceBlock": "59386546",
+      "sourceHash": "0xcade18db31692a981238b42ddf4f16c6fca57948b6d43758573e4db3442711c2",
+      "observedAt": "2026-09-10T12:02:05.472Z",
+      "gas": "821085",
+      "localGas": "802600",
+      "feeWei": "105980725290000",
+      "quote": 0.260736,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.023031397956641,
+      "localGasAtSourcePriceQuote": 0.254866,
+      "gasPriceGwei": 0.129074,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.129074,
+          "parentGas": "0",
+          "quote": "18673"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177777",
+          "localGas": "166543",
+          "gasPriceGwei": 0.129074,
+          "parentGas": "0",
+          "quote": "56454"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.129074,
+          "parentGas": "0",
+          "quote": "18673"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.129074,
+          "parentGas": "0",
+          "quote": "20477"
+        },
+        {
+          "action": "mint",
+          "gas": "461222",
+          "localGas": "456432",
+          "gasPriceGwei": 0.129074,
+          "parentGas": "0",
+          "quote": "146461"
+        }
+      ]
+    },
+    {
+      "id": "175",
+      "session": "53",
+      "action": "exit",
+      "sourceBlock": "59389614",
+      "sourceHash": "0xe7ada69bf4ebeeab9c33ef4d5f2d7fa02f6acd39b10b13ede8b6dd83cc8878f4",
+      "observedAt": "2026-09-10T12:06:03.244Z",
+      "gas": "558945",
+      "localGas": "508881",
+      "feeWei": "72912139470000",
+      "quote": 0.17938,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0983805644148632,
+      "localGasAtSourcePriceQuote": 0.163313,
+      "gasPriceGwei": 0.130446,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244387",
+          "localGas": "221577",
+          "gasPriceGwei": 0.130446,
+          "parentGas": "0",
+          "quote": "78430"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.130446,
+          "parentGas": "0",
+          "quote": "20695"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161619",
+          "localGas": "145962",
+          "gasPriceGwei": 0.130446,
+          "parentGas": "0",
+          "quote": "51868"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.130446,
+          "parentGas": "0",
+          "quote": "13284"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.130446,
+          "parentGas": "0",
+          "quote": "15105"
+        }
+      ]
+    },
+    {
+      "id": "177",
+      "session": "54",
+      "action": "entry",
+      "sourceBlock": "59396962",
+      "sourceHash": "0x613032beb3b90b3986079258d8316b8e34401596d352e3ae744c436478aff318",
+      "observedAt": "2026-09-10T12:18:30.438Z",
+      "gas": "819625",
+      "localGas": "798501",
+      "feeWei": "105959480750000",
+      "quote": 0.260684,
+      "parentQuote": 0.000738,
+      "estimateVsLocalGas": 1.0264545692491305,
+      "localGasAtSourcePriceQuote": 0.253965,
+      "gasPriceGwei": 0.129278,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "59210",
+          "localGas": "57988",
+          "gasPriceGwei": 0.129278,
+          "parentGas": "355",
+          "quote": "18832"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177462",
+          "localGas": "165526",
+          "gasPriceGwei": 0.129278,
+          "parentGas": "619",
+          "quote": "56443"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "59210",
+          "localGas": "57988",
+          "gasPriceGwei": 0.129278,
+          "parentGas": "355",
+          "quote": "18832"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64893",
+          "localGas": "63649",
+          "gasPriceGwei": 0.129278,
+          "parentGas": "355",
+          "quote": "20640"
+        },
+        {
+          "action": "mint",
+          "gas": "458850",
+          "localGas": "453350",
+          "gasPriceGwei": 0.129278,
+          "parentGas": "636",
+          "quote": "145939"
+        }
+      ]
+    },
+    {
+      "id": "179",
+      "session": "54",
+      "action": "exit",
+      "sourceBlock": "59406766",
+      "sourceHash": "0xdd7f6a08b2666fb15c28ab510d49863dac9816a353ebb6b7f6752b0c4added36",
+      "observedAt": "2026-09-10T12:34:53.080Z",
+      "gas": "557836",
+      "localGas": "494376",
+      "feeWei": "259536546016000",
+      "quote": 0.635029,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1283638364321893,
+      "localGasAtSourcePriceQuote": 0.562788,
+      "gasPriceGwei": 0.465256,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "234387",
+          "localGas": "198388",
+          "gasPriceGwei": 0.465256,
+          "parentGas": "0",
+          "quote": "266822"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.465256,
+          "parentGas": "0",
+          "quote": "73408"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "170510",
+          "localGas": "154646",
+          "gasPriceGwei": 0.465256,
+          "parentGas": "0",
+          "quote": "194106"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.465256,
+          "parentGas": "0",
+          "quote": "47118"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.465256,
+          "parentGas": "0",
+          "quote": "53578"
+        }
+      ]
+    },
+    {
+      "id": "181",
+      "session": "55",
+      "action": "entry",
+      "sourceBlock": "59414035",
+      "sourceHash": "0xd558283a6b86feb541ed0f6ffd0b7bbe75bfb6bf224a8905f1c28eaec7e06d41",
+      "observedAt": "2026-09-10T12:47:23.231Z",
+      "gas": "818018",
+      "localGas": "799558",
+      "feeWei": "356958514660000",
+      "quote": 0.868343,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.0230877559851819,
+      "localGasAtSourcePriceQuote": 0.848748,
+      "gasPriceGwei": 0.43637,
+      "perTransactionRoundingDifferenceMicro": "3",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.43637,
+          "parentGas": "0",
+          "quote": "62419"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177789",
+          "localGas": "166555",
+          "gasPriceGwei": 0.43637,
+          "parentGas": "0",
+          "quote": "188727"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58801",
+          "localGas": "57988",
+          "gasPriceGwei": 0.43637,
+          "parentGas": "0",
+          "quote": "62419"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.43637,
+          "parentGas": "0",
+          "quote": "68452"
+        },
+        {
+          "action": "mint",
+          "gas": "458143",
+          "localGas": "453378",
+          "gasPriceGwei": 0.43637,
+          "parentGas": "0",
+          "quote": "486329"
+        }
+      ]
+    },
+    {
+      "id": "182",
+      "session": "55",
+      "action": "exit",
+      "sourceBlock": "59509161",
+      "sourceHash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "observedAt": "2026-09-10T15:27:03.615Z",
+      "gas": "549635",
+      "localGas": "490580",
+      "feeWei": "75058155600000",
+      "quote": 0.182625,
+      "parentQuote": 0,
+      "estimateVsLocalGas": 1.1203779200130457,
+      "localGasAtSourcePriceQuote": 0.163003,
+      "gasPriceGwei": 0.13656,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "235001",
+          "localGas": "203202",
+          "gasPriceGwei": 0.13656,
+          "parentGas": "0",
+          "quote": "78083"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64484",
+          "localGas": "63649",
+          "gasPriceGwei": 0.13656,
+          "parentGas": "0",
+          "quote": "21426"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "161695",
+          "localGas": "146036",
+          "gasPriceGwei": 0.13656,
+          "parentGas": "0",
+          "quote": "53726"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41390",
+          "localGas": "36040",
+          "gasPriceGwei": 0.13656,
+          "parentGas": "0",
+          "quote": "13753"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47065",
+          "localGas": "41653",
+          "gasPriceGwei": 0.13656,
+          "parentGas": "0",
+          "quote": "15639"
+        }
+      ]
+    },
+    {
+      "id": "192",
+      "session": "56",
+      "action": "entry",
+      "sourceBlock": "60077023",
+      "sourceHash": "0x12ca9a21e2be9ebf63dcfd7ea048e6f84744497358bb13f03ac214fc78742265",
+      "observedAt": "2026-09-11T07:23:55.697Z",
+      "gas": "821199",
+      "localGas": "802699",
+      "feeWei": "96520445664000",
+      "quote": 0.237331,
+      "parentQuote": 0.000004,
+      "estimateVsLocalGas": 1.0230472443593426,
+      "localGasAtSourcePriceQuote": 0.231985,
+      "gasPriceGwei": 0.117536,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "approve_entry_swap",
+          "gas": "58803",
+          "localGas": "57988",
+          "gasPriceGwei": 0.117536,
+          "parentGas": "2",
+          "quote": "16995"
+        },
+        {
+          "action": "buy_nvda",
+          "gas": "177853",
+          "localGas": "166614",
+          "gasPriceGwei": 0.117536,
+          "parentGas": "3",
+          "quote": "51401"
+        },
+        {
+          "action": "approve_mint_usdg",
+          "gas": "58803",
+          "localGas": "57988",
+          "gasPriceGwei": 0.117536,
+          "parentGas": "2",
+          "quote": "16995"
+        },
+        {
+          "action": "approve_mint_nvda",
+          "gas": "64486",
+          "localGas": "63649",
+          "gasPriceGwei": 0.117536,
+          "parentGas": "2",
+          "quote": "18637"
+        },
+        {
+          "action": "mint",
+          "gas": "461254",
+          "localGas": "456460",
+          "gasPriceGwei": 0.117536,
+          "parentGas": "3",
+          "quote": "133305"
+        }
+      ]
+    },
+    {
+      "id": "194",
+      "session": "56",
+      "action": "exit",
+      "sourceBlock": "60094014",
+      "sourceHash": "0xf637d9e084266f3d164b5624c3aba799051a8f1ba0acc01d2ede2afb0f721fee",
+      "observedAt": "2026-09-11T07:52:25.301Z",
+      "gas": "558016",
+      "localGas": "507915",
+      "feeWei": "65628261760000",
+      "quote": 0.162201,
+      "parentQuote": 0.000015,
+      "estimateVsLocalGas": 1.0986405205595424,
+      "localGasAtSourcePriceQuote": 0.147638,
+      "gasPriceGwei": 0.11761,
+      "perTransactionRoundingDifferenceMicro": "2",
+      "transactions": [
+        {
+          "action": "decrease_and_collect",
+          "gas": "244441",
+          "localGas": "221615",
+          "gasPriceGwei": 0.11761,
+          "parentGas": "13",
+          "quote": "71053"
+        },
+        {
+          "action": "approve_exit_swap",
+          "gas": "64493",
+          "localGas": "63649",
+          "gasPriceGwei": 0.11761,
+          "parentGas": "8",
+          "quote": "18747"
+        },
+        {
+          "action": "sell_nvda",
+          "gas": "160609",
+          "localGas": "144958",
+          "gasPriceGwei": 0.11761,
+          "parentGas": "14",
+          "quote": "46685"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "41399",
+          "localGas": "36040",
+          "gasPriceGwei": 0.11761,
+          "parentGas": "8",
+          "quote": "12034"
+        },
+        {
+          "action": "revoke_exit_allowance",
+          "gas": "47074",
+          "localGas": "41653",
+          "gasPriceGwei": 0.11761,
+          "parentGas": "8",
+          "quote": "13684"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Node gas estimates are not our realized Nitro receipts",
+    "Anvil execution gas at the source price is only a comparison; it does not prove identical live metering or all parent costs",
+    "Sample includes successful saved campaign entries and exits only; failed and hypothetical partial transactions are not represented",
+    "Historical gas-price distribution is not an off-hours forecast; shared fixed profiles are economic sensitivity scenarios"
+  ]
+}

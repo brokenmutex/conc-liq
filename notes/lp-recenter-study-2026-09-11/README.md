@@ -2,6 +2,8 @@
 
 **Recentring is now explicitly modeled, separately from inventory liquidation. This particular rule improves range coverage but reduces net returns under every cost profile tested.** It should remain a research candidate until new data and an economic action rule support deployment. The paper strategy is unchanged.
 
+The subsequent [fee and cost validity audit](../lp-cost-validity-2026-09-11/README.md) found the recenter probes used roughly 0.8-gwei gas versus about 0.2 gwei for the median saved campaign operation. At a common 0.20 gwei, the 80% hold/net-swap means are −1.512033/−2.740670 USDG per window. The tested recenter trigger still underperforms on average, but its estimated loss is much smaller than the high-snapshot scenario below.
+
 ## What is compared
 
 Nine policies cross **60/70/80% inventory exit thresholds** with three range policies. They start each allowed window with **939.964887 USDG**, use an **80% allocation setting** and a **±20 raw-tick range**, and retain the same guards, reentry, source timing and off-hours schedule as the [cap baseline](../lp-offhours-cap-2026-09-11/README.md).

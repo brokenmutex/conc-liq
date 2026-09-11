@@ -1,0 +1,74 @@
+[
+  {
+    "action_class": "collect_bundle",
+    "n": 216,
+    "first_block": "54417932",
+    "last_block": "59334445",
+    "gas_median": 122282,
+    "gas_price_median": 263650000,
+    "min_fee": "9335937928000",
+    "max_fee": "581006697340000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "149555088000"
+  },
+  {
+    "action_class": "exit_bundle",
+    "n": 2087,
+    "first_block": "54417636",
+    "last_block": "59350711",
+    "gas_median": 223120,
+    "gas_price_median": 281298000,
+    "min_fee": "18442356570000",
+    "max_fee": "3359994813472000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "535166816000"
+  },
+  {
+    "action_class": "mint_bundle",
+    "n": 2048,
+    "first_block": "54417326",
+    "last_block": "59349835",
+    "gas_median": 438727.5,
+    "gas_price_median": 281342000,
+    "min_fee": "31725754562000",
+    "max_fee": "7241905289192000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "513193548000"
+  },
+  {
+    "action_class": "mixed",
+    "n": 26,
+    "first_block": "54432157",
+    "last_block": "59271912",
+    "gas_median": 14632937.5,
+    "gas_price_median": 238808000,
+    "min_fee": "224437451500000",
+    "max_fee": "11688626560576000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "1606825764000"
+  },
+  {
+    "action_class": "rebalance_bundle",
+    "n": 511,
+    "first_block": "54429193",
+    "last_block": "59337977",
+    "gas_median": 747806,
+    "gas_price_median": 233242000,
+    "min_fee": "47460954584000",
+    "max_fee": "6197845329620000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "972898656000"
+  },
+  {
+    "action_class": "swap_only",
+    "n": 2527,
+    "first_block": "54436435",
+    "last_block": "59350730",
+    "gas_median": 461369,
+    "gas_price_median": 291364000,
+    "min_fee": "21113324184000",
+    "max_fee": "4921790409360000",
+    "min_parent_fee": "0",
+    "max_parent_fee": "568415232000"
+  }
+]
