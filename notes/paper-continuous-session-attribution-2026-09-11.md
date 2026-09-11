@@ -38,3 +38,18 @@ A read-only replay of historical campaign 5 through session 56 used **3,008 mark
 Local evidence is in `data/paper-continuous-sessions-2026-09-11/`, including the historical reconciliation, test logs, full report exports and dashboard checks. Activation details follow after release verification.
 
 Chromium browser verification passed against the workspace server and live read-only API. Historical data exercised all three chart modes, five grouped rows, eight detailed rows, fourteen boundary rows and the daily filter, with no JavaScript exceptions or invalid chart coordinates. The captured historical screenshot is QA evidence only; the live dashboard uses the current campaign.
+
+## Activation
+
+At **2026-09-11 12:37:33 UTC**, session **59** replaced uninvested session **58**. Immediately before the transition, 58 was waiting with no position or charged costs. It was stopped and retained; 59 starts with the same **5,000 USDG**, so no economic balance was discarded. Older campaigns are also preserved. This is a new policy root because a canceled waiting session has no completed cash-exit funding link.
+
+- Source commit: `889d8cbe1b8953b656bddc90fc3087040673a1c3`.
+- Sealed build: `afca2ce0f29ba35624c079a11c1fc0302dc8e61e70f7bd0ccf5ae27b6a4d000e`.
+- Policy hash: `1798b15b75dd1a3bb4a479ed4e32ec3c69626257ab5ba21d90fa57e9cec314d7`.
+- Runtime configuration hash unchanged: `5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944`.
+- Paper timer and dashboard service active; `/api/dashboard` HTTP 200 with valid campaign and performance reporting (initial response 491 ms).
+- The deployed page passed an actual Chromium render with no JavaScript exceptions or error banner and displayed the continuous policy plus its first recorded mark.
+- At **12:38:03 UTC**, session 59 signaled entry with no gate reasons on the first fresh source, **12:37:44 UTC**. This is during premarket, confirming the former off-hours exclusion no longer blocks entry. A signal is not yet a fill.
+- Only paper and dashboard units were switched. The frozen cap/recenter validation timers remain active and unchanged. No database migration or live execution was introduced.
+
+Activation, API response, deployed-browser verification and screenshots are retained under the local evidence directory above.
