@@ -58,9 +58,6 @@
           <p id="paper-receipt-empty" class="muted">No matching receipt evidence available.</p>
           <div class="table-wrap"><table><thead><tr><th>Observed actions</th><th>Transactions</th><th>Total gas fee range (ETH)</th><th>Block range</th><th>Last collected</th></tr></thead><tbody id="paper-receipt-costs"></tbody></table></div>
         </details>
-        <div class="legend"><span><i class="legend-mint"></i>Paper net value</span><span><i class="legend-swap"></i>Passive holdings</span></div>
-        <div class="chart-frame"><svg id="paper-chart" viewBox="0 0 1000 230" role="img" aria-label="Paper net value versus passive holdings over time"></svg><div id="paper-chart-empty" class="empty">Performance starts after a simulated entry. Waiting is not a trading result.</div></div>
-        <div class="chart-axis"><span id="paper-chart-start">—</span><span>Source time · USDG</span><span id="paper-chart-end">—</span></div>
         <section class="session-performance" aria-label="Paper performance across market sessions">
           <h3>Position evolution &amp; market sessions</h3>
           <p id="paper-session-status" class="muted">Waiting for position history.</p>
@@ -69,11 +66,11 @@
             <label>Breakdown <select id="paper-session-grouping"><option value="grouped">Market / premarket / non-market</option><option value="detailed">Detailed sessions</option></select></label>
             <label>Chart <select id="paper-session-metric"><option value="value">Value versus holding</option><option value="range">Pool price &amp; LP range</option><option value="inventory">NVDA inventory exposure</option></select></label>
           </div>
-          <div class="chart-frame"><svg id="paper-session-chart" viewBox="0 0 1000 230" role="img" aria-label="Position evolution with market session boundaries"></svg><div id="paper-session-empty" class="empty">Position marks will appear here.</div></div>
+          <div class="chart-frame"><svg id="paper-session-chart" viewBox="0 0 1000 280" role="img" aria-label="Position evolution with market session boundaries"></svg><div id="paper-session-empty" class="empty">Position marks will appear here.</div></div>
           <p id="paper-session-chart-note" class="muted"></p>
-          <div class="table-wrap"><table><thead><tr><th>Session (New York)</th><th>Hours / LP hours</th><th>Net P&amp;L</th><th>Versus holding</th><th>Fees earned</th><th>Gas</th><th>Swap cost*</th><th>P&amp;L / hour</th><th>Return bps / hour</th><th>Recenters / swaps</th><th>In range*</th></tr></thead><tbody id="paper-session-totals"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Session (New York)</th><th>Hours / LP hours</th><th>Net P&amp;L</th><th>Versus holding</th><th>Fees earned</th><th>Gas</th><th>Swap cost*</th><th>P&amp;L / hour</th><th title="Observed net hourly return compounded over 8,760 hours; an extrapolation, not a forecast">Estimated APY</th><th>Recenters / swaps</th><th>In range*</th></tr></thead><tbody id="paper-session-totals"></tbody></table></div>
           <p id="paper-session-reconciliation" class="muted"></p>
-          <p class="muted">Net P&amp;L includes marked inventory changes and charged costs, before the unspent exit reserve. Swap cost is the output shortfall versus source spot, including fees and price impact; it is already included in P&amp;L. In-range time, exposure and capital-hours use observations between marks. Mixed-boundary changes remain unallocated. Session attribution does not simulate a restricted-hours strategy.</p>
+          <p class="muted">Net P&amp;L includes marked inventory changes and charged costs, before the unspent exit reserve. Swap cost is the output shortfall versus source spot, including fees and price impact; it is already included in P&amp;L. In-range time, exposure and capital-hours use observations between marks. Mixed-boundary changes remain unallocated. Estimated APY compounds the observed net hourly return over 8,760 hours, assuming continuous reinvestment at that rate; short samples can produce extreme estimates. Session attribution does not simulate a restricted-hours strategy.</p>
           <details><summary class="paper-journal-summary">Positions around session boundaries</summary>
             <p class="muted">The marks immediately before and after each boundary bracket its value; they are not exact valuations at the boundary. A position continues across these rows without resetting its balance or benchmark.</p>
             <div class="table-wrap"><table><thead><tr><th>Boundary (New York)</th><th>Transition</th><th>Mark before → after (UTC)</th><th>Net value before → after</th><th>NVDA exposure before → after</th><th>LP ticks before → after</th></tr></thead><tbody id="paper-session-boundaries"></tbody></table></div>

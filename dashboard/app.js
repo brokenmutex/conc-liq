@@ -856,6 +856,14 @@ function renderSource(prefix, source, now) {
 
 const sessionNames = {market:"Market",regular:"Market",premarket:"Premarket",non_market:"Non-market",afterhours:"After-hours",overnight:"Overnight",weekend:"Weekend",holiday:"Holiday",mixed_boundary:"Mixed boundary",unknown:"Unknown",calendar_unavailable:"Unknown calendar"};
 const sessionColors = {market:"#46d7df",premarket:"#f6bb68",non_market:"#8a84ed",unknown:"#9c9c9c"};
+function estimatedSessionApy(returnBpsPerHour) {
+  if (returnBpsPerHour === null || returnBpsPerHour === undefined || !Number.isFinite(returnBpsPerHour)) return "—";
+  const hourly = returnBpsPerHour / 10000;
+  if (hourly < -1) return "—";
+  const percent = hourly === -1 ? -100 : Math.expm1(8760 * Math.log1p(hourly)) * 100;
+  if (!Number.isFinite(percent)) return "—";
+  return `${Math.abs(percent) >= 1e6 ? percent.toExponential(2) : percent.toFixed(2)}%`;
+}
 function renderSessionPerformance(report, now) {
   const table=element("paper-session-totals"),boundaryTable=element("paper-session-boundaries"),chart=element("paper-session-chart");
   table.replaceChildren();boundaryTable.replaceChildren();chart.replaceChildren();
@@ -876,7 +884,7 @@ function renderSessionPerformance(report, now) {
     const row=document.createElement("tr");
     row.append(cell(sessionNames[b.key]??b.key),cell(`${b.hours.toFixed(2)} / ${b.activeHours.toFixed(2)}`,"number"),cell(money(b.netPnlQuote),"number mono"),
       cell(money(b.alphaQuote),"number mono"),cell(money(b.feeIncomeQuote),"number mono"),cell(money(b.gasQuote),"number mono"),cell(money(b.swapCostVsSpotQuote),"number mono"),
-      cell(money(b.pnlPerHourQuote),"number mono"),cell(b.returnBpsPerHour===null?"—":b.returnBpsPerHour.toFixed(3),"number"),
+      cell(money(b.pnlPerHourQuote),"number mono"),cell(estimatedSessionApy(b.returnBpsPerHour),"number"),
       cell(`${b.recenters} / ${b.swaps}`,"number"),cell(b.sampledInRangePercent===null?"—":`${b.sampledInRangePercent.toFixed(1)}%`,"number"));
     if(b.key==="mixed_boundary")row.className="attention";table.append(row);
   }
@@ -894,7 +902,7 @@ function renderSessionPerformance(report, now) {
   const points=report.timeline.filter(p=>day.value==="all"||p.day===day.value);
   if(!points.length){setText("paper-session-chart-note","No marked observations for this period yet.");return;}
   element("paper-session-empty").classList.add("hidden");
-  const mode=metric.value||"value",width=Math.max(chart.clientWidth,500),height=230;
+  const mode=metric.value||"value",width=Math.max(chart.clientWidth,300),height=280;
   chart.setAttribute("viewBox",`0 0 ${width} ${height}`);
   const first=Date.parse(points[0].sourceAt),last=Date.parse(points.at(-1).sourceAt),span=Math.max(last-first,1);
   const x=at=>75+(Date.parse(at)-first)/span*(width-95);
@@ -907,6 +915,21 @@ function renderSessionPerformance(report, now) {
     const p=points[i],next=points[i+1];chart.append(svgNode("rect",{x:x(p.sourceAt),y:20,width:Math.max(0,x(next.sourceAt)-x(p.sourceAt)),height:180,fill:sessionColors[p.group]??"#9c9c9c",opacity:.07}));
   }
   for(const mark of [low,high]){const label=svgNode("text",{x:0,y:y(mark*scale),fill:"#8592a5","font-size":12});label.textContent=mode==="range"?Math.round(mark).toString():mark.toFixed(2);chart.append(label);}
+  const timeTicks = last > first ? Math.max(2, Math.min(6, Math.floor((width - 95) / 135))) : 0;
+  const timeLabel = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York",hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+  const dateLabel = new Intl.DateTimeFormat("en-GB", {timeZone:"America/New_York",month:"short",day:"2-digit"});
+  chart.append(svgNode("line", {x1:75,x2:width-20,y1:205,y2:205,stroke:"#8592a5",opacity:.6}));
+  for(let i=0;i<=timeTicks;i++){
+    const at=first+(last-first)*(timeTicks ? i/timeTicks : 0),position=x(new Date(at).toISOString());
+    const anchor=i===0?"start":i===timeTicks?"end":"middle";
+    chart.append(svgNode("line",{x1:position,x2:position,y1:205,y2:211,stroke:"#8592a5"}));
+    for(const [y,text] of [[228,timeLabel.format(at)],[244,dateLabel.format(at)]]){
+      const label=svgNode("text",{x:position,y,fill:"#8592a5","font-size":11,"text-anchor":anchor,"data-time-axis":"true"});
+      label.textContent=text;chart.append(label);
+    }
+  }
+  const axisLabel=svgNode("text",{x:(width+55)/2,y:270,fill:"#8592a5","font-size":11,"text-anchor":"middle"});
+  axisLabel.textContent="Source time · New York (ET)";chart.append(axisLabel);
   for(const [field,color] of fields){
     let line=[],previousPoint=null;const flush=()=>{if(line.length)chart.append(svgNode("polyline",{points:line.join(" "),stroke:color,"stroke-width":2,fill:"none"}));line=[];previousPoint=null;};
     for(const p of points){if(p[field]===null||p[field]===undefined){flush();continue;}if(mode==="range"&&field!=="tick"&&previousPoint)line.push(`${x(p.sourceAt)},${y(previousPoint[field])}`);line.push(`${x(p.sourceAt)},${y(p[field])}`);previousPoint=p;}
@@ -939,11 +962,7 @@ function renderPaper(paper, now) {
   setText("paper-cost-status", "Awaiting transaction simulation");
   const journal = element("paper-journal");
   journal.replaceChildren();
-  const svg = element("paper-chart");
-  svg.replaceChildren();
-  element("paper-chart-empty").classList.remove("hidden");
-  setText("paper-chart-empty", "Performance starts after a simulated entry. Waiting is not a trading result.");
-  for (const key of ["nav", "pnl", "alpha", "hold", "fees", "costs", "drawdown", "budget", "coverage", "chart-start", "chart-end"]) setText(`paper-${key}`, "—");
+  for (const key of ["nav", "pnl", "alpha", "hold", "fees", "costs", "drawdown", "budget", "coverage"]) setText(`paper-${key}`, "—");
   element("paper-reasons").replaceChildren();
   if (!paper) {
     setText("paper-status", "No paper session has been started.");
@@ -981,7 +1000,6 @@ function renderPaper(paper, now) {
     receiptCosts.append(row);
   }
   element("paper-receipt-empty").classList.toggle("hidden", receiptCosts.children.length > 0);
-  if (state.status === "invalid") setText("paper-chart-empty", "Performance unavailable because coverage is incomplete. See the decision journal.");
   element("paper-policy").title = `Policy SHA-256 ${paper.policyHash} · started ${paper.createdAt}`;
   const labels = { waiting: "Waiting for eligible live inputs", entry_pending: "Entry signaled · waiting for a later checkpoint", open: "Paper position open", exit_pending: "Exit signaled · waiting for a later checkpoint", closed: "Paper position closed", invalid: "Performance incomplete · session stopped" };
   const statusLabel = needsSimulation && state.status === "waiting"
@@ -1034,31 +1052,7 @@ function renderPaper(paper, now) {
     row.append(cell(dated(point.observedAt, now)), cell(blockNumber(point.block), "mono"), cell(point.action.replaceAll("_", " ")), cell(amount(point.navQuote), "number"), cell(point.reasons.join(" · "), "reasons-cell"));
     journal.append(row);
   }
-  const points = state.status === "invalid" ? [] : paper.points.filter(point => point.navQuote !== null && point.holdQuote !== null);
-  element("paper-chart-empty").classList.toggle("hidden", points.length > 0);
-  if (!points.length) return;
-  // Number conversion is presentation only; accounting stays bigint on the server.
-  const values = points.flatMap(point => [Number(point.navQuote) / 1e6, Number(point.holdQuote) / 1e6]);
-  const low = Math.min(...values), high = Math.max(...values);
-  const spread = Math.max(high - low, 0.01);
-  const first = Date.parse(points[0].sourceAt), last = Date.parse(points.at(-1).sourceAt);
-  const chartWidth = Math.max(svg.clientWidth, 300);
-  svg.setAttribute("viewBox", `0 0 ${chartWidth} 230`);
-  const x = point => 80 + (Date.parse(point.sourceAt) - first) / Math.max(last - first, 1) * (chartWidth - 120);
-  const y = value => 195 - (Number(value) / 1e6 - low + spread * 0.1) / (spread * 1.2) * 170;
-  for (const mark of [low, high]) {
-    const label = svgNode("text", { x: 0, y: y(mark * 1e6), fill: "#8592a5", "font-size": 12 });
-    label.textContent = mark.toFixed(2); svg.append(label);
-  }
-  for (const [field, color] of [["navQuote", "#5fe0a5"], ["holdQuote", "#46d7df"]]) {
-    svg.append(svgNode("polyline", { points: points.map(point => `${x(point)},${y(point[field])}`).join(" "), stroke: color, "stroke-width": 2, fill: "none" }));
-    for (const point of points) {
-      const dot = svgNode("circle", { cx: x(point), cy: y(point[field]), r: 3, fill: color });
-      const title = svgNode("title"); title.textContent = `${point.action} · ${dated(point.sourceAt, now)} · ${field === "navQuote" ? "Paper net value" : "Holdings"} ${amount(point[field])}`; dot.append(title); svg.append(dot);
-    }
-  }
-  setText("paper-chart-start", new Date(first).toISOString().replace("T", " ").slice(0, 19) + " UTC");
-  setText("paper-chart-end", new Date(last).toISOString().replace("T", " ").slice(0, 19) + " UTC");
+
 }
 
 function render(data) {

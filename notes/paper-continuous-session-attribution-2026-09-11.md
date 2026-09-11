@@ -53,3 +53,7 @@ At **2026-09-11 12:37:33 UTC**, session **59** replaced uninvested session **58*
 - Only paper and dashboard units were switched. The frozen cap/recenter validation timers remain active and unchanged. No database migration or live execution was introduced.
 
 Activation, API response, deployed-browser verification and screenshots are retained under the local evidence directory above.
+
+## Dashboard refinement
+
+Removed the earlier duplicate NAV chart. The position-evolution chart now has a date/time axis labeled New York (ET) in every chart mode. Session tables replace return bps/hour with **Estimated APY**, calculated as `100 * ((1 + hourlyNetReturn)^8760 - 1)` from the existing capital-time-weighted hourly return. This extrapolates the same hourly return across a full year with hourly reinvestment; it does not adjust for the annual frequency of a particular market session. Missing or mathematically undefined rates display a dash. The UI explains that short samples can give extreme estimates. Accounting and the paper strategy are unchanged.
