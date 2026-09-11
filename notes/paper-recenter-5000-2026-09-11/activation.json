@@ -1,0 +1,65 @@
+{
+  "activatedAt": "2026-09-11T12:03:52.823Z",
+  "previousSessionId": "57",
+  "sessionId": "58",
+  "sourceCommit": "f5fe86d1371845816fe3312a93d11dee9de7cb4f",
+  "buildId": "3a88ac569313243cfbe4340a59ffe702fa01c87758ce45e64355588dc30677fa",
+  "release": "/root/conc-liq-releases/3a88ac569313243cfbe4340a59ffe702fa01c87758ce45e64355588dc30677fa",
+  "policy": {
+    "mode": "guarded",
+    "reentry": {
+      "cooldownSeconds": 600
+    },
+    "recenter": {
+      "kind": "outside_range_v1",
+      "maxQuoteAgeSeconds": 90
+    },
+    "budgetQuote": "5000000000",
+    "tradingHours": {
+      "kind": "us_equity_off_hours_v1",
+      "exitLeadSeconds": 600,
+      "entryCutoffSeconds": 1800
+    },
+    "feeAccounting": "initialized_boundaries_v1",
+    "holdingPolicy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "riskPauseSeconds": 30,
+      "chainPauseSeconds": 60
+    },
+    "maxGapSeconds": 900,
+    "executionBasis": "nitro_fork_v1",
+    "maxSlippageBps": 50,
+    "lpAllocationPpm": 1000000,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxDeviationPpm": 50000,
+      "maxHeldAgeSeconds": 345600,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    },
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": null,
+    "maxSourceAgeSeconds": 180,
+    "maxLiquiditySharePpm": 20000,
+    "transactionTtlSeconds": 300
+  },
+  "policyHash": "474040b443955d490ebe518cfa650aa3a575f9fc265160045e4c11764cb34875",
+  "runtimeIdentity": {
+    "buildId": "3a88ac569313243cfbe4340a59ffe702fa01c87758ce45e64355588dc30677fa",
+    "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+    "nodeVersion": "v24.20.0"
+  },
+  "status": "waiting",
+  "monitorReasons": [
+    "awaiting_next_live_checkpoint"
+  ],
+  "stateReasons": [
+    "awaiting_first_live_checkpoint"
+  ],
+  "units": {
+    "conc-liq-paper.service": "536cd7ce730621a8590aea6c2dc524750c0b9cbd38d2ad64207877ee94046ab7",
+    "conc-liq-dashboard.service": "854fc2fd771c47dc4c911e4c74b54d3e7ca11135df054c37c4d300124f266a02"
+  },
+  "executionEligible": false
+}

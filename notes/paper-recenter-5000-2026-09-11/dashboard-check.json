@@ -1,0 +1,67 @@
+{
+  "checkedAt": "2026-09-11T12:04:16.342Z",
+  "healthStatus": 200,
+  "apiStatus": 200,
+  "sessionId": "58",
+  "status": "waiting",
+  "policy": {
+    "mode": "guarded",
+    "budgetQuote": "5000000000",
+    "halfWidthSpacings": 2,
+    "maxHoldingSeconds": null,
+    "maxSourceAgeSeconds": 180,
+    "maxGapSeconds": 900,
+    "maxLiquiditySharePpm": 20000,
+    "executionBasis": "nitro_fork_v1",
+    "feeAccounting": "initialized_boundaries_v1",
+    "lpAllocationPpm": 1000000,
+    "recenter": {
+      "kind": "outside_range_v1",
+      "maxQuoteAgeSeconds": 90
+    },
+    "tradingHours": {
+      "kind": "us_equity_off_hours_v1",
+      "entryCutoffSeconds": 1800,
+      "exitLeadSeconds": 600
+    },
+    "reentry": {
+      "cooldownSeconds": 600
+    },
+    "holdingPolicy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "chainPauseSeconds": 60,
+      "riskPauseSeconds": 30
+    },
+    "maxSlippageBps": 50,
+    "transactionTtlSeconds": 300,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    }
+  },
+  "campaign": {
+    "valid": true,
+    "rootSessionId": "58",
+    "sessionIds": [
+      "58"
+    ],
+    "initialBudgetQuote": "5000000000",
+    "navQuote": "5000000000",
+    "pnlQuote": "0",
+    "holdQuote": null,
+    "alphaQuote": null,
+    "costsPaidQuote": "0",
+    "sourceAt": null
+  },
+  "reasons": [
+    "awaiting_first_live_checkpoint"
+  ],
+  "monitorReasons": [
+    "awaiting_canonical_event_coverage"
+  ],
+  "heartbeatAt": "2026-09-11T12:04:07.796Z"
+}

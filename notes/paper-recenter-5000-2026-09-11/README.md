@@ -32,4 +32,12 @@ Remaining modeling limitations from the [fee/cost audit](../lp-cost-validity-202
 
 No database migration or other worker deployment is needed. A recenter is stored in the existing execution table as an LP `entry`, with `result.scope = paper_inventory_recenter`; its observation action and dashboard label are `recenter`. These are new NFT entries within one session, not new cash-funded campaigns. The running old strategy comparison stays stopped, and the already frozen weekend validation continues from its separate immutable source capsule.
 
-Activation evidence is recorded separately after the new sealed release and root session are verified.
+## Activation
+
+Activated at **12:03:52 UTC**. Session **57** was waiting with no position and was stopped normally. Session **58** is a new root with **5,000 USDG**, zero costs and zero campaign P&L; no predecessor funding link is attached. The previous campaign and its realized paper losses remain in the database.
+
+Paper worker and dashboard use sealed release `3a88ac569313243cfbe4340a59ffe702fa01c87758ce45e64355588dc30677fa`, from source commit `f5fe86d1371845816fe3312a93d11dee9de7cb4f`. Policy hash: `474040b443955d490ebe518cfa650aa3a575f9fc265160045e4c11764cb34875`.
+
+The dashboard health endpoint and API both returned **HTTP 200**, showing a valid standalone campaign with the new policy and no routine timeout. The paper timer and dashboard are active. The new session is waiting in cash before the allowed Friday evening window, initially awaiting new canonical checkpoint coverage. No new LP fill or recenter has occurred yet in this forward campaign.
+
+[Activation record](activation.json) and [dashboard verification](dashboard-check.json). Other workers and both frozen prospective validation timers were left running on their existing code and plans.
