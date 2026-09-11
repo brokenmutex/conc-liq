@@ -3,6 +3,8 @@ import type { PaperExitSimulation, PaperExitInventory } from "./execution-exit.j
 import type { OracleRiskSnapshot, SourceEvidence } from "../risk/domain.js";
 import type { PaperReferenceEvidence } from "./reference.js";
 import type { PaperUsdgOracle } from "./usdg-oracle.js";
+import type { PaperRecenterQuote, PaperRecenterSimulation } from './execution-recenter.js';
+import type { BoundaryFeeProof } from './boundary-fees.js';
 export interface PaperEntryQuote {
   sourceBlock: string; sourceHash: string; quotedAt: string;
   tickLower: number; tickUpper: number; swapAmountQuote: string; minRwaOut: string;
@@ -18,6 +20,8 @@ export interface PaperExecutionInput {
   quote?: PaperEntryQuote;
   entry?: { runId: string; result: PaperRoundTrip; valuation: PaperGasValuation };
   exit?: { runId: string; result: PaperExitSimulation; valuation: PaperGasValuation };
+  recenterQuote?: PaperRecenterQuote;
+  recenter?: { runId: string; result: PaperRecenterSimulation; valuation: PaperGasValuation; boundaryFees: BoundaryFeeProof };
   error?: string;
 }
 export interface PaperExecutionLedger {
@@ -27,4 +31,6 @@ export interface PaperExecutionLedger {
   allowances: PaperExitInventory["allowances"];
   earnedFee0: string; earnedFee1: string;
   lastValuation: PaperGasValuation | null;
+  recenterIntent?: PaperRecenterQuote | null;
+  recenterRunIds?: string[];
 }

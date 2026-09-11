@@ -375,7 +375,9 @@ export class PaperStore {
       if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
         const action = state.reasons.includes("paper_entry_quote_required") ? "quote"
           : state.reasons.includes("paper_entry_simulation_required") ? "entry"
-          : state.reasons.includes("paper_exit_simulation_required") ? "exit" : null;
+          : state.reasons.includes("paper_exit_simulation_required") ? "exit"
+          : state.reasons.includes("paper_recenter_quote_required") ? "recenter_quote"
+          : state.reasons.includes("paper_recenter_simulation_required") ? "recenter" : null;
         if (action) {
           // Keep only the session advisory lock while doing network work. A
           // database read transaction here can block scheduled migrations and
@@ -390,6 +392,17 @@ export class PaperStore {
             } else if (action === "entry") {
               const result = await this.executor.enter(cp, session.policy, state.execution!.intent!);
               evidence = result; execution.entry = { runId: "pending", ...result };
+            } else if (action === 'recenter_quote' || action === 'recenter') {
+              const inventory={...state.position!,allowances:state.execution!.allowances,
+                nativeBalanceWei:String(10n**18n-BigInt(state.execution!.gasSpentWei))};
+              if(action==='recenter_quote'){
+                assert(this.executor.quoteRecenter,'Paper recenter quote executor unavailable');
+                evidence=execution.recenterQuote=await this.executor.quoteRecenter(cp,session.policy,inventory);
+              } else {
+                assert(this.executor.recenter,'Paper recenter executor unavailable');
+                const result=await this.executor.recenter(cp,session.policy,inventory,state.execution!.recenterIntent!);
+                evidence=result;execution.recenter={runId:'pending',...result};
+              }
             } else {
               const p = state.position!;
               const result = await this.executor.exit(cp, session.policy, { ...p, allowances: state.execution!.allowances,
@@ -429,7 +442,10 @@ export class PaperStore {
           const saved = await client.query<{ id: string }>(`INSERT INTO paper_execution_runs
             (session_id,checkpoint_id,source_block,source_hash,policy_hash,action,status,snapshot,runtime_identity)
             VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id::text`,
-            [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action,status,JSON.stringify(evidence),JSON.stringify(this.runtimeIdentity)]);
+            // A range move is a new LP entry within the same session. Keep the
+            // schema's quote/entry action classes; scope and observation action
+            // distinguish it from initial cash entry without a schema migration.
+            [session.id,cp.id,cp.block,cp.hash,session.policy_hash,action==='recenter'?'entry':action==='recenter_quote'?'quote':action,status,JSON.stringify(evidence),JSON.stringify(this.runtimeIdentity)]);
           if (coverageDeferred) {
             // Overlap rescans temporarily retract event coverage. Discard this
             // unaccepted simulation without changing balances or consuming the
@@ -447,6 +463,7 @@ export class PaperStore {
           }
           if (execution.entry) execution.entry.runId = saved.rows[0]!.id;
           if (execution.exit) execution.exit.runId = saved.rows[0]!.id;
+          if (execution.recenter) execution.recenter.runId = saved.rows[0]!.id;
           state = advancePaper(session.state, session.policy, { ...input, now: new Date().toISOString(), execution });
         }
       }

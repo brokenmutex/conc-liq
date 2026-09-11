@@ -7,6 +7,7 @@ import { quoteValue } from "../simulator/math.js";
 import { invalidatePaper, PAPER_NVDA, type PaperInput, type PaperState, type TransactionPaperPolicy } from "./engine.js";
 import type { PaperGasValuation } from "./execution-domain.js";
 import { boundaryInside, boundaryFeeIncrement } from "./boundary-fees.js";
+import { advanceRecenter } from './recenter.js';
 
 export function paperGasQuote(feeWei: string, valuation: PaperGasValuation): bigint {
   return convertWeiToQuoteRaw({ feeWei: BigInt(feeWei), quoteDecimals: 6,
@@ -91,7 +92,8 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
       p.fee0 = String(BigInt(p.fee0) + subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0)) * BigInt(p.liquidity) / (1n << 128n));
       p.fee1 = String(BigInt(p.fee1) + subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1)) * BigInt(p.liquidity) / (1n << 128n));
     }
-    ledger.earnedFee0 = p.fee0; ledger.earnedFee1 = p.fee1;
+    ledger.earnedFee0 = String(BigInt(ledger.earnedFee0) + BigInt(p.fee0) - BigInt(previous.position!.fee0));
+    ledger.earnedFee1 = String(BigInt(ledger.earnedFee1) + BigInt(p.fee1) - BigInt(previous.position!.fee1));
     state.intervals++; state.observedSwaps = String(BigInt(state.observedSwaps) + BigInt(input.swapCount)); state.action = "mark";
     if (previous.status === "exit_pending" && input.chainHealthy && state.pendingSince && Date.parse(cp.blockTimestamp) > Date.parse(state.pendingSince)) {
       const fill = input.execution.exit;
@@ -110,11 +112,14 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
         state.exitReserveQuote = "0"; state.status = "closed"; state.action = "exit"; state.pendingSince = null;
         p.liquidity = "0"; p.idle0 = r.balances.afterExit.quote; p.idle1 = "0"; p.fee0 = "0"; p.fee1 = "0";
       }
-    } else if (previous.status === "exit_pending" || seconds(p.enteredAt, input.now) >= policy.maxHoldingSeconds ||
+    } else if (previous.status === "exit_pending" || (policy.maxHoldingSeconds !== null && seconds(p.enteredAt, input.now) >= policy.maxHoldingSeconds) ||
       (policy.mode === "guarded" && state.reasons.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
       state.status = "exit_pending"; state.action = "signal_exit"; state.pendingSince ??= input.now;
     }
   }
+  // Recenter never resets campaign time, passive inventory or earned fees.
+  // This policy disallows an inventory cap, so scheduled/risk exits above win.
+  if (previous.position) advanceRecenter(state,policy,input);
   const p = state.position!;
   const principal = principalAmounts({ liquidity: BigInt(p.liquidity), tickLower: p.tickLower, tickUpper: p.tickUpper, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
   const nav = value(principal.amount0 + BigInt(p.idle0) + BigInt(p.fee0), principal.amount1 + BigInt(p.idle1) + BigInt(p.fee1)) - BigInt(state.costsPaidQuote) - BigInt(state.exitReserveQuote);

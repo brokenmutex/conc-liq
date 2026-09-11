@@ -13,9 +13,12 @@ const strategy = z.object({
 const executionPolicySchema = strategy.extend({ executionBasis: z.literal("transaction_simulation") }).strict();
 const transactionPolicySchema = strategy.extend({
   executionBasis: z.literal("nitro_fork_v1"),
+  maxHoldingSeconds: z.number().int().min(60).max(604800).nullable(),
+  maxLiquiditySharePpm: z.number().int().min(1).max(20000),
   feeAccounting: z.literal("initialized_boundaries_v1").optional(),
   lpAllocationPpm: z.number().int().min(100000).max(1000000).optional(),
   inventoryExitPpm: z.number().int().min(100000).max(1000000).optional(),
+  recenter: z.object({kind:z.literal('outside_range_v1'),maxQuoteAgeSeconds:z.literal(90)}).strict().optional(),
   tradingHours:z.object({kind:z.literal('us_equity_off_hours_v1'),entryCutoffSeconds:z.literal(1800),exitLeadSeconds:z.literal(600)}).strict().optional(),
   reentry: z.object({
     cooldownSeconds: z.number().int().min(600).max(86400),
@@ -37,6 +40,11 @@ const transactionPolicySchema = strategy.extend({
     usdgHeartbeatGraceSeconds: z.number().int().min(0).max(1800).optional(),
   }).strict().optional(),
 }).strict().refine(p => BigInt(p.budgetQuote) <= 10000000000n, "Paper token budget is capped at 10000 USDG")
+  .refine(p => p.maxHoldingSeconds !== null || !!p.tradingHours, "No routine timeout requires a trading-window exit")
+  .refine(p => p.maxLiquiditySharePpm <= 10000 || !!p.recenter, "Only the active paper experiment supports a pool share above 1 percent")
+  .refine(p => !p.recenter || (p.feeAccounting === 'initialized_boundaries_v1' && !!p.tradingHours && !!p.referencePolicy &&
+    p.lpAllocationPpm === 1000000 && p.inventoryExitPpm === undefined),
+    "Outside-range recentering requires full allocation, no inventory cap, boundary fees, reference and trading hours")
   .refine(p => !p.holdingPolicy || (!!p.referencePolicy && p.feeAccounting === 'initialized_boundaries_v1'),
     "Holding pauses require continuous reference and initialized-boundary accounting");
 const illustrativePolicySchema = strategy.extend({

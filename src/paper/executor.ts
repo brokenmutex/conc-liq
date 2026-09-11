@@ -25,8 +25,14 @@ import { openPaperFork } from "./fork.js";
 import { paperTradingWindow } from './trading-hours.js';
 import { PAPER_QUOTER, paperQuoterAbi } from "./execution-abi.js";
 import { readPaperReferenceGate, PaperReferenceGateError, type PaperReferenceEvidence } from "./reference.js";
+import { quotePaperRecenter, simulatePaperRecenter, type PaperRecenterQuote } from './execution-recenter.js';
+import { sqrtRatioAtTick } from '../backtest/principal.js';
 
 export interface PaperExecutor {
+  quoteRecenter?(cp:PaperCheckpoint,policy:TransactionPaperPolicy,inventory:PaperExitInventory):Promise<PaperRecenterQuote>;
+  recenter?(cp:PaperCheckpoint,policy:TransactionPaperPolicy,inventory:PaperExitInventory,intent:PaperRecenterQuote):Promise<{
+    result:Awaited<ReturnType<typeof simulatePaperRecenter>>;valuation:PaperGasValuation;boundaryFees:BoundaryFeeProof;
+  }>;
   refreshRisk?(riskRunId: string | null, validationOnly: boolean): Promise<void>;
   boundaryFees?(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof>;
   quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote>;
@@ -176,6 +182,35 @@ export class NitroPaperExecutor implements PaperExecutor {
   }
   exit(cp: PaperCheckpoint, policy: TransactionPaperPolicy, inventory: PaperExitInventory) {
     return this.simulate(cp, policy, false, fork => simulatePaperExit(fork, policy, inventory));
+  }
+  private async recenterRange(cp:PaperCheckpoint,policy:TransactionPaperPolicy,range:{tickLower:number;tickUpper:number}) {
+    assert(policy.recenter&&policy.referencePolicy&&policy.tradingHours);
+    assert.equal(range.tickUpper-range.tickLower,policy.halfWidthSpacings*20);
+    const boundaryFees=await this.boundaryFees(cp,range);
+    const client=await this.database.connect();
+    try {
+      const gate=await readPaperReferenceGate(client,cp,policy.referencePolicy,new Date().toISOString());
+      assert(gate.eligible&&gate.reference?.referencePriceX18,'Recenter reference unavailable');
+      const reference=BigInt(gate.reference.referencePriceX18),bound=BigInt(policy.referencePolicy.maxDeviationPpm);
+      for(const tick of [range.tickLower,range.tickUpper]){
+        const price=(1n<<192n)*10n**30n/sqrtRatioAtTick(tick)**2n;
+        assert(price*1000000n>=reference*(1000000n-bound)&&price*1000000n<=reference*(1000000n+bound),'Recenter range exceeds true-price band');
+      }
+    } finally {client.release();}
+    return boundaryFees;
+  }
+  async quoteRecenter(cp:PaperCheckpoint,policy:TransactionPaperPolicy,inventory:PaperExitInventory) {
+    await this.recenterRange(cp,policy,paperEntryRange(cp,policy));
+    return (await this.simulate(cp,policy,true,fork=>quotePaperRecenter(fork,policy,inventory))).result;
+  }
+  async recenter(cp:PaperCheckpoint,policy:TransactionPaperPolicy,inventory:PaperExitInventory,intent:PaperRecenterQuote) {
+    assert(policy.recenter);
+    assert(BigInt(cp.block)>BigInt(intent.sourceBlock)&&Date.parse(cp.blockTimestamp)>Date.parse(intent.quotedAt),'Recenter needs a later execution source');
+    assert(Date.now()-Date.parse(intent.quotedAt)<=policy.recenter.maxQuoteAgeSeconds*1000,'Recenter quote expired');
+    const boundaryFees=await this.recenterRange(cp,policy,intent);
+    const result=await this.simulate(cp,policy,true,fork=>simulatePaperRecenter(fork,policy,inventory,intent));
+    assert(Date.now()-Date.parse(intent.quotedAt)<=policy.recenter.maxQuoteAgeSeconds*1000,'Recenter quote expired during preflight');
+    return {...result,boundaryFees};
   }
   async close() { await this.gate.close(); await this.database.end(); await this.riskStore.close(); }
 }

@@ -22,8 +22,8 @@ export async function readPaperExecutionDashboard(client: PoolClient, sessionId:
   } catch { /* A missing or malformed artifact cannot prove simulation readiness. */ }
   const present=(await client.query<{present:string|null}>("SELECT to_regclass('paper_execution_runs')::text AS present")).rows[0]?.present;
   const runs=present ? (await client.query<{run:{id:string;action:string;status:string;observedAt:string;block:string;gasWei:string|null;error:string|null}}>(
-    `SELECT jsonb_build_object('id',id::text,'action',action,'status',status,'observedAt',observed_at,'block',source_block::text,
-      'gasWei',CASE WHEN action='entry' THEN snapshot->'result'->>'entryGasWei' ELSE snapshot->'result'->>'totalGasWei' END,
+    `SELECT jsonb_build_object('id',id::text,'action',CASE WHEN snapshot->'result'->>'scope'='paper_inventory_recenter' THEN 'recenter' WHEN snapshot->>'kind'='outside_range_v1' THEN 'recenter_quote' ELSE action END,'status',status,'observedAt',observed_at,'block',source_block::text,
+      'gasWei',CASE WHEN action='entry' AND snapshot->'result'->>'scope' IS DISTINCT FROM 'paper_inventory_recenter' THEN snapshot->'result'->>'entryGasWei' ELSE snapshot->'result'->>'totalGasWei' END,
       'error',snapshot->>'error') AS run FROM paper_execution_runs WHERE session_id=$1 ORDER BY id DESC LIMIT 12`,[sessionId])).rows.map(r=>r.run) : [];
   return {rehearsal,runs};
 }

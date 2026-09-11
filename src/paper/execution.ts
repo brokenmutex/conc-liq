@@ -20,6 +20,7 @@ export interface PaperExecutionPolicy {
   transactionTtlSeconds: number;
   lpAllocationPpm?: number;
   feeAccounting?: "initialized_boundaries_v1";
+  recenter?: {readonly kind:'outside_range_v1';readonly maxQuoteAgeSeconds:90};
 }
 const NVDA = PAPER_NVDA as Address;
 const POOL = PAPER_POOL as Address;
@@ -32,7 +33,8 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   assert(BigInt(policy.budgetQuote) > 0n && BigInt(policy.budgetQuote) <= 10_000_000_000n, "Paper token budget must be in (0, 10000] USDG");
   assert(Number.isSafeInteger(policy.maxSlippageBps) && policy.maxSlippageBps >= 1 && policy.maxSlippageBps <= 500, "Invalid paper slippage limit");
   assert(Number.isSafeInteger(policy.transactionTtlSeconds) && policy.transactionTtlSeconds >= 60 && policy.transactionTtlSeconds <= 1800, "Invalid paper transaction deadline");
-  assert(Number.isSafeInteger(policy.maxLiquiditySharePpm) && policy.maxLiquiditySharePpm > 0 && policy.maxLiquiditySharePpm <= 10000, "Invalid paper liquidity share cap");
+  assert(Number.isSafeInteger(policy.maxLiquiditySharePpm) && policy.maxLiquiditySharePpm > 0 &&
+    policy.maxLiquiditySharePpm <= (policy.recenter?.kind==='outside_range_v1'?20000:10000), "Invalid paper liquidity share cap");
   const local = createRobinhoodClient(fork.localUrl, 60_000, { retryCount: 0 });
   const transactions: PaperTransaction[] = [];
   async function send(action: string, to: Address, calldata: Hex) {

@@ -923,8 +923,9 @@ function renderPaper(paper, now) {
   setText("paper-budget", `Initial paper budget ${amount(policy.budgetQuote)}${state.position ? "" : " · uninvested"}`);
   setText("paper-pnl", amount(state.pnlQuote));
   if (state.position) {
-    const exitAt = new Date(Date.parse(state.position.enteredAt) + policy.maxHoldingSeconds * 1000).toISOString();
-    setText("paper-lifecycle", `Entry source ${new Date(state.position.enteredAt).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · ${terminal ? "session finished" : `holding time limit ${exitAt.replace("T", " ").replace(/\.\d{3}Z$/, " UTC")}; an exit condition may trigger earlier`}. ${state.status === "exit_pending" ? "Exit requested; awaiting its simulation." : ""}`);
+    const holding = policy.maxHoldingSeconds === null ? "scheduled cash exit before excluded US market hours; no routine holding timeout"
+      : `holding time limit ${new Date(Date.parse(state.position.enteredAt) + policy.maxHoldingSeconds * 1000).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")}; an exit condition may trigger earlier`;
+    setText("paper-lifecycle", `Entry source ${new Date(state.position.enteredAt).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC")} · ${terminal ? "session finished" : holding}. ${state.status === "exit_pending" ? "Exit requested; awaiting its simulation." : ""}`);
     setText("paper-pnl-note", state.status === "invalid" ? "Performance unavailable; source or coverage invalidated" : state.status === "closed" ? "Simulated cash result; includes estimated LP fee income" : "Simulated NAV; includes estimated LP fees and an exit gas reserve");
   }
   setText("paper-alpha", amount(state.alphaQuote));
@@ -944,7 +945,11 @@ function renderPaper(paper, now) {
     : usesTransactions ? `Swap quote and range fixed before a later fill; ${policy.maxSlippageBps / 100}% maximum swap slippage. Inventory purchase, LP entry and cash exit use actual contract calls in simulation. Gas is estimated on the node and charged separately to the LP allocation. LP fee income remains an estimate from observed growth.`
     : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
   const referencePolicy = policy.referencePolicy;
-  setText("paper-policy", `${referencePolicy ? "24/7 evaluation, including overnight and closed markets. " : ""}Fixed range ±${policy.halfWidthSpacings} tick spacings${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}; no recentering. ${costPolicy} Holding limit ${duration(String(policy.maxHoldingSeconds))}. Pool checkpoints arrive about every minute.`);
+  const hours = policy.tradingHours ? "After-hours, overnight and weekends only; premarket excluded. " : referencePolicy ? "24/7 evaluation. " : "";
+  const management = policy.recenter ? `Recenter when outside range, using only the net swap required; ${state.execution?.recenterRunIds?.length ?? 0} completed moves.` : "No recentering.";
+  const holdingLimit = policy.maxHoldingSeconds === null ? "Scheduled window exit; no routine timeout." : `Holding limit ${duration(String(policy.maxHoldingSeconds))}.`;
+  const allocation = usesTransactions ? ` Target allocation ${(policy.lpAllocationPpm ?? 1000000) / 10000}%; ${policy.inventoryExitPpm ? `NVDA inventory exit at ${policy.inventoryExitPpm / 10000}%` : "no inventory cap"}.` : "";
+  setText("paper-policy", `${hours}Range ±${policy.halfWidthSpacings * 10} raw ticks${state.position ? ` · ticks ${state.position.tickLower}–${state.position.tickUpper}` : ""}. ${management}${allocation} ${holdingLimit} ${costPolicy} Pool checkpoints arrive about every minute.`);
   if (referencePolicy) setText("paper-reference", state.reference
     ? `${state.reference.basis === "held_equity_reference" ? "Held equity reference" : "Feed reference"}: ${state.reference.referencePriceX18 === null ? "Unavailable" : displayTokenAmount(state.reference.referencePriceX18, 18)} USDG/NVDA · updated ${dated(state.reference.referenceUpdatedAt, now)}. Pool deviation ${state.reference.deviationPpm === null ? "unavailable" : ppmPercent(state.reference.deviationPpm)}; permitted band ±${referencePolicy.maxDeviationPpm / 10000}%. Gas conversion uses each feed's heartbeat, capped at ${referencePolicy.maxGasPriceAgeSeconds / 3600}h.`
     : `Awaiting reference evaluation. Permitted band ±${referencePolicy.maxDeviationPpm / 10000}%; a held equity reference must update during the latest equity session and be no older than ${referencePolicy.maxHeldAgeSeconds / 3600}h.`);

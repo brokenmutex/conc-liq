@@ -17,7 +17,7 @@ interface PaperStrategy {
   readonly mode: "guarded" | "research";
   readonly budgetQuote: string;
   readonly halfWidthSpacings: number;
-  readonly maxHoldingSeconds: number;
+  readonly maxHoldingSeconds: number | null;
   readonly maxSourceAgeSeconds: number;
   readonly maxGapSeconds: number;
   readonly maxLiquiditySharePpm: number;
@@ -41,6 +41,7 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly feeAccounting?: "initialized_boundaries_v1";
   readonly lpAllocationPpm?: number;
   readonly inventoryExitPpm?: number;
+  readonly recenter?: { readonly kind: "outside_range_v1"; readonly maxQuoteAgeSeconds: 90 };
   readonly reentry?: { readonly cooldownSeconds: number; readonly previousSessionId?: string };
 }
 export type PaperPolicy = IllustrativePaperPolicy | ExecutionPaperPolicy | TransactionPaperPolicy;
@@ -99,7 +100,7 @@ export interface PaperPosition {
 }
 export interface PaperState {
   status: "waiting" | "entry_pending" | "open" | "exit_pending" | "closed" | "invalid";
-  action: "wait" | "signal_entry" | "enter" | "mark" | "signal_exit" | "exit" | "invalidate";
+  action: "wait" | "signal_entry" | "enter" | "mark" | "signal_exit" | "exit" | "invalidate" | "signal_recenter" | "recenter";
   reasons: readonly string[];
   last: PaperCheckpoint | null;
   position: PaperPosition | null;
@@ -241,7 +242,7 @@ export function advancePaper(previous: PaperState, policy: PaperPolicy, input: P
       p.liquidity = "0";
       state.costsPaidQuote = String(BigInt(state.costsPaidQuote) + BigInt(policy.exitCostQuote));
       state.exitReserveQuote = "0";
-    } else if (previous.status === "exit_pending" || age(p.enteredAt, input.now) >= policy.maxHoldingSeconds || (policy.mode === "guarded" && gates.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
+    } else if (previous.status === "exit_pending" || (policy.maxHoldingSeconds !== null && age(p.enteredAt, input.now) >= policy.maxHoldingSeconds) || (policy.mode === "guarded" && gates.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
       state.status = "exit_pending"; state.action = "signal_exit"; state.pendingSince ??= input.now;
     }
   }

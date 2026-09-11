@@ -1,0 +1,199 @@
+[
+  {
+    "path": "data/paper-recenter-5000-2026-09-11/fork-proof.json",
+    "sha256": "b25a3b5e05459920ff298d3431c3103b44b5c6b20a7566a5230550fc2143591c",
+    "quoteSource": "59509160",
+    "fillSource": {
+      "block": "59509161",
+      "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "timestamp": "1789053981"
+    },
+    "range": {
+      "tickLower": 222440,
+      "tickUpper": 222480,
+      "liquidity": "159322972855585310",
+      "minted0": "2435186203",
+      "minted1": "10399620120607226394"
+    },
+    "swap": {
+      "token": 1,
+      "amountIn": "2067067473533656682",
+      "minOut": "448910694",
+      "actualOut": "451166533"
+    },
+    "balances": {
+      "before": {
+        "quote": "1981000545",
+        "rwa": "55",
+        "native": "1000000000000000000"
+      },
+      "afterCollect": {
+        "quote": "1984019670",
+        "rwa": "12466830720644729006",
+        "native": "999792518564119204"
+      },
+      "afterSwap": {
+        "quote": "2435186203",
+        "rwa": "10399763247111072324",
+        "native": "999574438902476202"
+      },
+      "after": {
+        "quote": "0",
+        "rwa": "143126503845930",
+        "native": "999051503170209532"
+      }
+    },
+    "gasWei": "135643409280000",
+    "exitReserveWei": "72237099120000",
+    "actions": [
+      {
+        "action": "recenter_decrease_and_collect",
+        "gasWei": "32093511840000",
+        "localGas": "203214"
+      },
+      {
+        "action": "approve_recenter_swap",
+        "gasWei": "8805935040000",
+        "localGas": "63649"
+      },
+      {
+        "action": "recenter_sell_nvda",
+        "gasWei": "22081069200000",
+        "localGas": "150836"
+      },
+      {
+        "action": "approve_recenter_mint_usdg",
+        "gasWei": "5634465600000",
+        "localGas": "40888"
+      },
+      {
+        "action": "approve_recenter_mint_nvda",
+        "gasWei": "6409033920000",
+        "localGas": "46549"
+      },
+      {
+        "action": "recenter_mint",
+        "gasWei": "60619393680000",
+        "localGas": "429722"
+      }
+    ],
+    "exitPreviewActions": [
+      {
+        "action": "preview_decrease_and_collect",
+        "gasWei": "34922898480000"
+      },
+      {
+        "action": "preview_approve_exit_swap",
+        "gasWei": "8805935040000"
+      },
+      {
+        "action": "preview_sell_nvda",
+        "gasWei": "22081069200000"
+      },
+      {
+        "action": "preview_revoke_exit_allowance",
+        "gasWei": "6427196400000"
+      }
+    ],
+    "executionEligible": false
+  },
+  {
+    "path": "data/paper-recenter-5000-2026-09-11/buy-fork-proof.json",
+    "sha256": "baad7f873e12951eb9862b79d28981889da588ed744a061d571436d953492be4",
+    "direction": "buy",
+    "quoteSource": "59509160",
+    "fillSource": {
+      "block": "59509161",
+      "hash": "0x822d3d98077321ca86b6014fc288da4dba05f4cb9e2536a9a23ad55bdc730ba9",
+      "timestamp": "1789053981"
+    },
+    "range": {
+      "tickLower": 222440,
+      "tickUpper": 222480,
+      "liquidity": "169227184884092802",
+      "minted0": "2626866978",
+      "minted1": "10861566773773688534"
+    },
+    "swap": {
+      "token": 0,
+      "amountIn": "2373133022",
+      "minOut": "10807407915850305223",
+      "actualOut": "10861716349094832601"
+    },
+    "balances": {
+      "before": {
+        "quote": "5000000000",
+        "rwa": "0",
+        "native": "1000000000000000000"
+      },
+      "afterCollect": {
+        "quote": "5000000000",
+        "rwa": "0",
+        "native": "999873885224272993"
+      },
+      "afterSwap": {
+        "quote": "2626866978",
+        "rwa": "10861716349094832601",
+        "native": "999636189968799811"
+      },
+      "after": {
+        "quote": "0",
+        "rwa": "149575321144067",
+        "native": "999121720979840750"
+      }
+    },
+    "gasWei": "124529883360000",
+    "exitReserveWei": "73449615360000",
+    "actions": [
+      {
+        "action": "recenter_decrease_and_collect",
+        "gasWei": "18340008000000",
+        "localGas": "123159"
+      },
+      {
+        "action": "approve_recenter_swap",
+        "gasWei": "8029864560000",
+        "localGas": "57988"
+      },
+      {
+        "action": "recenter_buy_nvda",
+        "gasWei": "25497117600000",
+        "localGas": "175269"
+      },
+      {
+        "action": "approve_recenter_mint_usdg",
+        "gasWei": "5634465600000",
+        "localGas": "40888"
+      },
+      {
+        "action": "approve_recenter_mint_nvda",
+        "gasWei": "6409033920000",
+        "localGas": "46549"
+      },
+      {
+        "action": "recenter_mint",
+        "gasWei": "60619393680000",
+        "localGas": "420543"
+      }
+    ],
+    "exitPreviewActions": [
+      {
+        "action": "preview_decrease_and_collect",
+        "gasWei": "34922898480000"
+      },
+      {
+        "action": "preview_approve_exit_swap",
+        "gasWei": "8805935040000"
+      },
+      {
+        "action": "preview_sell_nvda",
+        "gasWei": "23293585440000"
+      },
+      {
+        "action": "preview_revoke_exit_allowance",
+        "gasWei": "6427196400000"
+      }
+    ],
+    "executionEligible": false
+  }
+]
