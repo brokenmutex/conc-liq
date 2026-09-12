@@ -43,7 +43,17 @@ try {
   const controller=new PilotController(store,chain,config,signer,(db,state)=>readPilotGuard(db,client,config,indexer.streamKey,state));
   if(command==='init')console.log(json(await controller.start()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
-  else if(command==='retry-approval')console.log(json(await controller.retryApproval()));
+  else if(command==='retry-approval'){
+   try{console.log(json(await controller.retryApproval()));}
+   catch(error){
+    const message=error instanceof Error?error.message:'';
+    const reason=message==='Signed approval fee is below current base fee'?'initial_approval_waiting_for_lower_gas':
+     message==='Signed approval gas limit is no longer sufficient'?'initial_approval_gas_limit_unavailable':
+     message==='Fresh approval admission failed'?'initial_approval_waiting_for_admission':'initial_approval_retry_requires_review';
+    await store.locked(operator,async db=>{const row=await store.current(db,operator);if(row)await store.monitor(db,row.state.id,[reason]);});
+    await status();throw error;
+   }
+  }
   else if(['exit','resume','stop','recover-exit'].includes(command))console.log(json(await controller.request(command==='resume'?'running':command==='stop'?'stopped':'exit')));
   else do {
    try{const result=await controller.tick();console.log(json({at:new Date().toISOString(),...result}));}
