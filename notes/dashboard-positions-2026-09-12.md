@@ -23,3 +23,9 @@ Both sections offer 1h, 6h, 24h and **1 week (168h)** windows. Charts use actual
 - Only the dashboard service is restarted for this release. Live and paper workers, wallet, capital and strategy parameters are unchanged.
 
 The detail reader currently bounds a campaign at 100,000 observations. Exceeding that bound returns unavailable history rather than silently dropping earlier accounting. Chart downsampling does not alter session totals.
+
+## Deployed
+
+The main route was switched at **2026-09-12 18:21 UTC** to sealed dashboard release `5dfebefce10815e684f1799f2fe13698a1adf90dff775a7ef728fdb3d5daf293`, source `0a62ca18156808bcd39034fdbb23ac30bd36557d`. All 18 Chromium checks passed against port 4173 with no browser or CSP errors. Main/legacy/preview routes and status APIs return HTTP 200. Live worker PID, timer activation time and all trading unit files match their pre-deployment snapshots.
+
+Before/after dashboard units, worker evidence and release manifest are in `data/dashboard-positions-deployment-2026-09-12/`. Deployed screenshots and checks are `data/dashboard-positions-deployed-{desktop,mobile}.png` and `data/dashboard-positions-deployed-checks.json`. Rollback consists of restoring the saved `dashboard-before.service` to `/etc/systemd/system/conc-liq-dashboard.service`, then daemon-reload and restarting only the dashboard.
