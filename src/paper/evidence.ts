@@ -1,6 +1,10 @@
+import {executionRuntime} from './runtime-history.js';
+import type {RuntimeIdentity} from '../runtime/identity.js';
 import type { PoolClient } from "pg";
 import type { PaperState } from "./engine.js";
 export async function paperExecutionEvidenceValid(client: PoolClient, session: { id: string; policy_hash: string; state: PaperState; runtime_identity?: unknown }) {
+  const runtime=session.runtime_identity as RuntimeIdentity|null|undefined;
+  try{executionRuntime(runtime??null,session.state.runtimeTransitions);}catch{return false;}
   const ledger = session.state.execution;
   if (!ledger?.entryRunId) return session.state.position === null;
   let previousId=BigInt(ledger.entryRunId);
@@ -11,6 +15,7 @@ export async function paperExecutionEvidenceValid(client: PoolClient, session: {
   for (const [action, id, recenter] of [["entry", ledger.entryRunId, false], ["exit", ledger.exitRunId, false],
     ...(ledger.recenterRunIds??[]).map(id=>['entry',id,true] as const)] as const) {
     if (!id) continue;
+    const expectedRuntime=executionRuntime(runtime??null,session.state.runtimeTransitions,id);
     const row = (await client.query<{ valid: boolean }>(`SELECT (
       ($5::jsonb IS NULL OR r.runtime_identity=$5::jsonb)
       AND r.session_id=$2 AND r.policy_hash=$3 AND r.action=$4 AND r.status='succeeded'
@@ -26,7 +31,7 @@ export async function paperExecutionEvidenceValid(client: PoolClient, session: {
     ) AS valid FROM paper_execution_runs r
     LEFT JOIN v3_strategy_checkpoint_runs c ON c.id=r.checkpoint_id
     LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id WHERE r.id=$1`,
-    [id, session.id, session.policy_hash, action, session.runtime_identity ? JSON.stringify(session.runtime_identity) : null, recenter])).rows[0];
+    [id, session.id, session.policy_hash, action, expectedRuntime ? JSON.stringify(expectedRuntime) : null, recenter])).rows[0];
     if (row?.valid !== true) return false;
   }
   return session.state.status !== "closed" || ledger.exitRunId !== null;

@@ -99,6 +99,7 @@ export interface PaperPosition {
   feeRemainder0?: string; feeRemainder1?: string;
 }
 export interface PaperState {
+  runtimeTransitions?: import('./runtime-history.js').PaperRuntimeTransition[];
   status: "waiting" | "entry_pending" | "open" | "exit_pending" | "closed" | "invalid";
   action: "wait" | "signal_entry" | "enter" | "mark" | "signal_exit" | "exit" | "invalidate" | "signal_recenter" | "recenter";
   reasons: readonly string[];

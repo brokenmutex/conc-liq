@@ -18,6 +18,7 @@ export interface PaperRecenterQuote {
   oldRange: {tickLower:number;tickUpper:number;liquidity:string};
   tickLower: number; tickUpper: number; token: 0 | 1 | null;
   amountIn: string; minOut: string; minMint0: string; minMint1: string;
+  adaptive?: {kind:'bounded_net_swap_v1';referenceSqrtPriceX96:string;maxAmountIn:string};
 }
 
 /** Find the single net trade funding the full portfolio in the fixed new range.
@@ -43,6 +44,31 @@ export async function solveRecenterSwap(price: bigint, range: {tickLower:number;
   assert(fill.amountOut>0n,'Recenter net swap rounds to zero');
   assert(fill.price>sqrtRatioAtTick(range.tickLower)&&fill.price<sqrtRatioAtTick(range.tickUpper),'Recenter swap leaves the new range');
   return {token,amount:lo,...fill};
+}
+
+export function assertRecenterPrice(price:bigint,reference:bigint,bps:number) {
+  assert(price>0n&&reference>0n&&Number.isInteger(bps)&&bps>0&&bps<=500);
+  // Token1/token0 squared-price bounds, frozen at the decision source.
+  assert(price*price*10000n>=reference*reference*BigInt(10000-bps)&&
+    price*price*10000n<=reference*reference*BigInt(10000+bps),'Recenter source price exceeds frozen slippage band');
+}
+export async function executionRecenterPlan(price:bigint,cash:bigint,rwa:bigint,intent:PaperRecenterQuote,bps:number,
+ quote:(amount:bigint,token:0|1)=>Promise<{amountOut:bigint;price:bigint}>) {
+ if(!intent.adaptive)return intent;
+ assert.equal(intent.adaptive.kind,'bounded_net_swap_v1');
+ assertRecenterPrice(price,BigInt(intent.adaptive.referenceSqrtPriceX96),bps);
+ const plan=await solveRecenterSwap(price,intent,cash,rwa,quote);
+ assert(plan.token===intent.token&&plan.token!==null,'Recenter net swap direction changed; requote required');
+ assert(plan.amount<=BigInt(intent.adaptive.maxAmountIn),'Recenter input exceeds frozen inventory budget');
+ assertRecenterPrice(plan.price,BigInt(intent.adaptive.referenceSqrtPriceX96),bps);
+ assert(BigInt(intent.amountIn)>0n);
+ // Keep the original minimum exchange rate even when the required input changes.
+ const minOut=(plan.amount*BigInt(intent.minOut)+BigInt(intent.amountIn)-1n)/BigInt(intent.amountIn);
+ assert(plan.amountOut>=minOut,'Frozen recenter swap minimum unavailable');
+ const q=cash+(plan.token===0?-plan.amount:plan.amountOut),r=rwa+(plan.token===1?-plan.amount:plan.amountOut);
+ const mint=replayPaperMint(plan.price,intent,q,r,0n);
+ const minimum=(n:bigint)=>String(n*BigInt(10000-bps)/10000n);
+ return {...intent,amountIn:String(plan.amount),minOut:String(minOut),minMint0:minimum(mint.amount0),minMint1:minimum(mint.amount1)};
 }
 
 async function remove(fork:PaperFork,policy:PaperExecutionPolicy,inventory:PaperExitInventory) {
@@ -77,7 +103,8 @@ export async function quotePaperRecenter(fork:PaperFork,policy:PaperExecutionPol
   const minimum=(n:bigint)=>String(n*BigInt(10000-policy.maxSlippageBps)/10000n);
   return {kind:'outside_range_v1',sourceBlock:String(fork.source.number),sourceHash:fork.source.hash,quotedAt:new Date().toISOString(),
     oldRange:{tickLower:inventory.tickLower,tickUpper:inventory.tickUpper,liquidity:inventory.liquidity},...range,
-    token:plan.token,amountIn:String(plan.amount),minOut:minimum(plan.amountOut),minMint0:minimum(mint.amount0),minMint1:minimum(mint.amount1)};
+    token:plan.token,amountIn:String(plan.amount),minOut:minimum(plan.amountOut),minMint0:minimum(mint.amount0),minMint1:minimum(mint.amount1),
+    ...(plan.token===null?{}:{adaptive:{kind:'bounded_net_swap_v1' as const,referenceSqrtPriceX96:String(sourceSlot[0]),maxAmountIn:plan.token===0?afterCollect.quote:afterCollect.rwa}})};
 }
 
 export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecutionPolicy,inventory:PaperExitInventory,intent:PaperRecenterQuote) {
@@ -87,15 +114,17 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   const {context,afterCollect,before,tokenId}=await remove(fork,policy,inventory);
   const {local,send,approve,quoteSwap,swap,balances,transactions}=context;
   const range={tickLower:intent.tickLower,tickUpper:intent.tickUpper};
+  const executionPlan=await executionRecenterPlan(context.sourceSlot[0],BigInt(afterCollect.quote),BigInt(afterCollect.rwa),intent,policy.maxSlippageBps,
+    async(amount,token)=>{const q=await quoteSwap(token===0?USDG:NVDA,token===0?NVDA:USDG,amount);return {amountOut:BigInt(q.amountOut),price:BigInt(q.sqrtPriceAfter)};});
   let trade=null;
   if(intent.token!==null){
     const tokenIn=intent.token===0?USDG:NVDA,tokenOut=intent.token===0?NVDA:USDG;
-    assert(BigInt(intent.amountIn)>0n&&BigInt(intent.amountIn)<=BigInt(intent.token===0?afterCollect.quote:afterCollect.rwa));
-    const quote=await quoteSwap(tokenIn,tokenOut,BigInt(intent.amountIn));
-    assert(BigInt(quote.amountOut)>=BigInt(intent.minOut),'Frozen recenter swap minimum unavailable');
-    await approve(tokenIn,PAPER_ROUTER,BigInt(intent.amountIn),'approve_recenter_swap');
-    trade=await swap(intent.token===0?'recenter_buy_nvda':'recenter_sell_nvda',tokenIn,tokenOut,quote,intent.minOut);
-  } else assert.equal(intent.amountIn,'0');
+    assert(BigInt(executionPlan.amountIn)>0n&&BigInt(executionPlan.amountIn)<=BigInt(intent.token===0?afterCollect.quote:afterCollect.rwa));
+    const quote=await quoteSwap(tokenIn,tokenOut,BigInt(executionPlan.amountIn));
+    assert(BigInt(quote.amountOut)>=BigInt(executionPlan.minOut),'Frozen recenter swap minimum unavailable');
+    await approve(tokenIn,PAPER_ROUTER,BigInt(executionPlan.amountIn),'approve_recenter_swap');
+    trade=await swap(intent.token===0?'recenter_buy_nvda':'recenter_sell_nvda',tokenIn,tokenOut,quote,executionPlan.minOut);
+  } else assert.equal(executionPlan.amountIn,'0');
   const afterSwap=await balances();
   const slot=await local.readContract({address:PAPER_POOL as Address,abi:poolAbi,functionName:'slot0'});
   assert(slot[1]>=range.tickLower&&slot[1]<range.tickUpper,'Frozen recenter range is no longer active');
@@ -103,11 +132,11 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   assert(modeled.liquidity>0n);
   const depth=await local.readContract({address:PAPER_POOL as Address,abi:poolAbi,functionName:'liquidity'});
   assert(modeled.liquidity*1000000n<=depth*BigInt(policy.maxLiquiditySharePpm),'Recenter liquidity share exceeded');
-  assert(modeled.amount0>=BigInt(intent.minMint0)&&modeled.amount1>=BigInt(intent.minMint1),'Frozen recenter mint minimum unavailable');
+  assert(modeled.amount0>=BigInt(executionPlan.minMint0)&&modeled.amount1>=BigInt(executionPlan.minMint1),'Frozen recenter mint minimum unavailable');
   await approve(USDG,NONFUNGIBLE_POSITION_MANAGER,BigInt(afterSwap.quote),'approve_recenter_mint_usdg');
   await approve(NVDA,NONFUNGIBLE_POSITION_MANAGER,BigInt(afterSwap.rwa),'approve_recenter_mint_nvda');
   const params={token0:USDG,token1:NVDA,fee:500,...range,amount0Desired:BigInt(afterSwap.quote),amount1Desired:BigInt(afterSwap.rwa),
-    amount0Min:BigInt(intent.minMint0),amount1Min:BigInt(intent.minMint1),recipient:PAPER_ACCOUNT,deadline:fork.source.timestamp+BigInt(policy.transactionTtlSeconds)};
+    amount0Min:BigInt(executionPlan.minMint0),amount1Min:BigInt(executionPlan.minMint1),recipient:PAPER_ACCOUNT,deadline:fork.source.timestamp+BigInt(policy.transactionTtlSeconds)};
   const mint=await send('recenter_mint',NONFUNGIBLE_POSITION_MANAGER,encodeFunctionData({abi:guardedCanaryPositionManagerAbi,functionName:'mint',args:[params]}));
   const [newTokenId,liquidity,amount0,amount1]=decodeFunctionResult({abi:guardedCanaryPositionManagerAbi,functionName:'mint',data:mint.returnData});
   assert.equal(liquidity,modeled.liquidity);assert.equal(amount0,modeled.amount0);assert.equal(amount1,modeled.amount1);
@@ -137,7 +166,7 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   const source=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};assert.equal(source.hash.toLowerCase(),fork.source.hash.toLowerCase());
   return {scope:'paper_inventory_recenter' as const,executionEligible:false as const,broadcastAuthorized:false as const,
     computedAt:new Date().toISOString(),source:{block:String(fork.source.number),hash:fork.source.hash,timestamp:String(fork.source.timestamp)},
-    policy,inventory,intent,trade,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
+    policy,inventory,intent,executionPlan,trade,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
     balances:{before,afterCollect,afterSwap,after},allowances,transactions:recenterTransactions,exitPreviewTransactions:exitTransactions,
     totalGasWei:gas(recenterTransactions),exitGasWei:gas(exitTransactions),upstream:fork.budget,
     limitations:['Hypothetical restored NFT and fee claims, not realized earnings','All-or-none paper acceptance of successful local simulation; submitted partial failures are not modeled','Native costs are fresh Nitro estimates, not receipts paid by this strategy']};

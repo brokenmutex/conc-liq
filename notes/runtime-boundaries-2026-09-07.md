@@ -205,3 +205,7 @@ Previous installed units are saved under
 `/root/conc-liq/data/runtime-rollout-2026-09-07/previous-units/`. The deployed
 private environment is `/root/conc-liq/data/runtime-refactor.env`; its contents
 are deliberately excluded from Git and the evidence report.
+
+## Code-only upgrades with an open position
+
+The explicit transition procedure added on 2026-09-12 supports a verified code-only upgrade without closing a provenance-bearing open position. It records the old/new runtime and execution boundary, retains the original identity of historical proofs, and requires identical policy/configuration and Node version. See [the recenter correction and runtime handoff](paper-recenter-mint-fix-2026-09-12.md). The terminal-boundary migration instructions above still apply to schema/configuration changes and legacy sessions without provenance.

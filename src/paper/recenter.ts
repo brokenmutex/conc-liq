@@ -42,8 +42,15 @@ export function advanceRecenter(state:PaperState,policy:TransactionPaperPolicy,i
   assert.equal(r.inventory.nativeBalanceWei,String(10n**18n-BigInt(ledger.gasSpentWei)));
   assert.deepEqual(r.inventory.allowances,ledger.allowances);
   assert.equal(r.position.tickLower,intent.tickLower);assert.equal(r.position.tickUpper,intent.tickUpper);
-  assert(BigInt(r.position.liquidity)>0n&&BigInt(r.position.minted0)>=BigInt(intent.minMint0)&&BigInt(r.position.minted1)>=BigInt(intent.minMint1));
-  if(intent.token!==null)assert(r.trade&&r.trade.amountIn===intent.amountIn&&BigInt(r.trade.actualOut)>=BigInt(intent.minOut));
+  const plan=intent.adaptive?r.executionPlan:intent;
+  assert(plan,'Missing adaptive recenter execution plan');
+  if(intent.adaptive){
+    assert.equal(plan.token,intent.token);assert.equal(plan.tickLower,intent.tickLower);assert.equal(plan.tickUpper,intent.tickUpper);
+    assert(BigInt(plan.amountIn)>0n&&BigInt(plan.amountIn)<=BigInt(intent.adaptive.maxAmountIn));
+    assert(BigInt(plan.minOut)*BigInt(intent.amountIn)>=BigInt(plan.amountIn)*BigInt(intent.minOut));
+  }
+  assert(BigInt(r.position.liquidity)>0n&&BigInt(r.position.minted0)>=BigInt(plan.minMint0)&&BigInt(r.position.minted1)>=BigInt(plan.minMint1));
+  if(intent.token!==null)assert(r.trade&&r.trade.amountIn===plan.amountIn&&BigInt(r.trade.actualOut)>=BigInt(plan.minOut));
   else assert.equal(r.trade,null);
   assert.equal(r.totalGasWei,String(r.transactions.reduce((n,tx)=>n+BigInt(tx.estimate.totalFeeWei),0n)));
   assert.equal(r.exitGasWei,String(r.exitPreviewTransactions.reduce((n,tx)=>n+BigInt(tx.estimate.totalFeeWei),0n)));
