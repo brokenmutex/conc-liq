@@ -183,6 +183,12 @@ try {
  assert.equal(await paperExecutionEvidenceValid(client,closed),false);
  let dashboard=await readPaperDashboard(client,stream);
  assert.equal(dashboard.state.pnlQuote,null); assert.equal(dashboard.points.length,0);
+ const invalidAt='2026-09-12T15:37:26.832Z';
+ await client.query("UPDATE paper_sessions SET state=state||$2::jsonb WHERE id=$1",[closed.id,JSON.stringify({status:'invalid',action:'invalidate',invalidatedAt:invalidAt,reasons:['source_stale_or_worker_missed_decision'],navQuote:null,pnlQuote:null})]);
+ dashboard=await readPaperDashboard(client,stream);
+ assert.deepEqual(dashboard.state.reasons,['source_stale_or_worker_missed_decision']);
+ assert.equal(dashboard.state.invalidatedAt,invalidAt,'Dashboard must preserve the original failure time');
+ await client.query('UPDATE paper_sessions SET state=$2 WHERE id=$1',[closed.id,JSON.stringify(closed.state)]);
  await client.query("UPDATE paper_execution_runs SET status='succeeded' WHERE action='entry'");
  await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=2');
  assert.equal(await paperExecutionEvidenceValid(client,closed),false);

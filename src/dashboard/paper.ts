@@ -48,7 +48,7 @@ export async function readPaperDashboard(client: PoolClient, streamKey: string) 
   const campaignValid = campaign?.valid !== false;
   return { id: row.id, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
     heartbeatAt: row.heartbeat_at?.toISOString() ?? null, policy: row.policy, policyHash: row.policy_hash,
-    state: valid && executionValid && campaignValid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),[!campaignValid ? "paper_continuation_history_invalid" : !valid ? "prior_paper_source_no_longer_canonical" : "paper_execution_evidence_invalid"]),
+    state: row.state.status==='invalid' || (valid && executionValid && campaignValid) ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),[!campaignValid ? "paper_continuation_history_invalid" : !valid ? "prior_paper_source_no_longer_canonical" : "paper_execution_evidence_invalid"]),
     feeAccounting:valid&&executionValid&&campaignValid?feeAccounting:null, monitorReasons: row.monitor_reasons, sourceCanonical: valid, campaign,performance,
     points: valid && executionValid && campaignValid ? points.rows.reverse().map(p=>p.point) : [],
     execution: await readPaperExecutionDashboard(client, row.id),

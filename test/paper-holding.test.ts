@@ -117,3 +117,29 @@ it('live holding starts at actual exposure and still detects later outages',asyn
  const recovered=observePilotHolding(state,{...observation,now:at(1080),samples:[sample(1080)]})!;
  assert(recovered.exitReasons.includes('paper_chain_pause_expired'),'A real post-exposure outage must still latch its exit');
 });
+
+it('live risk retry refreshes real proof independently and preserves the original deadline',async()=>{
+ const {retryPilotHoldingRisk}=await import('../src/live-pilot/guard.js');
+ let s=step(0,[sample(0)],undefined,stale);let calls=0;
+ const refresh=async(id:string|null,only:boolean)=>{calls++;assert.equal(id,null);assert(only);};
+ assert(await retryPilotHoldingRisk(s,refresh));assert.equal(calls,1);assert.equal(s.riskSince,at(0));
+ assert(!await retryPilotHoldingRisk(JSON.parse(JSON.stringify(s)),refresh));
+ const recovered=step(5,[sample(5)],s,good);
+ assert(!recovered.paused);assert.deepEqual(recovered.exitReasons,[]);assert.equal(recovered.retryRequestedAt,undefined);
+ s=step(10,[sample(10)],recovered,stale);
+ assert(await retryPilotHoldingRisk(s,async()=>{throw Error('refresh failed');}));
+ assert.equal(s.riskSince,at(10));assert.equal(s.retryError,'Error: refresh failed');
+ assert(step(40,[sample(40)],s,good).exitReasons.includes('paper_risk_pause_expired'));
+ const paused=step(0,[sample(0,['private_reports_syncing'])],undefined,stale);
+ assert(!await retryPilotHoldingRisk(paused,refresh));assert.equal(calls,1);
+ const unsafe=step(0,[sample(0)],undefined,{...good,eligible:false,reasons:['paper_token_safety_check_failed']});
+ assert(!await retryPilotHoldingRisk(unsafe,refresh));
+});
+
+it('live holding risk does not disappear while indexed fee events catch up',async()=>{
+ const {pilotRiskCheckpoint}=await import('../src/live-pilot/guard.js');
+ const cp={id:'123'} as never;
+ assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:true,coverage_identity_valid:true,covered:false} as never]),cp);
+ assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:false,coverage_identity_valid:true}]),undefined);
+ assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:true,coverage_identity_valid:false}]),undefined);
+});

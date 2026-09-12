@@ -13,7 +13,7 @@ import { sanitizeRiskError } from "../risk/evaluate.js";
 import { paperExecutionEvidenceValid } from "./evidence.js";
 import { readPaperReferenceGate, readPaperRiskSources, evaluatePaperCurrentRisk, PaperReferenceGateError } from "./reference.js";
 import { advanceHolding } from "./holding.js";
-import { samePersistedPaperState } from './preflight.js';
+import { samePersistedPaperState,pausedPaperSourceWait } from './preflight.js';
 
 import { assertSchemaReady } from "../storage/compatibility.js";
 import { paperPolicy, paperPolicySchema } from "./config.js";
@@ -282,6 +282,13 @@ export class PaperStore {
         return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_next_live_checkpoint"] };
       }
       const cp = source.checkpoint;
+      const resumeWait=pausedPaperSourceWait(session.state,session.policy,cp,now);
+      if(resumeWait){
+        const reasons=[resumeWait==='wait'?'awaiting_fresh_checkpoint_after_pause':'checkpoint_gap_prevents_forward_decision_proof'];
+        if(resumeWait==='gap_exceeded')session.state=invalidatePaper(session.state,now,reasons);
+        await this.update(client,session.id,session.state,reasons);
+        await client.query('COMMIT');return {id:session.id,status:session.state.status,action:resumeWait==='wait'?'wait':'invalidate',reasons};
+      }
       if(feeProof&&(feeProof.block!==cp.block||feeProof.hash.toLowerCase()!==cp.hash.toLowerCase()))feeProof=undefined;
       const dataReasons: string[] = [];
       if (source.canonical !== true) dataReasons.push("checkpoint_canonicality_unproven");

@@ -13,6 +13,9 @@ import {loadIndexerConfig} from './indexer/config.js';
 import {PostgresRpcHealthGate} from './rpc-health/store.js';
 import {pilotGasValuer} from './live-pilot/valuation.js';
 import {json} from './live-pilot/domain.js';
+import {PostgresRiskStore} from './risk/store.js';
+import {loadRiskConfig} from './risk/config.js';
+import {refreshRiskEvidence} from './risk/refresh.js';
 
 const [command='',envPath='',configPath='config/live-pilot-nvda-250.json']=process.argv.slice(2);
 assert(['init','tick','run','status','exit','resume','stop','recover-exit','retry-approval'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|retry-approval ENV [CONFIG]');
@@ -23,6 +26,7 @@ Object.assign(process.env,env);const indexer=loadIndexerConfig();
 assert(process.env.DATABASE_URL);
 const store=new PilotStore(process.env.DATABASE_URL),health=new PostgresRpcHealthGate({connectionString:process.env.DATABASE_URL,enabled:true,cacheMs:2000,maxSampleAgeSeconds:30});
 const client=createRobinhoodClient(indexer.rpcUrl,indexer.rpcTimeoutMs,{beforeRequest:()=>health.assertBulkAllowed().then(()=>{}),retryCount:0});
+const riskStore=new PostgresRiskStore(process.env.DATABASE_URL),riskConfig=loadRiskConfig();
 let stopped=false;for(const signal of ['SIGINT','SIGTERM'] as const)process.on(signal,()=>{stopped=true;});
 const statusPath=resolve(process.env.PILOT_STATUS_PATH??'data/live-pilot-status.json');
 async function status() {
@@ -40,7 +44,8 @@ try {
   assert(!config.broadcastEnabled||process.env.PILOT_BROADCAST_RPC_URL,'Active execution requires an explicit publishing RPC');
   const publisher=process.env.PILOT_BROADCAST_RPC_URL?createRobinhoodClient(process.env.PILOT_BROADCAST_RPC_URL,indexer.rpcTimeoutMs,{retryCount:0}):client;
   const signer=loadPilotEnvSigner(config,process.cwd()),chain=new PilotChain(client,config,pilotGasValuer(client,config),publisher);
-  const controller=new PilotController(store,chain,config,signer,(db,state)=>readPilotGuard(db,client,config,indexer.streamKey,state));
+  const controller=new PilotController(store,chain,config,signer,(db,state)=>readPilotGuard(db,client,config,indexer.streamKey,state,(riskRunId,validationOnly)=>
+   refreshRiskEvidence({config:indexer,riskConfig,gate:health,store:riskStore,riskRunId,validationOnly})));
   if(command==='init')console.log(json(await controller.start()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
   else if(command==='retry-approval'){
@@ -62,4 +67,4 @@ try {
   }while(!stopped);
   await status();
  }
-}finally{await store.close();await health.close();}
+}finally{await store.close();await health.close();await riskStore.close();}

@@ -1,0 +1,33 @@
+{
+  "at": "2026-09-12T16:30:29.378Z",
+  "paper": {
+    "id": "59",
+    "status": "invalid",
+    "reasons": [
+      "source_stale_or_worker_missed_decision"
+    ],
+    "invalidatedAt": "2026-09-12T15:37:26.832Z",
+    "lastSource": "2026-09-12T18:33:17+03:00"
+  },
+  "lag": {
+    "first": "2026-09-12T15:34:30.300Z",
+    "last": "2026-09-12T15:37:00.647Z",
+    "max_blocks": "313",
+    "max_seconds": "33",
+    "count": "16"
+  },
+  "exits": [
+    {
+      "at": "2026-09-12T15:34:51.840Z",
+      "reasons": [
+        "private_block_lag_hard"
+      ]
+    },
+    {
+      "at": "2026-09-12T16:00:03.996Z",
+      "reasons": [
+        "paper_risk_pause_expired"
+      ]
+    }
+  ]
+}

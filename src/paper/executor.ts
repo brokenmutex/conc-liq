@@ -11,8 +11,8 @@ import { evaluatePaperUsdgOracle } from "./usdg-oracle.js";
 import { ViemRiskChainReader } from "../risk/reader.js";
 import { readRiskGate } from "../risk/gate.js";
 import { PostgresRpcHealthGate } from "../rpc-health/store.js";
-import { PostgresRiskStore, collectAndSaveRiskSnapshot } from "../risk/store.js";
-import { collectRiskSnapshot } from "../risk/runner.js";
+import { PostgresRiskStore } from "../risk/store.js";
+import { refreshRiskEvidence } from "../risk/refresh.js";
 import type { RpcHealthEvaluation } from "../rpc-health/domain.js";
 import { evaluateCanaryEntryReadiness } from "../canary-plan/entry-readiness.js";
 import { centeredRange, sizeLiquidityForQuoteBudget } from "../simulator/math.js";
@@ -57,27 +57,10 @@ export class NitroPaperExecutor implements PaperExecutor {
     this.riskStore = new PostgresRiskStore(connectionString);
   }
   async refreshRisk(riskRunId: string | null, validationOnly: boolean): Promise<void> {
-    const deadline=Date.now()+20000;
-    let requests=0;
-    const client=createRobinhoodClient(this.config.rpcUrl, Math.min(this.config.rpcTimeoutMs,5000), {
-      beforeRequest:async()=>{
-        assert(Date.now()<deadline && ++requests<=256,'Paper risk retry budget exhausted');
-        await this.gate.assertBulkAllowed();
-      },retryCount:0,
-    });
-    await this.gate.assertBulkAllowed();
-    const reader=new ViemRiskChainReader(client);
-    if(validationOnly && riskRunId) {
-      await this.riskStore.validateRunCanonical(riskRunId,n=>reader.getBlock(n));
-    } else {
-      const head=await client.getBlockNumber();
-      const blockNumber=head-64n;
-      assert(blockNumber>=0n,'Risk retry has no confirmed source');
-      await collectAndSaveRiskSnapshot({blockNumber,store:this.riskStore,
-        collect:()=>collectRiskSnapshot({blockNumber,config:{...this.riskConfig,httpTimeoutMs:5000},reader})});
-      await this.riskStore.validateLatestCanonical(n=>reader.getBlock(n));
-    }
+    await refreshRiskEvidence({config:this.config,riskConfig:this.riskConfig,gate:this.gate,
+      store:this.riskStore,riskRunId,validationOnly});
   }
+
   private client() {
     let requests = 0;
     return createRobinhoodClient(this.config.rpcUrl, this.config.rpcTimeoutMs, {
