@@ -44,7 +44,7 @@ try {
   if(command==='init')console.log(json(await controller.start()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
   else if(command==='retry-approval'){
-   try{console.log(json(await controller.retryApproval()));}
+   try{console.log(json(await controller.retryApproval(process.env.PILOT_INITIAL_APPROVAL_HASH)));}
    catch(error){
     const message=error instanceof Error?error.message:'';
     const reason=message==='Signed approval fee is below current base fee'?'initial_approval_waiting_for_lower_gas':

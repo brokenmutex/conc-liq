@@ -65,11 +65,12 @@ export class PilotController {
  }
  /** Explicit retry of a stranded approval only, at the identical hash/nonce.
   * Swap/mint/withdraw deadlines and unresolved economic orders are never reset. */
- async retryApproval() {
+ async retryApproval(expectedHash?:string) {
   assert(this.config.broadcastEnabled,'Broadcast is disabled');
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state,a=await this.store.pending(db,s.id);
    assert(a?.status==='signed'&&a.raw&&a.hash&&a.plan.kind==='approve','Retry requires the existing signed approval');
+   assert(!expectedHash||same(a.hash,expectedHash),'Bootstrap approval hash changed');
    assert.equal(await verifyPilotSignature(a.intent,a.raw),a.hash);
    assert(s.phase==='entry'&&s.desired==='running'&&s.tokenId===null&&s.last.nvda==='0','Approval retry requires unexposed entry inventory');
    try{await this.chain.client.getTransactionReceipt({hash:a.hash});return {phase:'receipt_already_present',hash:a.hash};}
