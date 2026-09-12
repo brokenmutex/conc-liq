@@ -40,3 +40,5 @@ The old live worker began another risk pause at 16:32:09.061 before deployment. 
 A real, read-only canonical refresh completed in **69 ms** at 16:34:33 UTC for risk run 19738 / block 61250368. The fresh stored hash matches the expected hash. This verifies the shared production refresh path without a trade; regression tests verify its deadline and failure behavior. Evidence is in `data/live-risk-canonical-refresh-2026-09-12.json` and the post-deployment status samples.
 
 The original private-node incident was not a slow HTTP response: private probes answered in 4–6 ms while the reported head froze at 61215380 and both reference heads advanced. The downstream symptom is a node head-progress stall. Its upstream cause (such as block ingestion or node execution) remains unproven and requires node-side telemetry; widening the 30-block tolerance would not fix that cause.
+
+Paper session **60 entered successfully at 16:38:28 UTC**, execution run 372 (quote 371), and is open. Initial marked NAV is **4,998.276380 USDG** after modeled entry economics/reserve. Both dashboard APIs respond successfully. This is a new paper campaign, independent of preserved session 59.
