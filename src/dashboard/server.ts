@@ -74,6 +74,14 @@ export function createDashboardServer(
         sendJson(response, 200, await dataSource.snapshot());
         return;
       }
+      if (pathname === "/api/live-pilot") {
+        // Fixed, sanitized exporter output. This endpoint has no ledger or signer access.
+        const path=process.env.PILOT_STATUS_PATH;
+        let pilot:unknown=null;
+        if(path)try{pilot=JSON.parse(await readFile(path,"utf8"));}catch{/* No active exporter yet. */}
+        sendJson(response,200,{available:pilot!==null,pilot});
+        return;
+      }
       const asset = STATIC_FILES.get(pathname);
       if (asset === undefined) {
         sendJson(response, 404, { error: "not_found" });

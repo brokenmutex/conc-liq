@@ -1,6 +1,6 @@
 # $250 NVDA/USDG live pilot preparation
 
-The deployment objective is to find execution and recovery defects with 250 USDG of initial capital while the independent 5,000 USDG paper campaign continues. The live pilot is not active. This milestone adds runnable deployment checks, fork rehearsals, receipt decoding and a durable transaction outbox; it does not yet provide a production executor.
+The deployment objective is to find execution and recovery defects with 250 USDG of initial capital while the independent 5,000 USDG paper campaign continues. This document records the initial preparation milestones. The subsequent [controller and recovery validation](live-pilot-controller-2026-09-12.md) implements the production state machine and records current deployment evidence; historical readiness statements below apply to their dated checkpoints.
 
 ## Agreed strategy and isolation
 

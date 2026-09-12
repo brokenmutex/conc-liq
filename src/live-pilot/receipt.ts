@@ -16,7 +16,7 @@ export interface PilotReceipt {transactionHash:Hex;blockHash:Hex;blockNumber:big
 export function pilotReceiptFacts(receipt:PilotReceipt,operator:Address){
  assert(receipt.gasUsed>0n&&receipt.effectiveGasPrice>=0n);
  assert(receipt.status==='success'||receipt.logs.length===0,'Reverted receipt cannot contain logs');
- const wallet={usdg:0n,nvda:0n},nfts:{from:string;to:string;tokenId:string}[]=[],liquidityEvents:{kind:string;tokenId:string;liquidity?:string;amount0:string;amount1:string}[]=[];
+ const wallet={usdg:0n,nvda:0n},nfts:{from:string;to:string;tokenId:string}[]=[],liquidityEvents:{kind:string;tokenId:string;liquidity?:string;recipient?:string;amount0:string;amount1:string}[]=[];
  for(const log of receipt.logs){
   const address=log.address.toLowerCase();if(![USDG.toLowerCase(),PAPER_NVDA,NONFUNGIBLE_POSITION_MANAGER.toLowerCase()].includes(address))continue;
   const manager=address===NONFUNGIBLE_POSITION_MANAGER.toLowerCase(),topic=log.topics[0]?.toLowerCase();
@@ -29,7 +29,7 @@ export function pilotReceiptFacts(receipt:PilotReceipt,operator:Address){
   if(e.eventName==='Transfer'){
    const a=e.args;if(address===NONFUNGIBLE_POSITION_MANAGER.toLowerCase())continue;
    const key=address===USDG.toLowerCase()?'usdg':'nvda';if(a.from.toLowerCase()===operator.toLowerCase())wallet[key]-=a.value;if(a.to.toLowerCase()===operator.toLowerCase())wallet[key]+=a.value;
-  }else if(address===NONFUNGIBLE_POSITION_MANAGER.toLowerCase())liquidityEvents.push({kind:e.eventName,tokenId:String(e.args.tokenId),amount0:String(e.args.amount0),amount1:String(e.args.amount1),...('liquidity' in e.args?{liquidity:String(e.args.liquidity)}:{})});
+  }else if(address===NONFUNGIBLE_POSITION_MANAGER.toLowerCase())liquidityEvents.push({kind:e.eventName,tokenId:String(e.args.tokenId),amount0:String(e.args.amount0),amount1:String(e.args.amount1),...('liquidity' in e.args?{liquidity:String(e.args.liquidity)}:{}),...('recipient' in e.args?{recipient:e.args.recipient}:{})});
  }
  assert(receipt.status==='success'||(!nfts.length&&!liquidityEvents.length&&wallet.usdg===0n&&wallet.nvda===0n),'Reverted receipt cannot contain accepted transfers');
  return {transactionHash:receipt.transactionHash,block: String(receipt.blockNumber),blockHash:receipt.blockHash,status:receipt.status,

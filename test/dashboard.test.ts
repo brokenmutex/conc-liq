@@ -37,7 +37,7 @@ describe("dashboard config", () => {
 
 describe("dashboard evidence semantics", () => {
   const source = readFileSync(new URL("../dashboard/app.js", import.meta.url), "utf8");
-  const ui = runInNewContext(source.replace(/refresh\(\);\s*$/, "") +
+  const ui = runInNewContext(source.replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm, "") +
     "\n({ cursorSummary, booleanStatus, focusRiskReasons, fresh });") as {
       cursorSummary(value: unknown): string;
       booleanStatus(value: boolean | null, yes: string, no: string): string;
@@ -85,7 +85,7 @@ it("renders continuous paper results separately from session results", () => {
     if (!nodes.has(id)) nodes.set(id,{textContent:"",children:[],classList:{add(){},remove(){},toggle(){}},replaceChildren(){}});
     return nodes.get(id)!;
   };
-  const render = runInNewContext(source.replace(/refresh\(\);\s*$/, "") + "\nrenderPaper;", {
+  const render = runInNewContext(source.replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm, "") + "\nrenderPaper;", {
     document:{getElementById:element},
   });
   // Use a minimal waiting state to exercise the actual DOM rendering path.

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="dark">
-    <title>CONC LIQ · Live Paper Session</title>
+    <title>CONC LIQ · Live &amp; Paper LP</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -15,7 +15,7 @@
         <div>
           <div class="eyebrow">ROBINHOOD CHAIN · UNISWAP V3</div>
           <h1>CONC <span>LIQ</span></h1>
-          <p class="subtitle">NVDA paper session · live observations, simulated capital</p>
+          <p class="subtitle">NVDA / USDG · live pilot and independent paper campaign</p>
         </div>
         <div class="header-status">
           <div class="readonly-badge">READ ONLY</div>
@@ -28,6 +28,19 @@
       </header>
 
       <div id="error-banner" class="error-banner hidden" role="alert"></div>
+
+      <section class="panel" aria-label="Real capital pilot">
+        <div class="panel-heading"><div><div class="section-kicker">REAL CAPITAL · 250 USDG INITIAL ALLOCATION</div><h2>NVDA / USDG · live pilot</h2></div><div class="readonly-badge">ACTUAL TRANSACTIONS</div></div>
+        <p id="live-pilot-status" class="focus-intro">No live pilot status available.</p>
+        <p id="live-pilot-policy" class="muted">24/7 · ±20 raw ticks · recenter outside range · net swaps as needed · no inventory cap</p>
+        <div class="focus-grid paper-metrics">
+          <article><div class="metric-label">Managed value after paid gas</div><div id="live-pilot-nav" class="focus-value">—</div><div id="live-pilot-nav-note" class="muted">Unrealized value; future exit costs excluded</div></article>
+          <article><div class="metric-label">Actual gas paid</div><div id="live-pilot-gas" class="focus-value">—</div><div id="live-pilot-native" class="muted">—</div></article>
+          <article><div class="metric-label">USDG kept outside strategy</div><div id="live-pilot-reserve" class="focus-value">—</div><div id="live-pilot-nft" class="muted">—</div></article>
+        </div>
+        <details><summary class="paper-journal-summary">Live position evolution</summary><div class="table-wrap"><table><thead><tr><th>Source time</th><th>Market session</th><th>State / NFT</th><th>Tick / range</th><th>Value after paid gas (USDG)</th></tr></thead><tbody id="live-pilot-marks"></tbody></table></div></details>
+        <details><summary class="paper-journal-summary">Live transactions</summary><div class="table-wrap"><table><thead><tr><th>Action</th><th>Status</th><th>Transaction hash</th><th>Gas paid (ETH)</th></tr></thead><tbody id="live-pilot-actions"></tbody></table></div></details>
+      </section>
 
       <section class="panel focus-panel" id="paper-panel" aria-label="Live paper session">
         <div class="panel-heading">

@@ -3,7 +3,7 @@ import {z} from 'zod';import {getAddress,isAddress} from 'viem';
 import {paperPolicySchema} from '../paper/config.js';import type {TransactionPaperPolicy} from '../paper/engine.js';
 const address=z.string().refine(isAddress).transform(value=>getAddress(value));
 export const livePilotSchema=z.object({
- version:z.literal(1),kind:z.literal('nvda_usdg_live_pilot_v1'),broadcastEnabled:z.literal(false),operator:address.nullable(),
+ version:z.literal(1),kind:z.literal('nvda_usdg_live_pilot_v1'),broadcastEnabled:z.boolean(),operator:address.nullable(),
  signer:z.union([
   z.object({kind:z.enum(['keystore','external']),reference:z.string().min(1)}).strict(),
   z.object({kind:z.literal('env_file'),reference:z.string().min(1),variable:z.string().regex(/^[A-Z][A-Z0-9_]*$/)}).strict(),
@@ -15,8 +15,10 @@ export const livePilotSchema=z.object({
 }).strict();
 export type LivePilotConfig=ReturnType<typeof livePilotConfig>;
 /** Separate configuration: preparation never changes the running paper session. */
-export function livePilotConfig(raw:unknown){
+export function livePilotConfig(raw:unknown,options?:{allowBroadcast:boolean}){
  const p=livePilotSchema.parse(raw),s=p.strategy;
+ assert(!p.broadcastEnabled||options?.allowBroadcast===true,'Broadcast is unavailable in preparation mode');
+ if(p.broadcastEnabled)assert(p.operator&&p.signer,'An active pilot needs an operator and signer');
  assert('executionBasis' in s&&s.executionBasis==='nitro_fork_v1');
  assert.equal(s.budgetQuote,p.initialCapitalQuote);assert.equal(s.halfWidthSpacings,2);assert.equal(s.lpAllocationPpm,1000000);
  assert.equal(s.tradingHours?.kind,'continuous_v1');assert.equal(s.recenter?.kind,'outside_range_v1');

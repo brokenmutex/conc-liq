@@ -1090,6 +1090,32 @@ function render(data) {
   renderSource("session", data.sources.marketSession, data.overview.serverTime);
 }
 
+async function refreshLivePilot() {
+  try {
+    const response=await fetch('/api/live-pilot',{cache:'no-store',signal:AbortSignal.timeout(8000)});
+    if(!response.ok)throw new Error('Live pilot API unavailable');
+    const {pilot}=await response.json(),state=pilot?.campaign?.state;
+    if(!state){setText('live-pilot-status','No live pilot has been initialized.');return;}
+    const age=Date.now()-Date.parse(pilot.campaign.heartbeat_at),mark=pilot.marks?.[0]?.snapshot;
+    setText('live-pilot-status',`${age>30000?'STALE STATUS · ':''}${state.phase.toUpperCase()} · ${pilot.broadcastEnabled?'Execution enabled':'Broadcast disabled'} · ${pilot.campaign.monitor.join(' · ')||'No active blocker'} · updated ${new Date(pilot.computedAt).toLocaleTimeString()}`);
+    setText('live-pilot-nav',amount(mark?.netNavQuote??null));
+    setText('live-pilot-nav-note',mark?`Valued at ${new Date(Number(mark.snapshot.timestamp)*1000).toLocaleString()}; future exit costs excluded`:'Awaiting a valued receipt or position mark');
+    setText('live-pilot-gas',amount(state.gasSpentQuote));
+    setText('live-pilot-native',`${displayTokenAmount(state.gasSpentWei,18)} ETH charged by receipts`);
+    setText('live-pilot-reserve',amount(state.reserveUsdg));
+    setText('live-pilot-nft',state.tokenId?`Owned NFT #${state.tokenId}`:'No active liquidity NFT');
+    const actions=element('live-pilot-actions');actions.replaceChildren();
+    for(const a of (pilot.actions??[]).slice(0,20)){
+      const row=document.createElement('tr');row.append(cell(a.kind),cell(a.status),cell(a.hash??'Unsigned intent','mono'),cell(a.gas_wei===null?'—':displayTokenAmount(a.gas_wei,18),'number'));actions.append(row);
+    }
+    const marks=element('live-pilot-marks');marks.replaceChildren();
+    for(const {snapshot:m} of (pilot.marks??[]).slice(0,12)){
+      const p=m.snapshot.position,row=document.createElement('tr');row.append(cell(new Date(Number(m.snapshot.timestamp)*1000).toLocaleString()),cell(m.marketSession?.regime??'Unknown'),cell(`${m.phase}${p?' / #'+p.tokenId:''}`),cell(`${m.snapshot.tick}${p?' / '+p.tickLower+'–'+p.tickUpper:''}`),cell(amount(m.netNavQuote),'number'));marks.append(row);
+    }
+  } catch {setText('live-pilot-status','Live pilot status unavailable; displayed values may be stale.');}
+  finally {setTimeout(refreshLivePilot,10000);}
+}
+
 async function refresh() {
   try {
     const response = await fetch("/api/dashboard", { cache: "no-store", signal: AbortSignal.timeout(8_000) });
@@ -1114,3 +1140,5 @@ async function refresh() {
 }
 
 refresh();
+
+refreshLivePilot();
