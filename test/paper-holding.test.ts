@@ -101,3 +101,19 @@ describe('bounded holding incidents',()=>{
   }
  });
 });
+
+it('live holding starts at actual exposure and still detects later outages',async()=>{
+ const {observePilotHolding}=await import('../src/live-pilot/guard.js');
+ const state=JSON.parse(readFileSync(new URL('./fixtures/live-pilot-reconciliation.json',import.meta.url),'utf8')).fixtures[0].state;
+ state.createdAt=at(0);state.last.timestamp=String(Date.parse(at(1000))/1000);state.last.nvda='0';delete state.holding;
+ const history=Array.from({length:97},(_,i)=>sample(50+i*10,i<10?['private_reports_syncing']:[]));
+ const observation={now:at(1010),samples:history,policy,risk:good,riskRead:null};
+ assert.equal(observePilotHolding(state,observation),undefined,'Waiting cash must not start a holding clock');
+ state.last.nvda='1';const initial=observePilotHolding(state,observation)!;
+ assert.equal(initial.paused,false);assert.deepEqual(initial.exitReasons,[],'Old cash-wait incidents cannot trigger a new position exit');
+ state.holding=initial;
+ state.holding=observePilotHolding(state,{...observation,now:at(1020),samples:[sample(1020,['private_reports_syncing'])]});
+ assert.equal(state.holding.paused,true);
+ const recovered=observePilotHolding(state,{...observation,now:at(1080),samples:[sample(1080)]})!;
+ assert(recovered.exitReasons.includes('paper_chain_pause_expired'),'A real post-exposure outage must still latch its exit');
+});
