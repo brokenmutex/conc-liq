@@ -1,0 +1,189 @@
+{
+  "computedAt": "2026-09-12T08:47:53.439Z",
+  "scope": "live_pilot_preparation",
+  "broadcastEnabled": false,
+  "executionEligible": false,
+  "liveWalletVerified": false,
+  "readiness": {
+    "checkpoint": {
+      "id": "7324",
+      "hash": "0xd5a1621c49a75ec064e249bad7dad6b855174553587035b4c899b951e0dfedfc",
+      "tick": 222413,
+      "block": "60973388",
+      "liquidity": "36668395657993259194",
+      "capturedAt": "2026-09-12T11:44:27.603+03:00",
+      "feeGrowth0": "19733308315720920783316283446936",
+      "feeGrowth1": "91572369736332265083098284374549577375097",
+      "sqrtPriceX96": "5349115682892194149274947904631317",
+      "targetSetHash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "blockTimestamp": "2026-09-12T11:44:20+03:00"
+    },
+    "configSha256": "68e09eba603f03b31ced8f12c3d1cfc1855327a80771bbc73e5bce4d24926c65",
+    "chainEligible": true,
+    "referenceEligible": true,
+    "freshSource": true,
+    "setupRequired": [
+      "operator_unset",
+      "signer_unset"
+    ],
+    "remainingLaunchWork": [
+      "persistent_live_position_reconciliation",
+      "signer_and_broadcast_adapter",
+      "restart_and_partial_recenter_recovery",
+      "wallet_specific_rehearsal",
+      "live_service_and_dashboard_integration"
+    ],
+    "deployments": {
+      "factory": {
+        "address": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+        "codeHash": "0xec72b1abd1f2faee020cfea9c646bd8994f9fb389054f6e574f103a895091739"
+      },
+      "manager": {
+        "address": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "codeHash": "0x0a493d1af3d0f25fed8efa205244ebee14114267a08647fc38c515c7cd6ead4f"
+      },
+      "router": {
+        "address": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "codeHash": "0x6f36c378e272c6324c48f045182bcb54bd8ad654cf9ebd42e8893d52c4cb25dc"
+      },
+      "quoter": {
+        "address": "0x33e885eD0Ec9bF04EcfB19341582aADCb4c8A9E7",
+        "codeHash": "0x3db0868d945e9304c9bc6a8b2181948109ea617647142f3c4083e14393496a28"
+      },
+      "pool": {
+        "address": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "codeHash": "0x20fbed0e49e9ac176e3220dc3c96a9b47d33c5f2b468f180afd7ff5ae00d4a8e"
+      },
+      "usdg": {
+        "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "codeHash": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6"
+      },
+      "nvda": {
+        "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "codeHash": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630"
+      }
+    },
+    "artifact": "data/live-pilot-250-2026-09-12/run3/readiness.json",
+    "sha256": "0bf8b10a28dcecc686c7b6bbf5b881c22b74bccb21c7c515a57b136c2fd516cc"
+  },
+  "roundtrips": [
+    {
+      "source": {
+        "block": "60969727",
+        "hash": "0x1c65e2109189073856169f5c5572794346fc34fcc5759782682ce5273c7497ed",
+        "timestamp": "1789202289"
+      },
+      "range": {
+        "tickLower": 222400,
+        "tickUpper": 222440
+      },
+      "initialCapitalQuote": "250000000",
+      "returnedQuote": "249905781",
+      "swapShortfallQuote": "94219",
+      "estimatedGasWei": "124655520736000",
+      "estimatedGasQuote": "315029",
+      "estimatedNetQuote": "-409248",
+      "transactions": 9,
+      "receiptChecks": {
+        "walletTokenDeltas": true,
+        "localGas": true,
+        "scope": "owned_fork_only"
+      },
+      "rawArtifact": "data/live-pilot-250-2026-09-12/run2/roundtrip.json",
+      "sha256": "0f20b762cdaaa1d092a7f94f912461b0201c3a3f401ab4bd320c8d4b9cde047e"
+    },
+    {
+      "source": {
+        "block": "60973388",
+        "hash": "0xd5a1621c49a75ec064e249bad7dad6b855174553587035b4c899b951e0dfedfc",
+        "timestamp": "1789202660"
+      },
+      "range": {
+        "tickLower": 222390,
+        "tickUpper": 222430
+      },
+      "initialCapitalQuote": "250000000",
+      "returnedQuote": "249854299",
+      "swapShortfallQuote": "145701",
+      "estimatedGasWei": "127394832756000",
+      "estimatedGasQuote": "321952",
+      "estimatedNetQuote": "-467653",
+      "transactions": 9,
+      "receiptChecks": {
+        "walletTokenDeltas": true,
+        "localGas": true,
+        "scope": "owned_fork_only"
+      },
+      "rawArtifact": "data/live-pilot-250-2026-09-12/run3/roundtrip.json",
+      "sha256": "1c86ec1b9156103dca20890673653fdddbb50b594373a2cf2a79fabbeb59b378"
+    }
+  ],
+  "recenters": [
+    {
+      "direction": "buy",
+      "scope": "synthetic_250_two_source_recenter_mechanics",
+      "quoteSourceBlock": "60969726",
+      "executionSource": {
+        "block": "60969727",
+        "hash": "0x1c65e2109189073856169f5c5572794346fc34fcc5759782682ce5273c7497ed",
+        "timestamp": "1789202289"
+      },
+      "range": [
+        222400,
+        222440
+      ],
+      "amountIn": "94240417",
+      "minimumOutput": "427291286465656621",
+      "transactions": 6,
+      "estimatedGasWei": "86129445376000",
+      "exitReserveWei": "49473528800000",
+      "rawArtifact": "data/live-pilot-250-2026-09-12/recenter-buy.json",
+      "sha256": "21c85291d4559eea4046c51ed4dc40bcb7d407d212290f668b73bea4e9c10009"
+    },
+    {
+      "direction": "sell",
+      "scope": "synthetic_250_two_source_recenter_mechanics",
+      "quoteSourceBlock": "60969726",
+      "executionSource": {
+        "block": "60969727",
+        "hash": "0x1c65e2109189073856169f5c5572794346fc34fcc5759782682ce5273c7497ed",
+        "timestamp": "1789202289"
+      },
+      "range": [
+        222400,
+        222440
+      ],
+      "amountIn": "710132163304725064",
+      "minimumOutput": "154904451",
+      "transactions": 6,
+      "estimatedGasWei": "92742066432000",
+      "exitReserveWei": "49473528800000",
+      "rawArtifact": "data/live-pilot-250-2026-09-12/recenter-sell.json",
+      "sha256": "3048d52aa4d1c050389e56b48494294edb64764073fe722d04bad80871385496"
+    }
+  ],
+  "validation": {
+    "unitTests": 17,
+    "typescript": "passed",
+    "postgresJournal": "passed_disposable_schema",
+    "mainnetTransactions": 0
+  },
+  "paperObserved": {
+    "id": "59",
+    "status": "open",
+    "heartbeatAt": "2026-09-12T08:44:18.796Z",
+    "sourceBlock": "60972781",
+    "sourceAt": "2026-09-12T11:43:19+03:00",
+    "monitor": [
+      "awaiting_next_live_checkpoint"
+    ],
+    "initialCapitalQuote": "5000000000",
+    "policyHash": "4d24ac0de787a8e688df73ce6ad938832ae7033736a7e4ddd5529a338ee432d6"
+  },
+  "limitations": [
+    "Fork fixture account and inventory do not prove real operator custody",
+    "No production signing/broadcast or canonical wallet/NFT reconciliation controller exists yet",
+    "No forward fee-income or profitability claim",
+    "Nitro gas estimates differ from local EVM receipts; live receipts must replace estimates"
+  ]
+}

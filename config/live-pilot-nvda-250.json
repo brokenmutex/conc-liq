@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "kind": "nvda_usdg_live_pilot_v1",
+  "broadcastEnabled": false,
+  "operator": null,
+  "signer": null,
+  "initialCapitalQuote": "250000000",
+  "maxAdditionalFundingQuote": "0",
+  "gasFundingQuote": null,
+  "strategy": {
+    "mode": "guarded",
+    "executionBasis": "nitro_fork_v1",
+    "budgetQuote": "250000000",
+    "halfWidthSpacings": 2,
+    "feeAccounting": "diluted_segments_v1",
+    "liquidityShareMode": "warn_v1",
+    "lpAllocationPpm": 1000000,
+    "maxHoldingSeconds": null,
+    "maxSourceAgeSeconds": 180,
+    "maxGapSeconds": 900,
+    "maxLiquiditySharePpm": 20000,
+    "maxSlippageBps": 50,
+    "transactionTtlSeconds": 300,
+    "referencePolicy": {
+      "kind": "continuous_bounded_v1",
+      "maxHeldAgeSeconds": 345600,
+      "maxDeviationPpm": 50000,
+      "maxGasPriceAgeSeconds": 86400,
+      "usdgHeartbeatGraceSeconds": 1800
+    },
+    "reentry": {
+      "cooldownSeconds": 600
+    },
+    "holdingPolicy": {
+      "kind": "bounded_infrastructure_v1",
+      "maxLagBlocks": 30,
+      "chainPauseSeconds": 60,
+      "riskPauseSeconds": 30
+    },
+    "tradingHours": {
+      "kind": "continuous_v1"
+    },
+    "recenter": {
+      "kind": "outside_range_v1",
+      "maxQuoteAgeSeconds": 90
+    }
+  },
+  "execution": {
+    "maxPendingTransactions": 1,
+    "confirmationBlocks": 64,
+    "receiptTimeoutSeconds": 120,
+    "maxConsecutiveReverts": 1,
+    "gasLimitBufferBps": 3000
+  },
+  "accounting": "wallet_nft_and_canonical_receipts_v1"
+}
