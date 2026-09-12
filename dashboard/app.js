@@ -1097,7 +1097,11 @@ async function refreshLivePilot() {
     const {pilot}=await response.json(),state=pilot?.campaign?.state;
     if(!state){setText('live-pilot-status','No live pilot has been initialized.');return;}
     const age=Date.now()-Date.parse(pilot.campaign.heartbeat_at),mark=pilot.marks?.[0]?.snapshot;
-    setText('live-pilot-status',`${age>30000?'STALE STATUS · ':''}${state.phase.toUpperCase()} · ${pilot.broadcastEnabled?'Execution enabled':'Broadcast disabled'} · ${pilot.campaign.monitor.join(' · ')||'No active blocker'} · updated ${new Date(pilot.computedAt).toLocaleTimeString()}`);
+    const retryAt=state.phase==='closed'&&state.desired==='running'&&state.closedAt?new Date(Date.parse(state.closedAt)+600000):null;
+    const phase=retryAt?`WAITING FOR RE-ENTRY · Eligible after ${retryAt.toLocaleTimeString()}, subject to admission`:state.phase.toUpperCase();
+    const labels={awaiting_receipt_confirmation_depth:'Waiting for receipt confirmation',awaiting_transaction_receipt:'Waiting for transaction receipt',initial_approval_waiting_for_lower_gas:'Waiting for lower gas fees',initial_approval_waiting_for_admission:'Waiting for entry admission',closed:state.desired==='running'?'Automatic re-entry enabled':'Trading stopped'};
+    const reasons=pilot.campaign.monitor.map(r=>labels[r]??r.replaceAll('_',' ')).join(' · ');
+    setText('live-pilot-status',`${age>30000?'STALE STATUS · ':''}${phase} · ${pilot.broadcastEnabled?'Execution enabled':'Broadcast disabled'} · ${reasons||'No active blocker'} · updated ${new Date(pilot.computedAt).toLocaleTimeString()}`);
     setText('live-pilot-nav',amount(mark?.netNavQuote??null));
     setText('live-pilot-nav-note',mark?`Valued at ${new Date(Number(mark.snapshot.timestamp)*1000).toLocaleString()}; future exit costs excluded`:'Awaiting a valued receipt or position mark');
     setText('live-pilot-gas',amount(state.gasSpentQuote));
