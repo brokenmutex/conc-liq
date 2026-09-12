@@ -6,9 +6,13 @@ import type { DashboardSnapshot } from "./domain.js";
 
 export interface DashboardDataSource {
   snapshot(): Promise<DashboardSnapshot>;
+  positions?(id?:string,hours?:number): Promise<unknown>;
 }
 
 const STATIC_FILES = new Map([
+  ["/legacy", {contentType:"text/html; charset=utf-8",file:"legacy/index.html"}],
+  ["/legacy/app.js", {contentType:"text/javascript; charset=utf-8",file:"legacy/app.js"}],
+  ["/legacy/styles.css", {contentType:"text/css; charset=utf-8",file:"legacy/styles.css"}],
   ["/", { contentType: "text/html; charset=utf-8", file: "index.html" }],
   ["/app.js", { contentType: "text/javascript; charset=utf-8", file: "app.js" }],
   ["/styles.css", { contentType: "text/css; charset=utf-8", file: "styles.css" }],
@@ -67,6 +71,16 @@ export function createDashboardServer(
       if (pathname === "/healthz") {
         sendJson(response, 200, { status: "ok" });
         return;
+      }
+      if(pathname === "/api/positions" || pathname.startsWith("/api/positions/")) {
+        const url=new URL(request.url!,"http://localhost"),id=pathname === "/api/positions"?undefined:pathname.slice(15);
+        const hours=Number(url.searchParams.get("hours")??24);
+        if((id!==undefined&&!/^(paper-[1-9]\d*|live-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(id))||![1,6,24,168].includes(hours)) {
+          sendJson(response,400,{error:"invalid_position_request"});return;
+        }
+        if(!dataSource.positions){sendJson(response,503,{error:"position_source_unavailable"});return;}
+        const result=await dataSource.positions(id,hours);
+        sendJson(response,result===null?404:200,result??{error:"position_not_found"});return;
       }
       if (pathname === "/api/dashboard") {
         if (request.method === "HEAD") {

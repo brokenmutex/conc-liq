@@ -36,7 +36,7 @@ describe("dashboard config", () => {
 });
 
 describe("dashboard evidence semantics", () => {
-  const source = readFileSync(new URL("../dashboard/app.js", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../dashboard/legacy/app.js", import.meta.url), "utf8");
   const ui = runInNewContext(source.replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm, "") +
     "\n({ cursorSummary, booleanStatus, focusRiskReasons, fresh });") as {
       cursorSummary(value: unknown): string;
@@ -79,7 +79,7 @@ describe("dashboard evidence semantics", () => {
 });
 
 it("renders continuous paper results separately from session results", () => {
-  const source = readFileSync(new URL("../dashboard/app.js", import.meta.url), "utf8");
+  const source = readFileSync(new URL("../dashboard/legacy/app.js", import.meta.url), "utf8");
   const nodes = new Map<string, {textContent:string;children:unknown[];classList:unknown;replaceChildren:()=>void}>();
   const element = (id:string) => {
     if (!nodes.has(id)) nodes.set(id,{textContent:"",children:[],classList:{add(){},remove(){},toggle(){}},replaceChildren(){}});
@@ -101,7 +101,7 @@ it("renders continuous paper results separately from session results", () => {
 });
 
 it('renders live custody, costs and scheduled re-entry without a paper helper',async()=>{
- const source=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8').replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm,'');
+ const source=readFileSync(new URL('../dashboard/legacy/app.js',import.meta.url),'utf8').replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm,'');
  const nodes=new Map<string,any>(),node=()=>({textContent:'',className:'',append(){},replaceChildren(){}});
  const get=(id:string)=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
  const now=new Date().toISOString(),payload={pilot:{computedAt:now,broadcastEnabled:true,

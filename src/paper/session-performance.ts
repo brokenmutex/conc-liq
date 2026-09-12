@@ -124,7 +124,7 @@ export function sessionPerformance(funding:readonly SessionFunding[],marks:reado
   for(const b of endpoint)if(drawdown>b.maxDrawdownPpm)b.maxDrawdownPpm=drawdown;
   const point={id:mark.id,sessionId:mark.sessionId,sourceAt:mark.sourceAt,observedAt:mark.observedAt,block:mark.block,action:mark.action,status:mark.status,
    ...sessionAt,navQuote:String(nav),economicNavQuote:String(economic),holdQuote:baseline?String(hold):null,
-   feesThisIntervalQuote:String(fees),gasThisMarkQuote:String(gas),exitReserveQuote:String(reserve),pnlThisIntervalQuote:String(economic-previousEconomic),
+   feesThisIntervalQuote:String(fees),swapThisMarkQuote:String(swapCost),swapsThisMark:markTrades.length,gasThisMarkQuote:String(gas),exitReserveQuote:String(reserve),pnlThisIntervalQuote:String(economic-previousEconomic),
    attribution:crossed?'mixed_boundary':'single_session',...currentInventory,tick:mark.tick,
    priceQuoteX18:String((1n<<192n)*10n**30n/BigInt(mark.sqrtPriceX96)**2n),drawdownPpm:String(drawdown)};
   if(crossed){

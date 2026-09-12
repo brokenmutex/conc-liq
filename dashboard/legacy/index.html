@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>CONC LIQ · Live &amp; Paper LP</title>
+    <link rel="stylesheet" href="/legacy/styles.css">
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <main class="shell">
+      <header class="masthead">
+        <div>
+          <div class="eyebrow">ROBINHOOD CHAIN · UNISWAP V3</div>
+          <h1>CONC <span>LIQ</span></h1>
+          <p class="subtitle">NVDA / USDG · live pilot and independent paper campaign</p>
+        </div>
+        <div class="header-status">
+          <div class="readonly-badge">READ ONLY</div>
+          <div class="connection-line">
+            <span id="connection-dot" class="status-dot pending"></span>
+            <span id="connection-label">Connecting</span>
+          </div>
+          <div id="last-refresh" class="muted">Waiting for first snapshot</div>
+        </div>
+      </header>
+
+      <div id="error-banner" class="error-banner hidden" role="alert"></div>
+
+      <section class="panel" aria-label="Real capital pilot">
+        <div class="panel-heading"><div><div class="section-kicker">REAL CAPITAL · 250 USDG INITIAL ALLOCATION</div><h2>NVDA / USDG · live pilot</h2></div><div class="readonly-badge">ACTUAL TRANSACTIONS</div></div>
+        <p id="live-pilot-status" class="focus-intro">No live pilot status available.</p>
+        <p id="live-pilot-policy" class="muted">24/7 · ±20 raw ticks · recenter outside range · net swaps as needed · no inventory cap</p>
+        <div class="focus-grid paper-metrics">
+          <article><div class="metric-label">Managed value after paid gas</div><div id="live-pilot-nav" class="focus-value">—</div><div id="live-pilot-nav-note" class="muted">Unrealized value; future exit costs excluded</div></article>
+          <article><div class="metric-label">Actual gas paid</div><div id="live-pilot-gas" class="focus-value">—</div><div id="live-pilot-native" class="muted">—</div></article>
+          <article><div class="metric-label">USDG kept outside strategy</div><div id="live-pilot-reserve" class="focus-value">—</div><div id="live-pilot-nft" class="muted">—</div></article>
+        </div>
+        <details><summary class="paper-journal-summary">Live position evolution</summary><div class="table-wrap"><table><thead><tr><th>Source time</th><th>Market session</th><th>State / NFT</th><th>Tick / range</th><th>Value after paid gas (USDG)</th></tr></thead><tbody id="live-pilot-marks"></tbody></table></div></details>
+        <details><summary class="paper-journal-summary">Live transactions</summary><div class="table-wrap"><table><thead><tr><th>Action</th><th>Status</th><th>Transaction hash</th><th>Gas paid (ETH)</th></tr></thead><tbody id="live-pilot-actions"></tbody></table></div></details>
+      </section>
+
+      <section class="panel focus-panel" id="paper-panel" aria-label="Live paper session">
+        <div class="panel-heading">
+          <div><div class="section-kicker">CURRENT MILESTONE · PAPER TRADING</div><h2>NVDA / USDG · live paper performance</h2></div>
+          <div class="readonly-badge">SIMULATED CAPITAL</div>
+        </div>
+        <p id="paper-status" class="focus-intro">No paper session has been started.</p>
+        <p id="paper-freshness" class="muted">Waiting for session evidence</p>
+        <p id="paper-lifecycle" class="muted">Entry → holding period → withdrawal and sale back to USDG</p>
+        <p id="paper-campaign" class="muted"></p>
+        <div class="focus-grid paper-metrics">
+          <article><div class="metric-label">Paper balance / net value</div><div id="paper-nav" class="focus-value">—</div><div id="paper-budget" class="muted">—</div></article>
+          <article><div class="metric-label">Paper P&amp;L after execution costs</div><div id="paper-pnl" class="focus-value">—</div><div id="paper-pnl-note" class="muted">Unavailable until fills and costs have evidence</div></article>
+          <article><div class="metric-label">LP alpha versus holding</div><div id="paper-alpha" class="focus-value">—</div><div id="paper-hold" class="muted">Same post-entry token inventory</div></article>
+          <article><div class="metric-label">Estimated fees accrued</div><div id="paper-fees" class="focus-value">—</div><div class="muted">Observed fee growth · hypothetical position</div></article>
+          <article><div class="metric-label">Paper execution costs / exit estimate</div><div id="paper-costs" class="focus-value">—</div><div id="paper-cost-status" class="muted">Awaiting transaction simulation</div></article>
+          <article><div class="metric-label">Maximum observed drawdown</div><div id="paper-drawdown" class="focus-value">—</div><div id="paper-coverage" class="muted">No completed holding intervals</div></article>
+        </div>
+        <p id="paper-policy" class="research-note">Paper fills require transaction simulation and evidence for execution costs.</p>
+        <p id="paper-liquidity-share" class="muted"></p>
+        <p id="paper-fee-model" class="muted"></p>
+        <p id="paper-repair-note" class="muted"></p>
+        <p id="paper-reference" class="muted">Reference evidence appears with each paper decision.</p>
+        <p id="paper-execution-proof" class="muted">Waiting for transaction simulation evidence.</p>
+        <details><summary class="paper-journal-summary">Paper transaction simulations</summary>
+          <p class="muted">Each entry and exit records the simulated calls, source block, balances and node gas estimates. A successful preflight becomes a paper fill only if the session's freshness and risk checks also pass.</p>
+          <div class="table-wrap"><table><thead><tr><th>Action</th><th>Result</th><th>Estimated action gas (ETH)</th><th>Source block</th><th>Observed at</th></tr></thead><tbody id="paper-execution-runs"></tbody></table></div>
+        </details>
+        <details><summary class="paper-journal-summary">Actual transaction fees observed on this pool</summary>
+          <p class="muted">Historical whole-transaction charges, including any bundled actions. These are calibration evidence, not charges for our paper orders. Kept in ETH without assuming a USDG conversion price.</p>
+          <p id="paper-receipt-empty" class="muted">No matching receipt evidence available.</p>
+          <div class="table-wrap"><table><thead><tr><th>Observed actions</th><th>Transactions</th><th>Total gas fee range (ETH)</th><th>Block range</th><th>Last collected</th></tr></thead><tbody id="paper-receipt-costs"></tbody></table></div>
+        </details>
+        <section class="session-performance" aria-label="Paper performance across market sessions">
+          <h3>Position evolution &amp; market sessions</h3>
+          <p id="paper-session-status" class="muted">Waiting for position history.</p>
+          <div class="session-controls">
+            <label>Period <select id="paper-session-day"><option value="all">Whole campaign</option></select></label>
+            <label>Breakdown <select id="paper-session-grouping"><option value="grouped">Market / premarket / non-market</option><option value="detailed">Detailed sessions</option></select></label>
+            <label>Chart <select id="paper-session-metric"><option value="value">Value versus holding</option><option value="range">Pool price &amp; LP range</option><option value="inventory">NVDA inventory exposure</option></select></label>
+          </div>
+          <div class="chart-frame"><svg id="paper-session-chart" viewBox="0 0 1000 280" role="img" aria-label="Position evolution with market session boundaries"></svg><div id="paper-session-empty" class="empty">Position marks will appear here.</div></div>
+          <p id="paper-session-chart-note" class="muted"></p>
+          <div class="table-wrap"><table><thead><tr><th>Session (New York)</th><th>Hours / LP hours</th><th>Net P&amp;L</th><th>Versus holding</th><th>Fees earned</th><th>Gas</th><th>Swap cost*</th><th>P&amp;L / hour</th><th title="Observed net hourly return compounded over 8,760 hours; an extrapolation, not a forecast">Estimated APY</th><th>Recenters / swaps</th><th>In range*</th></tr></thead><tbody id="paper-session-totals"></tbody></table></div>
+          <p id="paper-session-fee-basis" class="muted"></p>
+          <p id="paper-session-reconciliation" class="muted"></p>
+          <p class="muted">Net P&amp;L includes marked inventory changes and charged costs, before the unspent exit reserve. Swap cost is the output shortfall versus source spot, including fees and price impact; it is already included in P&amp;L. In-range time, exposure and capital-hours use observations between marks. Mixed-boundary changes remain unallocated. Estimated APY compounds the observed net hourly return over 8,760 hours, assuming continuous reinvestment at that rate; short samples can produce extreme estimates. Session attribution does not simulate a restricted-hours strategy.</p>
+          <details><summary class="paper-journal-summary">Positions around session boundaries</summary>
+            <p class="muted">The marks immediately before and after each boundary bracket its value; they are not exact valuations at the boundary. A position continues across these rows without resetting its balance or benchmark.</p>
+            <div class="table-wrap"><table><thead><tr><th>Boundary (New York)</th><th>Transition</th><th>Mark before → after (UTC)</th><th>Net value before → after</th><th>NVDA exposure before → after</th><th>LP ticks before → after</th></tr></thead><tbody id="paper-session-boundaries"></tbody></table></div>
+          </details>
+        </section>
+        <div id="paper-reasons" class="reason-strip"></div>
+        <details><summary class="paper-journal-summary">Paper decision journal</summary><div class="table-wrap"><table><thead><tr><th>Observed at</th><th>Source block</th><th>Decision</th><th>Paper net value</th><th>Findings</th></tr></thead><tbody id="paper-journal"></tbody></table></div></details>
+        <p class="muted">Actual historical charges can validate estimates, but only a simulated execution of our intended orders can supply paper fills and costs. Gas, swap proceeds and LP fees remain estimates until confirmed by real trades.</p>
+      </section>
+
+      <section class="panel focus-panel" id="canary-panel" aria-label="NVDA canary status">
+        <div class="panel-heading">
+          <div><div class="section-kicker">LIVE INPUTS · FUTURE CANARY</div><h2>One NVDA / USDG position · 0.05%</h2></div>
+          <div class="readonly-badge">LIVE EXECUTION DISABLED</div>
+        </div>
+        <p class="focus-intro">Paper results come first. These inputs also describe the checks a future wallet preflight will need.</p>
+        <div class="focus-grid">
+          <article><div class="metric-label">Paper trading hours</div><div id="focus-session" class="focus-value">—</div><div id="focus-session-detail" class="muted">Hours follow the active paper policy.</div></article>
+          <article><div class="metric-label">Chain recovery</div><div id="focus-chain" class="focus-value">—</div><div id="focus-chain-detail" class="muted">Five minutes of observed RPC agreement</div></article>
+          <article><div class="metric-label">NVDA risk inputs</div><div id="focus-risk" class="focus-value">—</div><div id="focus-risk-detail" class="muted">NVDA-scoped collector and current canonicality</div></article>
+          <article><div class="metric-label">Pool / reference checkpoint</div><div id="focus-checkpoint" class="focus-value">—</div><div id="focus-checkpoint-detail" class="muted">Waiting for source timestamps</div></article>
+          <article><div class="metric-label">Local lifecycle evidence</div><div id="focus-rehearsal" class="focus-value">—</div><div id="focus-rehearsal-detail" class="muted">Local fork only · no measured strategy profit</div></article>
+          <article><div class="metric-label">Saved wallet preflight</div><div id="focus-plan" class="focus-value">—</div><div id="focus-plan-detail" class="muted">A saved plan does not authorize a transaction</div></article>
+        </div>
+        <div class="price-strip"><div><span>Pool spot at checkpoint</span><strong id="focus-spot">—</strong></div><div><span>Oracle mark at checkpoint</span><strong id="focus-oracle">—</strong></div><div><span>Pool deviation</span><strong id="focus-deviation">—</strong></div></div>
+        <p id="focus-reference-note" class="muted">Price validity is checked independently of dashboard refresh.</p>
+        <div id="focus-reasons" class="reason-strip" aria-label="Current NVDA input findings"></div>
+        <p class="muted">These are stored input checks. Wallet balances, allowances, size limits, mint simulation and approval require a fresh preflight. Realized P&amp;L and LP alpha versus holding are unavailable until a live position is measured.</p>
+      </section>
+      <section class="panel pipeline-panel" aria-label="Data collection status">
+        <div><div class="metric-label">Historical event source · configured</div><strong id="history-source">—</strong></div>
+        <div><div class="metric-label">Event collection</div><strong id="focus-index">—</strong><div id="focus-index-detail" class="muted">—</div></div>
+        <div><div class="metric-label">Full-universe fee snapshots · configured</div><strong id="accounting-mode">—</strong><div class="muted">Optional research; archive RPC is not required for this milestone.</div></div>
+      </section>
+
+      <section class="panel" id="nft-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">CANARY POSITION MONITOR</div>
+            <h2>Tracked position NFTs</h2>
+          </div>
+          <div class="panel-note">Exact checkpointed principal + claimable fees · display and raw units · no PnL yet</div>
+        </div>
+        <div id="nft-empty" class="inline-empty hidden">
+          No mainnet NFT checkpoint is stored. The local rehearsal NFT is not a live wallet position.
+        </div>
+        <div id="nft-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>NFT</th>
+                <th>Pool</th>
+                <th>Status at capture</th>
+                <th>Lower → current → upper</th>
+                <th>Token 0 principal</th>
+                <th>Token 0 fees</th>
+                <th>Token 1 principal</th>
+                <th>Token 1 fees</th>
+                <th>Owner</th>
+                <th>Block / captured</th>
+              </tr>
+            </thead>
+            <tbody id="nft-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <details id="research-details" class="research-details">
+        <summary>Research and diagnostics <span>Historical scenarios, aggregate pool state and collector evidence</span></summary>
+        <p class="research-note">Saved scenarios use illustrative costs and pool-spot marks. They are not measured live returns or a selected strategy. Captures below retain their original dates.</p>
+      <section class="summary-grid" aria-label="System summary">
+        <article class="metric-card accent-cyan">
+          <div class="metric-label">Canonical sync</div>
+          <div id="sync-value" class="metric-value">—</div>
+          <div id="sync-detail" class="metric-detail">Indexer ↔ replay</div>
+        </article>
+        <article class="metric-card accent-violet">
+          <div class="metric-label">Indexed through</div>
+          <div id="block-value" class="metric-value mono">—</div>
+          <div id="block-detail" class="metric-detail">Confirmation-safe block</div>
+        </article>
+        <article class="metric-card accent-blue">
+          <div class="metric-label">Events applied</div>
+          <div id="events-value" class="metric-value">—</div>
+          <div id="events-detail" class="metric-detail">Canonical V3 events</div>
+        </article>
+        <article class="metric-card accent-mint">
+          <div class="metric-label">Replay coverage</div>
+          <div id="coverage-value" class="metric-value">—</div>
+          <div id="coverage-detail" class="metric-detail">Pools · ticks · positions</div>
+        </article>
+        <article class="metric-card accent-amber">
+          <div class="metric-label">Global collector gate</div>
+          <div id="risk-value" class="metric-value">—</div>
+          <div id="risk-detail" class="metric-detail">Latest risk snapshot</div>
+        </article>
+      </section>
+
+      <section class="panel activity-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">CANONICAL EVENT FLOW</div>
+            <h2>Activity by block window</h2>
+          </div>
+          <div class="legend" aria-label="Activity legend">
+            <span><i class="legend-swap"></i>Swap</span>
+            <span><i class="legend-mint"></i>Mint</span>
+            <span><i class="legend-burn"></i>Burn</span>
+            <span><i class="legend-other"></i>Other</span>
+          </div>
+        </div>
+        <div class="chart-frame">
+          <svg id="activity-chart" viewBox="0 0 1000 260" role="img" aria-label="V3 events grouped by block range"></svg>
+          <div id="activity-empty" class="empty hidden">No activity in the selected block window.</div>
+        </div>
+        <div class="chart-axis">
+          <span id="activity-start">—</span>
+          <span>block number →</span>
+          <span id="activity-end">—</span>
+        </div>
+      </section>
+
+      <section class="panel" id="accounting-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">BLOCK-PINNED FEE STATE</div>
+            <h2>Core-position accounting</h2>
+          </div>
+          <div class="panel-note">Raw token units · aggregate core keys, not NFT attribution</div>
+        </div>
+        <p id="accounting-status-note" class="research-note">Saved research snapshot</p>
+        <div id="accounting-audit" class="gate-audit" aria-label="Fee accounting audit">
+          <div>
+            <span>Snapshot run</span>
+            <strong id="accounting-run">—</strong>
+          </div>
+          <div>
+            <span>Pinned block</span>
+            <strong id="accounting-block">—</strong>
+          </div>
+          <div>
+            <span>Captured</span>
+            <strong id="accounting-age">—</strong>
+          </div>
+          <div>
+            <span>Coverage</span>
+            <strong id="accounting-coverage">—</strong>
+          </div>
+        </div>
+        <div id="accounting-empty" class="inline-empty hidden">
+          No exact fee-accounting snapshot has been captured yet.
+        </div>
+        <div id="accounting-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Core positions</th>
+                <th>Token 0</th>
+                <th>Stored owed</th>
+                <th>Pending</th>
+                <th>Claimable</th>
+                <th>Token 1</th>
+                <th>Stored owed</th>
+                <th>Pending</th>
+                <th>Claimable</th>
+              </tr>
+            </thead>
+            <tbody id="accounting-body"></tbody>
+          </table>
+        </div>
+        <div id="accounting-history" class="accounting-history">
+          <div class="subsection-heading">
+            <span>Saved accounting history</span>
+            <span>Newest first · exact source blocks</span>
+          </div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Block</th>
+                  <th>Block delta</th>
+                  <th>Captured</th>
+                  <th>Pools</th>
+                  <th>Ticks</th>
+                  <th>Positions</th>
+                </tr>
+              </thead>
+              <tbody id="accounting-history-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="principal-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">EXACT DERIVED STATE</div>
+            <h2>Historical liquidity principal</h2>
+          </div>
+          <div class="panel-note">Active core positions · canonical floor rounding · fees excluded</div>
+        </div>
+        <p id="principal-date" class="research-note"></p>
+        <div id="principal-audit" class="gate-audit" aria-label="Principal accounting audit">
+          <div>
+            <span>Principal run</span>
+            <strong id="principal-run">—</strong>
+          </div>
+          <div>
+            <span>Source block</span>
+            <strong id="principal-block">—</strong>
+          </div>
+          <div>
+            <span>Active positions</span>
+            <strong id="principal-positions">—</strong>
+          </div>
+          <div>
+            <span>Range distribution</span>
+            <strong id="principal-ranges">—</strong>
+          </div>
+        </div>
+        <div id="principal-empty" class="inline-empty hidden">
+          No principal reconstruction has been persisted yet.
+        </div>
+        <div id="principal-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Positions</th>
+                <th>Below</th>
+                <th>In range</th>
+                <th>Above</th>
+                <th>Token 0</th>
+                <th>Principal</th>
+                <th>Token 1</th>
+                <th>Principal</th>
+              </tr>
+            </thead>
+            <tbody id="principal-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="simulation-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SHADOW POLICY SCREEN</div>
+            <h2>Static centered range comparison</h2>
+          </div>
+          <div class="panel-note">Normalized shadow scenario · pool-spot valuation · explicit costs · never execution-eligible</div>
+        </div>
+        <p id="simulation-date" class="research-note"></p>
+        <div id="simulation-audit" class="gate-audit" aria-label="Range simulation audit">
+          <div>
+            <span>Simulation</span>
+            <strong id="simulation-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="simulation-interval">—</strong>
+          </div>
+          <div>
+            <span>Capital / cost</span>
+            <strong id="simulation-capital">—</strong>
+          </div>
+          <div>
+            <span>Observed tick path</span>
+            <strong id="simulation-path">—</strong>
+          </div>
+        </div>
+        <div id="simulation-assumptions" class="reason-strip"></div>
+        <div id="simulation-empty" class="inline-empty hidden">
+          No range-policy scenario has been persisted yet.
+        </div>
+        <div id="simulation-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Half-width</th>
+                <th>Tick range</th>
+                <th>Path proof</th>
+                <th>Liquidity share</th>
+                <th>Fee value</th>
+                <th>Divergence</th>
+                <th>Absolute P&amp;L</th>
+                <th>LP alpha vs hold</th>
+                <th>Net end NAV</th>
+              </tr>
+            </thead>
+            <tbody id="simulation-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="policy-replay-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">STATEFUL SHADOW POLICY</div>
+            <h2>Multi-checkpoint range replay</h2>
+          </div>
+          <div class="panel-note">Normalized shadow scenario · checkpoint triggers · explicit illustrative costs · never execution-eligible</div>
+        </div>
+        <p id="policy-replay-date" class="research-note"></p>
+        <div id="policy-replay-audit" class="gate-audit" aria-label="Range policy replay audit">
+          <div>
+            <span>Replay</span>
+            <strong id="policy-replay-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="policy-replay-interval">—</strong>
+          </div>
+          <div>
+            <span>Capital / costs</span>
+            <strong id="policy-replay-capital">—</strong>
+          </div>
+          <div>
+            <span>Trigger / completed scenarios</span>
+            <strong id="policy-replay-trigger">—</strong>
+          </div>
+        </div>
+        <div id="policy-replay-assumptions" class="reason-strip"></div>
+        <div id="policy-replay-empty" class="inline-empty hidden">
+          No stateful range-policy replay has been persisted yet.
+        </div>
+        <div id="policy-replay-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Half-width</th>
+                <th>Status</th>
+                <th>Intervals</th>
+                <th>Recenters</th>
+                <th>Fee accrued</th>
+                <th>Total costs</th>
+                <th>Max drawdown</th>
+                <th>Absolute P&amp;L</th>
+                <th>LP alpha vs hold</th>
+                <th>Final NAV</th>
+              </tr>
+            </thead>
+            <tbody id="policy-replay-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="oracle-calibration-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">INDEPENDENT PRICE BASIS</div>
+            <h2>Pool versus oracle calibration</h2>
+          </div>
+          <div class="panel-note">Block-pinned Chainlink rounds · multiplier-aware token guards · diagnostic only</div>
+        </div>
+        <p id="oracle-calibration-date" class="research-note"></p>
+        <div id="oracle-calibration-audit" class="gate-audit" aria-label="Oracle calibration audit">
+          <div>
+            <span>Calibration</span>
+            <strong id="oracle-calibration-run">—</strong>
+          </div>
+          <div>
+            <span>Checkpoints</span>
+            <strong id="oracle-calibration-window">—</strong>
+          </div>
+          <div>
+            <span>Usable marks</span>
+            <strong id="oracle-calibration-coverage">—</strong>
+          </div>
+          <div>
+            <span>Feed metadata</span>
+            <strong id="oracle-calibration-source">—</strong>
+          </div>
+        </div>
+        <div id="oracle-calibration-assumptions" class="reason-strip"></div>
+        <div id="oracle-calibration-empty" class="inline-empty hidden">
+          No block-pinned pool/oracle calibration has been persisted yet.
+        </div>
+        <div id="oracle-calibration-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Block</th>
+                <th>Pool spot</th>
+                <th>Oracle mark</th>
+                <th>Pool deviation</th>
+                <th>RWA age</th>
+                <th>USDG age</th>
+                <th>Token guard</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="oracle-calibration-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="baseline-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SHADOW FEE BENCHMARK</div>
+            <h2>Stable-position interval</h2>
+          </div>
+          <div class="panel-note">Partial stable-position sample · raw fees, not total revenue or PnL</div>
+        </div>
+        <p id="baseline-date" class="research-note"></p>
+        <div id="baseline-audit" class="gate-audit" aria-label="Stable fee baseline audit">
+          <div>
+            <span>Accounting runs</span>
+            <strong id="baseline-runs">—</strong>
+          </div>
+          <div>
+            <span>Interval</span>
+            <strong id="baseline-interval">—</strong>
+          </div>
+          <div>
+            <span>Stable coverage</span>
+            <strong id="baseline-coverage">—</strong>
+          </div>
+          <div>
+            <span>Turnover excluded</span>
+            <strong id="baseline-turnover">—</strong>
+          </div>
+        </div>
+        <div id="baseline-limitations" class="reason-strip"></div>
+        <div id="baseline-empty" class="inline-empty hidden">
+          Two accounting checkpoints are required for a fee baseline.
+        </div>
+        <div id="baseline-table" class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pool</th>
+                <th>Stable / paired</th>
+                <th>Touched</th>
+                <th>Entered</th>
+                <th>Exited</th>
+                <th>Token 0</th>
+                <th>Accrued</th>
+                <th>Token 1</th>
+                <th>Accrued</th>
+              </tr>
+            </thead>
+            <tbody id="baseline-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">REPLAYED STATE</div>
+            <h2>Pool state</h2>
+          </div>
+          <div class="panel-note">Raw V3 liquidity · exact integer state</div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Fee</th>
+                <th>Tick</th>
+                <th>Liquidity</th>
+                <th>Swaps</th>
+                <th>Core positions</th>
+                <th>Init. ticks</th>
+                <th>Last event</th>
+                <th>Pool</th>
+              </tr>
+            </thead>
+            <tbody id="pools-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">FAIL-CLOSED INPUTS</div>
+            <h2>Raw collector risk matrix</h2>
+          </div>
+          <div class="panel-note">All-asset diagnostics · canary input checks are shown above</div>
+        </div>
+        <div class="gate-audit" aria-label="Risk gate audit">
+          <div>
+            <span>Latest attempt</span>
+            <strong id="gate-attempt">—</strong>
+          </div>
+          <div>
+            <span>Snapshot age</span>
+            <strong id="gate-age">—</strong>
+          </div>
+          <div>
+            <span>Canonical block</span>
+            <strong id="gate-canonical">—</strong>
+          </div>
+          <div>
+            <span>Robinhood venue policy</span>
+            <strong id="gate-session">—</strong>
+          </div>
+        </div>
+        <div id="global-risk-reasons" class="reason-strip"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Gate</th>
+                <th>USD / token (feed)</th>
+                <th>Age</th>
+                <th>Trading</th>
+                <th>Multiplier</th>
+                <th>Paused</th>
+                <th>Corporate action</th>
+                <th>Reasons</th>
+              </tr>
+            </thead>
+            <tbody id="risk-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="two-column">
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">CORE POSITIONS</div>
+              <h2>LP coverage</h2>
+            </div>
+          </div>
+          <div class="table-wrap compact-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pool</th>
+                  <th>Positions</th>
+                  <th>Core-key owners</th>
+                  <th>Tick span</th>
+                </tr>
+              </thead>
+              <tbody id="positions-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <div class="section-kicker">COLLECTION LEDGER</div>
+              <h2>Risk attempts</h2>
+            </div>
+          </div>
+          <div class="attempt-list" id="attempts-list"></div>
+        </section>
+      </section>
+
+      <section class="panel evidence-panel">
+        <div class="panel-heading">
+          <div>
+            <div class="section-kicker">SOURCE EVIDENCE</div>
+            <h2>Latest canonical inputs</h2>
+          </div>
+        </div>
+        <div class="evidence-grid">
+          <article>
+            <div class="evidence-label">Robinhood registry</div>
+            <a id="registry-url" target="_blank" rel="noreferrer">Unavailable</a>
+            <code id="registry-hash">—</code>
+            <div id="registry-time" class="muted">—</div>
+          </article>
+          <article>
+            <div class="evidence-label">Chainlink feed directory</div>
+            <a id="feed-url" target="_blank" rel="noreferrer">Unavailable</a>
+            <code id="feed-hash">—</code>
+            <div id="feed-time" class="muted">—</div>
+          </article>
+          <article>
+            <div class="evidence-label">Robinhood market policy</div>
+            <a id="session-url" target="_blank" rel="noreferrer">Unavailable</a>
+            <code id="session-hash">—</code>
+            <div id="session-time" class="muted">—</div>
+          </article>
+        </div>
+      </section>
+
+      </details>
+
+      <footer>
+        <span>Shadow observability only</span>
+        <span id="stream-key" class="mono">—</span>
+        <span>Dashboard has no signer or broadcast path · no inferred PnL</span>
+      </footer>
+    </main>
+    <script src="/legacy/app.js" defer></script>
+  </body>
+</html>

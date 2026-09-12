@@ -1,3 +1,4 @@
+import {readPositionOverview,readPositionDetail} from "./positions.js";
 import { assertSchemaReady } from "../storage/compatibility.js";
 import pg, { type PoolClient } from "pg";
 import { USDG } from "../constants.js";
@@ -1188,6 +1189,15 @@ export class DashboardRepository {
   }
 
   public async assertReady(): Promise<void> { await assertSchemaReady(this.pool); }
+
+  public async positions(id?:string,hours=24):Promise<unknown> {
+    const client=await this.pool.connect();
+    try {
+      await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const result=id?await readPositionDetail(client,this.config.streamKey,id,hours):await readPositionOverview(client,this.config.streamKey);
+      await client.query("COMMIT");return result;
+    } catch(error) {await client.query("ROLLBACK");throw error;} finally {client.release();}
+  }
 
   public async snapshot(): Promise<DashboardSnapshot> {
     const client = await this.pool.connect();
