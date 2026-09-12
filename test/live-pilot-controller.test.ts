@@ -72,3 +72,13 @@ test('pilot publisher is separate and verifies chain and source before sending',
  chainId=4663;hash=`0x${'ab'.repeat(32)}`;await assert.rejects(()=>chain.broadcast('0x01',source),/source mismatch/);assert.equal(sends,0);
  hash=source.hash;assert.equal(await chain.broadcast('0x01',source),hash);assert.equal(sends,1);
 });
+
+test('scheduled approval recovery cannot act on another pending hash',async()=>{
+ const {PilotController}=await import('../src/live-pilot/controller.js');const {PilotChain}=await import('../src/live-pilot/chain.js');
+ const {livePilotConfig}=await import('../src/live-pilot/config.js');
+ const f=fixture('approve'),base=livePilotConfig(JSON.parse(readFileSync(new URL('../config/live-pilot-nvda-250.json',import.meta.url),'utf8')));
+ const config={...base,operator:f.state.operator,broadcastEnabled:true},action={...f.action,status:'signed',raw:'0x01'};
+ const store={locked:async(_address:string,run:(db:never)=>unknown)=>run({} as never),current:async()=>({state:f.state}),pending:async()=>action};
+ const controller=new PilotController(store as never,new PilotChain({} as never,config),config,{address:f.state.operator} as never,async()=>{throw new Error('Must not reach chain admission');});
+ await assert.rejects(()=>controller.retryApproval(`0x${'cd'.repeat(32)}`),/Bootstrap approval hash changed/);
+});
