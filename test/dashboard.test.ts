@@ -99,3 +99,19 @@ it("renders continuous paper results separately from session results", () => {
   assert.match(element("paper-campaign").textContent,/Figures below cover this session/);
   assert.equal(element("paper-pnl").textContent,"—");
 });
+
+it('renders live custody, costs and scheduled re-entry without a paper helper',async()=>{
+ const source=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8').replace(/^(?:refresh|refreshLivePilot)\(\);\s*$/gm,'');
+ const nodes=new Map<string,any>(),node=()=>({textContent:'',className:'',append(){},replaceChildren(){}});
+ const get=(id:string)=>{if(!nodes.has(id))nodes.set(id,node());return nodes.get(id);};
+ const now=new Date().toISOString(),payload={pilot:{computedAt:now,broadcastEnabled:true,
+  campaign:{heartbeat_at:now,monitor:['closed'],state:{phase:'closed',desired:'running',closedAt:now,gasSpentQuote:'116834' as string|null,gasSpentWei:'45956713584000',reserveUsdg:'49927111',tokenId:null}},
+  actions:[{kind:'approve',status:'confirmed',hash:'0x1234',gas_wei:'6010456200000'}],
+  marks:[{snapshot:{netNavQuote:'249791645' as string|null,phase:'closed',marketSession:{regime:'weekend'},snapshot:{timestamp:String(Math.floor(Date.now()/1000)),tick:222410,position:null}}}]}};
+ const render=runInNewContext(source+'\nrefreshLivePilot;',{document:{getElementById:get,createElement:node},Node:class {},
+  fetch:async()=>({ok:true,json:async()=>payload}),AbortSignal,setTimeout(){}});
+ await render();assert.match(get('live-pilot-status').textContent,/WAITING FOR RE-ENTRY/);
+ assert.equal(get('live-pilot-nav').textContent,'249.791645 USDG');assert.equal(get('live-pilot-gas').textContent,'0.116834 USDG');assert.equal(get('live-pilot-reserve').textContent,'49.927111 USDG');
+ payload.pilot.campaign.state.gasSpentQuote=null;payload.pilot.marks[0]!.snapshot.netNavQuote=null;await render();
+ assert.equal(get('live-pilot-nav').textContent,'—');assert.equal(get('live-pilot-gas').textContent,'—');
+});

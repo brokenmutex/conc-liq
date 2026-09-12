@@ -1091,6 +1091,7 @@ function render(data) {
 }
 
 async function refreshLivePilot() {
+  const amount=value=>value==null?'—':`${displayTokenAmount(value,6)} USDG`;
   try {
     const response=await fetch('/api/live-pilot',{cache:'no-store',signal:AbortSignal.timeout(8000)});
     if(!response.ok)throw new Error('Live pilot API unavailable');
