@@ -1,0 +1,164 @@
+{
+  "checkedAt": "2026-09-12T08:16:15.144Z",
+  "session": "59",
+  "status": "open",
+  "sourceAt": "2026-09-12T11:15:39+03:00",
+  "block": "60956400",
+  "range": {
+    "tick": 222415,
+    "lower": 222410,
+    "upper": 222450
+  },
+  "nav": "5029718745",
+  "pnl": "29718745",
+  "policyHash": "4d24ac0de787a8e688df73ce6ad938832ae7033736a7e4ddd5529a338ee432d6",
+  "liquidityShare": {
+    "mode": "warn_v1",
+    "thresholdPpm": 20000,
+    "exceedsThreshold": false,
+    "ratioToExistingPpm": "4630",
+    "shareAfterDepositPpm": "4608"
+  },
+  "feeAccounting": {
+    "kind": "diluted_segments_v1",
+    "fromSourceAt": "2026-09-12T11:14:37+03:00",
+    "fromBlock": "60955796",
+    "legacyQuote": "53993634",
+    "undilutedQuote": "12053",
+    "adjustedQuote": "11997",
+    "reductionQuote": "56"
+  },
+  "feeProof": {
+    "raw0": "1479275475124565319022116526446005920802708",
+    "raw1": "11869836079693520624744913047576148323399793036397030",
+    "events": 32,
+    "toHash": "0x7e1cc11f12bb5691caeb80e10eadc68d7db6fd98a118169a49adf927e510af94",
+    "toBlock": "60956400",
+    "fromHash": "0x930d776edc67e1abe0825fcbfb3c5726f7d60e3700a72f9a01d13cf3e598b769",
+    "segments": 32,
+    "fromBlock": "60955796",
+    "liquidity": "169481333784314599",
+    "tickLower": 222410,
+    "tickUpper": 222450,
+    "maxRatioPpm": "4630",
+    "undilutedRaw0": "1486124843499908490011512822326076373262721",
+    "undilutedRaw1": "11924796011925151830392470150246679229706248723183336"
+  },
+  "policyTransition": {
+    "at": "2026-09-12T08:15:22.231Z",
+    "to": {
+      "buildId": "61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "from": {
+      "buildId": "8c405515575267ad9837340c469b23993e7c160cda5b7a3ee7843dc5f8a4549c",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "stateSha256": "94ad5ea75b9077833c5fb7ed69a9e593fa7cbb03499e9c914dce4940d4ed1764",
+    "policyChange": {
+      "to": {
+        "mode": "guarded",
+        "reentry": {
+          "cooldownSeconds": 600
+        },
+        "recenter": {
+          "kind": "outside_range_v1",
+          "maxQuoteAgeSeconds": 90
+        },
+        "budgetQuote": "5000000000",
+        "tradingHours": {
+          "kind": "continuous_v1"
+        },
+        "feeAccounting": "diluted_segments_v1",
+        "holdingPolicy": {
+          "kind": "bounded_infrastructure_v1",
+          "maxLagBlocks": 30,
+          "riskPauseSeconds": 30,
+          "chainPauseSeconds": 60
+        },
+        "maxGapSeconds": 900,
+        "executionBasis": "nitro_fork_v1",
+        "maxSlippageBps": 50,
+        "lpAllocationPpm": 1000000,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxDeviationPpm": 50000,
+          "maxHeldAgeSeconds": 345600,
+          "maxGasPriceAgeSeconds": 86400,
+          "usdgHeartbeatGraceSeconds": 1800
+        },
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": null,
+        "liquidityShareMode": "warn_v1",
+        "maxSourceAgeSeconds": 180,
+        "maxLiquiditySharePpm": 20000,
+        "transactionTtlSeconds": 300
+      },
+      "from": {
+        "mode": "guarded",
+        "reentry": {
+          "cooldownSeconds": 600
+        },
+        "recenter": {
+          "kind": "outside_range_v1",
+          "maxQuoteAgeSeconds": 90
+        },
+        "budgetQuote": "5000000000",
+        "tradingHours": {
+          "kind": "continuous_v1"
+        },
+        "feeAccounting": "initialized_boundaries_v1",
+        "holdingPolicy": {
+          "kind": "bounded_infrastructure_v1",
+          "maxLagBlocks": 30,
+          "riskPauseSeconds": 30,
+          "chainPauseSeconds": 60
+        },
+        "maxGapSeconds": 900,
+        "executionBasis": "nitro_fork_v1",
+        "maxSlippageBps": 50,
+        "lpAllocationPpm": 1000000,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxDeviationPpm": 50000,
+          "maxHeldAgeSeconds": 345600,
+          "maxGasPriceAgeSeconds": 86400,
+          "usdgHeartbeatGraceSeconds": 1800
+        },
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": null,
+        "maxSourceAgeSeconds": 180,
+        "maxLiquiditySharePpm": 20000,
+        "transactionTtlSeconds": 300
+      }
+    },
+    "throughRunId": "366",
+    "throughObservationId": "4608"
+  },
+  "reasons": [],
+  "monitorReasons": [],
+  "performance": {
+    "valid": true,
+    "marks": 1121,
+    "feePeriods": [
+      {
+        "kind": "observed_growth",
+        "fromSourceAt": "2026-09-11T15:38:46+03:00",
+        "throughSourceAt": "2026-09-12T11:14:37+03:00",
+        "marks": 1119
+      },
+      {
+        "kind": "diluted_segments_v1",
+        "fromSourceAt": "2026-09-12T11:14:37+03:00",
+        "throughSourceAt": "2026-09-12T11:15:39+03:00",
+        "marks": 1
+      }
+    ],
+    "navQuote": "5029718745"
+  },
+  "recenterCount": 3,
+  "exitRun": null,
+  "executionEligible": false
+}

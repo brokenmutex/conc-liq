@@ -1,0 +1,113 @@
+{
+  "activatedAt": "2026-09-12T08:15:25.413Z",
+  "release": "/root/conc-liq-releases/61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83",
+  "buildId": "61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83",
+  "sourceCommit": "a8aaa1b475b61bfc3408a44b42460754870f79f2",
+  "session": "59",
+  "statePreserved": true,
+  "priorPolicyHash": "1798b15b75dd1a3bb4a479ed4e32ec3c69626257ab5ba21d90fa57e9cec314d7",
+  "policyHash": "4d24ac0de787a8e688df73ce6ad938832ae7033736a7e4ddd5529a338ee432d6",
+  "transition": {
+    "at": "2026-09-12T08:15:22.231Z",
+    "to": {
+      "buildId": "61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "from": {
+      "buildId": "8c405515575267ad9837340c469b23993e7c160cda5b7a3ee7843dc5f8a4549c",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "nodeVersion": "v24.20.0"
+    },
+    "stateSha256": "94ad5ea75b9077833c5fb7ed69a9e593fa7cbb03499e9c914dce4940d4ed1764",
+    "policyChange": {
+      "to": {
+        "mode": "guarded",
+        "reentry": {
+          "cooldownSeconds": 600
+        },
+        "recenter": {
+          "kind": "outside_range_v1",
+          "maxQuoteAgeSeconds": 90
+        },
+        "budgetQuote": "5000000000",
+        "tradingHours": {
+          "kind": "continuous_v1"
+        },
+        "feeAccounting": "diluted_segments_v1",
+        "holdingPolicy": {
+          "kind": "bounded_infrastructure_v1",
+          "maxLagBlocks": 30,
+          "riskPauseSeconds": 30,
+          "chainPauseSeconds": 60
+        },
+        "maxGapSeconds": 900,
+        "executionBasis": "nitro_fork_v1",
+        "maxSlippageBps": 50,
+        "lpAllocationPpm": 1000000,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxDeviationPpm": 50000,
+          "maxHeldAgeSeconds": 345600,
+          "maxGasPriceAgeSeconds": 86400,
+          "usdgHeartbeatGraceSeconds": 1800
+        },
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": null,
+        "liquidityShareMode": "warn_v1",
+        "maxSourceAgeSeconds": 180,
+        "maxLiquiditySharePpm": 20000,
+        "transactionTtlSeconds": 300
+      },
+      "from": {
+        "mode": "guarded",
+        "reentry": {
+          "cooldownSeconds": 600
+        },
+        "recenter": {
+          "kind": "outside_range_v1",
+          "maxQuoteAgeSeconds": 90
+        },
+        "budgetQuote": "5000000000",
+        "tradingHours": {
+          "kind": "continuous_v1"
+        },
+        "feeAccounting": "initialized_boundaries_v1",
+        "holdingPolicy": {
+          "kind": "bounded_infrastructure_v1",
+          "maxLagBlocks": 30,
+          "riskPauseSeconds": 30,
+          "chainPauseSeconds": 60
+        },
+        "maxGapSeconds": 900,
+        "executionBasis": "nitro_fork_v1",
+        "maxSlippageBps": 50,
+        "lpAllocationPpm": 1000000,
+        "referencePolicy": {
+          "kind": "continuous_bounded_v1",
+          "maxDeviationPpm": 50000,
+          "maxHeldAgeSeconds": 345600,
+          "maxGasPriceAgeSeconds": 86400,
+          "usdgHeartbeatGraceSeconds": 1800
+        },
+        "halfWidthSpacings": 2,
+        "maxHoldingSeconds": null,
+        "maxSourceAgeSeconds": 180,
+        "maxLiquiditySharePpm": 20000,
+        "transactionTtlSeconds": 300
+      }
+    },
+    "throughRunId": "366",
+    "throughObservationId": "4608"
+  },
+  "navBefore": "5029711549",
+  "navAfter": "5029711549",
+  "apiStatus": 200,
+  "status": "open",
+  "performanceValid": true,
+  "units": {
+    "conc-liq-paper.service": "671b154ddbe95d16630fd32e736579fb017efb090393fe604bacd39fb3e5b490",
+    "conc-liq-dashboard.service": "8c357a961fcafb8ba9144bda18c5d6ad4e4581f6a945b63cee6ef0d5daf7db25"
+  },
+  "executionEligible": false
+}
