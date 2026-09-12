@@ -32,7 +32,7 @@ export async function retryPilotHoldingRisk(holding:PaperHoldingState|undefined,
  if(!holding?.riskSince||holding.reasons.includes('paper_holding_chain_pause')||holding.retryRequestedAt||holding.exitReasons.length||!refresh)return false;
  holding.retryRequestedAt=holding.checkedAt;
  const checks=holding.riskEvidence?.failedChecks??[];
- try{await refresh(holding.riskEvidence?.selected?.riskRunId??null,checks.length===1&&checks[0]==='canonical_validation_age');}
+ try{await refresh(holding.riskEvidence?.selected?.riskRunId??null,checks.length>0&&checks.every(c=>c==='canonical_validation_age'||c==='selected_canonicality_unproven'));}
  catch(error){holding.retryError=sanitizeRiskError(error);}
  return true;
 }
@@ -42,17 +42,20 @@ export function pilotRiskCheckpoint(candidates:readonly {canonical:boolean;cover
  return candidates.find(s=>s.canonical&&s.coverage_identity_valid)?.checkpoint;
 }
 export async function readPilotGuard(db:PoolClient,client:RobinhoodClient,config:LivePilotConfig,streamKey:string,state?:PilotState,refresh?:PilotRiskRefresh):Promise<PilotGuard> {
- const now=new Date().toISOString(),rows=(await db.query<{id:string;snapshot:RpcHealthEvaluation}>(
+ const requestedAt=new Date().toISOString(),rows=(await db.query<{id:string;snapshot:RpcHealthEvaluation}>(
   "SELECT id::text,snapshot FROM rpc_health_samples WHERE observed_at >= NOW()-INTERVAL '16 minutes' ORDER BY observed_at DESC,id DESC LIMIT 128")).rows;
  const latest=rows[0]?.snapshot;
  const candidates=(await db.query(`${sourceSql} ORDER BY c.block_number DESC,c.id DESC LIMIT 10`,[streamKey,PAPER_NVDA,PAPER_POOL])).rows;
  const source=candidates.find(s=>s.canonical&&s.covered&&s.coverage_identity_valid);
  const cp=pilotRiskCheckpoint(candidates);
- const fresh=cp&&Date.parse(now)>=Date.parse(cp.blockTimestamp)&&Date.parse(now)-Date.parse(cp.blockTimestamp)<=180000;
+ const fresh=cp&&Date.parse(requestedAt)>=Date.parse(cp.blockTimestamp)&&Date.parse(requestedAt)-Date.parse(cp.blockTimestamp)<=180000;
  const entryCp=source?.checkpoint as PaperCheckpoint|undefined;
- const entryFresh=entryCp&&Date.parse(now)>=Date.parse(entryCp.blockTimestamp)&&Date.parse(now)-Date.parse(entryCp.blockTimestamp)<=180000;
- const reference=entryFresh?await readPaperReferenceGate(db,entryCp,config.strategy.referencePolicy!,now):null;
+ const entryFresh=entryCp&&Date.parse(requestedAt)>=Date.parse(entryCp.blockTimestamp)&&Date.parse(requestedAt)-Date.parse(entryCp.blockTimestamp)<=180000;
+ const reference=entryFresh?await readPaperReferenceGate(db,entryCp,config.strategy.referencePolicy!,requestedAt):null;
  const riskRead=fresh?await readPaperRiskSources(db,cp):null,risk=riskRead&&cp?evaluatePaperCurrentRisk(riskRead,cp,config.strategy.referencePolicy!):null;
+ // Evidence can be published during the reads above. Evaluate deadlines and
+ // chain freshness at the observation boundary, never at the pre-read clock.
+ const now=new Date().toISOString();
  const holding=observePilotHolding(state,{now,policy:config.strategy.holdingPolicy!,samples:rows,risk,riskRead});
  if(state&&await retryPilotHoldingRisk(holding,refresh))
   return readPilotGuard(db,client,config,streamKey,{...state,holding});

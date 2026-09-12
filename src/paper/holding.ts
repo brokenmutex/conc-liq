@@ -118,8 +118,11 @@ export function advanceHolding(input: {
   else if (chainReady) {
     const read=input.riskRead, selected=read?.selected;
     const failed=input.risk?.evidence.failedChecks ?? [];
-    const future=[read?.latest?.attemptedAt,selected?.attemptedAt,selected?.completedAt,selected?.validatedAt,
-      selected?.snapshot?.observedAt,selected?.snapshot?.blockTimestamp].some(at=>at!=null&&Date.parse(at)>time);
+    // Timestamp validity belongs to the same database view as the evidence.
+    // The caller's later observation clock still governs incident deadlines.
+    const riskTime=Math.min(time,Date.parse(read?.evaluatedAt ?? now));
+    const future=!Number.isFinite(riskTime)||[read?.latest?.attemptedAt,selected?.attemptedAt,selected?.completedAt,selected?.validatedAt,
+      selected?.snapshot?.observedAt,selected?.snapshot?.blockTimestamp].some(at=>at!=null&&Date.parse(at)>riskTime);
     const hard= future || failed.includes('decision_clock_invalid') ||
       (!!selected?.snapshot && failed.includes('snapshot_identity_unproven')) ||
       (!!selected?.canonicalObservedHash && selected.canonicalObservedHash.toLowerCase()!==selected.blockHash?.toLowerCase());
