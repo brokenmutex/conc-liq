@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark"><title>CONC LIQ · Dashboard preview</title>
+  <link rel="stylesheet" href="/preview/styles.css"><script src="/preview/app.js" defer></script>
+</head>
+<body>
+  <div class="preview-banner"><span class="preview-label">DESIGN PREVIEW</span><span>Illustrative positions and sample data. No live balances or trading controls.</span><a href="/">Current dashboard ↗</a></div>
+  <div class="shell">
+    <header class="masthead"><a href="#" class="wordmark"><span class="brand-icon">≋</span> CONC<span class="light">LIQ</span></a><nav aria-label="Sections"><a href="#live">Live positions</a><a href="#paper">Paper positions</a><button id="diagnostics-button" class="text-button">Diagnostics</button></nav><div class="sample-clock"><span class="status-dot"></span> Example day · 11 Sep 2026<span class="muted">New York · ET</span></div></header>
+    <div class="page-heading"><div><h1>Positions</h1><p>Your capital, performance and next actions.</p></div><div class="global-controls"><label><span class="sr-only">Filter by asset</span><select id="asset-filter"><option value="all">All assets</option><option>NVDA</option><option>MSFT</option><option>AAPL</option></select></label><label><span class="sr-only">Filter by status</span><select id="status-filter"><option value="all">All statuses</option><option value="attention">Needs attention</option><option value="open">In range</option><option value="waiting">Awaiting entry</option></select></label></div></div>
+    <main><section id="live" class="portfolio" aria-label="Live positions"></section><section id="paper" class="portfolio" aria-label="Paper positions"></section></main>
+    <footer>DESIGN PREVIEW <span>Shared position view · Actual and simulated accounting kept separate</span><a href="#">Back to top ↑</a></footer>
+  </div>
+  <dialog id="detail-dialog"><header><h2 id="dialog-title"></h2><button id="dialog-close" class="icon-button" aria-label="Close details">×</button></header><div id="dialog-body"></div></dialog>
+</body>
+</html>
