@@ -79,6 +79,8 @@ export class PilotController {
    assertPilotWalletContinuity(a.before,current);assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),a.intent.nonce);
    authorizePilotPlan(a.plan,s,current);const call=encodePilotPlan(a.plan,s.operator);
    assert(same(call.to,a.intent.to)&&same(call.data,a.intent.data));await this.chain.client.call({account:s.operator,...call,blockNumber:b.number});
+   assert(b.baseFeePerGas!==null&&b.baseFeePerGas<=BigInt(a.intent.maxFeePerGas),'Signed approval fee is below current base fee');
+   assert(await this.chain.client.estimateGas({account:s.operator,...call,blockNumber:b.number})<=BigInt(a.intent.gas),'Signed approval gas limit is no longer sufficient');
    assert(BigInt(current.native)>=BigInt(a.intent.gas)*BigInt(a.intent.maxFeePerGas));
    await this.store.mark(db,s.id,current.block,'approval_retry',{actionId:a.id,hash:a.hash,nonce:a.intent.nonce,source:current});
    const hash=await this.chain.broadcast(a.raw,a.before);assert(same(hash,a.hash));await this.store.attempted(db,a.id,null);

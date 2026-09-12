@@ -96,7 +96,7 @@ try {
  }
  for(let i=0;i<160;i++) {
   try {const result=await controller.tick();events.push(result);console.log(json({iteration:i,...result}));
-   if(approvalRetryMode&&approvalRejected&&!approvalRetried){const retried=await controller.retryApproval();assert.equal(retried.hash,result.hash);assert.equal(retried.phase,'approval_retried_same_hash');approvalRetried=true;events.push(retried);}
+   if(approvalRetryMode&&approvalRejected&&!approvalRetried){const estimate=wrapped.estimateGas;wrapped.estimateGas=async()=>8000001n;await assert.rejects(()=>controller.retryApproval(),/gas limit is no longer sufficient/);wrapped.estimateGas=estimate;const retried=await controller.retryApproval();assert.equal(retried.hash,result.hash);assert.equal(retried.phase,'approval_retried_same_hash');approvalRetried=true;events.push(retried);}
    if(result.phase==='confirming'&&holdConfirmation){holdConfirmation=false;wrongReceiptBlock=true;}}
   catch(e){assert(e instanceof Error&&e.message.startsWith('injected_stop:'),e);events.push({fault:e.message});console.log(e.message);controller=new PilotController(store,chain,config,signer,guard,revertMode||approvalRetryMode?undefined:hook);}
   const row=await store.locked(account.address,db=>store.current(db,account.address));assert(row);
