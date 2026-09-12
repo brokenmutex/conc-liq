@@ -25,3 +25,7 @@ Verification:
 - A self-contained downloadable copy is generated at `data/dashboard-preview.html`.
 
 The only server change adds four fixed static routes for the preview and its assets. Trading workers and the original dashboard view are outside this change.
+
+## Available for review
+
+The preview is served at `/preview` by dashboard release `62d7e1234396c9bbada7e983d1e4b97b83d25997ee09e8bed544182841991513`, source `0a0c708d75cd2ece7a08a1c625e3b8f0016c5239`. The 18 browser checks also passed against that deployed route, including its real CSP. The original dashboard, both APIs and preview assets return HTTP 200. Before/after dashboard units and the release manifest are retained in `data/dashboard-preview-deployment-2026-09-12/`.
