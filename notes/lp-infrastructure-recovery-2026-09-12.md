@@ -28,3 +28,15 @@ The current session's interruption is already beyond that 900-second bound. Sess
 - 10 dashboard/release tests pass.
 
 The node infrastructure itself has not been changed. Sustained lag and failed risk refreshes can still trigger exits. Natural live recentering remains a separate validation milestone.
+
+## Deployment and verification
+
+Live, paper and dashboard units now use verified sealed release `468e93cdbfaecd978f75cde895ba82c7a2ca48034d9995ebbe894ee2c9273301`, source `44f679bdaf037dfe208f2676280b2ecf20d92253`. Before/after units and the manifest are saved in `data/lp-infrastructure-deployment-2026-09-12/`. No strategy limits or wallet configuration changed.
+
+Paper session **60** started at 16:32:43 UTC as a separate 5,000 USDG campaign. Session 59 and its recorded failure are retained. Admission still requires the complete healthy window and a confirmed checkpoint.
+
+The old live worker began another risk pause at 16:32:09.061 before deployment. Its original deadline elapsed before new proof at 16:32:53.897, so the new worker correctly retained that exit; it did not clear an inherited timeout to keep a position open. The withdrawal, sale and allowance cleanup completed at **16:35:27.806 UTC**. Managed cash is **249.401724 USDG**, the reserve is **49.927111 USDG**, NVDA and active LP liquidity are zero, and cumulative paid gas is **1.723102 USDG**. Net managed capital including that gas is **247.678622 USDG**; the difference from 250 includes launch validation and all subsequent activity. There are no unresolved transactions at this checkpoint. Automatic re-entry remains enabled, earliest 16:45:27.806 UTC, subject to admission.
+
+A real, read-only canonical refresh completed in **69 ms** at 16:34:33 UTC for risk run 19738 / block 61250368. The fresh stored hash matches the expected hash. This verifies the shared production refresh path without a trade; regression tests verify its deadline and failure behavior. Evidence is in `data/live-risk-canonical-refresh-2026-09-12.json` and the post-deployment status samples.
+
+The original private-node incident was not a slow HTTP response: private probes answered in 4–6 ms while the reported head froze at 61215380 and both reference heads advanced. The downstream symptom is a node head-progress stall. Its upstream cause (such as block ingestion or node execution) remains unproven and requires node-side telemetry; widening the 30-block tolerance would not fix that cause.
