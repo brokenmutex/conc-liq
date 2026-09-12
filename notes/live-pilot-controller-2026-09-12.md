@@ -23,7 +23,7 @@ Stale checkpoint/risk data prevents adding exposure, while its holding pause is 
 
 ## Validation evidence
 
-**66 focused unit tests pass**, plus TypeScript checking. Tests include authorization bounds, signature fields, receipt reconciliation, reserve protection, false NFT ownership, wrong nonce/hash, native/token balance discrepancies, reverted gas, and the established holding policy.
+**68 focused unit tests pass**, plus TypeScript checking. Tests include authorization bounds, signature fields, receipt reconciliation, reserve protection, false NFT ownership, wrong nonce/hash, native/token balance discrepancies, reverted gas, and the established holding policy.
 
 The signed-controller owned-fork integration uses a random temporary test key, an independent disposable database schema, and a read-only upstream proxy. It never signs or broadcasts a real-wallet transaction. Counterparty balances are synthetic and exist only on the owned fork; pool movements are executed through the real router to cross the actual test position.
 
@@ -55,3 +55,17 @@ The initial signed approval at nonce 0 was rejected by the private RPC with **`p
 Publishing now uses a separately configured `PILOT_BROADCAST_RPC_URL`, set to `https://rpc.mainnet.chain.robinhood.com`; archive reads, risk checks and canonical receipt reconciliation continue through the private RPC. The publishing client must independently match chain 4663 and the intent's source block hash. This endpoint is listed in [Robinhood's network documentation](https://docs.robinhood.com/chain/connecting/). An empty, invalid byte-string probe verified transaction publication support without creating a transaction. Public endpoints are rate-limited; this pilot sends one transaction at a time.
 
 The explicit `retry-approval` operation revalidates fresh admission, unexposed entry custody, nonce, signed envelope, whitelist, amounts, current simulation and native affordability before resending the **identical signed approval**. It cannot replace or re-date a swap, mint or withdrawal. The fork regression `data/live-pilot-controller-publisher-retry-2026-09-12.json` passed rejected-publisher recovery at the same hash/nonce, followed by entry and complete exit: nine confirmed transactions. Nine additional dashboard/release tests pass.
+
+## First real attempt and corrected exposure clock
+
+The publishing retry succeeded at **14:45:38 UTC**, using the original approval hash and nonce 0. Its one-time bootstrap timer stopped itself and started the live worker. The public RPC independently confirms all five receipts in [the first recovery evidence](live-pilot-first-recovery-2026-09-12.json).
+
+The initial swap bought 0.432011537030058711 raw NVDA for 94.805546 USDG. Before minting, the holding guard incorrectly anchored its initial health history to campaign creation at 14:24, including time spent waiting in cash for publishing and gas conditions. It latched a historical chain-pause expiry. The controller then sold back to USDG and revoked the remaining allowance; it did not mint an NFT.
+
+The unwind finished at **14:47:34 UTC** with **249.908479 USDG managed cash**, the unchanged **49.927111 USDG reserve**, zero NVDA and zero allowances. All five transactions succeeded. The cash shortfall was **0.091521 USDG** and actual gas converted at receipt-block prices was **0.116834 USDG**: **0.208355 USDG total cost**. Cash shortfall includes swap fees and intervening price movement; it is not entirely gas or pure slippage.
+
+The corrected guard starts its initial holding history at the receipt that actually acquired inventory. Waiting cash has no holding clock. The regression test includes a long pre-entry history gap and a later real 60-second outage: the old gap is ignored, but the real post-entry outage still latches its exit. The 30-block tolerance and pause limits are unchanged.
+
+Live service release: `13906048c5ec6d01949f5427dbb9f612ee9140f8f4c2b152f53302926a8557cf`, source `532568dc989e6497ee92b3f4307b1ff4fc397a7b`. Dashboard release: `2ff3f0db381597b00333f859ebf17440147a2750161ef75f33089a884cd3ec83`. Paper service remains on release `61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83`, session 59. All deployed unit files, release manifests and the previous dashboard unit are retained in `data/live-pilot-deployment-2026-09-12/`.
+
+The corrected live worker was resumed with its existing capital and ten-minute cooldown; earliest new entry is **14:57:34 UTC**, subject to admission. A first actual NFT mint and complete LP withdrawal remain to be verified after that point. The five-transaction recovery above verifies swapping, allowances, receipts and gas, not a completed LP lifecycle.

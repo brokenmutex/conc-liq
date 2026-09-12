@@ -1,0 +1,88 @@
+{
+  "computedAt": "2026-09-12T14:51:39.009Z",
+  "scope": "mainnet_first_attempt_unwind_before_mint",
+  "summary": {
+    "phase": "closed",
+    "desired": "stopped",
+    "closedAt": "2026-09-12T14:47:34.113Z",
+    "successfulTransactions": 5,
+    "reverts": 0,
+    "nftMinted": false,
+    "managedCashQuote": "249908479",
+    "cashPnlQuote": "-91521",
+    "gasWei": "45956713584000",
+    "gasQuote": "116834",
+    "netPnlQuote": "-208355",
+    "reserveUsdg": "49927111",
+    "nativeBalance": "4861043286416000",
+    "nonce": 5,
+    "allowancesZero": true
+  },
+  "transactions": [
+    {
+      "nonce": 0,
+      "kind": "approve",
+      "hash": "0xf34c0755993f2415603274e125ffea2d80eca3bb808dcfe4f3a030e826caf3fe",
+      "block": "61186900",
+      "blockHash": "0x8ec2ddf27de7cdb5e25dcf50556429057538fe4bf3d1b84de479edcb84e12917",
+      "at": "2026-09-12T14:45:38.000Z",
+      "gasWei": "6010456200000",
+      "gasQuote": "15280",
+      "usdgDelta": "0",
+      "nvdaDelta": "0",
+      "publicReceiptMatches": true
+    },
+    {
+      "nonce": 1,
+      "kind": "swap",
+      "hash": "0x1fbc34bad7cf9bbc9a67065355cd53dda1fcca9f4623b4eb3a27d00aa1c48914",
+      "block": "61187135",
+      "blockHash": "0xdab79b7fcd124080cf308891f8d7c307c53ef5ea74c60e0e26c783f155695301",
+      "at": "2026-09-12T14:46:03.000Z",
+      "gasWei": "16346751182000",
+      "gasQuote": "41558",
+      "usdgDelta": "-94805546",
+      "nvdaDelta": "432011537030058711",
+      "publicReceiptMatches": true
+    },
+    {
+      "nonce": 2,
+      "kind": "approve",
+      "hash": "0x5d54858a220698aa221653bb670a05efde437530e2127f2bb465c0077a1da92d",
+      "block": "61187341",
+      "blockHash": "0x91acd35933814b565523460900dbe28d313d0a123f1794e887f05c0cd63006c9",
+      "at": "2026-09-12T14:46:24.000Z",
+      "gasWei": "6452099130000",
+      "gasQuote": "16403",
+      "usdgDelta": "0",
+      "nvdaDelta": "0",
+      "publicReceiptMatches": true
+    },
+    {
+      "nonce": 3,
+      "kind": "swap",
+      "hash": "0xacd00d2e3e3641e8abf128c6310a401db16ce0bd6c2cbf71dd53c2623c07024c",
+      "block": "61187498",
+      "blockHash": "0x739f7dafeea6b3bb9df1eb4364afdb21f3e60eef29e045d4fa8baf74f3efe203",
+      "at": "2026-09-12T14:46:41.000Z",
+      "gasWei": "13690450272000",
+      "gasQuote": "34805",
+      "usdgDelta": "94714025",
+      "nvdaDelta": "-432011537030058711",
+      "publicReceiptMatches": true
+    },
+    {
+      "nonce": 4,
+      "kind": "approve",
+      "hash": "0xe53d71145f063e1fd13e2ec32f01a12edf82af964c104365e58a966b82603fe7",
+      "block": "61187747",
+      "blockHash": "0xac48e48eb843237410fbcde4be6946a3a30f43ea1e11eae47269abed7b884797",
+      "at": "2026-09-12T14:47:02.000Z",
+      "gasWei": "3456956800000",
+      "gasQuote": "8788",
+      "usdgDelta": "0",
+      "nvdaDelta": "0",
+      "publicReceiptMatches": true
+    }
+  ]
+}
