@@ -1,6 +1,6 @@
 # $250 live controller and recovery validation
 
-The tested controller now supports a real NVDA/USDG pilot alongside the unchanged $5,000 paper campaign. At the final predeployment wallet check, **2026-09-12 14:19:14 UTC**, the operator held **299.927111 USDG, 0.004907 ETH, no NVDA or NFTs, and latest/pending nonce 0**. No real transaction had yet been submitted at that checkpoint. Deployment and first live receipts are recorded separately below when completed.
+The live controller is deployed and enabled alongside the unchanged $5,000 paper campaign. A complete real LP lifecycle has passed; current results and continuation are recorded at the end of this runbook. At the final predeployment wallet check, **2026-09-12 14:19:14 UTC**, the operator held **299.927111 USDG, 0.004907 ETH, no NVDA or NFTs, and latest/pending nonce 0**. No real transaction had yet been submitted at that checkpoint. Deployment and first live receipts are recorded separately below when completed.
 
 ## Execution and accounting
 
@@ -54,7 +54,7 @@ The initial signed approval at nonce 0 was rejected by the private RPC with **`p
 
 Publishing now uses a separately configured `PILOT_BROADCAST_RPC_URL`, set to `https://rpc.mainnet.chain.robinhood.com`; archive reads, risk checks and canonical receipt reconciliation continue through the private RPC. The publishing client must independently match chain 4663 and the intent's source block hash. This endpoint is listed in [Robinhood's network documentation](https://docs.robinhood.com/chain/connecting/). An empty, invalid byte-string probe verified transaction publication support without creating a transaction. Public endpoints are rate-limited; this pilot sends one transaction at a time.
 
-The explicit `retry-approval` operation revalidates fresh admission, unexposed entry custody, nonce, signed envelope, whitelist, amounts, current simulation and native affordability before resending the **identical signed approval**. It cannot replace or re-date a swap, mint or withdrawal. The fork regression `data/live-pilot-controller-publisher-retry-2026-09-12.json` passed rejected-publisher recovery at the same hash/nonce, followed by entry and complete exit: nine confirmed transactions. Nine additional dashboard/release tests pass.
+The explicit `retry-approval` operation revalidates fresh admission, unexposed entry custody, nonce, signed envelope, whitelist, amounts, current simulation and native affordability before resending the **identical signed approval**. It cannot replace or re-date a swap, mint or withdrawal. The fork regression `data/live-pilot-controller-publisher-retry-2026-09-12.json` passed rejected-publisher recovery at the same hash/nonce, followed by entry and complete exit: nine confirmed transactions. Ten additional dashboard/release tests pass.
 
 ## First real attempt and corrected exposure clock
 
@@ -66,6 +66,22 @@ The unwind finished at **14:47:34 UTC** with **249.908479 USDG managed cash**, t
 
 The corrected guard starts its initial holding history at the receipt that actually acquired inventory. Waiting cash has no holding clock. The regression test includes a long pre-entry history gap and a later real 60-second outage: the old gap is ignored, but the real post-entry outage still latches its exit. The 30-block tolerance and pause limits are unchanged.
 
-Live service release: `13906048c5ec6d01949f5427dbb9f612ee9140f8f4c2b152f53302926a8557cf`, source `532568dc989e6497ee92b3f4307b1ff4fc397a7b`. Dashboard release: `2ff3f0db381597b00333f859ebf17440147a2750161ef75f33089a884cd3ec83`. Paper service remains on release `61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83`, session 59. All deployed unit files, release manifests and the previous dashboard unit are retained in `data/live-pilot-deployment-2026-09-12/`.
+Live service release: `13906048c5ec6d01949f5427dbb9f612ee9140f8f4c2b152f53302926a8557cf`, source `532568dc989e6497ee92b3f4307b1ff4fc397a7b`. Dashboard release: `ea9fac3500f21e18840a18f09aad982c9780f5252fa5983f86c9eb37e62c31fb`, source `c93f805f2a3f65d80682c0c433cbba02c75e7859`. Paper service remains on release `61717c21ee5f915dbf6e2c0876875c54d77c97c9ede98507af4c23dbe5496d83`, session 59. All deployed unit files, release manifests and the previous dashboard unit are retained in `data/live-pilot-deployment-2026-09-12/`.
 
-The corrected live worker was resumed with its existing capital and ten-minute cooldown; earliest new entry is **14:57:34 UTC**, subject to admission. A first actual NFT mint and complete LP withdrawal remain to be verified after that point. The five-transaction recovery above verifies swapping, allowances, receipts and gas, not a completed LP lifecycle.
+The corrected live worker was resumed with its existing capital and ten-minute cooldown; earliest new entry is **14:57:34 UTC**, subject to admission. The subsequent full LP validation is recorded below. The five-transaction recovery above verifies swapping, allowances, receipts and gas; it did not itself include liquidity provision.
+
+## Completed real LP lifecycle and continuous continuation
+
+[Completed validation evidence](live-pilot-completed-validation-2026-09-12.json) independently matches all ten LP-cycle receipts to the public RPC. [The first position snapshot](live-pilot-first-mint-2026-09-12.json) independently verifies ownership and liquidity of **NFT 1145652**, range **222390–222430** (the agreed ±20 raw ticks around the aligned center).
+
+At 15:00:54 UTC the position held **249.762129 USDG of principal**, **0.069008 USDG of idle inventory**, and **0.000504 USDG of uncollected fees**, using the pool price for valuation. The protected 49.927111 USDG is excluded from these numbers. Its holding checks had no latched exit reason. The one-time operator validation then requested an exit; this was not a strategy timeout or inventory cap.
+
+The withdrawal mined successfully at 15:01:31 UTC. A brief node incident triggered RPC recovery hysteresis before the receipt was committed; the worker retained the same hash and reconciled it at 15:03:46 UTC. It then sold the withdrawn NVDA and cleared both remaining allowances. There was no repeated withdrawal, swap or nonce. NFT 1145652 remains owned, with **zero liquidity and zero owed tokens**, independently verified through the public RPC.
+
+The full LP cycle finished at **15:05:13 UTC** with ten successful transactions and no reverts. It collected **0.000443 USDG and 0.000002421964339439 raw NVDA** in fees. Its cash shortfall, including market movement and swap fees net of earned fees, was **0.150110 USDG**; actual receipt-valued gas was **0.548067 USDG**. The complete LP validation cost **0.698177 USDG**. The earlier fork estimate came from different prices and gas conditions and is not a constant execution cost.
+
+Across both real attempts, **15 transactions succeeded, zero reverted, and zero remain pending**. Managed cash is **249.758369 USDG**, separate reserve **49.927111 USDG**, and native gas balance **0.004645460923712 ETH**. Total cash shortfall **0.241631 USDG** plus total receipt-valued gas **0.664901 USDG** gives **0.906532 USDG total validation cost**. There are no active NFT positions or remaining allowances at this closed checkpoint. This is an execution-validation expense, not evidence of strategy profitability.
+
+The worker is **enabled, running and resumed for automatic re-entry**, carrying its actual remaining inventory. Its existing ten-minute cooldown makes the next entry eligible at **15:15:13 UTC / 18:15:13 Vilnius**, provided current admission passes. There is no capital reset or top-up. The one-time initial-approval bootstrap timer disabled itself after success. The dashboard serves real portfolio marks, receipts, paid gas, reserve and re-entry timing; its rendered output was checked against the live API. Paper session 59 and the frozen research timers continue independently.
+
+Natural live recentering has not occurred yet. Both directions passed the owned-fork controller tests, but that is not a substitute for observing the first real range crossing. Expired, unresolved signed economic transactions remain blocked for explicit reconciliation; automatic fee replacement is not implemented. Continue monitoring those boundaries before considering a larger allocation.

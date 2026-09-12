@@ -1,0 +1,20 @@
+{
+  "at": "2026-09-12T15:00:54.084Z",
+  "sourceBlock": "61195633",
+  "tokenId": "1145652",
+  "owner": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "range": [
+    222390,
+    222430
+  ],
+  "tick": 222414,
+  "liquidity": "8436747405224354",
+  "lpPrincipalQuote": "249762129",
+  "idleQuote": "69008",
+  "uncollectedFeeQuote": "504",
+  "navBeforeGas": "249831642",
+  "navAfterPaidGas": "249479758",
+  "cumulativeGasQuote": "351884",
+  "reserveUsdg": "49927111",
+  "publicOwnershipVerified": true
+}
