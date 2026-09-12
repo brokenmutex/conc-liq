@@ -125,7 +125,7 @@ export class PilotController {
    if(!same(previousBlock.hash,state.last.hash)){state.phase='halted';state.haltReason='accepted_state_reorged';await this.store.save(db,state,state.haltReason);return {phase:'halted'};}
    const s=await this.chain.snapshot(guard.source,state.tokenId);
    try{assertPilotWalletContinuity(state.last,s);}catch{state.phase='halted';state.haltReason='unexplained_wallet_or_nft_change';await this.store.save(db,state,state.haltReason);return {phase:'halted'};}
-   if(guard.holding)state.holding=guard.holding;
+   state.holding=guard.holding;
    const reference=guard.referencePriceX18;
    const price=quoteValue({amount0:0n,amount1:10n**18n,token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(s.sqrtPriceX96)})*10n**12n;
    const bandOkay=!!reference&&price*1000000n>=BigInt(reference)*950000n&&price*1000000n<=BigInt(reference)*1050000n;

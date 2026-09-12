@@ -28,7 +28,10 @@ export async function readPilotGuard(db:PoolClient,client:RobinhoodClient,config
  const fresh=cp&&Date.parse(now)>=Date.parse(cp.blockTimestamp)&&Date.parse(now)-Date.parse(cp.blockTimestamp)<=180000;
  const reference=fresh?await readPaperReferenceGate(db,cp,config.strategy.referencePolicy!,now):null;
  const riskRead=fresh?await readPaperRiskSources(db,cp):null,risk=riskRead&&cp?evaluatePaperCurrentRisk(riskRead,cp,config.strategy.referencePolicy!):null;
- const holding=state?advanceHolding({now,policy:config.strategy.holdingPolicy!,previous:state.holding??{
+ // Cash awaiting its first swap is governed by entry admission. It does not
+ // have a position to exit, nor a holding incident clock to carry into entry.
+ const exposed=state&&(state.tokenId!==null||BigInt(state.last.nvda)>0n);
+ const holding=state&&exposed?advanceHolding({now,policy:config.strategy.holdingPolicy!,previous:state.holding??{
   checkedAt:state.createdAt,lastHealthAt:state.createdAt,chainSince:null,riskSince:null,paused:false,resumeFromPause:false,exitReasons:[],reasons:[],healthSampleId:null,riskEvidence:null},samples:rows,risk,riskRead}):undefined;
  if(!latest||Date.parse(now)-Date.parse(latest.observedAt)>20000)throw new PilotGuardUnavailable(holding,'Current chain health unavailable');
  const fault=holdingChainFault(latest,30);
