@@ -54,6 +54,19 @@ export interface PaperTransaction {
   estimate: ReturnType<typeof gasComponents>;
   stateOverrideHash: string;
   stateOverrides: PaperOverrides;
+  localEnvelope?: {gasLimit:string;gasPriceWei:string;balanceBeforeWei:string;legacyGasPriceWei:string;legacyMaximumFeeWei:string};
+}
+
+/** The operator fork must fit the actual wallet's balance. Anvil's default
+ * suggested tip plus a fixed 8m gas limit can reject a sufficiently funded wallet.
+ * Reserve the larger measured gas estimate with 30% headroom at the checked price.
+ */
+export function operatorForkGas(localGas:bigint,nitroGas:bigint,gasPrice:bigint,balance:bigint) {
+  assert(localGas>0n&&nitroGas>0n&&gasPrice>0n&&balance>=0n,'Invalid operator fork gas inputs');
+  const estimated=localGas>nitroGas?localGas:nitroGas,gas=(estimated*130n+99n)/100n;
+  assert(gas<=8000000n,'Operator fork gas exceeds simulation budget');
+  assert(balance>=gas*gasPrice,'Operator balance cannot cover measured fork gas reserve');
+  return {gas:`0x${gas.toString(16)}` as Hex,gasPrice:`0x${gasPrice.toString(16)}` as Hex};
 }
 
 export async function simulatePaperTransaction(fork: PaperFork, input: { action: string; to: Address; calldata: Hex }, account:Address=PAPER_ACCOUNT): Promise<PaperTransaction> {
@@ -69,13 +82,26 @@ export async function simulatePaperTransaction(fork: PaperFork, input: { action:
   const result = await fork.read("eth_call", [{ ...tx, to: NODE_INTERFACE, data }, fork.blockTag, overrides]) as Hex;
   const [parentGas, baseFee, parentBaseFee] = decodeFunctionResult({ abi: nodeInterfaceAbi, functionName: "gasEstimateL1Component", data: result });
   const estimate = gasComponents([fullGas, parentGas, baseFee, parentBaseFee]);
-  const hash = await fork.rpc<Hash>("eth_sendTransaction", [tx]);
+  let sendTx:typeof tx&{gasPrice?:Hex}=tx,localEnvelope:PaperTransaction['localEnvelope'];
+  if(account.toLowerCase()!==PAPER_ACCOUNT.toLowerCase()) {
+    const block=await fork.rpc<{baseFeePerGas:Hex}>('eth_getBlockByNumber',['latest',false]);
+    const localBaseFee=BigInt(block.baseFeePerGas),price=localBaseFee>baseFee?localBaseFee:baseFee;
+    const priced={...tx,gasPrice:`0x${price.toString(16)}`};
+    const localGas=BigInt(await fork.rpc<Hex>('eth_estimateGas',[priced]));
+    const balance=BigInt(await fork.rpc<Hex>('eth_getBalance',[account,'latest']));
+    const legacyPrice=BigInt(await fork.rpc<Hex>('eth_gasPrice',[]));
+    const envelope=operatorForkGas(localGas,fullGas,price,balance);sendTx={...tx,...envelope};
+    localEnvelope={gasLimit:String(BigInt(envelope.gas)),gasPriceWei:String(price),balanceBeforeWei:String(balance),
+      legacyGasPriceWei:String(legacyPrice),legacyMaximumFeeWei:String(8000000n*legacyPrice)};
+  }
+  const hash = await fork.rpc<Hash>("eth_sendTransaction", [sendTx]);
   const receipt = await localReceipt(fork, hash);
   assert.equal(receipt.status, "0x1", `Local ${input.action} reverted after simulation`);
   return { ...input, returnData: localReturn, localHash: hash, localGasUsed: String(BigInt(receipt.gasUsed)),
     localEffectiveGasPriceWei: String(BigInt(receipt.effectiveGasPrice)),
     sourceBlock: String(fork.source.number), sourceHash: fork.source.hash, estimate,
-    stateOverrideHash: createHash("sha256").update(JSON.stringify(overrides)).digest("hex"), stateOverrides: overrides };
+    stateOverrideHash: createHash("sha256").update(JSON.stringify(overrides)).digest("hex"), stateOverrides: overrides,
+    ...(localEnvelope?{localEnvelope}:{}) };
 }
 
 export async function localReceipt(fork: PaperFork, hash: Hash) {

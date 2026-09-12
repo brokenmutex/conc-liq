@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { encodeAbiParameters, keccak256, toHex, type Hex } from "viem";
 import { assertPinnedRead } from "../src/paper/fork.js";
-import { gasComponents, prestateOverrides } from "../src/paper/execution-gas.js";
+import { gasComponents, prestateOverrides,operatorForkGas } from "../src/paper/execution-gas.js";
 import { locateMappingSlot, priorGrowthForFee } from "../src/paper/execution-exit.js";
 import { advancePaper, DEFAULT_PAPER_POLICY, initialPaperState, type PaperInput } from "../src/paper/engine.js";
 import { paperGasQuote } from "../src/paper/transaction-engine.js";
@@ -17,6 +17,23 @@ import { evaluatePaperReference } from "../src/paper/reference.js";
 const Q128 = 1n << 128n;
 const source = { number: 100n, hash: `0x${"1".repeat(64)}` as Hex, timestamp: 1n };
 const account = `0x${"a".repeat(40)}` as const;
+describe('operator fork gas affordability',()=>{
+  it('fits measured gas in the real balance when the fixed 8m default would fail',()=>{
+    const balance=4907000000000000n,price=100000000n;
+    assert(8000000n*2000000000n>balance);
+    const envelope=operatorForkGas(51000n,55000n,price,balance);
+    assert.equal(BigInt(envelope.gas),71500n);assert.equal(BigInt(envelope.gasPrice),price);
+    assert(BigInt(envelope.gas)*price<balance);
+  });
+  it('takes the larger local estimate and rounds its headroom upward',()=>{
+    assert.equal(BigInt(operatorForkGas(100001n,55000n,10n,2000000n).gas),130002n);
+  });
+  it('rejects actually insufficient funds, invalid prices and oversized simulations',()=>{
+    assert.throws(()=>operatorForkGas(55000n,55000n,100000000n,1n),/cannot cover/);
+    assert.throws(()=>operatorForkGas(1n,1n,0n,100n),/Invalid/);
+    assert.throws(()=>operatorForkGas(8000000n,8000000n,1n,100000000n),/simulation budget/);
+  });
+});
 function input(index: number): PaperInput {
   const timestamp = Date.parse("2026-09-08T14:00:00Z") + index * 300000;
   return { now: new Date(timestamp + 1000).toISOString(), checkpoint: {

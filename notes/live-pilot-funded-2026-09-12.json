@@ -1,0 +1,152 @@
+{
+  "computedAt": "2026-09-12T13:32:57.044Z",
+  "scope": "funded_wallet_fork_validation",
+  "broadcastEnabled": false,
+  "executionEligible": false,
+  "source": {
+    "block": "61142290",
+    "hash": "0xb06700f9469508dc76fbe5fc50fc931a1c8b4653253315f38afd59155e2e147d",
+    "timestamp": "1789219758"
+  },
+  "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "wallet": {
+    "address": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "sourceBlock": "61142290",
+    "native": "4907000000000000",
+    "usdg": "299927111",
+    "nvda": "0",
+    "nfts": "0",
+    "confirmedNonce": 0,
+    "pendingNonce": 0,
+    "isEoa": true,
+    "allowances": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "0"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "0"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "0"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "0"
+      }
+    ]
+  },
+  "chainAdmission": {
+    "policy": "robinhood_quorum_recovery_regular_session_v1",
+    "evaluatedAt": "2026-09-12T13:30:28.049Z",
+    "chainEligible": false,
+    "session": "closed",
+    "reasons": [
+      "chain_recovery_not_continuously_healthy",
+      "chain_anchor_quorum_unproven",
+      "equity_session_closed"
+    ],
+    "sampleIds": [
+      "67808",
+      "67809",
+      "67810",
+      "67811",
+      "67812",
+      "67813",
+      "67814",
+      "67815",
+      "67816",
+      "67817",
+      "67818",
+      "67819",
+      "67820",
+      "67821",
+      "67822",
+      "67823",
+      "67824",
+      "67825",
+      "67826",
+      "67827",
+      "67828",
+      "67829",
+      "67830",
+      "67831",
+      "67832",
+      "67833",
+      "67834",
+      "67835",
+      "67836",
+      "67837"
+    ],
+    "recoverySeconds": 300
+  },
+  "referenceEligible": true,
+  "sourceFresh": true,
+  "setupRequired": [],
+  "operatorRehearsal": {
+    "account": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "funding": "existing"
+  },
+  "pilotBudgetQuote": "250000000",
+  "reservedQuote": "49927111",
+  "afterMintQuote": "49927111",
+  "returnedQuote": "299805111",
+  "cashDeltaQuote": "-122000",
+  "estimatedGasWei": "124401274800000",
+  "estimatedGasQuote": "316264",
+  "estimatedNetQuote": "-438264",
+  "transactions": 10,
+  "receiptChecks": {
+    "walletTokenDeltas": true,
+    "localGas": true,
+    "scope": "owned_fork_only"
+  },
+  "localGasFix": {
+    "firstEnvelope": {
+      "gasLimit": "76442",
+      "gasPriceWei": "91740000",
+      "balanceBeforeWei": "4907000000000000",
+      "legacyGasPriceWei": "1079989001",
+      "legacyMaximumFeeWei": "8639912008000000"
+    },
+    "legacyUnaffordable": true,
+    "measuredEnvelopeAffordable": true,
+    "noSyntheticFunding": true
+  },
+  "validation": {
+    "unitTests": 39,
+    "typescript": "passed",
+    "mainnetTransactions": 0
+  },
+  "artifacts": [
+    {
+      "path": "data/live-pilot-funded-2026-09-12-retry/readiness.json",
+      "sha256": "cd8847f93c36d59c410eac925c51d8f3f704f42a9bfb27114d694b225c1489d7"
+    },
+    {
+      "path": "data/live-pilot-funded-2026-09-12-retry/roundtrip.json",
+      "sha256": "9eee077e59bec6a1824ff21d27f7040d98e1df4da9d0f6a10caed9043a440779"
+    },
+    {
+      "path": "data/live-pilot-funded-2026-09-12-retry/summary.json",
+      "sha256": "2ddc551322550f565597c91dcd1d82cb4e431ffb26119dc582c3cc743d829eeb"
+    }
+  ],
+  "remainingLaunchWork": [
+    "persistent_live_position_reconciliation",
+    "calldata_authorization_and_broadcast_adapter",
+    "restart_and_partial_recenter_recovery",
+    "live_service_and_dashboard_integration"
+  ],
+  "limitations": [
+    "Fork transactions only; chain admission was not continuously healthy at the recorded check",
+    "Live controller, calldata authorization, broadcaster and recovery remain incomplete",
+    "Pinned Nitro estimates are not real transaction charges"
+  ]
+}
