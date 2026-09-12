@@ -15,8 +15,10 @@ import {PAPER_NVDA} from '../src/paper/engine.ts';
 import {PAPER_ROUTER} from '../src/paper/execution-abi.ts';
 const [envPath,readinessPath,output,direction]=process.argv.slice(2);
 assert(envPath&&readinessPath&&output&&['buy','sell'].includes(direction),'Usage: ENV READINESS_JSON OUTPUT_JSON buy|sell');
-Object.assign(process.env,parseEnv(readFileSync(envPath,'utf8')));process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
-const config=loadIndexerConfig(),policy=livePilotConfig(JSON.parse(readFileSync('config/live-pilot-nvda-250.json'))).strategy;
+const pilot=livePilotConfig(JSON.parse(readFileSync('config/live-pilot-nvda-250.json'))),runtimeEnv=parseEnv(readFileSync(envPath,'utf8'));
+if(pilot.signer?.kind==='env_file'){delete runtimeEnv[pilot.signer.variable];delete process.env[pilot.signer.variable];}
+Object.assign(process.env,runtimeEnv);process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
+const config=loadIndexerConfig(),policy=pilot.strategy;
 const cp=JSON.parse(readFileSync(readinessPath)).checkpoint,center=Math.floor(cp.tick/10)*10;
 const price=BigInt(cp.sqrtPriceX96),cash=BigInt(policy.budgetQuote)-1n;
 const lower=direction==='buy'?center+100:center-100;

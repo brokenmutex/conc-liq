@@ -1,0 +1,147 @@
+{
+  "computedAt": "2026-09-12T12:48:54.301Z",
+  "scope": "configured_wallet_and_fork_execution",
+  "broadcastEnabled": false,
+  "executionEligible": false,
+  "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "signer": {
+    "kind": "env_file",
+    "reference": ".env",
+    "variable": "WALLET_PRIVATE_KEY",
+    "proofVerified": true,
+    "proofArtifact": "data/live-pilot-wallet-2026-09-12/rehearsal/readiness.json",
+    "artifactSha256": "febe2ebf0ab1b4f5ab6fee7c5cc2e3d73230c433c65d3a31022a5865fda46178"
+  },
+  "onchain": {
+    "computedAt": "2026-09-12T12:39:47.340Z",
+    "chainId": 4663,
+    "address": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "source": {
+      "block": "61112945",
+      "hash": "0x7feac893d38147589929c1e933db8836c9bd153e5ca9c88dd89b0c82a6643ddf",
+      "timestamp": "1789216780"
+    },
+    "nativeWei": "0",
+    "nativeETH": "0",
+    "usdgRaw": "0",
+    "usdg": "0",
+    "nvdaRaw": "0",
+    "nvda": "0",
+    "nftCount": "0",
+    "latestNonce": 0,
+    "pendingNonce": 0,
+    "isEoa": true,
+    "allowances": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "0"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "0"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "0"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "0"
+      }
+    ],
+    "broadcastEnabled": false
+  },
+  "readiness": {
+    "source": "61114977",
+    "chainEligible": true,
+    "referenceEligible": true,
+    "freshSource": true,
+    "setupRequired": [
+      "usdg_funding_shortfall",
+      "native_gas_unfunded"
+    ],
+    "remainingLaunchWork": [
+      "persistent_live_position_reconciliation",
+      "calldata_authorization_and_broadcast_adapter",
+      "restart_and_partial_recenter_recovery",
+      "funded_wallet_rehearsal",
+      "live_service_and_dashboard_integration"
+    ]
+  },
+  "rehearsal": {
+    "source": {
+      "block": "61114977",
+      "hash": "0x0dd39b509919a6c83db4e09ae0f41f9401f3f94ff2a287339bde74e6c74d65a5",
+      "timestamp": "1789216988"
+    },
+    "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "funding": "synthetic",
+    "initialCapitalQuote": "250000000",
+    "returnedQuote": "249886204",
+    "cashDeltaQuote": "-113796",
+    "gasWei": "122156147520000",
+    "estimatedGasQuote": "308713",
+    "estimatedNetQuote": "-422509",
+    "receiptChecks": {
+      "walletTokenDeltas": true,
+      "localGas": true,
+      "scope": "owned_fork_only"
+    },
+    "transactionCount": 9,
+    "artifact": "data/live-pilot-wallet-2026-09-12/rehearsal/roundtrip.json",
+    "sha256": "34cf604a3ecbce1ef3619c52eff111d2ed056c812faf2189a6bc22322c1e23d9"
+  },
+  "existingBalanceMode": {
+    "checks": {
+      "preservedStartingBalances": true,
+      "extra25UsdgReserved": true,
+      "roundtrip": true
+    },
+    "source": {
+      "block": "61114977",
+      "hash": "0x0dd39b509919a6c83db4e09ae0f41f9401f3f94ff2a287339bde74e6c74d65a5",
+      "timestamp": "1789216988"
+    },
+    "initialQuote": "275000000",
+    "budgetQuote": "250000000",
+    "reservedQuote": "25000000",
+    "afterMintQuote": "25000000",
+    "artifact": "data/live-pilot-wallet-2026-09-12/existing-balance-mode.json",
+    "sha256": "4f8ddca6d8c2b16e1e8672a64e304fef90e90271103437164e8e878e8b3193ac"
+  },
+  "validation": {
+    "focusedTests": 52,
+    "typescript": "passed",
+    "realWalletOwnershipMessageSigned": true,
+    "realWalletTransactionSigned": false,
+    "mainnetTransactions": 0
+  },
+  "paperObserved": {
+    "id": "59",
+    "status": "open",
+    "heartbeatAt": "2026-09-12T12:44:55.710Z",
+    "source": "61115575",
+    "policyHash": "4d24ac0de787a8e688df73ce6ad938832ae7033736a7e4ddd5529a338ee432d6"
+  },
+  "limitations": [
+    "The real wallet was empty at the recorded source",
+    "Both wallet execution rehearsals used local synthetic funding; no actual funded-wallet proof",
+    "Ownership message verifies key control but authorizes no spending",
+    "Calldata authorization, broadcast, canonical reconciliation and recovery controller are not yet connected"
+  ],
+  "latestBalanceCheck": {
+    "computedAt": "2026-09-12T12:49:29.530Z",
+    "address": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "block": "61118740",
+    "hash": "0xcaf79c63b34dcae173031db0b67e470aac2ed52e17ff7699b144d004fc3bba63",
+    "nativeWei": "0",
+    "usdgRaw": "0",
+    "nonce": 0,
+    "pendingNonce": 0,
+    "confirmation": "latest_not_64_depth"
+  }
+}

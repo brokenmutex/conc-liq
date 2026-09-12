@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import pg from 'pg';
 import {keccak256,parseAbi} from 'viem';
 import {livePilotConfig} from '../src/live-pilot/config.ts';
+import {loadPilotEnvSigner} from '../src/live-pilot/signer.ts';
 import {pilotReceiptFacts} from '../src/live-pilot/receipt.ts';
 import {createRobinhoodClient} from '../src/client.ts';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.ts';
@@ -27,9 +28,11 @@ import {evaluatePaperUsdgOracle} from '../src/paper/usdg-oracle.ts';
 
 const [envPath,outputDir,policyPath='config/live-pilot-nvda-250.json']=process.argv.slice(2);
 assert(envPath&&outputDir,'Usage: node --import tsx scripts/live-pilot-prepare.mjs ENV OUTPUT_DIR [CONFIG]');
-Object.assign(process.env,parseEnv(readFileSync(envPath,'utf8')));
-process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
 const configText=readFileSync(policyPath,'utf8'),pilot=livePilotConfig(JSON.parse(configText)),policy=pilot.strategy;
+const runtimeEnv=parseEnv(readFileSync(envPath,'utf8'));
+if(pilot.signer?.kind==='env_file'){delete runtimeEnv[pilot.signer.variable];delete process.env[pilot.signer.variable];}
+Object.assign(process.env,runtimeEnv);process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
+const signerProof=pilot.signer?.kind==='env_file'?await loadPilotEnvSigner(pilot,process.cwd()).proveOwnership():null;
 const indexer=loadIndexerConfig(),pool=new pg.Pool({connectionString:process.env.DATABASE_URL,max:1});
 const gate=new PostgresRpcHealthGate({connectionString:process.env.DATABASE_URL,enabled:true,cacheMs:2000,maxSampleAgeSeconds:30});
 const beforeRead=()=>gate.assertBulkAllowed().then(()=>{});
@@ -69,15 +72,21 @@ try{
  }
  const ageSeconds=(Date.parse(now)-Date.parse(cp.blockTimestamp))/1000;
  const readiness={computedAt:now,scope:'deployment_preparation_only',broadcastEnabled:false,executionEligible:false,
-  configSha256:createHash('sha256').update(configText).digest('hex'),checkpoint:cp,newestCheckpointBlock:candidates[0]?.checkpoint.block,chain,reference,deployments,wallet,
+  configSha256:createHash('sha256').update(configText).digest('hex'),checkpoint:cp,newestCheckpointBlock:candidates[0]?.checkpoint.block,chain,reference,deployments,wallet,signerProof,
   freshSource:ageSeconds>=0&&ageSeconds<=policy.maxSourceAgeSeconds,
-  remainingLaunchWork:['persistent_live_position_reconciliation','signer_and_broadcast_adapter','restart_and_partial_recenter_recovery','wallet_specific_rehearsal','live_service_and_dashboard_integration'],
-  setupRequired:[...(!pilot.operator?['operator_unset']:[]),...(!pilot.signer?['signer_unset']:[])]};
+  remainingLaunchWork:['persistent_live_position_reconciliation','calldata_authorization_and_broadcast_adapter','restart_and_partial_recenter_recovery','funded_wallet_rehearsal','live_service_and_dashboard_integration'],
+  setupRequired:[...(!pilot.operator?['operator_unset']:[]),...(!pilot.signer?['signer_unset']:[]),...(!signerProof?['signer_identity_unverified']:[]),
+   ...(wallet&&wallet.usdg<BigInt(policy.budgetQuote)?['usdg_funding_shortfall']:[]),...(wallet&&wallet.native===0n?['native_gas_unfunded']:[]),
+   ...(wallet&&!wallet.isEoa?['operator_not_eoa']:[]),
+   ...(wallet&&wallet.confirmedNonce!==wallet.pendingNonce?['pending_nonce_unresolved']:[]),
+   ...(wallet&&wallet.nvda>0n?['existing_nvda_requires_reconciliation']:[]),...(wallet&&wallet.nfts>0n?['existing_nfts_require_reconciliation']:[])]};
  save('readiness',readiness);
  console.log(stringify({phase:'readiness',source:cp.block,chainEligible:chain.chainEligible,referenceEligible:reference.eligible,freshSource:readiness.freshSource,setupRequired:readiness.setupRequired}));
  // Mechanical rehearsal can be informative even when entry is temporarily gated.
  fork=await openPaperFork({source:{number:block.number,hash:block.hash,timestamp:block.timestamp},rpcUrl:indexer.rpcUrl,beforeRead,maxRequests:650,timeoutMs:240000});
- const context=await createPaperExecutionContext(fork,policy),range=paperEntryRange(cp,policy);
+ const account=pilot.operator??PAPER_ACCOUNT;
+ const operatorRehearsal=pilot.operator?{account,funding:wallet.native===0n&&wallet.usdg===0n&&wallet.nvda===0n?'synthetic':'existing'}:undefined;
+ const context=await createPaperExecutionContext(fork,policy,undefined,account),range=paperEntryRange(cp,policy);
  assert.equal(String(context.sourceSlot[0]),cp.sqrtPriceX96);assert.equal(context.sourceSlot[1],cp.tick);
  const net=await solveRecenterSwap(context.sourceSlot[0],range,BigInt(policy.budgetQuote),0n,async(amount,token)=>{
   const q=await context.quoteSwap(token===0?USDG:PAPER_NVDA,token===0?PAPER_NVDA:USDG,amount);
@@ -85,12 +94,12 @@ try{
  });
  assert.equal(net.token,0);assertRecenterPrice(net.price,context.sourceSlot[0],policy.maxSlippageBps);
  const intent={...range,swapAmountQuote:String(net.amount),minRwaOut:String(net.amountOut*9950n/10000n)};
- const result=await simulatePaperRoundTrip(fork,policy,tx=>console.log(stringify({phase:'fork_transaction',action:tx.action,estimatedFeeWei:tx.estimate.totalFeeWei})),intent);
+ const result=await simulatePaperRoundTrip(fork,policy,tx=>console.log(stringify({phase:'fork_transaction',action:tx.action,estimatedFeeWei:tx.estimate.totalFeeWei})),intent,operatorRehearsal);
  const receipts=[],rawReceipts=[];
  for(const tx of result.transactions){
   const receipt=await context.local.getTransactionReceipt({hash:tx.localHash});
   rawReceipts.push(receipt);
-  receipts.push(pilotReceiptFacts(receipt,PAPER_ACCOUNT));
+  receipts.push(pilotReceiptFacts(receipt,account));
  }
  assert.equal(receipts.reduce((n,r)=>n+BigInt(r.walletDeltas.usdg),0n),BigInt(result.cashDeltaQuote));
  assert.equal(receipts.reduce((n,r)=>n+BigInt(r.walletDeltas.nvda),0n),0n);
@@ -114,7 +123,7 @@ try{
   estimatedEntryGasQuote:gasQuote(result.entryGasWei),estimatedExitGasQuote:gasQuote(result.exitGasWei),estimatedTotalGasQuote:gasQuote(result.totalGasWei),
   estimatedRoundtripNetQuote:String(BigInt(result.cashDeltaQuote)-BigInt(gasQuote(result.totalGasWei))),
   transactions:result.transactions.length,valuation,executionEligible:false,broadcastEnabled:false,
-  limitations:result.limitations,liveWalletVerified:false});
+  limitations:result.limitations,liveWalletVerified:false,walletIdentityVerified:signerProof?.verified??false,operatorRehearsal:operatorRehearsal??null});
  console.log(stringify({phase:'complete',outputDir,cashDeltaQuote:result.cashDeltaQuote,estimatedTotalGasQuote:gasQuote(result.totalGasWei)}));
 }finally{
  if(db){await db.query('ROLLBACK').catch(()=>{});db.release();}

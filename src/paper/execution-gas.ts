@@ -56,8 +56,8 @@ export interface PaperTransaction {
   stateOverrides: PaperOverrides;
 }
 
-export async function simulatePaperTransaction(fork: PaperFork, input: { action: string; to: Address; calldata: Hex }): Promise<PaperTransaction> {
-  const tx = { from: PAPER_ACCOUNT, to: input.to, data: input.calldata, value: "0x0", gas: "0x7a1200" };
+export async function simulatePaperTransaction(fork: PaperFork, input: { action: string; to: Address; calldata: Hex }, account:Address=PAPER_ACCOUNT): Promise<PaperTransaction> {
+  const tx = { from: account, to: input.to, data: input.calldata, value: "0x0", gas: "0x7a1200" };
   const overrides = prestateOverrides(await fork.rpc("debug_traceCall", [tx, "latest", { tracer: "prestateTracer", tracerConfig: { diffMode: false } }]));
   const localReturn = await fork.rpc<Hex>("eth_call", [tx, "latest"]);
   // Validate identical results on Nitro with the prestate touched by the local

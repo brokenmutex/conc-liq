@@ -2,8 +2,12 @@
   "version": 1,
   "kind": "nvda_usdg_live_pilot_v1",
   "broadcastEnabled": false,
-  "operator": null,
-  "signer": null,
+  "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "signer": {
+    "kind": "env_file",
+    "reference": ".env",
+    "variable": "WALLET_PRIVATE_KEY"
+  },
   "initialCapitalQuote": "250000000",
   "maxAdditionalFundingQuote": "0",
   "gasFundingQuote": null,

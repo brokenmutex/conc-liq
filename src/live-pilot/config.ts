@@ -4,7 +4,10 @@ import {paperPolicySchema} from '../paper/config.js';import type {TransactionPap
 const address=z.string().refine(isAddress).transform(value=>getAddress(value));
 export const livePilotSchema=z.object({
  version:z.literal(1),kind:z.literal('nvda_usdg_live_pilot_v1'),broadcastEnabled:z.literal(false),operator:address.nullable(),
- signer:z.object({kind:z.enum(['keystore','external']),reference:z.string().min(1)}).strict().nullable(),
+ signer:z.union([
+  z.object({kind:z.enum(['keystore','external']),reference:z.string().min(1)}).strict(),
+  z.object({kind:z.literal('env_file'),reference:z.string().min(1),variable:z.string().regex(/^[A-Z][A-Z0-9_]*$/)}).strict(),
+ ]).nullable(),
  initialCapitalQuote:z.literal('250000000'),maxAdditionalFundingQuote:z.literal('0'),gasFundingQuote:z.null(),
  strategy:paperPolicySchema,
  execution:z.object({maxPendingTransactions:z.literal(1),confirmationBlocks:z.literal(64),receiptTimeoutSeconds:z.literal(120),maxConsecutiveReverts:z.literal(1),gasLimitBufferBps:z.literal(3000)}).strict(),
