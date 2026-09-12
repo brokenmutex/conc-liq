@@ -67,7 +67,15 @@ export function authorizePilotPlan(plan:PilotPlan,state:PilotState,s:PilotSnapsh
 
 export class PilotChain {
  constructor(readonly client:RobinhoodClient,readonly config:LivePilotConfig,
-  readonly valueGas?:(s:PilotSource,wei:string)=>Promise<{quote:string;proof:unknown}>) {assert(config.operator);}
+  readonly valueGas?:(s:PilotSource,wei:string)=>Promise<{quote:string;proof:unknown}>,
+  readonly broadcastClient:RobinhoodClient=client) {assert(config.operator);}
+ async broadcast(raw:Hex,source:PilotSource) {
+  // The archive endpoint may deliberately reject publication. Independently
+  // bind the write endpoint to our chain and canonical source before sending.
+  assert.equal(await this.broadcastClient.getChainId(),4663,'Broadcast chain mismatch');
+  assert(same((await this.broadcastClient.getBlock({blockNumber:BigInt(source.block)})).hash,source.hash),'Broadcast source mismatch');
+  return this.broadcastClient.sendRawTransaction({serializedTransaction:raw});
+ }
  async verify(source:PilotSource) {
   const c=this.client,blockNumber=BigInt(source.block);assert.equal(await c.getChainId(),4663);
   assert(same((await c.getBlock({blockNumber})).hash,source.hash));

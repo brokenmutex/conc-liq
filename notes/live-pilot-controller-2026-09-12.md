@@ -23,7 +23,7 @@ Stale checkpoint/risk data prevents adding exposure, while its holding pause is 
 
 ## Validation evidence
 
-**65 focused unit tests pass**, plus TypeScript checking. Tests include authorization bounds, signature fields, receipt reconciliation, reserve protection, false NFT ownership, wrong nonce/hash, native/token balance discrepancies, reverted gas, and the established holding policy.
+**66 focused unit tests pass**, plus TypeScript checking. Tests include authorization bounds, signature fields, receipt reconciliation, reserve protection, false NFT ownership, wrong nonce/hash, native/token balance discrepancies, reverted gas, and the established holding policy.
 
 The signed-controller owned-fork integration uses a random temporary test key, an independent disposable database schema, and a read-only upstream proxy. It never signs or broadcasts a real-wallet transaction. Counterparty balances are synthetic and exist only on the owned fork; pool movements are executed through the real router to cross the actual test position.
 
@@ -47,3 +47,11 @@ The checked-in pilot configuration remains broadcast-disabled for preparation. A
 The CLI is `src/live-pilot.ts` (development wrapper `scripts/live-pilot.mjs`): `init`, `tick`, `run`, `status`, `exit`, `resume`, `stop`, `recover-exit`, followed by the private runtime env and pilot configuration paths. `exit` and `stop` unwind and disable re-entry; `resume` respects the ten-minute closed-position cooldown. Stopping systemd alone stops the worker and leaves custody as recorded; use the exit command to unwind.
 
 Production uses a sealed release and a separate `conc-liq-live-pilot.service`. The read-only dashboard consumes the sanitized `PILOT_STATUS_PATH` export through `/api/live-pilot`; it has no transaction controls. The paper runtime and frozen research timers retain their existing releases/configuration.
+
+## Publishing RPC correction
+
+The initial signed approval at nonce 0 was rejected by the private RPC with **`publishing transactions not supported by this endpoint`**. The controller retained its hash and did not advance to a swap. Mainnet custody and nonce remained unchanged during diagnosis.
+
+Publishing now uses a separately configured `PILOT_BROADCAST_RPC_URL`, set to `https://rpc.mainnet.chain.robinhood.com`; archive reads, risk checks and canonical receipt reconciliation continue through the private RPC. The publishing client must independently match chain 4663 and the intent's source block hash. This endpoint is listed in [Robinhood's network documentation](https://docs.robinhood.com/chain/connecting/). An empty, invalid byte-string probe verified transaction publication support without creating a transaction. Public endpoints are rate-limited; this pilot sends one transaction at a time.
+
+The explicit `retry-approval` operation revalidates fresh admission, unexposed entry custody, nonce, signed envelope, whitelist, amounts, current simulation and native affordability before resending the **identical signed approval**. It cannot replace or re-date a swap, mint or withdrawal. The fork regression `data/live-pilot-controller-publisher-retry-2026-09-12.json` passed rejected-publisher recovery at the same hash/nonce, followed by entry and complete exit: nine confirmed transactions. Nine additional dashboard/release tests pass.

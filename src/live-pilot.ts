@@ -15,7 +15,7 @@ import {pilotGasValuer} from './live-pilot/valuation.js';
 import {json} from './live-pilot/domain.js';
 
 const [command='',envPath='',configPath='config/live-pilot-nvda-250.json']=process.argv.slice(2);
-assert(['init','tick','run','status','exit','resume','stop','recover-exit'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit ENV [CONFIG]');
+assert(['init','tick','run','status','exit','resume','stop','recover-exit','retry-approval'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|retry-approval ENV [CONFIG]');
 const config=livePilotConfig(JSON.parse(readFileSync(configPath,'utf8')),{allowBroadcast:true});
 assert(config.operator);const operator=config.operator;
 const env=parseEnv(readFileSync(envPath,'utf8'));if(config.signer?.kind==='env_file'){delete env[config.signer.variable];delete process.env[config.signer.variable];}
@@ -37,10 +37,13 @@ try {
  await store.initialize();
  if(command==='status')console.log(json(await status()));
  else {
-  const signer=loadPilotEnvSigner(config,process.cwd()),chain=new PilotChain(client,config,pilotGasValuer(client,config));
+  assert(!config.broadcastEnabled||process.env.PILOT_BROADCAST_RPC_URL,'Active execution requires an explicit publishing RPC');
+  const publisher=process.env.PILOT_BROADCAST_RPC_URL?createRobinhoodClient(process.env.PILOT_BROADCAST_RPC_URL,indexer.rpcTimeoutMs,{retryCount:0}):client;
+  const signer=loadPilotEnvSigner(config,process.cwd()),chain=new PilotChain(client,config,pilotGasValuer(client,config),publisher);
   const controller=new PilotController(store,chain,config,signer,(db,state)=>readPilotGuard(db,client,config,indexer.streamKey,state));
   if(command==='init')console.log(json(await controller.start()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
+  else if(command==='retry-approval')console.log(json(await controller.retryApproval()));
   else if(['exit','resume','stop','recover-exit'].includes(command))console.log(json(await controller.request(command==='resume'?'running':command==='stop'?'stopped':'exit')));
   else do {
    try{const result=await controller.tick();console.log(json({at:new Date().toISOString(),...result}));}

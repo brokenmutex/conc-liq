@@ -60,3 +60,15 @@ test('pilot continuity permits pool movement and protects the owned NFT',()=>{
  assertPilotWalletContinuity(before,after);assert(after.position);after.position.liquidity='0';
  assert.throws(()=>assertPilotWalletContinuity(before,after),/NFT/);
 });
+
+test('pilot publisher is separate and verifies chain and source before sending',async()=>{
+ const {PilotChain}=await import('../src/live-pilot/chain.js');
+ const {livePilotConfig}=await import('../src/live-pilot/config.js');
+ const config=livePilotConfig(JSON.parse(readFileSync(new URL('../config/live-pilot-nvda-250.json',import.meta.url),'utf8')));
+ const source=fixture('approve').action.before;let chainId=4663,hash=source.hash,sends=0;
+ const publisher={getChainId:async()=>chainId,getBlock:async()=>({hash}),sendRawTransaction:async()=>{sends++;return source.hash;}};
+ const chain=new PilotChain({} as never,config,undefined,publisher as never);
+ chainId=1;await assert.rejects(()=>chain.broadcast('0x01',source),/chain mismatch/);assert.equal(sends,0);
+ chainId=4663;hash=`0x${'ab'.repeat(32)}`;await assert.rejects(()=>chain.broadcast('0x01',source),/source mismatch/);assert.equal(sends,0);
+ hash=source.hash;assert.equal(await chain.broadcast('0x01',source),hash);assert.equal(sends,1);
+});

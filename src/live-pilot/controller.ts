@@ -10,7 +10,7 @@ import type {LivePilotConfig} from './config.js';
 import {PilotChain,authorizePilotPlan,encodePilotPlan} from './chain.js';
 import {PilotGuardUnavailable,type PilotGuard} from './guard.js';
 import {PilotStore,newPilotId} from './store.js';
-import {pilotIntentSchema} from './journal.js';
+import {pilotIntentSchema,verifyPilotSignature} from './journal.js';
 import {pilotReceiptFacts,type PilotReceipt} from './receipt.js';
 import {reconcilePilotAction} from './reconcile.js';
 import type {PilotAction,PilotSnapshot,PilotState} from './domain.js';
@@ -63,6 +63,28 @@ export class PilotController {
    await this.store.save(db,s,'operator_recovered_revert_to_exit');return s;
   });
  }
+ /** Explicit retry of a stranded approval only, at the identical hash/nonce.
+  * Swap/mint/withdraw deadlines and unresolved economic orders are never reset. */
+ async retryApproval() {
+  assert(this.config.broadcastEnabled,'Broadcast is disabled');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state,a=await this.store.pending(db,s.id);
+   assert(a?.status==='signed'&&a.raw&&a.hash&&a.plan.kind==='approve','Retry requires the existing signed approval');
+   assert.equal(await verifyPilotSignature(a.intent,a.raw),a.hash);
+   assert(s.phase==='entry'&&s.desired==='running'&&s.tokenId===null&&s.last.nvda==='0','Approval retry requires unexposed entry inventory');
+   try{await this.chain.client.getTransactionReceipt({hash:a.hash});return {phase:'receipt_already_present',hash:a.hash};}
+   catch(e){assert(e instanceof Error&&e.name==='TransactionReceiptNotFoundError');}
+   const guard=await this.guard(db,s);assert(guard.entryAllowed,'Fresh approval admission failed');
+   const b=await this.chain.client.getBlock({blockTag:'latest'}),current=await this.chain.snapshot({block:String(b.number),hash:b.hash,timestamp:String(b.timestamp)},null);
+   assertPilotWalletContinuity(a.before,current);assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),a.intent.nonce);
+   authorizePilotPlan(a.plan,s,current);const call=encodePilotPlan(a.plan,s.operator);
+   assert(same(call.to,a.intent.to)&&same(call.data,a.intent.data));await this.chain.client.call({account:s.operator,...call,blockNumber:b.number});
+   assert(BigInt(current.native)>=BigInt(a.intent.gas)*BigInt(a.intent.maxFeePerGas));
+   await this.store.mark(db,s.id,current.block,'approval_retry',{actionId:a.id,hash:a.hash,nonce:a.intent.nonce,source:current});
+   const hash=await this.chain.broadcast(a.raw,a.before);assert(same(hash,a.hash));await this.store.attempted(db,a.id,null);
+   return {phase:'approval_retried_same_hash',hash};
+  });
+ }
  private async beforeBroadcast(action:PilotAction,state:PilotState,guard:PilotGuard) {
   const age=Date.now()/1000-Number(action.before.timestamp);assert(age>=0&&age<=90,'Transaction intent expired before broadcast');
   if(state.phase!=='exit')assert(guard.entryAllowed,'Current admission does not allow increasing LP exposure');
@@ -106,7 +128,7 @@ export class PilotController {
   try {await this.beforeBroadcast(action,state,guard);}
   catch {await this.store.monitor(db,state.id,['signed_transaction_unresolved_requires_reconciliation']);return {phase:'pending_guarded',hash:action.hash};}
   assert(this.config.broadcastEnabled,'Broadcast is disabled');
-  try {const hash=await this.chain.client.sendRawTransaction({serializedTransaction:action.raw});assert(same(hash,action.hash));await this.store.attempted(db,action.id,null);}
+  try {const hash=await this.chain.broadcast(action.raw,action.before);assert(same(hash,action.hash));await this.store.attempted(db,action.id,null);}
   catch {await this.store.attempted(db,action.id,'broadcast_acknowledgement_unknown');}
   await this.hook?.('broadcast',action);return {phase:'submitted_or_ack_unknown',hash:action.hash};
  }
@@ -152,9 +174,10 @@ export class PilotController {
     nonce:s.nonce,to:envelope.to,data:envelope.data,value:envelope.value,gas:envelope.gas,maxFeePerGas:envelope.maxFeePerGas,maxPriorityFeePerGas:envelope.maxPriorityFeePerGas,sourceBlock:s.block,sourceHash:s.hash});
    if(!this.config.broadcastEnabled){await this.store.monitor(db,state.id,['broadcast_disabled']);return {phase:'ready_disabled',plan};}
    let action=await this.store.prepare(db,state,intent,plan,s);await this.hook?.('prepared',action);
-   await this.beforeBroadcast(action,state,await this.guard(db,state));const signed=await this.signer.signIntent(intent);await this.store.signed(db,action,signed.raw);
+   const submissionGuard=await this.guard(db,state);
+   await this.beforeBroadcast(action,state,submissionGuard);const signed=await this.signer.signIntent(intent);await this.store.signed(db,action,signed.raw);
    action={...action,status:'signed',raw:signed.raw,hash:signed.hash};await this.hook?.('signed',action);
-   return this.pending(db,state,action,await this.guard(db,state));
+   return this.pending(db,state,action,submissionGuard);
   });
  }
 }

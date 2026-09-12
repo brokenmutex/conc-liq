@@ -1,0 +1,89 @@
+{
+  "scope": "owned_fork_only",
+  "mainnetTransactions": 0,
+  "runs": [
+    {
+      "path": "data/live-pilot-controller-final-2026-09-12.json",
+      "sha256": "42f29bdd551ea54b91d3f13f039c3a4af7a2a6f117f018be994b9e73b1f09c3c",
+      "computedAt": "2026-09-12T14:19:36.449Z",
+      "source": {
+        "block": "61171087",
+        "hash": "0xcf1150df1d5e552958f1147a32ad6b6284d55fba0f89834d4987f05d5a6e76c4"
+      },
+      "mode": "recenter_restarts",
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": true,
+        "recenterBothDirections": true,
+        "collectedFeesBothTokens": true,
+        "lostAcknowledgement": true,
+        "unconfirmedReceiptBlocked": true,
+        "reorgReceiptBlocked": true,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": false,
+        "externalWalletChangeHalted": true
+      },
+      "injected": [
+        "prepared",
+        "signed",
+        "broadcast",
+        "receipt"
+      ],
+      "transactions": 21,
+      "reverts": 0,
+      "final": {
+        "phase": "closed",
+        "usdg": "299508111",
+        "nvda": "0",
+        "reserveUsdg": "50000000",
+        "gasSpentWei": "66848912282951",
+        "collectedFee0": "46109",
+        "collectedFee1": "160149794672349",
+        "retiredTokenIds": [
+          "1145321",
+          "1145322",
+          "1145323"
+        ]
+      }
+    },
+    {
+      "path": "data/live-pilot-controller-revert-2026-09-12.json",
+      "sha256": "ddb7dfe45988ce0dad9066d83fc67cd3582cc559eda572e54dff449c83b33d14",
+      "computedAt": "2026-09-12T14:17:01.337Z",
+      "source": {
+        "block": "61169704",
+        "hash": "0x48f4b4d5b838c001b2326ae8a130384101377fbd74214ff081ea2bd50b72da21"
+      },
+      "mode": "revert_recovery",
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": false,
+        "recenterBothDirections": false,
+        "collectedFeesBothTokens": false,
+        "lostAcknowledgement": true,
+        "unconfirmedReceiptBlocked": false,
+        "reorgReceiptBlocked": false,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": true,
+        "externalWalletChangeHalted": true
+      },
+      "injected": [],
+      "transactions": 2,
+      "reverts": 1,
+      "final": {
+        "phase": "closed",
+        "usdg": "300000000",
+        "nvda": "0",
+        "reserveUsdg": "50000000",
+        "gasSpentWei": "7752394275920",
+        "collectedFee0": "0",
+        "collectedFee1": "0",
+        "retiredTokenIds": []
+      }
+    }
+  ]
+}
