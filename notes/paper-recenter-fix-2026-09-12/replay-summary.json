@@ -1,0 +1,188 @@
+{
+  "session": "59",
+  "recordedFailures": 68,
+  "scope": "sampled individual historical mechanics replays",
+  "rows": [
+    {
+      "observation": "3499",
+      "sourceAt": "2026-09-11T12:48:00.000Z",
+      "direction": "buy",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "1378091590",
+      "executedInput": "1036510753",
+      "minted": {
+        "tickLower": 222360,
+        "tickUpper": 222400,
+        "liquidity": "168637000009374834",
+        "minted0": "3131648195",
+        "minted1": "8493915677994124674"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "3363828911"
+      },
+      "gasWei": "113234381262000",
+      "sourceFileSha256": "3c7e09c96df40a216b2e31d4a3007f87d41297b7926f5b870ad05e93dc0fd6a5"
+    },
+    {
+      "observation": "3501",
+      "sourceAt": "2026-09-11T12:50:04.000Z",
+      "direction": "buy",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "1750800341",
+      "executedInput": "1162127963",
+      "minted": {
+        "tickLower": 222350,
+        "tickUpper": 222390,
+        "liquidity": "168582525346543762",
+        "minted0": "3006030985",
+        "minted1": "9059310557622985782"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "7349718447"
+      },
+      "gasWei": "113712047610000",
+      "sourceFileSha256": "c2849d6686cc16ae21d0189b3615f3dab7299d4c74b65ab7092b32a403c99751"
+    },
+    {
+      "observation": "3713",
+      "sourceAt": "2026-09-11T16:40:29.000Z",
+      "direction": "sell",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "9549870513508580994",
+      "executedInput": "7081993055922746110",
+      "minted": {
+        "tickLower": 222400,
+        "tickUpper": 222440,
+        "liquidity": "169374826026676840",
+        "minted0": "1562922306",
+        "minted1": "15738416369733422585"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "273"
+      },
+      "gasWei": "109865590796000",
+      "sourceFileSha256": "fc298c235227adb362f8198605d08e0942a63d89d39a81eb53b5eeb456396994"
+    },
+    {
+      "observation": "3715",
+      "sourceAt": "2026-09-11T16:42:31.000Z",
+      "direction": "sell",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "13100038648690147976",
+      "executedInput": "13585826911416984575",
+      "minted": {
+        "tickLower": 222410,
+        "tickUpper": 222450,
+        "liquidity": "169354584541546715",
+        "minted0": "2987431185",
+        "minted1": "9234582514239184075"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "318"
+      },
+      "gasWei": "115547883852000",
+      "sourceFileSha256": "ba364c56cfb6ba6cd00fced7c991601fec17f27bb054e27d2cc733cace2824b1"
+    },
+    {
+      "observation": "3717",
+      "sourceAt": "2026-09-11T16:44:33.000Z",
+      "direction": "sell",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "13548677001484882570",
+      "executedInput": "15367396160184150568",
+      "minted": {
+        "tickLower": 222410,
+        "tickUpper": 222450,
+        "liquidity": "169381804808151822",
+        "minted0": "3378635334",
+        "minted1": "7453013265472017994"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "406"
+      },
+      "gasWei": "113881463570000",
+      "sourceFileSha256": "66da126a64b299df27015bea1005e68789fb29ad3168effec1879211fd0ccb46"
+    },
+    {
+      "observation": "4315",
+      "sourceAt": "2026-09-12T03:08:34.000Z",
+      "direction": "buy",
+      "legacy": "Frozen recenter mint minimum unavailable",
+      "adaptive": "succeeded",
+      "adaptiveReason": null,
+      "quotedInput": "2254804925",
+      "executedInput": "2265033571",
+      "minted": {
+        "tickLower": 222410,
+        "tickUpper": 222450,
+        "liquidity": "169835862858484303",
+        "minted0": "2751838400",
+        "minted1": "10374968721955295118"
+      },
+      "remainingTokens": {
+        "usdg": "0",
+        "nvda": "6816773002"
+      },
+      "gasWei": "107915255228000",
+      "sourceFileSha256": "34d2217ffa2ed4fb408a51035509c4d3a6121508ba09c009ad2de1bdf777acd2"
+    },
+    {
+      "observation": "3572",
+      "sourceAt": "2026-09-11T14:09:59.000Z",
+      "direction": "buy",
+      "legacy": "Recenter liquidity share exceeded",
+      "adaptive": "failed",
+      "adaptiveReason": "Recenter liquidity share exceeded",
+      "quotedInput": "1908975908",
+      "executedInput": null,
+      "minted": null,
+      "remainingTokens": null,
+      "gasWei": null,
+      "sourceFileSha256": "797bae236c9926145e84298a7174afa2d647c05d121b983e88de47b6c7d3d0e9"
+    },
+    {
+      "observation": "3578",
+      "sourceAt": "2026-09-11T14:16:09.000Z",
+      "direction": "buy",
+      "legacy": "Recenter liquidity share exceeded",
+      "adaptive": "failed",
+      "adaptiveReason": "Recenter liquidity share exceeded",
+      "quotedInput": "1366101561",
+      "executedInput": null,
+      "minted": null,
+      "remainingTokens": null,
+      "gasWei": null,
+      "sourceFileSha256": "b4f1255521f1cb8eb28c8d7bb8ef8780eb57cc9264fd03ae00999433e0cd7d5d"
+    },
+    {
+      "observation": "3590",
+      "sourceAt": "2026-09-11T14:28:29.000Z",
+      "direction": "buy",
+      "legacy": "Recenter liquidity share exceeded",
+      "adaptive": "failed",
+      "adaptiveReason": "Recenter liquidity share exceeded",
+      "quotedInput": "1498946547",
+      "executedInput": null,
+      "minted": null,
+      "remainingTokens": null,
+      "gasWei": null,
+      "sourceFileSha256": "5ea322ee7178bf079957e6282cd52510efe2cf09b6bb5e9b46de2f99814c4425"
+    }
+  ],
+  "executionEligible": false
+}
