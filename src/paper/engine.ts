@@ -38,7 +38,8 @@ export interface TransactionPaperPolicy extends PaperStrategy {
   readonly referencePolicy?: ContinuousPaperReferencePolicy;
   readonly holdingPolicy?: PaperHoldingPolicy;
   readonly tradingHours?: PaperTradingHours;
-  readonly feeAccounting?: "initialized_boundaries_v1";
+  readonly feeAccounting?: "initialized_boundaries_v1" | "diluted_segments_v1";
+  readonly liquidityShareMode?: "warn_v1";
   readonly lpAllocationPpm?: number;
   readonly inventoryExitPpm?: number;
   readonly recenter?: { readonly kind: "outside_range_v1"; readonly maxQuoteAgeSeconds: 90 };
@@ -90,6 +91,7 @@ export interface PaperInput {
   readonly referenceEvidence?: PaperReferenceEvidence;
   readonly boundaryFees?: BoundaryFeeProof;
   readonly boundaryContinuity?: boolean;
+  readonly dilutedFees?: import('./diluted-fees.js').DilutedFeeProof;
 }
 export interface PaperPosition {
   liquidity: string; tickLower: number; tickUpper: number;
@@ -99,6 +101,9 @@ export interface PaperPosition {
   feeRemainder0?: string; feeRemainder1?: string;
 }
 export interface PaperState {
+  boundaryRepair?: {at:string;auditSha256:string;beforeObservation:unknown;inputs:readonly PaperInput[];sourceIds:readonly string[];healthSampleIds:readonly string[]};
+  liquidityShare?: ReturnType<typeof import('./liquidity-share.js').liquidityShare>;
+  feeModel?: {kind:'diluted_segments_v1';fromBlock:string;fromSourceAt:string;legacyEarned0:string;legacyEarned1:string;undiluted0:string;undiluted1:string;adjusted0:string;adjusted1:string;remainder0:string;remainder1:string;lastProof:import('./diluted-fees.js').DilutedFeeProof|null};
   runtimeTransitions?: import('./runtime-history.js').PaperRuntimeTransition[];
   status: "waiting" | "entry_pending" | "open" | "exit_pending" | "closed" | "invalid";
   action: "wait" | "signal_entry" | "enter" | "mark" | "signal_exit" | "exit" | "invalidate" | "signal_recenter" | "recenter";

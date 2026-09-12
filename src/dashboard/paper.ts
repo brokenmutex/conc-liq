@@ -1,3 +1,6 @@
+import {quoteValue} from '../simulator/math.js';
+import {USDG} from '../constants.js';
+import {PAPER_NVDA} from '../paper/engine.js';
 import type { PoolClient } from "pg";
 import type { PaperSessionRow } from "../paper/store.js";
 import { invalidatePaper } from "../paper/engine.js";
@@ -37,11 +40,16 @@ export async function readPaperDashboard(client: PoolClient, streamKey: string) 
       try{performance=await readSessionPerformance(client,chain);}catch{performance={valid:false,reason:'Position history cannot be fully reconciled for session attribution'};}
     } catch { campaign = { valid: false }; }
   }
+  const fm=row.state.feeModel,mark=row.state.last;
+  const feeValue=(a:string,b:string)=>quoteValue({amount0:BigInt(a),amount1:BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(mark!.sqrtPriceX96)});
+  const feeAccounting=fm&&mark?{kind:fm.kind,fromSourceAt:fm.fromSourceAt,fromBlock:fm.fromBlock,
+    legacyQuote:String(feeValue(fm.legacyEarned0,fm.legacyEarned1)),undilutedQuote:String(feeValue(fm.undiluted0,fm.undiluted1)),adjustedQuote:String(feeValue(fm.adjusted0,fm.adjusted1)),
+    reductionQuote:String(feeValue(fm.undiluted0,fm.undiluted1)-feeValue(fm.adjusted0,fm.adjusted1))}:null;
   const campaignValid = campaign?.valid !== false;
   return { id: row.id, createdAt: row.created_at.toISOString(), updatedAt: row.updated_at.toISOString(),
     heartbeatAt: row.heartbeat_at?.toISOString() ?? null, policy: row.policy, policyHash: row.policy_hash,
     state: valid && executionValid && campaignValid ? row.state : invalidatePaper(row.state,row.server_time.toISOString(),[!campaignValid ? "paper_continuation_history_invalid" : !valid ? "prior_paper_source_no_longer_canonical" : "paper_execution_evidence_invalid"]),
-    monitorReasons: row.monitor_reasons, sourceCanonical: valid, campaign,performance,
+    feeAccounting:valid&&executionValid&&campaignValid?feeAccounting:null, monitorReasons: row.monitor_reasons, sourceCanonical: valid, campaign,performance,
     points: valid && executionValid && campaignValid ? points.rows.reverse().map(p=>p.point) : [],
     execution: await readPaperExecutionDashboard(client, row.id),
     receiptCosts: await readPaperReceiptCosts(client, streamKey), executionEligible: false as const };

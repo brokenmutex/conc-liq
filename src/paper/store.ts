@@ -1,3 +1,4 @@
+import {readDilutedFees} from './diluted-fees.js';
 import assert from "node:assert/strict";
 import { continuationPolicy, readPaperChain } from "./reentry.js";
 import { assertRuntimeMatches, type RuntimeIdentity } from "../runtime/identity.js";
@@ -290,6 +291,15 @@ export class PaperStore {
         await client.query("COMMIT"); return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_canonical_event_coverage"] };
       }
       if (source.token0.toLowerCase() !== USDG.toLowerCase() || source.token1.toLowerCase() !== PAPER_NVDA || source.token_decimals !== 18) dataReasons.push("paper_token_identity_mismatch");
+      // A checkpoint can become covered or appear between the boundary prefetch
+      // and this transaction. Retry that fresh source; absence of its proof is
+      // not evidence that the initialized ticks actually changed.
+      if('feeAccounting' in session.policy && session.policy.feeAccounting && (session.state.position||session.state.entryRange) && !feeProof &&
+        [cp.blockTimestamp,cp.capturedAt].every(at=>Date.parse(now)-Date.parse(at)>=0&&Date.parse(now)-Date.parse(at)<=session.policy.maxSourceAgeSeconds*1000)){
+        const reasons=['awaiting_boundary_fee_evidence'];
+        await client.query('UPDATE paper_sessions SET heartbeat_at=clock_timestamp(),monitor_reasons=$2 WHERE id=$1',[session.id,JSON.stringify(reasons)]);
+        await client.query('COMMIT');return {id:session.id,status:session.state.status,action:'wait',reasons};
+      }
       const health = await client.query<{ id: string; snapshot: RpcHealthEvaluation }>(`SELECT id::text,snapshot FROM rpc_health_samples WHERE observed_at >= NOW()-INTERVAL '6 minutes' ORDER BY observed_at DESC,id DESC LIMIT 128`);
       const readiness = evaluateCanaryEntryReadiness({ now, sourceBlock: BigInt(cp.block), samples: health.rows });
       if (readiness.reasons.includes("source_ahead_of_confirmed_quorum")) {
@@ -366,11 +376,24 @@ export class PaperStore {
           [session.stream_key,PAPER_POOL,session.state.last!.block,cp.block]);
         feeContinuity=boundaryContinuity(session.state.position.boundaryFees,feeProof,changes.rows);
       }
+      let dilutedFees;
+      if('feeAccounting' in session.policy && session.policy.feeAccounting==='diluted_segments_v1' && session.state.position && session.state.last && feeProof && feeContinuity &&
+        Date.parse(cp.blockTimestamp)-Date.parse(session.state.last.blockTimestamp)<=session.policy.maxGapSeconds*1000 &&
+        [cp.blockTimestamp,cp.capturedAt].every(at=>Date.parse(now)-Date.parse(at)>=0&&Date.parse(now)-Date.parse(at)<=session.policy.maxSourceAgeSeconds*1000) && !dataReasons.length){
+        await client.query('SAVEPOINT diluted_fee_replay');
+        try{dilutedFees=await readDilutedFees(client,session.stream_key,session.state.last,cp,session.state.position,feeProof);await client.query('RELEASE SAVEPOINT diluted_fee_replay');}
+        catch(error){
+          await client.query('ROLLBACK TO SAVEPOINT diluted_fee_replay');await client.query('RELEASE SAVEPOINT diluted_fee_replay');
+          const reasons=['awaiting_diluted_fee_evidence',sanitizeRiskError(error)];
+          await client.query('UPDATE paper_sessions SET heartbeat_at=clock_timestamp(),monitor_reasons=$2 WHERE id=$1',[session.id,JSON.stringify(reasons)]);
+          await client.query('COMMIT');return {id:session.id,status:session.state.status,action:'wait',reasons};
+        }
+      }
       const input: PaperInput = { now, checkpoint: cp, dataReasons,
         entryReasons: [...new Set(entryReasons)], chainHealthy: readiness.chainEligible, holdingChainReady:holdingReady,
         pathMinTick: Math.min(session.state.last?.tick ?? cp.tick,cp.tick,swaps.minimum ?? cp.tick),
         pathMaxTick: Math.max(session.state.last?.tick ?? cp.tick,cp.tick,swaps.maximum ?? cp.tick), swapCount: swaps.count,
-        execution: { available: this.executor !== undefined }, reference, referenceEvidence, boundaryFees:feeProof,boundaryContinuity:feeContinuity };
+        execution: { available: this.executor !== undefined }, reference, referenceEvidence, boundaryFees:feeProof,boundaryContinuity:feeContinuity,dilutedFees };
       let state = advancePaper(session.state, session.policy, input);
       if (this.executor && "executionBasis" in session.policy && session.policy.executionBasis === "nitro_fork_v1") {
         const action = state.reasons.includes("paper_entry_quote_required") ? "quote"

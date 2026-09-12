@@ -8,6 +8,7 @@ import {USDG} from '../constants.js';
 export interface SessionMark {
  id:string;sessionId:string;sourceAt:string;observedAt:string;block:string;action:string;status:string;
  tick:number;sqrtPriceX96:string;navQuote:string|null;holdQuote?:string|null;costsPaidQuote:string;exitReserveQuote:string;
+ feeAccounting?:string;feeModelFrom?:string|null;
  earnedFee0:string;earnedFee1:string;position:PaperPosition|null;
 }
 export interface SessionFunding {id:string;budgetQuote:string;createdAt:string}
@@ -141,7 +142,11 @@ export function sessionPerformance(funding:readonly SessionFunding[],marks:reado
  const serialize=(map:Map<string,Bucket>)=>[...map.values()].map(b=>({...serial(b),holdPnlQuote:holdAvailable?String(b.holdPnl):null,alphaQuote:holdAvailable?String(b.netPnl-b.holdPnl):null}));
  const stride=Math.max(1,Math.ceil(timeline.length/maxChartPoints));
  const selected=timeline.filter((p,i)=>i%stride===0||i===timeline.length-1||['enter','exit','recenter'].includes(p.action)||p.attribution==='mixed_boundary'||timeline[i+1]?.attribution==='mixed_boundary');
- return {valid:true as const,basis:'marked_nav_after_charged_gas_before_exit_reserve',timeZone:'America/New_York',sourceThrough:previous?.sourceAt??null,
+ const feePeriods:{kind:string;fromSourceAt:string;throughSourceAt:string;marks:number}[]=[];
+ for(const m of marks){if(!m.position)continue;const kind=m.feeAccounting??'observed_growth',last=feePeriods.at(-1);
+  if(last?.kind===kind){last.throughSourceAt=m.sourceAt;last.marks++;}
+  else feePeriods.push({kind,fromSourceAt:m.feeModelFrom??m.sourceAt,throughSourceAt:m.sourceAt,marks:1});}
+ return {valid:true as const,feePeriods,basis:'marked_nav_after_charged_gas_before_exit_reserve',timeZone:'America/New_York',sourceThrough:previous?.sourceAt??null,
   initialBudgetQuote:String(initial),economicNavQuote:String(previousEconomic),navQuote:String(previousNav),netPnlQuote:String(previousEconomic-initial),
   navPnlQuote:String(previousNav-initial),exitReserveQuote:String(previousReserve),gasQuote:String(allocatedGas),
   holdPnlQuote:holdAvailable?String(previousHold-initial):null,alphaQuote:holdAvailable?String(previousEconomic-previousHold):null,

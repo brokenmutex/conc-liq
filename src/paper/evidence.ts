@@ -1,10 +1,11 @@
+import {executionPolicyHash} from './policy-history.js';
 import {executionRuntime} from './runtime-history.js';
 import type {RuntimeIdentity} from '../runtime/identity.js';
 import type { PoolClient } from "pg";
-import type { PaperState } from "./engine.js";
-export async function paperExecutionEvidenceValid(client: PoolClient, session: { id: string; policy_hash: string; state: PaperState; runtime_identity?: unknown }) {
+import type { PaperState,PaperPolicy } from "./engine.js";
+export async function paperExecutionEvidenceValid(client: PoolClient, session: { id: string; policy_hash: string; policy?:PaperPolicy; state: PaperState; runtime_identity?: unknown }) {
   const runtime=session.runtime_identity as RuntimeIdentity|null|undefined;
-  try{executionRuntime(runtime??null,session.state.runtimeTransitions);}catch{return false;}
+  try{executionRuntime(runtime??null,session.state.runtimeTransitions);executionPolicyHash(session.policy_hash,session.policy,session.state.runtimeTransitions);}catch{return false;}
   const ledger = session.state.execution;
   if (!ledger?.entryRunId) return session.state.position === null;
   let previousId=BigInt(ledger.entryRunId);
@@ -31,7 +32,7 @@ export async function paperExecutionEvidenceValid(client: PoolClient, session: {
     ) AS valid FROM paper_execution_runs r
     LEFT JOIN v3_strategy_checkpoint_runs c ON c.id=r.checkpoint_id
     LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id WHERE r.id=$1`,
-    [id, session.id, session.policy_hash, action, expectedRuntime ? JSON.stringify(expectedRuntime) : null, recenter])).rows[0];
+    [id, session.id, executionPolicyHash(session.policy_hash,session.policy,session.state.runtimeTransitions,id), action, expectedRuntime ? JSON.stringify(expectedRuntime) : null, recenter])).rows[0];
     if (row?.valid !== true) return false;
   }
   return session.state.status !== "closed" || ledger.exitRunId !== null;

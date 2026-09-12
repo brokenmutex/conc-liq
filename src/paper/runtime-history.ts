@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import {assertRuntimeMatches,type RuntimeIdentity} from '../runtime/identity.js';
+import type {PaperPolicy} from './engine.js';
 export interface PaperRuntimeTransition {
+ policyChange?:{from:PaperPolicy;to:PaperPolicy};
  from:RuntimeIdentity;to:RuntimeIdentity;throughRunId:string;throughObservationId:string;at:string;stateSha256:string;
 }
 export function executionRuntime(current:RuntimeIdentity|null,history:readonly PaperRuntimeTransition[]=[],runId?:string):RuntimeIdentity|null {

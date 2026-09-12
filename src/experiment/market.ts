@@ -51,5 +51,5 @@ export class ExperimentMarket {
     for(const {segment:s,protocol:p} of out){assert(p===0||(p>=4&&p<=10));const fee=s.fee-(p?s.fee/BigInt(p):0n);assert(s.liquidity>0n||fee===0n);const growth=s.liquidity?fee*(1n<<128n)/s.liquidity:0n;if(s.token===0)this.global0=(this.global0+growth)&MASK;else this.global1=(this.global1+growth)&MASK;}
     return out;
   }
-  verify(f:ExperimentFrame){assert.equal(String(this.price),f.price,'Checkpoint price mismatch');assert.equal(this.tick,f.tick,'Checkpoint tick mismatch');assert.equal(String(this.liquidity),f.liquidity,'Checkpoint liquidity mismatch');assert.equal(String(this.global0),f.global0,'Checkpoint fee0 mismatch');assert.equal(String(this.global1),f.global1,'Checkpoint fee1 mismatch');}
+  verify(f:Pick<ExperimentFrame,'price'|'tick'|'liquidity'|'global0'|'global1'>){assert.equal(String(this.price),f.price,'Checkpoint price mismatch');assert.equal(this.tick,f.tick,'Checkpoint tick mismatch');assert.equal(String(this.liquidity),f.liquidity,'Checkpoint liquidity mismatch');assert.equal(String(this.global0),f.global0,'Checkpoint fee0 mismatch');assert.equal(String(this.global1),f.global1,'Checkpoint fee1 mismatch');}
 }

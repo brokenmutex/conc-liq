@@ -11,6 +11,7 @@ export async function readSessionPerformance(db:Pick<PoolClient,'query'>,chain:r
   'id',id::text,'sessionId',session_id::text,'sourceAt',source_at,'observedAt',observed_at,'block',block_number::text,
   'action',action,'status',state->>'status','tick',state->'last'->'tick','sqrtPriceX96',state->'last'->>'sqrtPriceX96',
   'navQuote',state->>'navQuote','holdQuote',state->>'holdQuote','costsPaidQuote',state->>'costsPaidQuote','exitReserveQuote',state->>'exitReserveQuote',
+  'feeAccounting',COALESCE(state->'feeModel'->>'kind','observed_growth'),'feeModelFrom',state->'feeModel'->>'fromSourceAt',
   'earnedFee0',COALESCE(state->'execution'->>'earnedFee0','0'),'earnedFee1',COALESCE(state->'execution'->>'earnedFee1','0'),
   'position',CASE WHEN state->'position'='null'::jsonb THEN NULL ELSE (state->'position')-'boundaryFees'-'feeRemainder0'-'feeRemainder1' END
   ) AS mark FROM paper_observations WHERE session_id=ANY($1::bigint[]) ORDER BY block_number,id LIMIT 100001`,[ids])).rows.map(r=>r.mark);

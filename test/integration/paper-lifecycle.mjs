@@ -27,12 +27,12 @@ let deferCoverageDuringExit=false;
 let cancelDuringEntry=false;
 let invalidateDuringEntry=false;
 let concurrentStore;
-let boundaryReads=0;
+let boundaryReads=0;let mismatchedBoundary=false;
 const executor={
  async refreshRisk(runId,validationOnly){assert(validationOnly);await client.query('UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp() WHERE risk_run_id=$1',[runId]);},
  async boundaryFees(cp,range) {boundaryReads++;assert.equal(await concurrentStore.tick(stream),null);
   await client.query("SET statement_timeout='2s'");await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS boundary_audit_marker boolean");await client.query('SET statement_timeout=0');
-  return {block:cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower:{gross:'100',outside0:'0',outside1:'0'},upper:{gross:'100',outside0:'0',outside1:'0'}};},
+  return {block:mismatchedBoundary?'0':cp.block,hash:cp.hash,tickLower:range.tickLower,tickUpper:range.tickUpper,lower:{gross:'100',outside0:'0',outside1:'0'},upper:{gross:'100',outside0:'0',outside1:'0'}};},
  async quote(cp) { calls.quote++; return {...entryArtifact.range,sourceBlock:cp.block,sourceHash:cp.hash,quotedAt:new Date().toISOString(),swapAmountQuote:entryArtifact.entrySwap.amountIn,minRwaOut:entryArtifact.entrySwap.amountOutMinimum}; },
  async enter(cp,p,intent) { calls.entry++; assert.equal(await concurrentStore.tick(stream),null); if(cancelDuringEntry)await concurrentStore.stop(stream); if(invalidateDuringEntry)await client.query('UPDATE risk_snapshot_canonicality SET observed_hash=NULL WHERE risk_run_id=$1',[cp.id]); await client.query("SET statement_timeout='2s'"); await client.query("ALTER TABLE risk_snapshot_runs ADD COLUMN IF NOT EXISTS paper_audit_marker boolean"); await client.query('SET statement_timeout=0'); assert.equal(intent.swapAmountQuote,entryArtifact.entrySwap.amountIn); const balances=structuredClone(entryArtifact.balances);const delta=BigInt(p.budgetQuote)-BigInt(entryArtifact.policy.budgetQuote);
   balances.afterMint.quote=String(BigInt(balances.afterMint.quote)+delta);balances.inventory.quote=String(BigInt(balances.inventory.quote)+delta);
@@ -102,6 +102,9 @@ try {
  assert.equal((await store.tick(stream)).action,'wait');
  assert.deepEqual(calls,{quote:1,entry:0,exit:0});
  await checkpoint(2);
+ if(boundaryMode){mismatchedBoundary=true;const before=(await client.query('SELECT state FROM paper_sessions WHERE id=$1',[id])).rows[0].state;
+  assert.deepEqual((await store.tick(stream)).reasons,['awaiting_boundary_fee_evidence']);
+  assert.deepEqual((await client.query('SELECT state FROM paper_sessions WHERE id=$1',[id])).rows[0].state,before);assert.equal(calls.entry,0);mismatchedBoundary=false;}
  assert.equal((await store.tick(stream)).action,'enter');
  const row=async()=> (await client.query('SELECT * FROM paper_sessions WHERE id=$1',[id])).rows[0];
  let open=await row();

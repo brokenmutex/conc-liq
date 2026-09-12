@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {liquidityShareAllowed} from "./liquidity-share.js";
 import { decodeFunctionResult, encodeFunctionData, keccak256, type Address, type Hash, type Hex } from "viem";
 import { factoryAbi, poolAbi } from "../abi.js";
 import { createRobinhoodClient } from "../client.js";
@@ -19,7 +20,8 @@ export interface PaperExecutionPolicy {
   maxSlippageBps: number;
   transactionTtlSeconds: number;
   lpAllocationPpm?: number;
-  feeAccounting?: "initialized_boundaries_v1";
+  feeAccounting?: "initialized_boundaries_v1" | "diluted_segments_v1";
+  liquidityShareMode?: "warn_v1";
   recenter?: {readonly kind:'outside_range_v1';readonly maxQuoteAgeSeconds:90};
 }
 const NVDA = PAPER_NVDA as Address;
@@ -35,6 +37,7 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   assert(Number.isSafeInteger(policy.transactionTtlSeconds) && policy.transactionTtlSeconds >= 60 && policy.transactionTtlSeconds <= 1800, "Invalid paper transaction deadline");
   assert(Number.isSafeInteger(policy.maxLiquiditySharePpm) && policy.maxLiquiditySharePpm > 0 &&
     policy.maxLiquiditySharePpm <= (policy.recenter?.kind==='outside_range_v1'?20000:10000), "Invalid paper liquidity share cap");
+  assert(!policy.liquidityShareMode||(policy.recenter?.kind==='outside_range_v1'&&policy.feeAccounting==='diluted_segments_v1'),'Share warnings require diluted recenter fees');
   const local = createRobinhoodClient(fork.localUrl, 60_000, { retryCount: 0 });
   const transactions: PaperTransaction[] = [];
   async function send(action: string, to: Address, calldata: Hex) {
@@ -154,7 +157,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
     recipient: PAPER_ACCOUNT, deadline: fork.source.timestamp + BigInt(policy.transactionTtlSeconds) };
   const preview = await local.simulateContract({ account: PAPER_ACCOUNT, address: NONFUNGIBLE_POSITION_MANAGER,
     abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] });
-  assert(preview.result[1] > 0n && preview.result[1] * 1_000_000n <= poolLiquidity * BigInt(policy.maxLiquiditySharePpm), "Paper mint exceeds active liquidity share cap");
+  assert(preview.result[1] > 0n && liquidityShareAllowed(preview.result[1],poolLiquidity,policy), "Paper mint exceeds active liquidity share cap");
   params.amount0Min = preview.result[2] * (10000n - BigInt(policy.maxSlippageBps)) / 10000n;
   params.amount1Min = preview.result[3] * (10000n - BigInt(policy.maxSlippageBps)) / 10000n;
   const mint = await send("mint", NONFUNGIBLE_POSITION_MANAGER, encodeFunctionData({ abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] }));

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {liquidityShare,liquidityShareAllowed} from './liquidity-share.js';
 import { decodeFunctionResult, encodeFunctionData, type Address } from 'viem';
 import { poolAbi } from '../abi.js';
 import { NONFUNGIBLE_POSITION_MANAGER, USDG } from '../constants.js';
@@ -131,7 +132,8 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   const modeled=replayPaperMint(slot[0],range,BigInt(afterSwap.quote),BigInt(afterSwap.rwa),0n);
   assert(modeled.liquidity>0n);
   const depth=await local.readContract({address:PAPER_POOL as Address,abi:poolAbi,functionName:'liquidity'});
-  assert(modeled.liquidity*1000000n<=depth*BigInt(policy.maxLiquiditySharePpm),'Recenter liquidity share exceeded');
+  const capacity=liquidityShare(modeled.liquidity,depth,policy);
+  assert(liquidityShareAllowed(modeled.liquidity,depth,policy),'Recenter liquidity share exceeded');
   assert(modeled.amount0>=BigInt(executionPlan.minMint0)&&modeled.amount1>=BigInt(executionPlan.minMint1),'Frozen recenter mint minimum unavailable');
   await approve(USDG,NONFUNGIBLE_POSITION_MANAGER,BigInt(afterSwap.quote),'approve_recenter_mint_usdg');
   await approve(NVDA,NONFUNGIBLE_POSITION_MANAGER,BigInt(afterSwap.rwa),'approve_recenter_mint_nvda');
@@ -166,7 +168,7 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   const source=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};assert.equal(source.hash.toLowerCase(),fork.source.hash.toLowerCase());
   return {scope:'paper_inventory_recenter' as const,executionEligible:false as const,broadcastAuthorized:false as const,
     computedAt:new Date().toISOString(),source:{block:String(fork.source.number),hash:fork.source.hash,timestamp:String(fork.source.timestamp)},
-    policy,inventory,intent,executionPlan,trade,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
+    policy,inventory,intent,executionPlan,trade,liquidityShare:capacity,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
     balances:{before,afterCollect,afterSwap,after},allowances,transactions:recenterTransactions,exitPreviewTransactions:exitTransactions,
     totalGasWei:gas(recenterTransactions),exitGasWei:gas(exitTransactions),upstream:fork.budget,
     limitations:['Hypothetical restored NFT and fee claims, not realized earnings','All-or-none paper acceptance of successful local simulation; submitted partial failures are not modeled','Native costs are fresh Nitro estimates, not receipts paid by this strategy']};

@@ -54,5 +54,19 @@ try{
  await db.query('UPDATE paper_execution_runs SET runtime_identity=$2 WHERE id=$1',[newId,JSON.stringify(from)]);
  assert.equal(await paperExecutionEvidenceValid(db,forward),false);await db.query('ROLLBACK');
  const broken=structuredClone(upgraded);broken.state.runtimeTransitions[0].throughRunId='1';assert.equal(await paperExecutionEvidenceValid(db,broken),false);
- console.log(JSON.stringify({passed:['advisory lock excludes in-flight worker','config and latest session enforced','state and policy preserved','old proofs keep original identity','new proofs require new identity','old worker rejected','tampered boundary rejected'],session:'59',scope:'disposable schema'}));
+ // The fee/share migration preserves all accepted legacy policy hashes.
+ const policyNext=paperPolicySchema.parse({...policy,feeAccounting:'diluted_segments_v1',liquidityShareMode:'warn_v1'}),nextRuntime={...to,buildId:'e'.repeat(64)};
+ await assert.rejects(()=>upgradePaperRuntime(db,schema,'59',to.buildId,nextRuntime,{...policyNext,maxSlippageBps:100}),/Only diluted/);
+ const migration=await upgradePaperRuntime(db,schema,'59',to.buildId,nextRuntime,policyNext),migrated=(await db.query('SELECT * FROM paper_sessions')).rows[0];
+ assert.equal(migrated.policy_hash,policyHash(policyNext));assert.equal(migrated.state.runtimeTransitions.length,2);
+ const unchanged=structuredClone(migrated.state);delete unchanged.runtimeTransitions;assert.deepEqual(unchanged,original.state);
+ assert.equal(await paperExecutionEvidenceValid(db,migrated),true);await readPaperChain(db,migrated);
+ await db.query('BEGIN');await db.query('UPDATE paper_execution_runs SET policy_hash=$1',[policyHash(policyNext)]);
+ assert.equal(await paperExecutionEvidenceValid(db,migrated),false);await db.query('ROLLBACK');
+ await db.query('BEGIN');const futureId=String(BigInt(migration.transition.throughRunId)+1n);
+ await db.query('UPDATE paper_execution_runs SET id=$2,runtime_identity=$3,policy_hash=$4 WHERE id=$1',[last,futureId,JSON.stringify(nextRuntime),policyHash(policyNext)]);
+ const future=structuredClone(migrated);future.state.execution.recenterRunIds[future.state.execution.recenterRunIds.length-1]=futureId;
+ assert.equal(await paperExecutionEvidenceValid(db,future),true);
+ await db.query('UPDATE paper_execution_runs SET policy_hash=$2 WHERE id=$1',[futureId,ph]);assert.equal(await paperExecutionEvidenceValid(db,future),false);await db.query('ROLLBACK');
+ console.log(JSON.stringify({passed:['advisory lock excludes in-flight worker','config and latest session enforced','state and policy preserved','old proofs keep original identity','new proofs require new identity','old worker rejected','tampered boundary rejected','fee/share migration preserves balances and legacy policy proofs','new fills require the new policy hash','unrelated policy retuning rejected'],session:'59',scope:'disposable schema'}));
 }finally{await db.query(`DROP SCHEMA ${schema} CASCADE`);await db.end();await other.end();}

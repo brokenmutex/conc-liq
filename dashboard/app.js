@@ -950,6 +950,11 @@ function renderSessionPerformance(report, now) {
 
 function renderPaper(paper, now) {
   renderSessionPerformance(paper?.performance, now);
+  setText("paper-liquidity-share", "");setText("paper-fee-model", "");
+  const repair=paper?.state?.boundaryRepair;
+  setText("paper-repair-note",repair?`Accounting reconciled at ${new Date(repair.at).toISOString()} for ${repair.inputs.map(i=>new Date(i.checkpoint.blockTimestamp).toISOString()).join(" → ")}. The position stayed in range; no trades were added. The original interruption record is retained for audit.`:"");
+  const periods=paper?.performance?.feePeriods??[];
+  setText("paper-session-fee-basis",periods.length>1?`Fee accounting changed during this campaign: ${periods.map(p=>`${p.kind==="diluted_segments_v1"?"added-liquidity adjustment":"original observed-growth estimate"} from ${new Date(p.fromSourceAt).toISOString()}`).join("; ")}. P&L and APY retain the fee basis used at each mark.`:periods[0]?.kind==="diluted_segments_v1"?"Fees include the added-liquidity adjustment on the recorded market path.":"");
   element("paper-execution-runs").replaceChildren();
   setText("paper-execution-proof", "No transaction simulation evidence available.");
   setText("paper-reference", "No paper reference decision recorded yet.");
@@ -1034,6 +1039,14 @@ function renderPaper(paper, now) {
     ? "No paper fills until the intended swaps and LP transactions can be simulated against current chain state. Gas and exit costs must have evidence; slippage must come from executable quotes. The current worker records input readiness only."
     : usesTransactions ? `Swap quote and range fixed before a later fill; ${policy.maxSlippageBps / 100}% maximum swap slippage. Inventory purchase, LP entry and cash exit use actual contract calls in simulation. Gas is estimated on the node and charged separately to the LP allocation. LP fee income remains an estimate from observed growth.`
     : `Legacy illustration: ${amount(policy.entryCostQuote)} entry + ${policy.slippageBps} bps inventory haircut; ${amount(policy.exitCostQuote)} exit. These assumed costs and spot-price fills are unsuitable for trade-performance validation.`;
+  const capacity=state.liquidityShare;
+  const inRange=state.position&&BigInt(state.position.liquidity)>0n&&state.last&&state.last.tick>=state.position.tickLower&&state.last.tick<state.position.tickUpper;
+  if(policy.liquidityShareMode==="warn_v1") {
+    const share=inRange&&capacity?`${capacity.ratioToExistingPpm===null?"Unavailable":ppmPercent(capacity.ratioToExistingPpm)} of existing active liquidity; ${capacity.shareAfterDepositPpm===null?"unavailable":ppmPercent(capacity.shareAfterDepositPpm)} of the total after adding ours.`:state.position&&!inRange?"Position is out of range: no active fee share.":"Waiting for a liquidity-share mark.";
+    setText("paper-liquidity-share",`${share} ${policy.maxLiquiditySharePpm/10000}% is a warning threshold; it does not block entry or recentering.${inRange&&capacity?.exceedsThreshold?" Above threshold: greater influence on pool liquidity.":""}`);
+  }
+  const fm=paper.feeAccounting;
+  if(policy.feeAccounting==="diluted_segments_v1")setText("paper-fee-model",fm?`Fees adjusted for our added liquidity from ${new Date(fm.fromSourceAt).toISOString()} (block ${fm.fromBlock}). Since then: ${amount(fm.adjustedQuote)} credited versus ${amount(fm.undilutedQuote)} without dilution, a ${amount(fm.reductionQuote)} reduction. Earlier estimated fees (${amount(fm.legacyQuote)} at current prices) are carried unchanged. This uses recorded flow and prices; it does not simulate how our presence changes future trading.`:"Added-liquidity fee accounting begins with the next verified fee interval.");
   const referencePolicy = policy.referencePolicy;
   const hours = policy.tradingHours?.kind === "continuous_v1" ? "24/7 operation across all market sessions. " : policy.tradingHours ? "After-hours, overnight and weekends only; premarket excluded. " : referencePolicy ? "24/7 evaluation. " : "";
   const management = policy.recenter ? `Recenter when outside range, using only the net swap required; ${state.execution?.recenterRunIds?.length ?? 0} completed moves.` : "No recentering.";

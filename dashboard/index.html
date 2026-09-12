@@ -47,6 +47,9 @@
           <article><div class="metric-label">Maximum observed drawdown</div><div id="paper-drawdown" class="focus-value">—</div><div id="paper-coverage" class="muted">No completed holding intervals</div></article>
         </div>
         <p id="paper-policy" class="research-note">Paper fills require transaction simulation and evidence for execution costs.</p>
+        <p id="paper-liquidity-share" class="muted"></p>
+        <p id="paper-fee-model" class="muted"></p>
+        <p id="paper-repair-note" class="muted"></p>
         <p id="paper-reference" class="muted">Reference evidence appears with each paper decision.</p>
         <p id="paper-execution-proof" class="muted">Waiting for transaction simulation evidence.</p>
         <details><summary class="paper-journal-summary">Paper transaction simulations</summary>
@@ -69,6 +72,7 @@
           <div class="chart-frame"><svg id="paper-session-chart" viewBox="0 0 1000 280" role="img" aria-label="Position evolution with market session boundaries"></svg><div id="paper-session-empty" class="empty">Position marks will appear here.</div></div>
           <p id="paper-session-chart-note" class="muted"></p>
           <div class="table-wrap"><table><thead><tr><th>Session (New York)</th><th>Hours / LP hours</th><th>Net P&amp;L</th><th>Versus holding</th><th>Fees earned</th><th>Gas</th><th>Swap cost*</th><th>P&amp;L / hour</th><th title="Observed net hourly return compounded over 8,760 hours; an extrapolation, not a forecast">Estimated APY</th><th>Recenters / swaps</th><th>In range*</th></tr></thead><tbody id="paper-session-totals"></tbody></table></div>
+          <p id="paper-session-fee-basis" class="muted"></p>
           <p id="paper-session-reconciliation" class="muted"></p>
           <p class="muted">Net P&amp;L includes marked inventory changes and charged costs, before the unspent exit reserve. Swap cost is the output shortfall versus source spot, including fees and price impact; it is already included in P&amp;L. In-range time, exposure and capital-hours use observations between marks. Mixed-boundary changes remain unallocated. Estimated APY compounds the observed net hourly return over 8,760 hours, assuming continuous reinvestment at that rate; short samples can produce extreme estimates. Session attribution does not simulate a restricted-hours strategy.</p>
           <details><summary class="paper-journal-summary">Positions around session boundaries</summary>

@@ -7,6 +7,8 @@ import { quoteValue } from "../simulator/math.js";
 import { invalidatePaper, PAPER_NVDA, type PaperInput, type PaperState, type TransactionPaperPolicy } from "./engine.js";
 import type { PaperGasValuation } from "./execution-domain.js";
 import { boundaryInside, boundaryFeeIncrement } from "./boundary-fees.js";
+import { creditDilutedFees,initializeDilutedFees } from './diluted-fees.js';
+import { liquidityShare,liquidityShareAllowed } from './liquidity-share.js';
 import { advanceRecenter } from './recenter.js';
 
 export function paperGasQuote(feeWei: string, valuation: PaperGasValuation): bigint {
@@ -56,7 +58,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     const r = fill.result;
     assert(r.policy.budgetQuote === policy.budgetQuote && r.range.tickLower === ledger.intent.tickLower && r.range.tickUpper === ledger.intent.tickUpper);
     assert(r.entrySwap.amountIn === ledger.intent.swapAmountQuote && BigInt(r.entrySwap.actualOut) >= BigInt(ledger.intent.minRwaOut));
-    assert(BigInt(r.liquidity) > 0n && BigInt(r.liquidity) * 1000000n <= BigInt(cp.liquidity) * BigInt(policy.maxLiquiditySharePpm));
+    assert(BigInt(r.liquidity) > 0n && liquidityShareAllowed(BigInt(r.liquidity),BigInt(cp.liquidity),policy));
     assert(BigInt(r.entryGasWei) + BigInt(r.exitGasWei) <= 10n ** 18n, "Paper native gas fixture budget exhausted");
     ledger.entryRunId = fill.runId; ledger.gasSpentWei = r.entryGasWei; ledger.exitReserveWei = r.exitGasWei;
     ledger.allowances = r.allowances; ledger.lastValuation = fill.valuation;
@@ -71,6 +73,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
       boundaryInside(cp,input.boundaryFees);state.position.boundaryFees=input.boundaryFees;
       state.position.feeRemainder0="0";state.position.feeRemainder1="0";
     }
+    if(policy.feeAccounting==='diluted_segments_v1')initializeDilutedFees(state,cp);
     state.costsPaidQuote = String(paperGasQuote(r.entryGasWei, fill.valuation));
     state.exitReserveQuote = String(paperGasQuote(r.exitGasWei, fill.valuation));
     state.status = "open"; state.action = "enter"; state.pendingSince = null;
@@ -85,9 +88,12 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     if (input.swapCount === "0" && cp.sqrtPriceX96 !== last.sqrtPriceX96) return invalidatePaper(previous, input.now, ["price_change_without_swap_coverage"]);
     if(policy.feeAccounting){
       if(!input.boundaryFees||!p.boundaryFees||input.boundaryContinuity!==true)return invalidatePaper(previous,input.now,["paper_boundary_fee_continuity_unproven"]);
+      if(policy.feeAccounting==='diluted_segments_v1')creditDilutedFees(state,last,cp,input.boundaryFees,input.dilutedFees);
+      else {
       const fees=boundaryFeeIncrement(last,cp,p.boundaryFees,input.boundaryFees,BigInt(p.liquidity),BigInt(p.feeRemainder0??"0"),BigInt(p.feeRemainder1??"0"));
       p.fee0=String(BigInt(p.fee0)+fees.fee0);p.fee1=String(BigInt(p.fee1)+fees.fee1);
       p.feeRemainder0=String(fees.remainder0);p.feeRemainder1=String(fees.remainder1);p.boundaryFees=input.boundaryFees;
+      }
     }else{
       p.fee0 = String(BigInt(p.fee0) + subtractUint256(BigInt(cp.feeGrowth0), BigInt(last.feeGrowth0)) * BigInt(p.liquidity) / (1n << 128n));
       p.fee1 = String(BigInt(p.fee1) + subtractUint256(BigInt(cp.feeGrowth1), BigInt(last.feeGrowth1)) * BigInt(p.liquidity) / (1n << 128n));
@@ -121,6 +127,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
   // This policy disallows an inventory cap, so scheduled/risk exits above win.
   if (previous.position) advanceRecenter(state,policy,input);
   const p = state.position!;
+  if(policy.liquidityShareMode)state.liquidityShare=liquidityShare(BigInt(p.liquidity),BigInt(cp.liquidity),policy);
   const principal = principalAmounts({ liquidity: BigInt(p.liquidity), tickLower: p.tickLower, tickUpper: p.tickUpper, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
   const nav = value(principal.amount0 + BigInt(p.idle0) + BigInt(p.fee0), principal.amount1 + BigInt(p.idle1) + BigInt(p.fee1)) - BigInt(state.costsPaidQuote) - BigInt(state.exitReserveQuote);
   const hold = value(BigInt(p.hold0), BigInt(p.hold1)) - BigInt(ledger.holdGasQuote);

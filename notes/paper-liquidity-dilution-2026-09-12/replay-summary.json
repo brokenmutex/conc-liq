@@ -1,0 +1,44 @@
+[
+  {
+    "id": "3572",
+    "status": "succeeded",
+    "liquidityShare": {
+      "mode": "warn_v1",
+      "thresholdPpm": 20000,
+      "ratioToExistingPpm": "20504",
+      "shareAfterDepositPpm": "20092",
+      "exceedsThreshold": true
+    },
+    "amountIn": "1964026377",
+    "gasWei": "110550868960000",
+    "requests": 56
+  },
+  {
+    "id": "3578",
+    "status": "succeeded",
+    "liquidityShare": {
+      "mode": "warn_v1",
+      "thresholdPpm": 20000,
+      "ratioToExistingPpm": "20146",
+      "shareAfterDepositPpm": "19748",
+      "exceedsThreshold": true
+    },
+    "amountIn": "1365243988",
+    "gasWei": "237507118020000",
+    "requests": 55
+  },
+  {
+    "id": "3590",
+    "status": "succeeded",
+    "liquidityShare": {
+      "mode": "warn_v1",
+      "thresholdPpm": 20000,
+      "ratioToExistingPpm": "23209",
+      "shareAfterDepositPpm": "22682",
+      "exceedsThreshold": true
+    },
+    "amountIn": "1269314375",
+    "gasWei": "342735624600000",
+    "requests": 56
+  }
+]

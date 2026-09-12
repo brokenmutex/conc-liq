@@ -65,5 +65,6 @@ export function advanceRecenter(state:PaperState,policy:TransactionPaperPolicy,i
   state.exitReserveQuote=String(paperGasQuote(r.exitGasWei,fill.valuation));
   state.position={...p,...r.position,idle0:r.balances.after.quote,idle1:r.balances.after.rwa,fee0:'0',fee1:'0',
     feeRemainder0:'0',feeRemainder1:'0',boundaryFees:fill.boundaryFees};
+  if(state.feeModel){state.feeModel.remainder0='0';state.feeModel.remainder1='0';}
   state.action='recenter';
 }
