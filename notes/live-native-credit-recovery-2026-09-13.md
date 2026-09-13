@@ -24,4 +24,14 @@ The recenter sequence required three successive NVDA/router approvals because th
 
 RPC health samples show lag of 35, 134 and 176 blocks at 20:39:08, 20:39:18 and 20:39:28 UTC, followed by zero lag with recovery hysteresis at 20:39:38. The private node reported syncing during the interruption. The node is remote; a read-only SSH attempt could not verify a known host key, so host-level root cause is not established. No node configuration or lag tolerance is changed by this repair.
 
-Deployment and recovery observations will be appended after verification.
+## Deployed and recovered
+
+Live worker and dashboard now use sealed release `ff6b9c3ec1aaa8f83e4d70e07d5d5bda118fab50094a96038f926d0d3de4f614`, source commit `8cd87c1b39029dc2afe65774d372c61b5acc13b1`. Paper service/timer configuration was not changed.
+
+The explicit repair recorded exactly one funding proof and preserved the same campaign, policy hash, active configuration hash, initial capital and reserve. Native accounting now reconciles exactly as `initialNative + externalNativeCreditsWei - gasSpentWei = saved native balance`.
+
+Residual allowance cleanup confirmed in transaction `0x19df6b645ca97e290929019b6f85411bb59f37e84ffafd4b31594ebd55844bca`, costing 0.009300 USDG in recorded gas. The campaign closed at **05:33:26.786 UTC** with all four allowances zero, no NVDA and no active LP. Desired mode remains running; normal re-entry becomes eligible at **05:43:26.786 UTC / 08:43:26.786 Vilnius**, subject to fresh admission checks. Re-entry itself has not yet been observed at this checkpoint.
+
+Post-cleanup net NAV is **246.283659 USDG**. The incoming ETH credit is excluded from strategy profit. Dashboard APIs respond successfully, including the one-week view; live counts show zero completed recenters and one attempted recenter. Paper 61 remains open.
+
+Evidence and before/after unit files: `data/live-native-credit-deployment-2026-09-13/`. `verification.json` contains the accounting/configuration assertions, credit proof, cleanup receipt and cooldown timestamp. Restore the saved service unit to roll back software if necessary; retain the recovered journal and funding record. Never recreate the campaign or reverse the external-credit accounting during a software rollback.
