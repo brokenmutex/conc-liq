@@ -51,9 +51,9 @@ async function liveRows(db:PoolClient){
   m.at AS mark_at,m.snapshot AS mark FROM live_pilot_v1.campaigns c LEFT JOIN LATERAL
   (SELECT at,snapshot FROM live_pilot_v1.marks WHERE campaign_id=c.id AND kind='mark' ORDER BY id DESC LIMIT 1) m ON TRUE ORDER BY c.heartbeat_at DESC`)).rows;
 }
-function liveSummary(r:any){
+export function liveSummary(r:any){
  const s=r.state,m=r.mark,snap=m?.snapshot??s.last,p=snap.position,hasLp=p&&BigInt(p.liquidity)>0n;
- const status=s.phase==='halted'?'paused':s.phase==='exit'?'exiting':s.phase==='recenter'?'recentring':s.phase==='closed'?(s.desired==='running'?'waiting':'closed'):
+ const status=s.phase==='halted'?'halted':s.phase==='exit'?'exiting':s.phase==='recenter'?'recentring':s.phase==='closed'?(s.desired==='running'?'waiting':'closed'):
   s.phase==='entry'?'waiting':r.monitor?.length?'paused':hasLp&&(snap.tick<p.tickLower||snap.tick>=p.tickUpper)?'recentring':'open';
  const currentMark=m&&m.snapshot.block===s.last.block;
  return {id:`live-${r.id}`,label:`L-${r.id.slice(0,8)}`,mode:'live',asset:'NVDA',quote:'USDG',fee:500,hasLiquidity:!!s.last.position&&BigInt(s.last.position.liquidity)>0n,status,history:status==='closed',
@@ -61,10 +61,10 @@ function liveSummary(r:any){
   feesQuote:m?String(value(BigInt(s.collectedFee0)+BigInt(m.uncollected0),BigInt(s.collectedFee1)+BigInt(m.uncollected1),snap.sqrtPriceX96)):null,
   gasQuote:m?.gasValuationQuote??null,swapQuote:null,exitEstimateQuote:null,drawdownPpm:null,
   createdAt:s.createdAt,endedAt:status==='closed'?s.closedAt:null,sourceAt:m?new Date(Number(snap.timestamp)*1000).toISOString():null,
-  heartbeatAt:iso(r.heartbeat_at),reasons:[...(r.monitor??[]),...(s.haltReason?[s.haltReason]:[]),...(!currentMark?['valuation_waiting_for_current_state']:[])],
+  heartbeatAt:iso(r.heartbeat_at),reasons:[...new Set([...(r.monitor??[]),...(s.haltReason?[s.haltReason]:[]),...(!currentMark?['valuation_waiting_for_current_state']:[])])],
   reserveQuote:s.reserveUsdg,strategy:strategy(r.strategy??{},true),range:range(p),priceQuoteX18:price(snap.sqrtPriceX96),
   inventory:inventory(p,snap.sqrtPriceX96,String(BigInt(snap.usdg)-BigInt(s.reserveUsdg)),snap.nvda,m?.uncollected0,m?.uncollected1),
-  tokenId:s.tokenId,accounting:m?'recorded':'unavailable',nextAction:s.phase==='closed'&&s.desired==='running'?'Re-entry after cooldown and healthy price / chain checks':null};
+  tokenId:s.tokenId,accounting:m?'recorded':'unavailable',nextAction:s.phase==='halted'?'Reconciliation required before trading can resume':s.phase==='closed'&&s.desired==='running'?'Re-entry after cooldown and healthy price / chain checks':null};
 }
 export async function readPositionOverview(db:PoolClient,stream:string){
  const paper=await paperRows(db,stream),live=await liveRows(db);
@@ -99,6 +99,10 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
  }
  const row=(await liveRows(db)).find(r=>`live-${r.id}`===id);if(!row)return null;
  const position=liveSummary(row),s=row.state;
+ const recenterAttempts=Number((await db.query(`WITH phases AS (
+  SELECT state->>'phase' AS phase,lag(state->>'phase') OVER (ORDER BY id) AS previous
+  FROM live_pilot_v1.transitions WHERE campaign_id=$1)
+  SELECT count(*)::text AS n FROM phases WHERE phase='recenter' AND previous IS DISTINCT FROM 'recenter'`,[row.id])).rows[0]?.n??0);
  const marks=(await db.query(`SELECT id::text,at,snapshot FROM live_pilot_v1.marks WHERE campaign_id=$1 AND kind='mark' ORDER BY live_pilot_v1.marks.id LIMIT 100001`,[row.id])).rows;
  if(marks.length>100000)throw new Error('Position history exceeds bounded mark limit');
  const collected=(await db.query(`SELECT at,state->>'collectedFee0' AS fee0,state->>'collectedFee1' AS fee1,state->>'phase' AS phase,
@@ -143,7 +147,7 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
   .map(a=>({id:a.id,at:a.source_time?new Date(Number(a.source_time)*1000).toISOString():iso(a.at),action:a.action,status:a.status,hash:a.hash,
    block:a.facts?.block??null,gasQuote:a.gas??null,walletDeltas:a.facts?.walletDeltas??null,plan:a.plan})).reverse();
  return {position,performance:positionWindow(points,hours,now,s.initialCapitalQuote,s.createdAt),events,
-  counts:{recenters,swaps:actions.filter(a=>a.action==='swap'&&a.status==='confirmed').length},
+  counts:{recenters,recenterAttempts,swaps:actions.filter(a=>a.action==='swap'&&a.status==='confirmed').length},
   limitations:['Live NAV includes wallet inventory, NFT principal and claimable fees, less receipt-valued gas. Reserved USDG is excluded.',
    'Swap shortfall is measured from receipt token deltas against pre-transaction spot and is already included in NAV.',
    'Future live exit cost is unavailable. Market boundaries and gaps are not interpolated for P&L attribution.',

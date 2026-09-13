@@ -13,6 +13,7 @@ import {PilotStore,newPilotId} from './store.js';
 import {pilotIntentSchema,verifyPilotSignature} from './journal.js';
 import {pilotReceiptFacts,type PilotReceipt} from './receipt.js';
 import {reconcilePilotAction} from './reconcile.js';
+import {proveNativeCredit,type NativeCreditProof} from './native-credit.js';
 import type {PilotAction,PilotSnapshot,PilotState} from './domain.js';
 import type {loadPilotEnvSigner} from './signer.js';
 type Signer=ReturnType<typeof loadPilotEnvSigner>;
@@ -27,6 +28,33 @@ export class PilotController {
  constructor(readonly store:PilotStore,readonly chain:PilotChain,readonly config:LivePilotConfig,readonly signer:Signer,
   readonly guard:(db:PoolClient,state?:PilotState)=>Promise<PilotGuard>,
   readonly hook?:(at:'prepared'|'signed'|'broadcast'|'receipt',action:PilotAction)=>Promise<void>) {assert(config.operator&&same(config.operator,signer.address));}
+
+ private async saveNativeCredit(db:PoolClient,state:PilotState,current:PilotSnapshot,proof:NativeCreditProof,reason:string) {
+  const before=state.last;
+  state.externalNativeCreditsWei=String(BigInt(state.externalNativeCreditsWei??'0')+BigInt(proof.totalWei));
+  state.last=current;state.updatedAt=new Date().toISOString();
+  await db.query('BEGIN');try{
+   await this.store.save(db,state,reason);
+   await this.store.mark(db,state.id,current.block,'native_credit',{proof,before,after:current,basis:'external_funding_excluded_from_strategy_pnl'});
+   await db.query('COMMIT');
+  }catch(e){await db.query('ROLLBACK');throw e;}
+ }
+ /** Operator-authorized repair finishes the cash exit, then uses normal re-entry gates. */
+ async recoverNativeCredit(hashes:Hex[]) {
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;
+   assert(s.phase==='halted'&&s.haltReason==='unexplained_wallet_or_nft_change','Recovery requires a wallet-continuity halt');
+   assert.equal(s.policyHash,policyHash(this.config.strategy),'Recovery policy differs from saved campaign');
+   assert(!(await this.store.pending(db,s.id)),'Unresolved transaction');
+   assert(s.tokenId===null&&s.last.nvda==='0'&&(!s.last.position||s.last.position.liquidity==='0'),'Native credit recovery requires cash inventory');
+   const guard=await this.guard(db,s),current=await this.chain.snapshot(guard.source,s.tokenId);
+   assertPilotWalletContinuity({...s.last,native:current.native},current);
+   assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),current.nonce);
+   const proof=await proveNativeCredit(this.chain.client,s.last,current,0n,hashes);assert(proof,'No native credit to reconcile');
+   s.phase='exit';delete s.haltReason;
+   await this.saveNativeCredit(db,s,current,proof,'operator_reconciled_native_credit_to_exit');return s;
+  });
+ }
 
  async start(desired:'running'|'exit'='running') {
   return this.store.locked(this.signer.address,async db=>{
@@ -118,12 +146,13 @@ export class PilotController {
    const tokenId=action.plan.kind==='mint'&&receipt.status==='success'?minted?.tokenId:state.tokenId;
    if(action.plan.kind==='mint'&&receipt.status==='success')assert(tokenId,'Mint receipt has no owned NFT');
    const after=await this.chain.snapshot({block:String(block.number),hash:block.hash,timestamp:String(block.timestamp)},tokenId??null);
-   const resolved=reconcilePilotAction(state,action,receipt,after);
+   const nativeCredit=await proveNativeCredit(this.chain.client,action.before,after,BigInt(facts.gasWei));
+   const resolved=reconcilePilotAction(state,action,receipt,after,nativeCredit);
    let gasValuation:{quote:string;proof:unknown}|null=null;
    try{gasValuation=await this.chain.valueGas?.(after,resolved.facts.gasWei)??null;}catch{/* Receipt remains exact; unavailable conversion is explicit. */}
    resolved.state.gasSpentQuote=state.gasSpentQuote!==null&&gasValuation?String(BigInt(state.gasSpentQuote)+BigInt(gasValuation.quote)):null;
    await this.hook?.('receipt',action);
-   await this.store.finish(db,action,resolved.state,{receipt,facts:resolved.facts,after,gasValuation},resolved.status);
+   await this.store.finish(db,action,resolved.state,{receipt,facts:resolved.facts,after,gasValuation,nativeCredit},resolved.status);
    const mark=await this.chain.mark(after,resolved.state);await this.store.mark(db,state.id,after.block,'mark',mark);
    return {phase:resolved.state.phase,hash:action.hash,status:resolved.status};
   }
@@ -149,7 +178,12 @@ export class PilotController {
    const previousBlock=await this.chain.client.getBlock({blockNumber:BigInt(state.last.block)});
    if(!same(previousBlock.hash,state.last.hash)){state.phase='halted';state.haltReason='accepted_state_reorged';await this.store.save(db,state,state.haltReason);return {phase:'halted'};}
    const s=await this.chain.snapshot(guard.source,state.tokenId);
-   try{assertPilotWalletContinuity(state.last,s);}catch{state.phase='halted';state.haltReason='unexplained_wallet_or_nft_change';await this.store.save(db,state,state.haltReason);return {phase:'halted'};}
+   let nativeCredit:NativeCreditProof|null=null;
+   try{
+    assertPilotWalletContinuity({...state.last,native:s.native},s);
+    nativeCredit=await proveNativeCredit(this.chain.client,state.last,s);
+   }catch{state.phase='halted';state.haltReason='unexplained_wallet_or_nft_change';await this.store.save(db,state,state.haltReason);return {phase:'halted'};}
+   if(nativeCredit)await this.saveNativeCredit(db,state,s,nativeCredit,'reconciled_native_credit');
    state.holding=guard.holding;
    const reference=guard.referencePriceX18;
    const price=quoteValue({amount0:0n,amount1:10n**18n,token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(s.sqrtPriceX96)})*10n**12n;

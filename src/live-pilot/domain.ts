@@ -17,6 +17,7 @@ export interface PilotState {
  tokenId:string|null;retiredTokenIds:string[];range:{tickLower:number;tickUpper:number}|null;swapDone:boolean;
  last:PilotSnapshot;gasSpentWei:string;gasSpentQuote:string|null;collectedFee0:string;collectedFee1:string;createdAt:string;updatedAt:string;
  closedAt:string|null;holding?:PaperHoldingState;haltReason?:string;benchmark:{usdg:string;nvda:string}|null;
+ externalNativeCreditsWei?:string;
 }
 export type PilotPlan = {
  kind:'approve';token:Address;spender:Address;amount:string;

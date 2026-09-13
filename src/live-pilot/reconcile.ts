@@ -4,12 +4,13 @@ import {USDG,NONFUNGIBLE_POSITION_MANAGER} from '../constants.js';
 import {PAPER_NVDA} from '../paper/engine.js';
 import {pilotReceiptFacts,type PilotReceipt} from './receipt.js';
 import type {PilotAction,PilotSnapshot,PilotState} from './domain.js';
+import type {NativeCreditProof} from './native-credit.js';
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 
 /** Completion proof: canonicality is checked by the caller at the receipt block.
  * Any unexplained wallet transfer, nonce or NFT change keeps the action unresolved.
  */
-export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt:PilotReceipt,after:PilotSnapshot) {
+export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt:PilotReceipt,after:PilotSnapshot,nativeCredit:NativeCreditProof|null=null) {
  const before=action.before,plan=action.plan,facts=pilotReceiptFacts(receipt,state.operator);
  assert(action.hash&&same(action.hash,receipt.transactionHash),'Unexpected receipt hash');
  assert(receipt.gasUsed<=BigInt(action.intent.gas)&&receipt.effectiveGasPrice<=BigInt(action.intent.maxFeePerGas),'Receipt exceeds signed gas envelope');
@@ -18,10 +19,17 @@ export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt
  assert.equal(after.nonce,before.nonce+1,'Wallet nonce did not advance exactly once');
  assert.equal(BigInt(after.usdg)-BigInt(before.usdg),BigInt(facts.walletDeltas.usdg),'Unexplained USDG balance change');
  assert.equal(BigInt(after.nvda)-BigInt(before.nvda),BigInt(facts.walletDeltas.nvda),'Unexplained NVDA balance change');
- assert.equal(BigInt(before.native)-BigInt(after.native),BigInt(facts.gasWei),'Native balance does not match receipt gas');
+ const credit=BigInt(nativeCredit?.totalWei??'0');
+ if(nativeCredit){
+  assert.equal(nativeCredit.kind,'canonical_direct_native_credit_v1');
+  assert.equal(nativeCredit.fromBlock,before.block);assert.equal(nativeCredit.toBlock,after.block);assert(credit>0n);
+  assert.equal(nativeCredit.transfers.reduce((n,t)=>n+BigInt(t.valueWei),0n),credit,'Native credit proof total mismatch');
+ }
+ assert.equal(BigInt(before.native)+credit-BigInt(after.native),BigInt(facts.gasWei),'Native balance does not match receipt gas');
  assert(BigInt(after.usdg)>=BigInt(state.reserveUsdg),'Pilot spent reserved USDG');
  const next: PilotState={...structuredClone(state),last:after,updatedAt:new Date(Number(after.timestamp)*1000).toISOString(),
   gasSpentWei:String(BigInt(state.gasSpentWei)+BigInt(facts.gasWei))};
+ if(nativeCredit)next.externalNativeCreditsWei=String(BigInt(state.externalNativeCreditsWei??'0')+credit);
  if(receipt.status==='reverted') {
   assert.equal(after.usdg,before.usdg);assert.equal(after.nvda,before.nvda);assert.deepEqual(after.position,before.position);
   assert.equal(after.nftCount,before.nftCount);assert.deepEqual(after.allowances,before.allowances);

@@ -18,7 +18,7 @@ import {loadRiskConfig} from './risk/config.js';
 import {refreshRiskEvidence} from './risk/refresh.js';
 
 const [command='',envPath='',configPath='config/live-pilot-nvda-250.json']=process.argv.slice(2);
-assert(['init','tick','run','status','exit','resume','stop','recover-exit','retry-approval'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|retry-approval ENV [CONFIG]');
+assert(['init','tick','run','status','exit','resume','stop','recover-exit','recover-native-credit','retry-approval'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|recover-native-credit|retry-approval ENV [CONFIG] [CREDIT_HASH ...]');
 const config=livePilotConfig(JSON.parse(readFileSync(configPath,'utf8')),{allowBroadcast:true});
 assert(config.operator);const operator=config.operator;
 const env=parseEnv(readFileSync(envPath,'utf8'));if(config.signer?.kind==='env_file'){delete env[config.signer.variable];delete process.env[config.signer.variable];}
@@ -48,6 +48,10 @@ try {
    refreshRiskEvidence({config:indexer,riskConfig,gate:health,store:riskStore,riskRunId,validationOnly})));
   if(command==='init')console.log(json(await controller.start()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
+  else if(command==='recover-native-credit'){
+   const hashes=process.argv.slice(5);assert(hashes.length&&hashes.every(h=>/^0x[0-9a-fA-F]{64}$/.test(h)),'Provide exact incoming transaction hashes');
+   console.log(json(await controller.recoverNativeCredit(hashes as `0x${string}`[])));
+  }
   else if(command==='retry-approval'){
    try{console.log(json(await controller.retryApproval(process.env.PILOT_INITIAL_APPROVAL_HASH)));}
    catch(error){
