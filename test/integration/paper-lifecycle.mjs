@@ -63,7 +63,7 @@ try {
  await assert.rejects(store.start(stream,policy),/duplicate key/);
  await insert('indexer_cursors',{stream_key:stream,last_scanned_block:'10000',chain_id:4663,target_set_hash:'fixture'});
  await insert('v3_replay_cursors',{stream_key:stream,complete_through_block:'10000',chain_id:4663,target_set_hash:'fixture'});
- await insert('indexer_pools',{stream_key:stream,pool_address:PAPER_POOL,rwa_address:PAPER_NVDA,chain_id:4663,fee:500,target_set_hash:'fixture',enabled:true,created_block:'0'});
+ await insert('indexer_pools',{stream_key:stream,pool_address:PAPER_POOL,rwa_address:PAPER_NVDA,rwa_symbol:'NVDA',chain_id:4663,fee:500,target_set_hash:'fixture',enabled:true,created_block:'0'});
  const checkpoint=async index=>{
   await new Promise(resolve=>setTimeout(resolve,1100));
   const now=Date.now(),at=new Date(now-1).toISOString();

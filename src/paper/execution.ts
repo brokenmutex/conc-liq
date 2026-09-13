@@ -1,3 +1,5 @@
+import {buildPaperExit} from './position-exit.js';
+import {paperMarket,marketTokens,marketValue,canonicalBalances,namedBalances,type PaperMarket} from './market.js';
 import assert from "node:assert/strict";
 import {liquidityShareAllowed} from "./liquidity-share.js";
 import { decodeFunctionResult, encodeFunctionData, keccak256, type Address, type Hash, type Hex } from "viem";
@@ -5,15 +7,16 @@ import { factoryAbi, poolAbi } from "../abi.js";
 import { createRobinhoodClient } from "../client.js";
 import { NONFUNGIBLE_POSITION_MANAGER, UNISWAP_V3_FACTORY, USDG } from "../constants.js";
 import { guardedCanaryPositionManagerAbi } from "../canary-plan/abi.js";
-import { buildCanaryExit, decodeCanaryExit, readCanaryPosition } from "../canary-plan/exit.js";
+import { decodeCanaryExit, readCanaryPosition } from "../canary-plan/exit.js";
 import { centeredRange, quoteValue, sizeLiquidityForQuoteBudget } from "../simulator/math.js";
-import { PAPER_NVDA, PAPER_POOL, paperEntryRange } from "./engine.js";
+import { paperEntryRange } from "./engine.js";
 import { PAPER_ACCOUNT, PAPER_ROUTER, PAPER_ROUTER_CODE_HASH, PAPER_QUOTER, paperTokenAbi, paperRouterAbi, paperQuoterAbi } from "./execution-abi.js";
 import { localReceipt, simulatePaperTransaction, type PaperTransaction } from "./execution-gas.js";
 import type { PaperFork } from "./fork.js";
 import { sanitizeRiskError } from "../risk/evaluate.js";
 
 export interface PaperExecutionPolicy {
+  market?: PaperMarket;
   budgetQuote: string;
   halfWidthSpacings: number;
   maxLiquiditySharePpm: number;
@@ -24,14 +27,13 @@ export interface PaperExecutionPolicy {
   liquidityShareMode?: "warn_v1";
   recenter?: {readonly kind:'outside_range_v1';readonly maxQuoteAgeSeconds:90};
 }
-const NVDA = PAPER_NVDA as Address;
-const POOL = PAPER_POOL as Address;
 const nativeFixture = 10n ** 18n;
 const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const decimal = (value: bigint) => String(value);
 const totalGas = (transactions: readonly PaperTransaction[]) => transactions.reduce((sum, tx) => sum + BigInt(tx.estimate.totalFeeWei), 0n);
 
 export async function createPaperExecutionContext(fork: PaperFork, policy: PaperExecutionPolicy, onTransaction?: (tx: PaperTransaction) => void, account:Address=PAPER_ACCOUNT) {
+  const market=paperMarket(policy),RWA=market.rwa,POOL=market.pool,expected=marketTokens(market);
   assert(BigInt(policy.budgetQuote) > 0n && BigInt(policy.budgetQuote) <= 10_000_000_000n, "Paper token budget must be in (0, 10000] USDG");
   assert(Number.isSafeInteger(policy.maxSlippageBps) && policy.maxSlippageBps >= 1 && policy.maxSlippageBps <= 500, "Invalid paper slippage limit");
   assert(Number.isSafeInteger(policy.transactionTtlSeconds) && policy.transactionTtlSeconds >= 60 && policy.transactionTtlSeconds <= 1800, "Invalid paper transaction deadline");
@@ -51,7 +53,7 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   async function balances() {
     const [quote, rwa, native] = await Promise.all([
       local.readContract({ address: USDG, abi: paperTokenAbi, functionName: "balanceOf", args: [account] }),
-      local.readContract({ address: NVDA, abi: paperTokenAbi, functionName: "balanceOf", args: [account] }),
+      local.readContract({ address: RWA, abi: paperTokenAbi, functionName: "balanceOf", args: [account] }),
       local.getBalance({ address: account }),
     ]);
     return { quote: decimal(quote), rwa: decimal(rwa), native: decimal(native) };
@@ -63,7 +65,7 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   }
   async function quoteSwap(tokenIn: Address, tokenOut: Address, amountIn: bigint) {
     const result = await local.simulateContract({ address: PAPER_QUOTER, abi: paperQuoterAbi, functionName: "quoteExactInputSingle",
-      args: [{ tokenIn, tokenOut, fee: 500, amountIn, sqrtPriceLimitX96: 0n }] });
+      args: [{ tokenIn, tokenOut, fee: market.fee, amountIn, sqrtPriceLimitX96: 0n }] });
     assert(result.result[0] > 0n, "Paper swap has no output");
     return { amountIn: decimal(amountIn), amountOut: decimal(result.result[0]), sqrtPriceAfter: decimal(result.result[1]), ticksCrossed: result.result[2] };
   }
@@ -73,7 +75,7 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
     assert(amountOutMinimum > 0n, "Paper minimum swap output rounds to zero");
     const deadline = fork.source.timestamp + BigInt(policy.transactionTtlSeconds);
     const call = encodeFunctionData({ abi: paperRouterAbi, functionName: "exactInputSingle", args: [{
-      tokenIn, tokenOut, fee: 500, recipient: account, amountIn: BigInt(quoted.amountIn), amountOutMinimum, sqrtPriceLimitX96: 0n,
+      tokenIn, tokenOut, fee: market.fee, recipient: account, amountIn: BigInt(quoted.amountIn), amountOutMinimum, sqrtPriceLimitX96: 0n,
     }] });
     const tx = await send(action, PAPER_ROUTER, encodeFunctionData({ abi: paperRouterAbi, functionName: "multicall", args: [deadline, [call]] }));
     const calls = decodeFunctionResult({ abi: paperRouterAbi, functionName: "multicall", data: tx.returnData });
@@ -85,22 +87,22 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   const routerCode = await local.getBytecode({ address: PAPER_ROUTER });
   assert(routerCode && keccak256(routerCode) === PAPER_ROUTER_CODE_HASH, "Unverified paper router runtime");
   const [factoryPool, routerFactory, quoterFactory, managerFactory, quoteDecimals, rwaDecimals, token0, token1, fee, spacing] = await Promise.all([
-    local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, NVDA, 500] }),
+    local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, RWA, market.fee] }),
     local.readContract({ address: PAPER_ROUTER, abi: paperRouterAbi, functionName: "factory" }),
     local.readContract({ address: PAPER_QUOTER, abi: paperQuoterAbi, functionName: "factory" }),
     local.readContract({ address: NONFUNGIBLE_POSITION_MANAGER, abi: guardedCanaryPositionManagerAbi, functionName: "factory" }),
     local.readContract({ address: USDG, abi: paperTokenAbi, functionName: "decimals" }),
-    local.readContract({ address: NVDA, abi: paperTokenAbi, functionName: "decimals" }),
+    local.readContract({ address: RWA, abi: paperTokenAbi, functionName: "decimals" }),
     local.readContract({ address: POOL, abi: poolAbi, functionName: "token0" }),
     local.readContract({ address: POOL, abi: poolAbi, functionName: "token1" }),
     local.readContract({ address: POOL, abi: poolAbi, functionName: "fee" }),
     local.readContract({ address: POOL, abi: poolAbi, functionName: "tickSpacing" }),
   ]);
   assert(same(factoryPool, POOL) && [routerFactory, quoterFactory, managerFactory].every(f => same(f, UNISWAP_V3_FACTORY)), "Paper deployment/factory mismatch");
-  assert(same(token0, USDG) && same(token1, NVDA) && quoteDecimals === 6 && rwaDecimals === 18 && fee === 500 && spacing === 10, "Paper pool/token identity mismatch");
+  assert(same(token0, expected.token0) && same(token1, expected.token1) && quoteDecimals === 6 && rwaDecimals === market.rwaDecimals && fee === market.fee && spacing === market.tickSpacing, "Paper pool/token identity mismatch");
   const sourceSlot = await local.readContract({ address: POOL, abi: poolAbi, functionName: "slot0" });
   assert(sourceSlot[6], "Paper pool is locked");
-  return { fork, policy, account, local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot };
+  return { market,token0,token1,quoteIsToken0:expected.quoteIsToken0, fork, policy, account, local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot };
 }
 export type PaperExecutionContext = Awaited<ReturnType<typeof createPaperExecutionContext>>;
 
@@ -110,16 +112,17 @@ export async function fixtureSend(context: PaperExecutionContext, from: Address,
 }
 
 export async function fundPaperFixture(context: PaperExecutionContext, amounts: { quote: bigint; rwa: bigint }) {
-  const { local, fork, balances,account } = context;
+  const { local, fork, balances,account,market } = context;
+  const RWA=market.rwa,POOL=market.pool;
   const empty = await balances();
   assert(empty.quote === "0" && empty.rwa === "0" && empty.native === "0", "Paper fixture account is not empty on the source chain");
-  const donor = await local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, NVDA, 3000] });
+  const donor = await local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, RWA, 3000] });
   assert(!same(donor, POOL) && !/^0x0{40}$/iu.test(donor), "No separate fixture donor");
   await fork.rpc("anvil_impersonateAccount", [donor]);
   await fork.rpc("anvil_impersonateAccount", [account]);
   await fork.rpc("anvil_setBalance", [donor, `0x${nativeFixture.toString(16)}`]);
   await fork.rpc("anvil_setBalance", [account, `0x${nativeFixture.toString(16)}`]);
-  for (const [token, amount] of [[USDG, amounts.quote], [NVDA, amounts.rwa]] as const) {
+  for (const [token, amount] of [[USDG, amounts.quote], [RWA, amounts.rwa]] as const) {
     if (amount > 0n) await fixtureSend(context, donor, token, encodeFunctionData({ abi: paperTokenAbi, functionName: "transfer", args: [account, amount] }));
   }
   return donor;
@@ -130,15 +133,16 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   operatorRehearsal?: {account:Address;funding:'synthetic'|'existing'}) {
   const account=operatorRehearsal?.account??PAPER_ACCOUNT;
   const context = await createPaperExecutionContext(fork, policy, onTransaction,account);
-  const { local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot } = context;
+  const { local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot,market,token0,token1 } = context;
+  const RWA=market.rwa,POOL=market.pool;
   const range = intent ? { tickLower: intent.tickLower, tickUpper: intent.tickUpper }
     : paperEntryRange({tick:sourceSlot[1],sqrtPriceX96:String(sourceSlot[0])},policy);
   const lpBudget = BigInt(policy.budgetQuote)*BigInt(policy.lpAllocationPpm??1000000)/1000000n;
-  const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, token0: USDG, token1: NVDA,
+  const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, token0, token1,
     sqrtPriceX96: sourceSlot[0], ...range });
-  const swapAmount = intent ? BigInt(intent.swapAmountQuote) : lpBudget - sized.amount0 - sized.idleQuote;
+  const swapAmount = intent ? BigInt(intent.swapAmountQuote) : lpBudget - namedBalances(market,sized.amount0,sized.amount1).quote - sized.idleQuote;
   assert(swapAmount > 0n && swapAmount < BigInt(policy.budgetQuote), "Paper entry needs both token sides");
-  const quotedEntry = await quoteSwap(USDG, NVDA, swapAmount);
+  const quotedEntry = await quoteSwap(USDG, RWA, swapAmount);
   if (intent) assert(BigInt(quotedEntry.amountOut) >= BigInt(intent.minRwaOut), "Entry quote exceeds the previously recorded slippage limit");
   if(operatorRehearsal?.funding==='existing')await fork.rpc('anvil_impersonateAccount',[account]);
   else await fundPaperFixture(context, { quote: BigInt(policy.budgetQuote), rwa: 0n });
@@ -147,17 +151,17 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   if(operatorRehearsal?.funding!=='existing')assert.equal(before.quote,policy.budgetQuote);
   const reserve=BigInt(before.quote)-lpBudget;
   await approve(USDG, PAPER_ROUTER, swapAmount, "approve_entry_swap");
-  const entrySwap = await swap("buy_nvda", USDG, NVDA, quotedEntry, intent?.minRwaOut);
+  const entrySwap = await swap("buy_nvda", USDG, RWA, quotedEntry, intent?.minRwaOut);
   const inventory = await balances();
   assert.equal(BigInt(before.quote) - BigInt(inventory.quote), swapAmount);
   assert.equal(inventory.rwa, entrySwap.actualOut);
   await approve(USDG, NONFUNGIBLE_POSITION_MANAGER, BigInt(inventory.quote), "approve_mint_usdg");
-  await approve(NVDA, NONFUNGIBLE_POSITION_MANAGER, BigInt(inventory.rwa), "approve_mint_nvda");
+  await approve(RWA, NONFUNGIBLE_POSITION_MANAGER, BigInt(inventory.rwa), "approve_mint_nvda");
   const beforeMintSlot = await local.readContract({ address: POOL, abi: poolAbi, functionName: "slot0" });
   assert(beforeMintSlot[1] >= range.tickLower && beforeMintSlot[1] < range.tickUpper, "Entry swap left the fixed LP range");
   const poolLiquidity = await local.readContract({ address: POOL, abi: poolAbi, functionName: "liquidity" });
-  const params = { token0: USDG, token1: NVDA, fee: 500, ...range,
-    amount0Desired: BigInt(inventory.quote)-reserve, amount1Desired: BigInt(inventory.rwa), amount0Min: 0n, amount1Min: 0n,
+  const params = { token0, token1, fee: market.fee, ...range,
+    amount0Desired: canonicalBalances(market,BigInt(inventory.quote)-reserve,BigInt(inventory.rwa)).amount0, amount1Desired: canonicalBalances(market,BigInt(inventory.quote)-reserve,BigInt(inventory.rwa)).amount1, amount0Min: 0n, amount1Min: 0n,
     recipient: account, deadline: fork.source.timestamp + BigInt(policy.transactionTtlSeconds) };
   const preview = await local.simulateContract({ account, address: NONFUNGIBLE_POSITION_MANAGER,
     abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] });
@@ -168,28 +172,28 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
   const [tokenId, liquidity, amount0, amount1] = decodeFunctionResult({ abi: guardedCanaryPositionManagerAbi, functionName: "mint", data: mint.returnData });
   const afterMint = await balances();
   assert(BigInt(afterMint.quote)>=reserve,"Paper mint spent reserved USDG");
-  assert.equal(BigInt(inventory.quote) - BigInt(afterMint.quote), amount0);
-  assert.equal(BigInt(inventory.rwa) - BigInt(afterMint.rwa), amount1);
+  assert.equal(BigInt(inventory.quote) - BigInt(afterMint.quote), namedBalances(market,amount0,amount1).quote);
+  assert.equal(BigInt(inventory.rwa) - BigInt(afterMint.rwa), namedBalances(market,amount0,amount1).rwa);
   const position = await readCanaryPosition(local, tokenId, await local.getBlockNumber({ cacheTime: 0 }));
   assert.equal(position.liquidity, liquidity); assert(same(position.owner, account));
   const allowances: { token: Address; spender: Address; amount: string }[] = [];
-  for (const token of [USDG, NVDA]) for (const spender of [PAPER_ROUTER, NONFUNGIBLE_POSITION_MANAGER]) {
+  for (const token of [USDG, RWA]) for (const spender of [PAPER_ROUTER, NONFUNGIBLE_POSITION_MANAGER]) {
     allowances.push({ token, spender, amount: decimal(await local.readContract({ address: token, abi: paperTokenAbi, functionName: "allowance", args: [account, spender] })) });
   }
   const entryTransactions = transactions.length;
-  const exit = buildCanaryExit({ operator: account, owner: account, tokenId,
-    source: { rwaSymbol: "NVDA", rwaAddress: NVDA, fee: 500, token0: USDG, token1: NVDA }, position,
+  const exit = buildPaperExit({ operator: account, owner: account, tokenId,
+    source: { rwaSymbol: market.symbol, rwaAddress: RWA, fee: market.fee, token0, token1 }, position,
     sqrtPriceX96: beforeMintSlot[0], blockTimestamp: fork.source.timestamp,
     slippageBps: policy.maxSlippageBps, ttlSeconds: policy.transactionTtlSeconds });
   const exited = await send("decrease_and_collect", NONFUNGIBLE_POSITION_MANAGER, exit.calldata);
   const released = decodeCanaryExit(exited.returnData);
   const afterCollect = await balances();
-  assert.equal(BigInt(afterCollect.quote) - BigInt(afterMint.quote), released.collected0);
-  assert.equal(BigInt(afterCollect.rwa) - BigInt(afterMint.rwa), released.collected1);
-  const quotedExit = await quoteSwap(NVDA, USDG, BigInt(afterCollect.rwa));
-  await approve(NVDA, PAPER_ROUTER, BigInt(afterCollect.rwa), "approve_exit_swap");
-  const exitSwap = await swap("sell_nvda", NVDA, USDG, quotedExit);
-  for (const token of [USDG, NVDA]) for (const spender of [PAPER_ROUTER, NONFUNGIBLE_POSITION_MANAGER]) {
+  assert.equal(BigInt(afterCollect.quote) - BigInt(afterMint.quote), namedBalances(market,released.collected0,released.collected1).quote);
+  assert.equal(BigInt(afterCollect.rwa) - BigInt(afterMint.rwa), namedBalances(market,released.collected0,released.collected1).rwa);
+  const quotedExit = await quoteSwap(RWA, USDG, BigInt(afterCollect.rwa));
+  await approve(RWA, PAPER_ROUTER, BigInt(afterCollect.rwa), "approve_exit_swap");
+  const exitSwap = await swap("sell_nvda", RWA, USDG, quotedExit);
+  for (const token of [USDG, RWA]) for (const spender of [PAPER_ROUTER, NONFUNGIBLE_POSITION_MANAGER]) {
     const allowance = await local.readContract({ address: token, abi: paperTokenAbi, functionName: "allowance", args: [account, spender] });
     if (allowance !== 0n) await send(`revoke_${same(token, USDG) ? "usdg" : "nvda"}_${same(spender, PAPER_ROUTER) ? "router" : "manager"}`, token,
       encodeFunctionData({ abi: paperTokenAbi, functionName: "approve", args: [spender, 0n] }));
@@ -215,7 +219,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
     entryGasWei: decimal(totalGas(transactions.slice(0, entryTransactions))),
     exitGasWei: decimal(totalGas(transactions.slice(entryTransactions))), totalGasWei: decimal(totalGas(transactions)),
     localGasWei: decimal(localGasWei), cashDeltaQuote: decimal(BigInt(afterExit.quote) - BigInt(before.quote)),
-    entryInventoryMarkQuote: decimal(quoteValue({ amount0: BigInt(inventory.quote), amount1: BigInt(inventory.rwa), token0: USDG, token1: NVDA, quoteToken: USDG, sqrtPriceX96: sourceSlot[0] })),
+    entryInventoryMarkQuote: decimal(marketValue(market,sourceSlot[0],canonicalBalances(market,BigInt(inventory.quote),BigInt(inventory.rwa)).amount0,canonicalBalances(market,BigInt(inventory.quote),BigInt(inventory.rwa)).amount1)),
     transactions, upstream: fork.budget,
     limitations: ["Current-state local round trip; no forward holding interval or LP fee-income result",
       "Gas uses pinned Nitro estimates with paper account state, not mainnet receipts",

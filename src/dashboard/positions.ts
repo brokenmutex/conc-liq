@@ -1,3 +1,4 @@
+import {paperMarket,marketTokens,marketValue,marketPriceX18,namedBalances,NVDA_PAPER_MARKET,type PaperMarket} from '../paper/market.js';
 import type {PoolClient} from 'pg';
 import type {PaperSessionRow} from '../paper/store.js';
 import {readPaperChain,paperCampaignSummary} from '../paper/reentry.js';
@@ -13,9 +14,10 @@ const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
 const range=(p:any)=>p&&BigInt(p.liquidity)>0n?[price(String(sqrtRatioAtTick(p.tickUpper))),price(String(sqrtRatioAtTick(p.tickLower)))]:null;
 const iso=(v:any)=>v?new Date(v).toISOString():null;
 const sub=(a:string|null,b:string|null)=>a===null||b===null?null:String(BigInt(a)-BigInt(b));
-function inventory(p:any,sqrt:string,idle0:string,idle1:string,fee0='0',fee1='0') {
+function inventory(p:any,sqrt:string,idle0:string,idle1:string,fee0='0',fee1='0',market:PaperMarket=NVDA_PAPER_MARKET) {
  const a=p?principalAmounts({liquidity:BigInt(p.liquidity),tickLower:p.tickLower,tickUpper:p.tickUpper,sqrtPriceX96:BigInt(sqrt)}):{amount0:0n,amount1:0n};
- const usdg=a.amount0+BigInt(idle0)+BigInt(fee0),nvda=a.amount1+BigInt(idle1)+BigInt(fee1),stock=value(0n,nvda,sqrt),gross=usdg+stock;
+ const total0=a.amount0+BigInt(idle0)+BigInt(fee0),total1=a.amount1+BigInt(idle1)+BigInt(fee1);
+ const {quote:usdg,rwa:nvda}=namedBalances(market,total0,total1),gross=marketValue(market,BigInt(sqrt),total0,total1),stock=gross-usdg;
  return {usdg:String(usdg),nvda:String(nvda),exposurePpm:String(gross>0n?stock*1000000n/gross:0n)};
 }
 function strategy(policy:any,live=false){return {widthTicks:policy.halfWidthSpacings==null?null:policy.halfWidthSpacings*10,
@@ -28,22 +30,24 @@ function paperGroups(rows:PaperSessionRow[]){
   return {latest,chain};});
 }
 function paperSummary(latest:PaperSessionRow,chain:PaperSessionRow[],newest:string){
+ const market=paperMarket(latest.policy),price=(sqrt:string)=>String(marketPriceX18(market,BigInt(sqrt)));
+ const range=(p:any)=>p&&BigInt(p.liquidity)>0n?[price(String(sqrtRatioAtTick(p.tickLower))),price(String(sqrtRatioAtTick(p.tickUpper)))].sort((a,b)=>BigInt(a)<BigInt(b)?-1:1):null;
  const s=latest.state,p=s.position,summary=paperCampaignSummary(chain),invalid=s.status==='invalid'||!!s.invalidatedAt;
  const queued=s.status==='closed'&&!s.reentryStoppedAt&&(latest.policy as any).reentry&&latest.id===newest&&s.action==='exit';
  const status=invalid?'invalid':s.status==='closed'?(queued?'waiting':'closed'):s.status==='exit_pending'?'exiting':!p||p.liquidity==='0'?'waiting':
   s.reasons.length?'paused':s.last&&(s.last.tick<p.tickLower||s.last.tick>=p.tickUpper)?'recentring':'open';
  const nav=invalid?null:summary.navQuote===null?null:String(BigInt(summary.navQuote)+BigInt(s.exitReserveQuote));
- return {id:`paper-${latest.id}`,label:`P-${chain[0]!.id}${chain.length>1?` → ${latest.id}`:''}`,mode:'paper',asset:'NVDA',quote:'USDG',fee:500,
+ return {id:`paper-${latest.id}`,label:`P-${chain[0]!.id}${chain.length>1?` → ${latest.id}`:''}`,mode:'paper',asset:market.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
   sessionIds:chain.map(r=>r.id),hasLiquidity:!!p&&BigInt(p.liquidity)>0n,status,history:status==='closed'||invalid,initialQuote:summary.initialBudgetQuote,navQuote:nav,
   holdQuote:invalid?null:summary.holdQuote,feesQuote:invalid?null:chain.length===1?s.feeValueQuote:null,gasQuote:invalid?null:summary.costsPaidQuote,
   swapQuote:null,exitEstimateQuote:invalid?null:s.exitReserveQuote,drawdownPpm:invalid?null:s.maxDrawdownPpm,
   createdAt:chain[0]!.created_at.toISOString(),endedAt:status==='closed'?latest.updated_at.toISOString():s.invalidatedAt??null,
   sourceAt:s.last?.blockTimestamp??null,heartbeatAt:iso(latest.heartbeat_at),reasons:[...s.reasons,...latest.monitor_reasons],invalidatedAt:s.invalidatedAt??null,
   reserveQuote:'0',strategy:strategy(latest.policy),range:range(p),priceQuoteX18:s.last?price(s.last.sqrtPriceX96):null,
-  inventory:p&&s.last?inventory(p,s.last.sqrtPriceX96,p.idle0,p.idle1,p.fee0,p.fee1):{usdg:summary.navQuote??latest.policy.budgetQuote,nvda:'0',exposurePpm:'0'},
+  inventory:p&&s.last?inventory(p,s.last.sqrtPriceX96,p.idle0,p.idle1,p.fee0,p.fee1,market):{usdg:summary.navQuote??latest.policy.budgetQuote,nvda:'0',exposurePpm:'0'},
   tokenId:null,accounting:invalid?'invalid':'recorded',nextAction:queued?'Re-entry after cooldown and healthy price / chain checks':status==='waiting'?'Entry requires healthy price / chain checks':null};
 }
-async function paperRows(db:PoolClient,stream:string){return (await db.query<PaperSessionRow>('SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC',[stream])).rows;}
+async function paperRows(db:PoolClient,stream:string){return (await db.query<PaperSessionRow>(`SELECT * FROM paper_sessions WHERE stream_key=$1 OR starts_with(stream_key,$1||':paper:') ORDER BY id DESC`,[stream])).rows;}
 async function liveRows(db:PoolClient){
  const exists=(await db.query("SELECT to_regclass('live_pilot_v1.campaigns') IS NOT NULL AS present")).rows[0]?.present;
  if(!exists)return [];
@@ -68,13 +72,13 @@ export function liveSummary(r:any){
 }
 export async function readPositionOverview(db:PoolClient,stream:string){
  const paper=await paperRows(db,stream),live=await liveRows(db);
- return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...live.map(liveSummary),...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper[0]?.id??''))]};
+ return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...live.map(liveSummary),...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
 }
 export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number){
  const now=Date.now();
  if(id.startsWith('paper-')){
   const rows=await paperRows(db,stream),group=paperGroups(rows).find(g=>`paper-${g.latest.id}`===id);if(!group)return null;
-  const position=paperSummary(group.latest,group.chain,rows[0]?.id??'');
+  const position=paperSummary(group.latest,group.chain,rows.find(r=>r.stream_key===group.latest.stream_key)?.id??'');
   if(position.status==='invalid')return {position,performance:null,events:[],limitations:['Invalidated campaign; original reason and timestamp retained.']};
   try {
    const chain=await readPaperChain(db,group.latest),report=await readSessionPerformance(db,chain,true);

@@ -1,3 +1,4 @@
+import {paperMarket,marketTokens,namedBalances,marketPriceX18} from './market.js';
 import assert from "node:assert/strict";
 import pg from "pg";
 import { parseAbi, type Address } from "viem";
@@ -72,7 +73,7 @@ export class NitroPaperExecutor implements PaperExecutor {
   }
   async boundaryFees(cp: PaperCheckpoint, range: {tickLower:number;tickUpper:number}): Promise<BoundaryFeeProof> {
     const client=this.client(),abi=parseAbi(['function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)']);
-    const read=async(tick:number)=>{const t=await client.readContract({address:PAPER_POOL as Address,abi,functionName:'ticks',args:[tick],blockNumber:BigInt(cp.block)});
+    const read=async(tick:number)=>{const t=await client.readContract({address:paperMarket(cp).pool,abi,functionName:'ticks',args:[tick],blockNumber:BigInt(cp.block)});
       assert(t[7]&&t[0]>0n,'Paper fee boundary is not initialized');return {gross:String(t[0]),outside0:String(t[2]),outside1:String(t[3])};};
     const lower=await read(range.tickLower),upper=await read(range.tickUpper);
     assert.equal((await client.getBlock({blockNumber:BigInt(cp.block)})).hash.toLowerCase(),cp.hash.toLowerCase());
@@ -80,6 +81,7 @@ export class NitroPaperExecutor implements PaperExecutor {
   }
   private async check(cp: PaperCheckpoint, policy: TransactionPaperPolicy, entering: boolean) {
     let referenceEvidence: PaperReferenceEvidence | null = null;
+    assert.deepEqual(paperMarket(cp),paperMarket(policy),"Paper checkpoint market differs from policy");
     const now = new Date().toISOString();
     if(entering&&policy.tradingHours)assert(paperTradingWindow(now,policy.tradingHours).entryAllowed&&
       paperTradingWindow(cp.blockTimestamp,policy.tradingHours).entryAllowed,'Paper off-hours entry window is closed');
@@ -98,7 +100,7 @@ export class NitroPaperExecutor implements PaperExecutor {
           referenceEvidence = reference.evidence;
         } else {
         assert(readiness.session === "regular_session", readiness.reasons.join(", "));
-        const risk = await readRiskGate(client, this.config.streamKey, 180, 30, "NVDA");
+        const risk = await readRiskGate(client, this.config.streamKey, 180, 30, paperMarket(policy).symbol);
         const reasons = risk.reasons.filter(reason => reason !== "sequencer_feed_unavailable");
         assert(reasons.length === 0, `Paper current risk gate: ${reasons.join(", ")}`);
         }
@@ -128,16 +130,17 @@ export class NitroPaperExecutor implements PaperExecutor {
   }
   async quote(cp: PaperCheckpoint, policy: TransactionPaperPolicy): Promise<PaperEntryQuote> {
     const before = await this.check(cp, policy, true);
+    const market=paperMarket(policy);
     const range = paperEntryRange(cp,policy);
     if(policy.feeAccounting)await this.boundaryFees(cp,range);
     const lpBudget=BigInt(policy.budgetQuote)*BigInt(policy.lpAllocationPpm??1000000)/1000000n;
-    const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, token0: USDG, token1: PAPER_NVDA, sqrtPriceX96: BigInt(cp.sqrtPriceX96), ...range });
-    const amountIn = lpBudget - sized.amount0 - sized.idleQuote;
+    const sized = sizeLiquidityForQuoteBudget({ budgetQuote: lpBudget, quoteToken: USDG, ...marketTokens(market), sqrtPriceX96: BigInt(cp.sqrtPriceX96), ...range });
+    const amountIn = lpBudget - namedBalances(market,sized.amount0,sized.amount1).quote - sized.idleQuote;
     assert(amountIn > 0n && amountIn < BigInt(policy.budgetQuote));
     const client = this.client();
     assert.equal(await client.getChainId(), 4663);
     const quoted = await client.simulateContract({ address: PAPER_QUOTER, abi: paperQuoterAbi, blockNumber: BigInt(cp.block),
-      functionName: "quoteExactInputSingle", args: [{ tokenIn: USDG, tokenOut: PAPER_NVDA as Address, amountIn, fee: 500, sqrtPriceLimitX96: 0n }] });
+      functionName: "quoteExactInputSingle", args: [{ tokenIn: USDG, tokenOut: market.rwa, amountIn, fee: market.fee, sqrtPriceLimitX96: 0n }] });
     const minimum = quoted.result[0] * (10000n - BigInt(policy.maxSlippageBps)) / 10000n;
     assert(minimum > 0n, "Paper minimum swap output is zero");
     assert.equal((await client.getBlock({ blockNumber: BigInt(cp.block) })).hash.toLowerCase(), cp.hash.toLowerCase());
@@ -176,7 +179,7 @@ export class NitroPaperExecutor implements PaperExecutor {
       assert(gate.eligible&&gate.reference?.referencePriceX18,'Recenter reference unavailable');
       const reference=BigInt(gate.reference.referencePriceX18),bound=BigInt(policy.referencePolicy.maxDeviationPpm);
       for(const tick of [range.tickLower,range.tickUpper]){
-        const price=(1n<<192n)*10n**30n/sqrtRatioAtTick(tick)**2n;
+        const price=marketPriceX18(paperMarket(policy),sqrtRatioAtTick(tick));
         assert(price*1000000n>=reference*(1000000n-bound)&&price*1000000n<=reference*(1000000n+bound),'Recenter range exceeds true-price band');
       }
     } finally {client.release();}

@@ -1,3 +1,4 @@
+import {paperMarket,marketValue,canonicalBalances,namedBalances} from './market.js';
 import assert from "node:assert/strict";
 import { subtractUint256 } from "../accounting/math.js";
 import { principalAmounts } from "../backtest/principal.js";
@@ -18,8 +19,8 @@ export function paperGasQuote(feeWei: string, valuation: PaperGasValuation): big
 }
 const seconds = (from: string, to: string) => (Date.parse(to) - Date.parse(from)) / 1000;
 export function advanceTransactionPaper(previous: PaperState, state: PaperState, policy: TransactionPaperPolicy, input: PaperInput): PaperState {
-  const cp = input.checkpoint;
-  const value = (amount0: bigint, amount1: bigint) => quoteValue({ amount0, amount1, token0: USDG, token1: PAPER_NVDA, quoteToken: USDG, sqrtPriceX96: BigInt(cp.sqrtPriceX96) });
+  const cp = input.checkpoint,market=paperMarket(policy);
+  const value = (amount0: bigint, amount1: bigint) => marketValue(market,BigInt(cp.sqrtPriceX96),amount0,amount1);
   const proofMatches = (source: { block: string; hash: string }, valuation: PaperGasValuation) => {
     assert(source.block === cp.block && source.hash.toLowerCase() === cp.hash.toLowerCase(), "Paper execution source differs from accounting checkpoint");
     assert(valuation.sourceBlock === cp.block && valuation.sourceHash.toLowerCase() === cp.hash.toLowerCase(), "Paper gas valuation source mismatch");
@@ -56,6 +57,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     if (!fill) return { ...state, reasons: [...state.reasons, "paper_entry_simulation_required"] };
     proofMatches(fill.result.source, fill.valuation);
     const r = fill.result;
+    assert.deepEqual(paperMarket(r.policy),market,"Paper execution market differs from policy");
     assert(r.policy.budgetQuote === policy.budgetQuote && r.range.tickLower === ledger.intent.tickLower && r.range.tickUpper === ledger.intent.tickUpper);
     assert(r.entrySwap.amountIn === ledger.intent.swapAmountQuote && BigInt(r.entrySwap.actualOut) >= BigInt(ledger.intent.minRwaOut));
     assert(BigInt(r.liquidity) > 0n && liquidityShareAllowed(BigInt(r.liquidity),BigInt(cp.liquidity),policy));
@@ -65,8 +67,8 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
     const buyIndex = r.transactions.findIndex(tx => tx.action === "buy_nvda");
     assert(buyIndex >= 0, "Paper entry has no inventory acquisition");
     ledger.holdGasQuote = String(paperGasQuote(String(r.transactions.slice(0, buyIndex + 1).reduce((sum, tx) => sum + BigInt(tx.estimate.totalFeeWei), 0n)), fill.valuation));
-    state.position = { liquidity: r.liquidity, ...r.range, idle0: r.balances.afterMint.quote, idle1: r.balances.afterMint.rwa,
-      fee0: "0", fee1: "0", hold0: r.balances.inventory.quote, hold1: r.balances.inventory.rwa, enteredAt: cp.blockTimestamp };
+    state.position = { liquidity: r.liquidity, ...r.range, idle0: String(canonicalBalances(market,BigInt(r.balances.afterMint.quote),BigInt(r.balances.afterMint.rwa)).amount0), idle1: String(canonicalBalances(market,BigInt(r.balances.afterMint.quote),BigInt(r.balances.afterMint.rwa)).amount1),
+      fee0: "0", fee1: "0", hold0: String(canonicalBalances(market,BigInt(r.balances.inventory.quote),BigInt(r.balances.inventory.rwa)).amount0), hold1: String(canonicalBalances(market,BigInt(r.balances.inventory.quote),BigInt(r.balances.inventory.rwa)).amount1), enteredAt: cp.blockTimestamp };
     if(policy.feeAccounting){
       assert(input.boundaryFees,"Paper entry boundary fee proof missing");
       assert(input.boundaryFees.tickLower===r.range.tickLower&&input.boundaryFees.tickUpper===r.range.tickUpper);
@@ -109,6 +111,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
       } else {
         proofMatches(fill.result.source, fill.valuation);
         const r = fill.result;
+    assert.deepEqual(paperMarket(r.policy),market,"Paper execution market differs from policy");
         assert(r.inventory.liquidity === p.liquidity && r.inventory.tickLower === p.tickLower && r.inventory.tickUpper === p.tickUpper);
         assert(r.inventory.idle0 === p.idle0 && r.inventory.idle1 === p.idle1 && r.inventory.fee0 === p.fee0 && r.inventory.fee1 === p.fee1, "Exit inventory differs from the forward paper ledger");
         ledger.exitRunId = fill.runId; ledger.gasSpentWei = String(BigInt(ledger.gasSpentWei) + BigInt(r.totalGasWei));
@@ -116,7 +119,7 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
         ledger.exitReserveWei = "0"; ledger.lastValuation = fill.valuation;
         state.costsPaidQuote = String(BigInt(state.costsPaidQuote) + paperGasQuote(r.totalGasWei, fill.valuation));
         state.exitReserveQuote = "0"; state.status = "closed"; state.action = "exit"; state.pendingSince = null;
-        p.liquidity = "0"; p.idle0 = r.balances.afterExit.quote; p.idle1 = "0"; p.fee0 = "0"; p.fee1 = "0";
+        p.liquidity = "0"; p.idle0 = String(canonicalBalances(market,BigInt(r.balances.afterExit.quote),0n).amount0); p.idle1 = String(canonicalBalances(market,BigInt(r.balances.afterExit.quote),0n).amount1); p.fee0 = "0"; p.fee1 = "0";
       }
     } else if (previous.status === "exit_pending" || (policy.maxHoldingSeconds !== null && seconds(p.enteredAt, input.now) >= policy.maxHoldingSeconds) ||
       (policy.mode === "guarded" && state.reasons.some(reason => reason !== "checkpoint_not_latest_risk_snapshot"))) {
@@ -141,8 +144,9 @@ export function advanceTransactionPaper(previous: PaperState, state: PaperState,
   if(policy.inventoryExitPpm&&state.status==="open"){
     const reference=input.reference?.eligible?input.reference.referencePriceX18:null;
     if(reference){
-      const rwaValue=(principal.amount1+BigInt(p.idle1)+BigInt(p.fee1))*BigInt(reference)/10n**30n;
-      const total=principal.amount0+BigInt(p.idle0)+BigInt(p.fee0)+rwaValue-BigInt(state.costsPaidQuote)-BigInt(state.exitReserveQuote);
+      const named=namedBalances(market,principal.amount0+BigInt(p.idle0)+BigInt(p.fee0),principal.amount1+BigInt(p.idle1)+BigInt(p.fee1));
+      const rwaValue=named.rwa*BigInt(reference)/10n**30n;
+      const total=named.quote+rwaValue-BigInt(state.costsPaidQuote)-BigInt(state.exitReserveQuote);
       if(total<=0n||rwaValue*1000000n>=total*BigInt(policy.inventoryExitPpm)){
         state.status="exit_pending";state.action="signal_exit";state.pendingSince=input.now;
         state.reasons=[...state.reasons,"paper_inventory_threshold_exit_to_cash"];

@@ -1,18 +1,17 @@
+import {buildPaperExit} from './position-exit.js';
+import {paperMarket,marketTokens,canonicalBalances,namedBalances} from './market.js';
 import assert from "node:assert/strict";
 import { encodeAbiParameters, encodeFunctionData, encodePacked, keccak256, parseAbi, toHex, type Address, type Hash, type Hex } from "viem";
-import { principalAmounts } from "../backtest/principal.js";
+import { principalAmounts, sqrtRatioAtTick } from "../backtest/principal.js";
 import { NONFUNGIBLE_POSITION_MANAGER, USDG } from "../constants.js";
 import { guardedCanaryPositionManagerAbi } from "../canary-plan/abi.js";
-import { buildCanaryExit, decodeCanaryExit, readCanaryPosition } from "../canary-plan/exit.js";
+import { decodeCanaryExit, readCanaryPosition } from "../canary-plan/exit.js";
 import { nonfungiblePositionManagerReadAbi } from "../nft/abi.js";
-import { PAPER_NVDA, PAPER_POOL } from "./engine.js";
 import { PAPER_ACCOUNT, PAPER_ROUTER, paperTokenAbi } from "./execution-abi.js";
 import { prestateOverrides, type PaperTransaction } from "./execution-gas.js";
 import { createPaperExecutionContext, fixtureSend, fundPaperFixture, type PaperExecutionPolicy } from "./execution.js";
 import type { PaperFork } from "./fork.js";
 
-const NVDA = PAPER_NVDA as Address;
-const POOL = PAPER_POOL as Address;
 const Q128 = 1n << 128n;
 const UINT256 = 1n << 256n;
 const coreAbi = parseAbi(["function positions(bytes32 key) view returns(uint128 liquidity,uint256 feeGrowthInside0LastX128,uint256 feeGrowthInside1LastX128,uint128 tokensOwed0,uint128 tokensOwed1)"]);
@@ -44,20 +43,30 @@ export function priorGrowthForFee(growth: bigint, liquidity: bigint, fee: bigint
 // separately estimated fees on a fresh owned fork, then price/execute the real
 // exit calls on Nitro with that prestate. Restoration is never strategy income
 // or a charged transaction. No stale entry-time pool storage is copied forward.
+/** Invert the manager's LiquidityAmounts rounding, including its intermediate Q96 floor. */
+export function restorationFunding(price:bigint,range:{tickLower:number;tickUpper:number},liquidity:bigint) {
+ const q=1n<<96n,a=sqrtRatioAtTick(range.tickLower),b=sqrtRatioAtTick(range.tickUpper);
+ const ceil=(n:bigint,d:bigint)=>(n+d-1n)/d;
+ const lo=price<=a?a:price,hi=price>=b?b:price;
+ return {amount0:price>=b?0n:ceil(liquidity*(b-lo),lo*b/q)+1n,
+   amount1:price<=a?0n:ceil(liquidity*(hi-a),q)+1n};
+}
 export async function restorePaperPosition(fork: PaperFork, policy: PaperExecutionPolicy, inventory: PaperExitInventory,
   onTransaction?: (tx: PaperTransaction) => void) {
+  const market=paperMarket(policy),RWA=market.rwa,POOL=market.pool,{token0,token1}=marketTokens(market);
   const context = await createPaperExecutionContext(fork, policy, onTransaction);
   const { local, sourceSlot, balances, send, approve, quoteSwap, swap, transactions } = context;
   const liquidity = BigInt(inventory.liquidity);
   assert(liquidity > 0n && liquidity < Q128);
   const principal = principalAmounts({ liquidity, tickLower: inventory.tickLower, tickUpper: inventory.tickUpper, sqrtPriceX96: sourceSlot[0] });
-  const desired = { quote: principal.amount0 + 1n, rwa: principal.amount1 + 1n };
+  const funding=restorationFunding(sourceSlot[0],inventory,liquidity);
+  const desired = namedBalances(market,funding.amount0,funding.amount1);
   const donor = await fundPaperFixture(context, desired);
-  for (const [token, amount] of [[USDG, desired.quote], [NVDA, desired.rwa]] as const) {
+  for (const [token, amount] of [[USDG, desired.quote], [RWA, desired.rwa]] as const) {
     await fixtureSend(context, PAPER_ACCOUNT, token, encodeFunctionData({ abi: paperTokenAbi, functionName: "approve", args: [NONFUNGIBLE_POSITION_MANAGER, amount] }));
   }
-  const params = { token0: USDG, token1: NVDA, fee: 500, tickLower: inventory.tickLower, tickUpper: inventory.tickUpper,
-    amount0Desired: desired.quote, amount1Desired: desired.rwa, amount0Min: 0n, amount1Min: 0n,
+  const params = { token0, token1, fee: market.fee, tickLower: inventory.tickLower, tickUpper: inventory.tickUpper,
+    amount0Desired: funding.amount0, amount1Desired: funding.amount1, amount0Min: 0n, amount1Min: 0n,
     recipient: PAPER_ACCOUNT, deadline: fork.source.timestamp + BigInt(policy.transactionTtlSeconds) };
   const preview = await local.simulateContract({ account: PAPER_ACCOUNT, address: NONFUNGIBLE_POSITION_MANAGER,
     abi: guardedCanaryPositionManagerAbi, functionName: "mint", args: [params] });
@@ -68,8 +77,8 @@ export async function restorePaperPosition(fork: PaperFork, policy: PaperExecuti
   // Raw token rounding can mint a few additional liquidity units. Remove them
   // during setup so the priced exit burns exactly the original paper amount.
   if (position.liquidity > liquidity) {
-    const excess = buildCanaryExit({ operator: PAPER_ACCOUNT, owner: PAPER_ACCOUNT, tokenId,
-      source: { rwaSymbol: "NVDA", rwaAddress: NVDA, fee: 500, token0: USDG, token1: NVDA },
+    const excess = buildPaperExit({ operator: PAPER_ACCOUNT, owner: PAPER_ACCOUNT, tokenId,
+      source: { rwaSymbol: market.symbol, rwaAddress: RWA, fee: market.fee, token0, token1 },
       position: { ...position, liquidity: position.liquidity - liquidity }, sqrtPriceX96: sourceSlot[0],
       blockTimestamp: fork.source.timestamp, slippageBps: policy.maxSlippageBps, ttlSeconds: policy.transactionTtlSeconds });
     await fixtureSend(context, PAPER_ACCOUNT, NONFUNGIBLE_POSITION_MANAGER, excess.calldata);
@@ -101,11 +110,11 @@ export async function restorePaperPosition(fork: PaperFork, policy: PaperExecuti
     await fork.rpc("anvil_setStorageAt", [NONFUNGIBLE_POSITION_MANAGER, slotAt(nftBase, offset), toHex(priorGrowthForFee(growth, liquidity, fee), { size: 32 })]);
   }
   await fork.rpc("anvil_setStorageAt", [POOL, slotAt(coreBase, 3n), toHex(core[3] + fees[0] + ((core[4] + fees[1]) << 128n), { size: 32 })]);
-  for (const [token, fee] of [[USDG, fees[0]], [NVDA, fees[1]]] as const) {
+  for (const [token, fee] of [[token0, fees[0]], [token1, fees[1]]] as const) {
     if (fee > 0n) await fixtureSend(context, donor, token, encodeFunctionData({ abi: paperTokenAbi, functionName: "transfer", args: [POOL, fee] }));
   }
   const setupBalances = await balances();
-  for (const [token, current, target] of [[USDG, setupBalances.quote, inventory.idle0], [NVDA, setupBalances.rwa, inventory.idle1]] as const) {
+  for (const [token, current, target] of [[USDG, setupBalances.quote, String(namedBalances(market,BigInt(inventory.idle0),BigInt(inventory.idle1)).quote)], [RWA, setupBalances.rwa, String(namedBalances(market,BigInt(inventory.idle0),BigInt(inventory.idle1)).rwa)]] as const) {
     const difference = BigInt(target) - BigInt(current);
     if (difference !== 0n) await fixtureSend(context, difference > 0n ? donor : PAPER_ACCOUNT, token,
       encodeFunctionData({ abi: paperTokenAbi, functionName: "transfer", args: [difference > 0n ? PAPER_ACCOUNT : donor, difference > 0n ? difference : -difference] }));
@@ -113,7 +122,7 @@ export async function restorePaperPosition(fork: PaperFork, policy: PaperExecuti
   assert.equal(inventory.allowances.length, 4, "Incomplete paper allowance ledger");
   const allowanceKeys = new Set<string>();
   for (const item of inventory.allowances) {
-    assert([USDG, NVDA].some(t => t.toLowerCase() === item.token.toLowerCase()) &&
+    assert([USDG, RWA].some(t => t.toLowerCase() === item.token.toLowerCase()) &&
       [PAPER_ROUTER, NONFUNGIBLE_POSITION_MANAGER].some(s => s.toLowerCase() === item.spender.toLowerCase()), "Unexpected paper allowance");
     allowanceKeys.add(`${item.token.toLowerCase()}:${item.spender.toLowerCase()}`);
     await fixtureSend(context, PAPER_ACCOUNT, item.token, encodeFunctionData({ abi: paperTokenAbi, functionName: "approve", args: [item.spender, BigInt(item.amount)] }));
@@ -123,16 +132,17 @@ export async function restorePaperPosition(fork: PaperFork, policy: PaperExecuti
   assert(nativeBalance > 0n && nativeBalance <= 10n ** 18n, "Invalid remaining paper gas balance");
   await fork.rpc("anvil_setBalance", [PAPER_ACCOUNT, toHex(nativeBalance)]);
   const before = await balances();
-  assert.equal(before.quote, inventory.idle0); assert.equal(before.rwa, inventory.idle1);
+  assert.equal(before.quote, String(namedBalances(market,BigInt(inventory.idle0),BigInt(inventory.idle1)).quote)); assert.equal(before.rwa, String(namedBalances(market,BigInt(inventory.idle0),BigInt(inventory.idle1)).rwa));
   return {context,tokenId,position,principal,fees,before,nftBase,coreBase,liquidity};
 }
 
 export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionPolicy, inventory: PaperExitInventory,
   onTransaction?: (tx: PaperTransaction) => void) {
+  const market=paperMarket(policy),RWA=market.rwa,POOL=market.pool,{token0,token1}=marketTokens(market);
   const {context,tokenId,position,principal,fees,before,nftBase,coreBase,liquidity}=await restorePaperPosition(fork,policy,inventory,onTransaction);
   const {local,sourceSlot,balances,send,approve,quoteSwap,swap,transactions}=context;
-  const exit = buildCanaryExit({ operator: PAPER_ACCOUNT, owner: PAPER_ACCOUNT, tokenId,
-    source: { rwaSymbol: "NVDA", rwaAddress: NVDA, fee: 500, token0: USDG, token1: NVDA }, position,
+  const exit = buildPaperExit({ operator: PAPER_ACCOUNT, owner: PAPER_ACCOUNT, tokenId,
+    source: { rwaSymbol: market.symbol, rwaAddress: RWA, fee: market.fee, token0, token1 }, position,
     sqrtPriceX96: sourceSlot[0], blockTimestamp: fork.source.timestamp, slippageBps: policy.maxSlippageBps, ttlSeconds: policy.transactionTtlSeconds });
   const tx = await send("decrease_and_collect", NONFUNGIBLE_POSITION_MANAGER, exit.calldata);
   const released = decodeCanaryExit(tx.returnData);
@@ -140,13 +150,13 @@ export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionP
   assert.equal(released.collected0 - released.decreased0, fees[0]);
   assert.equal(released.collected1 - released.decreased1, fees[1]);
   const afterCollect = await balances();
-  assert.equal(BigInt(afterCollect.quote) - BigInt(before.quote), released.collected0);
-  assert.equal(BigInt(afterCollect.rwa) - BigInt(before.rwa), released.collected1);
+  assert.equal(BigInt(afterCollect.quote) - BigInt(before.quote), namedBalances(market,released.collected0,released.collected1).quote);
+  assert.equal(BigInt(afterCollect.rwa) - BigInt(before.rwa), namedBalances(market,released.collected0,released.collected1).rwa);
   let exitSwap = null;
   if (BigInt(afterCollect.rwa) > 0n) {
-    const quoted = await quoteSwap(NVDA, USDG, BigInt(afterCollect.rwa));
-    await approve(NVDA, PAPER_ROUTER, BigInt(afterCollect.rwa), "approve_exit_swap");
-    exitSwap = await swap("sell_nvda", NVDA, USDG, quoted);
+    const quoted = await quoteSwap(RWA, USDG, BigInt(afterCollect.rwa));
+    await approve(RWA, PAPER_ROUTER, BigInt(afterCollect.rwa), "approve_exit_swap");
+    exitSwap = await swap("sell_nvda", RWA, USDG, quoted);
   }
   for (const item of inventory.allowances) {
     const amount = await local.readContract({ address: item.token, abi: paperTokenAbi, functionName: "allowance", args: [PAPER_ACCOUNT, item.spender] });

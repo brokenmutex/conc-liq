@@ -1,4 +1,6 @@
+import {USDG} from '../constants.js';
 import { z } from "zod";
+import {isAddress,getAddress} from "viem";
 import { DEFAULT_PAPER_POLICY } from "./engine.js";
 const raw = z.string().regex(/^\d+$/).transform(BigInt);
 const strategy = z.object({
@@ -12,6 +14,7 @@ const strategy = z.object({
 });
 const executionPolicySchema = strategy.extend({ executionBasis: z.literal("transaction_simulation") }).strict();
 const transactionPolicySchema = strategy.extend({
+  market:z.object({symbol:z.string().regex(/^[A-Z0-9.]+$/),rwa:z.string().refine(isAddress).transform(address=>getAddress(address)),pool:z.string().refine(isAddress).transform(address=>getAddress(address)),fee:z.number().refine((n):boolean=>n===500),tickSpacing:z.number().refine((n):boolean=>n===10),rwaDecimals:z.number().refine((n):boolean=>n===18)}).strict().refine(m=>m.rwa.toLowerCase()!==USDG.toLowerCase(),"RWA must differ from USDG").optional(),
   executionBasis: z.literal("nitro_fork_v1"),
   maxHoldingSeconds: z.number().int().min(60).max(604800).nullable(),
   maxLiquiditySharePpm: z.number().int().min(1).max(20000),

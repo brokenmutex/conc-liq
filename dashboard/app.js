@@ -41,7 +41,7 @@ function detail(p,state){
 function drawChart(mode){
  const state=modes[mode],p=positions.find(p=>p.id===state.selected),d=detailFor(mode),w=d?.performance,svg=$(`#${mode}-chart`);if(!svg||!w)return;
  const points=w.timeline.map(s=>({...s,at:Date.parse(s.sourceAt),capital:units(s.economicNavQuote),benchmark:units(s.holdQuote),price:units(s.priceQuoteX18,18),exposure:units(s.exposurePpm,4),
-  low:s.tickUpper==null?null:1e12/Math.pow(1.0001,s.tickUpper),high:s.tickLower==null?null:1e12/Math.pow(1.0001,s.tickLower)}));
+  low:s.tickLower==null||s.tickUpper==null?null:p.quoteIsToken0===false?1e12*Math.pow(1.0001,s.tickLower):1e12/Math.pow(1.0001,s.tickUpper),high:s.tickLower==null||s.tickUpper==null?null:p.quoteIsToken0===false?1e12*Math.pow(1.0001,s.tickUpper):1e12/Math.pow(1.0001,s.tickLower)}));
  const metric=state.metric,width=Math.max(280,svg.clientWidth),left=58,right=width-18,plotWidth=right-left,from=Date.parse(w.from),to=Date.parse(w.through);
  const x=at=>left+(at-from)/(to-from)*plotWidth;svg.setAttribute('viewBox',`0 0 ${width} 250`);
  const vals=points.flatMap(s=>metric==='range'?[s.price,s.low,s.high]:metric==='value'?[s.capital,s.benchmark]:[0,100]).filter(v=>v!==null&&Number.isFinite(v));

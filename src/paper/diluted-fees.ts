@@ -1,3 +1,4 @@
+import {paperMarket} from './market.js';
 import assert from 'node:assert/strict';
 import type {PoolClient} from 'pg';
 import {ExperimentMarket,type ExperimentEvent,type MarketSeed} from '../experiment/market.js';
@@ -43,7 +44,7 @@ export function dilutedFeeReplay(seed:MarketSeed,events:readonly ExperimentEvent
  * book to the prior mark, then replay all fees to the new canonical checkpoint. */
 export async function readDilutedFees(db:Pick<PoolClient,'query'>,stream:string,before:PaperCheckpoint,after:PaperCheckpoint,position:PaperPosition,endBoundary:BoundaryFeeProof) {
  const pool=(await db.query(`SELECT p.pool_address,p.fee_protocol0,p.fee_protocol1,r.complete_through_block::text AS through,r.target_set_hash
-  FROM v3_replay_pools p JOIN v3_replay_cursors r USING(stream_key) WHERE p.stream_key=$1 AND lower(p.pool_address)=$2`,[stream,PAPER_POOL])).rows[0];
+  FROM v3_replay_pools p JOIN v3_replay_cursors r USING(stream_key) WHERE p.stream_key=$1 AND lower(p.pool_address)=$2`,[stream,paperMarket(after).pool.toLowerCase()])).rows[0];
  assert(pool&&BigInt(pool.through)>=BigInt(after.block)&&pool.target_set_hash===after.targetSetHash,'Dilution replay coverage unavailable');
  const ticks=new Map<number,{gross:bigint;net:bigint}>((await db.query('SELECT tick,liquidity_gross::text AS gross,liquidity_net::text AS net FROM v3_replay_ticks WHERE stream_key=$1 AND pool_address=$2',[stream,pool.pool_address])).rows.map(t=>[t.tick,{gross:BigInt(t.gross),net:BigInt(t.net)}]));
  const rewind=(await db.query(`SELECT event_name,event_args FROM v3_pool_events WHERE stream_key=$1 AND pool_address=$2 AND block_number>$3 AND block_number<=$4

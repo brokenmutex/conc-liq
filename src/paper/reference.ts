@@ -7,6 +7,7 @@ import { quoteValue } from '../simulator/math.js';
 import { USDG } from '../constants.js';
 import { PAPER_NVDA, type PaperCheckpoint } from './engine.js';
 import { evaluatePaperUsdgOracle, type PaperUsdgFreshness } from './usdg-oracle.js';
+import {NVDA_PAPER_MARKET,marketPriceX18} from './market.js';
 
 export interface ContinuousPaperReferencePolicy {
   kind: 'continuous_bounded_v1';
@@ -51,12 +52,13 @@ export function evaluatePaperReference(input: {
 }): PaperReferenceDecision {
   const {snapshot,checkpoint:cp,policy} = input;
   const sourceTime = BigInt(Math.floor(Date.parse(snapshot.blockTimestamp) / 1000));
-  const asset = snapshot.assets.find(a=>a.registry.symbol==='NVDA' && a.registry.address.toLowerCase()===PAPER_NVDA);
-  const poolPrice = quoteValue({amount0:0n,amount1:10n**18n,token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(cp.sqrtPriceX96)}) * 10n**12n;
+  const market=cp.market??NVDA_PAPER_MARKET;
+  const asset = snapshot.assets.find(a=>a.registry.symbol===market.symbol && a.registry.address.toLowerCase()===market.rwa.toLowerCase());
+  const poolPrice = marketPriceX18(market,BigInt(cp.sqrtPriceX96));
   const decision: PaperReferenceDecision = {eligible:false,reasons:[],basis:'unavailable',ageSeconds:null,
     referencePriceX18:null,poolPriceX18:String(poolPrice),deviationPpm:null,referenceUpdatedAt:null,
     sourceBlock:snapshot.blockNumber,maxAgeSeconds:policy.maxHeldAgeSeconds,maxDeviationPpm:policy.maxDeviationPpm};
-  if (!asset) { decision.reasons.push('paper_nvda_risk_missing'); return decision; }
+  if (!asset) { decision.reasons.push(cp.market?'paper_asset_risk_missing':'paper_nvda_risk_missing'); return decision; }
   if (snapshot.chainId!==4663 || snapshot.marketSession.status!=='open_24_7' || !snapshot.marketSession.executionEligible) decision.reasons.push('paper_token_market_policy_unverified');
   // Only reference-age/quote/absent-sequencer findings are reevaluated here.
   // Pause, issuer, multiplier, registry and other findings retain their effect.
@@ -143,9 +145,16 @@ export function evaluatePaperCurrentRisk(read: PaperCurrentRiskRead, cp: PaperCh
 export async function readPaperRiskSources(client: Pick<PoolClient,'query'>, cp: PaperCheckpoint) {
   // One statement gives selection, canonicality and its clock the same MVCC view.
   // A new failed completion is never skipped in favor of an older successful one.
+  // Explicit asset campaigns exclude successful snapshots of other assets. All
+  // failed/in-flight attempts remain conservative global barriers. Registry
+  // collection fails if any requested asset is absent; absence cannot be success.
   const row=(await client.query<PaperCurrentRiskRead & {source:{snapshot:RiskSnapshot;canonical:boolean}|null}>(`
-    WITH latest AS (SELECT * FROM risk_snapshot_attempts ORDER BY attempted_at DESC,id DESC LIMIT 1),
-    completed AS (SELECT * FROM risk_snapshot_attempts WHERE status <> 'started' ORDER BY attempted_at DESC,id DESC LIMIT 1),
+    WITH attempts AS (SELECT a.* FROM risk_snapshot_attempts a
+      WHERE $4::text IS NULL OR a.status <> 'succeeded' OR a.risk_run_id IS NULL
+        OR NOT EXISTS (SELECT 1 FROM asset_risk_snapshots x WHERE x.run_id=a.risk_run_id)
+        OR EXISTS (SELECT 1 FROM asset_risk_snapshots x WHERE x.run_id=a.risk_run_id AND x.symbol=$4)),
+    latest AS (SELECT * FROM attempts ORDER BY attempted_at DESC,id DESC LIMIT 1),
+    completed AS (SELECT * FROM attempts WHERE status <> 'started' ORDER BY attempted_at DESC,id DESC LIMIT 1),
     selected AS (SELECT * FROM latest WHERE status <> 'started' UNION ALL
       SELECT completed.* FROM completed,latest WHERE latest.status='started'),
     source AS (SELECT r.snapshot,
@@ -161,8 +170,8 @@ export async function readPaperRiskSources(client: Pick<PoolClient,'query'>, cp:
         'snapshot',r.snapshot,'blockNumber',r.block_number::text,'blockHash',r.block_hash,'validatedAt',v.validated_at,'canonicalObservedHash',v.observed_hash,
         'canonical',r.chain_id=4663 AND v.canonical IS TRUE AND v.block_number=r.block_number AND LOWER(v.expected_hash)=LOWER(r.block_hash) AND LOWER(v.observed_hash)=LOWER(r.block_hash))
        FROM selected a LEFT JOIN risk_snapshot_runs r ON r.id=a.risk_run_id LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=r.id) AS selected,
-      (SELECT MIN(a.attempted_at)::text FROM risk_snapshot_attempts a,completed c
-       WHERE a.status='started' AND (a.attempted_at,a.id)>(c.attempted_at,c.id)) AS "inFlightStartedAt"`,[cp.id,cp.block,cp.hash])).rows[0]!;
+      (SELECT MIN(a.attempted_at)::text FROM attempts a,completed c
+       WHERE a.status='started' AND (a.attempted_at,a.id)>(c.attempted_at,c.id)) AS "inFlightStartedAt"`,[cp.id,cp.block,cp.hash,cp.market?.symbol??null])).rows[0]!;
   return row;
 }
 

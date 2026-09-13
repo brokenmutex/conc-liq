@@ -15,6 +15,7 @@ try {
     CREATE TABLE risk_snapshot_runs(id bigint PRIMARY KEY,chain_id integer,block_number bigint,block_hash text,snapshot jsonb);
     CREATE TABLE risk_snapshot_canonicality(risk_run_id bigint PRIMARY KEY,canonical boolean,block_number bigint,expected_hash text,observed_hash text,validated_at timestamptz);
     CREATE TABLE v3_strategy_checkpoint_runs(id bigint PRIMARY KEY,risk_run_id bigint,block_number bigint,block_hash text);
+    CREATE TABLE asset_risk_snapshots(run_id bigint,symbol text);
     CREATE TABLE decisions(evidence jsonb)`);
   const snapshot=JSON.parse(await readFile(new URL('../fixtures/paper-risk-snapshot.json',import.meta.url),'utf8'));
   const cp=JSON.parse(await readFile(new URL('../fixtures/paper-reference-preflight.json',import.meta.url),'utf8')).cp;
@@ -67,6 +68,20 @@ try {
   await db.query("INSERT INTO risk_snapshot_attempts VALUES(4,'started',clock_timestamp()-interval '11 seconds',NULL,NULL),(5,'started',clock_timestamp(),NULL,NULL)");
   gate=await read();assert.equal(gate.eligible,false,'Successive starts cannot keep extending the grace period');
   assert(gate.evidence.current.failedChecks.includes('refresh_age_over_10_seconds_or_future'));
+  await db.query('DELETE FROM risk_snapshot_attempts WHERE id>1');
+  // A successful snapshot for another symbol must not displace the campaign's
+  // latest evidence. Failed and in-flight attempts still apply conservatively.
+  await db.query('UPDATE risk_snapshot_canonicality SET validated_at=clock_timestamp()');
+  await db.query("UPDATE risk_snapshot_attempts SET attempted_at=clock_timestamp()-interval '2 seconds' WHERE id=1");
+  await db.query("INSERT INTO asset_risk_snapshots VALUES(1,'NVDA')");
+  await db.query("INSERT INTO risk_snapshot_runs SELECT 6,chain_id,block_number,block_hash,snapshot FROM risk_snapshot_runs WHERE id=1");
+  await db.query("INSERT INTO asset_risk_snapshots VALUES(6,'AAPL')");
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(6,'succeeded',clock_timestamp(),clock_timestamp(),6)");
+  const {NVDA_PAPER_MARKET}=await import('../../src/paper/market.ts');
+  const scoped=()=>readPaperReferenceGate(db,{...cp,market:NVDA_PAPER_MARKET},DEFAULT_PAPER_POLICY.referencePolicy,new Date().toISOString());
+  gate=await scoped();assert.equal(gate.evidence.current.selected.id,'1');assert.equal(gate.eligible,true,gate.reasons.join(','));
+  await db.query("INSERT INTO risk_snapshot_attempts VALUES(7,'failed',clock_timestamp(),clock_timestamp(),NULL)");
+  gate=await scoped();assert.equal(gate.eligible,false);assert.equal(gate.evidence.current.selected.id,'7');
   await db.query('DELETE FROM risk_snapshot_attempts WHERE id>1');
   await db.query('UPDATE risk_snapshot_canonicality SET canonical=false');
   gate=await read();assert.equal(gate.eligible,false);assert.equal(gate.evidence.sourceProven,false);

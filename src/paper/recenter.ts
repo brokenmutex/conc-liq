@@ -1,3 +1,4 @@
+import {paperMarket,canonicalBalances} from './market.js';
 import assert from 'node:assert/strict';
 import { paperTradingWindow } from './trading-hours.js';
 import { boundaryInside } from './boundary-fees.js';
@@ -38,6 +39,7 @@ export function advanceRecenter(state:PaperState,policy:TransactionPaperPolicy,i
   assert.equal(r.source.block,cp.block);assert.equal(r.source.hash.toLowerCase(),cp.hash.toLowerCase());
   assert.equal(fill.valuation.sourceBlock,cp.block);assert.equal(fill.valuation.sourceHash.toLowerCase(),cp.hash.toLowerCase());
   assert.deepEqual(r.intent,intent);
+  assert.deepEqual(paperMarket(r.policy),paperMarket(policy),'Paper recenter market differs from policy');
   for(const key of ['liquidity','tickLower','tickUpper','idle0','idle1','fee0','fee1'] as const)assert.equal(r.inventory[key],p[key]);
   assert.equal(r.inventory.nativeBalanceWei,String(10n**18n-BigInt(ledger.gasSpentWei)));
   assert.deepEqual(r.inventory.allowances,ledger.allowances);
@@ -63,7 +65,7 @@ export function advanceRecenter(state:PaperState,policy:TransactionPaperPolicy,i
   (ledger.recenterRunIds??=[]).push(fill.runId);ledger.recenterIntent=null;
   state.costsPaidQuote=String(BigInt(state.costsPaidQuote)+paperGasQuote(r.totalGasWei,fill.valuation));
   state.exitReserveQuote=String(paperGasQuote(r.exitGasWei,fill.valuation));
-  state.position={...p,...r.position,idle0:r.balances.after.quote,idle1:r.balances.after.rwa,fee0:'0',fee1:'0',
+  state.position={...p,...r.position,idle0:String(canonicalBalances(paperMarket(policy),BigInt(r.balances.after.quote),BigInt(r.balances.after.rwa)).amount0),idle1:String(canonicalBalances(paperMarket(policy),BigInt(r.balances.after.quote),BigInt(r.balances.after.rwa)).amount1),fee0:'0',fee1:'0',
     feeRemainder0:'0',feeRemainder1:'0',boundaryFees:fill.boundaryFees};
   if(state.feeModel){state.feeModel.remainder0='0';state.feeModel.remainder1='0';}
   state.action='recenter';

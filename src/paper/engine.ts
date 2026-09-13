@@ -10,10 +10,12 @@ import type { BoundaryFeeProof } from "./boundary-fees.js";
 
 import type { PaperHoldingPolicy, PaperHoldingState } from "./holding.js";
 import { paperTradingWindow,type PaperTradingHours } from './trading-hours.js';
+import {paperMarket,marketRange,marketValue,type PaperMarket} from './market.js';
 
 export const PAPER_POOL = "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3";
 export const PAPER_NVDA = "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec";
 interface PaperStrategy {
+  readonly market?: PaperMarket;
   readonly mode: "guarded" | "research";
   readonly budgetQuote: string;
   readonly halfWidthSpacings: number;
@@ -53,17 +55,16 @@ export const DEFAULT_PAPER_POLICY: TransactionPaperPolicy = {
   maxLiquiditySharePpm: 10_000,
   referencePolicy: { kind: "continuous_bounded_v1", maxHeldAgeSeconds: 345600, maxDeviationPpm: 30000, maxGasPriceAgeSeconds: 86400 },
 };
-export function paperEntryRange(cp: Pick<PaperCheckpoint,"tick"|"sqrtPriceX96">, policy: {halfWidthSpacings:number;feeAccounting?:string}) {
-  if(!policy.feeAccounting)return centeredRange({currentTick:cp.tick,halfWidthSpacings:policy.halfWidthSpacings,tickSpacing:10});
-  const base=Math.floor(cp.tick/10)*10,half=policy.halfWidthSpacings*10,price=BigInt(cp.sqrtPriceX96);
-  const candidates=[base,base+10].map(center=>({tickLower:center-half,tickUpper:center+half}));
-  const distance=(r:typeof candidates[number])=>{const middle=sqrtRatioAtTick(r.tickLower)*sqrtRatioAtTick(r.tickUpper),now=price*price;return middle>now?middle-now:now-middle;};
-  return candidates.reduce((best,r)=>distance(r)<distance(best)?r:best);
+export function paperEntryRange(cp: Pick<PaperCheckpoint,"tick"|"sqrtPriceX96">, policy: {halfWidthSpacings:number;feeAccounting?:string;market?:PaperMarket}) {
+  const m=paperMarket(policy);
+  if(!policy.feeAccounting)return centeredRange({currentTick:cp.tick,halfWidthSpacings:policy.halfWidthSpacings,tickSpacing:m.tickSpacing});
+  return marketRange(BigInt(cp.sqrtPriceX96),cp.tick,policy.halfWidthSpacings*m.tickSpacing,m.tickSpacing);
 }
 export function policyHash(policy: PaperPolicy): string {
   return createHash("sha256").update(JSON.stringify(Object.fromEntries(Object.entries(policy).sort(([a], [b]) => a.localeCompare(b))))).digest("hex");
 }
 export interface PaperCheckpoint {
+  readonly market?: PaperMarket;
   readonly id: string;
   readonly block: string;
   readonly hash: string;
@@ -142,13 +143,13 @@ export function invalidatePaper(state: PaperState, now: string, reasons: readonl
     invalidatedAt: now };
 }
 function value(amount0: bigint, amount1: bigint, checkpoint: PaperCheckpoint): bigint {
-  return quoteValue({ amount0, amount1, token0: USDG, token1: PAPER_NVDA,
-    quoteToken: USDG, sqrtPriceX96: BigInt(checkpoint.sqrtPriceX96) });
+  return marketValue(paperMarket(checkpoint),BigInt(checkpoint.sqrtPriceX96),amount0,amount1);
 }
 function age(then: string, now: string): number {
   return (Date.parse(now) - Date.parse(then)) / 1000;
 }
 export function advancePaper(previous: PaperState, policy: PaperPolicy, input: PaperInput): PaperState {
+  if(policy.market)input={...input,checkpoint:{...input.checkpoint,market:policy.market}};
   if (previous.status === "closed" || previous.status === "invalid") return previous;
   const cp = input.checkpoint;
   const last = previous.last;

@@ -5,13 +5,13 @@ import { paperPolicy } from "./paper/config.js";
 import { PaperStore } from "./paper/store.js";
 import { log } from "./logger.js";
 import { NitroPaperExecutor } from "./paper/executor.js";
-const env = z.object({ DATABASE_URL: z.string().min(1), INDEXER_STREAM_KEY: z.string().default("robinhood-v3-rwa-usdg-v1") });
+const env = z.object({ DATABASE_URL: z.string().min(1), PAPER_SESSION_STREAM_KEY:z.string().min(1).optional(), INDEXER_STREAM_KEY: z.string().default("robinhood-v3-rwa-usdg-v1") });
 async function main() {
   const [command, ...args] = process.argv.slice(2);
   if (!command || command === "--help") {
     console.log(`Usage: npm run paper -- start [--policy FILE] [--after SESSION_ID] | tick | stop
 
-Create one immutable, forward-only NVDA/USDG paper session, then process new
+Create one immutable, forward-only asset/USDG paper session, then process new
 stored live checkpoints. Uses bounded read-only RPC for prospective paper actions.
 Default: guarded 24/7 entry, 1000 paper USDG, fixed ±20 tick spacings, six-hour hold.
 Published equity reference within ±3%; held off-hours reference at most 96 hours
@@ -35,18 +35,18 @@ stop disables reentry durably and exits any open paper position.`);
   if (options.has("--after") && !/^[1-9]\d*$/.test(options.get("--after")!)) throw new Error("Invalid predecessor session ID");
   const config = env.parse(process.env);
   const executor = command === "tick" ? new NitroPaperExecutor(config.DATABASE_URL) : undefined;
-  const store = new PaperStore(config.DATABASE_URL, executor, loadRuntimeIdentity());
+  const store = new PaperStore(config.DATABASE_URL, executor, loadRuntimeIdentity(),config.INDEXER_STREAM_KEY);
   try {
     await store.assertReady();
     if (command === "start") {
       const path = options.get("--policy");
       const policy = paperPolicy(path ? JSON.parse(await readFile(path, "utf8")) : {});
-      log("info", "paper_session_started", { id: await store.start(config.INDEXER_STREAM_KEY, policy, options.get("--after")),
+      log("info", "paper_session_started", { id: await store.start(config.PAPER_SESSION_STREAM_KEY??config.INDEXER_STREAM_KEY, policy, options.get("--after")),
         continuedFrom: options.get("--after") ?? null, executionEligible: false });
     } else if (command === "tick") {
-      log("info", "paper_session_tick", { result: await store.tick(config.INDEXER_STREAM_KEY) });
+      log("info", "paper_session_tick", { result: await store.tick(config.PAPER_SESSION_STREAM_KEY??config.INDEXER_STREAM_KEY) });
     } else if (command === "stop") {
-      log("info", "paper_stop_requested", { id: await store.stop(config.INDEXER_STREAM_KEY) });
+      log("info", "paper_stop_requested", { id: await store.stop(config.PAPER_SESSION_STREAM_KEY??config.INDEXER_STREAM_KEY) });
     }
   } finally { await store.close(); await executor?.close(); }
 }

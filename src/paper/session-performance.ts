@@ -1,3 +1,4 @@
+import {paperMarket,marketValue,marketPriceX18,canonicalBalances,namedBalances,type PaperMarket} from './market.js';
 import assert from 'node:assert/strict';
 import {equityHours} from './trading-hours.js';
 import {principalAmounts} from '../backtest/principal.js';
@@ -6,12 +7,13 @@ import {quoteValue} from '../simulator/math.js';
 import {USDG} from '../constants.js';
 
 export interface SessionMark {
+ market?:PaperMarket;
  id:string;sessionId:string;sourceAt:string;observedAt:string;block:string;action:string;status:string;
  tick:number;sqrtPriceX96:string;navQuote:string|null;holdQuote?:string|null;costsPaidQuote:string;exitReserveQuote:string;
  feeAccounting?:string;feeModelFrom?:string|null;
  earnedFee0:string;earnedFee1:string;position:PaperPosition|null;
 }
-export interface SessionFunding {id:string;budgetQuote:string;createdAt:string}
+export interface SessionFunding {market?:PaperMarket;id:string;budgetQuote:string;createdAt:string}
 export interface SessionTrade {sessionId:string;block:string;runId:string;token:0|1;amountIn:string;amountOut:string}
 export function marketSession(at:string|number) {
  const s=equityHours(at),day=s.key.split('/')[0]!;
@@ -30,13 +32,15 @@ export function sessionSegments(from:number,to:number) {
  if(start<to)out.push({from:start,to,session});
  return out;
 }
-const value=(a:bigint,b:bigint,price:string)=>quoteValue({amount0:a,amount1:b,token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(price)});
+
 function inventory(mark:SessionMark) {
+ const market=paperMarket(mark),value=(a:bigint,b:bigint,price:string)=>marketValue(market,BigInt(price),a,b);
  const p=mark.position;
  if(!p)return {usdg:mark.navQuote??'0',nvda:'0',principalQuote:'0',exposurePpm:'0',inRange:false,tickLower:null,tickUpper:null};
  const principal=principalAmounts({liquidity:BigInt(p.liquidity),tickLower:p.tickLower,tickUpper:p.tickUpper,sqrtPriceX96:BigInt(mark.sqrtPriceX96)});
- const q=principal.amount0+BigInt(p.idle0)+BigInt(p.fee0),r=principal.amount1+BigInt(p.idle1)+BigInt(p.fee1);
- const nvda=value(0n,r,mark.sqrtPriceX96),gross=q+nvda;
+ const total0=principal.amount0+BigInt(p.idle0)+BigInt(p.fee0),total1=principal.amount1+BigInt(p.idle1)+BigInt(p.fee1);
+ const {quote:q,rwa:r}=namedBalances(market,total0,total1);
+ const nvda=value(total0,total1,mark.sqrtPriceX96)-q,gross=q+nvda;
  return {usdg:String(q),nvda:String(r),principalQuote:String(value(principal.amount0,principal.amount1,mark.sqrtPriceX96)),
   exposurePpm:String(gross>0n?nvda*1000000n/gross:0n),inRange:BigInt(p.liquidity)>0n&&mark.tick>=p.tickLower&&mark.tick<p.tickUpper,
   tickLower:BigInt(p.liquidity)>0n?p.tickLower:null,tickUpper:BigInt(p.liquidity)>0n?p.tickUpper:null};
@@ -55,6 +59,11 @@ export type SessionBucket=ReturnType<typeof serial>;
 
 export function sessionPerformance(funding:readonly SessionFunding[],marks:readonly SessionMark[],trades:readonly SessionTrade[],maxChartPoints=1200) {
  assert(funding.length>0);
+ const market=paperMarket(funding[0]!);
+ for(const f of funding)assert.deepEqual(paperMarket(f),market,"Session performance market changed");
+ const value=(a:bigint,b:bigint,price:string)=>marketValue(market,BigInt(price),a,b);
+ const namedValue=(q:bigint,r:bigint,price:string)=>{const b=canonicalBalances(market,q,r);return value(b.amount0,b.amount1,price);};
+ marks=marks.map(mark=>({...mark,market}));
  const sessions=new Map(funding.map(s=>[s.id,s])),initial=BigInt(funding[0]!.budgetQuote);
  const grouped=new Map<string,Bucket>(),detailed=new Map<string,Bucket>(),days=new Map<string,{grouped:Map<string,Bucket>;detailed:Map<string,Bucket>}>();
  const get=(map:Map<string,Bucket>,key:string)=>{let b=map.get(key);if(!b){b=bucket(key);map.set(key,b);}return b;};
@@ -96,16 +105,16 @@ export function sessionPerformance(funding:readonly SessionFunding[],marks:reado
   // Net P&L excludes the unspent exit reserve. The separate NAV bridge
   // reconciles exactly to the dashboard balance after that reserve.
   const markTrades=tradeMap.get(`${mark.sessionId}/${mark.block}`)??[];
-  const shortfalls=markTrades.map(t=>value(t.token===0?BigInt(t.amountIn):0n,t.token===1?BigInt(t.amountIn):0n,mark.sqrtPriceX96)-
-    value(t.token===1?BigInt(t.amountOut):0n,t.token===0?BigInt(t.amountOut):0n,mark.sqrtPriceX96));
+  const shortfalls=markTrades.map(t=>namedValue(t.token===0?BigInt(t.amountIn):0n,t.token===1?BigInt(t.amountIn):0n,mark.sqrtPriceX96)-
+    namedValue(t.token===1?BigInt(t.amountOut):0n,t.token===0?BigInt(t.amountOut):0n,mark.sqrtPriceX96));
   const swapCost=shortfalls.reduce((n,c)=>n+c,0n);
   const gross=economic-previousEconomic+gas+swapCost,reserveDelta=reserve-previousReserve;
   for(const b of interval){b.netPnl+=gross;b.navPnl+=gross;b.fees+=fees;}
   for(const b of endpoint){b.netPnl-=gas+swapCost;b.navPnl-=gas+swapCost+reserveDelta;b.gas+=gas;b.exitReserveChange+=reserveDelta;
    if(mark.action==='enter')b.entries++;if(mark.action==='exit')b.exits++;if(mark.action==='recenter')b.recenters++;}
   for(const t of markTrades){
-   const input=value(t.token===0?BigInt(t.amountIn):0n,t.token===1?BigInt(t.amountIn):0n,mark.sqrtPriceX96);
-   const output=value(t.token===1?BigInt(t.amountOut):0n,t.token===0?BigInt(t.amountOut):0n,mark.sqrtPriceX96);
+   const input=namedValue(t.token===0?BigInt(t.amountIn):0n,t.token===1?BigInt(t.amountIn):0n,mark.sqrtPriceX96);
+   const output=namedValue(t.token===1?BigInt(t.amountOut):0n,t.token===0?BigInt(t.amountOut):0n,mark.sqrtPriceX96);
    for(const b of endpoint){b.swapCost+=input-output;b.swaps++;}matchedTrades++;
   }
   const initializingHold=!baseline&&mark.action==='enter'&&!!mark.position;
@@ -126,7 +135,7 @@ export function sessionPerformance(funding:readonly SessionFunding[],marks:reado
    ...sessionAt,navQuote:String(nav),economicNavQuote:String(economic),holdQuote:baseline?String(hold):null,
    feesThisIntervalQuote:String(fees),swapThisMarkQuote:String(swapCost),swapsThisMark:markTrades.length,gasThisMarkQuote:String(gas),exitReserveQuote:String(reserve),pnlThisIntervalQuote:String(economic-previousEconomic),
    attribution:crossed?'mixed_boundary':'single_session',...currentInventory,tick:mark.tick,
-   priceQuoteX18:String((1n<<192n)*10n**30n/BigInt(mark.sqrtPriceX96)**2n),drawdownPpm:String(drawdown)};
+   priceQuoteX18:String(marketPriceX18(market,BigInt(mark.sqrtPriceX96))),drawdownPpm:String(drawdown)};
   if(crossed){
    const times=new Set(segments.slice(1).map(s=>s.from));if(marketSession(at).key!==marketSession(Math.max(from,at-1)).key)times.add(at);
    for(const boundary of times)boundaries.push({at:new Date(boundary).toISOString(),from:marketSession(boundary-1),to:marketSession(boundary),

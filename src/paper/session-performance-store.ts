@@ -26,5 +26,5 @@ export async function readSessionPerformance(db:Pick<PoolClient,'query'>,chain:r
  const trades:SessionTrade[]=runs.filter(r=>r.trade).map(r=>({runId:r.id,sessionId:r.session_id,block:r.source_block,
   token:r.scope==='paper_inventory_recenter'?r.token as 0|1:r.action==='entry'?0:1,amountIn:r.trade.amountIn,amountOut:r.trade.actualOut}));
  for(const t of trades)assert([0,1].includes(t.token)&&/^\d+$/.test(t.amountIn)&&/^\d+$/.test(t.amountOut),'Invalid accepted swap evidence');
- return sessionPerformance(chain.map(s=>({id:s.id,budgetQuote:s.policy.budgetQuote,createdAt:s.created_at.toISOString()})),rows,trades,full?Infinity:1200);
+ return sessionPerformance(chain.map(s=>({id:s.id,market:s.policy.market,budgetQuote:s.policy.budgetQuote,createdAt:s.created_at.toISOString()})),rows,trades,full?Infinity:1200);
 }

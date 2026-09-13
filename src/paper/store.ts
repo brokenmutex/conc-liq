@@ -1,3 +1,4 @@
+import {paperMarket,marketTokens,marketPriceX18} from './market.js';
 import {readDilutedFees} from './diluted-fees.js';
 import assert from "node:assert/strict";
 import { continuationPolicy, readPaperChain } from "./reentry.js";
@@ -51,16 +52,16 @@ export const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.bl
     AND t.created_block<=c.block_number) AS coverage_identity_valid
  FROM v3_strategy_checkpoint_runs c JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id=c.id
  LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id
- LEFT JOIN asset_risk_snapshots a ON a.run_id=c.risk_run_id AND a.symbol='NVDA'
+ LEFT JOIN asset_risk_snapshots a ON a.run_id=c.risk_run_id AND a.symbol=p.rwa_symbol
  LEFT JOIN indexer_cursors i ON i.stream_key=c.stream_key
  LEFT JOIN v3_replay_cursors r ON r.stream_key=c.stream_key
  LEFT JOIN indexer_pools t ON t.stream_key=c.stream_key AND LOWER(t.pool_address)=$3
  WHERE c.stream_key=$1 AND c.chain_id=4663 AND LOWER(p.pool_address)=$3 AND p.fee=500
-   AND p.rwa_symbol='NVDA' AND LOWER(p.rwa_address)=$2`;
+   AND p.rwa_symbol=t.rwa_symbol AND LOWER(p.rwa_address)=$2`;
 
 export class PaperStore {
   private readonly pool: pg.Pool;
-  constructor(connectionString: string, private readonly executor?: PaperExecutor, private readonly runtimeIdentity?: RuntimeIdentity) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
+  constructor(connectionString: string, private readonly executor?: PaperExecutor, private readonly runtimeIdentity?: RuntimeIdentity, private readonly sourceStreamKey?: string) { this.pool = new pg.Pool({ connectionString, max: 1 }); }
   async assertReady() { await assertSchemaReady(this.pool); }
   /** Called under a row lock, before any boundary RPC or source wait can hide an outage. */
   private async observeHolding(client: PoolClient, session: PaperSessionRow, now: string) {
@@ -108,6 +109,7 @@ export class PaperStore {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtext('conc-liq-paper'),hashtext($1))", [streamKey]);
       const latest = (await client.query<PaperSessionRow>("SELECT * FROM paper_sessions WHERE stream_key=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE", [streamKey])).rows[0];
+      if(latest)assert.deepEqual(paperMarket(latest.policy),paperMarket(next),"Use a separate paper stream for a different market");
       if (after) {
         assert(latest?.id === after, "Continue only the latest paper session");
         await readPaperChain(client, latest);
@@ -209,11 +211,11 @@ export class PaperStore {
             AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
             AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
             AND c.block_number > $6 ORDER BY c.block_number ${preview.state.holding?.resumeFromPause?'DESC':'ASC'},c.id LIMIT 1`,
-            [preview.stream_key,PAPER_NVDA,PAPER_POOL,preview.created_at,preview.id,preview.state.last?.block??"0"])).rows[0];
+            [this.sourceStreamKey??preview.stream_key,paperMarket(preview.policy).rwa.toLowerCase(),paperMarket(preview.policy).pool.toLowerCase(),preview.created_at,preview.id,preview.state.last?.block??"0"])).rows[0];
           if(source?.covered===true&&source.canonical===true){
             try{
               if(!this.executor?.boundaryFees)throw new Error("Paper boundary reader unavailable");
-              feeProof=await this.executor.boundaryFees(source.checkpoint,range);
+              feeProof=await this.executor.boundaryFees(preview.policy.market?{...source.checkpoint,market:preview.policy.market}:source.checkpoint,range);
             }catch(error){
               const reason=sanitizeRiskError(error);
               if((Date.now()-Date.parse(source.checkpoint.blockTimestamp))/1000<=preview.policy.maxSourceAgeSeconds){
@@ -275,13 +277,14 @@ export class PaperStore {
         AND NOT EXISTS (SELECT 1 FROM paper_observations o WHERE o.session_id=$5 AND o.checkpoint_id=c.id)
             AND NOT EXISTS (SELECT 1 FROM paper_execution_runs x WHERE x.session_id=$5 AND x.checkpoint_id=c.id AND x.status='failed' AND x.snapshot->>'error'='paper_event_coverage_deferred')
         AND c.block_number > $6 ORDER BY c.block_number ${session.state.holding?.resumeFromPause?'DESC':'ASC'},c.id LIMIT 1`,
-        [session.stream_key,PAPER_NVDA,PAPER_POOL,session.created_at,session.id,session.state.last?.block ?? "0"])).rows[0];
+        [this.sourceStreamKey??session.stream_key,paperMarket(session.policy).rwa.toLowerCase(),paperMarket(session.policy).pool.toLowerCase(),session.created_at,session.id,session.state.last?.block ?? "0"])).rows[0];
       if (!source) {
         await client.query("UPDATE paper_sessions SET heartbeat_at=NOW(),monitor_reasons=$2 WHERE id=$1",[session.id,JSON.stringify(["awaiting_next_live_checkpoint"])]);
         await client.query("COMMIT");
         return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_next_live_checkpoint"] };
       }
-      const cp = source.checkpoint;
+      const market=paperMarket(session.policy),tokens=marketTokens(market);
+      const cp = session.policy.market ? {...source.checkpoint,market} : source.checkpoint;
       const resumeWait=pausedPaperSourceWait(session.state,session.policy,cp,now);
       if(resumeWait){
         const reasons=[resumeWait==='wait'?'awaiting_fresh_checkpoint_after_pause':'checkpoint_gap_prevents_forward_decision_proof'];
@@ -297,7 +300,7 @@ export class PaperStore {
         await client.query("UPDATE paper_sessions SET heartbeat_at=NOW(),monitor_reasons=$2 WHERE id=$1",[session.id,JSON.stringify(["awaiting_canonical_event_coverage"])]);
         await client.query("COMMIT"); return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_canonical_event_coverage"] };
       }
-      if (source.token0.toLowerCase() !== USDG.toLowerCase() || source.token1.toLowerCase() !== PAPER_NVDA || source.token_decimals !== 18) dataReasons.push("paper_token_identity_mismatch");
+      if (source.token0.toLowerCase() !== tokens.token0.toLowerCase() || source.token1.toLowerCase() !== tokens.token1.toLowerCase() || source.token_decimals !== market.rwaDecimals) dataReasons.push("paper_token_identity_mismatch");
       // A checkpoint can become covered or appear between the boundary prefetch
       // and this transaction. Retry that fresh source; absence of its proof is
       // not evidence that the initialized ticks actually changed.
@@ -317,7 +320,7 @@ export class PaperStore {
         await client.query("COMMIT");
         return { id: session.id, status: session.state.status, action: "wait", reasons: ["awaiting_checkpoint_confirmation"] };
       }
-      const risk = await readRiskGate(client, session.stream_key, 180, 30, "NVDA");
+      const risk = await readRiskGate(client, this.sourceStreamKey??session.stream_key, 180, 30, market.symbol);
       const residual = (reasons: readonly string[]) => reasons.filter(r => !(r === "sequencer_feed_unavailable" && readiness.chainEligible));
       let entryReasons = [...readiness.reasons, ...residual(risk.reasons), ...source.reasons,
         ...residual(source.asset_reasons ?? ["asset_risk_missing"])];
@@ -351,7 +354,7 @@ export class PaperStore {
           const range=session.state.position??session.state.entryRange??paperEntryRange(cp,session.policy);
           const ref=BigInt(reference.referencePriceX18),bound=BigInt(session.policy.referencePolicy.maxDeviationPpm);
           for(const tick of [range.tickLower,range.tickUpper]){
-            const price=(1n<<192n)*10n**30n/sqrtRatioAtTick(tick)**2n;
+            const price=marketPriceX18(market,sqrtRatioAtTick(tick));
             if(price*1000000n<ref*(1000000n-bound)||price*1000000n>ref*(1000000n+bound)){entryReasons.push("paper_range_reference_band_exceeded");break;}
           }
         }
@@ -373,14 +376,14 @@ export class PaperStore {
       const path = await client.query<{ minimum: number | null; maximum: number | null; count: string }>(
         `SELECT MIN((event_args->>'tick')::int) AS minimum,MAX((event_args->>'tick')::int) AS maximum,COUNT(*)::text AS count
          FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4 AND event_name='Swap'`,
-        [session.stream_key,PAPER_POOL,session.state.last?.block ?? cp.block,cp.block]);
+        [this.sourceStreamKey??session.stream_key,market.pool.toLowerCase(),session.state.last?.block ?? cp.block,cp.block]);
       const swaps = path.rows[0]!;
       let feeContinuity=false;
       if(feeProof&&session.state.position?.boundaryFees){
         const changes=await client.query<BoundaryChange>(`SELECT event_name AS "eventName",event_args AS args FROM v3_pool_events
           WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number>$3 AND block_number<=$4
           AND event_name IN ('Mint','Burn') ORDER BY block_number,transaction_index,log_index`,
-          [session.stream_key,PAPER_POOL,session.state.last!.block,cp.block]);
+          [this.sourceStreamKey??session.stream_key,market.pool.toLowerCase(),session.state.last!.block,cp.block]);
         feeContinuity=boundaryContinuity(session.state.position.boundaryFees,feeProof,changes.rows);
       }
       let dilutedFees;
@@ -388,7 +391,7 @@ export class PaperStore {
         Date.parse(cp.blockTimestamp)-Date.parse(session.state.last.blockTimestamp)<=session.policy.maxGapSeconds*1000 &&
         [cp.blockTimestamp,cp.capturedAt].every(at=>Date.parse(now)-Date.parse(at)>=0&&Date.parse(now)-Date.parse(at)<=session.policy.maxSourceAgeSeconds*1000) && !dataReasons.length){
         await client.query('SAVEPOINT diluted_fee_replay');
-        try{dilutedFees=await readDilutedFees(client,session.stream_key,session.state.last,cp,session.state.position,feeProof);await client.query('RELEASE SAVEPOINT diluted_fee_replay');}
+        try{dilutedFees=await readDilutedFees(client,this.sourceStreamKey??session.stream_key,session.state.last,cp,session.state.position,feeProof);await client.query('RELEASE SAVEPOINT diluted_fee_replay');}
         catch(error){
           await client.query('ROLLBACK TO SAVEPOINT diluted_fee_replay');await client.query('RELEASE SAVEPOINT diluted_fee_replay');
           const reasons=['awaiting_diluted_fee_evidence',sanitizeRiskError(error)];
@@ -449,7 +452,7 @@ export class PaperStore {
           const changed = current.runtime_identity?.buildId !== this.runtimeIdentity?.buildId ||
             current.runtime_identity?.configHash !== this.runtimeIdentity?.configHash ||
             current.runtime_identity?.nodeVersion !== this.runtimeIdentity?.nodeVersion || current.policy_hash !== session.policy_hash || !samePersistedPaperState(current.state,session.state);
-          const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[session.stream_key,PAPER_NVDA,PAPER_POOL,cp.id])).rows[0];
+          const renewed = (await client.query<SourceRow>(`${sourceSql} AND c.id=$4`,[this.sourceStreamKey??session.stream_key,paperMarket(session.policy).rwa.toLowerCase(),paperMarket(session.policy).pool.toLowerCase(),cp.id])).rows[0];
           const invalidHistory = (await client.query<{invalid:string}>(invalidSql,[session.id])).rows[0]!.invalid !== "0";
           let ancestryInvalid = false;
           if ("reentry" in session.policy && session.policy.reentry?.previousSessionId) {
