@@ -1,0 +1,188 @@
+[
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T12:58:22.365Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:27:11.160Z",
+      "rows": 18,
+      "resultsSha256": "c044dd37059c7fe7d610ef5f77b29ef988c5615a0b505297488221e65c8b8b63"
+    }
+  },
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T13:00:48.915Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:21:23.812Z",
+      "rows": 18,
+      "resultsSha256": "8093f913e3e43ffa5323d944eb1aa2f52b5059a8b2b522d69f6da9ee7ef313f3"
+    }
+  },
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T13:00:49.125Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:21:03.730Z",
+      "rows": 18,
+      "resultsSha256": "095e6939d4fefa048679af4d9d43858034ab0b540488d59be0936b6c0a6ca178"
+    }
+  },
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T12:58:22.390Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:16:24.818Z",
+      "rows": 18,
+      "resultsSha256": "31d0ead56da8fa7ffbb381ac9c1cd198f2955689bf05e30bbb6e660afc5774d8"
+    }
+  },
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T13:00:48.602Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:13:56.913Z",
+      "rows": 18,
+      "resultsSha256": "4206fcada9390ce8a3c60f06655e54f61985e43c062173d0c295f16d04ef263b"
+    }
+  },
+  {
+    "manifest": {
+      "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+      "captureSha256": "c0e60d38b6894511cd01da304edf17f362626f59d9713d8a2c3628f317328a5a",
+      "captureCompleteSha256": "df2a2a16bf509b16b51fc49589240b77d55e534b7b0c2e24c3aa6bf73aaf9536",
+      "source": "data/adaptive-lp-long-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "dd0ece111043cee11a66102c516276963d1cb8d971a337998ffc1dcb6040d159",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "createdAt": "2026-09-13T13:00:48.959Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T13:19:50.299Z",
+      "rows": 18,
+      "resultsSha256": "dde1510800454eec12dbde4ffb50765ec52988871b5857fb918aefebea80a90d"
+    }
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "reason": "Archive-verified active liquidity is zero at the requested starting boundary for both assets; common passive acquisition is unavailable. No strategy outcomes have been inspected.",
+  "initialAvailability": "Fund cash at requested start. All sizes wait until the first asset event block where the largest-size passive 50% stock acquisition fully fills within 50 bps and active liquidity is positive. Use that same availability boundary across sizes; disclose waiting time and zero-return weeks. No strategy result is used to select this source.",
+  "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e"
+}

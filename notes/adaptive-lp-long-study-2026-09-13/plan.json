@@ -1,0 +1,63 @@
+{
+  "version": "adaptive_lp_long_v1",
+  "priorPlanSha256": "78018e8c08a3ff29f754b611ffa15890d9cfa2ecc557cf24c6b4239731caf2f6",
+  "from": "2026-07-28T00:00:00Z",
+  "warmupFrom": "2026-07-27T18:00:00Z",
+  "to": "2026-09-11T19:30:00Z",
+  "symbols": [
+    "AAPL",
+    "GOOGL"
+  ],
+  "budgetsQuote": [
+    "5000000000",
+    "1000000000",
+    "250000000"
+  ],
+  "halfWidthsTicks": [
+    20,
+    40,
+    80,
+    160
+  ],
+  "forecast": {
+    "lookbackSeconds": 21600,
+    "minimumSpanSeconds": 7200,
+    "horizonSeconds": 600,
+    "maximumGapSeconds": 900,
+    "model": "zero_drift_three_scenario_v1"
+  },
+  "decisionSeconds": 30,
+  "forecastSampleSeconds": 60,
+  "quoteTtlSeconds": 90,
+  "slippageBps": 50,
+  "economicGate": {
+    "costBufferPpm": 500000,
+    "feeBufferPpm": 250000
+  },
+  "scenarios": [
+    {
+      "name": "pinned_fork_costs",
+      "gasMultiplier": 1,
+      "feePpm": 1000000,
+      "failEveryRecenter": 0
+    },
+    {
+      "name": "double_gas_half_fees",
+      "gasMultiplier": 2,
+      "feePpm": 500000,
+      "failEveryRecenter": 0
+    },
+    {
+      "name": "partial_mint_failure",
+      "gasMultiplier": 1,
+      "feePpm": 1000000,
+      "failEveryRecenter": 5
+    }
+  ],
+  "fixedControlHalfWidthTicks": 40,
+  "selection": "No reselection or retuning. All six original candidates at three fixed capacity sizes. Costs retain September 13 asset-specific estimates.",
+  "accounting": "One funded continuous portfolio per asset/candidate/scenario/size; weekly and session attribution never resets inventory or benchmark.",
+  "scope": "Retrospective conditional recorded-market-path comparison. Historical eligibility and cost receipts unavailable. Reserved September 11 20:00 onward excluded.",
+  "executionEligible": false,
+  "promotionEligible": false
+}

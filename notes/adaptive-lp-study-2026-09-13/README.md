@@ -1,5 +1,7 @@
 # Adaptive LP comparison — September 13, 2026
 
+Follow-up: the [July 28–September 11 continuous study](../adaptive-lp-long-study-2026-09-13/README.md) materially changes the base-case ranking at 5,000 USDG. Read the short-window results below together with that broader capacity and weekly analysis; neither study establishes production eligibility.
+
 The paper-inspired adaptive rules do not earn promotion in this study. Adaptive widths improve AAPL's base-case result slightly but lose substantially to the ±20-tick baseline on GOOGL. The economic gate reduces trading but leaves both assets outside their ranges for about 62% of invested time. Neither adaptive candidate produces positive combined alpha under the double-gas/half-fee scenario.
 
 This is a conditional historical replay, **not realized profit or production eligibility**. The fee model retains recorded market flow and prices despite adding hypothetical liquidity. At 5,000 USDG, AAPL's adaptive position reaches 85.5% of existing active liquidity, making that assumption material. Historical reference, issuer and infrastructure eligibility are unavailable. No running policy or service was changed.

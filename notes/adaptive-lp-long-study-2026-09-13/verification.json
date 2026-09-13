@@ -1,0 +1,30 @@
+{
+  "rows": 108,
+  "actions": 21115,
+  "partialFailures": 1173,
+  "economicScores": 455248,
+  "validRows": 106,
+  "invalidRows": [
+    {
+      "symbol": "AAPL",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GOOGL",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    }
+  ],
+  "commonAvailabilityByAsset": {
+    "AAPL": 1785915808000,
+    "GOOGL": 1785842666000
+  },
+  "continuousWeeklyAndRegimeSums": "passed",
+  "ledgerChecks": "passed",
+  "scope": "Independent action arithmetic, quote chronology, common benchmarks and availability across sizes, attribution sums, frozen code and output hashes. Canonical swap replay is shared, not independently reimplemented."
+}

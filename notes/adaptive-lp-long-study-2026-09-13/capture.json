@@ -1,0 +1,191 @@
+{
+  "planSha256": "235216d4bfc1b6728fe348f937a0b4127c833649f7750d554b3f5c183680698e",
+  "plan": {
+    "version": "adaptive_lp_long_v1",
+    "priorPlanSha256": "78018e8c08a3ff29f754b611ffa15890d9cfa2ecc557cf24c6b4239731caf2f6",
+    "from": "2026-07-28T00:00:00Z",
+    "warmupFrom": "2026-07-27T18:00:00Z",
+    "to": "2026-09-11T19:30:00Z",
+    "symbols": [
+      "AAPL",
+      "GOOGL"
+    ],
+    "budgetsQuote": [
+      "5000000000",
+      "1000000000",
+      "250000000"
+    ],
+    "halfWidthsTicks": [
+      20,
+      40,
+      80,
+      160
+    ],
+    "forecast": {
+      "lookbackSeconds": 21600,
+      "minimumSpanSeconds": 7200,
+      "horizonSeconds": 600,
+      "maximumGapSeconds": 900,
+      "model": "zero_drift_three_scenario_v1"
+    },
+    "decisionSeconds": 30,
+    "forecastSampleSeconds": 60,
+    "quoteTtlSeconds": 90,
+    "slippageBps": 50,
+    "economicGate": {
+      "costBufferPpm": 500000,
+      "feeBufferPpm": 250000
+    },
+    "scenarios": [
+      {
+        "name": "pinned_fork_costs",
+        "gasMultiplier": 1,
+        "feePpm": 1000000,
+        "failEveryRecenter": 0
+      },
+      {
+        "name": "double_gas_half_fees",
+        "gasMultiplier": 2,
+        "feePpm": 500000,
+        "failEveryRecenter": 0
+      },
+      {
+        "name": "partial_mint_failure",
+        "gasMultiplier": 1,
+        "feePpm": 1000000,
+        "failEveryRecenter": 5
+      }
+    ],
+    "fixedControlHalfWidthTicks": 40,
+    "selection": "No reselection or retuning. All six original candidates at three fixed capacity sizes. Costs retain September 13 asset-specific estimates.",
+    "accounting": "One funded continuous portfolio per asset/candidate/scenario/size; weekly and session attribution never resets inventory or benchmark.",
+    "scope": "Retrospective conditional recorded-market-path comparison. Historical eligibility and cost receipts unavailable. Reserved September 11 20:00 onward excluded.",
+    "executionEligible": false,
+    "promotionEligible": false
+  },
+  "start": {
+    "number": 20929274,
+    "hash": "0x55fd56cd5cec5a9d1980969822e532eaf878b212ebf29faddd41c5a94019400a",
+    "timestamp": 1785175199
+  },
+  "end": {
+    "number": 60504934,
+    "hash": "0xb2cd7e1ea774ba97cdcb3da30f9adaa261ee97a07547250b4e12519afccb5a28",
+    "timestamp": 1789154999
+  },
+  "assets": [
+    {
+      "symbol": "AAPL",
+      "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+      "market": {
+        "symbol": "AAPL",
+        "rwa": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+        "fee": 500,
+        "tickSpacing": 10,
+        "rwaDecimals": 18
+      },
+      "seed": {
+        "price": "4316701722491974186839116348731628",
+        "tick": 218124,
+        "liquidity": "0",
+        "global0": "6864216836815495156662237842",
+        "global1": "27980373347821072280891332068914251327",
+        "protocol0": 0,
+        "protocol1": 0,
+        "ticks": []
+      },
+      "after": {
+        "price": "4342278671022386456075530131240756",
+        "tick": 218242,
+        "liquidity": "679932183881260411",
+        "global0": "15363934794826866588425812442481",
+        "global1": "48667165512238672508911032397119959363565",
+        "protocol0": 4,
+        "protocol1": 4
+      },
+      "costs": {
+        "entry": "178897",
+        "recenter": "225140",
+        "exit": "117634",
+        "hold": "52761",
+        "holdExit": "50835"
+      },
+      "priorSourceSha256": "799aabc4facf0bb0fc7f88ff2d1569f0985fee496e77844190d417c71f198177",
+      "forkSha256": "f17b51b2f98ab8d218d1e555f1cf1633c6b5089089065c9b70e0e863856f1fd5",
+      "costValuation": {
+        "ethUsdAnswer": "251661512973",
+        "ethUsdDecimals": 8,
+        "quoteUsdAnswer": "99995060",
+        "quoteUsdDecimals": 8,
+        "sourceBlock": "61776927",
+        "sourceHash": "0x5169292f4036448cab5779b70ef16e10cbd43dfac8bb4e29b66b1316f2a0da29",
+        "computedAt": "2026-09-13T08:07:01.918Z"
+      },
+      "seedMintBurnEvents": 2,
+      "seedTicksVerified": 0
+    },
+    {
+      "symbol": "GOOGL",
+      "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+      "market": {
+        "symbol": "GOOGL",
+        "rwa": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+        "fee": 500,
+        "tickSpacing": 10,
+        "rwaDecimals": 18
+      },
+      "seed": {
+        "price": "1496726510477310156094180",
+        "tick": -217548,
+        "liquidity": "0",
+        "global0": "20927979563590758134576162734381095569",
+        "global1": "14334668709649220481601656023",
+        "protocol0": 4,
+        "protocol1": 4,
+        "ticks": []
+      },
+      "after": {
+        "price": "1459399490896343154324456",
+        "tick": -218053,
+        "liquidity": "3013513186643214037",
+        "global0": "36122507432527563544533967771415107656167",
+        "global1": "12349808510940942803353295629179",
+        "protocol0": 4,
+        "protocol1": 4
+      },
+      "costs": {
+        "entry": "177373",
+        "recenter": "221310",
+        "exit": "118088",
+        "hold": "51335",
+        "holdExit": "51112"
+      },
+      "priorSourceSha256": "68fbe34fcb9a5b2b0c197cb31645ceaf2a366c19bfedeb3b8b1fce938bcf1bf5",
+      "forkSha256": "7502e71bb5f1b7bcbfbe3cd48e8b0e742c6c1bd37778949b69878ed9ae4ddd62",
+      "costValuation": {
+        "ethUsdAnswer": "251661512973",
+        "ethUsdDecimals": 8,
+        "quoteUsdAnswer": "99995060",
+        "quoteUsdDecimals": 8,
+        "sourceBlock": "61776927",
+        "sourceHash": "0x5169292f4036448cab5779b70ef16e10cbd43dfac8bb4e29b66b1316f2a0da29",
+        "computedAt": "2026-09-13T08:07:01.918Z"
+      },
+      "seedMintBurnEvents": 6,
+      "seedTicksVerified": 0
+    }
+  ],
+  "createdAt": "2026-09-13T12:44:07.160Z",
+  "pageBlocks": 100000,
+  "cursors": [
+    {
+      "stream_key": "robinhood-v3-rwa-usdg-v1",
+      "last_scanned_block": "61966206",
+      "complete_through_block": "61966206",
+      "target_set_hash": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6",
+      "replay_target": "0xf17062c68a6705295fce4a17b423d26f8b146960feb5a3eda4c3dc5bd35eeae6"
+    }
+  ]
+}
