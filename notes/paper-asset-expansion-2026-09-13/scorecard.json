@@ -1,0 +1,1827 @@
+{
+  "anchor": {
+    "number": 61776927,
+    "hash": "0x5169292f4036448cab5779b70ef16e10cbd43dfac8bb4e29b66b1316f2a0da29",
+    "parent_hash": "0xc137254f3087808465cacee4d98fcd39b50ad1ca34c415ab222aad5c0df9230d",
+    "timestamp": 1789284254
+  },
+  "assets": 194,
+  "catalogPools": 11810,
+  "v3Pools": 424,
+  "v3UsdgPools": 306,
+  "activeGridCompatible": 16,
+  "window": {
+    "fromBlock": 55796609,
+    "toBlock": 61776927,
+    "fromTimestamp": 1788679454,
+    "toTimestamp": 1789284254,
+    "totalSwaps": 2316861
+  },
+  "budgetQuote": "5000000000",
+  "halfWidthTicks": 20,
+  "limitations": [
+    "Descriptive historical activity only; not net LP returns or a deployment ranking.",
+    "Fee proxy is absolute USDG swap turnover times fee tier, valued in USDG without assuming its USD peg.",
+    "Position income proxy uses current liquidity share, not historical range-clipped earning segments.",
+    "Crossings assume immediate recentering at each observed swap; no execution delays or costs.",
+    "First/last partial days must not be treated as full days; multiple pools for the same asset are separate.",
+    "Current zero liquidity is an entry screen, not proof of historical inactivity.",
+    "Current gates and swap probes are point-in-time checks, not historical eligibility.",
+    "Conditional AAPL and GOOGL historical replay encountered initialized-boundary loss, so full-window net profits and alpha are unavailable."
+  ],
+  "rows": [
+    {
+      "symbol": "QQQ",
+      "pool": "0xd60a5d14db690b7afad71f76b108071d7175597d",
+      "fee": 500,
+      "sharePpmAt5000": "193518",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "3503689630758499186",
+        "shortfallPpm": "739",
+        "priceAfter": "2966394797313720700342564032098406",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 143068,
+        "turnover": "25110931904950",
+        "feeProxy": "12555395409",
+        "minTick": 210491,
+        "maxTick": 210716,
+        "first": 1788679456,
+        "last": 1789284250,
+        "absoluteTickMovement": 9885,
+        "crossings": 45,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 13531,
+            "turnover": "1518746846059",
+            "feeProxy": "759366820"
+          },
+          "2026-09-07": {
+            "swaps": 38536,
+            "turnover": "4774826917390",
+            "feeProxy": "2387394415"
+          },
+          "2026-09-08": {
+            "swaps": 12207,
+            "turnover": "3643857558590",
+            "feeProxy": "1821922782"
+          },
+          "2026-09-09": {
+            "swaps": 19011,
+            "turnover": "3862617316228",
+            "feeProxy": "1931299226"
+          },
+          "2026-09-10": {
+            "swaps": 13199,
+            "turnover": "2037526724460",
+            "feeProxy": "1018756818"
+          },
+          "2026-09-11": {
+            "swaps": 30499,
+            "turnover": "6804228428669",
+            "feeProxy": "3402099232"
+          },
+          "2026-09-12": {
+            "swaps": 9797,
+            "turnover": "1325484594657",
+            "feeProxy": "662737486"
+          },
+          "2026-09-13": {
+            "swaps": 6288,
+            "turnover": "1143643518897",
+            "feeProxy": "571818630"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 98913,
+            "turnover": "14741448904718",
+            "feeProxy": "7370675731"
+          },
+          "premarket": {
+            "swaps": 8434,
+            "turnover": "2457631847011",
+            "feeProxy": "1228811733"
+          },
+          "market": {
+            "swaps": 35721,
+            "turnover": "7911851153221",
+            "feeProxy": "3955907945"
+          }
+        },
+        "largestSwap": "202619512833"
+      },
+      "feeProxyPerCrossingQuote": "52819456",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 153312,
+        "referencePriceX18": "714959669007648977859",
+        "poolPriceX18": "713005849000000000000",
+        "deviationPpm": "-2732",
+        "referenceUpdatedAt": "2026-09-11T12:49:02.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "SPY",
+      "pool": "0xa7bb1ac63bbab0c44316e6c8c455213441689167",
+      "fee": 500,
+      "sharePpmAt5000": "154716",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "3272358324785430501",
+        "shortfallPpm": "670",
+        "priceAfter": "2189477127208259404684379",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 33428,
+        "turnover": "5948467234678",
+        "feeProxy": "2974217489",
+        "minTick": -210024,
+        "maxTick": -209793,
+        "first": 1788679455,
+        "last": 1789284149,
+        "absoluteTickMovement": 7547,
+        "crossings": 27,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 6268,
+            "turnover": "733148380056",
+            "feeProxy": "366571116"
+          },
+          "2026-09-07": {
+            "swaps": 10367,
+            "turnover": "1035452367624",
+            "feeProxy": "517721104"
+          },
+          "2026-09-08": {
+            "swaps": 4979,
+            "turnover": "1288780979288",
+            "feeProxy": "644388167"
+          },
+          "2026-09-09": {
+            "swaps": 3148,
+            "turnover": "812568850428",
+            "feeProxy": "406282939"
+          },
+          "2026-09-10": {
+            "swaps": 3970,
+            "turnover": "635888197489",
+            "feeProxy": "317942170"
+          },
+          "2026-09-11": {
+            "swaps": 3193,
+            "turnover": "1199989873329",
+            "feeProxy": "599993417"
+          },
+          "2026-09-12": {
+            "swaps": 1101,
+            "turnover": "158391237126",
+            "feeProxy": "79195107"
+          },
+          "2026-09-13": {
+            "swaps": 402,
+            "turnover": "84247349338",
+            "feeProxy": "42123469"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 24942,
+            "turnover": "3192714371357",
+            "feeProxy": "1596345033"
+          },
+          "premarket": {
+            "swaps": 2033,
+            "turnover": "834633318992",
+            "feeProxy": "417315733"
+          },
+          "market": {
+            "swaps": 6453,
+            "turnover": "1921119544329",
+            "feeProxy": "960556723"
+          }
+        },
+        "largestSwap": "15758697791"
+      },
+      "feeProxyPerCrossingQuote": "16434251",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 152892,
+        "referencePriceX18": "765301555896861304948",
+        "poolPriceX18": "763463110000000000000",
+        "deviationPpm": "-2402",
+        "referenceUpdatedAt": "2026-09-11T12:56:02.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "NVDA",
+      "pool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+      "fee": 500,
+      "sharePpmAt5000": "14578",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "11504930581725285054",
+        "shortfallPpm": "514",
+        "priceAfter": "5375971681140705093375018436536559",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 824497,
+        "turnover": "189393716685106",
+        "feeProxy": "94696452402",
+        "minTick": 221799,
+        "maxTick": 222514,
+        "first": 1788679454,
+        "last": 1789284248,
+        "absoluteTickMovement": 18438,
+        "crossings": 125,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 70332,
+            "turnover": "11708467743157",
+            "feeProxy": "5854199257"
+          },
+          "2026-09-07": {
+            "swaps": 122846,
+            "turnover": "22292273971896",
+            "feeProxy": "11146076529"
+          },
+          "2026-09-08": {
+            "swaps": 133699,
+            "turnover": "38124355693771",
+            "feeProxy": "19062111904"
+          },
+          "2026-09-09": {
+            "swaps": 113183,
+            "turnover": "28699598200184",
+            "feeProxy": "14349743320"
+          },
+          "2026-09-10": {
+            "swaps": 164462,
+            "turnover": "40354179246015",
+            "feeProxy": "20177008715"
+          },
+          "2026-09-11": {
+            "swaps": 115902,
+            "turnover": "29988474488164",
+            "feeProxy": "14994180230"
+          },
+          "2026-09-12": {
+            "swaps": 97444,
+            "turnover": "15262032818680",
+            "feeProxy": "7630968436"
+          },
+          "2026-09-13": {
+            "swaps": 6629,
+            "turnover": "2964334523239",
+            "feeProxy": "1482164011"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 469278,
+            "turnover": "91976553013173",
+            "feeProxy": "45988045634"
+          },
+          "premarket": {
+            "swaps": 113071,
+            "turnover": "28670595042193",
+            "feeProxy": "14335241870"
+          },
+          "market": {
+            "swaps": 242148,
+            "turnover": "68746568629740",
+            "feeProxy": "34373164898"
+          }
+        },
+        "largestSwap": "186720356173"
+      },
+      "feeProxyPerCrossingQuote": "10956229",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 127231,
+        "referencePriceX18": "218308719020719623549",
+        "poolPriceX18": "217186279000000000000",
+        "deviationPpm": "-5141",
+        "referenceUpdatedAt": "2026-09-11T20:03:43.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "GOOGL",
+      "pool": "0x34d0dc122cf9a8eb296fc5e0d3a233625d7d19b7",
+      "fee": 500,
+      "sharePpmAt5000": "31580",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "7346924359923208934",
+        "shortfallPpm": "532",
+        "priceAfter": "1461151595722507978755638",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 334310,
+        "turnover": "55419147783309",
+        "feeProxy": "27709409664",
+        "minTick": -218382,
+        "maxTick": -217960,
+        "first": 1788679460,
+        "last": 1789284245,
+        "absoluteTickMovement": 31785,
+        "crossings": 154,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 9508,
+            "turnover": "1168620994987",
+            "feeProxy": "584305837"
+          },
+          "2026-09-07": {
+            "swaps": 26392,
+            "turnover": "3530300127932",
+            "feeProxy": "1765137058"
+          },
+          "2026-09-08": {
+            "swaps": 10166,
+            "turnover": "1841461762457",
+            "feeProxy": "920725911"
+          },
+          "2026-09-09": {
+            "swaps": 11199,
+            "turnover": "1851740184852",
+            "feeProxy": "925864608"
+          },
+          "2026-09-10": {
+            "swaps": 58289,
+            "turnover": "10143347532104",
+            "feeProxy": "5071644955"
+          },
+          "2026-09-11": {
+            "swaps": 171301,
+            "turnover": "30124611685526",
+            "feeProxy": "15062221948"
+          },
+          "2026-09-12": {
+            "swaps": 43158,
+            "turnover": "5659700748594",
+            "feeProxy": "2829829116"
+          },
+          "2026-09-13": {
+            "swaps": 4297,
+            "turnover": "1099364746857",
+            "feeProxy": "549680231"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 252364,
+            "turnover": "40077273423769",
+            "feeProxy": "20038512649"
+          },
+          "premarket": {
+            "swaps": 29006,
+            "turnover": "4651631763417",
+            "feeProxy": "2325801682"
+          },
+          "market": {
+            "swaps": 52940,
+            "turnover": "10690242596123",
+            "feeProxy": "5345095333"
+          }
+        },
+        "largestSwap": "56945257917"
+      },
+      "feeProxyPerCrossingQuote": "5645568",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 131933,
+        "referencePriceX18": "339061749650432731376",
+        "poolPriceX18": "340097227000000000000",
+        "deviationPpm": "3053",
+        "referenceUpdatedAt": "2026-09-11T18:45:21.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": true,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "SGOV",
+      "pool": "0x6ba50150b17ffd0972915aaf04ffd5e8f4fa49b4",
+      "fee": 500,
+      "sharePpmAt5000": "19697",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "24753661367853694030",
+        "shortfallPpm": "520",
+        "priceAfter": "7885578228775504440561471505517753",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 32789,
+        "turnover": "7242133863049",
+        "feeProxy": "3621050785",
+        "minTick": 230104,
+        "maxTick": 230206,
+        "first": 1788679455,
+        "last": 1789283068,
+        "absoluteTickMovement": 3410,
+        "crossings": 12,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 2894,
+            "turnover": "681058792244",
+            "feeProxy": "340527964"
+          },
+          "2026-09-07": {
+            "swaps": 18735,
+            "turnover": "2976326160489",
+            "feeProxy": "1488153826"
+          },
+          "2026-09-08": {
+            "swaps": 3215,
+            "turnover": "769348805009",
+            "feeProxy": "384672811"
+          },
+          "2026-09-09": {
+            "swaps": 2064,
+            "turnover": "224121070783",
+            "feeProxy": "112059487"
+          },
+          "2026-09-10": {
+            "swaps": 1131,
+            "turnover": "220744478900",
+            "feeProxy": "110371664"
+          },
+          "2026-09-11": {
+            "swaps": 4260,
+            "turnover": "2162868868291",
+            "feeProxy": "1081432425"
+          },
+          "2026-09-12": {
+            "swaps": 466,
+            "turnover": "190309706730",
+            "feeProxy": "95154629"
+          },
+          "2026-09-13": {
+            "swaps": 24,
+            "turnover": "17355980603",
+            "feeProxy": "8677979"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 25771,
+            "turnover": "5046752684448",
+            "feeProxy": "2523363613"
+          },
+          "premarket": {
+            "swaps": 2166,
+            "turnover": "470166499631",
+            "feeProxy": "235082200"
+          },
+          "market": {
+            "swaps": 4852,
+            "turnover": "1725214678970",
+            "feeProxy": "862604972"
+          }
+        },
+        "largestSwap": "91321852833"
+      },
+      "feeProxyPerCrossingQuote": "5486449",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "100942636000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "LLY",
+      "pool": "0xf212d02146a897f5f686e9d629f6a73da534324a",
+      "fee": 500,
+      "sharePpmAt5000": "236126",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "2234908795393054634",
+        "shortfallPpm": "808",
+        "priceAfter": "2369087162169931037118350643618619",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 31176,
+        "turnover": "12412653437077",
+        "feeProxy": "6206311971",
+        "minTick": 205813,
+        "maxTick": 206164,
+        "first": 1788679457,
+        "last": 1789284199,
+        "absoluteTickMovement": 37014,
+        "crossings": 330,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 5585,
+            "turnover": "2436684505551",
+            "feeProxy": "1218339580"
+          },
+          "2026-09-07": {
+            "swaps": 4072,
+            "turnover": "2265363420247",
+            "feeProxy": "1132679798"
+          },
+          "2026-09-08": {
+            "swaps": 3667,
+            "turnover": "1912838545958",
+            "feeProxy": "956417564"
+          },
+          "2026-09-09": {
+            "swaps": 2961,
+            "turnover": "1396869156064",
+            "feeProxy": "698433141"
+          },
+          "2026-09-10": {
+            "swaps": 3106,
+            "turnover": "1241305923036",
+            "feeProxy": "620651464"
+          },
+          "2026-09-11": {
+            "swaps": 5722,
+            "turnover": "1855199343513",
+            "feeProxy": "927596994"
+          },
+          "2026-09-12": {
+            "swaps": 5311,
+            "turnover": "1168564405242",
+            "feeProxy": "584279702"
+          },
+          "2026-09-13": {
+            "swaps": 752,
+            "turnover": "135828137466",
+            "feeProxy": "67913728"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 22459,
+            "turnover": "8667452767755",
+            "feeProxy": "4333715773"
+          },
+          "premarket": {
+            "swaps": 3791,
+            "turnover": "1459326069122",
+            "feeProxy": "729661249"
+          },
+          "market": {
+            "swaps": 4926,
+            "turnover": "2285874600200",
+            "feeProxy": "1142934949"
+          }
+        },
+        "largestSwap": "53494025000"
+      },
+      "feeProxyPerCrossingQuote": "4427406",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "1117709432000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "AAPL",
+      "pool": "0xaae0d815ee56e4092a5e5c2911e676fea50b2d6d",
+      "fee": 500,
+      "sharePpmAt5000": "85233",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "7499320718037817363",
+        "shortfallPpm": "593",
+        "priceAfter": "4340191916880246212503611166474465",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 133971,
+        "turnover": "24977379866560",
+        "feeProxy": "12488624072",
+        "minTick": 218139,
+        "maxTick": 218945,
+        "first": 1788679480,
+        "last": 1789284243,
+        "absoluteTickMovement": 43650,
+        "crossings": 264,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 8199,
+            "turnover": "962605311113",
+            "feeProxy": "481298598"
+          },
+          "2026-09-07": {
+            "swaps": 19811,
+            "turnover": "1883363058740",
+            "feeProxy": "941671802"
+          },
+          "2026-09-08": {
+            "swaps": 16519,
+            "turnover": "2332032643284",
+            "feeProxy": "1166008196"
+          },
+          "2026-09-09": {
+            "swaps": 35949,
+            "turnover": "5784719501712",
+            "feeProxy": "2892341943"
+          },
+          "2026-09-10": {
+            "swaps": 17796,
+            "turnover": "6588119339715",
+            "feeProxy": "3294050985"
+          },
+          "2026-09-11": {
+            "swaps": 16368,
+            "turnover": "4771728720157",
+            "feeProxy": "2385856432"
+          },
+          "2026-09-12": {
+            "swaps": 18184,
+            "turnover": "2385938571366",
+            "feeProxy": "1192960311"
+          },
+          "2026-09-13": {
+            "swaps": 1145,
+            "turnover": "268872720473",
+            "feeProxy": "134435805"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 72194,
+            "turnover": "8722985160301",
+            "feeProxy": "4361457069"
+          },
+          "premarket": {
+            "swaps": 14670,
+            "turnover": "3127983338966",
+            "feeProxy": "1563984501"
+          },
+          "market": {
+            "swaps": 47107,
+            "turnover": "13126411367293",
+            "feeProxy": "6563182502"
+          }
+        },
+        "largestSwap": "74863864811"
+      },
+      "feeProxyPerCrossingQuote": "4016765",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 127966,
+        "referencePriceX18": "332539205446749069404",
+        "poolPriceX18": "333165835000000000000",
+        "deviationPpm": "1884",
+        "referenceUpdatedAt": "2026-09-11T19:51:28.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": true,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "GLD",
+      "pool": "0xba2f1ed4ceb2169d538d1e614d847e83c5a55913",
+      "fee": 500,
+      "sharePpmAt5000": "51038",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "6272145709806200803",
+        "shortfallPpm": "553",
+        "priceAfter": "3969306025352290509304507633056601",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 51106,
+        "turnover": "27418618387353",
+        "feeProxy": "13709285282",
+        "minTick": 216067,
+        "maxTick": 216535,
+        "first": 1788679455,
+        "last": 1789284234,
+        "absoluteTickMovement": 23374,
+        "crossings": 184,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 6810,
+            "turnover": "2389938041460",
+            "feeProxy": "1194965739"
+          },
+          "2026-09-07": {
+            "swaps": 5222,
+            "turnover": "2686920419060",
+            "feeProxy": "1343457697"
+          },
+          "2026-09-08": {
+            "swaps": 10872,
+            "turnover": "5854560130634",
+            "feeProxy": "2927275025"
+          },
+          "2026-09-09": {
+            "swaps": 7852,
+            "turnover": "3499602239975",
+            "feeProxy": "1749797735"
+          },
+          "2026-09-10": {
+            "swaps": 6414,
+            "turnover": "4028393589894",
+            "feeProxy": "2014193663"
+          },
+          "2026-09-11": {
+            "swaps": 7300,
+            "turnover": "5441459269541",
+            "feeProxy": "2720726202"
+          },
+          "2026-09-12": {
+            "swaps": 4866,
+            "turnover": "2998245423266",
+            "feeProxy": "1499120431"
+          },
+          "2026-09-13": {
+            "swaps": 1770,
+            "turnover": "519499273523",
+            "feeProxy": "259748790"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 33971,
+            "turnover": "15800090283926",
+            "feeProxy": "7900029676"
+          },
+          "premarket": {
+            "swaps": 4707,
+            "turnover": "4257192020697",
+            "feeProxy": "2128593728"
+          },
+          "market": {
+            "swaps": 12428,
+            "turnover": "7361336082730",
+            "feeProxy": "3680661878"
+          }
+        },
+        "largestSwap": "94491644610"
+      },
+      "feeProxyPerCrossingQuote": "3782132",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "398366982000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": true
+    },
+    {
+      "symbol": "TSLA",
+      "pool": "0xc4f0172d6ac8dd294dd1137d047d5e1893760236",
+      "fee": 500,
+      "sharePpmAt5000": "764171",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "6797138452450780747",
+        "shortfallPpm": "2720",
+        "priceAfter": "1520751409062488302432364",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 31974,
+        "turnover": "5057827534521",
+        "feeProxy": "2528898097",
+        "minTick": -217669,
+        "maxTick": -217066,
+        "first": 1788679481,
+        "last": 1789284251,
+        "absoluteTickMovement": 44986,
+        "crossings": 526,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 4712,
+            "turnover": "1160840308563",
+            "feeProxy": "580417858"
+          },
+          "2026-09-07": {
+            "swaps": 10675,
+            "turnover": "1584703674992",
+            "feeProxy": "792346621"
+          },
+          "2026-09-08": {
+            "swaps": 3002,
+            "turnover": "762451023897",
+            "feeProxy": "381224069"
+          },
+          "2026-09-09": {
+            "swaps": 3304,
+            "turnover": "506381145946",
+            "feeProxy": "253188916"
+          },
+          "2026-09-10": {
+            "swaps": 2847,
+            "turnover": "403021386295",
+            "feeProxy": "201509270"
+          },
+          "2026-09-11": {
+            "swaps": 2439,
+            "turnover": "260676554434",
+            "feeProxy": "130337090"
+          },
+          "2026-09-12": {
+            "swaps": 4237,
+            "turnover": "309642111896",
+            "feeProxy": "154819001"
+          },
+          "2026-09-13": {
+            "swaps": 758,
+            "turnover": "70111328498",
+            "feeProxy": "35055272"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 25796,
+            "turnover": "3938036502063",
+            "feeProxy": "1969005593"
+          },
+          "premarket": {
+            "swaps": 2400,
+            "turnover": "400268334678",
+            "feeProxy": "200132995"
+          },
+          "market": {
+            "swaps": 3778,
+            "turnover": "719522697780",
+            "feeProxy": "359759509"
+          }
+        },
+        "largestSwap": "12725875167"
+      },
+      "feeProxyPerCrossingQuote": "3667003",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 146042,
+        "referencePriceX18": "365933077084007949992",
+        "poolPriceX18": "366801392000000000000",
+        "deviationPpm": "2372",
+        "referenceUpdatedAt": "2026-09-11T14:50:12.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": false,
+      "forkError": "AssertionError: Entry swap left the fixed LP range",
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "GME",
+      "pool": "0xe2b46c905e12ab8e2f864e4821a4325884c1b126",
+      "fee": 500,
+      "sharePpmAt5000": "56735",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "118621423209170567935",
+        "shortfallPpm": "560",
+        "priceAfter": "363640686469879362773142",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 229818,
+        "turnover": "53799825101750",
+        "feeProxy": "26899799505",
+        "minTick": -247051,
+        "maxTick": -245711,
+        "first": 1788679470,
+        "last": 1789284248,
+        "absoluteTickMovement": 60794,
+        "crossings": 505,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 25402,
+            "turnover": "6592744630885",
+            "feeProxy": "3296359782"
+          },
+          "2026-09-07": {
+            "swaps": 27365,
+            "turnover": "5688918743880",
+            "feeProxy": "2844445785"
+          },
+          "2026-09-08": {
+            "swaps": 26730,
+            "turnover": "8019648225386",
+            "feeProxy": "4009811045"
+          },
+          "2026-09-09": {
+            "swaps": 42039,
+            "turnover": "7988409325450",
+            "feeProxy": "3994183950"
+          },
+          "2026-09-10": {
+            "swaps": 21250,
+            "turnover": "6988712168632",
+            "feeProxy": "3494345679"
+          },
+          "2026-09-11": {
+            "swaps": 73606,
+            "turnover": "16371429277749",
+            "feeProxy": "8185678481"
+          },
+          "2026-09-12": {
+            "swaps": 12050,
+            "turnover": "1760365118916",
+            "feeProxy": "880176645"
+          },
+          "2026-09-13": {
+            "swaps": 1376,
+            "turnover": "389597610852",
+            "feeProxy": "194798138"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 150952,
+            "turnover": "33758924230296",
+            "feeProxy": "16879387798"
+          },
+          "premarket": {
+            "swaps": 40236,
+            "turnover": "7076551512801",
+            "feeProxy": "3538255960"
+          },
+          "market": {
+            "swaps": 38630,
+            "turnover": "12964349358653",
+            "feeProxy": "6482155747"
+          }
+        },
+        "largestSwap": "71679685252"
+      },
+      "feeProxyPerCrossingQuote": "3016126",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 128009,
+        "referencePriceX18": "21116043132530747018",
+        "poolPriceX18": "21063647000000000000",
+        "deviationPpm": "-2481",
+        "referenceUpdatedAt": "2026-09-11T19:50:45.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": true,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "SLV",
+      "pool": "0x37ed4621d1eb3abc9e551a888e6aaf0a41f7be8e",
+      "fee": 500,
+      "sharePpmAt5000": "476104",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "42859192443643307336",
+        "shortfallPpm": "1406",
+        "priceAfter": "605223846699018860758132",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 24013,
+        "turnover": "5576043601238",
+        "feeProxy": "2788009975",
+        "minTick": -235906,
+        "maxTick": -235097,
+        "first": 1788679488,
+        "last": 1789283948,
+        "absoluteTickMovement": 32930,
+        "crossings": 531,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 3946,
+            "turnover": "1111254685421",
+            "feeProxy": "555625404"
+          },
+          "2026-09-07": {
+            "swaps": 11787,
+            "turnover": "2402023211255",
+            "feeProxy": "1201005820"
+          },
+          "2026-09-08": {
+            "swaps": 2139,
+            "turnover": "907513056860",
+            "feeProxy": "453755471"
+          },
+          "2026-09-09": {
+            "swaps": 1241,
+            "turnover": "699041254985",
+            "feeProxy": "349520005"
+          },
+          "2026-09-10": {
+            "swaps": 687,
+            "turnover": "138464914656",
+            "feeProxy": "69232117"
+          },
+          "2026-09-11": {
+            "swaps": 1715,
+            "turnover": "111593221603",
+            "feeProxy": "55795753"
+          },
+          "2026-09-12": {
+            "swaps": 2308,
+            "turnover": "182666984704",
+            "feeProxy": "91332362"
+          },
+          "2026-09-13": {
+            "swaps": 190,
+            "turnover": "23486271754",
+            "feeProxy": "11743043"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 21396,
+            "turnover": "4521133459332",
+            "feeProxy": "2260556185"
+          },
+          "premarket": {
+            "swaps": 1038,
+            "turnover": "413938768330",
+            "feeProxy": "206968883"
+          },
+          "market": {
+            "swaps": 1579,
+            "turnover": "640971373576",
+            "feeProxy": "320484907"
+          }
+        },
+        "largestSwap": "28197992571"
+      },
+      "feeProxyPerCrossingQuote": "2495080",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 133780,
+        "referencePriceX18": "58097870034779718118",
+        "poolPriceX18": "58248500000000000000",
+        "deviationPpm": "2592",
+        "referenceUpdatedAt": "2026-09-11T18:14:34.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": false,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "SPCX",
+      "pool": "0xc61284332117c3fb23a2a56cceffd07f7af60029",
+      "fee": 500,
+      "sharePpmAt5000": "6694",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "16644739708403001444",
+        "shortfallPpm": "506",
+        "priceAfter": "970742279745834458169081",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 440747,
+        "turnover": "142777614849900",
+        "feeProxy": "71388590100",
+        "minTick": -226613,
+        "maxTick": -225922,
+        "first": 1788679454,
+        "last": 1789284239,
+        "absoluteTickMovement": 44213,
+        "crossings": 518,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 41109,
+            "turnover": "9425806788429",
+            "feeProxy": "4712883145"
+          },
+          "2026-09-07": {
+            "swaps": 53930,
+            "turnover": "13518916476418",
+            "feeProxy": "6759431789"
+          },
+          "2026-09-08": {
+            "swaps": 75092,
+            "turnover": "26223499289204",
+            "feeProxy": "13111712584"
+          },
+          "2026-09-09": {
+            "swaps": 79918,
+            "turnover": "30615739020868",
+            "feeProxy": "15307830090"
+          },
+          "2026-09-10": {
+            "swaps": 79662,
+            "turnover": "28119779213530",
+            "feeProxy": "14059850239"
+          },
+          "2026-09-11": {
+            "swaps": 72659,
+            "turnover": "27945526696403",
+            "feeProxy": "13972727506"
+          },
+          "2026-09-12": {
+            "swaps": 26823,
+            "turnover": "5119135786626",
+            "feeProxy": "2559554639"
+          },
+          "2026-09-13": {
+            "swaps": 11554,
+            "turnover": "1809211578422",
+            "feeProxy": "904600108"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 256823,
+            "turnover": "55856170919704",
+            "feeProxy": "27927959139"
+          },
+          "premarket": {
+            "swaps": 36653,
+            "turnover": "17195515605379",
+            "feeProxy": "8597739678"
+          },
+          "market": {
+            "swaps": 147271,
+            "turnover": "69725928324817",
+            "feeProxy": "34862891283"
+          }
+        },
+        "largestSwap": "163395745520"
+      },
+      "feeProxyPerCrossingQuote": "920761",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 114262,
+        "referencePriceX18": "149976258827186062991",
+        "poolPriceX18": "150121493000000000000",
+        "deviationPpm": "968",
+        "referenceUpdatedAt": "2026-09-11T23:39:52.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": true,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "MU",
+      "pool": "0x6fd0f36320a1e50e42f130ce4a5c530b992a0a14",
+      "fee": 500,
+      "sharePpmAt5000": "999191",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "121429751053049201",
+        "shortfallPpm": "953310",
+        "priceAfter": "4295128740",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 1435,
+        "turnover": "110069910525",
+        "feeProxy": "55034252",
+        "minTick": 206474,
+        "maxTick": 207638,
+        "first": 1788874571,
+        "last": 1789283228,
+        "absoluteTickMovement": 25350,
+        "crossings": 442,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-08": {
+            "swaps": 199,
+            "turnover": "3723906878",
+            "feeProxy": "1861867"
+          },
+          "2026-09-09": {
+            "swaps": 497,
+            "turnover": "5566548225",
+            "feeProxy": "2783029"
+          },
+          "2026-09-10": {
+            "swaps": 623,
+            "turnover": "100301941377",
+            "feeProxy": "50150658"
+          },
+          "2026-09-11": {
+            "swaps": 55,
+            "turnover": "136807815",
+            "feeProxy": "68375"
+          },
+          "2026-09-12": {
+            "swaps": 47,
+            "turnover": "322080881",
+            "feeProxy": "161016"
+          },
+          "2026-09-13": {
+            "swaps": 14,
+            "turnover": "18625349",
+            "feeProxy": "9307"
+          }
+        },
+        "sessions": {
+          "market": {
+            "swaps": 429,
+            "turnover": "6144989913",
+            "feeProxy": "3072293"
+          },
+          "non_market": {
+            "swaps": 711,
+            "turnover": "70508000181",
+            "feeProxy": "35253644"
+          },
+          "premarket": {
+            "swaps": 295,
+            "turnover": "33416920431",
+            "feeProxy": "16708315"
+          }
+        },
+        "largestSwap": "2756577241"
+      },
+      "feeProxyPerCrossingQuote": "124130",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 138263,
+        "referencePriceX18": "976731323627387192927",
+        "poolPriceX18": "961238992000000000000",
+        "deviationPpm": "-15861",
+        "referenceUpdatedAt": "2026-09-11T16:59:51.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "TTWO",
+      "pool": "0xd715802a12a73ceafe7579912a28d65d2ab5cc57",
+      "fee": 500,
+      "sharePpmAt5000": "994965",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "1454117235684831089",
+        "shortfallPpm": "873507",
+        "priceAfter": "1461446703485210103287273052203988822378723970341",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 4029,
+        "turnover": "238625677653",
+        "feeProxy": "119310870",
+        "minTick": -226657,
+        "maxTick": 887271,
+        "first": 1788679643,
+        "last": 1789281767,
+        "absoluteTickMovement": 4613487,
+        "crossings": 1514,
+        "unplaceableRangeSwaps": 2,
+        "days": {
+          "2026-09-06": {
+            "swaps": 194,
+            "turnover": "1823199619",
+            "feeProxy": "911504"
+          },
+          "2026-09-07": {
+            "swaps": 524,
+            "turnover": "31908456013",
+            "feeProxy": "15953966"
+          },
+          "2026-09-08": {
+            "swaps": 1278,
+            "turnover": "87337862270",
+            "feeProxy": "43668303"
+          },
+          "2026-09-09": {
+            "swaps": 754,
+            "turnover": "70860800785",
+            "feeProxy": "35430040"
+          },
+          "2026-09-10": {
+            "swaps": 239,
+            "turnover": "10485410634",
+            "feeProxy": "5242586"
+          },
+          "2026-09-11": {
+            "swaps": 667,
+            "turnover": "21647414501",
+            "feeProxy": "10823387"
+          },
+          "2026-09-12": {
+            "swaps": 320,
+            "turnover": "12609945438",
+            "feeProxy": "6304816"
+          },
+          "2026-09-13": {
+            "swaps": 53,
+            "turnover": "1952588393",
+            "feeProxy": "976268"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 3034,
+            "turnover": "147688319241",
+            "feeProxy": "73842677"
+          },
+          "premarket": {
+            "swaps": 333,
+            "turnover": "27933112941",
+            "feeProxy": "13966390"
+          },
+          "market": {
+            "swaps": 662,
+            "turnover": "63004245471",
+            "feeProxy": "31501803"
+          }
+        },
+        "largestSwap": "2154200400"
+      },
+      "feeProxyPerCrossingQuote": "78356",
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "217472239000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "BABA",
+      "pool": "0x368ddd38861d31435d764fc54df7d16481e3590b",
+      "fee": 500,
+      "sharePpmAt5000": "999901",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "362353319513330425",
+        "shortfallPpm": "984040",
+        "priceAfter": "4295128740",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 113,
+        "turnover": "1186328464",
+        "feeProxy": "593109",
+        "minTick": 226818,
+        "maxTick": 887271,
+        "first": 1788684923,
+        "last": 1789283845,
+        "absoluteTickMovement": 1406434,
+        "crossings": 97,
+        "unplaceableRangeSwaps": 1,
+        "days": {
+          "2026-09-06": {
+            "swaps": 8,
+            "turnover": "5592075",
+            "feeProxy": "2792"
+          },
+          "2026-09-07": {
+            "swaps": 5,
+            "turnover": "5756666",
+            "feeProxy": "2877"
+          },
+          "2026-09-08": {
+            "swaps": 1,
+            "turnover": "123162",
+            "feeProxy": "61"
+          },
+          "2026-09-09": {
+            "swaps": 2,
+            "turnover": "2657041",
+            "feeProxy": "1327"
+          },
+          "2026-09-10": {
+            "swaps": 18,
+            "turnover": "299548931",
+            "feeProxy": "149765"
+          },
+          "2026-09-11": {
+            "swaps": 16,
+            "turnover": "78959795",
+            "feeProxy": "39472"
+          },
+          "2026-09-12": {
+            "swaps": 31,
+            "turnover": "439943358",
+            "feeProxy": "219956"
+          },
+          "2026-09-13": {
+            "swaps": 32,
+            "turnover": "353747436",
+            "feeProxy": "176859"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 93,
+            "turnover": "885064245",
+            "feeProxy": "442488"
+          },
+          "market": {
+            "swaps": 4,
+            "turnover": "2972618",
+            "feeProxy": "1484"
+          },
+          "premarket": {
+            "swaps": 16,
+            "turnover": "298291601",
+            "feeProxy": "149137"
+          }
+        },
+        "largestSwap": "37053897"
+      },
+      "feeProxyPerCrossingQuote": "6051",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 147025,
+        "referencePriceX18": "109400404379976370832",
+        "poolPriceX18": "110113509000000000000",
+        "deviationPpm": "6518",
+        "referenceUpdatedAt": "2026-09-11T14:33:49.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    },
+    {
+      "symbol": "SPCX",
+      "pool": "0x87c58b43537005189cfc7b512d818dc9125e94fc",
+      "fee": 100,
+      "sharePpmAt5000": "999810",
+      "buyProbe": {
+        "amountInQuote": "2500000000",
+        "amountOut": "117159469890200086",
+        "shortfallPpm": "992956",
+        "priceAfter": "1461446703485210103287273052203988822378723970341",
+        "basis": "current_2500_USDG_buy_probe_not_exact_entry_size"
+      },
+      "history": {
+        "swaps": 387,
+        "turnover": "2897431095",
+        "feeProxy": "289545",
+        "minTick": -229207,
+        "maxTick": -225614,
+        "first": 1788686271,
+        "last": 1789275191,
+        "absoluteTickMovement": 124054,
+        "crossings": 279,
+        "unplaceableRangeSwaps": 0,
+        "days": {
+          "2026-09-06": {
+            "swaps": 19,
+            "turnover": "179678263",
+            "feeProxy": "17958"
+          },
+          "2026-09-07": {
+            "swaps": 22,
+            "turnover": "110785872",
+            "feeProxy": "11069"
+          },
+          "2026-09-08": {
+            "swaps": 36,
+            "turnover": "211018730",
+            "feeProxy": "21087"
+          },
+          "2026-09-09": {
+            "swaps": 51,
+            "turnover": "284491875",
+            "feeProxy": "28424"
+          },
+          "2026-09-10": {
+            "swaps": 111,
+            "turnover": "1245926984",
+            "feeProxy": "124540"
+          },
+          "2026-09-11": {
+            "swaps": 103,
+            "turnover": "830783548",
+            "feeProxy": "83013"
+          },
+          "2026-09-12": {
+            "swaps": 44,
+            "turnover": "34725189",
+            "feeProxy": "3452"
+          },
+          "2026-09-13": {
+            "swaps": 1,
+            "turnover": "20634",
+            "feeProxy": "2"
+          }
+        },
+        "sessions": {
+          "non_market": {
+            "swaps": 193,
+            "turnover": "1181047875",
+            "feeProxy": "118007"
+          },
+          "premarket": {
+            "swaps": 32,
+            "turnover": "54285773",
+            "feeProxy": "5410"
+          },
+          "market": {
+            "swaps": 162,
+            "turnover": "1662097447",
+            "feeProxy": "166128"
+          }
+        },
+        "largestSwap": "56998620"
+      },
+      "feeProxyPerCrossingQuote": "1033",
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 114262,
+        "referencePriceX18": "149976258827186062991",
+        "poolPriceX18": "150290687000000000000",
+        "deviationPpm": "2096",
+        "referenceUpdatedAt": "2026-09-11T23:39:52.000Z",
+        "sourceBlock": "61776927",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 57049,
+          "updatedAt": "1789227205",
+          "warnings": []
+        }
+      },
+      "forkMechanicsPassed": null,
+      "forkError": null,
+      "currentlyIndexed": false
+    }
+  ],
+  "sourceHashes": {
+    "tokens.json": "14792d0f4736db9d0df76a16b52b46fe446be855ee125cd4b425617d834edb10",
+    "catalog.json": "e484ce48a9071a5e3fd2c3a79d2138f239fa20edd4be64d5b6c125482cd1e8f8",
+    "universe.json": "e2f183c31181778a2762562a3d9b41c83d62acc7979f8acc3ae7e5047ac4cf4b",
+    "candidate-risk.json": "3d267620d7cff2cd035a773235fb460c875d72fe9f42b2270ceaf8cc232a8114",
+    "candidate-references.json": "c35475a1811494f8dab1a90489939d766c01308cf1fbe95dac433b445543430a",
+    "history-screen.json": "40722fe41f3e8face8b2cb8006563bde90fc99d0eee6665e5c85eab59f8c0b48",
+    "cross-provider-verification.json": "616feb9d19945a78ffaee180e71bce157405e06e95e5754e268ea292366a12d5",
+    "replay-AAPL.json": "12958178d3de950300698cc59e0d90d3c1bc882cb622e0d1904eceb7b84b4f53",
+    "replay-GOOGL.json": "059e04468a769e1f12cd7c7e2ea0138d117cf0f17c3fc88ec9b129c47985f1eb"
+  }
+}

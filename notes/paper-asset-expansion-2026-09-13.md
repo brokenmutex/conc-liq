@@ -16,7 +16,7 @@ Each new campaign starts with **5,000 USDG**, ±20 raw ticks (40 total), full in
 
 AAPL, GOOGL, GME and SPCX passed the initial full fork mechanics checks. SLV completed the transaction sequence but lacked both initialized fee boundaries. TSLA's acquisition moved the price outside the intended range. Current probes are not historical net LP returns.
 
-AAPL and GOOGL already have canonical event coverage in the production research stream. GME/SPCX require their own complete event stream before forward fee accounting can be trusted. The intended first learning campaigns are therefore AAPL and GOOGL; this is an operational selection, not a profitability ranking.
+AAPL and GOOGL already have canonical event coverage in the production research stream. GME/SPCX require their own complete event stream before forward fee accounting can be trusted. The first learning campaigns are therefore AAPL and GOOGL; this is an operational selection, not a profitability ranking.
 
 ## Runtime implementation
 
@@ -47,3 +47,42 @@ For explicit asset paper policies, local fixture funding now uses a dedicated An
 The complete broad scan covers 2,316,861 swaps in 300 pages over seven days. Nine independently captured HyperSync pages matched 43,528 private-RPC logs exactly, including identities, data, block hashes and timestamps.
 
 Conditional AAPL/GOOGL replays reconstructed 135,888 and 337,296 canonical events respectively, and matched the final pool price, active liquidity and both global fee-growth accumulators. Both 30-second and 60-second decision scenarios, and the double-gas/half-fee stress scenario, encountered a disappeared initialized fee boundary. Their full-week NAV/P&L/alpha are unavailable. This prevents a defensible profitability ranking; it is not evidence of zero profits. Forward campaigns are learning deployments with currently verified boundaries, retaining the same accounting invalidation rules.
+
+## Deployed campaigns and final checks
+
+Confirmed at approximately 08:34 UTC on 13 September:
+
+| Asset | Campaign/session | Initial USDG | Status | Source commit |
+| --- | --- | ---: | --- | --- |
+| AAPL | 62 | 5,000 | Open; valid accounting | `183b39b` |
+| GOOGL | 64 | 5,000 | Open; valid accounting | `6305b88` |
+
+GOOGL session 64 replaces the never-entered session 63 and entered at source 08:26:40 UTC. AAPL remains on its original sealed release, with sufficient original local fixture funding. Both detail APIs return HTTP 200, correctly ordered price ranges, and growing position timelines. Full database reconciliation passed for 33 AAPL observations and 16 GOOGL observations at the final check; those counts include entry signals and waits. `forward-validation.json` and `dashboard-paper-{62,64}.json` preserve the evidence.
+
+The campaigns have independent logical streams `robinhood-v3-rwa-usdg-v1:paper:AAPL` and `robinhood-v3-rwa-usdg-v1:paper:GOOGL`, backed by the existing canonical `robinhood-v3-rwa-usdg-v1` event stream. The new asset checkpoint collector runs every 30 seconds. Each paper worker timer runs every 15 seconds to drain checkpoints after temporary coverage waits. All three timers are enabled. The retired NVDA paper timer is disabled.
+
+Sealed releases under `/root/conc-liq-releases/`:
+
+- AAPL, dashboard and asset checkpoint collector: `fa51a9eae0e961f85f3489167b8b0d52b37b401279edd1cd269e2727c4b19f1c`.
+- GOOGL with getter-verified local fixture funding: `cd8165c9cc01f4aa97edea0a4b5e82f40c57c62c7fea758cfe202a70dd02a63e`.
+- Live NVDA remains active on `ff6b9c3ec1aaa8f83e4d70e07d5d5bda118fab50094a96038f926d0d3de4f614`; its service and configuration were not changed.
+
+The final clean runtime checkout passed all 402 tracked tests. TypeScript checking, the two conditional-replay tests, isolated PostgreSQL lifecycle/reference tests, and GOOGL's funded entry/restored-exit/recenter fork checks passed. Installed paper unit copies and release manifests are retained in the artifact directory. Research-only changes do not replace the sealed running releases.
+
+## Reproducing the screen
+
+The checked-in [scorecard](paper-asset-expansion-2026-09-13/scorecard.json) contains all 16 eligible-grid pool rows, current reference/execution gates, descriptive history statistics, limitations and source hashes. Original catalogue, registry, compressed log pages and fork proofs remain in the artifact directory rather than Git. Reuse a copied artifact directory when regenerating results, so the launch evidence remains frozen.
+
+The research entry points use the repository Node runtime with `--import tsx`:
+
+```text
+scripts/lp-asset-universe.mjs ARTIFACT_DIRECTORY READ_ONLY_ENV
+scripts/lp-asset-history-screen.mjs ARTIFACT_DIRECTORY READ_ONLY_ENV
+scripts/lp-asset-fork-check.mjs READ_ONLY_ENV ARTIFACT_DIRECTORY AAPL,GOOGL
+scripts/lp-asset-replay.mjs READ_ONLY_ENV ARTIFACT_DIRECTORY capture
+scripts/lp-asset-replay.mjs READ_ONLY_ENV ARTIFACT_DIRECTORY replay
+```
+
+The universe runner consumes verified `tokens.json` and the anchored `catalog.json`. The history runner defaults to HyperSync; `ASSET_SCREEN_SOURCE=private_rpc` selects the health-gated private RPC capture used here. The detailed replay uses those private history pages to independently verify database swap hashes and timestamps. Its capture mode requires the canonical database and archive reads; replay mode uses frozen local sources. Fork checks only transact on the owned local Anvil instance. Environment inputs provide RPC/database settings and are not included in the report.
+
+Next analysis should reconcile prospective net LP alpha, recenter costs and time in range separately across market, premarket and non-market hours after those regimes have actually been observed. Expand indexed coverage for GME/SPCX before adding them, and investigate virtual fee-boundary accounting before claiming a complete historical return ranking.
