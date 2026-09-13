@@ -1,0 +1,124 @@
+{
+  "planSha256": "78018e8c08a3ff29f754b611ffa15890d9cfa2ecc557cf24c6b4239731caf2f6",
+  "plan": {
+    "version": "adaptive_lp_conditional_v1",
+    "sourceDirectory": "data/asset-expansion-2026-09-13",
+    "supplementalTimestamps": "data/adaptive-lp-study-2026-09-13/block-times.json",
+    "symbols": [
+      "AAPL",
+      "GOOGL"
+    ],
+    "budgetQuote": "5000000000",
+    "halfWidthsTicks": [
+      20,
+      40,
+      80,
+      160
+    ],
+    "forecast": {
+      "lookbackSeconds": 21600,
+      "minimumSpanSeconds": 7200,
+      "horizonSeconds": 600,
+      "maximumGapSeconds": 900,
+      "model": "zero_drift_three_scenario_v1"
+    },
+    "decisionSeconds": 30,
+    "forecastSampleSeconds": 60,
+    "quoteTtlSeconds": 90,
+    "slippageBps": 50,
+    "economicGate": {
+      "costBufferPpm": 500000,
+      "feeBufferPpm": 250000
+    },
+    "phases": [
+      {
+        "name": "development",
+        "from": "2026-09-06T10:00:00Z",
+        "to": "2026-09-08T08:00:00Z"
+      },
+      {
+        "name": "validation",
+        "from": "2026-09-08T08:00:00Z",
+        "to": "2026-09-09T08:00:00Z"
+      },
+      {
+        "name": "retrospective_test",
+        "from": "2026-09-09T08:00:00Z",
+        "to": "2026-09-11T19:30:00Z"
+      }
+    ],
+    "scenarios": [
+      {
+        "name": "pinned_fork_costs",
+        "gasMultiplier": 1,
+        "feePpm": 1000000,
+        "failEveryRecenter": 0
+      },
+      {
+        "name": "double_gas_half_fees",
+        "gasMultiplier": 2,
+        "feePpm": 500000,
+        "failEveryRecenter": 0
+      },
+      {
+        "name": "partial_mint_failure",
+        "gasMultiplier": 1,
+        "feePpm": 1000000,
+        "failEveryRecenter": 5
+      }
+    ],
+    "fixedControlSelection": "Highest combined AAPL and GOOGL terminal alpha in validation at pinned costs among 40, 80 and 160 ticks; ties choose wider. Freeze this choice before inspecting retrospective-test metrics.",
+    "feeModel": "rational_input_distance_with_dilution_and_integer_apportionment_bounds",
+    "scope": "Conditional fixed-market-path research. Historical oracle and infrastructure eligibility unavailable. No production parity or execution eligibility claimed.",
+    "holdout": "These dates have previously been inspected in other studies. This is a locked retrospective test, not untouched prospective evidence. Exclude the separately reserved September 11 20:00 through September 14 validation window.",
+    "executionEligible": false
+  },
+  "code": {
+    "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+    "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+    "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+    "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+    "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+    "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+    "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+    "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+    "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+    "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+    "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+  },
+  "createdAt": "2026-09-13T12:23:27.397Z",
+  "sources": [
+    {
+      "symbol": "AAPL",
+      "sha256": "799aabc4facf0bb0fc7f88ff2d1569f0985fee496e77844190d417c71f198177",
+      "forkSha256": "f17b51b2f98ab8d218d1e555f1cf1633c6b5089089065c9b70e0e863856f1fd5",
+      "events": 135888,
+      "eventsWithoutTimestamp": 0,
+      "firstEventBlock": 55796872,
+      "costs": {
+        "entry": "178897",
+        "recenter": "225140",
+        "exit": "117634",
+        "hold": "52761",
+        "holdExit": "50835"
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "sha256": "68fbe34fcb9a5b2b0c197cb31645ceaf2a366c19bfedeb3b8b1fce938bcf1bf5",
+      "forkSha256": "7502e71bb5f1b7bcbfbe3cd48e8b0e742c6c1bd37778949b69878ed9ae4ddd62",
+      "events": 337296,
+      "eventsWithoutTimestamp": 0,
+      "firstEventBlock": 55796674,
+      "costs": {
+        "entry": "177373",
+        "recenter": "221310",
+        "exit": "118088",
+        "hold": "51335",
+        "holdExit": "51112"
+      }
+    }
+  ],
+  "supplementalTimestampsSha256": "821a87bc11499abad104af34d11ffd750f5e80d9f61a0fd1f21d2f4edffc8f2d",
+  "historySha256": "40722fe41f3e8face8b2cb8006563bde90fc99d0eee6665e5c85eab59f8c0b48"
+}

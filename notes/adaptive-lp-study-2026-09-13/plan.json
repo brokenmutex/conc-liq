@@ -1,0 +1,29 @@
+{
+  "version": "adaptive_lp_conditional_v1",
+  "sourceDirectory": "data/asset-expansion-2026-09-13",
+  "supplementalTimestamps": "data/adaptive-lp-study-2026-09-13/block-times.json",
+  "symbols": ["AAPL", "GOOGL"],
+  "budgetQuote": "5000000000",
+  "halfWidthsTicks": [20, 40, 80, 160],
+  "forecast": {"lookbackSeconds": 21600, "minimumSpanSeconds": 7200, "horizonSeconds": 600, "maximumGapSeconds": 900, "model": "zero_drift_three_scenario_v1"},
+  "decisionSeconds": 30,
+  "forecastSampleSeconds": 60,
+  "quoteTtlSeconds": 90,
+  "slippageBps": 50,
+  "economicGate": {"costBufferPpm": 500000, "feeBufferPpm": 250000},
+  "phases": [
+    {"name": "development", "from": "2026-09-06T10:00:00Z", "to": "2026-09-08T08:00:00Z"},
+    {"name": "validation", "from": "2026-09-08T08:00:00Z", "to": "2026-09-09T08:00:00Z"},
+    {"name": "retrospective_test", "from": "2026-09-09T08:00:00Z", "to": "2026-09-11T19:30:00Z"}
+  ],
+  "scenarios": [
+    {"name": "pinned_fork_costs", "gasMultiplier": 1, "feePpm": 1000000, "failEveryRecenter": 0},
+    {"name": "double_gas_half_fees", "gasMultiplier": 2, "feePpm": 500000, "failEveryRecenter": 0},
+    {"name": "partial_mint_failure", "gasMultiplier": 1, "feePpm": 1000000, "failEveryRecenter": 5}
+  ],
+  "fixedControlSelection": "Highest combined AAPL and GOOGL terminal alpha in validation at pinned costs among 40, 80 and 160 ticks; ties choose wider. Freeze this choice before inspecting retrospective-test metrics.",
+  "feeModel": "rational_input_distance_with_dilution_and_integer_apportionment_bounds",
+  "scope": "Conditional fixed-market-path research. Historical oracle and infrastructure eligibility unavailable. No production parity or execution eligibility claimed.",
+  "holdout": "These dates have previously been inspected in other studies. This is a locked retrospective test, not untouched prospective evidence. Exclude the separately reserved September 11 20:00 through September 14 validation window.",
+  "executionEligible": false
+}

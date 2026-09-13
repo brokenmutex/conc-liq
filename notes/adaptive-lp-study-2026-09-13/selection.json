@@ -1,0 +1,20 @@
+{
+  "selectedFixedHalfWidthTicks": 40,
+  "validationScores": [
+    {
+      "width": 40,
+      "alpha": "67721479"
+    },
+    {
+      "width": 80,
+      "alpha": "46130425"
+    },
+    {
+      "width": 160,
+      "alpha": "40096329"
+    }
+  ],
+  "planSha256": "78018e8c08a3ff29f754b611ffa15890d9cfa2ecc557cf24c6b4239731caf2f6",
+  "basis": "validation_only",
+  "selectedAt": "2026-09-13T12:25:47.852Z"
+}

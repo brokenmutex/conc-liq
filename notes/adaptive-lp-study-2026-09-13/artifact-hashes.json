@@ -1,0 +1,18 @@
+{
+  "scope": "Post-run artifact and verification-tool hashes; original frozen replay manifest is separate. Review JSON copies are pretty-printed but semantically identical.",
+  "sha256": {
+    "data/adaptive-lp-study-2026-09-13/final/manifest.json": "cc0849364aac5cbc6fa1bb957173ce5ee9bb16e01963e9ee12c317584d682c66",
+    "data/adaptive-lp-study-2026-09-13/final/completed.json": "550140477e20cc544ab7ee7e996799921c33df7c69411b17bdd3e127fbcdcff5",
+    "data/adaptive-lp-study-2026-09-13/final/selection.json": "6cea6b0726406a2a19964a3a2e1b5abdf09f4be97d7d976c948d319441536e68",
+    "data/adaptive-lp-study-2026-09-13/final/summary.json": "b86055186f186c8f4461fb645b750e5610b66aff0c8e6b07ebd0fcbc17b6dbc1",
+    "data/adaptive-lp-study-2026-09-13/final/development-validation.json": "213d062d7dbeb7c9870a2357545589ac22310c2b8bf66e02e6ec59df02a8ef92",
+    "data/adaptive-lp-study-2026-09-13/final/retrospective-test.json": "7dc61d850eda846a064755c7faefab36293cd1cf2315092d46295f3e6f7a29ce",
+    "data/adaptive-lp-study-2026-09-13/final/verification.json": "46b72059942c94a856f255d73469cfc150b0bd212bb5fdc2692b7bf040c2d63e",
+    "data/adaptive-lp-study-2026-09-13/final/session-attribution.json": "a4bfa496037fe20eb27786c4e89e48868cee4330dcde2d1ad833a8781933d884",
+    "scripts/verify-adaptive-lp-study.py": "d67366782d0d2359f3cff5479512010239165bd73974d7d460bf2e5b6775088f",
+    "scripts/attribute-adaptive-lp-study.mjs": "4e43f2c3a5fce98862501d9d3bf6847240fb735576fd85723f7049479517c36a",
+    "scripts/render-adaptive-lp-study.py": "2c71b8332dd2c8e69994c51fda9f7c76f2439b140aec243377596eed082acfcf",
+    "scripts/capture-adaptive-lp-times.mjs": "d67797dab3ce667fea335502b4d5d99f3bd85ff1555913bfba001bf41a27f478",
+    "src/paper/session-performance.ts": "a0d3a72bb85190df6e034d19d24e43bf815642ff820c2a1cc7d4e348c366596e"
+  }
+}

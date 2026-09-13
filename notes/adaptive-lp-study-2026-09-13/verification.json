@@ -1,0 +1,9 @@
+{
+  "rows": 108,
+  "actions": 1690,
+  "partialFailures": 78,
+  "economicScores": 25189,
+  "selectedFixedHalfWidthTicks": 40,
+  "ledgerAndSelectionChecks": "passed",
+  "scope": "Independent arithmetic, time ordering, cost sums, token conservation at actions and validation-only selection. Not an independent reconstruction of all swap events or forecasts."
+}
