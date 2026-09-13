@@ -1,0 +1,32 @@
+{
+  "portfolios": 72,
+  "actions": 9047,
+  "canonicalEnds": true,
+  "actionInventoryReconstructed": true,
+  "feeTokensReconstructed": true,
+  "gasReconciled": true,
+  "liveReceiptsVerified": 138,
+  "runs": [
+    {
+      "symbol": "AAPL",
+      "firstAvailableAt": 1788048000000,
+      "lastSourceAt": 1789154997000,
+      "emptyLiquidityBlocks": 0,
+      "sha256": "949591006bf50fbfd8cc96ab974ae9c7e0aab2e6cefc3601f08953097b0bc6d7"
+    },
+    {
+      "symbol": "QQQ",
+      "firstAvailableAt": 1788048001000,
+      "lastSourceAt": 1789154987000,
+      "emptyLiquidityBlocks": 0,
+      "sha256": "fa501e50d81b25c686d30d65006a5e516b3bb37afd2aeb052f24df7732cfca84"
+    },
+    {
+      "symbol": "NVDA",
+      "firstAvailableAt": 1788048000000,
+      "lastSourceAt": 1789154999000,
+      "emptyLiquidityBlocks": 0,
+      "sha256": "fea5c3858d23500eea77a8cec97c3750e4e0e9c003985b551291d356fbea23b3"
+    }
+  ]
+}

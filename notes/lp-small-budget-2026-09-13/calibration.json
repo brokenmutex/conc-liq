@@ -1,0 +1,2397 @@
+{
+  "sourceSha256": "f5f17fb6e11c326cd3300b981ae8c6e3fda1c05166157a1cc09424d158638767",
+  "capturedAt": "2026-09-13T18:12:09.802Z",
+  "groups": {
+    "entry": {
+      "count": 7,
+      "gasQuote": {
+        "n": 7,
+        "min": 173086,
+        "median": 194799,
+        "p90": 235050,
+        "max": 235050
+      },
+      "durationMs": {
+        "n": 7,
+        "min": 92242,
+        "median": 114566,
+        "p90": 146376,
+        "max": 146376
+      },
+      "profiles": {
+        "median": {
+          "kind": "entry",
+          "start": "2026-09-12T16:21:57.435Z",
+          "initialGasQuote": "1353968",
+          "end": "2026-09-12T16:23:52.001Z",
+          "outcome": "complete",
+          "finalGasQuote": "1560658",
+          "durationMs": 114566,
+          "actions": [
+            {
+              "id": "4206622c-f36b-47ce-aa90-d44140139096",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xf5addb0beaf0cd1bc194dd584704f7fdbae1074ab8f732bdf2f596cf7135c0cd",
+              "createdAt": "2026-09-12T16:21:57.444Z",
+              "receiptAtMs": 1789230117000,
+              "gasQuote": "14562"
+            },
+            {
+              "id": "3c409112-e0a2-4aba-9451-2ff6ce9e128e",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xf2bd060f23dd96ba1b1ff5cf23ca2f562246528a129a8f42ee676ee4688eddf9",
+              "createdAt": "2026-09-12T16:22:13.929Z",
+              "receiptAtMs": 1789230134000,
+              "gasQuote": "10119"
+            },
+            {
+              "id": "7fb40b1c-4ccd-4881-92c9-318a5a59e27e",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0x0b7b936ff5ecd553881d66524ea2da5b959729a79cfd4823c1231524d73af2aa",
+              "createdAt": "2026-09-12T16:22:35.724Z",
+              "receiptAtMs": 1789230156000,
+              "gasQuote": "41992"
+            },
+            {
+              "id": "1c39cb25-571c-4d5d-b019-b2e2c0968d2b",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xa2737d842de4754bd248dd61b33dff71770f7f70a02077274b0b22fc4397d940",
+              "createdAt": "2026-09-12T16:22:57.478Z",
+              "receiptAtMs": 1789230177000,
+              "gasQuote": "14813"
+            },
+            {
+              "id": "78d15c45-0068-46ed-966c-469b25549fa4",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xd3472fe99f8909f4a458b2b7875a21a5ef2c968d8155a44951e8f59eb2ebf207",
+              "createdAt": "2026-09-12T16:23:13.929Z",
+              "receiptAtMs": 1789230194000,
+              "gasQuote": "15710"
+            },
+            {
+              "id": "8141f40c-d0b7-4749-bd88-7e06329b321d",
+              "action": "mint",
+              "status": "confirmed",
+              "hash": "0xafd6ee81afbb3c859e16a025d834fd72d9824dc3faa21ab1fc64ce201edeb167",
+              "createdAt": "2026-09-12T16:23:35.538Z",
+              "receiptAtMs": 1789230216000,
+              "gasQuote": "109494"
+            }
+          ],
+          "gasQuote": 206690,
+          "reverts": 0,
+          "withdrawMs": null,
+          "swapMs": 38565,
+          "mintMs": 98565,
+          "stageGasQuote": [
+            14562,
+            52111,
+            140017
+          ]
+        },
+        "p90": {
+          "kind": "entry",
+          "start": "2026-09-12T15:49:20.823Z",
+          "initialGasQuote": "1016486",
+          "end": "2026-09-12T15:51:47.199Z",
+          "outcome": "complete",
+          "finalGasQuote": "1225153",
+          "durationMs": 146376,
+          "actions": [
+            {
+              "id": "c0ee3d40-f048-405b-83d0-fee1aea6476c",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x93278b5c473696fc738b6cd8d5bb11eab31abff7f346d109855f277407d23536",
+              "createdAt": "2026-09-12T15:49:20.838Z",
+              "receiptAtMs": 1789228161000,
+              "gasQuote": "14238"
+            },
+            {
+              "id": "80bb8e92-5506-4097-a0a2-2be05f251249",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x294873d72357724618dd69fa3a764024122c31af9a74f304eee65a44aff177cc",
+              "createdAt": "2026-09-12T15:49:42.859Z",
+              "receiptAtMs": 1789228183000,
+              "gasQuote": "10005"
+            },
+            {
+              "id": "94cf0a9d-7974-41e7-ba9a-938ec2fd955f",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x8d5a75cb8bb11e0ca28c5e083a10874d1413a9d372707e67179f62be44f86f68",
+              "createdAt": "2026-09-12T15:49:59.379Z",
+              "receiptAtMs": 1789228199000,
+              "gasQuote": "10130"
+            },
+            {
+              "id": "05814149-a2c2-4767-877a-8468183557f8",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0x993030cddf7b3fce32983ad3b912ab8bbc03a007ecf3dd883194843adb03cae2",
+              "createdAt": "2026-09-12T15:50:21.008Z",
+              "receiptAtMs": 1789228221000,
+              "gasQuote": "42244"
+            },
+            {
+              "id": "7e168c47-4045-4f7b-b0fe-142ef3cf8aa9",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xc573a4a16909246c7b109bdb4e2110282f563580a6b5e0830a5cb0ff1eef5cb3",
+              "createdAt": "2026-09-12T15:50:47.723Z",
+              "receiptAtMs": 1789228248000,
+              "gasQuote": "14147"
+            },
+            {
+              "id": "a4936ae5-3c2a-486b-b769-1e3f8d098e18",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x14db9dc75564f6ebd2ad37dd4f202a76899e194fb2f344c314ef1d662834924a",
+              "createdAt": "2026-09-12T15:51:09.356Z",
+              "receiptAtMs": 1789228269000,
+              "gasQuote": "15764"
+            },
+            {
+              "id": "04cfe753-47a7-483a-b60e-0a2cbca66260",
+              "action": "mint",
+              "status": "confirmed",
+              "hash": "0x0d46c504c541f51ad68ea6663fd4d8056c725aafaf0b6d566a9d84b60431ac60",
+              "createdAt": "2026-09-12T15:51:30.824Z",
+              "receiptAtMs": 1789228291000,
+              "gasQuote": "102139"
+            }
+          ],
+          "gasQuote": 208667,
+          "reverts": 0,
+          "withdrawMs": null,
+          "swapMs": 60177,
+          "mintMs": 130177,
+          "stageGasQuote": [
+            0,
+            76617,
+            132050
+          ]
+        }
+      }
+    },
+    "recenter": {
+      "count": 8,
+      "gasQuote": {
+        "n": 8,
+        "min": 190710,
+        "median": 205538.0,
+        "p90": 243589,
+        "max": 243589
+      },
+      "durationMs": {
+        "n": 8,
+        "min": 117662,
+        "median": 150520.0,
+        "p90": 952632,
+        "max": 952632
+      },
+      "profiles": {
+        "median": {
+          "kind": "recenter",
+          "start": "2026-09-13T10:36:38.928Z",
+          "initialGasQuote": "3478494",
+          "end": "2026-09-13T10:39:02.123Z",
+          "outcome": "complete",
+          "finalGasQuote": "3684784",
+          "durationMs": 143195,
+          "actions": [
+            {
+              "id": "a160e3d4-713e-4626-a691-65d8cb16f5af",
+              "action": "withdraw",
+              "status": "confirmed",
+              "hash": "0xf21e3b04641546bfeab87e5e359d3ce8352b595fe35263e1e571cfc333fcbbea",
+              "createdAt": "2026-09-13T10:36:38.946Z",
+              "receiptAtMs": 1789295802000,
+              "gasQuote": "44330"
+            },
+            {
+              "id": "8d9abfce-1892-45d2-a0c1-2cbd26c0707c",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x32d687bb22e2e8a815f31c75c29eca5a22de7be846487673844bb2091d57ce43",
+              "createdAt": "2026-09-13T10:37:04.351Z",
+              "receiptAtMs": 1789295824000,
+              "gasQuote": "9765"
+            },
+            {
+              "id": "ccffe460-3dee-4dd2-9adb-7f09b0b474f4",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xb94e8b80a7e0454bfc0bf5a93c336db722524c2c0ca0f9bb7050eb9eac7a29f5",
+              "createdAt": "2026-09-13T10:37:26.280Z",
+              "receiptAtMs": 1789295846000,
+              "gasQuote": "9748"
+            },
+            {
+              "id": "4c19e7b7-9a3f-4a72-81ee-784b92561ebe",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0x25ef58dd0bb0736d04b7a55229728974f65afcf060962442048c36bf67e2d2e4",
+              "createdAt": "2026-09-13T10:37:43.548Z",
+              "receiptAtMs": 1789295866000,
+              "gasQuote": "32326"
+            },
+            {
+              "id": "45dcd0fc-0f2d-4546-a71f-7b884f2b7755",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x576f2f14bf80662a3090df47881ee3c43d110f3ef5b24ba3c4ca41337bbeb0e9",
+              "createdAt": "2026-09-13T10:38:02.650Z",
+              "receiptAtMs": 1789295883000,
+              "gasQuote": "8624"
+            },
+            {
+              "id": "caaac641-476e-43c2-9e79-f55357f62818",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x4db66cbcafcd54e7dc12bffee112b01e17f0d55db7280281845bd4c0944f0dee",
+              "createdAt": "2026-09-13T10:38:24.237Z",
+              "receiptAtMs": 1789295906000,
+              "gasQuote": "9721"
+            },
+            {
+              "id": "72fbcab2-5d10-4856-833d-0bf7fc96d695",
+              "action": "mint",
+              "status": "confirmed",
+              "hash": "0x42044b5b266bf8dede3fb8dc0e241c2f1a2b2ae1ff4146ff408a2f6fb52573cb",
+              "createdAt": "2026-09-13T10:38:42.856Z",
+              "receiptAtMs": 1789295925000,
+              "gasQuote": "91776"
+            }
+          ],
+          "gasQuote": 206290,
+          "reverts": 0,
+          "withdrawMs": 3072,
+          "swapMs": 67072,
+          "mintMs": 126072,
+          "stageGasQuote": [
+            44330,
+            51839,
+            110121
+          ]
+        },
+        "p90": {
+          "kind": "recenter",
+          "start": "2026-09-13T09:16:58.669Z",
+          "initialGasQuote": "3043128",
+          "end": "2026-09-13T09:32:51.301Z",
+          "outcome": "complete",
+          "finalGasQuote": "3286717",
+          "durationMs": 952632,
+          "actions": [
+            {
+              "id": "ab18b032-e6c7-43c4-bc36-160a661f1419",
+              "action": "withdraw",
+              "status": "confirmed",
+              "hash": "0x53111f6f1b9bf6df5fa8cf10cdad1351cd6f6dfaf0dfe088e77f7f1cdc53de97",
+              "createdAt": "2026-09-13T09:16:58.682Z",
+              "receiptAtMs": 1789291019000,
+              "gasQuote": "43452"
+            },
+            {
+              "id": "e4a5514c-78aa-4578-8f0c-085a7d2b9ba7",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xc4da3b4b14f8e28e1f104338df11403bab3d4029a5accc85deafb6c6450a1612",
+              "createdAt": "2026-09-13T09:17:25.937Z",
+              "receiptAtMs": 1789291046000,
+              "gasQuote": "9917"
+            },
+            {
+              "id": "581767cd-8fdb-4b34-b07d-78dd94c73783",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0xec08306f3c98ad9cebf4c65c338c87af46833fd96739317b2654e8c5a7227677",
+              "createdAt": "2026-09-13T09:17:42.643Z",
+              "receiptAtMs": 1789291063000,
+              "gasQuote": "32784"
+            },
+            {
+              "id": "6353a805-26a5-4c3f-a0ee-412335a2892e",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xb5d1511b2ff692494ab0c6c58f8f0deccb991e3e508917f4bd56185f397be1cb",
+              "createdAt": "2026-09-13T09:18:05.087Z",
+              "receiptAtMs": 1789291088000,
+              "gasQuote": "12425"
+            },
+            {
+              "id": "0601d17f-50f6-47c0-99b4-53add3eb7f15",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xb4738468f719f95cb1767de2432ccce32daf5fe0e75ac34cddd1854f0746dce5",
+              "createdAt": "2026-09-13T09:18:25.546Z",
+              "receiptAtMs": 1789291105000,
+              "gasQuote": "10078"
+            },
+            {
+              "id": "46368c11-2fd4-4df6-b035-199dbdf89496",
+              "action": "mint",
+              "status": "reverted",
+              "hash": "0xfe134e80f1d4e3645cc5343a6e5618231278dda076b95b3e7bf51d7c35e9f778",
+              "createdAt": "2026-09-13T09:18:47.292Z",
+              "receiptAtMs": 1789291127000,
+              "gasQuote": "45473"
+            },
+            {
+              "id": "3352724a-78e3-430e-ad6d-3d7b4b7e323f",
+              "action": "mint",
+              "status": "cancelled",
+              "hash": null,
+              "createdAt": "2026-09-13T09:32:01.754Z",
+              "receiptAtMs": null,
+              "gasQuote": null
+            },
+            {
+              "id": "24ce3aaf-3917-4ddd-ab0e-ddecba7d7e71",
+              "action": "mint",
+              "status": "cancelled",
+              "hash": null,
+              "createdAt": "2026-09-13T09:32:12.667Z",
+              "receiptAtMs": null,
+              "gasQuote": null
+            },
+            {
+              "id": "882e42eb-fe57-4612-8409-8de1ec0064e2",
+              "action": "mint",
+              "status": "cancelled",
+              "hash": null,
+              "createdAt": "2026-09-13T09:32:23.896Z",
+              "receiptAtMs": null,
+              "gasQuote": null
+            },
+            {
+              "id": "dbc9a9a1-ca6a-4f2f-8a28-6fb0723880b5",
+              "action": "mint",
+              "status": "confirmed",
+              "hash": "0x0f5e9074453bb3c587818f8815db041363d3b49969a513384cbf4a2cd11ca611",
+              "createdAt": "2026-09-13T09:32:34.874Z",
+              "receiptAtMs": 1789291955000,
+              "gasQuote": "89460"
+            }
+          ],
+          "gasQuote": 243589,
+          "reverts": 1,
+          "withdrawMs": 331,
+          "swapMs": 44331,
+          "mintMs": 936331,
+          "stageGasQuote": [
+            43452,
+            42701,
+            157436
+          ]
+        }
+      }
+    },
+    "exit": {
+      "count": 7,
+      "gasQuote": {
+        "n": 7,
+        "min": 59996,
+        "median": 137496,
+        "p90": 313017,
+        "max": 313017
+      },
+      "durationMs": {
+        "n": 7,
+        "min": 69661,
+        "median": 150705,
+        "p90": 32047399,
+        "max": 32047399
+      },
+      "profiles": {
+        "median": {
+          "kind": "exit",
+          "start": "2026-09-12T16:32:57.101Z",
+          "initialGasQuote": "1560658",
+          "end": "2026-09-12T16:35:27.806Z",
+          "outcome": "complete",
+          "finalGasQuote": "1723102",
+          "durationMs": 150705,
+          "actions": [
+            {
+              "id": "e806ffbf-40ce-4535-9ce8-4b554f13e541",
+              "action": "withdraw",
+              "status": "confirmed",
+              "hash": "0x91cdd1af016c737c473b1c38407ea6c52e4a85ed1982811c7ce221b4b0261e7e",
+              "createdAt": "2026-09-12T16:32:57.127Z",
+              "receiptAtMs": 1789230782000,
+              "gasQuote": "80243"
+            },
+            {
+              "id": "1355849c-1390-4a7f-8ae2-79fa698a1bcd",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x4cd944798328acb61cce0bcd82b9a0b3784adfa4360ce657d4bfaa180b88a206",
+              "createdAt": "2026-09-12T16:33:24.523Z",
+              "receiptAtMs": 1789230804000,
+              "gasQuote": "16739"
+            },
+            {
+              "id": "94245959-2ced-445b-9185-ca6ee304352f",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0x77f51bec8ad79b030f5b0f09033c09ad3124d2cfa50eeae5cd745d95c5fcab7b",
+              "createdAt": "2026-09-12T16:33:51.265Z",
+              "receiptAtMs": 1789230831000,
+              "gasQuote": "36913"
+            },
+            {
+              "id": "3ead7f7c-9bd2-4dbc-8361-2792f652d0d9",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x028ceb6c6046c50ff09e578228cb3dec0f53c266c9a00d9a6a46a2b73dd43c59",
+              "createdAt": "2026-09-12T16:34:18.158Z",
+              "receiptAtMs": 1789230858000,
+              "gasQuote": "9018"
+            },
+            {
+              "id": "56ad26b9-9b64-4f53-8665-2dc6c1737f00",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xffe501207cd508ffaf12aa36d2b7e1a7228af4c821fdbe35eb3f44e60c32568c",
+              "createdAt": "2026-09-12T16:34:34.421Z",
+              "receiptAtMs": 1789230874000,
+              "gasQuote": "9114"
+            },
+            {
+              "id": "9e56a03c-4c7b-4dc5-bdaf-5205e15b6691",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x581abc761254f77d70b20fc7b0a1a5cd7397bf93c18c70621ac573bc32887368",
+              "createdAt": "2026-09-12T16:35:01.153Z",
+              "receiptAtMs": 1789230901000,
+              "gasQuote": "10417"
+            }
+          ],
+          "gasQuote": 162444,
+          "reverts": 0,
+          "withdrawMs": 4899,
+          "swapMs": 53899,
+          "mintMs": null,
+          "stageGasQuote": [
+            80243,
+            53652,
+            28549
+          ]
+        },
+        "p90": {
+          "kind": "exit",
+          "start": "2026-09-12T20:39:19.387Z",
+          "initialGasQuote": "2389847",
+          "end": "2026-09-13T05:33:26.786Z",
+          "outcome": "complete",
+          "finalGasQuote": "2464581",
+          "durationMs": 32047399,
+          "actions": [
+            {
+              "id": "dc8400b9-4ef6-4281-8715-4eb4cc2b1056",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x5a90e9a7f63dc3550d1efda1dafa6b008e6075c8b618c0f112599c1f7a9da8da",
+              "createdAt": "2026-09-12T20:41:30.456Z",
+              "receiptAtMs": 1789245690000,
+              "gasQuote": "11639"
+            },
+            {
+              "id": "15bf36f3-0f81-4c29-ba20-286057224c14",
+              "action": "swap",
+              "status": "confirmed",
+              "hash": "0x24ea3bb951bfa1a0559829c30aa42285645c4d9297d1c1cc7e75940f2a19af8b",
+              "createdAt": "2026-09-12T20:41:46.823Z",
+              "receiptAtMs": 1789245707000,
+              "gasQuote": "35758"
+            },
+            {
+              "id": "c20e0dba-46d6-4f52-b31b-11408233c012",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x45aade6c37354b6711ba0345f0522e75ebeb504f4c246beab1676a6fbe8f5203",
+              "createdAt": "2026-09-12T20:42:08.397Z",
+              "receiptAtMs": 1789245728000,
+              "gasQuote": "8976"
+            },
+            {
+              "id": "64045f1a-1ca8-4fa6-8371-39d32c8b42c7",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0xc9567963f9acef43bc7c7a6b72eb3207e20276c5ca5bc477c2e3648be8609cae",
+              "createdAt": "2026-09-12T20:42:24.632Z",
+              "receiptAtMs": 1789245745000,
+              "gasQuote": "9061"
+            },
+            {
+              "id": "aa12340b-0c1d-49e1-b3a7-dc3f5b104a08",
+              "action": "approve",
+              "status": "cancelled",
+              "hash": null,
+              "createdAt": "2026-09-12T20:42:46.288Z",
+              "receiptAtMs": null,
+              "gasQuote": null
+            },
+            {
+              "id": "7b0add51-33a5-4fc3-8727-f0cdfc38ee6a",
+              "action": "approve",
+              "status": "confirmed",
+              "hash": "0x19df6b645ca97e290929019b6f85411bb59f37e84ffafd4b31594ebd55844bca",
+              "createdAt": "2026-09-13T05:33:10.328Z",
+              "receiptAtMs": 1789277590000,
+              "gasQuote": "9300"
+            }
+          ],
+          "gasQuote": 74734,
+          "reverts": 0,
+          "withdrawMs": null,
+          "swapMs": 147613,
+          "mintMs": null,
+          "stageGasQuote": [
+            0,
+            47397,
+            27337
+          ]
+        }
+      }
+    }
+  },
+  "episodes": [
+    {
+      "kind": "entry",
+      "start": "2026-09-12T14:25:08.399Z",
+      "initialGasQuote": "0",
+      "end": "2026-09-12T14:46:24.453Z",
+      "outcome": "interrupted_exit",
+      "durationMs": 1276054,
+      "actions": [
+        {
+          "id": "0db9d32a-fbf0-4bbb-8834-641a1b525091",
+          "action": "approve",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-12T14:28:18.218Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "05ed1e2d-4140-42a6-bcb7-5ff40f1c2d1f",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xf34c0755993f2415603274e125ffea2d80eca3bb808dcfe4f3a030e826caf3fe",
+          "createdAt": "2026-09-12T14:28:34.355Z",
+          "receiptAtMs": 1789224338000,
+          "gasQuote": "15280"
+        },
+        {
+          "id": "0b2a9330-52ff-45d6-b441-2e4ef6f8ee25",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x1fbc34bad7cf9bbc9a67065355cd53dda1fcca9f4623b4eb3a27d00aa1c48914",
+          "createdAt": "2026-09-12T14:46:02.839Z",
+          "receiptAtMs": 1789224363000,
+          "gasQuote": "41558"
+        }
+      ],
+      "gasQuote": 56838,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 1254601,
+      "mintMs": null,
+      "stageGasQuote": [
+        0,
+        56838,
+        0
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T14:46:24.453Z",
+      "initialGasQuote": "56838",
+      "end": "2026-09-12T14:47:34.114Z",
+      "outcome": "complete",
+      "finalGasQuote": "116834",
+      "durationMs": 69661,
+      "actions": [
+        {
+          "id": "d318226f-bd2f-42e9-b5cf-7b95939236f5",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x5d54858a220698aa221653bb670a05efde437530e2127f2bb465c0077a1da92d",
+          "createdAt": "2026-09-12T14:46:24.463Z",
+          "receiptAtMs": 1789224384000,
+          "gasQuote": "16403"
+        },
+        {
+          "id": "b97ca552-6e98-4f73-8f67-10477ef635f4",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xacd00d2e3e3641e8abf128c6310a401db16ce0bd6c2cbf71dd53c2623c07024c",
+          "createdAt": "2026-09-12T14:46:40.697Z",
+          "receiptAtMs": 1789224401000,
+          "gasQuote": "34805"
+        },
+        {
+          "id": "b91ea93f-64a5-427e-a76d-3fed9cbee104",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xe53d71145f063e1fd13e2ec32f01a12edf82af964c104365e58a966b82603fe7",
+          "createdAt": "2026-09-12T14:47:02.234Z",
+          "receiptAtMs": 1789224422000,
+          "gasQuote": "8788"
+        }
+      ],
+      "gasQuote": 59996,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 16547,
+      "mintMs": null,
+      "stageGasQuote": [
+        16403,
+        34805,
+        8788
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T14:57:36.212Z",
+      "initialGasQuote": "116834",
+      "end": "2026-09-12T14:59:40.268Z",
+      "outcome": "complete",
+      "finalGasQuote": "351884",
+      "durationMs": 124056,
+      "actions": [
+        {
+          "id": "272afd55-1739-4b3e-9e47-ccaa6285a757",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x80f397d7d2f5a22e4fa2db7b9a3d75f2edb61bde39e18cba91b23900f09316c7",
+          "createdAt": "2026-09-12T14:57:36.226Z",
+          "receiptAtMs": 1789225056000,
+          "gasQuote": "31602"
+        },
+        {
+          "id": "0a2f6f20-fcbf-4579-8cfb-eac1a467e6d2",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x7d589ede3bd74f40b7da275365505419f71b0eb414bc755ef3fe112319845f19",
+          "createdAt": "2026-09-12T14:57:57.910Z",
+          "receiptAtMs": 1789225078000,
+          "gasQuote": "67710"
+        },
+        {
+          "id": "ef1057f2-e13c-453c-bb50-57569d14a76c",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xe01a624932e101dad478150b7906609e86c2894a1f98415a7906a17cc0f7de22",
+          "createdAt": "2026-09-12T14:58:30.312Z",
+          "receiptAtMs": 1789225113000,
+          "gasQuote": "14389"
+        },
+        {
+          "id": "5361e2f2-ae68-4ae4-9494-a0b2c77ea55c",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x4a0d2b6408d2ab6d6a2add3cebb221fcf2e4fd34fb580908d73ffb62bfcaa481",
+          "createdAt": "2026-09-12T14:59:00.012Z",
+          "receiptAtMs": 1789225142000,
+          "gasQuote": "15554"
+        },
+        {
+          "id": "01cc67d3-a940-416d-b35f-0dab4fdb9ef0",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xdeadc22f5757eee38fb0b81010be8c4a9da6922c17e6f072ceaa6d3a1016d568",
+          "createdAt": "2026-09-12T14:59:23.930Z",
+          "receiptAtMs": 1789225164000,
+          "gasQuote": "105795"
+        }
+      ],
+      "gasQuote": 235050,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 21788,
+      "mintMs": 107788,
+      "stageGasQuote": [
+        31602,
+        67710,
+        135738
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T15:01:25.702Z",
+      "initialGasQuote": "351884",
+      "end": "2026-09-12T15:05:13.673Z",
+      "outcome": "complete",
+      "finalGasQuote": "664901",
+      "durationMs": 227971,
+      "actions": [
+        {
+          "id": "45e610ac-f187-4c31-b416-5ff7f6fa58cb",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x71d1ce40d77fd89c98b70daa87ef045e929c4e8c3d255d8abd2c0d75549f1fd7",
+          "createdAt": "2026-09-12T15:01:30.718Z",
+          "receiptAtMs": 1789225291000,
+          "gasQuote": "54726"
+        },
+        {
+          "id": "aed53bec-2938-43a3-ba12-9b1658947fd3",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc4873da0ee66a062b6c4a8dc07b712f7eb9b597c4bdfdc1fd4cefdb98c71a77c",
+          "createdAt": "2026-09-12T15:03:52.202Z",
+          "receiptAtMs": 1789225434000,
+          "gasQuote": "67140"
+        },
+        {
+          "id": "b3857f07-b5de-4e3b-b751-c16ab38b4c75",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xbee9ef1cbd010b2d7f6fc60d2201b6f3192b2db860b8c40ee46800698704a764",
+          "createdAt": "2026-09-12T15:04:16.289Z",
+          "receiptAtMs": 1789225456000,
+          "gasQuote": "121851"
+        },
+        {
+          "id": "c0d576bf-8da8-4896-8c7e-3b7e3ac678b8",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x58c049a8fa44793518e1e565379789302b76b7a4a0851d5991eb58a71c20efaf",
+          "createdAt": "2026-09-12T15:04:32.603Z",
+          "receiptAtMs": 1789225473000,
+          "gasQuote": "34969"
+        },
+        {
+          "id": "7508cddb-4864-4f07-99c2-5d33f496fbe7",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x1f8a206959749f0104f194ee43234e9cc1d719127b5e506cc462311d3118b7fb",
+          "createdAt": "2026-09-12T15:04:54.076Z",
+          "receiptAtMs": 1789225497000,
+          "gasQuote": "34331"
+        }
+      ],
+      "gasQuote": 313017,
+      "reverts": 0,
+      "withdrawMs": 5298,
+      "swapMs": 170298,
+      "mintMs": null,
+      "stageGasQuote": [
+        54726,
+        188991,
+        69300
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T15:15:18.265Z",
+      "initialGasQuote": "664901",
+      "end": "2026-09-12T15:16:50.507Z",
+      "outcome": "complete",
+      "finalGasQuote": "856084",
+      "durationMs": 92242,
+      "actions": [
+        {
+          "id": "e8a36d33-1c3f-4929-8a24-d74de7dcdc54",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x5a041e8851d19e79d9822a2ec16e767cae0918d31a7d842236cfeba5c9b9d57e",
+          "createdAt": "2026-09-12T15:15:18.276Z",
+          "receiptAtMs": 1789226118000,
+          "gasQuote": "14852"
+        },
+        {
+          "id": "1eb92a7e-0b94-4902-a2fa-c72651124fba",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x8ac7a69f202be6137e7691bf3c154ea37bc053bb1f4c4bd3c7b1c731ad5b5b42",
+          "createdAt": "2026-09-12T15:15:39.816Z",
+          "receiptAtMs": 1789226140000,
+          "gasQuote": "41627"
+        },
+        {
+          "id": "594efcde-94fd-4dbc-ba76-10ac3c0e9ad8",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x0eaccea33386b494e4d0196440b20e0b8b0b6e3da12905b9f136bb6c5173efc6",
+          "createdAt": "2026-09-12T15:15:56.306Z",
+          "receiptAtMs": 1789226156000,
+          "gasQuote": "14635"
+        },
+        {
+          "id": "10eff53b-c5dd-4e6a-9a4a-56db2b8b3760",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x06f100554b66462da848135caa24b33b9519bbb7a9a971b5f585898c69c82dc5",
+          "createdAt": "2026-09-12T15:16:17.970Z",
+          "receiptAtMs": 1789226178000,
+          "gasQuote": "15538"
+        },
+        {
+          "id": "b069ca77-16d3-4a38-92b8-c9a4101606f9",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x58ab8e8e62c468f742eca9443efdbb569ec434dc56e3883e0998b7a3fc597cd2",
+          "createdAt": "2026-09-12T15:16:39.463Z",
+          "receiptAtMs": 1789226199000,
+          "gasQuote": "104531"
+        }
+      ],
+      "gasQuote": 191183,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 21735,
+      "mintMs": 80735,
+      "stageGasQuote": [
+        14852,
+        41627,
+        134704
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T15:34:51.840Z",
+      "initialGasQuote": "856084",
+      "end": "2026-09-12T15:39:19.952Z",
+      "outcome": "complete",
+      "finalGasQuote": "1016486",
+      "durationMs": 268112,
+      "actions": [
+        {
+          "id": "da3ab3ae-f471-42b7-b7ed-430c93bbdf91",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x6dbab0c0bf8e22f4824980c212101799cdf68215d265025b7695ca1515b423eb",
+          "createdAt": "2026-09-12T15:37:12.932Z",
+          "receiptAtMs": 1789227433000,
+          "gasQuote": "55683"
+        },
+        {
+          "id": "518b9d5d-c12b-409a-9c1a-9c7afdd53280",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xbef91a8976c49d590024d92abd97b9afd75c45b1ec153cce4ac8d7c981980e54",
+          "createdAt": "2026-09-12T15:37:39.625Z",
+          "receiptAtMs": 1789227460000,
+          "gasQuote": "15905"
+        },
+        {
+          "id": "edec3a1b-1ddb-445e-a92e-d009c868838d",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x8712e988d31c5d16f74b3c5e0784fbc3566796ef6b752eefab885058932597d8",
+          "createdAt": "2026-09-12T15:38:01.154Z",
+          "receiptAtMs": 1789227481000,
+          "gasQuote": "38283"
+        },
+        {
+          "id": "7d6516cb-b0ff-40b0-9d9c-e43e6fa20fa1",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x60273d91c6e44bcb765ac74265f913760471941a691288271c1e73b7891fc1c8",
+          "createdAt": "2026-09-12T15:38:17.381Z",
+          "receiptAtMs": 1789227497000,
+          "gasQuote": "11247"
+        },
+        {
+          "id": "a4c4cd8c-7e08-48e2-bea4-292109f0cf92",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x0fcc5fbbcf8cd3f3e61a8a39291f1d56a16756ee4d0b4e1e791aab0fe904d101",
+          "createdAt": "2026-09-12T15:38:38.985Z",
+          "receiptAtMs": 1789227522000,
+          "gasQuote": "17757"
+        },
+        {
+          "id": "48b4b87d-066e-46a2-afb0-151076f2eb36",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x50d3e9ba0062388f857e2e0760625a6c0b87c69e8e8a47939e2a718a771cfa9d",
+          "createdAt": "2026-09-12T15:38:58.423Z",
+          "receiptAtMs": 1789227538000,
+          "gasQuote": "21527"
+        }
+      ],
+      "gasQuote": 160402,
+      "reverts": 0,
+      "withdrawMs": 141160,
+      "swapMs": 189160,
+      "mintMs": null,
+      "stageGasQuote": [
+        55683,
+        54188,
+        50531
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T15:49:20.823Z",
+      "initialGasQuote": "1016486",
+      "end": "2026-09-12T15:51:47.199Z",
+      "outcome": "complete",
+      "finalGasQuote": "1225153",
+      "durationMs": 146376,
+      "actions": [
+        {
+          "id": "c0ee3d40-f048-405b-83d0-fee1aea6476c",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x93278b5c473696fc738b6cd8d5bb11eab31abff7f346d109855f277407d23536",
+          "createdAt": "2026-09-12T15:49:20.838Z",
+          "receiptAtMs": 1789228161000,
+          "gasQuote": "14238"
+        },
+        {
+          "id": "80bb8e92-5506-4097-a0a2-2be05f251249",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x294873d72357724618dd69fa3a764024122c31af9a74f304eee65a44aff177cc",
+          "createdAt": "2026-09-12T15:49:42.859Z",
+          "receiptAtMs": 1789228183000,
+          "gasQuote": "10005"
+        },
+        {
+          "id": "94cf0a9d-7974-41e7-ba9a-938ec2fd955f",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x8d5a75cb8bb11e0ca28c5e083a10874d1413a9d372707e67179f62be44f86f68",
+          "createdAt": "2026-09-12T15:49:59.379Z",
+          "receiptAtMs": 1789228199000,
+          "gasQuote": "10130"
+        },
+        {
+          "id": "05814149-a2c2-4767-877a-8468183557f8",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x993030cddf7b3fce32983ad3b912ab8bbc03a007ecf3dd883194843adb03cae2",
+          "createdAt": "2026-09-12T15:50:21.008Z",
+          "receiptAtMs": 1789228221000,
+          "gasQuote": "42244"
+        },
+        {
+          "id": "7e168c47-4045-4f7b-b0fe-142ef3cf8aa9",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc573a4a16909246c7b109bdb4e2110282f563580a6b5e0830a5cb0ff1eef5cb3",
+          "createdAt": "2026-09-12T15:50:47.723Z",
+          "receiptAtMs": 1789228248000,
+          "gasQuote": "14147"
+        },
+        {
+          "id": "a4936ae5-3c2a-486b-b769-1e3f8d098e18",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x14db9dc75564f6ebd2ad37dd4f202a76899e194fb2f344c314ef1d662834924a",
+          "createdAt": "2026-09-12T15:51:09.356Z",
+          "receiptAtMs": 1789228269000,
+          "gasQuote": "15764"
+        },
+        {
+          "id": "04cfe753-47a7-483a-b60e-0a2cbca66260",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x0d46c504c541f51ad68ea6663fd4d8056c725aafaf0b6d566a9d84b60431ac60",
+          "createdAt": "2026-09-12T15:51:30.824Z",
+          "receiptAtMs": 1789228291000,
+          "gasQuote": "102139"
+        }
+      ],
+      "gasQuote": 208667,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 60177,
+      "mintMs": 130177,
+      "stageGasQuote": [
+        0,
+        76617,
+        132050
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T16:00:03.996Z",
+      "initialGasQuote": "1225153",
+      "end": "2026-09-12T16:01:42.762Z",
+      "outcome": "complete",
+      "finalGasQuote": "1353968",
+      "durationMs": 98766,
+      "actions": [
+        {
+          "id": "eb36576b-d294-4285-97dd-a456ec19a07c",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0xfa5add89984c152bf92a556852b33fc42065fbd3c5efb549762187c48b22d2fa",
+          "createdAt": "2026-09-12T16:00:04.008Z",
+          "receiptAtMs": 1789228804000,
+          "gasQuote": "56998"
+        },
+        {
+          "id": "6748dc84-e103-4a51-a2ad-d33c83c2d1c5",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa9021253400c1ce02990a7d26e485e85ff6357ebea9304f72a0f4700303276c3",
+          "createdAt": "2026-09-12T16:00:20.680Z",
+          "receiptAtMs": 1789228821000,
+          "gasQuote": "15951"
+        },
+        {
+          "id": "b27a32d8-1d90-441e-a877-a87afedd201d",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xb0513303ab5444150702a1102a9ce81023d3551d8a2f3bb7a46bed2444448627",
+          "createdAt": "2026-09-12T16:00:43.565Z",
+          "receiptAtMs": 1789228844000,
+          "gasQuote": "36605"
+        },
+        {
+          "id": "9b4f67f0-4574-438c-bafa-6eb29e36ff8d",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xd33799cba0a2a398422cf5cb28e900751f3df1ed84c24f65481fab4209f45a05",
+          "createdAt": "2026-09-12T16:01:05.148Z",
+          "receiptAtMs": 1789228865000,
+          "gasQuote": "8925"
+        },
+        {
+          "id": "dbd446ec-1877-445d-955e-dd5fd61b6f7a",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x1a6a7cd90b874deeb0e777693209fca5631b874ac767d2c0b0a115dab99c7a9d",
+          "createdAt": "2026-09-12T16:01:21.306Z",
+          "receiptAtMs": 1789228881000,
+          "gasQuote": "10336"
+        }
+      ],
+      "gasQuote": 128815,
+      "reverts": 0,
+      "withdrawMs": 4,
+      "swapMs": 40004,
+      "mintMs": null,
+      "stageGasQuote": [
+        56998,
+        52556,
+        19261
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T16:21:57.435Z",
+      "initialGasQuote": "1353968",
+      "end": "2026-09-12T16:23:52.001Z",
+      "outcome": "complete",
+      "finalGasQuote": "1560658",
+      "durationMs": 114566,
+      "actions": [
+        {
+          "id": "4206622c-f36b-47ce-aa90-d44140139096",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xf5addb0beaf0cd1bc194dd584704f7fdbae1074ab8f732bdf2f596cf7135c0cd",
+          "createdAt": "2026-09-12T16:21:57.444Z",
+          "receiptAtMs": 1789230117000,
+          "gasQuote": "14562"
+        },
+        {
+          "id": "3c409112-e0a2-4aba-9451-2ff6ce9e128e",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xf2bd060f23dd96ba1b1ff5cf23ca2f562246528a129a8f42ee676ee4688eddf9",
+          "createdAt": "2026-09-12T16:22:13.929Z",
+          "receiptAtMs": 1789230134000,
+          "gasQuote": "10119"
+        },
+        {
+          "id": "7fb40b1c-4ccd-4881-92c9-318a5a59e27e",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x0b7b936ff5ecd553881d66524ea2da5b959729a79cfd4823c1231524d73af2aa",
+          "createdAt": "2026-09-12T16:22:35.724Z",
+          "receiptAtMs": 1789230156000,
+          "gasQuote": "41992"
+        },
+        {
+          "id": "1c39cb25-571c-4d5d-b019-b2e2c0968d2b",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa2737d842de4754bd248dd61b33dff71770f7f70a02077274b0b22fc4397d940",
+          "createdAt": "2026-09-12T16:22:57.478Z",
+          "receiptAtMs": 1789230177000,
+          "gasQuote": "14813"
+        },
+        {
+          "id": "78d15c45-0068-46ed-966c-469b25549fa4",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xd3472fe99f8909f4a458b2b7875a21a5ef2c968d8155a44951e8f59eb2ebf207",
+          "createdAt": "2026-09-12T16:23:13.929Z",
+          "receiptAtMs": 1789230194000,
+          "gasQuote": "15710"
+        },
+        {
+          "id": "8141f40c-d0b7-4749-bd88-7e06329b321d",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xafd6ee81afbb3c859e16a025d834fd72d9824dc3faa21ab1fc64ce201edeb167",
+          "createdAt": "2026-09-12T16:23:35.538Z",
+          "receiptAtMs": 1789230216000,
+          "gasQuote": "109494"
+        }
+      ],
+      "gasQuote": 206690,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 38565,
+      "mintMs": 98565,
+      "stageGasQuote": [
+        14562,
+        52111,
+        140017
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T16:32:57.101Z",
+      "initialGasQuote": "1560658",
+      "end": "2026-09-12T16:35:27.806Z",
+      "outcome": "complete",
+      "finalGasQuote": "1723102",
+      "durationMs": 150705,
+      "actions": [
+        {
+          "id": "e806ffbf-40ce-4535-9ce8-4b554f13e541",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x91cdd1af016c737c473b1c38407ea6c52e4a85ed1982811c7ce221b4b0261e7e",
+          "createdAt": "2026-09-12T16:32:57.127Z",
+          "receiptAtMs": 1789230782000,
+          "gasQuote": "80243"
+        },
+        {
+          "id": "1355849c-1390-4a7f-8ae2-79fa698a1bcd",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x4cd944798328acb61cce0bcd82b9a0b3784adfa4360ce657d4bfaa180b88a206",
+          "createdAt": "2026-09-12T16:33:24.523Z",
+          "receiptAtMs": 1789230804000,
+          "gasQuote": "16739"
+        },
+        {
+          "id": "94245959-2ced-445b-9185-ca6ee304352f",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x77f51bec8ad79b030f5b0f09033c09ad3124d2cfa50eeae5cd745d95c5fcab7b",
+          "createdAt": "2026-09-12T16:33:51.265Z",
+          "receiptAtMs": 1789230831000,
+          "gasQuote": "36913"
+        },
+        {
+          "id": "3ead7f7c-9bd2-4dbc-8361-2792f652d0d9",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x028ceb6c6046c50ff09e578228cb3dec0f53c266c9a00d9a6a46a2b73dd43c59",
+          "createdAt": "2026-09-12T16:34:18.158Z",
+          "receiptAtMs": 1789230858000,
+          "gasQuote": "9018"
+        },
+        {
+          "id": "56ad26b9-9b64-4f53-8665-2dc6c1737f00",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xffe501207cd508ffaf12aa36d2b7e1a7228af4c821fdbe35eb3f44e60c32568c",
+          "createdAt": "2026-09-12T16:34:34.421Z",
+          "receiptAtMs": 1789230874000,
+          "gasQuote": "9114"
+        },
+        {
+          "id": "9e56a03c-4c7b-4dc5-bdaf-5205e15b6691",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x581abc761254f77d70b20fc7b0a1a5cd7397bf93c18c70621ac573bc32887368",
+          "createdAt": "2026-09-12T16:35:01.153Z",
+          "receiptAtMs": 1789230901000,
+          "gasQuote": "10417"
+        }
+      ],
+      "gasQuote": 162444,
+      "reverts": 0,
+      "withdrawMs": 4899,
+      "swapMs": 53899,
+      "mintMs": null,
+      "stageGasQuote": [
+        80243,
+        53652,
+        28549
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T16:45:29.164Z",
+      "initialGasQuote": "1723102",
+      "end": "2026-09-12T16:47:29.492Z",
+      "outcome": "complete",
+      "finalGasQuote": "1917051",
+      "durationMs": 120328,
+      "actions": [
+        {
+          "id": "3c4da021-787c-4653-9f25-bf1baefa521d",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xf7ff406e70a44d01bafbb93d684c998ef883840b96b872af6ff342e6cf210517",
+          "createdAt": "2026-09-12T16:45:29.180Z",
+          "receiptAtMs": 1789231529000,
+          "gasQuote": "14512"
+        },
+        {
+          "id": "8f92fdcb-aab6-41a4-a5c1-4467f7d7b86c",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x283e00f40d14e5ed44fcbecfa93ed103459012f197cc3301dc0670eebd76e2cc",
+          "createdAt": "2026-09-12T16:45:45.635Z",
+          "receiptAtMs": 1789231552000,
+          "gasQuote": "42562"
+        },
+        {
+          "id": "cf2452e4-81d0-4dce-a139-1210cfff9622",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x85cd25a0c9bc98952250c1161576392985340d776aff9ce209fcb437e1abc99a",
+          "createdAt": "2026-09-12T16:46:19.259Z",
+          "receiptAtMs": 1789231584000,
+          "gasQuote": "14689"
+        },
+        {
+          "id": "25342c4b-0ad6-405c-be96-221d556b7e57",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x5d6f5b26e401a39c07d72c359883c507709d054bd8724f3a2c70beb8c6d1d2e8",
+          "createdAt": "2026-09-12T16:46:46.451Z",
+          "receiptAtMs": 1789231606000,
+          "gasQuote": "16465"
+        },
+        {
+          "id": "779bb9e7-0c67-4312-ae40-cede78120cae",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x5b77a85daa69db8572cadf071841047e00a58ad818892709cd053cbbdb297848",
+          "createdAt": "2026-09-12T16:47:07.916Z",
+          "receiptAtMs": 1789231628000,
+          "gasQuote": "105721"
+        }
+      ],
+      "gasQuote": 193949,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 22836,
+      "mintMs": 98836,
+      "stageGasQuote": [
+        14512,
+        42562,
+        136875
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T17:45:44.050Z",
+      "initialGasQuote": "1917051",
+      "end": "2026-09-12T17:47:42.447Z",
+      "outcome": "complete",
+      "finalGasQuote": "2054547",
+      "durationMs": 118397,
+      "actions": [
+        {
+          "id": "98926b2b-821f-463a-8e57-ae89134326dd",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x994704981a0c14325e3073afdf729da69441875ea8d18de7899568146345d666",
+          "createdAt": "2026-09-12T17:45:44.068Z",
+          "receiptAtMs": 1789235144000,
+          "gasQuote": "56781"
+        },
+        {
+          "id": "8d43497c-216b-4feb-8183-4d4e58d2fd6e",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x109404a4aca64eeecfa45cf329813ce4457173392c70524ef24eadde495a2047",
+          "createdAt": "2026-09-12T17:46:05.601Z",
+          "receiptAtMs": 1789235166000,
+          "gasQuote": "16289"
+        },
+        {
+          "id": "d4617a2f-f97e-442a-ad3b-3a53703eddbf",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x0912cf943e9301d0eb320a171bc61230eef58d1656daf0bc2f0d42674bbe3fae",
+          "createdAt": "2026-09-12T17:46:27.087Z",
+          "receiptAtMs": 1789235187000,
+          "gasQuote": "36031"
+        },
+        {
+          "id": "2261b318-6d49-415e-8dba-5940c93e6316",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x3f57453f464ffa8d2889ff56cde4296a71ae640be720b08748428bb5f5f88787",
+          "createdAt": "2026-09-12T17:46:43.363Z",
+          "receiptAtMs": 1789235203000,
+          "gasQuote": "9119"
+        },
+        {
+          "id": "40a47d75-2c14-4d01-bd43-38a0981362c9",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa236ca97d88e6ec7210aaa8f8298b850082551f6a93e2b68e5235816aecb165c",
+          "createdAt": "2026-09-12T17:47:04.791Z",
+          "receiptAtMs": 1789235225000,
+          "gasQuote": "8872"
+        },
+        {
+          "id": "9cc7094f-7bba-4675-8e62-23e874b1929f",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xbec76a21e79676b3dd48cde88450a502e06e94348ac8f5faf38c3405567433a1",
+          "createdAt": "2026-09-12T17:47:26.221Z",
+          "receiptAtMs": 1789235246000,
+          "gasQuote": "10404"
+        }
+      ],
+      "gasQuote": 137496,
+      "reverts": 0,
+      "withdrawMs": -50,
+      "swapMs": 42950,
+      "mintMs": null,
+      "stageGasQuote": [
+        56781,
+        52320,
+        28395
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-12T17:57:43.371Z",
+      "initialGasQuote": "2054547",
+      "end": "2026-09-12T17:59:20.751Z",
+      "outcome": "complete",
+      "finalGasQuote": "2249346",
+      "durationMs": 97380,
+      "actions": [
+        {
+          "id": "809f2553-32e1-4271-b80d-1cccb99163c9",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x400fd6a223a0ee8b4ed61ff5d0743377c32146aa66b9b22b486f8ca8d4d27cac",
+          "createdAt": "2026-09-12T17:57:43.381Z",
+          "receiptAtMs": 1789235863000,
+          "gasQuote": "14390"
+        },
+        {
+          "id": "5e99621e-e1d8-4b04-a896-67f5b6f5831f",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xd0ee9fee044762f52eb9bf358e539556a6b731327de1f3ab3802260b43e094f5",
+          "createdAt": "2026-09-12T17:58:05.276Z",
+          "receiptAtMs": 1789235885000,
+          "gasQuote": "42750"
+        },
+        {
+          "id": "f23dcb11-f478-428f-acff-0bb14c576ec4",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x3a830e19a75cbdf3bcabb71905eef98a67bf04297578a3fb2f49032eb3ad137e",
+          "createdAt": "2026-09-12T17:58:26.800Z",
+          "receiptAtMs": 1789235907000,
+          "gasQuote": "14273"
+        },
+        {
+          "id": "8e502958-0975-4c69-a0c9-8534647512fc",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xe5273614793ae63ff6f754e32c260c875284826ce3eed2e57c97ee4174623d4a",
+          "createdAt": "2026-09-12T17:58:48.256Z",
+          "receiptAtMs": 1789235928000,
+          "gasQuote": "16026"
+        },
+        {
+          "id": "e1645661-b50b-407c-a0cd-1b751c196e3c",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x1459903412ad1a2cc8ea7ecf0ecd7bf037ac7f4561dbdb4fefb37cdb89da14c5",
+          "createdAt": "2026-09-12T17:59:04.522Z",
+          "receiptAtMs": 1789235944000,
+          "gasQuote": "107360"
+        }
+      ],
+      "gasQuote": 194799,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 21629,
+      "mintMs": 80629,
+      "stageGasQuote": [
+        14390,
+        42750,
+        137659
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-12T20:37:03.440Z",
+      "initialGasQuote": "2249346",
+      "end": "2026-09-12T20:39:19.387Z",
+      "outcome": "interrupted_exit",
+      "durationMs": 135947,
+      "actions": [
+        {
+          "id": "e23df3d5-a1ad-42b6-b2f7-e76de1e31742",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x952a65c34a5065b5bbfe0bf9814e39a71f0433926dd1e4272f68fdbf1d5a41e7",
+          "createdAt": "2026-09-12T20:37:03.456Z",
+          "receiptAtMs": 1789245423000,
+          "gasQuote": "53049"
+        },
+        {
+          "id": "bcf53c5e-977a-435e-b79d-f634291a4356",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x8768817cc5cd9c7986f39e98177d84472c2527e12617e5244afcbddffef5a5ec",
+          "createdAt": "2026-09-12T20:37:25.568Z",
+          "receiptAtMs": 1789245446000,
+          "gasQuote": "15813"
+        },
+        {
+          "id": "e7fc19e3-09d3-4b49-a14e-c74f80b61908",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xae98b01d720f2414ada15152e3ad2a219ff8a81135f52053561600f801d18350",
+          "createdAt": "2026-09-12T20:37:47.420Z",
+          "receiptAtMs": 1789245467000,
+          "gasQuote": "11677"
+        },
+        {
+          "id": "62e5e189-1740-40d5-be27-27ebbbc64fd0",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa583abb0ed17aeaac1859d589b3c4f631705e66c235a6f06eeac3a5382d1ffb3",
+          "createdAt": "2026-09-12T20:38:09.168Z",
+          "receiptAtMs": 1789245489000,
+          "gasQuote": "11522"
+        },
+        {
+          "id": "cc786c22-12f6-4948-ba47-2923925a7db9",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xd903564edc4c26686eeffd53cc09d16a175404e330c7a40837469f0fcbb99f0c",
+          "createdAt": "2026-09-12T20:38:25.828Z",
+          "receiptAtMs": 1789245506000,
+          "gasQuote": "38048"
+        },
+        {
+          "id": "726632ff-312e-4c28-9d81-c4f5e0b9e87a",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xef3b2fde85432d1fd14ed20bcfb0419d7fa2eeb5c6dd2221c2ea7908cb340b1c",
+          "createdAt": "2026-09-12T20:38:47.421Z",
+          "receiptAtMs": 1789245527000,
+          "gasQuote": "10392"
+        }
+      ],
+      "gasQuote": 140501,
+      "reverts": 0,
+      "withdrawMs": -440,
+      "swapMs": 82560,
+      "mintMs": null,
+      "stageGasQuote": [
+        53049,
+        77060,
+        10392
+      ]
+    },
+    {
+      "kind": "exit",
+      "start": "2026-09-12T20:39:19.387Z",
+      "initialGasQuote": "2389847",
+      "end": "2026-09-13T05:33:26.786Z",
+      "outcome": "complete",
+      "finalGasQuote": "2464581",
+      "durationMs": 32047399,
+      "actions": [
+        {
+          "id": "dc8400b9-4ef6-4281-8715-4eb4cc2b1056",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x5a90e9a7f63dc3550d1efda1dafa6b008e6075c8b618c0f112599c1f7a9da8da",
+          "createdAt": "2026-09-12T20:41:30.456Z",
+          "receiptAtMs": 1789245690000,
+          "gasQuote": "11639"
+        },
+        {
+          "id": "15bf36f3-0f81-4c29-ba20-286057224c14",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x24ea3bb951bfa1a0559829c30aa42285645c4d9297d1c1cc7e75940f2a19af8b",
+          "createdAt": "2026-09-12T20:41:46.823Z",
+          "receiptAtMs": 1789245707000,
+          "gasQuote": "35758"
+        },
+        {
+          "id": "c20e0dba-46d6-4f52-b31b-11408233c012",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x45aade6c37354b6711ba0345f0522e75ebeb504f4c246beab1676a6fbe8f5203",
+          "createdAt": "2026-09-12T20:42:08.397Z",
+          "receiptAtMs": 1789245728000,
+          "gasQuote": "8976"
+        },
+        {
+          "id": "64045f1a-1ca8-4fa6-8371-39d32c8b42c7",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc9567963f9acef43bc7c7a6b72eb3207e20276c5ca5bc477c2e3648be8609cae",
+          "createdAt": "2026-09-12T20:42:24.632Z",
+          "receiptAtMs": 1789245745000,
+          "gasQuote": "9061"
+        },
+        {
+          "id": "aa12340b-0c1d-49e1-b3a7-dc3f5b104a08",
+          "action": "approve",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-12T20:42:46.288Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "7b0add51-33a5-4fc3-8727-f0cdfc38ee6a",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x19df6b645ca97e290929019b6f85411bb59f37e84ffafd4b31594ebd55844bca",
+          "createdAt": "2026-09-13T05:33:10.328Z",
+          "receiptAtMs": 1789277590000,
+          "gasQuote": "9300"
+        }
+      ],
+      "gasQuote": 74734,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 147613,
+      "mintMs": null,
+      "stageGasQuote": [
+        0,
+        47397,
+        27337
+      ]
+    },
+    {
+      "kind": "entry",
+      "start": "2026-09-13T05:43:46.127Z",
+      "initialGasQuote": "2464581",
+      "end": "2026-09-13T05:45:23.703Z",
+      "outcome": "complete",
+      "finalGasQuote": "2637667",
+      "durationMs": 97576,
+      "actions": [
+        {
+          "id": "1b535691-cd0c-4a87-b0ed-08ccf6edd8da",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x137e28d936957efcb8e02822b598c78a63bfa62a3627ac8c6ca6f9d36e5d77c8",
+          "createdAt": "2026-09-13T05:43:46.145Z",
+          "receiptAtMs": 1789278226000,
+          "gasQuote": "12700"
+        },
+        {
+          "id": "caac5d88-0cbd-4d84-810c-c8bf2bc9eeef",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xafc4ec9694be1a7a9a17f72efe4ae885579d439ad553e42a93c02a879905a3b8",
+          "createdAt": "2026-09-13T05:44:07.879Z",
+          "receiptAtMs": 1789278248000,
+          "gasQuote": "37351"
+        },
+        {
+          "id": "1276695a-7490-400c-9d77-45a6d34e45e2",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa47ccaa0d83228575357e741eaaa5af5b1f2fc9526c72433cea95db3f542e3d2",
+          "createdAt": "2026-09-13T05:44:29.476Z",
+          "receiptAtMs": 1789278269000,
+          "gasQuote": "12761"
+        },
+        {
+          "id": "52f424bc-b1c9-4f6a-8a79-dba6c1bd2022",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x6da58348e8f9f88ef5ef0195b402aef31ce1f408a2d8a6657525493d2aa9917d",
+          "createdAt": "2026-09-13T05:44:45.781Z",
+          "receiptAtMs": 1789278286000,
+          "gasQuote": "13892"
+        },
+        {
+          "id": "547a66fc-3d88-4dee-a449-a85bb653884e",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xb421db7f3069495157b2991e8e42c12c10ebe9fe5f49d38a7e1547544bd51be5",
+          "createdAt": "2026-09-13T05:45:07.370Z",
+          "receiptAtMs": 1789278307000,
+          "gasQuote": "96382"
+        }
+      ],
+      "gasQuote": 173086,
+      "reverts": 0,
+      "withdrawMs": null,
+      "swapMs": 21873,
+      "mintMs": 80873,
+      "stageGasQuote": [
+        12700,
+        37351,
+        123035
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T07:39:04.861Z",
+      "initialGasQuote": "2637667",
+      "end": "2026-09-13T07:41:27.031Z",
+      "outcome": "complete",
+      "finalGasQuote": "2842453",
+      "durationMs": 142170,
+      "actions": [
+        {
+          "id": "94a70648-e95d-4880-9a9f-24000fdfc8c0",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x717def016cc980989dbb3704ffdb1aeb2573fedfb65897395e946acc1093ad26",
+          "createdAt": "2026-09-13T07:39:04.873Z",
+          "receiptAtMs": 1789285145000,
+          "gasQuote": "44168"
+        },
+        {
+          "id": "7a19e8c2-958d-477d-bc7e-e7d6d73a34de",
+          "action": "approve",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T07:39:32.079Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "5c231e18-755c-4ed5-83c8-ab6463658f35",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa4886d8fe6dab6a6f7a3f7bff91386bf1738651830cb8f8d15505ca815f51a87",
+          "createdAt": "2026-09-13T07:39:48.766Z",
+          "receiptAtMs": 1789285189000,
+          "gasQuote": "13611"
+        },
+        {
+          "id": "8400d85b-9e6e-4b18-8a9b-cacff48ad710",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x6a25770be007f808e5c33136a8f3bef0d99a46487133ad6a653af00ec7bc979f",
+          "createdAt": "2026-09-13T07:40:10.757Z",
+          "receiptAtMs": 1789285211000,
+          "gasQuote": "33297"
+        },
+        {
+          "id": "d2cc023d-b41e-4707-84a5-e241dd326aec",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x1fdda78cdd1388ab63c10c5c9d41b7a363bf72737ac87c555fbb05ba8478a956",
+          "createdAt": "2026-09-13T07:40:32.563Z",
+          "receiptAtMs": 1789285232000,
+          "gasQuote": "8876"
+        },
+        {
+          "id": "beb7f954-6dd2-4c32-b096-168eab325d02",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x1c2e36f574ffe78dd3c8d96508570d18a15f111447e478956456ee13eeb39893",
+          "createdAt": "2026-09-13T07:40:54.183Z",
+          "receiptAtMs": 1789285254000,
+          "gasQuote": "10148"
+        },
+        {
+          "id": "10514999-d75b-4eeb-b04e-c9cacb5c6c15",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x3d349a859362d1d8da03f487d6756e124a2e73200d71556c1528014feb6240e2",
+          "createdAt": "2026-09-13T07:41:10.602Z",
+          "receiptAtMs": 1789285271000,
+          "gasQuote": "94686"
+        }
+      ],
+      "gasQuote": 204786,
+      "reverts": 0,
+      "withdrawMs": 139,
+      "swapMs": 66139,
+      "mintMs": 126139,
+      "stageGasQuote": [
+        44168,
+        46908,
+        113710
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T08:20:01.862Z",
+      "initialGasQuote": "2842453",
+      "end": "2026-09-13T08:22:13.719Z",
+      "outcome": "complete",
+      "finalGasQuote": "3043128",
+      "durationMs": 131857,
+      "actions": [
+        {
+          "id": "5bc12b02-d04a-4353-9246-655e4b573e8c",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0xb58b087c5a31f7deb407824805c141f1557c30eec1140b5efc415e8313474921",
+          "createdAt": "2026-09-13T08:20:01.876Z",
+          "receiptAtMs": 1789287604000,
+          "gasQuote": "44685"
+        },
+        {
+          "id": "8fca50db-2f2b-4cc8-a04b-5465ceee4fa8",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x6dc4b9532b3630a9c53f74419cb9acc5ed25f06fc32e42b53cb682776566b985",
+          "createdAt": "2026-09-13T08:20:26.623Z",
+          "receiptAtMs": 1789287627000,
+          "gasQuote": "10148"
+        },
+        {
+          "id": "d7fd6aa4-2330-4b30-9390-862a4332f591",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xbfac431e8becab6c8afc4b33b9faf9d73cddfa9034f128b712d21154699e2bf5",
+          "createdAt": "2026-09-13T08:20:48.558Z",
+          "receiptAtMs": 1789287651000,
+          "gasQuote": "33758"
+        },
+        {
+          "id": "c032a90b-d9d6-40d7-b4d7-bc7e9bafbb98",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x169c8c8d63d225de6fb568e51111fd44b38c6daed6366a43d149f857ff24a0e3",
+          "createdAt": "2026-09-13T08:21:07.752Z",
+          "receiptAtMs": 1789287670000,
+          "gasQuote": "9032"
+        },
+        {
+          "id": "db3507ed-b053-4f8e-bdee-6916c1af7bfc",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xb92cf318c0b7f2b3b7ec78ebc334e83a04307b809a2b2d8645b45cc8df3f0de3",
+          "createdAt": "2026-09-13T08:21:32.364Z",
+          "receiptAtMs": 1789287695000,
+          "gasQuote": "10060"
+        },
+        {
+          "id": "6fd56efa-066c-48bb-b996-cca5f85aefac",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x13167eb214d67a59250203b61241146e80d8a14df2638c201f81d9114088a8ae",
+          "createdAt": "2026-09-13T08:21:56.992Z",
+          "receiptAtMs": 1789287717000,
+          "gasQuote": "92992"
+        }
+      ],
+      "gasQuote": 200675,
+      "reverts": 0,
+      "withdrawMs": 2138,
+      "swapMs": 49138,
+      "mintMs": 115138,
+      "stageGasQuote": [
+        44685,
+        43906,
+        112084
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T09:16:58.669Z",
+      "initialGasQuote": "3043128",
+      "end": "2026-09-13T09:32:51.301Z",
+      "outcome": "complete",
+      "finalGasQuote": "3286717",
+      "durationMs": 952632,
+      "actions": [
+        {
+          "id": "ab18b032-e6c7-43c4-bc36-160a661f1419",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x53111f6f1b9bf6df5fa8cf10cdad1351cd6f6dfaf0dfe088e77f7f1cdc53de97",
+          "createdAt": "2026-09-13T09:16:58.682Z",
+          "receiptAtMs": 1789291019000,
+          "gasQuote": "43452"
+        },
+        {
+          "id": "e4a5514c-78aa-4578-8f0c-085a7d2b9ba7",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc4da3b4b14f8e28e1f104338df11403bab3d4029a5accc85deafb6c6450a1612",
+          "createdAt": "2026-09-13T09:17:25.937Z",
+          "receiptAtMs": 1789291046000,
+          "gasQuote": "9917"
+        },
+        {
+          "id": "581767cd-8fdb-4b34-b07d-78dd94c73783",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xec08306f3c98ad9cebf4c65c338c87af46833fd96739317b2654e8c5a7227677",
+          "createdAt": "2026-09-13T09:17:42.643Z",
+          "receiptAtMs": 1789291063000,
+          "gasQuote": "32784"
+        },
+        {
+          "id": "6353a805-26a5-4c3f-a0ee-412335a2892e",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xb5d1511b2ff692494ab0c6c58f8f0deccb991e3e508917f4bd56185f397be1cb",
+          "createdAt": "2026-09-13T09:18:05.087Z",
+          "receiptAtMs": 1789291088000,
+          "gasQuote": "12425"
+        },
+        {
+          "id": "0601d17f-50f6-47c0-99b4-53add3eb7f15",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xb4738468f719f95cb1767de2432ccce32daf5fe0e75ac34cddd1854f0746dce5",
+          "createdAt": "2026-09-13T09:18:25.546Z",
+          "receiptAtMs": 1789291105000,
+          "gasQuote": "10078"
+        },
+        {
+          "id": "46368c11-2fd4-4df6-b035-199dbdf89496",
+          "action": "mint",
+          "status": "reverted",
+          "hash": "0xfe134e80f1d4e3645cc5343a6e5618231278dda076b95b3e7bf51d7c35e9f778",
+          "createdAt": "2026-09-13T09:18:47.292Z",
+          "receiptAtMs": 1789291127000,
+          "gasQuote": "45473"
+        },
+        {
+          "id": "3352724a-78e3-430e-ad6d-3d7b4b7e323f",
+          "action": "mint",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T09:32:01.754Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "24ce3aaf-3917-4ddd-ab0e-ddecba7d7e71",
+          "action": "mint",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T09:32:12.667Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "882e42eb-fe57-4612-8409-8de1ec0064e2",
+          "action": "mint",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T09:32:23.896Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "dbc9a9a1-ca6a-4f2f-8a28-6fb0723880b5",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x0f5e9074453bb3c587818f8815db041363d3b49969a513384cbf4a2cd11ca611",
+          "createdAt": "2026-09-13T09:32:34.874Z",
+          "receiptAtMs": 1789291955000,
+          "gasQuote": "89460"
+        }
+      ],
+      "gasQuote": 243589,
+      "reverts": 1,
+      "withdrawMs": 331,
+      "swapMs": 44331,
+      "mintMs": 936331,
+      "stageGasQuote": [
+        43452,
+        42701,
+        157436
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T09:33:23.414Z",
+      "initialGasQuote": "3286717",
+      "end": "2026-09-13T09:35:21.076Z",
+      "outcome": "complete",
+      "finalGasQuote": "3478494",
+      "durationMs": 117662,
+      "actions": [
+        {
+          "id": "7de77968-0993-425c-8161-21860a2abb7e",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x516d316c4aee83be7717baa20e827f5faea24691a64b2de49f761bb4dda67b29",
+          "createdAt": "2026-09-13T09:33:23.437Z",
+          "receiptAtMs": 1789292003000,
+          "gasQuote": "37875"
+        },
+        {
+          "id": "3924196e-23cc-4424-80ad-80e94e3b8ae2",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xac06a2ef8855348b80c8707686b25c063c135f0dd2ec9b4de43f4db733021a8e",
+          "createdAt": "2026-09-13T09:33:45.704Z",
+          "receiptAtMs": 1789292026000,
+          "gasQuote": "9731"
+        },
+        {
+          "id": "c8229430-6b1d-4059-8d75-f81e1af38dd5",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x88895ed99cd134f4f7e97e559759ca30e98503711513fcb4c2ce65246d90b23c",
+          "createdAt": "2026-09-13T09:34:07.754Z",
+          "receiptAtMs": 1789292048000,
+          "gasQuote": "32641"
+        },
+        {
+          "id": "008cebf4-9004-4a15-9f68-2ed69f033199",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x8de35671a139b0a4176cc037d31ecba70a30dbb4a1a48b328320399dbcd3dec2",
+          "createdAt": "2026-09-13T09:34:29.734Z",
+          "receiptAtMs": 1789292070000,
+          "gasQuote": "8569"
+        },
+        {
+          "id": "1dd72fee-13a3-4924-9162-d098604883ad",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x6456c966a67758ffe068c0c66e9a2ca5dd485c505169bbd113d7296dd134b1e8",
+          "createdAt": "2026-09-13T09:34:46.728Z",
+          "receiptAtMs": 1789292090000,
+          "gasQuote": "10015"
+        },
+        {
+          "id": "0e555b20-c549-470b-a8fc-2db64b07b379",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xeb45d235bf4de80a938815a788b66d73d2e74df4651dc0506598bac0b8484dec",
+          "createdAt": "2026-09-13T09:35:06.617Z",
+          "receiptAtMs": 1789292109000,
+          "gasQuote": "92946"
+        }
+      ],
+      "gasQuote": 191777,
+      "reverts": 0,
+      "withdrawMs": -414,
+      "swapMs": 44586,
+      "mintMs": 105586,
+      "stageGasQuote": [
+        37875,
+        42372,
+        111530
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T10:36:38.928Z",
+      "initialGasQuote": "3478494",
+      "end": "2026-09-13T10:39:02.123Z",
+      "outcome": "complete",
+      "finalGasQuote": "3684784",
+      "durationMs": 143195,
+      "actions": [
+        {
+          "id": "a160e3d4-713e-4626-a691-65d8cb16f5af",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0xf21e3b04641546bfeab87e5e359d3ce8352b595fe35263e1e571cfc333fcbbea",
+          "createdAt": "2026-09-13T10:36:38.946Z",
+          "receiptAtMs": 1789295802000,
+          "gasQuote": "44330"
+        },
+        {
+          "id": "8d9abfce-1892-45d2-a0c1-2cbd26c0707c",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x32d687bb22e2e8a815f31c75c29eca5a22de7be846487673844bb2091d57ce43",
+          "createdAt": "2026-09-13T10:37:04.351Z",
+          "receiptAtMs": 1789295824000,
+          "gasQuote": "9765"
+        },
+        {
+          "id": "ccffe460-3dee-4dd2-9adb-7f09b0b474f4",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xb94e8b80a7e0454bfc0bf5a93c336db722524c2c0ca0f9bb7050eb9eac7a29f5",
+          "createdAt": "2026-09-13T10:37:26.280Z",
+          "receiptAtMs": 1789295846000,
+          "gasQuote": "9748"
+        },
+        {
+          "id": "4c19e7b7-9a3f-4a72-81ee-784b92561ebe",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x25ef58dd0bb0736d04b7a55229728974f65afcf060962442048c36bf67e2d2e4",
+          "createdAt": "2026-09-13T10:37:43.548Z",
+          "receiptAtMs": 1789295866000,
+          "gasQuote": "32326"
+        },
+        {
+          "id": "45dcd0fc-0f2d-4546-a71f-7b884f2b7755",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x576f2f14bf80662a3090df47881ee3c43d110f3ef5b24ba3c4ca41337bbeb0e9",
+          "createdAt": "2026-09-13T10:38:02.650Z",
+          "receiptAtMs": 1789295883000,
+          "gasQuote": "8624"
+        },
+        {
+          "id": "caaac641-476e-43c2-9e79-f55357f62818",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x4db66cbcafcd54e7dc12bffee112b01e17f0d55db7280281845bd4c0944f0dee",
+          "createdAt": "2026-09-13T10:38:24.237Z",
+          "receiptAtMs": 1789295906000,
+          "gasQuote": "9721"
+        },
+        {
+          "id": "72fbcab2-5d10-4856-833d-0bf7fc96d695",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x42044b5b266bf8dede3fb8dc0e241c2f1a2b2ae1ff4146ff408a2f6fb52573cb",
+          "createdAt": "2026-09-13T10:38:42.856Z",
+          "receiptAtMs": 1789295925000,
+          "gasQuote": "91776"
+        }
+      ],
+      "gasQuote": 206290,
+      "reverts": 0,
+      "withdrawMs": 3072,
+      "swapMs": 67072,
+      "mintMs": 126072,
+      "stageGasQuote": [
+        44330,
+        51839,
+        110121
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T12:36:36.746Z",
+      "initialGasQuote": "3684784",
+      "end": "2026-09-13T12:39:33.479Z",
+      "outcome": "complete",
+      "finalGasQuote": "3906708",
+      "durationMs": 176733,
+      "actions": [
+        {
+          "id": "d93dac3a-631b-4b54-adb0-ba6d674a48c8",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0xfa815253b80b0b1873049dca248091d9e13494806bee8ec1c9ef2724177a97ce",
+          "createdAt": "2026-09-13T12:36:42.075Z",
+          "receiptAtMs": 1789303002000,
+          "gasQuote": "41456"
+        },
+        {
+          "id": "9a89d41c-330a-4ce0-8189-59b2112d2150",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x70fe4d3dfe93608c8984a4364e09ab9a48b300f86510a423ac3cb2157411cd3e",
+          "createdAt": "2026-09-13T12:36:58.978Z",
+          "receiptAtMs": 1789303019000,
+          "gasQuote": "9472"
+        },
+        {
+          "id": "5292aba0-9813-497b-98bc-98b9689cae5b",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc4f11fb5e71cf545f6337da5f8de18ae00cb1bb8f2d3ee7e602c4aaacdbd5496",
+          "createdAt": "2026-09-13T12:37:21.127Z",
+          "receiptAtMs": 1789303041000,
+          "gasQuote": "9536"
+        },
+        {
+          "id": "3c9011f1-b734-48a4-8e77-413baa73035a",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x95673c7d32f3826629551abddc5cc30d9e35d8354d4562ecef313be466e0f7d5",
+          "createdAt": "2026-09-13T12:37:37.847Z",
+          "receiptAtMs": 1789303058000,
+          "gasQuote": "9432"
+        },
+        {
+          "id": "e045b21e-9648-4f02-aa99-87d033a88d63",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x8dc7e47cb4972eaad915137777f25fa54aeb5da87946cdd28b4794496a1c0dcc",
+          "createdAt": "2026-09-13T12:38:00.117Z",
+          "receiptAtMs": 1789303080000,
+          "gasQuote": "9609"
+        },
+        {
+          "id": "62bc3596-9109-4825-b21d-549198a18443",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x3906c1a63a32695f865b6b32968f7216147bacdc2c39053dd0b2d828406ca3e3",
+          "createdAt": "2026-09-13T12:38:22.246Z",
+          "receiptAtMs": 1789303102000,
+          "gasQuote": "33827"
+        },
+        {
+          "id": "8cc42027-b3bd-4bfe-9e6a-62aa2b184809",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x85d418f28acc30c29347128236c4abef924318526649a5777f6927b6e44ec42d",
+          "createdAt": "2026-09-13T12:38:38.655Z",
+          "receiptAtMs": 1789303119000,
+          "gasQuote": "8266"
+        },
+        {
+          "id": "f478fe6d-28e1-42f5-acd0-e5384bd3f173",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xfdf5453c0dde0384e62d4650bc744fb8a3daf173dca5b3280f3900c7aef2d490",
+          "createdAt": "2026-09-13T12:39:00.538Z",
+          "receiptAtMs": 1789303141000,
+          "gasQuote": "9613"
+        },
+        {
+          "id": "b8c0a2ae-5475-47b1-8bb0-9dee49f32a80",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0x24b2b67e8bb6382196699ae1fe5e63007a7b7e7af04ffcc8563ad910cb320a6a",
+          "createdAt": "2026-09-13T12:39:22.326Z",
+          "receiptAtMs": 1789303162000,
+          "gasQuote": "90713"
+        }
+      ],
+      "gasQuote": 221924,
+      "reverts": 0,
+      "withdrawMs": 5254,
+      "swapMs": 105254,
+      "mintMs": 165254,
+      "stageGasQuote": [
+        41456,
+        71876,
+        108592
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T14:24:02.040Z",
+      "initialGasQuote": "3906708",
+      "end": "2026-09-13T14:26:39.885Z",
+      "outcome": "complete",
+      "finalGasQuote": "4097418",
+      "durationMs": 157845,
+      "actions": [
+        {
+          "id": "cc6fc08b-9708-4cd8-865f-f88d8b6d892d",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x521b1b213559b4fb191b0f623ed5473c9968048d819478695d87bbb19fa8498c",
+          "createdAt": "2026-09-13T14:24:02.066Z",
+          "receiptAtMs": 1789309442000,
+          "gasQuote": "44001"
+        },
+        {
+          "id": "c054c682-baed-49ea-b5b5-8b8472221075",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xc2f90b51a6716f0c089d93e5fd03dae182dc1ca58156d3df5d67f2c0a87127f9",
+          "createdAt": "2026-09-13T14:24:23.766Z",
+          "receiptAtMs": 1789309467000,
+          "gasQuote": "8643"
+        },
+        {
+          "id": "bd6736a4-3de3-4458-9e70-47e51ad6a741",
+          "action": "swap",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T14:24:44.303Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "0a3a7f92-7871-44c8-ba0e-a02c944782cf",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0x8a6c1a97b151820ea0dc34caba8a3485e16a5705c54fa45976825d3d02e313bb",
+          "createdAt": "2026-09-13T14:25:00.247Z",
+          "receiptAtMs": 1789309500000,
+          "gasQuote": "32029"
+        },
+        {
+          "id": "06ad9f02-8164-4b4f-b000-ed7268cd1b28",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xd22fe818051e3e177f8da719129c9d7279f844029124b436d282dc231bbc4079",
+          "createdAt": "2026-09-13T14:25:26.762Z",
+          "receiptAtMs": 1789309527000,
+          "gasQuote": "8337"
+        },
+        {
+          "id": "2d85437e-0008-45a3-87d7-a624f4b3dae6",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x1b3d566aa1197d33c82e63bf6218b0d018094af838df03c37c9abecf4d28347e",
+          "createdAt": "2026-09-13T14:25:48.117Z",
+          "receiptAtMs": 1789309548000,
+          "gasQuote": "9609"
+        },
+        {
+          "id": "501f7f7c-504b-4b01-b96f-3afea8da0910",
+          "action": "mint",
+          "status": "cancelled",
+          "hash": null,
+          "createdAt": "2026-09-13T14:26:09.767Z",
+          "receiptAtMs": null,
+          "gasQuote": null
+        },
+        {
+          "id": "0d8fa29e-db35-404d-a085-47e6343e96b3",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xf2608101ad48a695b114ec1bf947205118d3bd3e584bda90f8a6969c9af9a915",
+          "createdAt": "2026-09-13T14:26:20.525Z",
+          "receiptAtMs": 1789309583000,
+          "gasQuote": "88091"
+        }
+      ],
+      "gasQuote": 190710,
+      "reverts": 0,
+      "withdrawMs": -40,
+      "swapMs": 57960,
+      "mintMs": 140960,
+      "stageGasQuote": [
+        44001,
+        40672,
+        106037
+      ]
+    },
+    {
+      "kind": "recenter",
+      "start": "2026-09-13T16:12:12.834Z",
+      "initialGasQuote": "4097418",
+      "end": "2026-09-13T16:15:33.051Z",
+      "outcome": "complete",
+      "finalGasQuote": "4321607",
+      "durationMs": 200217,
+      "actions": [
+        {
+          "id": "209b80b6-97d2-453f-9c3e-227608e5146f",
+          "action": "withdraw",
+          "status": "confirmed",
+          "hash": "0x38d524267ac9396147d8a653ddcf0c15aacd03d23cf164ef6941d45870db097a",
+          "createdAt": "2026-09-13T16:12:12.860Z",
+          "receiptAtMs": 1789315933000,
+          "gasQuote": "45115"
+        },
+        {
+          "id": "8511bea9-af79-460c-9905-ad0ec5ad307e",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xa3bbcc9c6fe6e09b3b89772fa508f608c2bd1834bbfc5b40f6aa44d04c17c6cd",
+          "createdAt": "2026-09-13T16:12:41.050Z",
+          "receiptAtMs": 1789315961000,
+          "gasQuote": "8918"
+        },
+        {
+          "id": "ac6fc61c-4d8a-4a0e-88b0-76579ec60828",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xb6f8108699956852c7f00b86c5c9d3437db392e96291f1dda2a8376decdec1e9",
+          "createdAt": "2026-09-13T16:13:04.970Z",
+          "receiptAtMs": 1789315985000,
+          "gasQuote": "8775"
+        },
+        {
+          "id": "191ae5ed-ac91-424b-a70d-7341b7b8ebde",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xfe14573c8e1fb6a6998cbb318888eb5e9d4c5e7870792b4e47a8c03f1f83ebb7",
+          "createdAt": "2026-09-13T16:13:27.338Z",
+          "receiptAtMs": 1789316007000,
+          "gasQuote": "8778"
+        },
+        {
+          "id": "9a238a40-70a2-4517-89a2-586ecfb87c7b",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x3a9db5559822aa3ab771598c239f663e322fa6f1eb2960fd5537f47ce21db9f6",
+          "createdAt": "2026-09-13T16:13:51.112Z",
+          "receiptAtMs": 1789316032000,
+          "gasQuote": "8596"
+        },
+        {
+          "id": "dc0c13bb-2d4d-42f1-b1cd-3c4797510bd3",
+          "action": "swap",
+          "status": "confirmed",
+          "hash": "0xaecfafb6faba515b03b621aabfb4b5066a139dcba7a684ff23034937ce168c0b",
+          "createdAt": "2026-09-13T16:14:14.090Z",
+          "receiptAtMs": 1789316054000,
+          "gasQuote": "33601"
+        },
+        {
+          "id": "ffd531d5-2de7-4606-98d0-8de188931f66",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0x8250afd12acb46425e8d4e7ed097144f5e31f1a575e32b445830ada0b56f62ca",
+          "createdAt": "2026-09-13T16:14:42.259Z",
+          "receiptAtMs": 1789316083000,
+          "gasQuote": "8925"
+        },
+        {
+          "id": "174d9b4d-79c6-4678-9d6b-db7664486b40",
+          "action": "approve",
+          "status": "confirmed",
+          "hash": "0xeb573536562e4a1dfb28f4db7dc02f811f9b9e93c93a79bf95e1ff3882cba77d",
+          "createdAt": "2026-09-13T16:14:59.238Z",
+          "receiptAtMs": 1789316099000,
+          "gasQuote": "10064"
+        },
+        {
+          "id": "c0cd100c-0c50-4eb2-bca3-cb93c43415c2",
+          "action": "mint",
+          "status": "confirmed",
+          "hash": "0xb2ed1278c4975b5af64e5e785a09bb2c2909b74618a0f9d6474b5bd132a67cea",
+          "createdAt": "2026-09-13T16:15:21.349Z",
+          "receiptAtMs": 1789316122000,
+          "gasQuote": "91417"
+        }
+      ],
+      "gasQuote": 224189,
+      "reverts": 0,
+      "withdrawMs": 166,
+      "swapMs": 121166,
+      "mintMs": 189166,
+      "stageGasQuote": [
+        45115,
+        68668,
+        110406
+      ]
+    }
+  ],
+  "receiptCount": 138,
+  "gasWei": "1715610990052000",
+  "gasQuote": 4321607,
+  "checks": {
+    "receiptGasMatchesCampaign": true,
+    "episodeGasMatchesTransitions": true
+  },
+  "limitations": [
+    "Only one NVDA wallet over about two days; cross-asset transfer is an assumption.",
+    "Completed episodes include recovery delays and reverted transactions; interrupted episodes remain separately visible.",
+    "Receipt inclusion time and controller completion time differ."
+  ]
+}

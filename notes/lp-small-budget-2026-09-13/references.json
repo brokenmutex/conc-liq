@@ -1,0 +1,1951 @@
+{
+  "at": "2026-09-13T18:14:54.703Z",
+  "anchor": {
+    "block": "62159801",
+    "hash": "0x3f3a160a78b6ae36143c1ee2eaf09d266b51f4e2ebcae7172ac6eaeb19fb0b3c",
+    "timestamp": "1789323119"
+  },
+  "policy": {
+    "kind": "continuous_bounded_v1",
+    "maxHeldAgeSeconds": 345600,
+    "maxDeviationPpm": 50000,
+    "maxGasPriceAgeSeconds": 86400,
+    "usdgHeartbeatGraceSeconds": 1800
+  },
+  "rows": [
+    {
+      "symbol": "USO",
+      "pool": "0x02175608f1b5e6b5ed221ccfdc7be197d111d915",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 172223,
+        "referencePriceX18": "154547275106111983438",
+        "poolPriceX18": "155088471000000000000",
+        "deviationPpm": "3501",
+        "referenceUpdatedAt": "2026-09-11T18:21:36.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "USAR",
+      "pool": "0x04391780f519b7d3ba59c9590459d76e23d225c4",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "15322530000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SOXX",
+      "pool": "0x0663e66c880e27a5ce3c4c25234ab64ead7dff67",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "510432160000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GME",
+      "pool": "0x0a0675689c2ad2a3ade86539bcbd27b6c0764e9d",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166874,
+        "referencePriceX18": "21117285312616531361",
+        "poolPriceX18": "20984736000000000000",
+        "deviationPpm": "-6276",
+        "referenceUpdatedAt": "2026-09-11T19:50:45.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "COST",
+      "pool": "0x0a2121a50a09ed0796ae81f9c53ff9398355a398",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "903005904000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "NU",
+      "pool": "0x0e3faed512e7909758eb924e6919e0057bd6b45e",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "14735298000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SNAP",
+      "pool": "0x0ebd4650c9e641e9745b5a508a2d46935dfe753e",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "5645214000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "LULU",
+      "pool": "0x0f4227d27082b3bca6818381b9ea6460275e49f4",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "100264455000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "META",
+      "pool": "0x107a7cb40d8665360ba10e59471af06150a50922",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166897,
+        "referencePriceX18": "647039622627960797917",
+        "poolPriceX18": "643385203000000000000",
+        "deviationPpm": "-5647",
+        "referenceUpdatedAt": "2026-09-11T19:50:22.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "RDDT",
+      "pool": "0x1a774e182159d2880dbc646eb89a8defe569f97c",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "156359494000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "BE",
+      "pool": "0x1bad145c8f06444e0df81c28257cd20231bd1f16",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "263812180000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "RBLX",
+      "pool": "0x1bdb8e3a79cb1a7f228808739311e23098d33d43",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "46222116000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "PENG",
+      "pool": "0x1cd650500fa6f07646361f5f508aa6fbf7ddad36",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "50803002000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "QUBT",
+      "pool": "0x227bbce9a81b3694b01754298a983be3f9e44a93",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "8038600000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "WYFI",
+      "pool": "0x2a3063e34c60253abb23c2442f4cdfbc5cbd02c2",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "trading_not_tradable",
+          "oracle_feed_missing",
+          "paper_token_safety_check_failed",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "18788964000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "INTC",
+      "pool": "0x2e5a92f5013a64661a49312111be2e8abd33f56a",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 169758,
+        "referencePriceX18": "103041151113373489279",
+        "poolPriceX18": "99510273000000000000",
+        "deviationPpm": "-34266",
+        "referenceUpdatedAt": "2026-09-11T19:02:41.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "pool": "0x34d0dc122cf9a8eb296fc5e0d3a233625d7d19b7",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 170798,
+        "referencePriceX18": "339081695421078469111",
+        "poolPriceX18": "337713246000000000000",
+        "deviationPpm": "-4035",
+        "referenceUpdatedAt": "2026-09-11T18:45:21.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SLV",
+      "pool": "0x37ed4621d1eb3abc9e551a888e6aaf0a41f7be8e",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 172645,
+        "referencePriceX18": "58101287721357205276",
+        "poolPriceX18": "58139522000000000000",
+        "deviationPpm": "658",
+        "referenceUpdatedAt": "2026-09-11T18:14:34.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AMD",
+      "pool": "0x48d284a2a4d3dc1b3da08231fe44317e7e7aa51f",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 169382,
+        "referencePriceX18": "515998091313441940686",
+        "poolPriceX18": "502774420000000000000",
+        "deviationPpm": "-25627",
+        "referenceUpdatedAt": "2026-09-11T19:08:57.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "F",
+      "pool": "0x4dbac19e895322ac5b93abad9008691632bffc05",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "14278725000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "LMT",
+      "pool": "0x54f160bea60ec5207918c539d86e0b906b4da297",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "522493516000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "pool": "0x553e9a453425cd9b90919f317061fbc3794cc57a",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 170798,
+        "referencePriceX18": "339081695421078469111",
+        "poolPriceX18": "338211275000000000000",
+        "deviationPpm": "-2566",
+        "referenceUpdatedAt": "2026-09-11T18:45:21.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "NFLX",
+      "pool": "0x59895c0302f41aeaa129d2fa2442cec01e7ef45e",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "77266724000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AVGO",
+      "pool": "0x5b7c404f1d7d77f9f3885ab13d7764f8a173028c",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "355765302000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "UPS",
+      "pool": "0x5c67a84ec5494ffe24e217b28debb96341014c86",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "100038503000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SKHY",
+      "pool": "0x5f2a5025feb93a4c44da4e3b37e4fd3fb0ab5171",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "182209434000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "CRCL",
+      "pool": "0x654e4143e82a5824445ade0824351c2a9acd95a8",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166838,
+        "referencePriceX18": "91093758166508779580",
+        "poolPriceX18": "91097084000000000000",
+        "deviationPpm": "36",
+        "referenceUpdatedAt": "2026-09-11T19:51:21.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SGOV",
+      "pool": "0x6ba50150b17ffd0972915aaf04ffd5e8f4fa49b4",
+      "fee": 500,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "100971203000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "pool": "0x783c9bbb765047cfdd2b84b92b2ca9f11d34b7ed",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166831,
+        "referencePriceX18": "332558767519820995028",
+        "poolPriceX18": "331558887000000000000",
+        "deviationPpm": "-3006",
+        "referenceUpdatedAt": "2026-09-11T19:51:28.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GLD",
+      "pool": "0x7a6a053eccf1446a2633e05aa6d40d09381997ec",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "397771782000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "pool": "0x7f0ace18d1dced47063cf26e649bc8ab14d09e67",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "266403447000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "PLTR",
+      "pool": "0x851680416a4f4e1c463d45171d61acddbc8554c0",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 171527,
+        "referencePriceX18": "167458122317997253662",
+        "poolPriceX18": "165267289000000000000",
+        "deviationPpm": "-13082",
+        "referenceUpdatedAt": "2026-09-11T18:33:12.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "pool": "0x8ac92da74ab5f3b1d024dc1943ad7e15dc4179ef",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 175035,
+        "referencePriceX18": "257157829620321511193",
+        "poolPriceX18": "254176981000000000000",
+        "deviationPpm": "-11591",
+        "referenceUpdatedAt": "2026-09-11T17:34:44.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SLV",
+      "pool": "0x8cb787e6c315d464775289bad00fdd67d53ecb3d",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 172645,
+        "referencePriceX18": "58101287721357205276",
+        "poolPriceX18": "58273552000000000000",
+        "deviationPpm": "2964",
+        "referenceUpdatedAt": "2026-09-11T18:14:34.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "IBM",
+      "pool": "0x8cd848ce18b829c5c769aff27164078bb52e0e97",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "241270588000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SPY",
+      "pool": "0xa43b424bc609495aed4bcd88d654934b510b0ad9",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 191757,
+        "referencePriceX18": "765346575806433772262",
+        "poolPriceX18": "761791375000000000000",
+        "deviationPpm": "-4645",
+        "referenceUpdatedAt": "2026-09-11T12:56:02.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "BABA",
+      "pool": "0xa57ab582b310dd6f9e934ea1eeea152741545e6a",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 185890,
+        "referencePriceX18": "109406840008225690184",
+        "poolPriceX18": "108834253000000000000",
+        "deviationPpm": "-5233",
+        "referenceUpdatedAt": "2026-09-11T14:33:49.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SPY",
+      "pool": "0xa7bb1ac63bbab0c44316e6c8c455213441689167",
+      "fee": 500,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 191757,
+        "referencePriceX18": "765346575806433772262",
+        "poolPriceX18": "760997836000000000000",
+        "deviationPpm": "-5682",
+        "referenceUpdatedAt": "2026-09-11T12:56:02.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "NET",
+      "pool": "0xa9caebb1b2fb2b954f192572b309aef1caf6a330",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "311098479000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AMC",
+      "pool": "0xaa34fea710a1a737840329051d81d3b0b7c564d5",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "2472027000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "pool": "0xaae0d815ee56e4092a5e5c2911e676fea50b2d6d",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166831,
+        "referencePriceX18": "332558767519820995028",
+        "poolPriceX18": "331283915000000000000",
+        "deviationPpm": "-3833",
+        "referenceUpdatedAt": "2026-09-11T19:51:28.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "MRNA",
+      "pool": "0xb40196272a6d2eb5edf6d93bc4dc39856ad95e0e",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "145029215000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "MRVL",
+      "pool": "0xb5e892f0fc6daadda5b927266fe7907e623e4843",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "229698566000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "pool": "0xb944cec30bd4175855215d767adc81f39e5f7e2b",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166096,
+        "referencePriceX18": "218321561329367064103",
+        "poolPriceX18": "215667236000000000000",
+        "deviationPpm": "-12157",
+        "referenceUpdatedAt": "2026-09-11T20:03:43.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GLD",
+      "pool": "0xba2f1ed4ceb2169d538d1e614d847e83c5a55913",
+      "fee": 500,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "397817854000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "pool": "0xc4f0172d6ac8dd294dd1137d047d5e1893760236",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 184907,
+        "referencePriceX18": "365954603597201289123",
+        "poolPriceX18": "363301004000000000000",
+        "deviationPpm": "-7251",
+        "referenceUpdatedAt": "2026-09-11T14:50:12.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SPCX",
+      "pool": "0xc61284332117c3fb23a2a56cceffd07f7af60029",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 153127,
+        "referencePriceX18": "149985081385507539625",
+        "poolPriceX18": "149433208000000000000",
+        "deviationPpm": "-3679",
+        "referenceUpdatedAt": "2026-09-11T23:39:52.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "BA",
+      "pool": "0xc6517047b189c72d3baa9ef37d1d28f27a63638a",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "209081586000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "PFE",
+      "pool": "0xc7d573fcda6d2107c97fb582ae18411f9db32e7f",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "27911918000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "HIMS",
+      "pool": "0xc8c90d3a1c1a24967e773ac2ad0d456ba3e31f64",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "27424097000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "FIG",
+      "pool": "0xca5904c0a9d42f0ec1bf760fdf779907877144fd",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "22925617000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "ASML",
+      "pool": "0xce79c1b7b5f9ae1aab3b1796e7fcd2f5f24cf265",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 168470,
+        "referencePriceX18": "1700756345901753487762",
+        "poolPriceX18": "1690794331000000000000",
+        "deviationPpm": "-5857",
+        "referenceUpdatedAt": "2026-09-11T19:24:09.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "MU",
+      "pool": "0xd057b1bc54917855bbee58ead58647f47cab35e5",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 177128,
+        "referencePriceX18": "976788781181899505164",
+        "poolPriceX18": "942610153000000000000",
+        "deviationPpm": "-34990",
+        "referenceUpdatedAt": "2026-09-11T16:59:51.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "LLY",
+      "pool": "0xd2038788ebe1e0bfd7c0a6112f09778f3aeaeca6",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "1114746141000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "pool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166096,
+        "referencePriceX18": "218321561329367064103",
+        "poolPriceX18": "215684989000000000000",
+        "deviationPpm": "-12076",
+        "referenceUpdatedAt": "2026-09-11T20:03:43.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "QQQ",
+      "pool": "0xd60a5d14db690b7afad71f76b108071d7175597d",
+      "fee": 500,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 192177,
+        "referencePriceX18": "715001727486948637581",
+        "poolPriceX18": "710635670000000000000",
+        "deviationPpm": "-6106",
+        "referenceUpdatedAt": "2026-09-11T12:49:02.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "TTWO",
+      "pool": "0xd9ab4b7fae6dc2f7020134ec744a8f53ef3e5e24",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "215888566000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SNOW",
+      "pool": "0xe0ca1dfc1161500fb410c8181f7cc33860ffb16b",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "320216667000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "HPE",
+      "pool": "0xe0e25884a3b690b1699732de475b2281600b0934",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "60451858000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "GME",
+      "pool": "0xe2b46c905e12ab8e2f864e4821a4325884c1b126",
+      "fee": 500,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 166874,
+        "referencePriceX18": "21117285312616531361",
+        "poolPriceX18": "20944338000000000000",
+        "deviationPpm": "-8189",
+        "referenceUpdatedAt": "2026-09-11T19:50:45.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SPCX",
+      "pool": "0xeb07d9587efd1778dfb9c385ec43ef6d5f9fe401",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 153127,
+        "referencePriceX18": "149985081385507539625",
+        "poolPriceX18": "149081334000000000000",
+        "deviationPpm": "-6025",
+        "referenceUpdatedAt": "2026-09-11T23:39:52.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "pool": "0xeb60bcd1d920ad6e102690ccfc6fb488899e1510",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 182678,
+        "referencePriceX18": "496715617694146860573",
+        "poolPriceX18": "492569648000000000000",
+        "deviationPpm": "-8346",
+        "referenceUpdatedAt": "2026-09-11T15:27:21.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "QQQ",
+      "pool": "0xebd78dcfc8a6b3a696f1e191ad1ff321f9579f79",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "paper_equity_reference_age_unacceptable"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": 192177,
+        "referencePriceX18": "715001727486948637581",
+        "poolPriceX18": "710766255000000000000",
+        "deviationPpm": "-5923",
+        "referenceUpdatedAt": "2026-09-11T12:49:02.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "LLY",
+      "pool": "0xf212d02146a897f5f686e9d629f6a73da534324a",
+      "fee": 500,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "1112824779000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "pool": "0xf4acdaeeb7022862a763c9b1b885e11191c889e3",
+      "fee": 3000,
+      "reference": {
+        "eligible": true,
+        "reasons": [],
+        "basis": "held_equity_reference",
+        "ageSeconds": 184907,
+        "referencePriceX18": "365954603597201289123",
+        "poolPriceX18": "363510352000000000000",
+        "deviationPpm": "-6679",
+        "referenceUpdatedAt": "2026-09-11T14:50:12.000Z",
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "RIVN",
+      "pool": "0xf9e71558eef115b6c8fbfc9ad5fda00033e9d69c",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "15925079000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    },
+    {
+      "symbol": "SGOV",
+      "pool": "0xfab520051f96f4d2a32c22b6a3dd7fffdf231bfe",
+      "fee": 3000,
+      "reference": {
+        "eligible": false,
+        "reasons": [
+          "oracle_feed_missing",
+          "paper_equity_oracle_missing"
+        ],
+        "basis": "unavailable",
+        "ageSeconds": null,
+        "referencePriceX18": null,
+        "poolPriceX18": "100888246000000000000",
+        "deviationPpm": null,
+        "referenceUpdatedAt": null,
+        "sourceBlock": "62159801",
+        "maxAgeSeconds": 345600,
+        "maxDeviationPpm": 50000,
+        "usdgFreshness": {
+          "basis": "heartbeat_valid",
+          "heartbeatMaxAgeSeconds": 86400,
+          "acceptedMaxAgeSeconds": 88200,
+          "graceSeconds": 1800,
+          "priceAgeSeconds": 9502,
+          "updatedAt": "1789313617",
+          "warnings": []
+        }
+      }
+    }
+  ],
+  "executionEligible": false
+}
