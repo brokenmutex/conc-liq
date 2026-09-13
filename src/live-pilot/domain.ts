@@ -18,6 +18,7 @@ export interface PilotState {
  last:PilotSnapshot;gasSpentWei:string;gasSpentQuote:string|null;collectedFee0:string;collectedFee1:string;createdAt:string;updatedAt:string;
  closedAt:string|null;holding?:PaperHoldingState;haltReason?:string;benchmark:{usdg:string;nvda:string}|null;
  externalNativeCreditsWei?:string;
+ mintRecovery?:{attempts:number;lastActionId:string;phase:'entry'|'recenter'};
 }
 export type PilotPlan = {
  kind:'approve';token:Address;spender:Address;amount:string;

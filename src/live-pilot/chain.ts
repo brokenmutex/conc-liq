@@ -45,6 +45,7 @@ export function authorizePilotPlan(plan:PilotPlan,state:PilotState,s:PilotSnapsh
  }
  assert(BigInt(plan.deadline)>BigInt(s.timestamp)&&BigInt(plan.deadline)<=BigInt(s.timestamp)+300n,'Invalid transaction deadline');
  if(plan.kind==='swap') {
+  assert(!state.mintRecovery||state.phase==='exit','Mint recovery cannot repeat the completed swap');
   assert(plan.token===0||plan.token===1);assert(BigInt(plan.amountIn)>0n&&BigInt(plan.amountIn)<=available(plan.token===0?USDG:NVDA));
   assert(BigInt(plan.minOut)>0n&&BigInt(plan.minOut)>=BigInt(plan.quotedOut)*9950n/10000n,'Swap minimum weakened');
   assert(state.phase==='entry'||state.phase==='recenter'||(state.phase==='exit'&&plan.token===1),'Swap outside management operation');
@@ -122,7 +123,7 @@ export class PilotChain {
    const allowance=s.allowances.find(a=>BigInt(a.amount)>0n);return allowance?{kind:'approve',token:allowance.token,spender:allowance.spender,amount:'0'}:null;
   }
   assert(state.phase==='entry'||state.phase==='recenter');
-  if(!state.range||s.tick<state.range.tickLower||s.tick>=state.range.tickUpper){state.range=paperEntryRange(s,this.config.strategy);state.swapDone=false;}
+  if(!state.range||s.tick<state.range.tickLower||s.tick>=state.range.tickUpper){state.range=paperEntryRange(s,this.config.strategy);state.swapDone=!!state.mintRecovery;}
   if(!state.swapDone){
    const trade=await solveRecenterSwap(BigInt(s.sqrtPriceX96),state.range,free,rwa,(amount,token)=>this.quote(s,amount,token));
    if(trade.token!==null&&trade.amount>0n){assertRecenterPrice(trade.price,BigInt(s.sqrtPriceX96),50);

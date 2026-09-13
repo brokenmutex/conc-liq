@@ -58,6 +58,7 @@ export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt
   next.swapDone=true;
   if(!next.benchmark&&state.phase==='entry')next.benchmark={usdg:String(BigInt(after.usdg)-BigInt(state.reserveUsdg)),nvda:after.nvda};
  }else if(plan.kind==='mint') {
+  delete next.mintRecovery;
   assert.equal(facts.nfts.length,1);const nft=facts.nfts[0]!;
   assert(same(nft.from,zeroAddress)&&same(nft.to,state.operator),'Mint did not create an owned NFT');
   assert.equal(events.length,1);const mint=events[0]!;assert.equal(mint.kind,'IncreaseLiquidity');assert.equal(mint.tokenId,nft.tokenId);

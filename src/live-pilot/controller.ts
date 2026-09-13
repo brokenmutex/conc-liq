@@ -14,6 +14,7 @@ import {pilotIntentSchema,verifyPilotSignature} from './journal.js';
 import {pilotReceiptFacts,type PilotReceipt} from './receipt.js';
 import {reconcilePilotAction} from './reconcile.js';
 import {proveNativeCredit,type NativeCreditProof} from './native-credit.js';
+import {proveMintSlippageTrace} from './mint-recovery.js';
 import type {PilotAction,PilotSnapshot,PilotState} from './domain.js';
 import type {loadPilotEnvSigner} from './signer.js';
 type Signer=ReturnType<typeof loadPilotEnvSigner>;
@@ -90,6 +91,52 @@ export class PilotController {
    s.phase='exit';s.desired='stopped';delete s.haltReason;s.last=current;
    await this.store.save(db,s,'operator_recovered_revert_to_exit');return s;
   });
+ }
+ /** Requote a completed mint failure; this does not broadcast or repeat a swap. */
+ async recoverMint() {
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row);
+   return this.recoverMintLocked(db,row.state);
+  });
+ }
+ private async recoverMintLocked(db:PoolClient,s:PilotState) {
+  assert(s.phase==='halted'&&s.haltReason?.startsWith('transaction_reverted:'),'Recovery requires a reverted transaction halt');
+  assert(s.desired==='running','Mint recovery requires running intent');
+  assert.equal(s.policyHash,policyHash(this.config.strategy),'Recovery policy differs from saved campaign');
+  const attempts=s.mintRecovery?.attempts??0;assert(Number.isInteger(attempts)&&attempts>=0&&attempts<3,'Mint retry limit reached');
+  assert(!(await this.store.pending(db,s.id)),'Unresolved transaction');
+  const a=await this.store.action(db,s.id,s.haltReason!.split(':')[1]!);
+  assert(a&&a.campaignId===s.id&&a.plan.kind==='mint'&&a.status==='reverted'&&a.hash,'Recovery requires a reconciled mint');
+  assert(a.phase==='entry'||a.phase==='recenter','Mint was not an entry or recenter');
+  assert(s.tokenId===null&&s.last.position===null&&s.swapDone,'Mint recovery requires withdrawn inventory and completed balancing');
+  const saved=a.receipt as {after:PilotSnapshot;nativeCredit?:unknown};
+  assert(saved&&!saved.nativeCredit,'Mint receipt evidence unavailable');assert.deepEqual(saved.after,s.last,'Campaign has advanced beyond failed mint');
+  const guard=await this.guard(db,s);assert(guard.entryAllowed&&!guard.holding?.paused&&!guard.holding?.exitReasons.length,'Mint recovery admission unavailable');
+  const receipt=await this.chain.client.getTransactionReceipt({hash:a.hash});
+  assert(receipt.status==='reverted'&&String(receipt.blockNumber)===s.last.block&&same(receipt.blockHash,s.last.hash),'Reverted receipt changed');
+  assert(BigInt(guard.source.block)>=receipt.blockNumber,'Receipt confirmation depth unavailable');
+  const block=await this.chain.client.getBlock({blockNumber:receipt.blockNumber});assert(same(block.hash,s.last.hash),'Reverted receipt block changed');
+  // Re-run custody assertions without applying the already charged gas twice.
+  reconcilePilotAction(s,a,receipt,s.last);
+  const trace=await this.chain.client.request({method:'debug_traceTransaction' as never,params:[a.hash,{tracer:'callTracer',timeout:'10s'}] as never});
+  const proof=proveMintSlippageTrace(a,trace as never);
+  assert(same((await this.chain.client.getBlock({blockNumber:receipt.blockNumber})).hash,s.last.hash),'Trace source reorged');
+  await this.chain.verify(guard.source);
+  const current=await this.chain.snapshot(guard.source,null);assertPilotWalletContinuity(s.last,current);assert.equal(current.position,null);
+  assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),current.nonce,'Pending nonce changed');
+  const price=quoteValue({amount0:0n,amount1:10n**18n,token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(current.sqrtPriceX96)})*10n**12n;
+  assert(guard.referencePriceX18&&price*1000000n>=BigInt(guard.referencePriceX18)*950000n&&price*1000000n<=BigInt(guard.referencePriceX18)*1050000n,'Recovery true-price guard failed');
+  const next=structuredClone(s);next.phase=a.phase;delete next.haltReason;next.last=current;next.holding=guard.holding;
+  next.mintRecovery={attempts:attempts+1,lastActionId:a.id,phase:a.phase};next.updatedAt=new Date().toISOString();
+  // Includes new funding/price/minimum bounds and the native recovery reserve.
+  const plan=await this.chain.plan(next,current);assert(plan?.kind==='mint','Recovery must reprice the mint without another swap');
+  await this.chain.envelope(next,current,plan);
+  await db.query('BEGIN');try{
+   await this.store.save(db,next,'recovered_mint_slippage');
+   await this.store.mark(db,s.id,current.block,'mint_recovery',{proof,attempt:next.mintRecovery.attempts,before:s.last,after:current,plan});
+   await db.query('COMMIT');
+  }catch(e){await db.query('ROLLBACK');throw e;}
+  return next;
  }
  /** Explicit retry of a stranded approval only, at the identical hash/nonce.
   * Swap/mint/withdraw deadlines and unresolved economic orders are never reset. */
@@ -168,7 +215,14 @@ export class PilotController {
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row,'Pilot has not been initialized');let state=row.state;
    assert.equal(state.policyHash,policyHash(this.config.strategy),'Running policy differs from saved campaign');
-   if(state.phase==='halted'){await this.store.monitor(db,state.id,[state.haltReason??'halted']);return {phase:'halted'};}
+   if(state.phase==='halted'){
+    if(state.haltReason?.startsWith('transaction_reverted:')&&state.desired==='running'){
+     try{const recovered=await this.recoverMintLocked(db,state);return {phase:'mint_requote',attempt:recovered.mintRecovery!.attempts};}
+     catch(e){const reason=e instanceof Error?e.message.replace(/https?:\/\/\S+/g,'[redacted-url]').slice(0,160):'unavailable';
+      await this.store.monitor(db,state.id,[state.haltReason,`mint_recovery_blocked:${reason}`]);return {phase:'halted',reason};}
+    }
+    await this.store.monitor(db,state.id,[state.haltReason??'halted']);return {phase:'halted'};
+   }
    let guard:PilotGuard;
    try{guard=await this.guard(db,state);}catch(e){
     if(e instanceof PilotGuardUnavailable&&e.holding){state.holding=e.holding;if(state.phase!=='closed'&&e.holding.exitReasons.length)state.phase='exit';await this.store.save(db,state,'chain_observation_pause');}
@@ -190,7 +244,7 @@ export class PilotController {
    const bandOkay=!!reference&&price*1000000n>=BigInt(reference)*950000n&&price*1000000n<=BigInt(reference)*1050000n;
    if(state.phase!=='closed'&&(state.desired!=='running'||state.holding?.exitReasons.length||(!bandOkay&&reference)))state.phase='exit';
    if(state.phase==='closed'){
-    if(state.desired==='running'&&guard.entryAllowed&&state.closedAt&&Date.now()-Date.parse(state.closedAt)>=600000){state.phase='entry';state.holding=undefined;state.swapDone=false;state.range=null;}
+    if(state.desired==='running'&&guard.entryAllowed&&state.closedAt&&Date.now()-Date.parse(state.closedAt)>=600000){state.phase='entry';state.holding=undefined;state.swapDone=false;state.range=null;delete state.mintRecovery;}
     else {await this.store.monitor(db,state.id,['closed']);return {phase:'closed'};}
    }
    if(state.holding?.paused){await this.store.save(db,state,'holding_pause');await this.store.monitor(db,state.id,state.holding.reasons);return {phase:'holding_pause'};}

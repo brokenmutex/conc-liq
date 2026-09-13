@@ -4,7 +4,7 @@ import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {parseEnv} from 'node:util';
-import {encodeAbiParameters,keccak256,toHex,parseTransaction} from 'viem';
+import {encodeAbiParameters,keccak256,toHex,parseTransaction,decodeFunctionData} from 'viem';
 import {privateKeyToAccount,generatePrivateKey} from 'viem/accounts';
 import {livePilotConfig} from '../../src/live-pilot/config.ts';
 import {loadPilotEnvSigner} from '../../src/live-pilot/signer.ts';
@@ -17,12 +17,13 @@ import {PostgresRpcHealthGate} from '../../src/rpc-health/store.ts';
 import {openPaperFork} from '../../src/paper/fork.ts';
 import {createPaperExecutionContext,fundPaperFixture,fixtureSend} from '../../src/paper/execution.ts';
 import {quoteValue} from '../../src/simulator/math.ts';
-import {USDG} from '../../src/constants.ts';
+import {USDG,NONFUNGIBLE_POSITION_MANAGER} from '../../src/constants.ts';
+import {guardedCanaryPositionManagerAbi} from '../../src/canary-plan/abi.ts';
 import {PAPER_NVDA,PAPER_POOL} from '../../src/paper/engine.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {PAPER_ROUTER,paperTokenAbi} from '../../src/paper/execution-abi.ts';
 import {json} from '../../src/live-pilot/domain.ts';
-const [envPath,output,mode]=process.argv.slice(2);assert(envPath&&output);const revertMode=mode==='revert',approvalRetryMode=mode==='retry-approval';
+const [envPath,output,mode]=process.argv.slice(2);assert(envPath&&output);const revertMode=mode==='revert',approvalRetryMode=mode==='retry-approval',mintRetryMode=mode==='mint-retry';
 Object.assign(process.env,parseEnv(readFileSync(envPath,'utf8')));process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
 const schema=`pilot_controller_test_${process.pid}_${Date.now()}`,store=new PilotStore(process.env.DATABASE_URL,schema);
 const key=generatePrivateKey(),account=privateKeyToAccount(key),directory=mkdtempSync(join(tmpdir(),'pilot-controller-'));
@@ -37,11 +38,20 @@ try {
  fork=await openPaperFork({source:{number:block.number,hash:block.hash,timestamp:block.timestamp},rpcUrl:indexer.rpcUrl,beforeRead,maxRequests:2000,timeoutMs:600000});
  const local=createRobinhoodClient(fork.localUrl,60000,{retryCount:0}),ctx=await createPaperExecutionContext(fork,config.strategy,undefined,account.address);
  await fundPaperFixture(ctx,{quote:300000000n,rwa:0n});await store.initialize();
- let lostAcknowledgement=false,wrongReceiptBlock=false,holdConfirmation=false,revertInjected=false,approvalRejected=false,approvalRetried=false;
+ let lostAcknowledgement=false,wrongReceiptBlock=false,holdConfirmation=false,revertInjected=false,approvalRejected=false,approvalRetried=false,mintInjected=false;
  const sendHashes=[];
  const wrapped={...local,sendRawTransaction:async args=>{
   if(approvalRetryMode&&!approvalRejected){approvalRejected=true;throw new Error('publishing transactions not supported by this endpoint');}
   let hash;const tx=parseTransaction(args.serializedTransaction);
+  if(mintRetryMode&&!mintInjected&&recenters>0&&tx.to?.toLowerCase()===NONFUNGIBLE_POSITION_MANAGER.toLowerCase()&&tx.data?.startsWith('0x88316456')){
+   mintInjected=true;
+   const {args:[p]}=decodeFunctionData({abi:guardedCanaryPositionManagerAbi,data:tx.data});
+   const b=await local.getBlock({blockTag:'latest'}),s=await guardChain.snapshot({block:String(b.number),hash:b.hash,timestamp:String(b.timestamp)},null);
+   // Move three ticks after the real mint preflight. The actual manager must
+   // reject its old token minimum; no revert-bytecode substitute is involved.
+   const token=p.tickUpper-s.tick>s.tick-p.tickLower?1:0;
+   await cross({tokenId:null,tickLower:s.tick+2,tickUpper:s.tick-2},token);
+  }
   if(revertMode&&!revertInjected&&tx.to?.toLowerCase()===PAPER_ROUTER.toLowerCase()){
    const code=await local.getBytecode({address:PAPER_ROUTER});assert(code);revertInjected=true;
    // Contract fault occurs after successful preflight, only on the owned fork.
@@ -61,7 +71,7 @@ try {
  // Inject a process stop at each durable boundary, then reconstruct the controller.
  const injected=new Set(),events=[];
  const hook=async(at,action)=>{if(!injected.has(at)){injected.add(at);if(at==='broadcast')holdConfirmation=true;throw new Error(`injected_stop:${at}`);}};
- controller=new PilotController(store,chain,config,signer,guard,revertMode||approvalRetryMode?undefined:hook);
+ controller=new PilotController(store,chain,config,signer,guard,revertMode||approvalRetryMode||mintRetryMode?undefined:hook);
  let requestedExit=false,observedHolding=false;
  let recenters=0;const mintedIds=[];
  async function cross(position,token) {
@@ -98,7 +108,7 @@ try {
   try {const result=await controller.tick();events.push(result);console.log(json({iteration:i,...result}));
    if(approvalRetryMode&&approvalRejected&&!approvalRetried){const estimate=wrapped.estimateGas;wrapped.estimateGas=async()=>8000001n;await assert.rejects(()=>controller.retryApproval(),/gas limit is no longer sufficient/);wrapped.estimateGas=estimate;const retried=await controller.retryApproval();assert.equal(retried.hash,result.hash);assert.equal(retried.phase,'approval_retried_same_hash');approvalRetried=true;events.push(retried);}
    if(result.phase==='confirming'&&holdConfirmation){holdConfirmation=false;wrongReceiptBlock=true;}}
-  catch(e){assert(e instanceof Error&&e.message.startsWith('injected_stop:'),e);events.push({fault:e.message});console.log(e.message);controller=new PilotController(store,chain,config,signer,guard,revertMode||approvalRetryMode?undefined:hook);}
+  catch(e){assert(e instanceof Error&&e.message.startsWith('injected_stop:'),e);events.push({fault:e.message});console.log(e.message);controller=new PilotController(store,chain,config,signer,guard,revertMode||approvalRetryMode||mintRetryMode?undefined:hook);}
   const row=await store.locked(account.address,db=>store.current(db,account.address));assert(row);
   if(revertMode&&row.state.phase==='halted'){
    assert(row.state.haltReason.startsWith('transaction_reverted:'));await assert.rejects(()=>controller.request('running'),/halted/);
@@ -112,10 +122,16 @@ try {
   if(row.state.phase==='closed')break;
  }
  const final=await store.locked(account.address,db=>store.current(db,account.address));assert.equal(final.state.phase,'closed');if(!revertMode)assert(observedHolding);else assert(revertInjected&&requestedExit);
- if(!revertMode&&!approvalRetryMode){assert.deepEqual([...injected].sort(),['broadcast','prepared','receipt','signed']);
+ if(!revertMode&&!approvalRetryMode&&!mintRetryMode){assert.deepEqual([...injected].sort(),['broadcast','prepared','receipt','signed']);
  assert(lostAcknowledgement&&events.some(e=>e.phase==='confirming')&&events.some(e=>e.phase==='reorg_wait'));}
  await store.locked(account.address,async()=>{await assert.rejects(()=>store.locked(account.address,async()=>{}),/Another live controller/);});
  const actions=(await store.pool.query(`SELECT id,intent,plan,before_state AS before,status,hash,receipt FROM ${schema}.actions ORDER BY created_at`)).rows;
+ if(mintRetryMode){
+  const failed=actions.findIndex(a=>a.status==='reverted');assert(mintInjected&&failed>=0);assert.equal(actions[failed].plan.kind,'mint');
+  const next=actions.slice(failed+1).findIndex(a=>a.status==='confirmed'&&a.plan.kind==='mint');assert(next>=0);
+  assert(actions.slice(failed+1,failed+2+next).every(a=>a.plan.kind!=='swap'),'Recovery repeated a successful swap');
+  assert(events.some(e=>e.phase==='mint_requote'));assert.equal(actions.filter(a=>a.status==='reverted').length,1);
+ }
  const confirmed=actions.filter(a=>a.status==='confirmed'||a.status==='reverted');assert(confirmed.length>=(revertMode?3:8));
  assert.equal(new Set(confirmed.map(a=>a.intent.nonce)).size,confirmed.length);assert.equal(final.state.last.nonce,confirmed.length);
  assert.equal(final.state.last.nvda,'0');assert.equal(final.state.tokenId,null);assert(final.state.last.allowances.every(a=>a.amount==='0'));
@@ -126,6 +142,6 @@ try {
  await fork.rpc('anvil_setBalance',[account.address,toHex(BigInt(final.state.last.native)+1n)]);
  assert.equal((await controller.tick()).phase,'halted');await assert.rejects(()=>controller.recoverExit(),/reconciled reverted/);
  writeFileSync(output,json({mode:mode??'recenter_restarts',computedAt:new Date().toISOString(),scope:'signed_owned_fork_controller_recovery',mainnetTransactions:0,source:{block:String(block.number),hash:block.hash},
-  injected:[...injected],mintedIds,events,initial,final:final.state,actions,checks:{nonceUniqueness:true,gasReconciled:true,reservePreserved:true,entryAndExit:!revertMode,recenterBothDirections:!revertMode&&!approvalRetryMode,collectedFeesBothTokens:!revertMode&&!approvalRetryMode,lostAcknowledgement:lostAcknowledgement,unconfirmedReceiptBlocked:!revertMode&&!approvalRetryMode,reorgReceiptBlocked:!revertMode&&!approvalRetryMode,rejectedApprovalSameHashRetry:approvalRetried,concurrentWorkerExcluded:true,revertedReceiptRecovery:revertMode,externalWalletChangeHalted:true}})+'\n',{flag:'wx'});
+  injected:[...injected],mintedIds,events,initial,final:final.state,actions,checks:{nonceUniqueness:true,gasReconciled:true,reservePreserved:true,entryAndExit:!revertMode,recenterBothDirections:!revertMode&&!approvalRetryMode,collectedFeesBothTokens:!revertMode&&!approvalRetryMode,lostAcknowledgement:lostAcknowledgement,unconfirmedReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,reorgReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,rejectedApprovalSameHashRetry:approvalRetried,concurrentWorkerExcluded:true,revertedReceiptRecovery:revertMode,mintSlippageRequote:mintRetryMode,externalWalletChangeHalted:true}})+'\n',{flag:'wx'});
  console.log(`Signed controller fork ${mode??'recenter_restarts'} passed`);
 }finally{await fork?.close();await store.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await store.close();await health.close();rmSync(directory,{recursive:true,force:true});}

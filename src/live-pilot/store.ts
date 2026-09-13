@@ -41,6 +41,13 @@ export class PilotStore {
  async monitor(db:PoolClient,id:string,reasons:string[]){await db.query(`UPDATE ${this.schema}.campaigns SET monitor=$2,heartbeat_at=clock_timestamp() WHERE id=$1`,[id,json(reasons)]);}
  async mark(db:PoolClient,id:string,block:string,kind:string,snapshot:unknown){await db.query(`INSERT INTO ${this.schema}.marks(campaign_id,block,kind,snapshot) VALUES($1,$2,$3,$4)`,[id,block,kind,json(snapshot)]);}
  async pending(db:PoolClient,id:string){const r=(await db.query(`SELECT id,campaign_id AS "campaignId",intent,plan,before_state AS before,status,raw,hash,receipt,created_at AS "createdAt",broadcast_at AS "broadcastAt",error FROM ${this.schema}.actions WHERE campaign_id=$1 AND status IN('prepared','signed')`,[id])).rows[0];return r as PilotAction|undefined;}
+ async action(db:PoolClient,campaignId:string,id:string){
+  const r=(await db.query(`SELECT a.id,a.campaign_id AS "campaignId",a.intent,a.plan,a.before_state AS before,a.status,a.raw,a.hash,a.receipt,
+   a.created_at AS "createdAt",a.broadcast_at AS "broadcastAt",a.error,
+   (SELECT t.state->>'phase' FROM ${this.schema}.transitions t WHERE t.campaign_id=a.campaign_id AND t.reason='management_plan' AND t.at<=a.created_at ORDER BY t.id DESC LIMIT 1) AS phase
+   FROM ${this.schema}.actions a WHERE a.campaign_id=$1 AND a.id=$2`,[campaignId,id])).rows[0];
+  return r as (PilotAction&{phase:string})|undefined;
+ }
  async prepare(db:PoolClient,state:PilotState,intent:PilotIntent,plan:PilotPlan,before:PilotSnapshot){
   assert.equal(intent.operator.toLowerCase(),state.operator.toLowerCase());assert.equal(intent.nonce,before.nonce);
   await db.query(`INSERT INTO ${this.schema}.actions(id,campaign_id,nonce,intent,plan,before_state,status) VALUES($1,$2,$3,$4,$5,$6,'prepared')`,[intent.id,state.id,intent.nonce,json(intent),json(plan),json(before)]);

@@ -1,0 +1,657 @@
+{
+  "state": {
+    "id": "f8affe19-4d89-4132-b214-d67e5ad81331",
+    "last": {
+      "hash": "0xa6e3fd013dca1bc8b5b2f214ad5a5e0710dd53fccdc9c8c02bc44008c4275eed",
+      "nvda": "655719589933083357",
+      "tick": 222565,
+      "usdg": "155843795",
+      "block": "61844790",
+      "nonce": 100,
+      "native": "3652749414733004",
+      "nftCount": "9",
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "position": null,
+      "unlocked": true,
+      "timestamp": "1789291127",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "65236",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "105916684",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "24297116925784986",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "655719589933083357",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "sqrtPriceX96": "5389950261285790549328249820223173",
+      "poolLiquidity": "9625414863872090373"
+    },
+    "phase": "halted",
+    "range": {
+      "tickLower": 222540,
+      "tickUpper": 222580
+    },
+    "desired": "running",
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-13T06:00:53.908Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T06:00:54.174Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T07:01:11.519Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T07:01:11.796Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T07:35:05.491Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T07:35:05.744Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T07:38:06.436Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T07:38:06.684Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T08:18:04.775Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T08:18:05.093Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T08:30:21.996Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T08:30:22.294Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T08:42:37.517Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T08:42:37.843Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T09:02:00.090Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T09:02:00.796Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T09:04:39.914Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T09:04:40.171Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-13T09:13:41.837Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-13T09:13:42.120Z",
+          "reasons": []
+        }
+      ],
+      "paused": false,
+      "reasons": [],
+      "checkedAt": "2026-09-13T09:18:47.254Z",
+      "riskSince": null,
+      "chainSince": null,
+      "exitReasons": [],
+      "lastHealthAt": "2026-09-13T09:18:46.103Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "21819",
+          "status": "succeeded",
+          "riskRunId": "21817",
+          "attemptedAt": "2026-09-13T12:18:20.545755+03:00",
+          "completedAt": "2026-09-13T12:18:20.73004+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "21819",
+          "status": "succeeded",
+          "blockHash": "0x02dc159cb681335a2f9e9c95288874b8ab4df2803573e0681b0083bfb6651f78",
+          "canonical": true,
+          "riskRunId": "21817",
+          "attemptedAt": "2026-09-13T12:18:20.545755+03:00",
+          "blockNumber": "61844442",
+          "completedAt": "2026-09-13T12:18:20.73004+03:00",
+          "validatedAt": "2026-09-13T12:18:40.569476+03:00",
+          "canonicalObservedHash": "0x02dc159cb681335a2f9e9c95288874b8ab4df2803573e0681b0083bfb6651f78"
+        },
+        "reference": {
+          "basis": "held_equity_reference",
+          "reasons": [],
+          "eligible": true,
+          "ageSeconds": 134069,
+          "sourceBlock": "61844442",
+          "deviationPpm": "-10024",
+          "poolPriceX18": "216120362000000000000",
+          "maxAgeSeconds": 345600,
+          "usdgFreshness": {
+            "basis": "heartbeat_valid",
+            "warnings": [],
+            "updatedAt": "1789227205",
+            "graceSeconds": 1800,
+            "priceAgeSeconds": 63887,
+            "acceptedMaxAgeSeconds": 88200,
+            "heartbeatMaxAgeSeconds": 86400
+          },
+          "maxDeviationPpm": 50000,
+          "referencePriceX18": "218308719020719623549",
+          "referenceUpdatedAt": "2026-09-11T20:03:43.000Z"
+        },
+        "evaluatedAt": "2026-09-13 12:18:47.251716+03",
+        "failedChecks": [],
+        "snapshotSha256": "95b8ab1155be758a799aeb352b7b1b650ea7ab78842f9969844e278caa0dcd2d",
+        "snapshotSourceAt": "2026-09-13T09:18:12.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-13T09:18:20.729Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "74953",
+      "lastPrivateHead": "61844771",
+      "resumeFromPause": true
+    },
+    "tokenId": null,
+    "version": 1,
+    "closedAt": "2026-09-13T05:33:26.786Z",
+    "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "swapDone": true,
+    "benchmark": {
+      "nvda": "432011537030058711",
+      "usdg": "155194454"
+    },
+    "createdAt": "2026-09-12T14:24:30.612Z",
+    "updatedAt": "2026-09-13T09:18:47.000Z",
+    "haltReason": "transaction_reverted:46368c11-2fd4-4df6-b035-199dbdf89496",
+    "policyHash": "0b79a763cf73e565c61f6cb6956eb8f401e29ad8bb6692f8fe4256ffc8e693f4",
+    "gasSpentWei": "1262755888434000",
+    "reserveUsdg": "49927111",
+    "collectedFee0": "162841",
+    "collectedFee1": "1517272294374770",
+    "gasSpentQuote": "3197257",
+    "initialNative": "4907000000000000",
+    "retiredTokenIds": [
+      "1145652",
+      "1145825",
+      "1146039",
+      "1146281",
+      "1146461",
+      "1146954",
+      "1151380",
+      "1152065",
+      "1152397"
+    ],
+    "initialCapitalQuote": "250000000",
+    "externalNativeCreditsWei": "8505303167004"
+  },
+  "action": {
+    "id": "46368c11-2fd4-4df6-b035-199dbdf89496",
+    "campaignId": "f8affe19-4d89-4132-b214-d67e5ad81331",
+    "intent": {
+      "id": "46368c11-2fd4-4df6-b035-199dbdf89496",
+      "to": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+      "gas": "555169",
+      "data": "0x883164560000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec00000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000000000000000000000000000000000000003654c0000000000000000000000000000000000000000000000000000000000036574000000000000000000000000000000000000000000000000000000000650290c0000000000000000000000000000000000000000000000000919957e2e39eadd000000000000000000000000000000000000000000000000000000000639321b000000000000000000000000000000000000000000000000090defa01c133a2d000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000000000000000000000000000000000006aa66b9a",
+      "nonce": 99,
+      "value": "0",
+      "action": "mint",
+      "chainId": 4663,
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "sourceHash": "0x43863d7ab9a69b0240cd31c37f79db422a462f60593dbd6ab5d9224212a08a49",
+      "sourceBlock": "61844699",
+      "maxFeePerGas": "170968000",
+      "maxPriorityFeePerGas": "0"
+    },
+    "plan": {
+      "kind": "mint",
+      "min0": "104411675",
+      "min1": "652440991983417901",
+      "amount0": "105916684",
+      "amount1": "655719589933083357",
+      "deadline": "1789291418",
+      "tickLower": 222540,
+      "tickUpper": 222580
+    },
+    "before": {
+      "hash": "0x43863d7ab9a69b0240cd31c37f79db422a462f60593dbd6ab5d9224212a08a49",
+      "nvda": "655719589933083357",
+      "tick": 222562,
+      "usdg": "155843795",
+      "block": "61844699",
+      "nonce": 99,
+      "native": "3671017502053004",
+      "nftCount": "9",
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "position": null,
+      "unlocked": true,
+      "timestamp": "1789291118",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "65236",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "105916684",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "24297116925784986",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "655719589933083357",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "sqrtPriceX96": "5389292297548097219477503773997875",
+      "poolLiquidity": "9625414863872090373"
+    },
+    "status": "reverted",
+    "hash": "0xfe134e80f1d4e3645cc5343a6e5618231278dda076b95b3e7bf51d7c35e9f778",
+    "receipt": {
+      "after": {
+        "hash": "0xa6e3fd013dca1bc8b5b2f214ad5a5e0710dd53fccdc9c8c02bc44008c4275eed",
+        "nvda": "655719589933083357",
+        "tick": 222565,
+        "usdg": "155843795",
+        "block": "61844790",
+        "nonce": 100,
+        "native": "3652749414733004",
+        "nftCount": "9",
+        "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+        "position": null,
+        "unlocked": true,
+        "timestamp": "1789291127",
+        "allowances": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "65236",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "amount": "105916684",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "24297116925784986",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+          },
+          {
+            "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "amount": "655719589933083357",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+          }
+        ],
+        "sqrtPriceX96": "5389950261285790549328249820223173",
+        "poolLiquidity": "9625414863872090373"
+      },
+      "nativeCredit": null
+    },
+    "createdAt": "2026-09-13T09:18:47.292Z",
+    "broadcastAt": "2026-09-13T09:18:47.828Z",
+    "error": null,
+    "phase": "recenter",
+    "raw": null
+  },
+  "receipt": {
+    "to": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "from": "0xdcc9348ade9ca0a13249a44a63db5411a8e72d52",
+    "logs": [],
+    "type": "eip1559",
+    "status": "reverted",
+    "gasUsed": "205884",
+    "blockHash": "0xa6e3fd013dca1bc8b5b2f214ad5a5e0710dd53fccdc9c8c02bc44008c4275eed",
+    "logsBloom": "0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "blockNumber": "61844790",
+    "gasUsedForL1": "0x0",
+    "l1BlockNumber": "0x18c3bcd",
+    "contractAddress": null,
+    "transactionHash": "0xfe134e80f1d4e3645cc5343a6e5618231278dda076b95b3e7bf51d7c35e9f778",
+    "transactionIndex": 1,
+    "cumulativeGasUsed": "205884",
+    "effectiveGasPrice": "88730000"
+  },
+  "trace": {
+    "beforeEVMTransfers": [
+      {
+        "purpose": "feePayment",
+        "from": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+        "to": null,
+        "value": "0x2ccd45776390"
+      }
+    ],
+    "afterEVMTransfers": [
+      {
+        "purpose": "gasRefund",
+        "from": null,
+        "to": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+        "value": "0x1c2fe69c65d0"
+      },
+      {
+        "purpose": "feeCollection",
+        "from": null,
+        "to": "0x5a2B80a9b7effc06129bD5462D77BC20A8A59BE7",
+        "value": "0x3beb8da8c00"
+      },
+      {
+        "purpose": "feeCollection",
+        "from": null,
+        "to": "0xbC5C3a7Adecf54D34169fd90dbD1B7d3142DF067",
+        "value": "0xcdea60071c0"
+      },
+      {
+        "purpose": "feeCollection",
+        "from": null,
+        "to": "0xa4B00000000000000000000000000000000000F6",
+        "value": "0x0"
+      }
+    ],
+    "from": "0xdcc9348ade9ca0a13249a44a63db5411a8e72d52",
+    "gas": "0x878a1",
+    "gasUsed": "0x3243c",
+    "to": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "input": "0x883164560000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec00000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000000000000000000000000000000000000003654c0000000000000000000000000000000000000000000000000000000000036574000000000000000000000000000000000000000000000000000000000650290c0000000000000000000000000000000000000000000000000919957e2e39eadd000000000000000000000000000000000000000000000000000000000639321b000000000000000000000000000000000000000000000000090defa01c133a2d000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000000000000000000000000000000000006aa66b9a",
+    "output": "0x08c379a000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000014507269636520736c69707061676520636865636b000000000000000000000000",
+    "error": "execution reverted",
+    "revertReason": "Price slippage check",
+    "calls": [
+      {
+        "from": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+        "gas": "0x7e89c",
+        "gasUsed": "0xa88",
+        "to": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "input": "0x3850c7bd",
+        "output": "0x00000000000000000000000000000000000109bebc96c2bf51a0fb40b75716c5000000000000000000000000000000000000000000000000000000000003656500000000000000000000000000000000000000000000000000000000000000660000000000000000000000000000000000000000000000000000000000001770000000000000000000000000000000000000000000000000000000000000177000000000000000000000000000000000000000000000000000000000000000440000000000000000000000000000000000000000000000000000000000000001",
+        "type": "STATICCALL"
+      },
+      {
+        "from": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+        "gas": "0x7c922",
+        "gasUsed": "0x292e4",
+        "to": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "input": "0x3c8a7d8d00000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d3000000000000000000000000000000000000000000000000000000000003654c0000000000000000000000000000000000000000000000000000000000036574000000000000000000000000000000000000000000000000001af463c204152a00000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000800000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec00000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52",
+        "output": "0x0000000000000000000000000000000000000000000000000000000004d795850000000000000000000000000000000000000000000000000919957e2e39eaa7",
+        "calls": [
+          {
+            "from": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "gas": "0x6a35f",
+            "gasUsed": "0x1dd6",
+            "to": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+            "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "output": "0x000000000000000000000000000000000000000000000000000001f6a2dfc438",
+            "calls": [
+              {
+                "from": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "gas": "0x6762a",
+                "gasUsed": "0xab9",
+                "to": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
+                "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+                "output": "0x000000000000000000000000000000000000000000000000000001f6a2dfc438",
+                "value": "0x0",
+                "type": "DELEGATECALL"
+              }
+            ],
+            "type": "STATICCALL"
+          },
+          {
+            "from": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "gas": "0x678ed",
+            "gasUsed": "0x2a31",
+            "to": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "output": "0x0000000000000000000000000000000000000000000005359481cb0901905536",
+            "calls": [
+              {
+                "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "gas": "0x6547f",
+                "gasUsed": "0x979",
+                "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                "input": "0x5c60da1b",
+                "output": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                "type": "STATICCALL"
+              },
+              {
+                "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "gas": "0x64029",
+                "gasUsed": "0xaad",
+                "to": "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+                "output": "0x0000000000000000000000000000000000000000000005359481cb0901905536",
+                "value": "0x0",
+                "type": "DELEGATECALL"
+              }
+            ],
+            "type": "STATICCALL"
+          },
+          {
+            "from": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "gas": "0x64c5a",
+            "gasUsed": "0x10eff",
+            "to": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+            "input": "0xd34879970000000000000000000000000000000000000000000000000000000004d795850000000000000000000000000000000000000000000000000919957e2e39eaa7000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000800000000000000000000000005fc5360d0400a0fd4f2af552add042d716f1d168000000000000000000000000d0601ce157db5bdc3162bbac2a2c8af5320d9eec00000000000000000000000000000000000000000000000000000000000001f4000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52",
+            "calls": [
+              {
+                "from": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+                "gas": "0x62825",
+                "gasUsed": "0x6e20",
+                "to": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "input": "0x23b872dd000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a30000000000000000000000000000000000000000000000000000000004d79585",
+                "output": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "calls": [
+                  {
+                    "from": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                    "gas": "0x60e22",
+                    "gasUsed": "0x6c8e",
+                    "to": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
+                    "input": "0x23b872dd000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a30000000000000000000000000000000000000000000000000000000004d79585",
+                    "output": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                    "value": "0x0",
+                    "type": "DELEGATECALL"
+                  }
+                ],
+                "value": "0x0",
+                "type": "CALL"
+              },
+              {
+                "from": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+                "gas": "0x5b6c3",
+                "gasUsed": "0x8f75",
+                "to": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "input": "0x23b872dd000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a30000000000000000000000000000000000000000000000000919957e2e39eaa7",
+                "output": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                "calls": [
+                  {
+                    "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                    "gas": "0x59efa",
+                    "gasUsed": "0x1a9",
+                    "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                    "input": "0x5c60da1b",
+                    "output": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "type": "STATICCALL"
+                  },
+                  {
+                    "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                    "gas": "0x59bed",
+                    "gasUsed": "0x8b43",
+                    "to": "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                    "input": "0x23b872dd000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a30000000000000000000000000000000000000000000000000919957e2e39eaa7",
+                    "output": "0x0000000000000000000000000000000000000000000000000000000000000001",
+                    "calls": [
+                      {
+                        "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                        "gas": "0x57a50",
+                        "gasUsed": "0x152",
+                        "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                        "input": "0x5c975abb",
+                        "output": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "type": "STATICCALL"
+                      },
+                      {
+                        "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                        "gas": "0x57747",
+                        "gasUsed": "0xa2d",
+                        "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                        "input": "0xfbac3951000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52",
+                        "output": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "type": "STATICCALL"
+                      },
+                      {
+                        "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                        "gas": "0x56b9b",
+                        "gasUsed": "0xa2d",
+                        "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                        "input": "0xfbac3951000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+                        "output": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "type": "STATICCALL"
+                      },
+                      {
+                        "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                        "gas": "0x55ff9",
+                        "gasUsed": "0xa2d",
+                        "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                        "input": "0xfbac395100000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d3",
+                        "output": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                        "type": "STATICCALL"
+                      }
+                    ],
+                    "value": "0x0",
+                    "type": "DELEGATECALL"
+                  }
+                ],
+                "value": "0x0",
+                "type": "CALL"
+              }
+            ],
+            "value": "0x0",
+            "type": "CALL"
+          },
+          {
+            "from": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "gas": "0x53f05",
+            "gasUsed": "0x472",
+            "to": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+            "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "output": "0x000000000000000000000000000000000000000000000000000001f6a7b759bd",
+            "calls": [
+              {
+                "from": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+                "gas": "0x528af",
+                "gasUsed": "0x2e9",
+                "to": "0x68184c449e1a8f34fa18d289737129fd27b66f8f",
+                "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+                "output": "0x000000000000000000000000000000000000000000000000000001f6a7b759bd",
+                "value": "0x0",
+                "type": "DELEGATECALL"
+              }
+            ],
+            "type": "STATICCALL"
+          },
+          {
+            "from": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "gas": "0x536e5",
+            "gasUsed": "0x709",
+            "to": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+            "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+            "output": "0x0000000000000000000000000000000000000000000005359d9b60872fca3fdd",
+            "calls": [
+              {
+                "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "gas": "0x5211c",
+                "gasUsed": "0x1a9",
+                "to": "0xe10b6f6b275de231345c20d14ab812db62151b00",
+                "input": "0x5c60da1b",
+                "output": "0x000000000000000000000000b35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                "type": "STATICCALL"
+              },
+              {
+                "from": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+                "gas": "0x51e14",
+                "gasUsed": "0x2dd",
+                "to": "0xb35490d6f9163de4f80d88dc75c3516eb64c5ae2",
+                "input": "0x70a08231000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+                "output": "0x0000000000000000000000000000000000000000000005359d9b60872fca3fdd",
+                "value": "0x0",
+                "type": "DELEGATECALL"
+              }
+            ],
+            "type": "STATICCALL"
+          }
+        ],
+        "value": "0x0",
+        "type": "CALL"
+      }
+    ],
+    "value": "0x0",
+    "type": "CALL"
+  }
+}
