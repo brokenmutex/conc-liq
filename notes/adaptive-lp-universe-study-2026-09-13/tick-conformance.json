@@ -1,0 +1,12 @@
+{
+  "validTicks": 1774545,
+  "eachCheckedColdAndCached": true,
+  "cacheEvictionCovered": true,
+  "invalidInputs": 10,
+  "negativeZeroChecked": true,
+  "sourceSha256": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+  "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+  "verifierSha256": "139b07166581abe2da2ad032d1cc9759bda19ac71b40daf1eec59f3b11e48903",
+  "elapsedMs": 5175,
+  "scope": "Exact bigint results over the complete valid tick domain and identical errors for invalid inputs. Runtime-only bounded memoization; no source-file or policy changes."
+}

@@ -1,0 +1,454 @@
+{
+  "rows": [
+    {
+      "symbol": "AAPL",
+      "availability": {
+        "at": 1785915808000,
+        "block": "28315268",
+        "liquidity": "32992251159301038"
+      },
+      "postAvailabilityEventBlocks": 243860,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "GLD",
+      "availability": {
+        "at": 1787963916000,
+        "block": "48732634",
+        "liquidity": "41920246383397416"
+      },
+      "postAvailabilityEventBlocks": 203042,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "GME",
+      "availability": {
+        "at": 1785196806000,
+        "block": "21144747",
+        "liquidity": "2179611867453702829"
+      },
+      "postAvailabilityEventBlocks": 710030,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "availability": {
+        "at": 1785842666000,
+        "block": "27586012",
+        "liquidity": "36627853412926372"
+      },
+      "postAvailabilityEventBlocks": 335748,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [
+          {
+            "at": 1785879949000,
+            "block": "27957650",
+            "blockHash": "0xd59ef16eb00df69cb8e324f844ef5452ef8577e29418ce27c6cb4d71766fd5ae",
+            "transactionHash": "0x841dd4fcb57b0c9ab535e6ee412f7962a4430d6b401de891723a82affa0c1924",
+            "price": "1517600151751659897455153",
+            "tick": -217271,
+            "liquidity": "0",
+            "endAt": 1785880051000,
+            "endBlock": "27958660",
+            "durationMs": 102000,
+            "unresolvedAtEnd": false
+          }
+        ],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 102000,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "LLY",
+      "availability": {
+        "at": 1788444477000,
+        "block": "53474963",
+        "liquidity": "10488657560975589"
+      },
+      "postAvailabilityEventBlocks": 82531,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 1
+      },
+      "intervals": {
+        "empty": [
+          {
+            "at": 1788444619000,
+            "block": "53476332",
+            "blockHash": "0x23fd3c65cbbc0230cab309aab35fb7ff8ee54a3c979afdf3ed57127c2895c814",
+            "transactionHash": "0xf16b4e6b1cb75a5516a2c61dd714880c79aa40da91155407ad34aacaffcf1bb4",
+            "price": "1461446703485210103287273052203988822378723970341",
+            "tick": 887271,
+            "liquidity": "0",
+            "endAt": 1788444639000,
+            "endBlock": "53476525",
+            "durationMs": 20000,
+            "unresolvedAtEnd": false
+          }
+        ],
+        "empty_boundary": [
+          {
+            "at": 1788444619000,
+            "block": "53476332",
+            "blockHash": "0x23fd3c65cbbc0230cab309aab35fb7ff8ee54a3c979afdf3ed57127c2895c814",
+            "transactionHash": "0xf16b4e6b1cb75a5516a2c61dd714880c79aa40da91155407ad34aacaffcf1bb4",
+            "price": "1461446703485210103287273052203988822378723970341",
+            "tick": 887271,
+            "liquidity": "0",
+            "endAt": 1788444639000,
+            "endBlock": "53476525",
+            "durationMs": 20000,
+            "unresolvedAtEnd": false
+          }
+        ]
+      },
+      "intervalMs": {
+        "empty": 20000,
+        "empty_boundary": 20000
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "availability": {
+        "at": 1785196801000,
+        "block": "21144696",
+        "liquidity": "2339471328396581726"
+      },
+      "postAvailabilityEventBlocks": 1563018,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "QQQ",
+      "availability": {
+        "at": 1788018541000,
+        "block": "49273507",
+        "liquidity": "36655057230727046"
+      },
+      "postAvailabilityEventBlocks": 304372,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "SGOV",
+      "availability": {
+        "at": 1788312309000,
+        "block": "52180363",
+        "liquidity": "180832900585816922"
+      },
+      "postAvailabilityEventBlocks": 68021,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 4,
+        "empty_boundary": 3
+      },
+      "intervals": {
+        "empty": [
+          {
+            "at": 1788542977000,
+            "block": "54443843",
+            "blockHash": "0xa92ed0ad1c869e254d87af93fdb5d7a606cbf70f87e8a898b6261022a386c040",
+            "transactionHash": "0xcaf9c24332649a714eb7528b934047247bfee0023efbfeda991b99a323edfdb8",
+            "price": "7875415366764513135164246762671308",
+            "tick": 230149,
+            "liquidity": "0",
+            "endAt": 1788542979000,
+            "endBlock": "54443859",
+            "durationMs": 2000,
+            "unresolvedAtEnd": false
+          },
+          {
+            "at": 1788543113000,
+            "block": "54445179",
+            "blockHash": "0x141bbb3c24202a70883cddc1417b634e3fdfb0eaa4136a686ca6c1d36fb3b445",
+            "transactionHash": "0x00bd2cf7e7ae35e01662e0db937955d052756dd5ae4dafc0dad37b4bcd09b836",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543117000,
+            "endBlock": "54445214",
+            "durationMs": 4000,
+            "unresolvedAtEnd": false
+          },
+          {
+            "at": 1788543273000,
+            "block": "54446773",
+            "blockHash": "0x2f1000d9ae4906a4740d5f8d2b0b76801910ff9f0f4d4b8c7d55e42aca480937",
+            "transactionHash": "0x0dc3ea3d5e27dbeecb78e823d25d30c1c6ac287a5f818df00dc62ebf36eecdf5",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543274000,
+            "endBlock": "54446792",
+            "durationMs": 1000,
+            "unresolvedAtEnd": false
+          },
+          {
+            "at": 1788543313000,
+            "block": "54447170",
+            "blockHash": "0xcb60f02e113b39354d5f18204c9b5b91e101f1903eafa098e798fb43af79e03f",
+            "transactionHash": "0x24b7a32b7b5d9fa0855df7f9f8f17235f78dfa5b25e54c529680e296e16ef28e",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543320000,
+            "endBlock": "54447245",
+            "durationMs": 7000,
+            "unresolvedAtEnd": false
+          }
+        ],
+        "empty_boundary": [
+          {
+            "at": 1788543113000,
+            "block": "54445179",
+            "blockHash": "0x141bbb3c24202a70883cddc1417b634e3fdfb0eaa4136a686ca6c1d36fb3b445",
+            "transactionHash": "0x00bd2cf7e7ae35e01662e0db937955d052756dd5ae4dafc0dad37b4bcd09b836",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543117000,
+            "endBlock": "54445214",
+            "durationMs": 4000,
+            "unresolvedAtEnd": false
+          },
+          {
+            "at": 1788543273000,
+            "block": "54446773",
+            "blockHash": "0x2f1000d9ae4906a4740d5f8d2b0b76801910ff9f0f4d4b8c7d55e42aca480937",
+            "transactionHash": "0x0dc3ea3d5e27dbeecb78e823d25d30c1c6ac287a5f818df00dc62ebf36eecdf5",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543274000,
+            "endBlock": "54446792",
+            "durationMs": 1000,
+            "unresolvedAtEnd": false
+          },
+          {
+            "at": 1788543313000,
+            "block": "54447170",
+            "blockHash": "0xcb60f02e113b39354d5f18204c9b5b91e101f1903eafa098e798fb43af79e03f",
+            "transactionHash": "0x24b7a32b7b5d9fa0855df7f9f8f17235f78dfa5b25e54c529680e296e16ef28e",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788543320000,
+            "endBlock": "54447245",
+            "durationMs": 7000,
+            "unresolvedAtEnd": false
+          }
+        ]
+      },
+      "intervalMs": {
+        "empty": 14000,
+        "empty_boundary": 12000
+      }
+    },
+    {
+      "symbol": "SLV",
+      "availability": {
+        "at": 1788551523000,
+        "block": "54528247",
+        "liquidity": "928794234845205582"
+      },
+      "postAvailabilityEventBlocks": 32706,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "SPCX",
+      "availability": {
+        "at": 1785196817000,
+        "block": "21144857",
+        "liquidity": "353824602993406971"
+      },
+      "postAvailabilityEventBlocks": 1155388,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "SPY",
+      "availability": {
+        "at": 1786568868000,
+        "block": "34839669",
+        "liquidity": "144384925409938794"
+      },
+      "postAvailabilityEventBlocks": 100636,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 2,
+        "empty_boundary": 0
+      },
+      "intervals": {
+        "empty": [
+          {
+            "at": 1786570380000,
+            "block": "34854756",
+            "blockHash": "0x21a20a25a19ce74d2fe02e25ce6f9e5feeb1f48d7e00430efc25eaf4aca75dc1",
+            "transactionHash": "0xfabf176cea9e4d5a777e02dcfa1ee4acb10e24051672acfd1088a87f209c74e0",
+            "price": "2204090066257825794703226",
+            "tick": -209806,
+            "liquidity": "0",
+            "endAt": 1787110772000,
+            "endBlock": "40243501",
+            "durationMs": 540392000,
+            "unresolvedAtEnd": false
+          }
+        ],
+        "empty_boundary": []
+      },
+      "intervalMs": {
+        "empty": 540392000,
+        "empty_boundary": 0
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "availability": {
+        "at": 1788544653000,
+        "block": "54460388",
+        "liquidity": "52888108451206253"
+      },
+      "postAvailabilityEventBlocks": 49488,
+      "endingPriceTickLiquidityVerified": true,
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 1
+      },
+      "intervals": {
+        "empty": [
+          {
+            "at": 1788545062000,
+            "block": "54464426",
+            "blockHash": "0x37e735a32293bf5d19745237256b7faf52a630f3535c01ea61cc9077d95ea734",
+            "transactionHash": "0xbca7e72106521da98c8c4f59e28c9f607cead4613ef70f99e7fce3e8a312ca63",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788545301000,
+            "endBlock": "54466792",
+            "durationMs": 239000,
+            "unresolvedAtEnd": false
+          }
+        ],
+        "empty_boundary": [
+          {
+            "at": 1788545062000,
+            "block": "54464426",
+            "blockHash": "0x37e735a32293bf5d19745237256b7faf52a630f3535c01ea61cc9077d95ea734",
+            "transactionHash": "0xbca7e72106521da98c8c4f59e28c9f607cead4613ef70f99e7fce3e8a312ca63",
+            "price": "4295128740",
+            "tick": -887272,
+            "liquidity": "0",
+            "endAt": 1788545301000,
+            "endBlock": "54466792",
+            "durationMs": 239000,
+            "unresolvedAtEnd": false
+          }
+        ]
+      },
+      "intervalMs": {
+        "empty": 239000,
+        "empty_boundary": 239000
+      }
+    }
+  ],
+  "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+  "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+  "diagnosticCodeSha256": "80cef1a083e67df21e394e26b9b56afd3c40255cc273f0c4564e3a8cfccc50e6",
+  "principalCodeSha256": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+  "priceLimits": [
+    "4295128740",
+    "1461446703485210103287273052203988822378723970341"
+  ],
+  "scope": "Post-hoc diagnostic of end-of-event-block canonical spot marks after common availability. Uses event post-state and Mint/Burn liquidity deltas, reconciles terminal price/tick/liquidity. Empty-book boundary marks are not validated economic prices. No results or inclusion rules changed."
+}

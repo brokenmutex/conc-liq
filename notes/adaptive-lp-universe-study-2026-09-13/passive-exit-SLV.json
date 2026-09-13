@@ -1,0 +1,73 @@
+{
+  "symbol": "SLV",
+  "availability": {
+    "at": 1788551523000,
+    "block": "54528247",
+    "liquidity": "928794234845205582"
+  },
+  "slippageLimitBps": 50,
+  "canonicalEndVerified": true,
+  "allReportedPassiveTerminalCashVerified": true,
+  "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+  "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+  "diagnosticCodeSha256": "44eda4b313f5ec38e952a3f9c5cde40776e1f2909c9299f5c0f4c35d1c38765c",
+  "resultHashes": {
+    "data/adaptive-lp-universe-study-2026-09-13/runs/SLV-5000000000/results.json": "61c6deb6e920a7cee2b8b12c89ce133b7769fe2214061d9a3e3e79813237321c",
+    "data/adaptive-lp-universe-study-2026-09-13/runs/SLV-1000000000/results.json": "fd8a96325b5e340ecc96b25ad1e6214cb9bc09ae9ef556adec77cbdf3892b468",
+    "data/adaptive-lp-universe-study-2026-09-13/runs/SLV-250000000/results.json": "147664d72e8f79735e4f3ffbed13aa7c63333eeb356c814c13bd7e66fad5a17c"
+  },
+  "rows": [
+    {
+      "budgetQuote": "5000000000",
+      "stockAmount": "41786517789949568770",
+      "exit": {
+        "amountIn": "41786517789949568770",
+        "amountOut": "2385057457",
+        "feeInput": "20893258894974785",
+        "sqrtPriceAfter": "592725561075695181990184",
+        "tickAfter": -236075,
+        "liquidityAfter": "15697701807015133",
+        "fullyFilled": true,
+        "passesSlippage": false,
+        "idealOutput": "2434712963",
+        "outputShortfall": "49655506"
+      },
+      "outputShortfallBps": 203.94809061523037
+    },
+    {
+      "budgetQuote": "1000000000",
+      "stockAmount": "8359629835226879739",
+      "exit": {
+        "amountIn": "8359629835226879739",
+        "amountOut": "484864623",
+        "feeInput": "4179814917613440",
+        "sqrtPriceAfter": "602316059642704115177144",
+        "tickAfter": -235753,
+        "liquidityAfter": "15697701807015133",
+        "fullyFilled": true,
+        "passesSlippage": true,
+        "idealOutput": "487078134",
+        "outputShortfall": "2213511"
+      },
+      "outputShortfallBps": 45.44468013421436
+    },
+    {
+      "budgetQuote": "250000000",
+      "stockAmount": "2090016539097974683",
+      "exit": {
+        "amountIn": "2090016539097974683",
+        "amountOut": "121591490",
+        "feeInput": "1045008269548988",
+        "sqrtPriceAfter": "604149542223440393017217",
+        "tickAfter": -235693,
+        "liquidityAfter": "15697701807015133",
+        "fullyFilled": true,
+        "passesSlippage": true,
+        "idealOutput": "121775889",
+        "outputShortfall": "184399"
+      },
+      "outputShortfallBps": 15.142488510184474
+    }
+  ],
+  "scope": "Separate canonical reconstruction of the passive acquisition and terminal sale at each size. No strategy decisions or parameters changed."
+}

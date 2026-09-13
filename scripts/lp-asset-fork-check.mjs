@@ -14,9 +14,10 @@ import {createRobinhoodClient} from '../src/client.ts';
 import {loadIndexerConfig} from '../src/indexer/config.ts';
 import {PostgresRpcHealthGate} from '../src/rpc-health/store.ts';
 import {sanitizeRiskError} from '../src/risk/evaluate.ts';
-const [envPath,dir,symbolList='AAPL,GOOGL,GME,SLV,TSLA,SPCX']=process.argv.slice(2);assert(envPath&&dir);
+const [envPath,dir,symbolList='AAPL,GOOGL,GME,SLV,TSLA,SPCX',halfWidthText='20']=process.argv.slice(2);assert(envPath&&dir);
 Object.assign(process.env,parseEnv(readFileSync(envPath,'utf8')));process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
 const cfg=loadIndexerConfig(),u=JSON.parse(readFileSync(dir+'/universe.json')),base=JSON.parse(readFileSync('config/paper-nvda-5000-recenter-diluted.json'));
+const halfWidth=Number(halfWidthText);assert(Number.isInteger(halfWidth)&&halfWidth>0&&halfWidth%10===0);base.halfWidthSpacings=halfWidth/10;
 const gate=new PostgresRpcHealthGate({connectionString:process.env.DATABASE_URL,enabled:true,cacheMs:2000,maxSampleAgeSeconds:30});
 const beforeRead=()=>gate.assertBulkAllowed().then(()=>{}),client=createRobinhoodClient(cfg.rpcUrl,cfg.rpcTimeoutMs,{beforeRequest:beforeRead,retryCount:0});
 const write=(path,data)=>{const raw=JSON.stringify(data,null,2)+'\n';writeFileSync(path,raw);writeFileSync(path+'.sha256',createHash('sha256').update(raw).digest('hex')+'\n');};
@@ -29,7 +30,7 @@ try{
   const policy=paperPolicy({...base,market});const result={symbol,policy,source:{block:String(source.number),hash:source.hash},executionEligible:false,stages:{}};let fork;
   const open=b=>openPaperFork({source:{number:b.number,hash:b.hash,timestamp:b.timestamp},rpcUrl:cfg.rpcUrl,beforeRead,maxRequests:800});
   try{
-   const range=marketRange(BigInt(p.sqrtPriceX96),p.tick,20,p.spacing),abi=parseAbi(['function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)']);
+   const range=marketRange(BigInt(p.sqrtPriceX96),p.tick,halfWidth,p.spacing),abi=parseAbi(['function ticks(int24) view returns (uint128,int128,uint256,uint256,int56,uint160,uint32,bool)']);
    result.boundaries=await Promise.all([range.tickLower,range.tickUpper].map(async tick=>{const t=await client.readContract({address:market.pool,abi,functionName:'ticks',args:[tick],blockNumber:source.number});return {tick,gross:String(t[0]),initialized:t[7]};}));
    fork=await open(source);const roundTrip=await simulatePaperRoundTrip(fork,policy);result.stages.roundTrip={passed:true,proof:roundTrip};await fork.close();fork=null;
    console.log(JSON.stringify({symbol,stage:'roundTrip',cashDeltaQuote:roundTrip.cashDeltaQuote,gasWei:roundTrip.totalGasWei}));write(dir+`/fork-${symbol}.json`,result);

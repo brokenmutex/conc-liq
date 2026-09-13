@@ -1,0 +1,650 @@
+[
+  {
+    "symbol": "AAPL",
+    "commonEntryAt": 1785915808000,
+    "lastSourceAt": 1789154997000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "1337519123",
+    "adaptiveMarkedNavQuote": "6343030295",
+    "adaptiveDrawdownPpm": "34961",
+    "adaptiveFirstActionAt": 1786271323000,
+    "adaptiveActionCount": 130,
+    "adaptiveFeesQuote": "2386157228",
+    "adaptiveGasQuote": "29339591",
+    "adaptiveOutsideFraction": 0.1724896780981484,
+    "adaptiveForecastUnavailable": 1156,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.8875665526764693,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.07793431120876666,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "41315577",
+        "fixed_40": "1057906145",
+        "fixed_80": "975862763",
+        "fixed_160": "743487084",
+        "adaptive_width": "1174685119",
+        "adaptive_economic": "144035794"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-2044157694",
+        "fixed_40": "-609285319",
+        "fixed_80": "-69349298",
+        "fixed_160": "205792321",
+        "adaptive_width": "-100110184",
+        "adaptive_economic": "-73160149"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "212732346",
+        "fixed_40": "773018119",
+        "fixed_80": "970925143",
+        "fixed_160": "732183200",
+        "adaptive_width": "775703981",
+        "adaptive_economic": "146330769"
+      }
+    }
+  },
+  {
+    "symbol": "GLD",
+    "commonEntryAt": 1787963916000,
+    "lastSourceAt": 1789154994000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "305192684",
+    "adaptiveMarkedNavQuote": "5307643900",
+    "adaptiveDrawdownPpm": "122538",
+    "adaptiveFirstActionAt": 1787971839000,
+    "adaptiveActionCount": 186,
+    "adaptiveFeesQuote": "1785037122",
+    "adaptiveGasQuote": "41133786",
+    "adaptiveOutsideFraction": 0.22223799924777396,
+    "adaptiveForecastUnavailable": 0,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.7711191521091515,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.12391615517338243,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "-4882690543",
+        "fixed_40": "-4660531997",
+        "fixed_80": "1495936971",
+        "fixed_160": "683052097",
+        "adaptive_width": "395413820",
+        "adaptive_economic": "83682261"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": null,
+        "fixed_40": "-4891557952",
+        "fixed_80": "373761033",
+        "fixed_160": "95803728",
+        "adaptive_width": "-6586126",
+        "adaptive_economic": "-26770786"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "-4594564093",
+        "fixed_40": "-4444368633",
+        "fixed_80": "1338116932",
+        "fixed_160": "673833184",
+        "adaptive_width": "469404048",
+        "adaptive_economic": "-14006188"
+      }
+    }
+  },
+  {
+    "symbol": "GME",
+    "commonEntryAt": 1785196806000,
+    "lastSourceAt": 1789154989000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "3666350999",
+    "adaptiveMarkedNavQuote": "8667684166",
+    "adaptiveDrawdownPpm": "174433",
+    "adaptiveFirstActionAt": 1785196842000,
+    "adaptiveActionCount": 521,
+    "adaptiveFeesQuote": "9363626368",
+    "adaptiveGasQuote": "116706331",
+    "adaptiveOutsideFraction": 0.047445686074822385,
+    "adaptiveForecastUnavailable": 106,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.8544625731055226,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.06646074582030995,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "896236592",
+        "fixed_40": "2821216382",
+        "fixed_80": "3734796945",
+        "fixed_160": "1782585865",
+        "adaptive_width": "3703753220",
+        "adaptive_economic": "2581734075"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-4013950282",
+        "fixed_40": "-1999043442",
+        "fixed_80": "-214115611",
+        "fixed_160": "-158318079",
+        "adaptive_width": "-458393899",
+        "adaptive_economic": "-561564280"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "212617452",
+        "fixed_40": "2985421453",
+        "fixed_80": "3205399626",
+        "fixed_160": "2092446951",
+        "adaptive_width": "2308023565",
+        "adaptive_economic": "1700183980"
+      }
+    }
+  },
+  {
+    "symbol": "GOOGL",
+    "commonEntryAt": 1785842666000,
+    "lastSourceAt": 1789154999000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "736034009",
+    "adaptiveMarkedNavQuote": "5737927764",
+    "adaptiveDrawdownPpm": "68852",
+    "adaptiveFirstActionAt": 1785970779000,
+    "adaptiveActionCount": 82,
+    "adaptiveFeesQuote": "1595554746",
+    "adaptiveGasQuote": "18221571",
+    "adaptiveOutsideFraction": 0.5761247652486323,
+    "adaptiveForecastUnavailable": 5944,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.7616636878469102,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.004577060748500322,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 102000,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "178047469",
+        "fixed_40": "734990994",
+        "fixed_80": "753734976",
+        "fixed_160": "559780700",
+        "adaptive_width": "916062238",
+        "adaptive_economic": "707902412"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-1513748859",
+        "fixed_40": "-479274114",
+        "fixed_80": "31848128",
+        "fixed_160": "156779435",
+        "adaptive_width": "161600240",
+        "adaptive_economic": "-17469791"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "-13033252",
+        "fixed_40": "814234043",
+        "fixed_80": "712693444",
+        "fixed_160": "555998157",
+        "adaptive_width": "929846895",
+        "adaptive_economic": "911199342"
+      }
+    }
+  },
+  {
+    "symbol": "LLY",
+    "commonEntryAt": 1788444477000,
+    "lastSourceAt": 1789154992000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "427450062",
+    "adaptiveMarkedNavQuote": "5429619540",
+    "adaptiveDrawdownPpm": "19931",
+    "adaptiveFirstActionAt": 1788454503000,
+    "adaptiveActionCount": 34,
+    "adaptiveFeesQuote": "776956527",
+    "adaptiveGasQuote": "7763155",
+    "adaptiveOutsideFraction": 0.003517542745139467,
+    "adaptiveForecastUnavailable": 226,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.7063320764148752,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.0,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 1
+      },
+      "intervalMs": {
+        "empty": 20000,
+        "empty_boundary": 20000
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "549693359",
+        "fixed_40": "649545640",
+        "fixed_80": "422820221",
+        "fixed_160": "258022619",
+        "adaptive_width": "511875332",
+        "adaptive_economic": "657147003"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-434334377",
+        "fixed_40": "15112543",
+        "fixed_80": "75061316",
+        "fixed_160": "75173027",
+        "adaptive_width": "62828567",
+        "adaptive_economic": "92624737"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "517170671",
+        "fixed_40": "634089741",
+        "fixed_80": "430809112",
+        "fixed_160": "258022619",
+        "adaptive_width": "534573278",
+        "adaptive_economic": "503691855"
+      }
+    }
+  },
+  {
+    "symbol": "NVDA",
+    "commonEntryAt": 1785196801000,
+    "lastSourceAt": 1789154999000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "3411127215",
+    "adaptiveMarkedNavQuote": "8415033053",
+    "adaptiveDrawdownPpm": "38286",
+    "adaptiveFirstActionAt": 1785197540000,
+    "adaptiveActionCount": 853,
+    "adaptiveFeesQuote": "9956434066",
+    "adaptiveGasQuote": "188180350",
+    "adaptiveOutsideFraction": 0.01151597527605466,
+    "adaptiveForecastUnavailable": 0,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.3099995510983179,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.0,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "1265648687",
+        "fixed_40": "1302775408",
+        "fixed_80": "911512244",
+        "fixed_160": "646157674",
+        "adaptive_width": "3125281478",
+        "adaptive_economic": "741410012"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-3617534653",
+        "fixed_40": "-1960403082",
+        "fixed_80": "-954639511",
+        "fixed_160": "-346200830",
+        "adaptive_width": "-458033255",
+        "adaptive_economic": "-158769024"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "2141157644",
+        "fixed_40": "1684972199",
+        "fixed_80": "1112640939",
+        "fixed_160": "674556281",
+        "adaptive_width": "2662726856",
+        "adaptive_economic": "555406497"
+      }
+    }
+  },
+  {
+    "symbol": "QQQ",
+    "commonEntryAt": 1788018541000,
+    "lastSourceAt": 1789154987000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "830655931",
+    "adaptiveMarkedNavQuote": "5832247682",
+    "adaptiveDrawdownPpm": "9728",
+    "adaptiveFirstActionAt": 1788062077000,
+    "adaptiveActionCount": 9,
+    "adaptiveFeesQuote": "919377956",
+    "adaptiveGasQuote": "2177481",
+    "adaptiveOutsideFraction": 0.0007017961222790532,
+    "adaptiveForecastUnavailable": 172,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.5785169956805012,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.14237239009894206,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "2363832148",
+        "fixed_40": "1462615308",
+        "fixed_80": "888210420",
+        "fixed_160": "513039839",
+        "adaptive_width": "848233455",
+        "adaptive_economic": "786847434"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "808455675",
+        "fixed_40": "632605132",
+        "fixed_80": "372050587",
+        "fixed_160": "230824372",
+        "adaptive_width": "200145056",
+        "adaptive_economic": "258792420"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "2298894503",
+        "fixed_40": "1416466016",
+        "fixed_80": "888010534",
+        "fixed_160": "513039839",
+        "adaptive_width": "696733012",
+        "adaptive_economic": "587151391"
+      }
+    }
+  },
+  {
+    "symbol": "SGOV",
+    "commonEntryAt": 1788312309000,
+    "lastSourceAt": 1789154908000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "49262734",
+    "adaptiveMarkedNavQuote": "5050583307",
+    "adaptiveDrawdownPpm": "999999",
+    "adaptiveFirstActionAt": 1788326560000,
+    "adaptiveActionCount": 2,
+    "adaptiveFeesQuote": "61976429",
+    "adaptiveGasQuote": "518820",
+    "adaptiveOutsideFraction": 0.003624080700381965,
+    "adaptiveForecastUnavailable": 234,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.2101816482521121,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.0014672997697237444,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 4,
+        "empty_boundary": 3
+      },
+      "intervalMs": {
+        "empty": 14000,
+        "empty_boundary": 12000
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "380385873",
+        "fixed_40": "242776603",
+        "fixed_80": "143519112",
+        "fixed_160": "73086268",
+        "adaptive_width": "53669394",
+        "adaptive_economic": "190275660"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "142173599",
+        "fixed_40": "104896120",
+        "fixed_80": "69788037",
+        "fixed_160": "34709971",
+        "adaptive_width": "22234679",
+        "adaptive_economic": "58870007"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "362227758",
+        "fixed_40": "242776603",
+        "fixed_80": "143519112",
+        "fixed_160": "73086268",
+        "adaptive_width": "53669394",
+        "adaptive_economic": "190275660"
+      }
+    }
+  },
+  {
+    "symbol": "SLV",
+    "commonEntryAt": 1788551523000,
+    "lastSourceAt": 1789154953000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": false,
+    "adaptiveBasePnlQuote": null,
+    "adaptiveMarkedNavQuote": "4786407531",
+    "adaptiveDrawdownPpm": "83931",
+    "adaptiveFirstActionAt": 1788573299000,
+    "adaptiveActionCount": 11,
+    "adaptiveFeesQuote": "97695720",
+    "adaptiveGasQuote": "2650396",
+    "adaptiveOutsideFraction": 0.20639933706292746,
+    "adaptiveForecastUnavailable": 1212,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.2675628062314296,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.04394131083736319,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": null,
+        "fixed_160": null,
+        "adaptive_width": null,
+        "adaptive_economic": null
+      },
+      "double_gas_half_fees": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": null,
+        "fixed_160": null,
+        "adaptive_width": null,
+        "adaptive_economic": null
+      },
+      "partial_mint_failure": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": null,
+        "fixed_160": null,
+        "adaptive_width": null,
+        "adaptive_economic": null
+      }
+    }
+  },
+  {
+    "symbol": "SPCX",
+    "commonEntryAt": 1785196817000,
+    "lastSourceAt": 1789154999000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "-1463131506",
+    "adaptiveMarkedNavQuote": "3537871523",
+    "adaptiveDrawdownPpm": "581589",
+    "adaptiveFirstActionAt": 1785197225000,
+    "adaptiveActionCount": 1190,
+    "adaptiveFeesQuote": "5940880727",
+    "adaptiveGasQuote": "265763386",
+    "adaptiveOutsideFraction": 0.02849632141703897,
+    "adaptiveForecastUnavailable": 195,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.6827603384739692,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.028857918190620495,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 0,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 0,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": null,
+        "fixed_40": "-4166649079",
+        "fixed_80": "-2491221041",
+        "fixed_160": "-1099775367",
+        "adaptive_width": "-2296587341",
+        "adaptive_economic": "1859212847"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": "-4504373689",
+        "fixed_160": "-2861171989",
+        "adaptive_width": "-3209662982",
+        "adaptive_economic": "-601274807"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "-2725748446",
+        "fixed_40": "-1895737704",
+        "fixed_80": "-1607326808",
+        "fixed_160": "-946647358",
+        "adaptive_width": "250653728",
+        "adaptive_economic": "1513463813"
+      }
+    }
+  },
+  {
+    "symbol": "SPY",
+    "commonEntryAt": 1786568868000,
+    "lastSourceAt": 1789154978000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "546513979",
+    "adaptiveMarkedNavQuote": "5549001927",
+    "adaptiveDrawdownPpm": "14007",
+    "adaptiveFirstActionAt": 1787308474000,
+    "adaptiveActionCount": 70,
+    "adaptiveFeesQuote": "932064909",
+    "adaptiveGasQuote": "16613399",
+    "adaptiveOutsideFraction": 0.01979307924596968,
+    "adaptiveForecastUnavailable": 1331,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.9311018016235605,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.034709914178305365,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 2,
+        "empty_boundary": 0
+      },
+      "intervalMs": {
+        "empty": 540392000,
+        "empty_boundary": 0
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": "525831361",
+        "fixed_40": "452298206",
+        "fixed_80": "259171890",
+        "fixed_160": "187506151",
+        "adaptive_width": "576140025",
+        "adaptive_economic": "228128452"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": "-95112197",
+        "fixed_40": "78877801",
+        "fixed_80": "56423769",
+        "fixed_160": "82537993",
+        "adaptive_width": "60411612",
+        "adaptive_economic": "104067475"
+      },
+      "partial_mint_failure": {
+        "fixed_20": "520770717",
+        "fixed_40": "440235464",
+        "fixed_80": "258146950",
+        "fixed_160": "187506151",
+        "adaptive_width": "217819160",
+        "adaptive_economic": "228128452"
+      }
+    }
+  },
+  {
+    "symbol": "TSLA",
+    "commonEntryAt": 1788544653000,
+    "lastSourceAt": 1789154999000,
+    "adaptiveInvalid": null,
+    "adaptiveTerminalExecutable": true,
+    "adaptiveBasePnlQuote": "100871738",
+    "adaptiveMarkedNavQuote": "5109298792",
+    "adaptiveDrawdownPpm": "22451",
+    "adaptiveFirstActionAt": 1788568360000,
+    "adaptiveActionCount": 13,
+    "adaptiveFeesQuote": "265999893",
+    "adaptiveGasQuote": "3337265",
+    "adaptiveOutsideFraction": 0.012464224165116878,
+    "adaptiveForecastUnavailable": 473,
+    "adaptiveFeesAbove10PercentExistingFraction": 0.5078048997561063,
+    "adaptiveFeesAbove100PercentExistingFraction": 0.005526866884867507,
+    "postAvailabilityMarkDiagnostics": {
+      "counts": {
+        "empty": 1,
+        "empty_boundary": 1
+      },
+      "intervalMs": {
+        "empty": 239000,
+        "empty_boundary": 239000
+      }
+    },
+    "alphaAt5000": {
+      "pinned_fork_costs": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": "119930688",
+        "fixed_160": "201070197",
+        "adaptive_width": "35220220",
+        "adaptive_economic": "87670237"
+      },
+      "double_gas_half_fees": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": null,
+        "fixed_160": null,
+        "adaptive_width": "-32538852",
+        "adaptive_economic": "19543640"
+      },
+      "partial_mint_failure": {
+        "fixed_20": null,
+        "fixed_40": null,
+        "fixed_80": "154453738",
+        "fixed_160": "201070197",
+        "adaptive_width": "120214849",
+        "adaptive_economic": "87670237"
+      }
+    }
+  }
+]

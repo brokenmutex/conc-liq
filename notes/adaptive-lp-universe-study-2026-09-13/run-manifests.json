@@ -1,0 +1,1196 @@
+{
+  "AAPL-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T15:43:20.030Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T15:43:20.217Z",
+      "rows": 18,
+      "resultsSha256": "c044dd37059c7fe7d610ef5f77b29ef988c5615a0b505297488221e65c8b8b63",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/AAPL-5000000000",
+      "resultsSha256": "c044dd37059c7fe7d610ef5f77b29ef988c5615a0b505297488221e65c8b8b63",
+      "manifestSha256": "8f43d47766b1013fbc2203097610866b8ab4096772339b7e0cf542a4640aa7a6",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "AAPL-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T15:43:20.029Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T15:43:20.216Z",
+      "rows": 18,
+      "resultsSha256": "8093f913e3e43ffa5323d944eb1aa2f52b5059a8b2b522d69f6da9ee7ef313f3",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/AAPL-1000000000",
+      "resultsSha256": "8093f913e3e43ffa5323d944eb1aa2f52b5059a8b2b522d69f6da9ee7ef313f3",
+      "manifestSha256": "a1407671bcf0c24e433da8d5c40524df6c1b89f919fe676dec80c32c2fe4924c",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "AAPL-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "AAPL",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T15:43:20.029Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T15:43:20.211Z",
+      "rows": 18,
+      "resultsSha256": "095e6939d4fefa048679af4d9d43858034ab0b540488d59be0936b6c0a6ca178",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/AAPL-250000000",
+      "resultsSha256": "095e6939d4fefa048679af4d9d43858034ab0b540488d59be0936b6c0a6ca178",
+      "manifestSha256": "100c33e150479da25c44f5bd3fb847fb9d9498c5c536ac87a9a24c617cd0f9ae",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "GLD-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GLD",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:05:51.047Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:11:07.792Z",
+      "rows": 18,
+      "resultsSha256": "3914d7047e75eac1c6f5e6812cb8af309d627973a7516592d7b2cff56246bd3e"
+    }
+  },
+  "GLD-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:05:50.955Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:10:15.818Z",
+      "rows": 18,
+      "resultsSha256": "33cd45f4dedcc731bc6f438fddf2ec842d256ef3bf7d885797ec093388b311e5"
+    }
+  },
+  "GLD-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:05:51.025Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:10:24.130Z",
+      "rows": 18,
+      "resultsSha256": "c63a5e17879b79332fd6be8387c19d8bbe64247ff16fb3ad3f9deeabbc38ef20"
+    }
+  },
+  "GME-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GME",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:10.944Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:29:25.289Z",
+      "rows": 18,
+      "resultsSha256": "3437fb873e221bf50077412fd258ba09aaf2ed60db876b27a81840751abfa72c"
+    }
+  },
+  "GME-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GME",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:10.872Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:27:37.921Z",
+      "rows": 18,
+      "resultsSha256": "757a93c370b01dc7f247d3c2d0beeb9c92f30cfaff70dea9fc3e0f0ac2be7537"
+    }
+  },
+  "GME-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GME",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:10.973Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:29:47.113Z",
+      "rows": 18,
+      "resultsSha256": "6444d3f1c01f4f1fa4cf5b95659a616ec8c02fe35f3982e1f87eb9c967aac7ed"
+    }
+  },
+  "GOOGL-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:10.892Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:12:10.939Z",
+      "rows": 18,
+      "resultsSha256": "31d0ead56da8fa7ffbb381ac9c1cd198f2955689bf05e30bbb6e660afc5774d8",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/GOOGL-5000000000",
+      "resultsSha256": "31d0ead56da8fa7ffbb381ac9c1cd198f2955689bf05e30bbb6e660afc5774d8",
+      "manifestSha256": "332266001282ff6265cbfa34fb0d46b10c65b9d325e8d6465a6ffc951bbca093",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "GOOGL-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:10.848Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:12:10.878Z",
+      "rows": 18,
+      "resultsSha256": "4206fcada9390ce8a3c60f06655e54f61985e43c062173d0c295f16d04ef263b",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/GOOGL-1000000000",
+      "resultsSha256": "4206fcada9390ce8a3c60f06655e54f61985e43c062173d0c295f16d04ef263b",
+      "manifestSha256": "0ddc4e007cc8c1b6e36193ae246f8b585039680819292d5928e550ea2b7ec12c",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "GOOGL-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "GOOGL",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:11.793Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:12:11.851Z",
+      "rows": 18,
+      "resultsSha256": "dde1510800454eec12dbde4ffb50765ec52988871b5857fb918aefebea80a90d",
+      "reused": true
+    },
+    "reuse": {
+      "source": "data/adaptive-lp-long-study-2026-09-13/runs/GOOGL-250000000",
+      "resultsSha256": "dde1510800454eec12dbde4ffb50765ec52988871b5857fb918aefebea80a90d",
+      "manifestSha256": "ec8b7b4e86fce8f7c7c9653c6e581d01ceac640df246b1bd214c698f193d2e6d",
+      "identity": "Canonical events, seed, ending state, cost bundle and decision parameters match prior verified control"
+    }
+  },
+  "LLY-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "LLY",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:11.939Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:13:28.718Z",
+      "rows": 18,
+      "resultsSha256": "88403ef784b1862bf7f50e44657cebf9fc48990b20aae3f997e4b202d5b93e92"
+    }
+  },
+  "LLY-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "LLY",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:12:12.874Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:13:58.043Z",
+      "rows": 18,
+      "resultsSha256": "6daaadfe4cbc2c0131d68678b053361e2d807846a5cad7a471b943a3ac48b4a4"
+    }
+  },
+  "LLY-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "LLY",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:13:30.017Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:15:46.334Z",
+      "rows": 18,
+      "resultsSha256": "c0840e0e55ba15f88fd1932472e460bcfbfc89ee1993bc1e8cee67f7c3fced09"
+    }
+  },
+  "NVDA-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "NVDA",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:13:59.205Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:48:58.900Z",
+      "rows": 18,
+      "resultsSha256": "6c212d5cbb7f2e92d6d27e342b267528954060e9fc737654e1777c1291577430"
+    }
+  },
+  "NVDA-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "NVDA",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:15:47.715Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:49:31.146Z",
+      "rows": 18,
+      "resultsSha256": "18959e26514a080daa4d8da618882e86fd99d60c173f8dbb08262e85cc9b98d5"
+    }
+  },
+  "NVDA-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "NVDA",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:27:42.008Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T17:04:13.703Z",
+      "rows": 18,
+      "resultsSha256": "9c8681951ae9dc67b99d03d3bb7b092e58bd78d0f759a1e58eb4a7c0c283da5e"
+    }
+  },
+  "QQQ-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "QQQ",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:29:30.176Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:35:24.174Z",
+      "rows": 18,
+      "resultsSha256": "787d749900bcad63e4d80dc7d9574f13c5076d7286186e46b5cac63268d24b0c"
+    }
+  },
+  "QQQ-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "QQQ",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:29:48.812Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:36:01.943Z",
+      "rows": 18,
+      "resultsSha256": "95d1231514ffb6486f7c2d3f6df9c4f1c2d8417bce8b4649f108426b7830b4d7"
+    }
+  },
+  "QQQ-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "QQQ",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:35:26.020Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:41:59.000Z",
+      "rows": 18,
+      "resultsSha256": "e087b5a21c21b1a41f20e9190414376a66c8bfbe4c1b896f70a55f4ca4db0ccc"
+    }
+  },
+  "SGOV-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SGOV",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:36:08.065Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:37:31.891Z",
+      "rows": 18,
+      "resultsSha256": "91a90c76c0e7111b0153001deebae24d5de707df55023e30cca65ce30a9e9795"
+    }
+  },
+  "SGOV-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SGOV",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:37:34.916Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:39:00.002Z",
+      "rows": 18,
+      "resultsSha256": "171f5d16a49d9a4d363bfbe14cb77187399a660a41bda620e2935ff38827374e"
+    }
+  },
+  "SGOV-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SGOV",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:39:03.207Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:40:34.013Z",
+      "rows": 18,
+      "resultsSha256": "6d13a6d1a43ff91dc9e74ba47c05bd910a8a15bc26ec0be73d872204575c34a3"
+    }
+  },
+  "SLV-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:40:35.957Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:41:12.335Z",
+      "rows": 18,
+      "resultsSha256": "61c6deb6e920a7cee2b8b12c89ce133b7769fe2214061d9a3e3e79813237321c"
+    }
+  },
+  "SLV-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:41:14.104Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:41:59.079Z",
+      "rows": 18,
+      "resultsSha256": "fd8a96325b5e340ecc96b25ad1e6214cb9bc09ae9ef556adec77cbdf3892b468"
+    }
+  },
+  "SLV-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SLV",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:42:00.882Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:42:47.296Z",
+      "rows": 18,
+      "resultsSha256": "147664d72e8f79735e4f3ffbed13aa7c63333eeb356c814c13bd7e66fad5a17c"
+    }
+  },
+  "SPCX-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPCX",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:42:00.882Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T17:09:01.176Z",
+      "rows": 18,
+      "resultsSha256": "8687fd64df24cd8812e39f24a7322e4bad5d2348d5ccb2bb8b6096eb3bfb44c2"
+    }
+  },
+  "SPCX-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPCX",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:42:48.733Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T17:08:33.733Z",
+      "rows": 18,
+      "resultsSha256": "1a3fffd8b5be3a571d5e230600c0ff8c9fa7f1a9a60f69716af9ae2250f9cbc6"
+    }
+  },
+  "SPCX-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:49:01.796Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T17:11:02.109Z",
+      "rows": 18,
+      "resultsSha256": "19d2ee788b1339262bae84aed089f5434ed56833339f306885037dbffd14f5e2"
+    }
+  },
+  "SPY-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPY",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:49:33.103Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:52:55.006Z",
+      "rows": 18,
+      "resultsSha256": "769055e529369f787e97532ffc191743c442f1a2340c054a738d0a70f6f9deb9"
+    }
+  },
+  "SPY-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPY",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:52:56.717Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:54:37.780Z",
+      "rows": 18,
+      "resultsSha256": "473516baea6ad60bdbafb10a004806c4fabe16ba06ad1707ae4473f6ee29dd8d"
+    }
+  },
+  "SPY-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "SPY",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:54:42.999Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:56:14.237Z",
+      "rows": 18,
+      "resultsSha256": "0fcc9a064f06efe0607085e22dd598a2d579fe0d1c30bc4a3b8e805f54098b21"
+    }
+  },
+  "TSLA-5000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:56:17.101Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:57:18.310Z",
+      "rows": 18,
+      "resultsSha256": "32377940d87f9d63c380dfc3917811e6da2af360fbfc475f7c2ea6a304f36dfe"
+    }
+  },
+  "TSLA-1000000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:57:21.149Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:58:34.344Z",
+      "rows": 18,
+      "resultsSha256": "02acd1c2abedfbeea2c51e1e60cdd10b049edd694028d116863aa4b8e0f41623"
+    }
+  },
+  "TSLA-250000000": {
+    "manifest": {
+      "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+      "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+      "captureCompleteSha256": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+      "source": "data/adaptive-lp-universe-study-2026-09-13",
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "availabilityAmendmentSha256": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
+      "code": {
+        "src/research/virtual-fees.ts": "2b76e9221ff8eec13861bc392949dd90b4cb380b13b3e383a661ccd355557bd3",
+        "src/research/adaptive-forecast.ts": "1ee7cc68eae3f1e1d83c5df7c0eb331f32e281af5215974300e3d7b9527dbd8b",
+        "src/research/adaptive-lp.ts": "27f9da40d0a7c63376ec44045f12835ccd80b6f673683965bbccfdc1ef688cb0",
+        "src/research/swap.ts": "a7a55fdd489dfc04d68b2867eb342b43fcf936f83f8004d4d248db54ead34915",
+        "src/research/portfolio-math.ts": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+        "src/research/management-audit.ts": "fac055f7fd6111baf956b7443ae3e633209d1d20f231fcfe9c9ef5a33907eeb9",
+        "src/experiment/market.ts": "88332fd04a643690f305320ae742c60599a241264bd8a8ca46ca31c3776acddb",
+        "src/paper/market.ts": "28ed794910ce998e725013fe0c0dd41423165d04777b1c7b7ce5738d9883a74b",
+        "src/paper/execution-recenter.ts": "d6a017b9b061de58accfb49339c01ddff72c2337c36a4bcaa43908bb18bdb99d",
+        "src/backtest/principal.ts": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+        "scripts/adaptive-lp-study.mjs": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384"
+      },
+      "runnerSha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "inclusionSha256": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+      "createdAt": "2026-09-13T16:58:38.792Z"
+    },
+    "completed": {
+      "completedAt": "2026-09-13T16:59:45.056Z",
+      "rows": 18,
+      "resultsSha256": "48894e53f3009eadbe2eb95a45a31975125dad1d11f6883d4b2f33e5fd637e4d"
+    }
+  }
+}

@@ -1,0 +1,2390 @@
+[
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6622472.0,
+    "meanAlphaDifferenceQuote": 20642835.0,
+    "summedAlphaDifferenceQuote": "185785515",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 2407862.0,
+    "meanAlphaDifferenceQuote": 28065108.111111112,
+    "summedAlphaDifferenceQuote": "252585973",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 14577695.5,
+    "meanAlphaDifferenceQuote": 81385754.0,
+    "summedAlphaDifferenceQuote": "813857540",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 25465696.0,
+    "meanAlphaDifferenceQuote": 128897635.9,
+    "summedAlphaDifferenceQuote": "1288976359",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 13567633.0,
+    "meanAlphaDifferenceQuote": 58804391.81818182,
+    "summedAlphaDifferenceQuote": "646848310",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 5,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 48177459.0,
+    "meanAlphaDifferenceQuote": 60775940.6,
+    "summedAlphaDifferenceQuote": "303879703",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "AAPL",
+      "GLD",
+      "GME",
+      "GOOGL",
+      "NVDA",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 7,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 27064262.0,
+    "meanAlphaDifferenceQuote": 25500174.0,
+    "summedAlphaDifferenceQuote": "178501218",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "GME",
+      "NVDA",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6783080.5,
+    "meanAlphaDifferenceQuote": -28275131.3,
+    "summedAlphaDifferenceQuote": "-282751313",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -9856733.5,
+    "meanAlphaDifferenceQuote": -42677115.5,
+    "summedAlphaDifferenceQuote": "-426771155",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6616077.0,
+    "meanAlphaDifferenceQuote": -40065474.81818182,
+    "summedAlphaDifferenceQuote": "-440720223",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 8597309.0,
+    "meanAlphaDifferenceQuote": 7931467.666666667,
+    "summedAlphaDifferenceQuote": "71383209",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -18969933.0,
+    "meanAlphaDifferenceQuote": -27278831.888888888,
+    "summedAlphaDifferenceQuote": "-245509487",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -5013063.0,
+    "meanAlphaDifferenceQuote": -23226928.6,
+    "summedAlphaDifferenceQuote": "-232269286",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 6989408.0,
+    "meanAlphaDifferenceQuote": 11111292.2,
+    "summedAlphaDifferenceQuote": "111112922",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 3903958.0,
+    "meanAlphaDifferenceQuote": 8702232.363636363,
+    "summedAlphaDifferenceQuote": "95724556",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -33194251.0,
+    "meanAlphaDifferenceQuote": 36389635.777777776,
+    "summedAlphaDifferenceQuote": "327506722",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 8092643.0,
+    "meanAlphaDifferenceQuote": 66721560.222222224,
+    "summedAlphaDifferenceQuote": "600494042",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 72450699.0,
+    "meanAlphaDifferenceQuote": 202307782.0,
+    "summedAlphaDifferenceQuote": "1820770038",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 8,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 240077310.0,
+    "meanAlphaDifferenceQuote": 395105305.2222222,
+    "summedAlphaDifferenceQuote": "3555947747",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 8,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 47451794.0,
+    "meanAlphaDifferenceQuote": 152519769.9090909,
+    "summedAlphaDifferenceQuote": "1677717469",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 6,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 98027061.0,
+    "meanAlphaDifferenceQuote": 159749986.0,
+    "summedAlphaDifferenceQuote": "958499916",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "GME",
+      "NVDA",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 8,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 22261807.0,
+    "meanAlphaDifferenceQuote": 98678744.875,
+    "summedAlphaDifferenceQuote": "789429959",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -3352667.0,
+    "meanAlphaDifferenceQuote": -22480290.9,
+    "summedAlphaDifferenceQuote": "-224802909",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -12886253.0,
+    "meanAlphaDifferenceQuote": -64073615.2,
+    "summedAlphaDifferenceQuote": "-640736152",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 12,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -9936858.0,
+    "meanAlphaDifferenceQuote": -94254978.41666667,
+    "summedAlphaDifferenceQuote": "-1131059741",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": []
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -14172499.5,
+    "meanAlphaDifferenceQuote": -11819672.0,
+    "summedAlphaDifferenceQuote": "-118196720",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -62530744.0,
+    "meanAlphaDifferenceQuote": 31194306.363636363,
+    "summedAlphaDifferenceQuote": "343137370",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 14912633.5,
+    "meanAlphaDifferenceQuote": 3466221.2,
+    "summedAlphaDifferenceQuote": "34662212",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 117474122.5,
+    "meanAlphaDifferenceQuote": 142879833.5,
+    "summedAlphaDifferenceQuote": "1428798335",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 12,
+    "adaptiveWins": 8,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 57668483.5,
+    "meanAlphaDifferenceQuote": 35519352.333333336,
+    "summedAlphaDifferenceQuote": "426232228",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": []
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 738014769.0,
+    "meanAlphaDifferenceQuote": 1109645950.8888888,
+    "summedAlphaDifferenceQuote": "9986813558",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 152456531.5,
+    "meanAlphaDifferenceQuote": 911158313.0,
+    "summedAlphaDifferenceQuote": "9111583130",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 89055111.0,
+    "meanAlphaDifferenceQuote": 166315615.54545453,
+    "summedAlphaDifferenceQuote": "1829471771",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 335193616.0,
+    "meanAlphaDifferenceQuote": 408703075.72727275,
+    "summedAlphaDifferenceQuote": "4495733833",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 208159826.0,
+    "meanAlphaDifferenceQuote": 88700070.27272727,
+    "summedAlphaDifferenceQuote": "975700773",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 8,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 1086256021.5,
+    "meanAlphaDifferenceQuote": 1282361450.5,
+    "summedAlphaDifferenceQuote": "10258891604",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 9,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 509175135.0,
+    "meanAlphaDifferenceQuote": 954685444.7777778,
+    "summedAlphaDifferenceQuote": "8592169003",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -21496817.5,
+    "meanAlphaDifferenceQuote": 103797894.7,
+    "summedAlphaDifferenceQuote": "1037978947",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 1,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -66534585.0,
+    "meanAlphaDifferenceQuote": -124149624.1,
+    "summedAlphaDifferenceQuote": "-1241496241",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -36635328.0,
+    "meanAlphaDifferenceQuote": -259363144.1818182,
+    "summedAlphaDifferenceQuote": "-2852994586",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 7,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 542270423.5,
+    "meanAlphaDifferenceQuote": 996692861.7,
+    "summedAlphaDifferenceQuote": "9966928617",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 12,
+    "comparableAssets": 10,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -48415300.5,
+    "meanAlphaDifferenceQuote": 624804661.6,
+    "summedAlphaDifferenceQuote": "6248046616",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -40327790.0,
+    "meanAlphaDifferenceQuote": 128361822.18181819,
+    "summedAlphaDifferenceQuote": "1411980044",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 8,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 183693173.0,
+    "meanAlphaDifferenceQuote": 364024843.3636364,
+    "summedAlphaDifferenceQuote": "4004273277",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "all_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 12,
+    "comparableAssets": 11,
+    "adaptiveWins": 8,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 32544612.0,
+    "meanAlphaDifferenceQuote": 237261178.0,
+    "summedAlphaDifferenceQuote": "2609872958",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6622472.0,
+    "meanAlphaDifferenceQuote": 26422961.42857143,
+    "summedAlphaDifferenceQuote": "184960730",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 20834427.0,
+    "meanAlphaDifferenceQuote": 42860385.14285714,
+    "summedAlphaDifferenceQuote": "300022696",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 6101057.5,
+    "meanAlphaDifferenceQuote": 93417159.5,
+    "summedAlphaDifferenceQuote": "747337276",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 7510756.5,
+    "meanAlphaDifferenceQuote": 144871496.375,
+    "summedAlphaDifferenceQuote": "1158971971",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 7704469.0,
+    "meanAlphaDifferenceQuote": 55653438.222222224,
+    "summedAlphaDifferenceQuote": "500880944",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 5,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 48177459.0,
+    "meanAlphaDifferenceQuote": 60775940.6,
+    "summedAlphaDifferenceQuote": "303879703",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "GME",
+      "NVDA",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 5,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 5196354.0,
+    "meanAlphaDifferenceQuote": 9686668.4,
+    "summedAlphaDifferenceQuote": "48433342",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "GME",
+      "NVDA",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6783080.5,
+    "meanAlphaDifferenceQuote": -35872995.625,
+    "summedAlphaDifferenceQuote": "-286983965",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -9409859.0,
+    "meanAlphaDifferenceQuote": -49822268.25,
+    "summedAlphaDifferenceQuote": "-398578146",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 1,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -6616077.0,
+    "meanAlphaDifferenceQuote": -46571203.88888889,
+    "summedAlphaDifferenceQuote": "-419140835",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 8597309.0,
+    "meanAlphaDifferenceQuote": 14160634.57142857,
+    "summedAlphaDifferenceQuote": "99124442",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -16946302.0,
+    "meanAlphaDifferenceQuote": -22599319.42857143,
+    "summedAlphaDifferenceQuote": "-158195236",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -5013063.0,
+    "meanAlphaDifferenceQuote": -28249307.25,
+    "summedAlphaDifferenceQuote": "-225994458",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 5064038.5,
+    "meanAlphaDifferenceQuote": 7759747.0,
+    "summedAlphaDifferenceQuote": "62077976",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "250000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 3903958.0,
+    "meanAlphaDifferenceQuote": 5056800.333333333,
+    "summedAlphaDifferenceQuote": "45511203",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -33194251.0,
+    "meanAlphaDifferenceQuote": 51606157.71428572,
+    "summedAlphaDifferenceQuote": "361243104",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 8092643.0,
+    "meanAlphaDifferenceQuote": 103120725.42857143,
+    "summedAlphaDifferenceQuote": "721845078",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 34522297.0,
+    "meanAlphaDifferenceQuote": 227117626.85714287,
+    "summedAlphaDifferenceQuote": "1589823388",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 120315164.0,
+    "meanAlphaDifferenceQuote": 434089617.4285714,
+    "summedAlphaDifferenceQuote": "3038627322",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 38005693.0,
+    "meanAlphaDifferenceQuote": 138507475.0,
+    "summedAlphaDifferenceQuote": "1246567275",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SPCX"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 4,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 17985214.5,
+    "meanAlphaDifferenceQuote": 2792695.0,
+    "summedAlphaDifferenceQuote": "11170780",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "GME",
+      "NVDA",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 6,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 11244519.0,
+    "meanAlphaDifferenceQuote": 109495238.33333333,
+    "summedAlphaDifferenceQuote": "656971430",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 497788.5,
+    "meanAlphaDifferenceQuote": -22890455.625,
+    "summedAlphaDifferenceQuote": "-183123645",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -12886253.0,
+    "meanAlphaDifferenceQuote": -75765256.5,
+    "summedAlphaDifferenceQuote": "-606122052",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 10,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -14491632.0,
+    "meanAlphaDifferenceQuote": -113654729.0,
+    "summedAlphaDifferenceQuote": "-1136547290",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": []
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -14172499.5,
+    "meanAlphaDifferenceQuote": -13380371.0,
+    "summedAlphaDifferenceQuote": "-107042968",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -62530744.0,
+    "meanAlphaDifferenceQuote": 54066288.11111111,
+    "summedAlphaDifferenceQuote": "486596593",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -17590302.5,
+    "meanAlphaDifferenceQuote": -12837655.875,
+    "summedAlphaDifferenceQuote": "-102701247",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 43062522.0,
+    "meanAlphaDifferenceQuote": 129082300.5,
+    "summedAlphaDifferenceQuote": "1032658404",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "1000000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 10,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 24341634.5,
+    "meanAlphaDifferenceQuote": 10577853.3,
+    "summedAlphaDifferenceQuote": "105778533",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": []
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 50308664.0,
+    "meanAlphaDifferenceQuote": 1159347035.2857144,
+    "summedAlphaDifferenceQuote": "8115429247",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 503189328.5,
+    "meanAlphaDifferenceQuote": 1101716614.0,
+    "summedAlphaDifferenceQuote": "8813732912",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -31043725.0,
+    "meanAlphaDifferenceQuote": 163146905.8888889,
+    "summedAlphaDifferenceQuote": "1468322153",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 253852713.0,
+    "meanAlphaDifferenceQuote": 412028251.1111111,
+    "summedAlphaDifferenceQuote": "3708254260",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "pinned_fork_costs",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 61386021.0,
+    "meanAlphaDifferenceQuote": -29234264.222222224,
+    "summedAlphaDifferenceQuote": "-263108378",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 6,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 326343376.5,
+    "meanAlphaDifferenceQuote": 1106582499.1666667,
+    "summedAlphaDifferenceQuote": "6639494995",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "GLD",
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 7,
+    "adaptiveWins": 4,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 47716024.0,
+    "meanAlphaDifferenceQuote": 1063159930.5714285,
+    "summedAlphaDifferenceQuote": "7442119514",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "SPCX",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -29893053.5,
+    "meanAlphaDifferenceQuote": 117373465.125,
+    "summedAlphaDifferenceQuote": "938987721",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 0,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -66534585.0,
+    "meanAlphaDifferenceQuote": -117551817.625,
+    "summedAlphaDifferenceQuote": "-940414541",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "double_gas_half_fees",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 2,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -43655863.0,
+    "meanAlphaDifferenceQuote": -333901620.2222222,
+    "summedAlphaDifferenceQuote": "-3005114582",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_20",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 5,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 269485909.5,
+    "meanAlphaDifferenceQuote": 1057634604.375,
+    "summedAlphaDifferenceQuote": "8461076835",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_40",
+    "universeAssets": 10,
+    "comparableAssets": 8,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -144311836.0,
+    "meanAlphaDifferenceQuote": 766218487.75,
+    "summedAlphaDifferenceQuote": "6129747902",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV"
+    ],
+    "omitted": [
+      "SLV",
+      "TSLA"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_80",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 3,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": -40327790.0,
+    "meanAlphaDifferenceQuote": 154449750.55555555,
+    "summedAlphaDifferenceQuote": "1390047755",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "fixed_160",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 183693173.0,
+    "meanAlphaDifferenceQuote": 398544862.0,
+    "summedAlphaDifferenceQuote": "3586903758",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  },
+  {
+    "scope": "added_assets",
+    "budgetQuote": "5000000000",
+    "scenario": "partial_mint_failure",
+    "control": "adaptive_economic",
+    "universeAssets": 10,
+    "comparableAssets": 9,
+    "adaptiveWins": 6,
+    "ties": 0,
+    "medianAlphaDifferenceQuote": 32544612.0,
+    "meanAlphaDifferenceQuote": 217983577.0,
+    "summedAlphaDifferenceQuote": "1961852193",
+    "emptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "comparableEmptyBoundaryMarkAssets": [
+      "LLY",
+      "SGOV",
+      "TSLA"
+    ],
+    "omitted": [
+      "SLV"
+    ]
+  }
+]

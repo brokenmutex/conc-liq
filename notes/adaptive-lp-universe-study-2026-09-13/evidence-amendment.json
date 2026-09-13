@@ -1,0 +1,7 @@
+{
+  "planSha256": "43b74b40a0e5840c9c6ee2a398d98e555884f3923a847ef5204639f912f6b5ff",
+  "timing": "Before inspecting any added-asset strategy results",
+  "lateCreation": "Seed each pool at max(common warmup boundary, Initialize event block). Seed is archive state with mint/burn tick reconstruction. Raw events through this block are included in capture but not applied twice. All capital remains cash until the common entry availability rule passes.",
+  "costProbe": "TSLA 20-tick pinned fork entry moved outside its range. Attempt one full 160-tick fork bundle, the widest already-frozen candidate. If complete, use its costs explicitly as a width-independent scenario; do not modify any replay width or decision rule. SLV full transaction stages suffice for virtual-boundary research despite uninitialized canonical boundary flags.",
+  "terminalAttribution": "Attribution records strategy and passive liquidation separately if only one terminal quote is executable. Net alpha remains unavailable unless both liquidations are executable. This reporting generalization does not change policy actions, quote math or costs."
+}

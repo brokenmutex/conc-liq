@@ -1,0 +1,630 @@
+{
+  "GLD-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GLD",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:05:50.318Z"
+  },
+  "GLD-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GLD",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:05:50.320Z"
+  },
+  "GLD-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GLD",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:05:50.315Z"
+  },
+  "GME-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GME",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.168Z"
+  },
+  "GME-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GME",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.170Z"
+  },
+  "GME-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GME",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.165Z"
+  },
+  "GOOGL-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GOOGL",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.173Z"
+  },
+  "GOOGL-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GOOGL",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.900Z"
+  },
+  "GOOGL-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "GOOGL",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.172Z"
+  },
+  "LLY-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "LLY",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:11.882Z"
+  },
+  "LLY-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "LLY",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:13:28.794Z"
+  },
+  "LLY-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "LLY",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:12:10.962Z"
+  },
+  "NVDA-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "NVDA",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:15:46.722Z"
+  },
+  "NVDA-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "NVDA",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:27:39.019Z"
+  },
+  "NVDA-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "NVDA",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:13:58.173Z"
+  },
+  "QQQ-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "QQQ",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:29:47.324Z"
+  },
+  "QQQ-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "QQQ",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:35:24.705Z"
+  },
+  "QQQ-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "QQQ",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:29:26.271Z"
+  },
+  "SGOV-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SGOV",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:37:31.994Z"
+  },
+  "SGOV-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SGOV",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:39:01.134Z"
+  },
+  "SGOV-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SGOV",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:36:03.016Z"
+  },
+  "SLV-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SLV",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:41:12.781Z"
+  },
+  "SLV-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SLV",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:41:59.148Z"
+  },
+  "SLV-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SLV",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:40:34.209Z"
+  },
+  "SPCX-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPCX",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:42:47.354Z"
+  },
+  "SPCX-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPCX",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:48:59.997Z"
+  },
+  "SPCX-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPCX",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:41:59.185Z"
+  },
+  "SPY-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPY",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:52:55.145Z"
+  },
+  "SPY-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPY",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:54:38.784Z"
+  },
+  "SPY-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "SPY",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:49:32.023Z"
+  },
+  "TSLA-1000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "TSLA",
+      "1000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:57:19.080Z"
+  },
+  "TSLA-250000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "TSLA",
+      "250000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:58:35.791Z"
+  },
+  "TSLA-5000000000.log.execution.json": {
+    "script": "scripts/adaptive-lp-universe-study.mjs",
+    "args": [
+      "TSLA",
+      "5000000000",
+      "data/adaptive-lp-universe-study-2026-09-13"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:56:14.847Z"
+  },
+  "audit-AAPL.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "AAPL"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:25:17.103995+00:00",
+    "reason": "Reconstruct completed assets while model queue continues"
+  },
+  "audit-GLD.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "GLD"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:13:28.904290+00:00",
+    "reason": "Audit completed GLD results while other assets continue"
+  },
+  "audit-GME.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "GME"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:41:48.828168+00:00",
+    "reason": "Reconstruct completed asset while model queue continues"
+  },
+  "audit-GOOGL.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "GOOGL"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:31:47.326335+00:00",
+    "reason": "Reconstruct completed assets while model queue continues"
+  },
+  "audit-LLY.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "LLY"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T16:23:15.090413+00:00",
+    "reason": "Reconstruct completed assets while model queue continues"
+  },
+  "audit-NVDA.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "NVDA"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:11:02.801Z"
+  },
+  "audit-QQQ.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "QQQ"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:00:08.915107+00:00",
+    "reason": "Reconstruct completed asset while remaining large model runs continue"
+  },
+  "audit-SGOV.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "SGOV"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:06:52.729514+00:00",
+    "reason": "Reconstruct completed asset while remaining large model runs continue"
+  },
+  "audit-SLV.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "SLV"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:08:03.247240+00:00",
+    "reason": "Reconstruct completed asset while remaining large model runs continue"
+  },
+  "audit-SPCX.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "SPCX"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:11:02.810Z"
+  },
+  "audit-SPY.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "SPY"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:08:37.282530+00:00",
+    "reason": "Reconstruct completed asset while remaining large model runs continue"
+  },
+  "audit-TSLA.log.execution.json": {
+    "script": "scripts/audit-adaptive-lp-universe.mjs",
+    "args": [
+      "data/adaptive-lp-universe-study-2026-09-13",
+      "TSLA"
+    ],
+    "memoization": {
+      "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "certificateSha256": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+    },
+    "startedAt": "2026-09-13T17:10:14.989366+00:00",
+    "reason": "Reconstruct completed asset while remaining large model runs continue"
+  }
+}

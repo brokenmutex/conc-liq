@@ -1,0 +1,12 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+const root=process.argv[2]??'data/adaptive-lp-universe-study-2026-09-13',dir=root+'/memo-validation',read=p=>JSON.parse(readFileSync(p)),hash=p=>createHash('sha256').update(readFileSync(p)).digest('hex');
+const controlResult=dir+'/combined-control-runs/AAPL-250000000/results.json',originalResult='data/adaptive-lp-long-study-2026-09-13/runs/AAPL-250000000/results.json';
+if(process.argv.includes('--await-control'))while(!existsSync(dir+'/combined-control-runs/AAPL-250000000/completed.json'))await new Promise(resolve=>setTimeout(resolve,5000));
+const exhaustive=read(dir+'/exhaustive.json'),quote=read(dir+'/quote-conformance.json'),control=read(controlResult);
+assert.equal(exhaustive.validTicks,1774545);assert(exhaustive.eachCheckedColdAndCached&&exhaustive.cacheEvictionCovered);assert.equal(exhaustive.sourceSha256,hash('src/backtest/principal.ts'));assert.equal(exhaustive.hookSha256,hash('scripts/lp-tick-memo-hook.mjs'));
+assert(quote.compared>=20138&&quote.fullResultAndErrorTypeCodeEquality);assert.equal(quote.sourceSha256,hash('src/research/portfolio-math.ts'));assert.equal(quote.hookSha256,hash('scripts/lp-empty-quote-hook.mjs'));
+assert(readFileSync(controlResult).equals(readFileSync(originalResult)),'Optimized complete control replay differs');assert(control.canonicalEndVerified);assert.equal(control.events,309698);assert.equal(control.results.length,18);
+const proof={exhaustivePassed:true,quoteConformancePassed:true,controlByteIdentical:true,controlRows:control.results.length,controlEvents:control.events,controlResult,originalResult,controlSha256:hash(controlResult),hookSha256:exhaustive.hookSha256,sourceSha256:exhaustive.sourceSha256,quoteHookSha256:quote.hookSha256,quoteSourceSha256:quote.sourceSha256,exhaustiveSha256:hash(dir+'/exhaustive.json'),quoteConformanceSha256:hash(dir+'/quote-conformance.json'),certifierSha256:hash('scripts/certify-lp-optimizations.mjs'),verifiedAt:new Date().toISOString(),scope:'Bounded pure tick memoization and exact empty-tail quote shortcut. Entire retained 18-portfolio result, including action ledgers and economic scores, is byte-identical. Original source files, prices, strategy decisions and parameters remain frozen.'};
+writeFileSync(dir+'/certificate.json',JSON.stringify(proof,null,2)+'\n');console.log(JSON.stringify(proof));

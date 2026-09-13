@@ -81,6 +81,8 @@ Promote a candidate only after usable holdout evidence shows that it improves ne
 
 The subsequent [108-portfolio adaptive LP study](adaptive-lp-study-2026-09-13/README.md) completed this bounded retrospective comparison. It supports further forecast research, but neither adaptive rule earns promotion. Its virtual-boundary fee accounting is explicitly conditional on recorded market flow, and the separately reserved prospective window remains excluded.
 
+The [longer AAPL/GOOGL study](adaptive-lp-long-study-2026-09-13/README.md) and [twelve-asset extension](adaptive-lp-universe-study-2026-09-13/README.md) further qualify that result. At 5,000 USDG, adaptive width beats the original ±40 control on 7/10 comparable assets at base costs, but fixed ±160 beats adaptive width on 9/10 under double gas and half fees. The economic gate's value varies by asset. The broader replay also exposes empty-book boundary-price marks and unavailable terminal exits; reliable valuation, inventory-sensitive exit capacity and an entry-availability-matched fixed-width control are prerequisites for interpreting the next strategy comparison. The papers remain useful for forming hypotheses, without establishing a universally superior policy.
+
 PDF SHA-256 values at retrieval:
 
 ```text

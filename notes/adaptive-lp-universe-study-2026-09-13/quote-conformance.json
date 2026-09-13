@@ -1,0 +1,14 @@
+{
+  "compared": 20138,
+  "emptyInitialLiquidity": 14184,
+  "partialQuotes": 6111,
+  "randomSeed": "94ac8372",
+  "fullResultAndErrorTypeCodeEquality": true,
+  "invalidInputDiagnosticDifferences": 8,
+  "diagnosticScope": "Native TypeScript loading can change Node default assertion source excerpts for invalid negative amounts; valid quote results and explicit errors are compared exactly.",
+  "sourceSha256": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+  "hookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+  "verifierSha256": "e481e42c19db3bc9a8c2b9952c336c4b36c4cf9f681aad51e110fee4b22a296c",
+  "elapsedMs": 8071,
+  "equivalenceArgument": "With zero liquidity and no next initialized tick, every remaining bitmap word consumes zero input and earns zero output or fees. Jumping to the same canonical price limit preserves all return fields. The shortcut is restricted to fee 500, spacing 10 and fewer than 10000 ticks, so skipping fewer than 700 empty words cannot change the original 20000-step guard outcome for a valid ordered book."
+}

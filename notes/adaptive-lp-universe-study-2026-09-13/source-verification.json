@@ -1,0 +1,83 @@
+{
+  "captureSha256": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+  "independentProvider": "Previously frozen HyperSync raw logs and block headers",
+  "matchedSwaps": 43439,
+  "bySymbol": {
+    "AAPL": 2142,
+    "GLD": 1597,
+    "GME": 1911,
+    "GOOGL": 2681,
+    "LLY": 2460,
+    "NVDA": 13431,
+    "QQQ": 7741,
+    "SGOV": 1243,
+    "SLV": 1158,
+    "SPCX": 7059,
+    "SPY": 758,
+    "TSLA": 1258
+  },
+  "ranges": [
+    {
+      "from": 55796609,
+      "to": 55816609
+    },
+    {
+      "from": 55816609,
+      "to": 55836609
+    },
+    {
+      "from": 55836609,
+      "to": 55856609
+    },
+    {
+      "from": 55856609,
+      "to": 55876609
+    },
+    {
+      "from": 55876609,
+      "to": 55896609
+    },
+    {
+      "from": 55896609,
+      "to": 55916609
+    },
+    {
+      "from": 55916609,
+      "to": 55936609
+    },
+    {
+      "from": 55936609,
+      "to": 55956609
+    },
+    {
+      "from": 55956609,
+      "to": 55976609
+    }
+  ],
+  "sourceHashes": {
+    "data/asset-expansion-2026-09-13/history-narrow/55796609-55816609.json.gz": "5586cae6aaaf41d621ec8602a3c5d1426698725cc4c47dd0ca885ead1a397733",
+    "data/asset-expansion-2026-09-13/history-narrow/55816609-55836609.json.gz": "2d85d8960dece0858db6577b80d57e356acc2727083df3bb8a4932f264d8efe6",
+    "data/asset-expansion-2026-09-13/history-narrow/55836609-55856609.json.gz": "35bcfde9d97409f659f4ab2581dd767155b0ded6ebfe8bc66155d231bb332826",
+    "data/asset-expansion-2026-09-13/history-narrow/55856609-55876609.json.gz": "36ac9bb4320f67d8981d9168270becea33deea787b51344b651c194259ad7da5",
+    "data/asset-expansion-2026-09-13/history-narrow/55876609-55896609.json.gz": "a067d782065fcfe9f85669f7d516d0b9994794400741e4fc152dc04826874b1c",
+    "data/asset-expansion-2026-09-13/history-narrow/55896609-55916609.json.gz": "4f72b80bf0c3bab1ddb216e2aafd7eedfb3297a134a61c3347e6f05957cb5e26",
+    "data/asset-expansion-2026-09-13/history-narrow/55916609-55936609.json.gz": "06bc76af3cadf968da89a79aeafe5a4b9f781776d1c002f55669de07db020c19",
+    "data/asset-expansion-2026-09-13/history-narrow/55936609-55956609.json.gz": "fea140791c3b5d4a84d0f21e3a7eb1d3baaf8dee828c19e6d57012d8cf01f625",
+    "data/asset-expansion-2026-09-13/history-narrow/55956609-55976609.json.gz": "9c07419da805dd60bb3a31a5ce3b5c64759cb3d49832b599318849ffec972642"
+  },
+  "matchedCapturePages": [
+    {
+      "file": "pages/55729275-55829275.json.gz",
+      "sha256": "56bff1bf293e9f00864f8252b60fe3023ef15057acc8121cf3ce4bcaa0646816"
+    },
+    {
+      "file": "pages/55829275-55929275.json.gz",
+      "sha256": "259273c514fef82d532b36fb3d365db3ddfccf3eb633637fe0ea698e0af0a64b"
+    },
+    {
+      "file": "pages/55929275-56029275.json.gz",
+      "sha256": "61a457d68ff3ee241a5c5849d2d6bd3bcb052190d345232cff3f60c084823118"
+    }
+  ],
+  "scope": "Exact transaction/log identity, raw amounts/topics, block hash and timestamp spot check. Nine source pages, not an independent provider replay of the full period."
+}

@@ -1,0 +1,722 @@
+{
+  "rows": 648,
+  "actions": 145431,
+  "partialFailures": 8152,
+  "economicScores": 2788541,
+  "validRows": 589,
+  "completedReturnRows": 554,
+  "unavailableTerminalRows": [
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_80",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "adaptive_width",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "adaptive_economic",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "adaptive_width",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "adaptive_economic",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_80",
+      "terminalCashQuote": "4835742667",
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "adaptive_width",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "adaptive_economic",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": null
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_80",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984658103"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984658103"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984658103"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984658103"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_80",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "SLV",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_160",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "984761363"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "5065651518"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "5065651518"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "5065528608"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "5065651518"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_40",
+      "terminalCashQuote": null,
+      "holdTerminalCashQuote": "5065651518"
+    }
+  ],
+  "invalidRows": [
+    {
+      "symbol": "AAPL",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GLD",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GME",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GME",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GME",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "GOOGL",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "NVDA",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "NVDA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "NVDA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "5000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "adaptive_width",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "adaptive_width",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "adaptive_width",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "SPCX",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "adaptive_width",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "5000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "1000000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "pinned_fork_costs",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "double_gas_half_fees",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_20",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_40",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_80",
+      "invalid": "capital_exhausted"
+    },
+    {
+      "symbol": "TSLA",
+      "budgetQuote": "250000000",
+      "scenario": "partial_mint_failure",
+      "name": "fixed_160",
+      "invalid": "capital_exhausted"
+    }
+  ],
+  "commonAvailabilityByAsset": {
+    "AAPL": 1785915808000,
+    "GLD": 1787963916000,
+    "GME": 1785196806000,
+    "GOOGL": 1785842666000,
+    "LLY": 1788444477000,
+    "NVDA": 1785196801000,
+    "QQQ": 1788018541000,
+    "SGOV": 1788312309000,
+    "SLV": 1788551523000,
+    "SPCX": 1785196817000,
+    "SPY": 1786568868000,
+    "TSLA": 1788544653000
+  },
+  "continuousWeeklyAndRegimeSums": "passed",
+  "ledgerChecks": "passed",
+  "scope": "Independent action arithmetic, quote chronology, common benchmarks and availability across sizes, attribution sums, frozen code and output hashes. Canonical swap replay is shared, not independently reimplemented."
+}

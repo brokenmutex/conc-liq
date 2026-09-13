@@ -1,0 +1,19 @@
+{
+  "exhaustivePassed": true,
+  "quoteConformancePassed": true,
+  "controlByteIdentical": true,
+  "controlRows": 18,
+  "controlEvents": 309698,
+  "controlResult": "data/adaptive-lp-universe-study-2026-09-13/memo-validation/combined-control-runs/AAPL-250000000/results.json",
+  "originalResult": "data/adaptive-lp-long-study-2026-09-13/runs/AAPL-250000000/results.json",
+  "controlSha256": "095e6939d4fefa048679af4d9d43858034ab0b540488d59be0936b6c0a6ca178",
+  "hookSha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+  "sourceSha256": "a15a88104b64100bdc324e90b65dad6a250b6d862df546c15e73f4d444e7c43a",
+  "quoteHookSha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+  "quoteSourceSha256": "2fb79df63c3bb29f44de71d0f3c8bd198df3784b0c724870fb46786b57301883",
+  "exhaustiveSha256": "6e98e213883430f9e2caf9c18a05b8f4c3fd1efb786db836bb6cb023630c2eda",
+  "quoteConformanceSha256": "79b3f202a9f54a22f5b12ae574929fecdbab13bd7431bb8488070f94c52dfb25",
+  "certifierSha256": "ff4cd20e298dd4de86ad1752663a1cd9ab27747bc057b12ab6e790997e67bc0f",
+  "verifiedAt": "2026-09-13T16:04:48.458Z",
+  "scope": "Bounded pure tick memoization and exact empty-tail quote shortcut. Entire retained 18-portfolio result, including action ledgers and economic scores, is byte-identical. Original source files, prices, strategy decisions and parameters remain frozen."
+}
