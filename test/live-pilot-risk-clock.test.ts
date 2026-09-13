@@ -13,7 +13,7 @@ function harness(t:TestContext){
  const f=fixture();t.mock.timers.enable({apis:['Date'],now:Date.parse(f.incident.at)});
  const db={query:async(sql:string)=>{
   if(sql.includes('FROM rpc_health_samples'))return {rows:f.health};
-  if(sql.includes('WITH latest AS')){
+  if(sql.includes('WITH attempts AS')){
    // The new snapshot completes after guard entry, before the MVCC risk read.
    if(Date.now()<Date.parse(f.read.evaluatedAt))t.mock.timers.setTime(Date.parse(f.read.evaluatedAt));
    return {rows:[structuredClone(f.read)]};
