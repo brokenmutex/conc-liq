@@ -175,7 +175,7 @@ export async function simulatePaperExit(fork: PaperFork, policy: PaperExecutionP
   return { schemaVersion: 1, scope: "paper_restored_position_exit" as const, executionEligible: false as const,
     broadcastAuthorized: false as const, computedAt: new Date().toISOString(),
     source: { block: String(fork.source.number), hash: fork.source.hash, timestamp: String(fork.source.timestamp) },
-    policy, inventory, restoredTokenId: String(tokenId), restoredLiquidity: String(liquidity),
+    policy, ...(policy.market?{tokenFundingBasis:'local_getter_verified_balance_fixture',fixtureFunding:context.fixtureFunding}:{}), inventory, restoredTokenId: String(tokenId), restoredLiquidity: String(liquidity),
     storageProof: { nftBase: String(nftBase), coreBase: String(coreBase) },
     balances: { before, afterCollect, afterExit }, exitSwap, transactions, upstream: fork.budget,
     totalGasWei: String(transactions.reduce((sum, entry) => sum + BigInt(entry.estimate.totalFeeWei), 0n)),

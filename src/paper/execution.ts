@@ -1,8 +1,9 @@
+import {PAPER_FIXTURE_DONOR,fundLocalFixtureToken,type FixtureFundingProof} from './fixture-funding.js';
 import {buildPaperExit} from './position-exit.js';
 import {paperMarket,marketTokens,marketValue,canonicalBalances,namedBalances,type PaperMarket} from './market.js';
 import assert from "node:assert/strict";
 import {liquidityShareAllowed} from "./liquidity-share.js";
-import { decodeFunctionResult, encodeFunctionData, keccak256, type Address, type Hash, type Hex } from "viem";
+import { decodeFunctionResult, decodeFunctionData, encodeFunctionData, keccak256, type Address, type Hash, type Hex } from "viem";
 import { factoryAbi, poolAbi } from "../abi.js";
 import { createRobinhoodClient } from "../client.js";
 import { NONFUNGIBLE_POSITION_MANAGER, UNISWAP_V3_FACTORY, USDG } from "../constants.js";
@@ -102,11 +103,16 @@ export async function createPaperExecutionContext(fork: PaperFork, policy: Paper
   assert(same(token0, expected.token0) && same(token1, expected.token1) && quoteDecimals === 6 && rwaDecimals === market.rwaDecimals && fee === market.fee && spacing === market.tickSpacing, "Paper pool/token identity mismatch");
   const sourceSlot = await local.readContract({ address: POOL, abi: poolAbi, functionName: "slot0" });
   assert(sourceSlot[6], "Paper pool is locked");
-  return { market,token0,token1,quoteIsToken0:expected.quoteIsToken0, fork, policy, account, local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot };
+  return { fixtureFunding:[] as FixtureFundingProof[],market,token0,token1,quoteIsToken0:expected.quoteIsToken0, fork, policy, account, local, transactions, send, balances, approve, quoteSwap, swap, sourceSlot };
 }
 export type PaperExecutionContext = Awaited<ReturnType<typeof createPaperExecutionContext>>;
 
 export async function fixtureSend(context: PaperExecutionContext, from: Address, to: Address, data: Hex) {
+  if(context.policy.market&&same(from,PAPER_FIXTURE_DONOR)){
+    assert([USDG,context.market.rwa].some(token=>same(token,to)),'Unexpected fixture token');
+    const call=decodeFunctionData({abi:paperTokenAbi,data});assert.equal(call.functionName,'transfer');
+    await fundLocalFixtureToken(context,to,BigInt(call.args[1]));
+  }
   const hash = await context.fork.rpc<Hash>("eth_sendTransaction", [{ from, to, data, gas: "0x7a1200" }]);
   assert.equal((await localReceipt(context.fork, hash)).status, "0x1", "Paper state restoration failed");
 }
@@ -116,7 +122,7 @@ export async function fundPaperFixture(context: PaperExecutionContext, amounts: 
   const RWA=market.rwa,POOL=market.pool;
   const empty = await balances();
   assert(empty.quote === "0" && empty.rwa === "0" && empty.native === "0", "Paper fixture account is not empty on the source chain");
-  const donor = await local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, RWA, 3000] });
+  const donor = context.policy.market?PAPER_FIXTURE_DONOR:await local.readContract({ address: UNISWAP_V3_FACTORY, abi: factoryAbi, functionName: "getPool", args: [USDG, RWA, 3000] });
   assert(!same(donor, POOL) && !/^0x0{40}$/iu.test(donor), "No separate fixture donor");
   await fork.rpc("anvil_impersonateAccount", [donor]);
   await fork.rpc("anvil_impersonateAccount", [account]);
@@ -212,7 +218,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
     schemaVersion: 1, scope: "paper_cash_swap_mint_exit_cash" as const,
     executionEligible: false as const, broadcastAuthorized: false as const,
     computedAt: new Date().toISOString(), source: { block: decimal(fork.source.number), hash: fork.source.hash, timestamp: decimal(fork.source.timestamp) },
-    policy, pool: POOL, router: PAPER_ROUTER, routerCodeHash: PAPER_ROUTER_CODE_HASH, account,
+    policy, ...(policy.market?{tokenFundingBasis:'local_getter_verified_balance_fixture',fixtureFunding:context.fixtureFunding}:{}), pool: POOL, router: PAPER_ROUTER, routerCodeHash: PAPER_ROUTER_CODE_HASH, account,
     ...(operatorRehearsal?{fundingBasis:operatorRehearsal.funding,reservedQuote:decimal(reserve)}:{}),
     range, entrySwap, exitSwap, tokenId: decimal(tokenId), liquidity: decimal(liquidity), allowances,
     minted0: decimal(amount0), minted1: decimal(amount1), balances: { before, inventory, afterMint, afterCollect, afterExit },
@@ -224,6 +230,7 @@ export async function simulatePaperRoundTrip(fork: PaperFork, policy: PaperExecu
     limitations: ["Current-state local round trip; no forward holding interval or LP fee-income result",
       "Gas uses pinned Nitro estimates with paper account state, not mainnet receipts",
       operatorRehearsal?.funding==='existing' ? "Uses pinned existing operator balances; transactions still execute only on the owned local fork" : "1 ETH is local gas fixture funding; token budget and native gas charges are separate",
+      ...(policy.market?["Paper tokens are getter-verified local balance fixtures; no real donor or token supply is represented"]:[]),
       "No intervening third-party transactions within the simulated sequence"],
   };
 }

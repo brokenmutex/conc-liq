@@ -181,7 +181,7 @@ export async function simulatePaperRecenter(fork:PaperFork,policy:PaperExecution
   const source=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};assert.equal(source.hash.toLowerCase(),fork.source.hash.toLowerCase());
   return {scope:'paper_inventory_recenter' as const,executionEligible:false as const,broadcastAuthorized:false as const,
     computedAt:new Date().toISOString(),source:{block:String(fork.source.number),hash:fork.source.hash,timestamp:String(fork.source.timestamp)},
-    policy,inventory,intent,executionPlan,trade,liquidityShare:capacity,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
+    policy,...(policy.market?{tokenFundingBasis:'local_getter_verified_balance_fixture',fixtureFunding:context.fixtureFunding}:{}),inventory,intent,executionPlan,trade,liquidityShare:capacity,position:{...range,liquidity:String(liquidity),minted0:String(amount0),minted1:String(amount1)},
     balances:{before,afterCollect,afterSwap,after},allowances,transactions:recenterTransactions,exitPreviewTransactions:exitTransactions,
     totalGasWei:gas(recenterTransactions),exitGasWei:gas(exitTransactions),upstream:fork.budget,
     limitations:['Hypothetical restored NFT and fee claims, not realized earnings','All-or-none paper acceptance of successful local simulation; submitted partial failures are not modeled','Native costs are fresh Nitro estimates, not receipts paid by this strategy']};

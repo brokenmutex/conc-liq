@@ -37,3 +37,13 @@ Campaign sessions 60–61: initial 5,000 USDG; final 4,955.902440; net P&L −44
 The first implementation check passed 114 paper/dashboard tests, an isolated PostgreSQL lifecycle check and an isolated risk-selection check. Real fork mechanics were checked in both token orders. Restoration funding now explicitly inverts the position manager's intermediate rounding before restoring exact original liquidity.
 
 Historical descriptive activity, conditional market-path scenarios and forward paper results are different evidence classes. Do not annualize a short sample into an expected return or call the selected assets optimal. Record net LP alpha, fee income, swap shortfall, gas, deployment fraction, recenter counts and drawdown across market, premarket and non-market hours.
+
+## Initial forward launch and funding repair
+
+AAPL session 62 started at 08:16:10 UTC and entered at source 08:16:56 UTC. GOOGL session 63 could not enter: its separate fee-3000 donor pool held about 4,818.79 USDG, below the 5,000 USDG fixture budget. This was a local simulation funding limitation, not an LP liquidity or profitability result. Session 63 was cancelled before entry with zero charged costs.
+
+For explicit asset paper policies, local fixture funding now uses a dedicated Anvil account. Two `balanceOf` traces identify a unique account-specific storage word; setting it must produce exactly the requested getter balance. Ambiguous layouts or unsupported scaling fail closed. The funding proofs are retained in the execution artifact. No real transfer or token supply is claimed by this fixture. Legacy NVDA and live operator funding paths retain their existing behavior.
+
+The complete broad scan covers 2,316,861 swaps in 300 pages over seven days. Nine independently captured HyperSync pages matched 43,528 private-RPC logs exactly, including identities, data, block hashes and timestamps.
+
+Conditional AAPL/GOOGL replays reconstructed 135,888 and 337,296 canonical events respectively, and matched the final pool price, active liquidity and both global fee-growth accumulators. Both 30-second and 60-second decision scenarios, and the double-gas/half-fee stress scenario, encountered a disappeared initialized fee boundary. Their full-week NAV/P&L/alpha are unavailable. This prevents a defensible profitability ranking; it is not evidence of zero profits. Forward campaigns are learning deployments with currently verified boundaries, retaining the same accounting invalidation rules.
