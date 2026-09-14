@@ -1,0 +1,127 @@
+{
+  "at": "2026-09-14T07:03:46.035Z",
+  "historicalSwaps": 29,
+  "recenterSwaps": 14,
+  "higherTierWins": 6,
+  "grossFixedInputGainUsdg": 0.30808399999999997,
+  "better": [
+    {
+      "nonce": "84",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.05414,
+      "bps": 5.611632435173285
+    },
+    {
+      "nonce": "90",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.057698,
+      "bps": 5.98573975155518
+    },
+    {
+      "nonce": "96",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.043954,
+      "bps": 4.15185167493361
+    },
+    {
+      "nonce": "110",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.038259,
+      "bps": 4.587525200122828
+    },
+    {
+      "nonce": "134",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.008815,
+      "bps": 0.824252567492171
+    },
+    {
+      "nonce": "155",
+      "phase": "recenter",
+      "fee": 3000,
+      "gainUsdg": 0.105218,
+      "bps": 7.37227215140135
+    }
+  ],
+  "tiers": {
+    "100": {
+      "ok": 17,
+      "error": 12
+    },
+    "500": {
+      "ok": 29,
+      "error": 0
+    },
+    "3000": {
+      "ok": 29,
+      "error": 0
+    },
+    "10000": {
+      "ok": 0,
+      "error": 29
+    }
+  },
+  "current": [
+    {
+      "at": "2026-09-14T07:02:19.644Z",
+      "token": 0,
+      "amount": "100000000",
+      "routeExchange": "uniswapv3",
+      "routePool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+      "reportedRouteBlock": 62615260,
+      "directOutputSameReportedBlock": "466218687683269161",
+      "kyberOutput": "466223569622244096",
+      "differenceRaw": "4881938974935",
+      "differenceBps": 0.10471349827678722,
+      "kyberGasUsd": "0.06246486539864092",
+      "apiQuoteOnly": true
+    },
+    {
+      "at": "2026-09-14T07:02:19.913Z",
+      "token": 1,
+      "amount": "500000000000000000",
+      "routeExchange": "uniswap-v4-fee",
+      "routePool": "0x4e7c1fba5122b0d56ec8fbebfe7b316c5ed27a10325fdb8885a68deb7d8f5d66",
+      "reportedRouteBlock": 62615270,
+      "directOutputSameReportedBlock": "107133958",
+      "kyberOutput": "107346609",
+      "differenceRaw": "212651",
+      "differenceBps": 19.849075304396724,
+      "kyberGasUsd": "0.08502321502291785",
+      "apiQuoteOnly": true
+    },
+    {
+      "at": "2026-09-14T07:02:20.154Z",
+      "token": 0,
+      "amount": "500000000",
+      "routeExchange": "uniswapv3",
+      "routePool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+      "reportedRouteBlock": 62615267,
+      "directOutputSameReportedBlock": "2331183769638510482",
+      "kyberOutput": "2331208180279275008",
+      "differenceRaw": "24410640764526",
+      "differenceBps": 0.10471349827678722,
+      "kyberGasUsd": "0.06260886882558551",
+      "apiQuoteOnly": true
+    },
+    {
+      "at": "2026-09-14T07:02:20.705Z",
+      "token": 0,
+      "amount": "2500000000",
+      "routeExchange": "uniswapv3",
+      "routePool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+      "reportedRouteBlock": 62615285,
+      "directOutputSameReportedBlock": "11656132191070517984",
+      "kyberOutput": "11656254246508326912",
+      "differenceRaw": "122055437808928",
+      "differenceBps": 0.10471349827678722,
+      "kyberGasUsd": "0.06260886882558551",
+      "apiQuoteOnly": true
+    }
+  ]
+}

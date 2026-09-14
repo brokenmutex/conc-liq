@@ -1,0 +1,867 @@
+{
+  "cutoff": "2026-09-14T06:49:36.880Z",
+  "sourceAt": "2026-09-14T06:49:17.000Z",
+  "createdAt": "2026-09-12T14:24:30.612Z",
+  "hours": 40.412885555555555,
+  "initial": 250,
+  "latest": {
+    "at": "2026-09-14T06:49:17.000Z",
+    "observedAt": "2026-09-14T06:49:29.250Z",
+    "block": "62607582",
+    "phase": "holding",
+    "tokenId": "1160438",
+    "inRange": true,
+    "nav": 241.950183,
+    "hold": 248.036578,
+    "gas": 5.423437,
+    "fees": 3.150421,
+    "feeThisInterval": 0,
+    "usdg": "9055698",
+    "nvda": "1108937263107707505",
+    "price": 214.90658705825763,
+    "tick": 222619,
+    "lower": 222580,
+    "upper": 222620,
+    "drawdown": 8.049817
+  },
+  "totalPnl": -8.04981699999999,
+  "alpha": -6.086394999999982,
+  "preGasPnl": -2.6263799999999833,
+  "preGasAlpha": -0.6629579999999748,
+  "gas": 5.423437,
+  "gasEth": 0.002160669708874,
+  "feesAccrualSpot": 3.150421,
+  "feesTerminalSpot": 3.146983,
+  "uncollectedFeesTerminalSpot": 0.356026,
+  "swapShortfallPreTradeSpot": 1.680995,
+  "residualPriceInventoryPnl": -4.09580599999999,
+  "byKind": {
+    "approve:confirmed": {
+      "count": 112,
+      "gas": 1.3799090000000003
+    },
+    "swap:confirmed": {
+      "count": 29,
+      "gas": 1.1576039999999996
+    },
+    "mint:confirmed": {
+      "count": 20,
+      "gas": 1.9186509999999999
+    },
+    "withdraw:confirmed": {
+      "count": 19,
+      "gas": 0.9218
+    },
+    "mint:reverted": {
+      "count": 1,
+      "gas": 0.045473
+    }
+  },
+  "negativeFees": [],
+  "phaseSeconds": {
+    "entry": 2068.578,
+    "exit": 1185.916,
+    "closed": 4843.857000000001,
+    "holding": 102541.814,
+    "recenter": 2255.588,
+    "halted": 32572.728000000003
+  },
+  "recenters": [
+    {
+      "start": "2026-09-12T20:37:03.440Z",
+      "startGas": 2.249346,
+      "end": "2026-09-12T20:39:19.387Z",
+      "interrupted": true,
+      "seconds": 135.947,
+      "gas": 0.140501
+    },
+    {
+      "start": "2026-09-13T07:39:04.861Z",
+      "startGas": 2.637667,
+      "end": "2026-09-13T07:41:27.031Z",
+      "seconds": 142.17,
+      "gas": 0.2047859999999999,
+      "tokenId": "1152065"
+    },
+    {
+      "start": "2026-09-13T08:20:01.862Z",
+      "startGas": 2.842453,
+      "end": "2026-09-13T08:22:13.719Z",
+      "seconds": 131.857,
+      "gas": 0.20067499999999994,
+      "tokenId": "1152397"
+    },
+    {
+      "start": "2026-09-13T09:16:58.669Z",
+      "startGas": 3.043128,
+      "end": "2026-09-13T09:32:51.301Z",
+      "seconds": 952.632,
+      "gas": 0.24358900000000006,
+      "tokenId": "1153147"
+    },
+    {
+      "start": "2026-09-13T09:33:23.414Z",
+      "startGas": 3.286717,
+      "end": "2026-09-13T09:35:21.076Z",
+      "seconds": 117.662,
+      "gas": 0.1917770000000001,
+      "tokenId": "1153164"
+    },
+    {
+      "start": "2026-09-13T10:36:38.928Z",
+      "startGas": 3.478494,
+      "end": "2026-09-13T10:39:02.123Z",
+      "seconds": 143.195,
+      "gas": 0.20629000000000008,
+      "tokenId": "1153654"
+    },
+    {
+      "start": "2026-09-13T12:36:36.746Z",
+      "startGas": 3.684784,
+      "end": "2026-09-13T12:39:33.479Z",
+      "seconds": 176.733,
+      "gas": 0.221924,
+      "tokenId": "1154552"
+    },
+    {
+      "start": "2026-09-13T14:24:02.040Z",
+      "startGas": 3.906708,
+      "end": "2026-09-13T14:26:39.885Z",
+      "seconds": 157.845,
+      "gas": 0.19071000000000016,
+      "tokenId": "1155292"
+    },
+    {
+      "start": "2026-09-13T16:12:12.834Z",
+      "startGas": 4.097418,
+      "end": "2026-09-13T16:15:33.051Z",
+      "seconds": 200.217,
+      "gas": 0.22418899999999997,
+      "tokenId": "1156147"
+    },
+    {
+      "start": "2026-09-13T23:30:00.041Z",
+      "startGas": 4.321607,
+      "end": "2026-09-13T23:34:50.236Z",
+      "seconds": 290.195,
+      "gas": 0.27377499999999966,
+      "tokenId": "1159108"
+    },
+    {
+      "start": "2026-09-13T23:57:42.435Z",
+      "startGas": 4.595382,
+      "end": "2026-09-14T00:00:15.997Z",
+      "seconds": 153.562,
+      "gas": 0.2137140000000004,
+      "tokenId": "1159293"
+    },
+    {
+      "start": "2026-09-14T00:00:21.273Z",
+      "startGas": 4.809096,
+      "end": "2026-09-14T00:02:42.758Z",
+      "seconds": 141.485,
+      "gas": 0.2020919999999995,
+      "tokenId": "1159311"
+    },
+    {
+      "start": "2026-09-14T00:26:07.955Z",
+      "startGas": 5.011188,
+      "end": "2026-09-14T00:29:07.818Z",
+      "seconds": 179.863,
+      "gas": 0.22353500000000004,
+      "tokenId": "1159476"
+    },
+    {
+      "start": "2026-09-14T02:09:20.064Z",
+      "startGas": 5.234723,
+      "end": "2026-09-14T02:11:09.922Z",
+      "seconds": 109.858,
+      "gas": 0.18871400000000005,
+      "tokenId": "1160438"
+    }
+  ],
+  "completedRecenters": 13,
+  "attempts": 14,
+  "recenterMedianSeconds": 153.562,
+  "recenterMeanGas": 0.21428999999999998,
+  "maxDrawdown": 8.32568,
+  "minNav": 241.67432,
+  "periods": {
+    "last24h": {
+      "baselineAt": "2026-09-13T06:49:11.000Z",
+      "endingAt": "2026-09-14T06:49:17.000Z",
+      "navChange": -4.145474999999976,
+      "holdChange": -1.136731999999995,
+      "alphaChange": -3.0087429999999813,
+      "gas": 2.78577,
+      "fees": 2.9612730000000003,
+      "swapShortfall": 0.6303092122672305
+    },
+    "sinceRecoveryMint": {
+      "baselineAt": "2026-09-13T09:32:35.000Z",
+      "endingAt": "2026-09-14T06:49:17.000Z",
+      "navChange": -2.1532239999999945,
+      "holdChange": -0.3656430000000057,
+      "alphaChange": -1.7875809999999888,
+      "gas": 2.13672,
+      "fees": 2.6584830000000004,
+      "swapShortfall": 0.47981460891866956
+    },
+    "sinceCashReentry": {
+      "baselineAt": "2026-09-13T05:45:07.000Z",
+      "endingAt": "2026-09-14T06:49:17.000Z",
+      "navChange": -4.111145999999991,
+      "holdChange": -1.1534910000000025,
+      "alphaChange": -2.9576549999999884,
+      "gas": 2.78577,
+      "fees": 3.014053,
+      "swapShortfall": 0.6303092122672305
+    },
+    "today": {
+      "baselineAt": "2026-09-13T23:59:59.000Z",
+      "endingAt": "2026-09-14T06:49:17.000Z",
+      "navChange": -0.7013829999999928,
+      "holdChange": 0.05412899999998899,
+      "alphaChange": -0.7555119999999818,
+      "gas": 0.6143409999999996,
+      "fees": 0.8274880000000002,
+      "swapShortfall": 0.15030507115743458
+    }
+  },
+  "sampled": {
+    "inRangeSeconds": 102250,
+    "outOfRangeSeconds": 0,
+    "noLpSeconds": 3231,
+    "unobservedGapSeconds": 38738,
+    "maxGapSeconds": 31845
+  },
+  "rangePrices": [
+    214.89169171378137,
+    215.7529367609271
+  ],
+  "phaseChanges": [
+    {
+      "at": "2026-09-12T14:25:08.399Z",
+      "phase": "entry",
+      "reason": "holding_pause",
+      "exit": [],
+      "gas": 0,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T14:46:24.453Z",
+      "phase": "exit",
+      "reason": "management_plan",
+      "exit": [
+        "paper_chain_pause_expired"
+      ],
+      "gas": 0.056838,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T14:47:34.114Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 0.116834,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T14:57:36.212Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 0.116834,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T14:59:40.268Z",
+      "phase": "holding",
+      "reason": "confirmed:01cc67d3-a940-416d-b35f-0dab4fdb9ef0",
+      "exit": [],
+      "gas": 0.351884,
+      "tokenId": "1145652"
+    },
+    {
+      "at": "2026-09-12T15:01:25.702Z",
+      "phase": "exit",
+      "reason": "operator_requested_exit",
+      "exit": [],
+      "gas": 0.351884,
+      "tokenId": "1145652"
+    },
+    {
+      "at": "2026-09-12T15:05:13.673Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 0.664901,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T15:15:18.265Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 0.664901,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T15:16:50.507Z",
+      "phase": "holding",
+      "reason": "confirmed:b069ca77-16d3-4a38-92b8-c9a4101606f9",
+      "exit": [],
+      "gas": 0.856084,
+      "tokenId": "1145825"
+    },
+    {
+      "at": "2026-09-12T15:34:51.840Z",
+      "phase": "exit",
+      "reason": "chain_observation_pause",
+      "exit": [
+        "private_block_lag_hard"
+      ],
+      "gas": 0.856084,
+      "tokenId": "1145825"
+    },
+    {
+      "at": "2026-09-12T15:39:19.952Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 1.016486,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T15:49:20.823Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 1.016486,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T15:51:47.199Z",
+      "phase": "holding",
+      "reason": "confirmed:04cfe753-47a7-483a-b60e-0a2cbca66260",
+      "exit": [],
+      "gas": 1.225153,
+      "tokenId": "1146039"
+    },
+    {
+      "at": "2026-09-12T16:00:03.996Z",
+      "phase": "exit",
+      "reason": "management_plan",
+      "exit": [
+        "paper_risk_pause_expired"
+      ],
+      "gas": 1.225153,
+      "tokenId": "1146039"
+    },
+    {
+      "at": "2026-09-12T16:01:42.762Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 1.353968,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T16:21:57.435Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 1.353968,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T16:23:52.001Z",
+      "phase": "holding",
+      "reason": "confirmed:8141f40c-d0b7-4749-bd88-7e06329b321d",
+      "exit": [],
+      "gas": 1.560658,
+      "tokenId": "1146281"
+    },
+    {
+      "at": "2026-09-12T16:32:57.101Z",
+      "phase": "exit",
+      "reason": "management_plan",
+      "exit": [
+        "paper_risk_pause_expired"
+      ],
+      "gas": 1.560658,
+      "tokenId": "1146281"
+    },
+    {
+      "at": "2026-09-12T16:35:27.806Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 1.723102,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T16:45:29.164Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 1.723102,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T16:47:29.492Z",
+      "phase": "holding",
+      "reason": "confirmed:779bb9e7-0c67-4312-ae40-cede78120cae",
+      "exit": [],
+      "gas": 1.917051,
+      "tokenId": "1146461"
+    },
+    {
+      "at": "2026-09-12T17:45:44.050Z",
+      "phase": "exit",
+      "reason": "management_plan",
+      "exit": [
+        "paper_current_risk_evidence_invalid"
+      ],
+      "gas": 1.917051,
+      "tokenId": "1146461"
+    },
+    {
+      "at": "2026-09-12T17:47:42.447Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 2.054547,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T17:57:43.371Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 2.054547,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T17:59:20.751Z",
+      "phase": "holding",
+      "reason": "confirmed:e1645661-b50b-407c-a0cd-1b751c196e3c",
+      "exit": [],
+      "gas": 2.249346,
+      "tokenId": "1146954"
+    },
+    {
+      "at": "2026-09-12T20:37:03.440Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 2.249346,
+      "tokenId": "1146954"
+    },
+    {
+      "at": "2026-09-12T20:39:19.387Z",
+      "phase": "exit",
+      "reason": "chain_observation_pause",
+      "exit": [
+        "private_block_lag_hard"
+      ],
+      "gas": 2.389847,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-12T20:42:57.150Z",
+      "phase": "halted",
+      "reason": "unexplained_wallet_or_nft_change",
+      "exit": null,
+      "gas": 2.455281,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T05:32:52.245Z",
+      "phase": "exit",
+      "reason": "operator_reconciled_native_credit_to_exit",
+      "exit": null,
+      "gas": 2.455281,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T05:33:26.786Z",
+      "phase": "closed",
+      "reason": "closed",
+      "exit": null,
+      "gas": 2.464581,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T05:43:46.127Z",
+      "phase": "entry",
+      "reason": "management_plan",
+      "exit": null,
+      "gas": 2.464581,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T05:45:23.703Z",
+      "phase": "holding",
+      "reason": "confirmed:547a66fc-3d88-4dee-a449-a85bb653884e",
+      "exit": [],
+      "gas": 2.637667,
+      "tokenId": "1151380"
+    },
+    {
+      "at": "2026-09-13T07:39:04.861Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 2.637667,
+      "tokenId": "1151380"
+    },
+    {
+      "at": "2026-09-13T07:41:27.031Z",
+      "phase": "holding",
+      "reason": "confirmed:10514999-d75b-4eeb-b04e-c9cacb5c6c15",
+      "exit": [],
+      "gas": 2.842453,
+      "tokenId": "1152065"
+    },
+    {
+      "at": "2026-09-13T08:20:01.862Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 2.842453,
+      "tokenId": "1152065"
+    },
+    {
+      "at": "2026-09-13T08:22:13.719Z",
+      "phase": "holding",
+      "reason": "confirmed:6fd56efa-066c-48bb-b996-cca5f85aefac",
+      "exit": [],
+      "gas": 3.043128,
+      "tokenId": "1152397"
+    },
+    {
+      "at": "2026-09-13T09:16:58.669Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 3.043128,
+      "tokenId": "1152397"
+    },
+    {
+      "at": "2026-09-13T09:18:58.732Z",
+      "phase": "halted",
+      "reason": "reverted:46368c11-2fd4-4df6-b035-199dbdf89496",
+      "exit": [],
+      "gas": 3.197257,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T09:31:56.365Z",
+      "phase": "recenter",
+      "reason": "recovered_mint_slippage",
+      "exit": [],
+      "gas": 3.197257,
+      "tokenId": null
+    },
+    {
+      "at": "2026-09-13T09:32:51.301Z",
+      "phase": "holding",
+      "reason": "confirmed:dbc9a9a1-ca6a-4f2f-8a28-6fb0723880b5",
+      "exit": [],
+      "gas": 3.286717,
+      "tokenId": "1153147"
+    },
+    {
+      "at": "2026-09-13T09:33:23.414Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 3.286717,
+      "tokenId": "1153147"
+    },
+    {
+      "at": "2026-09-13T09:35:21.076Z",
+      "phase": "holding",
+      "reason": "confirmed:0e555b20-c549-470b-a8fc-2db64b07b379",
+      "exit": [],
+      "gas": 3.478494,
+      "tokenId": "1153164"
+    },
+    {
+      "at": "2026-09-13T10:36:38.928Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 3.478494,
+      "tokenId": "1153164"
+    },
+    {
+      "at": "2026-09-13T10:39:02.123Z",
+      "phase": "holding",
+      "reason": "confirmed:72fbcab2-5d10-4856-833d-0bf7fc96d695",
+      "exit": [],
+      "gas": 3.684784,
+      "tokenId": "1153654"
+    },
+    {
+      "at": "2026-09-13T12:36:36.746Z",
+      "phase": "recenter",
+      "reason": "admission_wait",
+      "exit": [],
+      "gas": 3.684784,
+      "tokenId": "1153654"
+    },
+    {
+      "at": "2026-09-13T12:39:33.479Z",
+      "phase": "holding",
+      "reason": "confirmed:b8c0a2ae-5475-47b1-8bb0-9dee49f32a80",
+      "exit": [],
+      "gas": 3.906708,
+      "tokenId": "1154552"
+    },
+    {
+      "at": "2026-09-13T14:24:02.040Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 3.906708,
+      "tokenId": "1154552"
+    },
+    {
+      "at": "2026-09-13T14:26:39.885Z",
+      "phase": "holding",
+      "reason": "confirmed:0d8fa29e-db35-404d-a085-47e6343e96b3",
+      "exit": [],
+      "gas": 4.097418,
+      "tokenId": "1155292"
+    },
+    {
+      "at": "2026-09-13T16:12:12.834Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 4.097418,
+      "tokenId": "1155292"
+    },
+    {
+      "at": "2026-09-13T16:15:33.051Z",
+      "phase": "holding",
+      "reason": "confirmed:c0cd100c-0c50-4eb2-bca3-cb93c43415c2",
+      "exit": [],
+      "gas": 4.321607,
+      "tokenId": "1156147"
+    },
+    {
+      "at": "2026-09-13T23:30:00.041Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 4.321607,
+      "tokenId": "1156147"
+    },
+    {
+      "at": "2026-09-13T23:34:50.236Z",
+      "phase": "holding",
+      "reason": "confirmed:0f3143c3-e286-40b7-8250-37f3bb7d4bc8",
+      "exit": [],
+      "gas": 4.595382,
+      "tokenId": "1159108"
+    },
+    {
+      "at": "2026-09-13T23:57:42.435Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 4.595382,
+      "tokenId": "1159108"
+    },
+    {
+      "at": "2026-09-14T00:00:15.997Z",
+      "phase": "holding",
+      "reason": "confirmed:c5e29c43-af6a-46ca-a1e1-845046b6bd81",
+      "exit": [],
+      "gas": 4.809096,
+      "tokenId": "1159293"
+    },
+    {
+      "at": "2026-09-14T00:00:21.273Z",
+      "phase": "recenter",
+      "reason": "admission_wait",
+      "exit": [],
+      "gas": 4.809096,
+      "tokenId": "1159293"
+    },
+    {
+      "at": "2026-09-14T00:02:42.758Z",
+      "phase": "holding",
+      "reason": "confirmed:cbf949d7-4b3d-4f6f-abcb-49a7ef97b786",
+      "exit": [],
+      "gas": 5.011188,
+      "tokenId": "1159311"
+    },
+    {
+      "at": "2026-09-14T00:26:07.955Z",
+      "phase": "recenter",
+      "reason": "admission_wait",
+      "exit": [],
+      "gas": 5.011188,
+      "tokenId": "1159311"
+    },
+    {
+      "at": "2026-09-14T00:29:07.818Z",
+      "phase": "holding",
+      "reason": "confirmed:fc92b3cf-0a2a-489b-9698-a9a3a7146fb0",
+      "exit": [],
+      "gas": 5.234723,
+      "tokenId": "1159476"
+    },
+    {
+      "at": "2026-09-14T02:09:20.064Z",
+      "phase": "recenter",
+      "reason": "management_plan",
+      "exit": [],
+      "gas": 5.234723,
+      "tokenId": "1159476"
+    },
+    {
+      "at": "2026-09-14T02:11:09.922Z",
+      "phase": "holding",
+      "reason": "confirmed:314b0726-a684-40a7-b32c-868a5b75235d",
+      "exit": [],
+      "gas": 5.423437,
+      "tokenId": "1160438"
+    }
+  ],
+  "referenceValuation": {
+    "price": 214.74955834720433,
+    "nav": 241.77604848713773,
+    "hold": 247.96874077810202,
+    "alpha": -6.192692290964302,
+    "fees": 3.1457301642245143
+  },
+  "positionLifetimes": [
+    {
+      "nft": "1145652",
+      "mintAt": "2026-09-12T14:59:24+00:00",
+      "secondsHeld": 127,
+      "active": false
+    },
+    {
+      "nft": "1145825",
+      "mintAt": "2026-09-12T15:16:39+00:00",
+      "secondsHeld": 1234,
+      "active": false
+    },
+    {
+      "nft": "1146039",
+      "mintAt": "2026-09-12T15:51:31+00:00",
+      "secondsHeld": 513,
+      "active": false
+    },
+    {
+      "nft": "1146281",
+      "mintAt": "2026-09-12T16:23:36+00:00",
+      "secondsHeld": 566,
+      "active": false
+    },
+    {
+      "nft": "1146461",
+      "mintAt": "2026-09-12T16:47:08+00:00",
+      "secondsHeld": 3516,
+      "active": false
+    },
+    {
+      "nft": "1146954",
+      "mintAt": "2026-09-12T17:59:04+00:00",
+      "secondsHeld": 9479,
+      "active": false
+    },
+    {
+      "nft": "1151380",
+      "mintAt": "2026-09-13T05:45:07+00:00",
+      "secondsHeld": 6838,
+      "active": false
+    },
+    {
+      "nft": "1152065",
+      "mintAt": "2026-09-13T07:41:11+00:00",
+      "secondsHeld": 2333,
+      "active": false
+    },
+    {
+      "nft": "1152397",
+      "mintAt": "2026-09-13T08:21:57+00:00",
+      "secondsHeld": 3302,
+      "active": false
+    },
+    {
+      "nft": "1153147",
+      "mintAt": "2026-09-13T09:32:35+00:00",
+      "secondsHeld": 48,
+      "active": false
+    },
+    {
+      "nft": "1153164",
+      "mintAt": "2026-09-13T09:35:09+00:00",
+      "secondsHeld": 3693,
+      "active": false
+    },
+    {
+      "nft": "1153654",
+      "mintAt": "2026-09-13T10:38:45+00:00",
+      "secondsHeld": 7077,
+      "active": false
+    },
+    {
+      "nft": "1154552",
+      "mintAt": "2026-09-13T12:39:22+00:00",
+      "secondsHeld": 6280,
+      "active": false
+    },
+    {
+      "nft": "1155292",
+      "mintAt": "2026-09-13T14:26:23+00:00",
+      "secondsHeld": 6350,
+      "active": false
+    },
+    {
+      "nft": "1156147",
+      "mintAt": "2026-09-13T16:15:22+00:00",
+      "secondsHeld": 26094,
+      "active": false
+    },
+    {
+      "nft": "1159108",
+      "mintAt": "2026-09-13T23:34:34+00:00",
+      "secondsHeld": 1388,
+      "active": false
+    },
+    {
+      "nft": "1159293",
+      "mintAt": "2026-09-13T23:59:59+00:00",
+      "secondsHeld": 28,
+      "active": false
+    },
+    {
+      "nft": "1159311",
+      "mintAt": "2026-09-14T00:02:32+00:00",
+      "secondsHeld": 1421,
+      "active": false
+    },
+    {
+      "nft": "1159476",
+      "mintAt": "2026-09-14T00:28:51+00:00",
+      "secondsHeld": 6029,
+      "active": false
+    },
+    {
+      "nft": "1160438",
+      "mintAt": "2026-09-14T02:10:59+00:00",
+      "secondsHeld": 16698,
+      "active": true
+    }
+  ],
+  "lpCustodyHours": 28.615,
+  "recenterGasNoIncidentMean": 0.21184841666666665
+}
