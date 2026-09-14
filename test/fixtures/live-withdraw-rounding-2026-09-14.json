@@ -1,0 +1,600 @@
+{
+  "provenance": "Canonical Robinhood Chain receipt and archive snapshots; signed transaction bytes and credentials omitted. Withdrawal succeeded at block 62855343, 2026-09-14T13:48:23Z.",
+  "state": {
+    "id": "f8affe19-4d89-4132-b214-d67e5ad81331",
+    "last": {
+      "hash": "0xe24823253b439869784cad11142c3b3d0f9680c44e03f00d75e7ff7c3d8c8eff",
+      "nvda": "95",
+      "tick": 222796,
+      "usdg": "93299402",
+      "block": "62855230",
+      "nonce": 249,
+      "native": "1855333272933004",
+      "nftCount": "33",
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "position": {
+        "fee": 500,
+        "owner": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+        "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "tokenId": "1164733",
+        "liquidity": "6944259995424300",
+        "tickLower": 222800,
+        "tickUpper": 222840,
+        "tokensOwed0": "0",
+        "tokensOwed1": "0"
+      },
+      "unlocked": true,
+      "timestamp": "1789393690",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "2040165088",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "1630920427",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "7543407708609430276",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "4927770540049013822",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "sqrtPriceX96": "5452553223607285609553708332204856",
+      "poolLiquidity": "7254092843704451859"
+    },
+    "phase": "exit",
+    "range": null,
+    "desired": "running",
+    "holding": {
+      "events": [
+        {
+          "at": "2026-09-14T08:50:51.038Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T08:50:51.392Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T09:17:27.736Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T09:17:28.123Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T09:27:19.405Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T09:27:19.706Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T10:34:34.021Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T10:34:34.326Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T10:49:28.045Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T10:49:28.365Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T11:10:58.084Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T11:10:58.750Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T11:54:07.853Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T11:54:08.189Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T11:58:16.035Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T11:58:16.454Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T12:37:46.731Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T12:37:47.063Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T12:41:21.040Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T12:41:21.730Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T12:55:11.081Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T12:55:11.440Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T13:05:57.005Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T13:05:57.323Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T13:42:21.053Z",
+          "reasons": [
+            "paper_holding_risk_pause"
+          ]
+        },
+        {
+          "at": "2026-09-14T13:42:21.727Z",
+          "reasons": []
+        },
+        {
+          "at": "2026-09-14T14:25:53.252Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T14:45:29.060Z",
+          "reasons": [
+            "private_reports_syncing",
+            "private_syncing_unproven",
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T14:45:39.723Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:25:32.892Z",
+          "reasons": [
+            "private_reports_syncing",
+            "private_syncing_unproven",
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:25:43.607Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:30:34.681Z",
+          "reasons": [
+            "private_reports_syncing",
+            "private_syncing_unproven",
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:30:45.347Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:46:09.352Z",
+          "reasons": [
+            "private_confirmed_anchor_unavailable",
+            "private_time_lag_soft",
+            "private_block_lag_soft",
+            "chain_anchor_quorum_unproven",
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired",
+            "private_block_lag_hard"
+          ]
+        },
+        {
+          "at": "2026-09-14T15:46:25.354Z",
+          "reasons": [
+            "paper_holding_chain_pause",
+            "paper_chain_pause_expired",
+            "private_block_lag_hard"
+          ]
+        }
+      ],
+      "paused": true,
+      "reasons": [
+        "paper_holding_chain_pause",
+        "paper_chain_pause_expired",
+        "private_block_lag_hard"
+      ],
+      "checkedAt": "2026-09-14T15:48:12.280Z",
+      "riskSince": null,
+      "chainSince": null,
+      "exitReasons": [
+        "paper_chain_pause_expired",
+        "private_block_lag_hard"
+      ],
+      "lastHealthAt": "2026-09-14T15:48:04.157Z",
+      "riskEvidence": {
+        "latest": {
+          "id": "28918",
+          "status": "succeeded",
+          "riskRunId": "28916",
+          "attemptedAt": "2026-09-14T18:45:59.945079+03:00",
+          "completedAt": "2026-09-14T18:46:00.152133+03:00"
+        },
+        "limits": {
+          "sourceSeconds": 180,
+          "refreshSeconds": 10,
+          "validationSeconds": 30
+        },
+        "version": 1,
+        "selected": {
+          "id": "28918",
+          "status": "succeeded",
+          "blockHash": "0x3f576158ce4fac20ca916424c3fd558e840ee0f6f788911ca54de78ebfc3efc2",
+          "canonical": true,
+          "riskRunId": "28916",
+          "attemptedAt": "2026-09-14T18:45:59.945079+03:00",
+          "blockNumber": "62924519",
+          "completedAt": "2026-09-14T18:46:00.152133+03:00",
+          "validatedAt": "2026-09-14T18:46:00.160444+03:00",
+          "canonicalObservedHash": "0x3f576158ce4fac20ca916424c3fd558e840ee0f6f788911ca54de78ebfc3efc2"
+        },
+        "reference": null,
+        "evaluatedAt": "2026-09-14 18:48:12.269512+03",
+        "failedChecks": [
+          "canonical_validation_age"
+        ],
+        "snapshotSha256": "60abff940c456982c5345a01f6f74ef14e83643680b2fe2fd9e58ddf1e040846",
+        "snapshotSourceAt": "2026-09-14T15:45:46.000Z",
+        "inFlightStartedAt": null,
+        "snapshotObservedAt": "2026-09-14T15:46:00.152Z",
+        "usingPreviousCompleted": false
+      },
+      "healthSampleId": "85904",
+      "lastPrivateHead": "62925853",
+      "resumeFromPause": true
+    },
+    "tokenId": "1164733",
+    "version": 1,
+    "closedAt": "2026-09-14T08:38:35.935Z",
+    "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "swapDone": false,
+    "benchmark": {
+      "nvda": "432011537030058711",
+      "usdg": "155194454"
+    },
+    "createdAt": "2026-09-12T14:24:30.612Z",
+    "updatedAt": "2026-09-14T13:33:37.000Z",
+    "policyHash": "0b79a763cf73e565c61f6cb6956eb8f401e29ad8bb6692f8fe4256ffc8e693f4",
+    "gasSpentWei": "3060172030234000",
+    "reserveUsdg": "49927111",
+    "collectedFee0": "2372913",
+    "collectedFee1": "13376619213334156",
+    "gasSpentQuote": "7683141",
+    "initialNative": "4907000000000000",
+    "allowancePolicy": {
+      "kind": "persistent_finite_v1",
+      "grants": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+          "amountRaw": "2500000000"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+          "amountRaw": "2500000000"
+        },
+        {
+          "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+          "amountRaw": "10000000000000000000"
+        },
+        {
+          "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+          "amountRaw": "10000000000000000000"
+        }
+      ]
+    },
+    "retiredTokenIds": [
+      "1145652",
+      "1145825",
+      "1146039",
+      "1146281",
+      "1146461",
+      "1146954",
+      "1151380",
+      "1152065",
+      "1152397",
+      "1153147",
+      "1153164",
+      "1153654",
+      "1154552",
+      "1155292",
+      "1156147",
+      "1159108",
+      "1159293",
+      "1159311",
+      "1159476",
+      "1160438",
+      "1162154",
+      "1162225",
+      "1162294",
+      "1162743",
+      "1162908",
+      "1163237",
+      "1163816",
+      "1164023",
+      "1164035",
+      "1164340",
+      "1164488",
+      "1164688"
+    ],
+    "initialCapitalQuote": "250000000",
+    "externalNativeCreditsWei": "8505303167004"
+  },
+  "action": {
+    "id": "9190bbf1-ef9b-4059-bc4b-d295d240c7a4",
+    "campaignId": "f8affe19-4d89-4132-b214-d67e5ad81331",
+    "intent": {
+      "id": "9190bbf1-ef9b-4059-bc4b-d295d240c7a4",
+      "to": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+      "gas": "314324",
+      "data": "0xac9650d8000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000a40c49ccbe000000000000000000000000000000000000000000000000000000000011c5bd0000000000000000000000000000000000000000000000000018abc48641562c000000000000000000000000000000000000000000000000000000000bf429ba0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000006aa7fc46000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000084fc6f7865000000000000000000000000000000000000000000000000000000000011c5bd000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d5200000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000000000000000000000000000000000000000000000000",
+      "nonce": 249,
+      "value": "0",
+      "action": "withdraw",
+      "chainId": 4663,
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "sourceHash": "0xe24823253b439869784cad11142c3b3d0f9680c44e03f00d75e7ff7c3d8c8eff",
+      "sourceBlock": "62855230",
+      "maxFeePerGas": "139916000",
+      "maxPriorityFeePerGas": "0"
+    },
+    "plan": {
+      "kind": "withdraw",
+      "min0": "200550842",
+      "min1": "0",
+      "tokenId": "1164733",
+      "deadline": "1789393990",
+      "liquidity": "6944259995424300"
+    },
+    "before": {
+      "hash": "0xe24823253b439869784cad11142c3b3d0f9680c44e03f00d75e7ff7c3d8c8eff",
+      "nvda": "95",
+      "tick": 222796,
+      "usdg": "93299402",
+      "block": "62855230",
+      "nonce": 249,
+      "native": "1855333272933004",
+      "nftCount": "33",
+      "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "position": {
+        "fee": 500,
+        "owner": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+        "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "tokenId": "1164733",
+        "liquidity": "6944259995424300",
+        "tickLower": 222800,
+        "tickUpper": 222840,
+        "tokensOwed0": "0",
+        "tokensOwed1": "0"
+      },
+      "unlocked": true,
+      "timestamp": "1789393690",
+      "allowances": [
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "2040165088",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "amount": "1630920427",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "7543407708609430276",
+          "spender": "0xCaf681a66D020601342297493863E78C959E5cb2"
+        },
+        {
+          "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+          "amount": "4927770540049013822",
+          "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3"
+        }
+      ],
+      "sqrtPriceX96": "5452553223607285609553708332204856",
+      "poolLiquidity": "7254092843704451859"
+    },
+    "status": "signed",
+    "hash": "0xccf6b605e20edf1c87b743063d6f5e17c17e2bf4e62a9232b344d8cec21349ca"
+  },
+  "receipt": {
+    "transactionHash": "0xccf6b605e20edf1c87b743063d6f5e17c17e2bf4e62a9232b344d8cec21349ca",
+    "blockHash": "0xbbcbd78598153776c30cedd15e6d6a06d945acf77a66966b3446d6b9a2c9edf9",
+    "blockNumber": "62855343",
+    "status": "success",
+    "gasUsed": "198707",
+    "effectiveGasPrice": "69140000",
+    "logs": [
+      {
+        "address": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "data": "0x0000000000000000000000000000000000000000000000000018abc48641562c000000000000000000000000000000000000000000000000000000000c038a6c0000000000000000000000000000000000000000000000000000000000000000",
+        "topics": [
+          "0x0c396cd989a39f4459b5fa1aed6a9a8dcdbc45908acfd67e028cd568da98982c",
+          "0x00000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d3",
+          "0x0000000000000000000000000000000000000000000000000000000000036650",
+          "0x0000000000000000000000000000000000000000000000000000000000036678"
+        ]
+      },
+      {
+        "address": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+        "data": "0x0000000000000000000000000000000000000000000000000018abc48641562c000000000000000000000000000000000000000000000000000000000c038a6c0000000000000000000000000000000000000000000000000000000000000000",
+        "topics": [
+          "0x26f6a048ee9138f2c0ce266f322cb99228e8d619ae2bff30c67f8dcf9d2377b4",
+          "0x000000000000000000000000000000000000000000000000000000000011c5bd"
+        ]
+      },
+      {
+        "address": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+        "data": "0x000000000000000000000000000000000000000000000000000000000c05c3a2",
+        "topics": [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          "0x000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+          "0x000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52"
+        ]
+      },
+      {
+        "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "data": "0x000000000000000000000000000000000000000000000000000180f7b2eade34",
+        "topics": [
+          "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+          "0x000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+          "0x000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52"
+        ]
+      },
+      {
+        "address": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "data": "0x000000000000000000000000000000000000000000000000000180f7b2eade3400000000000000000000000000000000000000000000000000018144179711d6",
+        "topics": [
+          "0x37e7f0db430edc9dd31bc66f25f8449353aa0818f503b906747dd8f286cd3802",
+          "0x000000000000000000000000d4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+          "0x000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52"
+        ]
+      },
+      {
+        "address": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "data": "0x000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000000000000000000000000000000000000c05c3a2000000000000000000000000000000000000000000000000000180f7b2eade34",
+        "topics": [
+          "0x70935338e69775456a85ddef226c395fb668b63fa0115f5f20610b388e6ca9c0",
+          "0x00000000000000000000000073991a25c818bf1f1128deaab1492d45638de0d3",
+          "0x0000000000000000000000000000000000000000000000000000000000036650",
+          "0x0000000000000000000000000000000000000000000000000000000000036678"
+        ]
+      },
+      {
+        "address": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+        "data": "0x000000000000000000000000dcc9348ade9ca0a13249a44a63db5411a8e72d52000000000000000000000000000000000000000000000000000000000c05c3a4000000000000000000000000000000000000000000000000000180f7b2eade34",
+        "topics": [
+          "0x40d0efd1a53d60ecbf40971b9daf7dc90178c3aadc7aab1765632738fa8b8f01",
+          "0x000000000000000000000000000000000000000000000000000000000011c5bd"
+        ]
+      }
+    ]
+  },
+  "after": {
+    "block": "62855343",
+    "hash": "0xbbcbd78598153776c30cedd15e6d6a06d945acf77a66966b3446d6b9a2c9edf9",
+    "timestamp": "1789393703",
+    "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "usdg": "295003756",
+    "nvda": "423276323724947",
+    "native": "1841594670953004",
+    "nonce": 250,
+    "nftCount": "33",
+    "tick": 222792,
+    "sqrtPriceX96": "5451490058761587119466685113645349",
+    "poolLiquidity": "7254092843704451859",
+    "unlocked": true,
+    "allowances": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "2040165088"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "1630920427"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "7543407708609430276"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "4927770540049013822"
+      }
+    ],
+    "position": {
+      "owner": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "fee": 500,
+      "tickLower": 222800,
+      "tickUpper": 222840,
+      "liquidity": "0",
+      "tokensOwed0": "0",
+      "tokensOwed1": "0",
+      "tokenId": "1164733"
+    }
+  }
+}

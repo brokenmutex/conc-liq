@@ -51,6 +51,7 @@ export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt
   }
  };
  unchangedAllowances();
+ if(plan.kind!=='withdraw')assert.equal(facts.poolCollections.length,0,'Unexpected pool collection');
  if(plan.kind==='approve') {unchangedPosition();assert.equal(usdg,0n);assert.equal(nvda,0n);}
  else if(plan.kind==='swap') {
   unchangedPosition();const spent=plan.token===0?-usdg:-nvda,received=plan.token===0?nvda:usdg;
@@ -76,9 +77,25 @@ export function reconcilePilotAction(state:PilotState,action:PilotAction,receipt
   assert(collect.recipient&&same(collect.recipient,state.operator),'Collection went to another recipient');
   assert.equal(decrease.tokenId,plan.tokenId);assert.equal(collect.tokenId,plan.tokenId);assert.equal(decrease.liquidity,plan.liquidity);
   assert(BigInt(decrease.amount0)>=BigInt(plan.min0)&&BigInt(decrease.amount1)>=BigInt(plan.min1));
-  assert.equal(usdg,BigInt(collect.amount0));assert.equal(nvda,BigInt(collect.amount1));
+  const position=before.position;
+  assert(position&&position.tokenId===plan.tokenId&&same(position.owner,state.operator),'Withdrawal NFT mismatch');
+  assert(same(position.token0,USDG)&&same(position.token1,PAPER_NVDA)&&position.fee===500);
+  assert.equal(position.liquidity,plan.liquidity);
+  assert.equal(facts.poolCollections.length,1,'Expected exactly one canonical pool collection');
+  const actual=facts.poolCollections[0]!;
+  assert(same(actual.owner,NONFUNGIBLE_POSITION_MANAGER)&&same(actual.recipient,state.operator),'Pool collection custody mismatch');
+  assert.equal(actual.tickLower,position.tickLower);assert.equal(actual.tickUpper,position.tickUpper);
+  // The manager emits the requested amount; core may transfer less due to rounding.
+  // Prove the actual payment exactly, with no tolerance on transfers or balances.
+  assert.equal(usdg,BigInt(actual.amount0),'Pool USDG collection differs from transfers');
+  assert.equal(nvda,BigInt(actual.amount1),'Pool NVDA collection differs from transfers');
+  const rounding0=BigInt(collect.amount0)-usdg,rounding1=BigInt(collect.amount1)-nvda;
+  assert(rounding0>=0n&&rounding1>=0n,'Pool collection exceeds manager request');
   const fee0=usdg-BigInt(decrease.amount0),fee1=nvda-BigInt(decrease.amount1);assert(fee0>=0n&&fee1>=0n);
+  facts.collectionProof={requested:{amount0:collect.amount0,amount1:collect.amount1},actual:{amount0:actual.amount0,amount1:actual.amount1},
+   roundingDifference:{amount0:String(rounding0),amount1:String(rounding1)},fees:{amount0:String(fee0),amount1:String(fee1)}};
   assert(after.position&&same(after.position.owner,state.operator)&&after.position.tokenId===plan.tokenId);
+  assert.deepEqual({...after.position,liquidity:position.liquidity,tokensOwed0:position.tokensOwed0,tokensOwed1:position.tokensOwed1},position,'Withdrawal changed NFT identity or range');
   assert.equal(after.position.liquidity,'0');assert.equal(after.position.tokensOwed0,'0');assert.equal(after.position.tokensOwed1,'0');
   next.collectedFee0=String(BigInt(state.collectedFee0)+fee0);next.collectedFee1=String(BigInt(state.collectedFee1)+fee1);
   next.retiredTokenIds.push(plan.tokenId);next.tokenId=null;next.range=null;next.swapDone=false;

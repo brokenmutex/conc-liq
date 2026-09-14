@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import {decodeEventLog,parseAbi,toEventSelector,type Address,type Hex} from 'viem';
-import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';import {PAPER_NVDA} from '../paper/engine.js';
+import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';import {PAPER_NVDA,PAPER_POOL} from '../paper/engine.js';
+const poolCollectAbi=parseAbi(['event Collect(address indexed owner,address recipient,int24 indexed tickLower,int24 indexed tickUpper,uint128 amount0,uint128 amount1)']);
+const poolCollectTopic=toEventSelector('Collect(address,address,int24,int24,uint128,uint128)');
+export interface PilotCollectionProof {
+ requested:{amount0:string;amount1:string};actual:{amount0:string;amount1:string};
+ roundingDifference:{amount0:string;amount1:string};fees:{amount0:string;amount1:string};
+}
 const events=parseAbi([
  'event Transfer(address indexed from,address indexed to,uint256 value)',
  'event IncreaseLiquidity(uint256 indexed tokenId,uint128 liquidity,uint256 amount0,uint256 amount1)',
@@ -17,7 +23,12 @@ export function pilotReceiptFacts(receipt:PilotReceipt,operator:Address){
  assert(receipt.gasUsed>0n&&receipt.effectiveGasPrice>=0n);
  assert(receipt.status==='success'||receipt.logs.length===0,'Reverted receipt cannot contain logs');
  const wallet={usdg:0n,nvda:0n},nfts:{from:string;to:string;tokenId:string}[]=[],liquidityEvents:{kind:string;tokenId:string;liquidity?:string;recipient?:string;amount0:string;amount1:string}[]=[];
+ const poolCollections:{pool:string;owner:string;recipient:string;tickLower:number;tickUpper:number;amount0:string;amount1:string}[]=[];
  for(const log of receipt.logs){
+  if(log.address.toLowerCase()===PAPER_POOL&&log.topics[0]?.toLowerCase()===poolCollectTopic){
+   const {args}=decodeEventLog({abi:poolCollectAbi,data:log.data,topics:log.topics as [Hex,...Hex[]]});
+   poolCollections.push({pool:log.address,owner:args.owner,recipient:args.recipient,tickLower:args.tickLower,tickUpper:args.tickUpper,amount0:String(args.amount0),amount1:String(args.amount1)});continue;
+  }
   const address=log.address.toLowerCase();if(![USDG.toLowerCase(),PAPER_NVDA,NONFUNGIBLE_POSITION_MANAGER.toLowerCase()].includes(address))continue;
   const manager=address===NONFUNGIBLE_POSITION_MANAGER.toLowerCase(),topic=log.topics[0]?.toLowerCase();
   if(manager&&topic===transferTopic){
@@ -33,6 +44,6 @@ export function pilotReceiptFacts(receipt:PilotReceipt,operator:Address){
  }
  assert(receipt.status==='success'||(!nfts.length&&!liquidityEvents.length&&wallet.usdg===0n&&wallet.nvda===0n),'Reverted receipt cannot contain accepted transfers');
  return {transactionHash:receipt.transactionHash,block: String(receipt.blockNumber),blockHash:receipt.blockHash,status:receipt.status,
-  gasWei:String(receipt.gasUsed*receipt.effectiveGasPrice),walletDeltas:{usdg:String(wallet.usdg),nvda:String(wallet.nvda)},nfts,liquidityEvents,
+  gasWei:String(receipt.gasUsed*receipt.effectiveGasPrice),walletDeltas:{usdg:String(wallet.usdg),nvda:String(wallet.nvda)},nfts,liquidityEvents,poolCollections,collectionProof:null as PilotCollectionProof|null,
   reconciled:false as const,lpFeeIncome:null};
 }
