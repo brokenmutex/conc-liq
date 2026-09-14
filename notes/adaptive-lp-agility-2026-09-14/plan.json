@@ -1,0 +1,140 @@
+{
+  "version": "adaptive_lp_agility_v1",
+  "sourceDirectory": "data/adaptive-lp-universe-study-2026-09-13",
+  "symbols": [
+    "AAPL",
+    "GOOGL",
+    "NVDA"
+  ],
+  "from": "2026-08-30T00:00:00Z",
+  "warmupFrom": "2026-08-29T18:00:00Z",
+  "to": "2026-09-11T19:30:00Z",
+  "budgetQuote": "1000000000",
+  "halfWidthsTicks": [
+    20,
+    40,
+    80,
+    160
+  ],
+  "scenarios": [
+    {
+      "name": "pinned_fork_costs",
+      "gasMultiplier": 1,
+      "feePpm": 1000000,
+      "failEveryRecenter": 0
+    },
+    {
+      "name": "double_gas_half_fees",
+      "gasMultiplier": 2,
+      "feePpm": 500000,
+      "failEveryRecenter": 0
+    },
+    {
+      "name": "partial_mint_failure",
+      "gasMultiplier": 1,
+      "feePpm": 1000000,
+      "failEveryRecenter": 5
+    }
+  ],
+  "arms": [
+    {
+      "name": "baseline_6h",
+      "forecast": null
+    },
+    {
+      "name": "rolling_30m",
+      "forecast": {
+        "lookbackMs": 1800000,
+        "minimumSpanMs": 1200000,
+        "minimumSamples": 20
+      }
+    },
+    {
+      "name": "rolling_60m",
+      "forecast": {
+        "lookbackMs": 3600000,
+        "minimumSpanMs": 2400000,
+        "minimumSamples": 40
+      }
+    },
+    {
+      "name": "ewma_15m",
+      "forecast": {
+        "lookbackMs": 21600000,
+        "minimumSpanMs": 7200000,
+        "minimumSamples": 60,
+        "volatilityHalfLifeMs": 900000
+      }
+    },
+    {
+      "name": "ewma_30m",
+      "forecast": {
+        "lookbackMs": 21600000,
+        "minimumSpanMs": 7200000,
+        "minimumSamples": 60,
+        "volatilityHalfLifeMs": 1800000
+      }
+    },
+    {
+      "name": "ewma_30m_fee_blend",
+      "forecast": {
+        "lookbackMs": 21600000,
+        "minimumSpanMs": 7200000,
+        "minimumSamples": 60,
+        "volatilityHalfLifeMs": 1800000,
+        "feeHalfLifeMs": 3600000,
+        "weightedFeePpm": 500000
+      }
+    },
+    {
+      "name": "baseline_6h_early",
+      "forecast": null,
+      "early": true
+    },
+    {
+      "name": "ewma_30m_early",
+      "forecast": {
+        "lookbackMs": 21600000,
+        "minimumSpanMs": 7200000,
+        "minimumSamples": 60,
+        "volatilityHalfLifeMs": 1800000
+      },
+      "early": true
+    }
+  ],
+  "decisionMs": 30000,
+  "sampleMs": 60000,
+  "horizonMs": 600000,
+  "quoteTtlMs": 90000,
+  "slippageBps": 50,
+  "economicGate": {
+    "costBufferPpm": 500000,
+    "feeBufferPpm": 250000
+  },
+  "early": {
+    "boundaryPpm": 700000,
+    "confirmations": 2,
+    "cooldownMs": 600000,
+    "narrowingPersistenceMs": 600000
+  },
+  "availability": "Shared intersection of all forecast variants at every observation; same passive acquisition and initial capital. Isolates estimates from missing-data admission effects. Cold-start advantage not measured.",
+  "selection": "Three named assets and parameters fixed before inspecting agility results; no parameter winner selected for deployment.",
+  "accounting": "Continuous funded portfolio over the full window; daily changes retain inventory. Unchanged original hypothetical one-bundle execution, canonical book, fee dilution, cost and partial-mint failure conventions.",
+  "limitations": [
+    "Retrospective new hypotheses on already inspected historical data; not an untouched holdout.",
+    "Historical independent references and transaction-specific receipts unavailable. Original fork-valued costs and later-event bundle fills remain conditional assumptions.",
+    "No future liquidity, flow, drift or jump forecast. Earlier decisions are boundary-triggered, not an independent jump override.",
+    "Samples are event-driven. Missing timestamps remain unavailable. Six-hour maximum stored history and common eligibility are retained even for shorter estimates.",
+    "Fee blending, half-lives and early trigger thresholds are hypotheses, not fitted optima.",
+    "Marked drawdown excludes final liquidation; terminal freshness failures remain unavailable."
+  ],
+  "sourceHashes": {
+    "data/adaptive-lp-universe-study-2026-09-13/capture.json": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
+    "data/adaptive-lp-universe-study-2026-09-13/completed.json": "2f693764a11b0a39326cf70af58a569b4fe96a89fa8e94c44ccee2acd4ee0c02",
+    "data/adaptive-lp-universe-study-2026-09-13/inclusion.json": "b7f000ed9fa55d5fb48c37c39d3faebee3642c222dbe6f9bf1a21a6dfe140dcf",
+    "data/adaptive-lp-universe-study-2026-09-13/source-verification.json": "e6722c5c778adaddeccde85e5626ba270845bef15b52317bcfe7da6fcfc5078f",
+    "data/adaptive-lp-universe-study-2026-09-13/memo-validation/certificate.json": "1a84800f5525f40bbe2bdfd3908807f083c4a02963e3621558b53ff0e96faec5"
+  },
+  "executionEligible": false,
+  "promotionEligible": false
+}

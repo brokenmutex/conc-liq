@@ -1,0 +1,22 @@
+{
+  "command": "PATH=/root/conc-liq/.tools/node/bin:$PATH npm run check",
+  "typecheckPassed": true,
+  "tests": 526,
+  "passed": 526,
+  "failed": 0,
+  "logSha256": "5856f4e225e969ac9c53a9c21b45eccb9757b6830ed6663e3b79d68ca57102c5",
+  "code": {
+    "src/research/agile-forecast.ts": "0f2fd8102b8883c07655232767a6a203649158c8424fc1fa76077261af5828e9",
+    "src/research/agile-lp.ts": "7ce7fd3cf4b539e857ff8c0c467adea9d96c2b8ef71814b58c73f20fad2305d4",
+    "test/agile-lp.test.ts": "758f0bccb17c63c512aa336d399208993addec3fe55cd752c632065dd315f912"
+  },
+  "focusedCoverage": [
+    "Unweighted estimator identity with the frozen baseline",
+    "Constant fee-rate preservation using bigint weighting",
+    "Faster shock response and subsequent decay",
+    "Minimum history, future samples, staleness and timestamp gaps",
+    "Early cooldown, confirmations and narrowing persistence",
+    "Economic gate recheck at fill",
+    "Inherited out-of-range actions and later-block fills"
+  ]
+}

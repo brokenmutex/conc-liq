@@ -1,0 +1,8 @@
+{
+  "originalRunnerPath": "notes/adaptive-lp-agility-2026-09-14/provenance/runner-v1.mjs.txt",
+  "originalRunnerSha256": "6f333c58ddfdab9b159cf18d69f6683c09e961b350448ca75de979bc25b0e2f5",
+  "correctedRunnerSha256": "0fb1b819127a633137ed65acb8efb0389e7d82d08156ef6a3646258ed4f5ee41",
+  "before": "  const policy={name:arm.name,halfWidthsTicks:plan.halfWidthsTicks,adaptive:true,economicGate:true,budget,decisionMs:plan.decisionMs,quoteTtlMs:plan.quoteTtlMs,horizonMs:plan.horizonMs,slippageBps:plan.slippageBps,...plan.economicGate,...scenario};",
+  "after": "  const policy={halfWidthsTicks:plan.halfWidthsTicks,adaptive:true,economicGate:true,budget,decisionMs:plan.decisionMs,quoteTtlMs:plan.quoteTtlMs,horizonMs:plan.horizonMs,slippageBps:plan.slippageBps,...plan.economicGate,...scenario,name:arm.name};",
+  "scope": "One presentation field only. Original rows retain deterministic scenario-major, arm-minor order from the frozen plan. Correct labels in the report without rewriting original results. Policy.name is referenced only by summary output in the hash-bound original AdaptiveLpReplay. No economic, inventory, forecast, execution or cost change."
+}
