@@ -1,0 +1,284 @@
+{
+  "preparedAt": "2026-09-14T08:34:33.170Z",
+  "oldRelease": "/root/conc-liq-releases/ea156df3f87e8538d6e13b7367589f590b6d97f9622f413a100abce0113ee079",
+  "newRelease": "/root/conc-liq-releases/11be421b9e15d23235951d99548573e0e1b98e4bcaa92dee5c127bd681821ddf",
+  "sourceCommit": "6dcfd3798392ee05d7948811ff901557433347b2",
+  "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "policy": {
+    "kind": "persistent_finite_v1",
+    "grants": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amountRaw": "2500000000"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amountRaw": "2500000000"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amountRaw": "10000000000000000000"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amountRaw": "10000000000000000000"
+      }
+    ]
+  },
+  "activatedAt": "2026-09-14T08:40:53.451Z",
+  "activeConfigSha256": "677ae5398b6834af1dc1b79a8e95c0a0f7f83edc16a2be3b3819ac1c4740727b",
+  "deployedUnitSha256": "aac658eb453bce3027cbad2c2e744bb9ca540315257daf80d0dea528e2b3d9d6",
+  "phase": "live_holding_verified",
+  "verifiedAt": "2026-09-14T08:52:01.392Z",
+  "tokenId": "1162908",
+  "receiptVerification": {
+    "verifiedAt": "2026-09-14T08:52:01.392Z",
+    "transactions": [
+      {
+        "nonce": "209",
+        "kind": "withdraw",
+        "hash": "0xad9d3756f5d1d64a14be1c1695adbcb91978af7e5d98351fb852dd043d3b7c2b",
+        "block": "62671086",
+        "gasWei": "16534352432000",
+        "gasQuote": "41707"
+      },
+      {
+        "nonce": "210",
+        "kind": "approve",
+        "hash": "0x3a6afb6113255eea62887c147db22e875652d70c6f8d6c53879839e25abc6951",
+        "block": "62671312",
+        "gasWei": "3374895598000",
+        "gasQuote": "8513"
+      },
+      {
+        "nonce": "211",
+        "kind": "swap",
+        "hash": "0xe1a5a2ed521f20e5b4ac2b7d86fe0e82ae203dbdd17d5ce98869e939388fdaa5",
+        "block": "62671534",
+        "gasWei": "10687219032000",
+        "gasQuote": "26958"
+      },
+      {
+        "nonce": "212",
+        "kind": "approve",
+        "hash": "0x084c413ec16c44d12cad6bc3b4ad48a52ff1c134882377231fcb474f8d0a150e",
+        "block": "62671733",
+        "gasWei": "2628180960000",
+        "gasQuote": "6629"
+      },
+      {
+        "nonce": "213",
+        "kind": "approve",
+        "hash": "0xac0b8928f42d4838c67463faa030c5420766584250c8c7645fd451c1912b5134",
+        "block": "62671901",
+        "gasWei": "2637046800000",
+        "gasQuote": "6651"
+      },
+      {
+        "nonce": "214",
+        "kind": "approve",
+        "hash": "0xf66d6e01f498dfd6ab5886f2bacf5d1e64d1c88b892137197d18af69517c680e",
+        "block": "62672110",
+        "gasWei": "3046916950000",
+        "gasQuote": "7685"
+      },
+      {
+        "nonce": "215",
+        "kind": "approve",
+        "hash": "0x0938a4fee59f522d0a0724a1cd5c3239ad8da6b19740e1edc4971ddbc92a38f8",
+        "block": "62678229",
+        "gasWei": "4212652112000",
+        "gasQuote": "10626"
+      },
+      {
+        "nonce": "216",
+        "kind": "swap",
+        "hash": "0x90abedb2e4b8a1b44cd90ba9ec781684f96a33a4b0e3d56bffceb8323c309626",
+        "block": "62678415",
+        "gasWei": "12560309950000",
+        "gasQuote": "31682"
+      },
+      {
+        "nonce": "217",
+        "kind": "approve",
+        "hash": "0xb85ff235a2fb2f1d87d2e413a32654469dc55f810b592d45feee7e1d1b4f3d44",
+        "block": "62678630",
+        "gasWei": "4258569104000",
+        "gasQuote": "10742"
+      },
+      {
+        "nonce": "218",
+        "kind": "approve",
+        "hash": "0x518eddccaccb8b7c93778c40d48fc1c285216ba608f7af33347a67ae4f84e79a",
+        "block": "62678824",
+        "gasWei": "4629991250000",
+        "gasQuote": "11678"
+      },
+      {
+        "nonce": "219",
+        "kind": "mint",
+        "hash": "0xc9faf605e6f8231650af7e6e12a2cad919c7e8a22533f7db770b4295f5836108",
+        "block": "62679155",
+        "gasWei": "31498554476000",
+        "gasQuote": "79453"
+      }
+    ],
+    "totalGasWei": "96068688664000",
+    "totalGasQuote": "242324",
+    "exitGasQuote": "98143",
+    "entryGasQuote": "144181",
+    "cancelledUnsigned": [
+      {
+        "id": "2dbb728e-cdb7-4b70-8a93-24fae75a6f1d",
+        "nonce": "219",
+        "kind": "mint",
+        "hash": null
+      }
+    ],
+    "tokenId": "1162908",
+    "source": "62679633",
+    "tick": 222719,
+    "range": {
+      "lower": 222700,
+      "upper": 222740
+    },
+    "checks": {
+      "allReceiptsCanonical": true,
+      "nonceCoverage": true,
+      "nativeGasReconciled": true,
+      "quoteGasReconciled": true,
+      "nftOwnedAndInRange": true,
+      "reservePreserved": true,
+      "savedPolicyMatchesConfig": true,
+      "noPending": true
+    }
+  },
+  "walletAtVerification": {
+    "block": "62679633",
+    "hash": "0x2cc9aeb9e5451ab56e502191491a15c803b5c6a958bc48dfdf05be2be841cb4a",
+    "timestamp": "1789375861",
+    "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+    "usdg": "52069876",
+    "nvda": "20",
+    "native": "2364619147947004",
+    "nonce": 220,
+    "nftCount": "25",
+    "tick": 222719,
+    "sqrtPriceX96": "5431610125244713296518564988336375",
+    "poolLiquidity": "9933912820983897618",
+    "unlocked": true,
+    "allowances": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "2386994958"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "2368995133"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amount": "0"
+      },
+      {
+        "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amount": "9469152350723031246"
+      }
+    ],
+    "position": {
+      "owner": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+      "token0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "token1": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "fee": 500,
+      "tickLower": 222700,
+      "tickUpper": 222740,
+      "liquidity": "8366819951082043",
+      "tokensOwed0": "0",
+      "tokensOwed1": "0",
+      "tokenId": "1162908"
+    }
+  },
+  "allowancePolicy": {
+    "kind": "persistent_finite_v1",
+    "grants": [
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amountRaw": "2500000000"
+      },
+      {
+        "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amountRaw": "2500000000"
+      },
+      {
+        "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+        "amountRaw": "10000000000000000000"
+      },
+      {
+        "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+        "amountRaw": "10000000000000000000"
+      }
+    ]
+  },
+  "artifactHashes": [
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/before.json",
+      "sha256": "9f1760f80602f8b08365cae3c9ba20f140d025ee4404cb16806f95e014e3e1a4"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/closed.json",
+      "sha256": "69645c704f43827667ab5cb43e57dcaa6af07339db89b2b06bd2c3b32bc2bb14"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/adopted.json",
+      "sha256": "4a5d422d1fbfa2592fa414832615f0334155907bfe9a8c259a423ca929222ae8"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/resume.json",
+      "sha256": "7e7a89c2be95ab931f206a6671d9d261b163fb4b51e8d5dada27571fef9e0394"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/adopted-live.json",
+      "sha256": "11f1fbfd62b2fa79d4ebec8e7e36d8c60df22bc58d47e568cb503d0fd3285439"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/retired-nfts.json",
+      "sha256": "dd1c331593a420f9a9f977cabfcd930e57f80e20593afb19c8e10486216f99e4"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/cooldown-entry-guard.json",
+      "sha256": "56c63ea04790fa309a8f2e8b89dde5975bf4f584de6237218122cd9d7272ac90"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/live-holding.json",
+      "sha256": "bd563990cccf236140d3b3b024baa7ee6da7bef5543c5ebdf13832143b1b34a7"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/receipt-verification.json",
+      "sha256": "731c60cc03dc6191cfdb2fc13e1a5de796bc90c5291264674252d383279a20dd"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/service-final.txt",
+      "sha256": "c2a0c53dc38dcaf4c91e3da3352440952f83d7ebc629c2a8ba7bf8163c14e8c1"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/previous.service",
+      "sha256": "4883687ac858c857e011614d0e9b9e64625f9464a586724f99ad9c80eb294944"
+    },
+    {
+      "path": "data/allowance-live-deployment-2026-09-14/deployed.service",
+      "sha256": "352b0e6dffa941ff548f62d8f6083f3f93e7d8da08af361032b63702e3755b27"
+    }
+  ]
+}

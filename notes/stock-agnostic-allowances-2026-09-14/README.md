@@ -55,3 +55,5 @@ PATH=/root/conc-liq/.tools/node/bin:$PATH npm run check
 ```
 
 The isolated clean checkout at source commit `6dcfd3798392ee05d7948811ff901557433347b2` passes **484 tracked tests in 62 suites**. The workspace total of 519 includes unrelated uncommitted research tests. A sealed, unactivated release was built at `/root/conc-liq/data/stock-agnostic-allowance-releases/11be421b9e15d23235951d99548573e0e1b98e4bcaa92dee5c127bd681821ddf`, build ID `11be421b9e15d23235951d99548573e0e1b98e4bcaa92dee5c127bd681821ddf`. Its manifest integrity and compiled generic allowance engine were verified. The packaged pilot configuration remains broadcast-disabled and uses the legacy exact policy. This release candidate is ready for review; no service was switched to it.
+
+Subsequent activation: [live deployment and receipt verification](../live-allowance-deployment-2026-09-14/README.md) records the authorized cash exit, policy adoption and confirmed re-entry on this release.
