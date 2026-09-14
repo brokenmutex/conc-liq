@@ -1,0 +1,49 @@
+{
+  "files": [
+    {
+      "path": "data/live-performance-2026-09-14/ledger.json",
+      "sha256": "be1933d795faa7e75aa9600fa9079a7e1268f5899defc128af9864bcc87f8238",
+      "bytes": 65982350
+    },
+    {
+      "path": "data/live-execution-cost-audit-2026-09-14-v2/audit.json",
+      "sha256": "3dc0bc003466f9e70b162586bac94050c9dd7a968d5e9de116b8179807fec1c9",
+      "bytes": 123722
+    },
+    {
+      "path": "data/live-recenter-route-fork-2026-09-14-v2/results.json",
+      "sha256": "e2c0e81b4af141d5c7a227eba2c78994776fd2732af2509c1f595b7fc340a7bd",
+      "bytes": 334733
+    },
+    {
+      "path": "data/live-approval-batch-fork-2026-09-14/results.json",
+      "sha256": "344caabdc25e8a388bf07900ac50d9ecfda4d691227a3f5039dc68fa7a9b68cf",
+      "bytes": 110833
+    },
+    {
+      "path": "src/research/live-execution-cost.ts",
+      "sha256": "44120ae5982114e534bb57cd5c304a32aa5c59f716e0ac618ad19edcbc08afe7",
+      "bytes": 5850
+    },
+    {
+      "path": "scripts/live-execution-cost-audit.mjs",
+      "sha256": "964e83d2427f4175568e08277bf8fd8e15302bed209d6701dba096f872e8735f",
+      "bytes": 7611
+    },
+    {
+      "path": "scripts/live-recenter-route-fork.mjs",
+      "sha256": "455c0cde43bebaf8884ce5e38037b484b3ee03118ed89cd730d161c11a947f1e",
+      "bytes": 10269
+    },
+    {
+      "path": "scripts/live-approval-batch-fork.mjs",
+      "sha256": "017c5d39a89d23deeaa37d1c439ec3ecb311da01718674a1bf2ecf318fd45a53",
+      "bytes": 5794
+    },
+    {
+      "path": "test/live-execution-cost.test.ts",
+      "sha256": "9248e05f2eec7fc452f29b97782b0749ca49e5cf55887ecbc65d54babaca5cba",
+      "bytes": 3833
+    }
+  ]
+}

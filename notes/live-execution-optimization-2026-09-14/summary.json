@@ -1,0 +1,1926 @@
+{
+  "ledgerCutoff": "2026-09-14T06:49:36.880Z",
+  "ledgerSha256": "be1933d795faa7e75aa9600fa9079a7e1268f5899defc128af9864bcc87f8238",
+  "executionEligible": false,
+  "mainnetTransactions": 0,
+  "allowanceReplay": {
+    "rows": [
+      {
+        "id": "05ed1e2d-4140-42a6-bcb7-5ff40f1c2d1f",
+        "nonce": 0,
+        "original": "97128576",
+        "replacement": "250000000",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "d318226f-bd2f-42e9-b5cf-7b95939236f5",
+        "nonce": 2,
+        "original": "432011537030058711",
+        "replacement": "432011537030058711",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "b91ea93f-64a5-427e-a76d-3fed9cbee104",
+        "nonce": 4,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "155194454",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "272afd55-1739-4b3e-9e47-ccaa6285a757",
+        "nonce": 5,
+        "original": "153556246",
+        "replacement": "249908479",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "ef1057f2-e13c-453c-bb50-57569d14a76c",
+        "nonce": 7,
+        "original": "96926682",
+        "replacement": "96926682",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "5361e2f2-ae68-4ae4-9494-a0b2c77ea55c",
+        "nonce": 8,
+        "original": "697071285518372496",
+        "replacement": "697071285518372496",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "aed53bec-2938-43a3-ba12-9b1658947fd3",
+        "nonce": 11,
+        "original": "698136987558391393",
+        "replacement": "698136987558391393",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "c0d576bf-8da8-4896-8c7e-3b7e3ac678b8",
+        "nonce": 13,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "96926682",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "7508cddb-4864-4f07-99c2-5d33f496fbe7",
+        "nonce": 14,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "314602822189623",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "e8a36d33-1c3f-4929-8a24-d74de7dcdc54",
+        "nonce": 15,
+        "original": "142950893",
+        "replacement": "249758369",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "594efcde-94fd-4dbc-ba76-10ac3c0e9ad8",
+        "nonce": 17,
+        "original": "106896053",
+        "replacement": "106896053",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "10eff53b-c5dd-4e6a-9a4a-56db2b8b3760",
+        "nonce": 18,
+        "original": "650857950030706739",
+        "replacement": "650857950030706739",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "518b9d5d-c12b-409a-9c1a-9c7afdd53280",
+        "nonce": 21,
+        "original": "622474087280983190",
+        "replacement": "622474087280983190",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "7d6516cb-b0ff-40b0-9d9c-e43e6fa20fa1",
+        "nonce": 23,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "106896053",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "a4c4cd8c-7e08-48e2-bea4-292109f0cf92",
+        "nonce": 24,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "55528",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "48b4b87d-066e-46a2-afb0-151076f2eb36",
+        "nonce": 25,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "53",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "c0ee3d40-f048-405b-83d0-fee1aea6476c",
+        "nonce": 26,
+        "original": "138453125",
+        "replacement": "249667054",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "80bb8e92-5506-4097-a0a2-2be05f251249",
+        "nonce": 27,
+        "original": "138622941",
+        "replacement": null,
+        "previousShadow": "249667054",
+        "omittedGasQuote": "10005"
+      },
+      {
+        "id": "94cf0a9d-7974-41e7-ba9a-938ec2fd955f",
+        "nonce": 28,
+        "original": "138634583",
+        "replacement": null,
+        "previousShadow": "249667054",
+        "omittedGasQuote": "10130"
+      },
+      {
+        "id": "7e168c47-4045-4f7b-b0fe-142ef3cf8aa9",
+        "nonce": 30,
+        "original": "111550892",
+        "replacement": "111550892",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "a4936ae5-3c2a-486b-b769-1e3f8d098e18",
+        "nonce": 31,
+        "original": "629184217624476311",
+        "replacement": "629184217624476311",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "6748dc84-e103-4a51-a2ad-d33c83c2d1c5",
+        "nonce": 34,
+        "original": "621716119108884816",
+        "replacement": "621716119108884816",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "9b4f67f0-4574-438c-bafa-6eb29e36ff8d",
+        "nonce": 36,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "111550892",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "dbd446ec-1877-445d-955e-dd5fd61b6f7a",
+        "nonce": 37,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "10093626909667261",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "4206622c-f36b-47ce-aa90-d44140139096",
+        "nonce": 38,
+        "original": "134211170",
+        "replacement": "249538020",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "3c409112-e0a2-4aba-9451-2ff6ce9e128e",
+        "nonce": 39,
+        "original": "134281693",
+        "replacement": null,
+        "previousShadow": "249538020",
+        "omittedGasQuote": "10119"
+      },
+      {
+        "id": "1c39cb25-571c-4d5d-b019-b2e2c0968d2b",
+        "nonce": 41,
+        "original": "115266431",
+        "replacement": "115266431",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "78d15c45-0068-46ed-966c-469b25549fa4",
+        "nonce": 42,
+        "original": "611638388573347265",
+        "replacement": "611638388573347265",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "1355849c-1390-4a7f-8ae2-79fa698a1bcd",
+        "nonce": 45,
+        "original": "624016809500351404",
+        "replacement": "624016809500351404",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "3ead7f7c-9bd2-4dbc-8361-2792f652d0d9",
+        "nonce": 47,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "115266431",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "56ad26b9-9b64-4f53-8665-2dc6c1737f00",
+        "nonce": 48,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "556846",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "9e56a03c-4c7b-4dc5-bdaf-5205e15b6691",
+        "nonce": 49,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "64",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "3c4da021-787c-4653-9f25-bf1baefa521d",
+        "nonce": 50,
+        "original": "139207435",
+        "replacement": "249401724",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "cf2452e4-81d0-4dce-a139-1210cfff9622",
+        "nonce": 52,
+        "original": "110211527",
+        "replacement": "110211527",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "25342c4b-0ad6-405c-be96-221d556b7e57",
+        "nonce": 53,
+        "original": "634091320627446799",
+        "replacement": "634091320627446799",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8d43497c-216b-4feb-8183-4d4e58d2fd6e",
+        "nonce": 56,
+        "original": "670663700263352880",
+        "replacement": "670663700263352880",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "2261b318-6d49-415e-8dba-5940c93e6316",
+        "nonce": 58,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "110211527",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "40a47d75-2c14-4d01-bd43-38a0981362c9",
+        "nonce": 59,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "48647",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "9cc7094f-7bba-4675-8e62-23e874b1929f",
+        "nonce": 60,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "19",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "809f2553-32e1-4271-b80d-1cccb99163c9",
+        "nonce": 61,
+        "original": "149560385",
+        "replacement": "249260813",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "f23dcb11-f478-428f-acff-0bb14c576ec4",
+        "nonce": 63,
+        "original": "99872420",
+        "replacement": "99872420",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8e502958-0975-4c69-a0c9-8534647512fc",
+        "nonce": 64,
+        "original": "680662604866090485",
+        "replacement": "680662604866090485",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "bcf53c5e-977a-435e-b79d-f634291a4356",
+        "nonce": 67,
+        "original": "518140479750148772",
+        "replacement": "1132918110893227483",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "e7fc19e3-09d3-4b49-a14e-c74f80b61908",
+        "nonce": 68,
+        "original": "521283629804395798",
+        "replacement": null,
+        "previousShadow": "1132918110893227483",
+        "omittedGasQuote": "11677"
+      },
+      {
+        "id": "62e5e189-1740-40d5-be27-27ebbbc64fd0",
+        "nonce": 69,
+        "original": "527923163912603738",
+        "replacement": null,
+        "previousShadow": "1132918110893227483",
+        "omittedGasQuote": "11522"
+      },
+      {
+        "id": "726632ff-312e-4c28-9d81-c4f5e0b9e87a",
+        "nonce": 71,
+        "original": "116270027",
+        "replacement": "116270027",
+        "previousShadow": "798033",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "dc8400b9-4ef6-4281-8715-4eb4cc2b1056",
+        "nonce": 72,
+        "original": "605429347444221968",
+        "replacement": null,
+        "previousShadow": "605429347444221968",
+        "omittedGasQuote": "11639"
+      },
+      {
+        "id": "c20e0dba-46d6-4f52-b31b-11408233c012",
+        "nonce": 74,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "99872420",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "64045f1a-1ca8-4fa6-8371-39d32c8b42c7",
+        "nonce": 75,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "116270027",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "7b0add51-33a5-4fc3-8727-f0cdfc38ee6a",
+        "nonce": 76,
+        "original": "0",
+        "replacement": "0",
+        "previousShadow": "7",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "1b535691-cd0c-4a87-b0ed-08ccf6edd8da",
+        "nonce": 77,
+        "original": "98461948",
+        "replacement": "248748240",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "1276695a-7490-400c-9d77-45a6d34e45e2",
+        "nonce": 79,
+        "original": "150351528",
+        "replacement": "150351528",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "52f424bc-b1c9-4f6a-8a79-dba6c1bd2022",
+        "nonce": 80,
+        "original": "452013016144834620",
+        "replacement": "452013016144834620",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "5c231e18-755c-4ed5-83c8-ab6463658f35",
+        "nonce": 83,
+        "original": "445077183073823092",
+        "replacement": "1143723543246613757",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "d2cc023d-b41e-4707-84a5-e241dd326aec",
+        "nonce": 85,
+        "original": "96642878",
+        "replacement": "96642878",
+        "previousShadow": "127232",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "beb7f954-6dd2-4c32-b096-168eab325d02",
+        "nonce": 86,
+        "original": "698809594777741712",
+        "replacement": "698809594777741712",
+        "previousShadow": "48",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8fca50db-2f2b-4cc8-a04b-5465ceee4fa8",
+        "nonce": 89,
+        "original": "445397847979289399",
+        "replacement": null,
+        "previousShadow": "698809594777741712",
+        "omittedGasQuote": "10148"
+      },
+      {
+        "id": "c032a90b-d9d6-40d7-b4d7-bc7e9bafbb98",
+        "nonce": 91,
+        "original": "116362995",
+        "replacement": "116362995",
+        "previousShadow": "19946042",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "db3507ed-b053-4f8e-bdee-6916c1af7bfc",
+        "nonce": 92,
+        "original": "607615918186883362",
+        "replacement": "607615918186883362",
+        "previousShadow": "32",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "e4a5514c-78aa-4578-8f0c-085a7d2b9ba7",
+        "nonce": 95,
+        "original": "514384823810169556",
+        "replacement": "1145807296817467927",
+        "previousShadow": "253543589459299608",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "6353a805-26a5-4c3f-a0ee-412335a2892e",
+        "nonce": 97,
+        "original": "105916684",
+        "replacement": "105916684",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "0601d17f-50f6-47c0-99b4-53add3eb7f15",
+        "nonce": 98,
+        "original": "655719589933083357",
+        "replacement": "655719589933083357",
+        "previousShadow": "3227257621389999",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "3924196e-23cc-4424-80ad-80e94e3b8ae2",
+        "nonce": 102,
+        "original": "79807794553738874",
+        "replacement": null,
+        "previousShadow": "655719589933083357",
+        "omittedGasQuote": "9731"
+      },
+      {
+        "id": "008cebf4-9004-4a15-9f68-2ed69f033199",
+        "nonce": 104,
+        "original": "120653393",
+        "replacement": "120653393",
+        "previousShadow": "105913107",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "1dd72fee-13a3-4924-9162-d098604883ad",
+        "nonce": 105,
+        "original": "587367898143926712",
+        "replacement": "587367898143926712",
+        "previousShadow": "49",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8d9abfce-1892-45d2-a0c1-2cbd26c0707c",
+        "nonce": 108,
+        "original": "390526749093450555",
+        "replacement": null,
+        "previousShadow": "587351316351835471",
+        "omittedGasQuote": "9765"
+      },
+      {
+        "id": "ccffe460-3dee-4dd2-9adb-7f09b0b474f4",
+        "nonce": 109,
+        "original": "393271731010404698",
+        "replacement": null,
+        "previousShadow": "587351316351835471",
+        "omittedGasQuote": "9748"
+      },
+      {
+        "id": "45dcd0fc-0f2d-4546-a71f-7b884f2b7755",
+        "nonce": 111,
+        "original": "117488697",
+        "replacement": "117488697",
+        "previousShadow": "34058322",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "caaac641-476e-43c2-9e79-f55357f62818",
+        "nonce": 112,
+        "original": "601959592456078054",
+        "replacement": "601959592456078054",
+        "previousShadow": "40",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "9a89d41c-330a-4ce0-8189-59b2112d2150",
+        "nonce": 115,
+        "original": "527233604291989584",
+        "replacement": "1131778921317332756",
+        "previousShadow": "199802399999547376",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "5292aba0-9813-497b-98bc-98b9689cae5b",
+        "nonce": 116,
+        "original": "537364551564164977",
+        "replacement": null,
+        "previousShadow": "1131778921317332756",
+        "omittedGasQuote": "9536"
+      },
+      {
+        "id": "3c9011f1-b734-48a4-8e77-413baa73035a",
+        "nonce": 117,
+        "original": "537439355985920212",
+        "replacement": null,
+        "previousShadow": "1131778921317332756",
+        "omittedGasQuote": "9432"
+      },
+      {
+        "id": "e045b21e-9648-4f02-aa99-87d033a88d63",
+        "nonce": 118,
+        "original": "538584064410848486",
+        "replacement": null,
+        "previousShadow": "1131778921317332756",
+        "omittedGasQuote": "9609"
+      },
+      {
+        "id": "8cc42027-b3bd-4bfe-9e6a-62aa2b184809",
+        "nonce": 120,
+        "original": "117510699",
+        "replacement": "117510699",
+        "previousShadow": "3646329",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "f478fe6d-28e1-42f5-acd0-e5384bd3f173",
+        "nonce": 121,
+        "original": "601942867486128767",
+        "replacement": "601942867486128767",
+        "previousShadow": "17",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "c054c682-baed-49ea-b5b5-8b8472221075",
+        "nonce": 124,
+        "original": "104316925",
+        "replacement": null,
+        "previousShadow": "150351528",
+        "omittedGasQuote": "8643"
+      },
+      {
+        "id": "06ad9f02-8164-4b4f-b000-ed7268cd1b28",
+        "nonce": 126,
+        "original": "142894262",
+        "replacement": "142894262",
+        "previousShadow": "1197306",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "2d85437e-0008-45a3-87d7-a624f4b3dae6",
+        "nonce": 127,
+        "original": "484566063817185998",
+        "replacement": "484566063817185998",
+        "previousShadow": "52",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8511bea9-af79-460c-9905-ad0ec5ad307e",
+        "nonce": 130,
+        "original": "101858209",
+        "replacement": "247610750",
+        "previousShadow": "46072445",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "ac6fc61c-4d8a-4a0e-88b0-76579ec60828",
+        "nonce": 131,
+        "original": "104425187",
+        "replacement": null,
+        "previousShadow": "247610750",
+        "omittedGasQuote": "8775"
+      },
+      {
+        "id": "191ae5ed-ac91-424b-a70d-7341b7b8ebde",
+        "nonce": 132,
+        "original": "108149332",
+        "replacement": null,
+        "previousShadow": "247610750",
+        "omittedGasQuote": "8778"
+      },
+      {
+        "id": "9a238a40-70a2-4517-89a2-586ecfb87c7b",
+        "nonce": 133,
+        "original": "108569946",
+        "replacement": null,
+        "previousShadow": "247610750",
+        "omittedGasQuote": "8596"
+      },
+      {
+        "id": "ffd531d5-2de7-4606-98d0-8de188931f66",
+        "nonce": 135,
+        "original": "140609670",
+        "replacement": "140609670",
+        "previousShadow": "6054649",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "174d9b4d-79c6-4678-9d6b-db7664486b40",
+        "nonce": 136,
+        "original": "496582124682738229",
+        "replacement": "496582124682738229",
+        "previousShadow": "46",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "b3c60586-17e8-4c85-ad1f-72c1ee970b89",
+        "nonce": 139,
+        "original": "517703150673929811",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9535"
+      },
+      {
+        "id": "9c0527f5-b772-4964-9dd8-78b178e8b5ab",
+        "nonce": 140,
+        "original": "518699408406027210",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9735"
+      },
+      {
+        "id": "1919729c-44d5-453b-91a6-04cff5d19b85",
+        "nonce": 141,
+        "original": "520184237229875573",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9618"
+      },
+      {
+        "id": "57a6c165-6130-4a75-b2f1-afefdb723103",
+        "nonce": 142,
+        "original": "521362701915029120",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9552"
+      },
+      {
+        "id": "296a2ef2-3808-49fc-b410-de9d2d819207",
+        "nonce": 143,
+        "original": "521364181753387819",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9593"
+      },
+      {
+        "id": "21c984c2-a1bf-492a-ae2d-03d7e6be9695",
+        "nonce": 144,
+        "original": "527265104237504773",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9685"
+      },
+      {
+        "id": "7bc3684b-40c4-4d4c-9fad-4871bf96d7a4",
+        "nonce": 145,
+        "original": "530579749034994345",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9535"
+      },
+      {
+        "id": "86c704b3-ee05-4e0e-961d-982b86d4bdc5",
+        "nonce": 146,
+        "original": "532654943708306947",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9555"
+      },
+      {
+        "id": "6f452db2-6954-4b42-b638-70282fbfd6ad",
+        "nonce": 147,
+        "original": "533699098068618753",
+        "replacement": null,
+        "previousShadow": "601942867486128767",
+        "omittedGasQuote": "9662"
+      },
+      {
+        "id": "d40c68ba-e0f6-4699-9767-e88345f8469f",
+        "nonce": 149,
+        "original": "115128643",
+        "replacement": "115128643",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "e587e070-04de-4bf3-9fec-b85f3ab6eb54",
+        "nonce": 150,
+        "original": "616740239747042838",
+        "replacement": "616740239747042838",
+        "previousShadow": "8103310033325991",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "8e2ef846-abcc-4540-9d53-1f54b2b629cf",
+        "nonce": 153,
+        "original": "661556106360409834",
+        "replacement": "1139617874012798564",
+        "previousShadow": "68243769417510014",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "fd692b41-586e-4706-8a29-e76ac728d304",
+        "nonce": 154,
+        "original": "666308979595417343",
+        "replacement": null,
+        "previousShadow": "1139617874012798564",
+        "omittedGasQuote": "9804"
+      },
+      {
+        "id": "0c2ce7bc-45ba-4f2e-8286-1c7072891082",
+        "nonce": 156,
+        "original": "145503692",
+        "replacement": "145503692",
+        "previousShadow": "2736664",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "bb51e7ef-30b1-47ab-a83a-7b433dbe5e8a",
+        "nonce": 157,
+        "original": "474701362773209636",
+        "replacement": "474701362773209636",
+        "previousShadow": "22",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "87726fdf-31cb-4ac9-8150-aef9e6255708",
+        "nonce": 160,
+        "original": "116899960",
+        "replacement": null,
+        "previousShadow": "140609670",
+        "omittedGasQuote": "8451"
+      },
+      {
+        "id": "19ae6436-734e-485b-a596-888208406a31",
+        "nonce": 161,
+        "original": "120361243",
+        "replacement": null,
+        "previousShadow": "140609670",
+        "omittedGasQuote": "8444"
+      },
+      {
+        "id": "3fb92176-c62b-4870-8046-5b17a6b6f3b2",
+        "nonce": 163,
+        "original": "160041959",
+        "replacement": "160041959",
+        "previousShadow": "0",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "9f75c893-f4e5-4a42-8be1-5dba29c8dfd2",
+        "nonce": 164,
+        "original": "405906738894741535",
+        "replacement": "405906738894741535",
+        "previousShadow": "62067124398043443",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "d7273527-f3e1-437d-8c7d-ec0c98e23061",
+        "nonce": 167,
+        "original": "624730659113553915",
+        "replacement": "1105095302399621924",
+        "previousShadow": "474701362773209636",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "5de71121-3c04-4716-98ec-41fbb2c15a6b",
+        "nonce": 168,
+        "original": "624790035356408140",
+        "replacement": null,
+        "previousShadow": "1105095302399621924",
+        "omittedGasQuote": "9710"
+      },
+      {
+        "id": "a174f5a5-b016-4876-9568-20d4860692b0",
+        "nonce": 169,
+        "original": "630445624524221569",
+        "replacement": null,
+        "previousShadow": "1105095302399621924",
+        "omittedGasQuote": "9656"
+      },
+      {
+        "id": "b6375e8b-9334-4a18-b230-b4d50575bd9b",
+        "nonce": 170,
+        "original": "641632882659299778",
+        "replacement": null,
+        "previousShadow": "1105095302399621924",
+        "omittedGasQuote": "9599"
+      },
+      {
+        "id": "67ded710-363f-4096-9b98-80b30d088005",
+        "nonce": 172,
+        "original": "146136459",
+        "replacement": "146136459",
+        "previousShadow": "9559030",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "587a7135-f636-4bfa-a67a-506eafa33dbb",
+        "nonce": 173,
+        "original": "469695669161423175",
+        "replacement": "469695669161423175",
+        "previousShadow": "14",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "f2ebccba-6c74-46e7-b73b-9904e4b939e2",
+        "nonce": 176,
+        "original": "99424972",
+        "replacement": "247345554",
+        "previousShadow": "66419501",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "c51adcab-6db8-4f3a-8aed-9bb253943adf",
+        "nonce": 178,
+        "original": "155645931",
+        "replacement": "155645931",
+        "previousShadow": "3123900",
+        "omittedGasQuote": "0"
+      },
+      {
+        "id": "e7a343be-39e1-4d2f-a943-0bd55b777aa3",
+        "nonce": 179,
+        "original": "425994367068394399",
+        "replacement": "425994367068394399",
+        "previousShadow": "47",
+        "omittedGasQuote": "0"
+      }
+    ],
+    "originalApprovals": 112,
+    "retainedApprovals": 80,
+    "omittedApprovals": 32,
+    "omittedRecordedGasQuote": "309987",
+    "additionalRevocations": [],
+    "endingAllowances": {
+      "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "155645931",
+      "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "4701964",
+      "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "469695669161423175",
+      "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "43"
+    },
+    "executionEligible": false,
+    "limitations": [
+      "Recorded token trades and timing are held fixed.",
+      "Omitted receipt charges are a diagnostic, not net savings: retained approval storage costs and terminal revocation can change."
+    ]
+  },
+  "routeCases": [
+    {
+      "nonce": "84",
+      "source": {
+        "block": "61786263",
+        "hash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+        "timestamp": "1789285197"
+      },
+      "range": {
+        "tickLower": 222500,
+        "tickUpper": 222540
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "444913948468872045",
+            "amountOut": "96478165"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "61786263",
+            "sourceHash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "96642995",
+            "amount1": "698809594777741711",
+            "gasQuote": "147910",
+            "complete": true
+          },
+          "liquidity": "8431980547873842",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "155804",
+              "estimatedGas": "161867",
+              "parentGas": "0",
+              "estimatedFeeWei": "13812111110000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3520715800000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4004707560000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431666",
+              "estimatedGas": "438697",
+              "parentGas": "0",
+              "estimatedFeeWei": "37434015010000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "445109364602158129",
+            "amountOut": "96574701"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "61786263",
+            "sourceHash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "96739531",
+            "amount1": "698614178644455627",
+            "gasQuote": "159896",
+            "complete": true
+          },
+          "liquidity": "8433819430482916",
+          "transactions": [
+            {
+              "action": "approve_swap",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4004707560000"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "159684",
+              "estimatedGas": "170754",
+              "parentGas": "0",
+              "estimatedFeeWei": "14570438820000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3520715800000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4004707560000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431666",
+              "estimatedGas": "438697",
+              "parentGas": "0",
+              "estimatedFeeWei": "37434015010000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "53875",
+            "gasDeltaQuote": "11986",
+            "netDeltaQuote": "41889",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    },
+    {
+      "nonce": "90",
+      "source": {
+        "block": "61810302",
+        "hash": "0x1be22eb4a229c5e6a09ce6385bcaadbea3350ee19fa9a4c140928a579bf6fdd1",
+        "timestamp": "1789287632"
+      },
+      "range": {
+        "tickLower": 222520,
+        "tickUpper": 222560
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "445266005318442104",
+            "amountOut": "96392430"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "61810302",
+            "sourceHash": "0x1be22eb4a229c5e6a09ce6385bcaadbea3350ee19fa9a4c140928a579bf6fdd1",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "116362709",
+            "amount1": "607615918186883361",
+            "gasQuote": "148276",
+            "complete": true
+          },
+          "liquidity": "8429136320579996",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "155800",
+              "estimatedGas": "161863",
+              "parentGas": "0",
+              "estimatedFeeWei": "13846084746000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3529462920000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4014657144000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431666",
+              "estimatedGas": "438697",
+              "parentGas": "0",
+              "estimatedFeeWei": "37527018774000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "445388786410725599",
+            "amountOut": "96476722"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "61810302",
+            "sourceHash": "0x1be22eb4a229c5e6a09ce6385bcaadbea3350ee19fa9a4c140928a579bf6fdd1",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "116447001",
+            "amount1": "607493137094599866",
+            "gasQuote": "150191",
+            "complete": true
+          },
+          "liquidity": "8431097672155981",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "164484",
+              "estimatedGas": "170754",
+              "parentGas": "0",
+              "estimatedFeeWei": "14606638668000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3529462920000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4014657144000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431666",
+              "estimatedGas": "438697",
+              "parentGas": "0",
+              "estimatedFeeWei": "37527018774000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "57488",
+            "gasDeltaQuote": "1915",
+            "netDeltaQuote": "55573",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    },
+    {
+      "nonce": "96",
+      "source": {
+        "block": "61844011",
+        "hash": "0x77f067b5eff14f5c4d6c3898ad5a4f1a5c9eb91b81d564437b1ae1fa41631ceb",
+        "timestamp": "1789291048"
+      },
+      "range": {
+        "tickLower": 222540,
+        "tickUpper": 222580
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "490087706884384570",
+            "amountOut": "105866017"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "61844011",
+            "sourceHash": "0x77f067b5eff14f5c4d6c3898ad5a4f1a5c9eb91b81d564437b1ae1fa41631ceb",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "105917718",
+            "amount1": "655719589933083356",
+            "gasQuote": "148351",
+            "complete": true
+          },
+          "liquidity": "8426994576049380",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "155814",
+              "estimatedGas": "161877",
+              "parentGas": "0",
+              "estimatedFeeWei": "13936314684000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "57988",
+              "estimatedGas": "58801",
+              "parentGas": "0",
+              "estimatedFeeWei": "5062295692000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4040469744000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "417732",
+              "estimatedGas": "424653",
+              "parentGas": "0",
+              "estimatedFeeWei": "36559226076000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "490400277631967030",
+            "amountOut": "105977514"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "61844011",
+            "sourceHash": "0x77f067b5eff14f5c4d6c3898ad5a4f1a5c9eb91b81d564437b1ae1fa41631ceb",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "106029215",
+            "amount1": "655407019185500896",
+            "gasQuote": "150024",
+            "complete": true
+          },
+          "liquidity": "8428489975892202",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "163450",
+              "estimatedGas": "169695",
+              "parentGas": "0",
+              "estimatedFeeWei": "14609381940000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "57988",
+              "estimatedGas": "58801",
+              "parentGas": "0",
+              "estimatedFeeWei": "5062295692000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "4040469744000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "417722",
+              "estimatedGas": "424643",
+              "parentGas": "0",
+              "estimatedFeeWei": "36558365156000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "43260",
+            "gasDeltaQuote": "1673",
+            "netDeltaQuote": "41587",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    },
+    {
+      "nonce": "110",
+      "source": {
+        "block": "61891362",
+        "hash": "0xc84c72f44ee619326074bdac83d6c9c2d5355377f364238aeec8f6d0bc32f0b8",
+        "timestamp": "1789295848"
+      },
+      "range": {
+        "tickLower": 222580,
+        "tickUpper": 222620
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "387548916352288095",
+            "amountOut": "83397907"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "61891362",
+            "sourceHash": "0xc84c72f44ee619326074bdac83d6c9c2d5355377f364238aeec8f6d0bc32f0b8",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "117488667",
+            "amount1": "601959592456078053",
+            "gasQuote": "143683",
+            "complete": true
+          },
+          "liquidity": "8424488636840412",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "155784",
+              "estimatedGas": "161847",
+              "parentGas": "0",
+              "estimatedFeeWei": "13646291652000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40876",
+              "estimatedGas": "41248",
+              "parentGas": "0",
+              "estimatedFeeWei": "3477866368000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3957118512000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431738",
+              "estimatedGas": "438770",
+              "parentGas": "0",
+              "estimatedFeeWei": "36995331320000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "387796428269953465",
+            "amountOut": "83489444"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "61891362",
+            "sourceHash": "0xc84c72f44ee619326074bdac83d6c9c2d5355377f364238aeec8f6d0bc32f0b8",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "117580204",
+            "amount1": "601712080538412683",
+            "gasQuote": "145540",
+            "complete": true
+          },
+          "liquidity": "8425792685472810",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "164454",
+              "estimatedGas": "170723",
+              "parentGas": "0",
+              "estimatedFeeWei": "14394680468000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3478878160000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3957118512000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431750",
+              "estimatedGas": "438782",
+              "parentGas": "0",
+              "estimatedFeeWei": "36996343112000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "37503",
+            "gasDeltaQuote": "1857",
+            "netDeltaQuote": "35646",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    },
+    {
+      "nonce": "134",
+      "source": {
+        "block": "62090165",
+        "hash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+        "timestamp": "1789316043"
+      },
+      "range": {
+        "tickLower": 222560,
+        "tickUpper": 222600
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 0,
+            "amount": "107001080",
+            "amountOut": "495561098429626290"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "62090165",
+            "sourceHash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "140609669",
+            "amount1": "496586928145140658",
+            "gasQuote": "146422",
+            "complete": true
+          },
+          "liquidity": "8438004553058596",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "154527",
+              "estimatedGas": "160560",
+              "parentGas": "0",
+              "estimatedFeeWei": "13663977120000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3511308520000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3994007064000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431628",
+              "estimatedGas": "438659",
+              "parentGas": "0",
+              "estimatedFeeWei": "37330758218000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 0,
+            "amount": "107065465",
+            "amountOut": "495900096375346143"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "62090165",
+            "sourceHash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "140545284",
+            "amount1": "496925926090860511",
+            "gasQuote": "148236",
+            "complete": true
+          },
+          "liquidity": "8438303376193445",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "162846",
+              "estimatedGas": "169077",
+              "parentGas": "0",
+              "estimatedFeeWei": "14388790854000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3511308520000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3994007064000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431628",
+              "estimatedGas": "438659",
+              "parentGas": "0",
+              "estimatedFeeWei": "37330758218000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "9626",
+            "gasDeltaQuote": "1814",
+            "netDeltaQuote": "7812",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    },
+    {
+      "nonce": "155",
+      "source": {
+        "block": "62364624",
+        "hash": "0x41c277aa1c08d6252a232ace6ff1ed5febcfbb226bf7b50cf1684bef517a5d8a",
+        "timestamp": "1789343910"
+      },
+      "range": {
+        "tickLower": 222610,
+        "tickUpper": 222650
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "664916511239588928",
+            "amountOut": "142721264"
+          },
+          "costed": {
+            "id": "fee-500",
+            "sourceBlock": "62364624",
+            "sourceHash": "0x41c277aa1c08d6252a232ace6ff1ed5febcfbb226bf7b50cf1684bef517a5d8a",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "145488898",
+            "amount1": "474701362773209635",
+            "gasQuote": "150253",
+            "complete": true
+          },
+          "liquidity": "8447003393744797",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "155810",
+              "estimatedGas": "161873",
+              "parentGas": "0",
+              "estimatedFeeWei": "13605749396000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3467985520000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3944728464000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "465950",
+              "estimatedGas": "473253",
+              "parentGas": "0",
+              "estimatedFeeWei": "39777861156000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": null
+        },
+        {
+          "fee": 3000,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "665362017162384838",
+            "amountOut": "142922153"
+          },
+          "costed": {
+            "id": "fee-3000",
+            "sourceBlock": "62364624",
+            "sourceHash": "0x41c277aa1c08d6252a232ace6ff1ed5febcfbb226bf7b50cf1684bef517a5d8a",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "145689787",
+            "amount1": "474255856850413725",
+            "gasQuote": "152088",
+            "complete": true
+          },
+          "liquidity": "8450595303452101",
+          "transactions": [
+            {
+              "action": "swap",
+              "localGasUsed": "164436",
+              "estimatedGas": "170705",
+              "parentGas": "0",
+              "estimatedFeeWei": "14348096660000"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "40888",
+              "estimatedGas": "41260",
+              "parentGas": "0",
+              "estimatedFeeWei": "3467985520000"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "46549",
+              "estimatedGas": "46932",
+              "parentGas": "0",
+              "estimatedFeeWei": "3944728464000"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "465950",
+              "estimatedGas": "473253",
+              "parentGas": "0",
+              "estimatedFeeWei": "39777861156000"
+            }
+          ],
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "103626",
+            "gasDeltaQuote": "1835",
+            "netDeltaQuote": "101791",
+            "preferred": true,
+            "executionEligible": false
+          }
+        }
+      ]
+    }
+  ],
+  "approvalCases": [
+    {
+      "nonces": [
+        "139",
+        "140",
+        "141",
+        "142",
+        "143",
+        "144",
+        "145",
+        "146",
+        "147"
+      ],
+      "source": {
+        "block": "62347952",
+        "hash": "0x8795a9df5103f5761e1014f32028c9193743f409a3a2b8a97b843542aa3a35ba"
+      },
+      "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "savingQuote": "77088",
+      "branches": [
+        {
+          "mode": "exact",
+          "complete": true,
+          "transactionCount": 10,
+          "gasQuote": "96387",
+          "beforeRevoke": "533699098068618753",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        },
+        {
+          "mode": "managed_balance",
+          "complete": true,
+          "transactionCount": 2,
+          "gasQuote": "19299",
+          "beforeRevoke": "1150439337815661591",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        }
+      ]
+    },
+    {
+      "nonces": [
+        "115",
+        "116",
+        "117",
+        "118"
+      ],
+      "source": {
+        "block": "61961923",
+        "hash": "0xfa8815bb896edfc4e2ae7b2ee94385130cd4c8658fc5db99967a9a94bedc3d5d"
+      },
+      "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "savingQuote": "28885",
+      "branches": [
+        {
+          "mode": "exact",
+          "complete": true,
+          "transactionCount": 5,
+          "gasQuote": "48170",
+          "beforeRevoke": "538584064410848486",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        },
+        {
+          "mode": "managed_balance",
+          "complete": true,
+          "transactionCount": 2,
+          "gasQuote": "19285",
+          "beforeRevoke": "1131778921317332756",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        }
+      ]
+    },
+    {
+      "nonces": [
+        "130",
+        "131",
+        "132",
+        "133"
+      ],
+      "source": {
+        "block": "62089181",
+        "hash": "0x13fb81e8ab3156a31ad932999ec6d5f971944745fc5c5968e4d5611e4f251ce4"
+      },
+      "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "savingQuote": "26415",
+      "branches": [
+        {
+          "mode": "exact",
+          "complete": true,
+          "transactionCount": 5,
+          "gasQuote": "44053",
+          "beforeRevoke": "108569946",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        },
+        {
+          "mode": "managed_balance",
+          "complete": true,
+          "transactionCount": 2,
+          "gasQuote": "17638",
+          "beforeRevoke": "247610750",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        }
+      ]
+    },
+    {
+      "nonces": [
+        "167",
+        "168",
+        "169",
+        "170"
+      ],
+      "source": {
+        "block": "62381144",
+        "hash": "0xc66c830aab86893993f19c529827275f9db38181a6a48f2d50f3a396f1ab1a1c"
+      },
+      "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+      "savingQuote": "28809",
+      "branches": [
+        {
+          "mode": "exact",
+          "complete": true,
+          "transactionCount": 5,
+          "gasQuote": "48042",
+          "beforeRevoke": "641632882659299778",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        },
+        {
+          "mode": "managed_balance",
+          "complete": true,
+          "transactionCount": 2,
+          "gasQuote": "19233",
+          "beforeRevoke": "1105095302399621924",
+          "checks": {
+            "requestsFunded": true,
+            "reserveUntouched": true,
+            "endingAllowanceZero": true,
+            "nativeGasReconciled": true
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The preceding withdrawal and approvals are common sunk costs at this starting state.",
+    "No intervening market flow or confirmation delay is simulated; historical throughput/fees and future exit remain outside this comparison.",
+    "Gas is a pinned Nitro estimate using validated local prestate, not a mainnet receipt.",
+    "Only the recorded approval requests are replayed, with constant token inventory; no market movement is simulated.",
+    "Both alternatives include a measured final revoke, so larger unused allowance is not free.",
+    "These local/Nitro paired estimates are not a replacement for whole-campaign gas accounting."
+  ],
+  "totalRouteDeltaQuote": "284298",
+  "approvalBatchDeltaQuote": "161197"
+}
