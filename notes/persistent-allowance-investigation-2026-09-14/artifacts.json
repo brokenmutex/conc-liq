@@ -1,0 +1,54 @@
+{
+  "files": [
+    {
+      "path": "data/live-performance-2026-09-14/ledger.json",
+      "sha256": "be1933d795faa7e75aa9600fa9079a7e1268f5899defc128af9864bcc87f8238",
+      "bytes": 65982350
+    },
+    {
+      "path": "data/live-execution-cost-audit-2026-09-14-v2/audit.json",
+      "sha256": "3dc0bc003466f9e70b162586bac94050c9dd7a968d5e9de116b8179807fec1c9",
+      "bytes": 123722
+    },
+    {
+      "path": "data/live-persistent-allowance-2026-09-14-audit-v2/results.json",
+      "sha256": "9c51433d29c6a25120b67963651289fa3f6c04856c1943c7d64e08a9627a0a8f",
+      "bytes": 357397
+    },
+    {
+      "path": "data/live-persistent-allowance-2026-09-14-fork-v2/results.json",
+      "sha256": "f9deeaa8b07bc58d1b2fb50a83bbe2a01fc1f0490f55f90c138001c52e1617df",
+      "bytes": 356944
+    },
+    {
+      "path": "data/live-persistent-allowance-2026-09-14-audit-v2/checks.log",
+      "sha256": "de97f3ae00ae224eeca873259580b77a2a79c7dbf713b6f056ef50ca42a18481",
+      "bytes": 49007
+    },
+    {
+      "path": "src/research/persistent-allowance.ts",
+      "sha256": "3fe6a9e12a93dd14466242f5e7c9141a37b2c6842da92929718bdd0367d1b8e8",
+      "bytes": 3793
+    },
+    {
+      "path": "test/persistent-allowance.test.ts",
+      "sha256": "f90cef3f3ef2c4598eb4363804aacf123a411c98c3a6982a8051ae5410db82d1",
+      "bytes": 3129
+    },
+    {
+      "path": "scripts/live-persistent-allowance-audit.mjs",
+      "sha256": "315d94db4bc14df833956c9f14097b912091942723f12189bed19dc1600cb854",
+      "bytes": 5556
+    },
+    {
+      "path": "scripts/live-persistent-allowance-fork.mjs",
+      "sha256": "ec51a5de07e723558f0a8d522bc711cd1a2d08677ac6494a027736f2e9697bb4",
+      "bytes": 14445
+    },
+    {
+      "path": "notes/persistent-allowance-investigation-2026-09-14/summary.json",
+      "sha256": "8b6c8fa2c03306fcb0eceb88e355f07c962c78af886ce6ff4423bf3d0c2fade1",
+      "bytes": 168924
+    }
+  ]
+}

@@ -1,0 +1,3753 @@
+{
+  "ledgerSha256": "be1933d795faa7e75aa9600fa9079a7e1268f5899defc128af9864bcc87f8238",
+  "forkProofSha256": "f9deeaa8b07bc58d1b2fb50a83bbe2a01fc1f0490f55f90c138001c52e1617df",
+  "maximumBehavior": {
+    "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "maximum_unchanged",
+    "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "decrements",
+    "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "maximum_unchanged",
+    "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "decrements"
+  },
+  "codeHashes": {
+    "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
+    "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec": "0x6c1fdd40002dcb440c7fff6a84171404d279ccb057803b65826f7546acd65630",
+    "0xCaf681a66D020601342297493863E78C959E5cb2": "0x6f36c378e272c6324c48f045182bcb54bd8ad654cf9ebd42e8893d52c4cb25dc",
+    "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3": "0x0a493d1af3d0f25fed8efa205244ebee14114267a08647fc38c515c7cd6ead4f"
+  },
+  "executionEligible": false,
+  "mainnetTransactions": 0,
+  "lastExitNonce": 76,
+  "scopes": [
+    {
+      "name": "whole_recorded_campaign",
+      "firstNonce": 0,
+      "lastNonce": 180,
+      "cases": [
+        {
+          "policyName": "finite_250_USDG_1_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "1000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 112,
+          "grants": 57,
+          "retainedRevocations": 17,
+          "extraRevocations": [
+            {
+              "afterNonce": 4,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "567988462969941289",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "153073318",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "301863012441608607",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 25,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "377525912719016810",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "138449108",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "378283880891115184",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 49,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "375983190499648596",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 60,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "329336299736647120",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 76,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "394570652555778032",
+              "gasQuote": null
+            }
+          ],
+          "totalApprovalTransactions": 83,
+          "omittedOriginalTransactions": 38,
+          "omittedRecordedGasQuote": "366443",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "158300377",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "99056033",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "364600366761801251",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "104309963770182516"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 5,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 11,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 15,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 17,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 18,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 21,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 26,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 30,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 31,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 34,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 38,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 41,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 42,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 45,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 50,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 52,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 53,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 56,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 61,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 63,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 64,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 67,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 72,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 86,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 91,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 92,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 95,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 98,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 105,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 111,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 112,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 115,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 121,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 126,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 127,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 130,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 135,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 139,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 149,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 150,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 153,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 156,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 157,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 163,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 167,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 172,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 173,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 176,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 178,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_250_USDG_1_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "1000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": false
+          },
+          "originalApprovals": 112,
+          "grants": 52,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 52,
+          "omittedOriginalTransactions": 60,
+          "omittedRecordedGasQuote": "689170",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "84110208",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "99056033",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "364600366761801251",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "104309963770182516"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 11,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 15,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 18,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 21,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 26,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 30,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 31,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 34,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 38,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 42,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 45,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 50,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 52,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 53,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 56,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 61,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 64,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 67,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 71,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 72,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 86,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 91,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 92,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 95,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 98,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 105,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 111,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 112,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 115,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 121,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 124,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 126,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 127,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 135,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 139,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 149,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 150,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 153,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 156,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 157,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 160,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 163,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 167,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 172,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 173,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 178,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_1250_USDG_5_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "5000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "5000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 112,
+          "grants": 32,
+          "retainedRevocations": 17,
+          "extraRevocations": [
+            {
+              "afterNonce": 4,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4567988462969941289",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1153073318",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4301863012441608607",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 25,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4377525912719016810",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1138449108",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4378283880891115184",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 49,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4375983190499648596",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 60,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "4329336299736647120",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 76,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "3867081889106772517",
+              "gasQuote": null
+            }
+          ],
+          "totalApprovalTransactions": 58,
+          "omittedOriginalTransactions": 63,
+          "omittedRecordedGasQuote": "606890",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "774433333",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "805560545",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "799963853017154881",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2180549932103819748"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 5,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 11,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 15,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 17,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 18,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 21,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 26,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 30,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 31,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 34,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 38,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 41,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 42,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 45,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 50,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 52,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 53,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 56,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 61,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 63,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 64,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 67,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 136,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 163,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_1250_USDG_5_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "5000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "5000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": false
+          },
+          "originalApprovals": 112,
+          "grants": 9,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 9,
+          "omittedOriginalTransactions": 103,
+          "omittedRecordedGasQuote": "1267752",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "977109128",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "153902198",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "799963853017154881",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2669028746753231986"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 86,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 120,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 130,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 150,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_2500_USDG_10_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "2500000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2500000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "10000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "10000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 112,
+          "grants": 30,
+          "retainedRevocations": 17,
+          "extraRevocations": [
+            {
+              "afterNonce": 4,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9567988462969941289",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2403073318",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9301863012441608607",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 25,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9377525912719016810",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2388449108",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9378283880891115184",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 49,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9375983190499648596",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 60,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "9329336299736647120",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 76,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "8867081889106772517",
+              "gasQuote": null
+            }
+          ],
+          "totalApprovalTransactions": 56,
+          "omittedOriginalTransactions": 65,
+          "omittedRecordedGasQuote": "629105",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "2024433333",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "860177055",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "5799963853017154881",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2493782648779347449"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 5,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 11,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 15,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 17,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 18,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 21,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 26,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 30,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 31,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 34,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 38,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 41,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 42,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 45,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 50,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 52,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 53,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 56,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 61,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 63,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 64,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 67,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_2500_USDG_10_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "2500000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2500000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "10000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "10000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": false
+          },
+          "originalApprovals": 112,
+          "grants": 5,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 5,
+          "omittedOriginalTransactions": 107,
+          "omittedRecordedGasQuote": "1308592",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1072817333",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "220912104",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "998026501381905004",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "8285768986500274802"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 157,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            }
+          ]
+        },
+        {
+          "policyName": "maximum",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 112,
+          "grants": 30,
+          "retainedRevocations": 17,
+          "extraRevocations": [
+            {
+              "afterNonce": 4,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913032713253",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 14,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 25,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913018089043",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 37,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 49,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 60,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            },
+            {
+              "afterNonce": 76,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "gasQuote": null
+            }
+          ],
+          "totalApprovalTransactions": 56,
+          "omittedOriginalTransactions": 65,
+          "omittedRecordedGasQuote": "629105",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007912654073268",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007911489816990",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 5,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 11,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 15,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 17,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 18,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 21,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 26,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 30,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 31,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 34,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 38,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 41,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 42,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 45,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 50,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 52,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 53,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 56,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 61,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 63,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 64,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 67,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            }
+          ]
+        },
+        {
+          "policyName": "maximum",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": false
+          },
+          "originalApprovals": 112,
+          "grants": 4,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 4,
+          "omittedOriginalTransactions": 108,
+          "omittedRecordedGasQuote": "1318283",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1427182667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2279087896",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "9001973498618094996",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "11399314888729235619"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007911702457268",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007910850552039",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 0,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 2,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 7,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 8,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "latest_uninterrupted_session",
+      "firstNonce": 77,
+      "lastNonce": 180,
+      "cases": [
+        {
+          "policyName": "finite_250_USDG_1_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "1000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 62,
+          "grants": 30,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 30,
+          "omittedOriginalTransactions": 32,
+          "omittedRecordedGasQuote": "302598",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "475566667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1639822945",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "4200036146982845119",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "7506217351220652551"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "158300377",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "99056033",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "364600366761801251",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "104309963770182516"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 86,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 91,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 92,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 95,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 98,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 105,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 111,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 112,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 115,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 121,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 126,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 127,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 130,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 135,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 139,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 149,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 150,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 153,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 156,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 157,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 163,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 167,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 172,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 173,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1000000000000000000"
+            },
+            {
+              "nonce": 176,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "250000000"
+            },
+            {
+              "nonce": 178,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "250000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_1250_USDG_5_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "1250000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1250000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "5000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "5000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 62,
+          "grants": 6,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 6,
+          "omittedOriginalTransactions": 56,
+          "omittedRecordedGasQuote": "531406",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "475566667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1639822945",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "4200036146982845119",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "7506217351220652551"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "774433333",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "805560545",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "799963853017154881",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2180549932103819748"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 136,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "5000000000000000000"
+            },
+            {
+              "nonce": 163,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "1250000000"
+            }
+          ]
+        },
+        {
+          "policyName": "finite_2500_USDG_10_NVDA",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "2500000000",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2500000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "10000000000000000000",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "10000000000000000000"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 62,
+          "grants": 4,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 4,
+          "omittedOriginalTransactions": 58,
+          "omittedRecordedGasQuote": "553621",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "475566667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1639822945",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "4200036146982845119",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "7506217351220652551"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "2024433333",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "860177055",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "5799963853017154881",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "2493782648779347449"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "2500000000"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "10000000000000000000"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "10000000000000000000"
+            }
+          ]
+        },
+        {
+          "policyName": "maximum",
+          "policy": {
+            "caps": {
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            "maximumDoesNotDecrease": [
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3"
+            ],
+            "preserveCashExitCleanup": true
+          },
+          "originalApprovals": 62,
+          "grants": 4,
+          "retainedRevocations": 0,
+          "extraRevocations": [],
+          "totalApprovalTransactions": 4,
+          "omittedOriginalTransactions": 58,
+          "omittedRecordedGasQuote": "553621",
+          "cumulativeSpend": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "475566667",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "1639822945",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "4200036146982845119",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "7506217351220652551"
+          },
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007912654073268",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007911489816990",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+          },
+          "netGasSavingQuote": null,
+          "executionEligible": false,
+          "retainedGrants": [
+            {
+              "nonce": 77,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 79,
+              "key": "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 80,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            },
+            {
+              "nonce": 83,
+              "key": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2",
+              "amount": "115792089237316195423570985008687907853269984665640564039457584007913129639935"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "forkCases": [
+    {
+      "nonce": "84",
+      "source": {
+        "block": "61786263",
+        "hash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+        "timestamp": "1789285197"
+      },
+      "range": {
+        "tickLower": 222500,
+        "tickUpper": 222540
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "mode": "exact",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "444913948468872045",
+            "amountOut": "96478165"
+          },
+          "spends": [
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "444913948468872045",
+              "before": "444913948468872045",
+              "after": "0",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "96642996",
+              "before": "96642996",
+              "after": "0",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "698809594777741708",
+              "before": "698809594777741712",
+              "after": "4",
+              "behavior": "decrements"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37990",
+            "setup": "0",
+            "operation": "169295",
+            "cleanup": "10107",
+            "total": "179402"
+          },
+          "operationApprovalCount": 3,
+          "costed": {
+            "id": "exact",
+            "sourceBlock": "61786263",
+            "sourceHash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "96642995",
+            "amount1": "698809594777741711",
+            "gasQuote": "179402",
+            "complete": true
+          },
+          "tokenId": "1152058",
+          "liquidity": "8431980547873842",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2035adac99dd53b12928bc9dece6a1e82b2de20c96004bb70d98301692682f8c"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "90692037acd17e1d2478c0dfb8f1f983f4e266738879e07b0a43d542aacafcae"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "5df411fef9be3835131ae950bcd14b6c03b74435dc1f4564ce96461ae364ac3d"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "047c0bc1f1e5feea04e7cf31458c92cf594f3ba4040b8210fe61ff8c29552e7a"
+            },
+            {
+              "action": "approve_swap",
+              "localGasUsed": "63649",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64484",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5502419720000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5502419720000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "58026dc59e59149bbcacdf66a1bdebbfed785ac1e7bc7b163ab0db495424208e"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "151004",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "161867",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13812111110000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13812111110000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "127cd841082946bd7375c4afd424a7165c1478cc7865e8054ca12f3ebd8ea55a"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "57988",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "58801",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5017489330000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5017489330000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "778a79959374689a6983aebfaefa4ede7a3a8c87dc3a7ae07705d0b198a010cd"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "63649",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64484",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5502419720000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5502419720000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "a043a2cb99c7ff6b8cffb2af8537e4c179ab0f013b8c4c6f0e25081dcaece286"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431666",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "438697",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37434015010000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37434015010000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "72c72c92e36759622ca00c66213c7049ccf1c78f07e606e3edfae728625afeba"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6d64ef52ec2fdf1645035a14e0253a205113b4f267b71a1a4b7a792cea193da7"
+            }
+          ]
+        },
+        {
+          "mode": "finite",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "444913948468872045",
+            "amountOut": "96478165"
+          },
+          "spends": [
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "444913948468872045",
+              "before": "10000000000000000000",
+              "after": "9555086051531127955",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "96642996",
+              "before": "2500000000",
+              "after": "2403357004",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "698809594777741708",
+              "before": "10000000000000000000",
+              "after": "9301190405222258292",
+              "behavior": "decrements"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37990",
+            "setup": "52936",
+            "operation": "129488",
+            "cleanup": "37990",
+            "total": "220414"
+          },
+          "operationApprovalCount": 0,
+          "costed": {
+            "id": "finite",
+            "sourceBlock": "61786263",
+            "sourceHash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "96642995",
+            "amount1": "698809594777741711",
+            "gasQuote": "220414",
+            "complete": true
+          },
+          "tokenId": "1152058",
+          "liquidity": "8431980547873842",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "0",
+            "gasDeltaQuote": "41012",
+            "netDeltaQuote": "-41012",
+            "preferred": false,
+            "executionEligible": false
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2035adac99dd53b12928bc9dece6a1e82b2de20c96004bb70d98301692682f8c"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "90692037acd17e1d2478c0dfb8f1f983f4e266738879e07b0a43d542aacafcae"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "5df411fef9be3835131ae950bcd14b6c03b74435dc1f4564ce96461ae364ac3d"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "047c0bc1f1e5feea04e7cf31458c92cf594f3ba4040b8210fe61ff8c29552e7a"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "57976",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "58789",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5016465370000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5016465370000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "cff376bc53236d6fb62398a160eaee7d58742e3f2fe462a025ad03ad0b7f7095"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "57976",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "58789",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5016465370000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5016465370000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "471d32f9bb210dea1cba8fd828b4ce8bc063dce81b8426e1af5180b7cd0e86d1"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63625",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64460",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5500371800000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5500371800000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "5f9757789a69674410db25de694f6b80d555e0522374e49264eae6db7f3122a3"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63625",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64460",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5500371800000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5500371800000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "e7ecc7b978f76f1f7479410e0ed730a50a0507726008224e0f25a22663dbc084"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "155804",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "161867",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13812111110000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13812111110000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "4c3c95d3e0e0134d982196afbc20554d6658dff875341f7198b9215805340334"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "436466",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "441097",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37638807010000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37638807010000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "a2e4ab5e26936b774c4e6233848138e98d042abdb442305aebed29f4209ae3f2"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "a9d414a6e703e9d7d0657f336d7d2bd703209ea8eb382157452f8faf123c655c"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "03da9e959cf1587f0c7aee8417cb7c7bdb2b8da180a7768ed39122979230b2fb"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "67cf4b0477765133c8387c4fa6fe2ccde6db559656001a2d51350fcf87760291"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "ece26b9ede91956638c32fa2b963f420cd538b107411f56d3a71e34796b05cfb"
+            }
+          ]
+        },
+        {
+          "mode": "maximum",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 1,
+            "amount": "444913948468872045",
+            "amountOut": "96478165"
+          },
+          "spends": [
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "444913948468872045",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "behavior": "maximum_unchanged"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "96642996",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007913032996939",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "698809594777741708",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "behavior": "maximum_unchanged"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37990",
+            "setup": "53220",
+            "operation": "128057",
+            "cleanup": "37990",
+            "total": "219267"
+          },
+          "operationApprovalCount": 0,
+          "costed": {
+            "id": "maximum",
+            "sourceBlock": "61786263",
+            "sourceHash": "0xa3604c83cd2d6995a258c9d54cbcbdeab0b6dea9b20341c50c80d7de206e4265",
+            "referencePriceX18": "218308719020719623549",
+            "amount0": "96642995",
+            "amount1": "698809594777741711",
+            "gasQuote": "219267",
+            "complete": true
+          },
+          "tokenId": "1152058",
+          "liquidity": "8431980547873842",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "0",
+            "gasDeltaQuote": "39865",
+            "netDeltaQuote": "-39865",
+            "preferred": false,
+            "executionEligible": false
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2035adac99dd53b12928bc9dece6a1e82b2de20c96004bb70d98301692682f8c"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "90692037acd17e1d2478c0dfb8f1f983f4e266738879e07b0a43d542aacafcae"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "5df411fef9be3835131ae950bcd14b6c03b74435dc1f4564ce96461ae364ac3d"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "047c0bc1f1e5feea04e7cf31458c92cf594f3ba4040b8210fe61ff8c29552e7a"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "58324",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "59138",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5046245540000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5046245540000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "cff376bc53236d6fb62398a160eaee7d58742e3f2fe462a025ad03ad0b7f7095"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "58324",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "59138",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5046245540000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5046245540000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "729db6d8b8a933b391cf2d7fe75972198cf6b58212aadbcaa82523bc59407cfb"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63937",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64774",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5527165420000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5527165420000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "202fc0885518a5210ef55acc240094216e8733a4e3d20ed69823a2e4bfc3a2c0"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63937",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "64774",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5527165420000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5527165420000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "8bc2727290b7c221535e64510d085808b5e1e03e910aee03512425f1bbeffc9d"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "152527",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "158512",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13525828960000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13525828960000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "0bdbc68bf885232365eabb7eb893f08da2356e3b2be33a6f64984b001bc02040"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "433189",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "437794",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37356962020000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37356962020000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "820d71e73a471f33291660028a99fb07c2b177a668a62bbd6cdb158d14fefe43"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "ca00e9258742e0b47fae5ea8ee04adb1f9b928bbc3c31862e141b0cecc806c7b"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3531808700000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3531808700000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "dd4f2ba9e260f6bec80f7163e2040b76f715330b880941568b699f0e5658a15f"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "1e5845c60884757aa0e41ae634726330a4965ff9ffb451500932dd0b7170bac7"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85330000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85330000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4016056450000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4016056450000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "c9c65b70543b083e550523eeb9e60bc33510ef4c93da0bcadc46bb8551f74036"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "nonce": "134",
+      "source": {
+        "block": "62090165",
+        "hash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+        "timestamp": "1789316043"
+      },
+      "range": {
+        "tickLower": 222560,
+        "tickUpper": 222600
+      },
+      "overrideControlsPassed": true,
+      "branches": [
+        {
+          "mode": "exact",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 0,
+            "amount": "107001080",
+            "amountOut": "495561098429626290"
+          },
+          "spends": [
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "107001080",
+              "before": "107001080",
+              "after": "0",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "140609670",
+              "before": "140609670",
+              "after": "0",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "496586924666336345",
+              "before": "496586928145140659",
+              "after": "3478804314",
+              "behavior": "decrements"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37682",
+            "setup": "0",
+            "operation": "166423",
+            "cleanup": "10025",
+            "total": "176448"
+          },
+          "operationApprovalCount": 3,
+          "costed": {
+            "id": "exact",
+            "sourceBlock": "62090165",
+            "sourceHash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "140609669",
+            "amount1": "496586928145140658",
+            "gasQuote": "176448",
+            "complete": true
+          },
+          "tokenId": "1156103",
+          "liquidity": "8438004553058596",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "84242478951f4fc108b1a43c6dabdfa6bd9a872b1f8f8cf1fd969b3530f00923"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2683855b7409148333d629510f11a7b2ea8934d68fb8720809424a4f34a7a721"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6bf8ab4faf61d0405227cc88714079122f5dbd4d917ea8ce8569932eca141141"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "07bd7d32755ed93fe20e4b7841f54d6951fa9bdbf6dfb88f5482c321a5f81245"
+            },
+            {
+              "action": "approve_swap",
+              "localGasUsed": "57988",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "58801",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5004082702000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5004082702000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "908a56dd9469c75d15d3b01d49a9e7bbeda0a67ede91ce2fa48e2a73dac399b7"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "149727",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "160560",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13663977120000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13663977120000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "fa7e441582bd9a4bbfd6262ac6b5ee99d564e1e58ad81a60c2d94d51cb9698be"
+            },
+            {
+              "action": "approve_mint_usdg",
+              "localGasUsed": "57988",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "58801",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5004082702000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5004082702000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "353cd648974910e9769e27405c74f92b2c0981b165f961d5495ed9fa68537883"
+            },
+            {
+              "action": "approve_mint_nvda",
+              "localGasUsed": "63649",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "64484",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5487717368000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5487717368000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6af74ed64f85dc18f46b70a1b006024a03336dc51020cc66648639ebd883e867"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "431628",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "438659",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37330758218000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37330758218000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "f14fe6895496fa0104a99e782457820187ed275d90a999b25bdfc9223a672679"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "be5cb0cf539019800da035c7ee887484851ca8df9a19d367090be79e1df1f9f0"
+            }
+          ]
+        },
+        {
+          "mode": "finite",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 0,
+            "amount": "107001080",
+            "amountOut": "495561098429626290"
+          },
+          "spends": [
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "107001080",
+              "before": "2500000000",
+              "after": "2392998920",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "140609670",
+              "before": "2500000000",
+              "after": "2359390330",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "496586924666336345",
+              "before": "10000000000000000000",
+              "after": "9503413075333663655",
+              "behavior": "decrements"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37682",
+            "setup": "52504",
+            "operation": "128149",
+            "cleanup": "37682",
+            "total": "218335"
+          },
+          "operationApprovalCount": 0,
+          "costed": {
+            "id": "finite",
+            "sourceBlock": "62090165",
+            "sourceHash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "140609669",
+            "amount1": "496586928145140658",
+            "gasQuote": "218335",
+            "complete": true
+          },
+          "tokenId": "1156103",
+          "liquidity": "8438004553058596",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "0",
+            "gasDeltaQuote": "41887",
+            "netDeltaQuote": "-41887",
+            "preferred": false,
+            "executionEligible": false
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "84242478951f4fc108b1a43c6dabdfa6bd9a872b1f8f8cf1fd969b3530f00923"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2683855b7409148333d629510f11a7b2ea8934d68fb8720809424a4f34a7a721"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6bf8ab4faf61d0405227cc88714079122f5dbd4d917ea8ce8569932eca141141"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "07bd7d32755ed93fe20e4b7841f54d6951fa9bdbf6dfb88f5482c321a5f81245"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "57976",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "58789",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5003061478000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5003061478000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "908a56dd9469c75d15d3b01d49a9e7bbeda0a67ede91ce2fa48e2a73dac399b7"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "57976",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "58789",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5003061478000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5003061478000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "4c6141fd3eca808b0b71d9c9af6fb25d82d76b035b4ea9ac6bec3b2f1654883d"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63625",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "64460",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5485674920000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5485674920000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6076033a978aacbf9e03a12776ad7a3d3d104c675ea225e61391dcf462375788"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63625",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "64460",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5485674920000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5485674920000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "855e573f27ab5ecc5f10873554452f081992e05a6ac3014f3f80eb49263f8782"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "154527",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "160560",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13663977120000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13663977120000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "82a5d580653c26e225d24b9c5ac31d18a942ebdaf562ba0060116ccd04dd10df"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "436428",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "441059",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37535003018000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37535003018000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "4db08c7e4a685a0df9e5a5266d403f86c4fcb2e82f47d09388628940e8f9a3a8"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "4d86281246964a3188f76aa79a277499f39718d1335c1969ea2d8b30e977d299"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "7b585c307fcd37600e72ad94652774b91f4a3096e065d4bdaa17d33be92efcd5"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "aff69c754fc8bf8de41f77395cc268721fab370376715b9c41377f37a126e396"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "628c0e66d3d4b5669bdd231db408ce53fbda25249a09bcc674500d594a26ba96"
+            }
+          ]
+        },
+        {
+          "mode": "maximum",
+          "fee": 500,
+          "complete": true,
+          "trade": {
+            "token": 0,
+            "amount": "107001080",
+            "amountOut": "495561098429626290"
+          },
+          "spends": [
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+              "amount": "107001080",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007913022638855",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "140609670",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007912989030265",
+              "behavior": "decrements"
+            },
+            {
+              "token": "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec",
+              "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+              "amount": "496586924666336345",
+              "before": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "after": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+              "behavior": "maximum_unchanged"
+            }
+          ],
+          "endingAllowances": {
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0x5fc5360d0400a0fd4f2af552add042d716f1d168:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0xcaf681a66d020601342297493863e78c959e5cb2": "0",
+            "0xd0601ce157db5bdc3162bbac2a2c8af5320d9eec:0x73991a25c818bf1f1128deaab1492d45638de0d3": "0"
+          },
+          "costs": {
+            "normalization": "37682",
+            "setup": "52786",
+            "operation": "127445",
+            "cleanup": "37682",
+            "total": "217913"
+          },
+          "operationApprovalCount": 0,
+          "costed": {
+            "id": "maximum",
+            "sourceBlock": "62090165",
+            "sourceHash": "0xe8042b98bf0369bbaf18d982e975f362ce91db55bda203fd3e3a1fdf4bb894e6",
+            "referencePriceX18": "218321561329367064103",
+            "amount0": "140609669",
+            "amount1": "496586928145140658",
+            "gasQuote": "217913",
+            "complete": true
+          },
+          "tokenId": "1156103",
+          "liquidity": "8438004553058596",
+          "checks": {
+            "reservedUsdgPreserved": true,
+            "swapReceiptDeltas": true,
+            "mintAmountsAndOwnership": true,
+            "nativeGasReconciled": true,
+            "revertedMintCallUnchanged": true,
+            "endingAllowancesZero": true
+          },
+          "comparison": {
+            "grossDeltaQuote": "0",
+            "gasDeltaQuote": "41465",
+            "netDeltaQuote": "-41465",
+            "preferred": false,
+            "executionEligible": false
+          },
+          "transactions": [
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "84242478951f4fc108b1a43c6dabdfa6bd9a872b1f8f8cf1fd969b3530f00923"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "2683855b7409148333d629510f11a7b2ea8934d68fb8720809424a4f34a7a721"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "6bf8ab4faf61d0405227cc88714079122f5dbd4d917ea8ce8569932eca141141"
+            },
+            {
+              "action": "normalize_allowance",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "07bd7d32755ed93fe20e4b7841f54d6951fa9bdbf6dfb88f5482c321a5f81245"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "58324",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "59138",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5032762076000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5032762076000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "908a56dd9469c75d15d3b01d49a9e7bbeda0a67ede91ce2fa48e2a73dac399b7"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "58324",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "59138",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5032762076000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5032762076000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "1415763efea0f60119a3b7748ad62450a23006f73d5a4ebf4960fd484306d1ba"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63937",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "64774",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5512396948000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5512396948000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "811cd26d85e25a2ba2709058fbe350c1cf1435bce77e5aa386397c8104209bfe"
+            },
+            {
+              "action": "setup_persistent",
+              "localGasUsed": "63937",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "64774",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "5512396948000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "5512396948000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "f9a4e1f48c4313d5eb65b36a99e3327d371ccd92eeaf906e6dcc277c98836ea9"
+            },
+            {
+              "action": "swap",
+              "localGasUsed": "154527",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "160560",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "13663977120000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "13663977120000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "130d04ed75deae361976dcc167a46beb9df52703bf5f41373a015b37a420e40c"
+            },
+            {
+              "action": "mint",
+              "localGasUsed": "433151",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "437756",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "37253911112000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "37253911112000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "0e1a2ec030c98d96ece7902264b7c91966e0ceb0fbf057c9af9f07d3f59b5675"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "760436e91dd942d0dd5ecc224ca141dd595324f32d76eee63c1f15b98215a7ed"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "36040",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "41390",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "3522371780000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "3522371780000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "a2136eef2fa8513fe6904f4a7e06036dcb7d20f73bf757ef2c29a959f0c3b1c0"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "465e79dd58bef34b1c91dcb98fb79a86883b40533a2256964a1ca940e442ff5a"
+            },
+            {
+              "action": "cleanup_revoke",
+              "localGasUsed": "41653",
+              "localEffectiveGasPriceWei": "85102000",
+              "estimate": {
+                "gas": "47065",
+                "parentGas": "0",
+                "baseFeeWei": "85102000",
+                "parentBaseFeeWei": "0",
+                "totalFeeWei": "4005325630000",
+                "parentFeeWei": "0",
+                "executionFeeWei": "4005325630000",
+                "basis": "node_estimateGas_with_paper_prestate_and_parent_component"
+              },
+              "stateOverrideHash": "ee9ae239c80c53e8ddea1a6dd93293d56d022ca707881b153ed2c080106eb3ae"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "tests": 497,
+    "suites": 71,
+    "failed": 0,
+    "completeForkBranches": 6,
+    "liveWrites": 0
+  }
+}

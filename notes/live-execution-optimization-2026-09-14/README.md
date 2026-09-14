@@ -68,3 +68,5 @@ PATH=/root/conc-liq/.tools/node/bin:$PATH npm run check
 ```
 
 The audit reads PostgreSQL with `default_transaction_read_only=on`; all upstream requests retain the runtime bulk-health gate. Forks impersonate only the recorded operator inside an owned local process and use its actual historical balances, without funding injections. The live key is not loaded by a signer. Full raw evidence is retained in the ignored directories named in `artifacts.json`; the compact report does not include private environment values.
+
+Follow-up: [persistent allowances for both spenders](../persistent-allowance-investigation-2026-09-14/README.md) reduce the latest uninterrupted session from 62 approvals to four grants with finite budgets, and identify token-specific maximum-allowance behavior plus additional exit revocations.
