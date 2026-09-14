@@ -14,6 +14,7 @@ import {quoteValue} from '../simulator/math.js';
 import {marketSession} from '../paper/session-performance.js';
 import type {LivePilotConfig} from './config.js';
 import type {PilotPlan,PilotSnapshot,PilotState} from './domain.js';
+import {authorizeAllowance,planAllowance,assertAllowancePolicyMatches} from '../execution/allowance-policy.js';
 const NVDA=PAPER_NVDA as Address,POOL=PAPER_POOL as Address;
 const nftBalanceAbi=parseAbi(['function balanceOf(address) view returns(uint256)']);
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
@@ -40,7 +41,7 @@ export function authorizePilotPlan(plan:PilotPlan,state:PilotState,s:PilotSnapsh
  const available=(token:Address)=>same(token,USDG)?free:BigInt(s.nvda);
  if(plan.kind==='approve') {
   assert([USDG,NVDA].some(t=>same(t,plan.token))&&[PAPER_ROUTER,NONFUNGIBLE_POSITION_MANAGER].some(a=>same(a,plan.spender)),'Unapproved token or spender');
-  assert(BigInt(plan.amount)>=0n&&BigInt(plan.amount)<=available(plan.token),'Approval exceeds managed inventory');
+  authorizeAllowance({policy:state.phase==='exit'?undefined:state.allowancePolicy,token:plan.token,spender:plan.spender,amount:BigInt(plan.amount),available:available(plan.token)});
   return;
  }
  assert(BigInt(plan.deadline)>BigInt(s.timestamp)&&BigInt(plan.deadline)<=BigInt(s.timestamp)+300n,'Invalid transaction deadline');
@@ -110,13 +111,16 @@ export class PilotChain {
   return {amountOut:q.result[0],price:q.result[1]};
  }
  async plan(state:PilotState,s:PilotSnapshot):Promise<PilotPlan|null> {
+  assertAllowancePolicyMatches(state.allowancePolicy,this.config.execution.allowancePolicy);
   const minimum=(n:bigint)=>String(n*9950n/10000n),deadline=String(BigInt(s.timestamp)+300n),p=s.position;
   if(p&&BigInt(p.liquidity)>0n){assert(state.phase==='recenter'||state.phase==='exit');const a=principalAmounts({...p,liquidity:BigInt(p.liquidity),sqrtPriceX96:BigInt(s.sqrtPriceX96)});
    return {kind:'withdraw',tokenId:p.tokenId,liquidity:p.liquidity,min0:minimum(a.amount0),min1:minimum(a.amount1),deadline};}
   const free=BigInt(s.usdg)-BigInt(state.reserveUsdg);assert(free>=0n);const rwa=BigInt(s.nvda);
   const approve=(token:Address,spender:Address,amount:bigint):PilotPlan|null=>{
    const current=s.allowances.find(a=>same(a.token,token)&&same(a.spender,spender));assert(current);
-   return BigInt(current.amount)<amount?{kind:'approve',token,spender,amount:String(amount)}:null;
+   // Exit reuses permissions, but any new grant covers only the actual unwind inventory.
+   const grant=planAllowance({policy:state.phase==='exit'?undefined:state.allowancePolicy,token,spender,required:amount,available:same(token,USDG)?free:rwa,allowance:BigInt(current.amount)});
+   return grant===null?null:{kind:'approve',token,spender,amount:String(grant)};
   };
   if(state.phase==='exit'){
    if(rwa>0n){const q=await this.quote(s,rwa,1);return approve(NVDA,PAPER_ROUTER,rwa)??{kind:'swap',token:1,amountIn:String(rwa),minOut:minimum(q.amountOut),quotedOut:String(q.amountOut),deadline};}
@@ -135,6 +139,7 @@ export class PilotChain {
    kind:'mint',...state.range,amount0:String(free),amount1:String(rwa),min0:minimum(mint.amount0),min1:minimum(mint.amount1),deadline};
  }
  async envelope(state:PilotState,s:PilotSnapshot,plan:PilotPlan) {
+  assertAllowancePolicyMatches(state.allowancePolicy,this.config.execution.allowancePolicy);
   authorizePilotPlan(plan,state,s);const call=encodePilotPlan(plan,state.operator);
   await this.client.call({account:state.operator,to:call.to,data:call.data,blockNumber:BigInt(s.block)});
   const estimated=await this.client.estimateGas({account:state.operator,to:call.to,data:call.data,blockNumber:BigInt(s.block)});

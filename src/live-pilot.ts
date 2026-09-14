@@ -18,7 +18,7 @@ import {loadRiskConfig} from './risk/config.js';
 import {refreshRiskEvidence} from './risk/refresh.js';
 
 const [command='',envPath='',configPath='config/live-pilot-nvda-250.json']=process.argv.slice(2);
-assert(['init','tick','run','status','exit','resume','stop','recover-exit','recover-mint','recover-native-credit','retry-approval'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|recover-mint|recover-native-credit|retry-approval ENV [CONFIG] [CREDIT_HASH ...]');
+assert(['init','tick','run','status','exit','resume','stop','recover-exit','recover-mint','recover-native-credit','retry-approval','adopt-allowance-policy'].includes(command)&&envPath,'Usage: live-pilot.mjs init|tick|run|status|exit|resume|stop|recover-exit|recover-mint|recover-native-credit|retry-approval|adopt-allowance-policy ENV [CONFIG] [CREDIT_HASH ...]');
 const config=livePilotConfig(JSON.parse(readFileSync(configPath,'utf8')),{allowBroadcast:true});
 assert(config.operator);const operator=config.operator;
 const env=parseEnv(readFileSync(envPath,'utf8'));if(config.signer?.kind==='env_file'){delete env[config.signer.variable];delete process.env[config.signer.variable];}
@@ -47,6 +47,7 @@ try {
   const controller=new PilotController(store,chain,config,signer,(db,state)=>readPilotGuard(db,client,config,indexer.streamKey,state,(riskRunId,validationOnly)=>
    refreshRiskEvidence({config:indexer,riskConfig,gate:health,store:riskStore,riskRunId,validationOnly})));
   if(command==='init')console.log(json(await controller.start()));
+  else if(command==='adopt-allowance-policy')console.log(json(await controller.adoptAllowancePolicy()));
   else if(command==='recover-exit')console.log(json(await controller.recoverExit()));
   else if(command==='recover-mint')console.log(json(await controller.recoverMint()));
   else if(command==='recover-native-credit'){

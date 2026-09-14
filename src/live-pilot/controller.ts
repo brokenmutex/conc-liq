@@ -17,6 +17,7 @@ import {proveNativeCredit,type NativeCreditProof} from './native-credit.js';
 import {proveMintSlippageTrace} from './mint-recovery.js';
 import type {PilotAction,PilotSnapshot,PilotState} from './domain.js';
 import type {loadPilotEnvSigner} from './signer.js';
+import {assertAllowancePolicyMatches,canonicalAllowancePolicy} from '../execution/allowance-policy.js';
 type Signer=ReturnType<typeof loadPilotEnvSigner>;
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 
@@ -29,6 +30,34 @@ export class PilotController {
  constructor(readonly store:PilotStore,readonly chain:PilotChain,readonly config:LivePilotConfig,readonly signer:Signer,
   readonly guard:(db:PoolClient,state?:PilotState)=>Promise<PilotGuard>,
   readonly hook?:(at:'prepared'|'signed'|'broadcast'|'receipt',action:PilotAction)=>Promise<void>) {assert(config.operator&&same(config.operator,signer.address));}
+
+ private assertAllowances(state:PilotState) {
+  assertAllowancePolicyMatches(state.allowancePolicy,this.config.execution.allowancePolicy);
+ }
+ /** Explicit configuration adoption only at reconciled, permission-free cash custody.
+  * This journals policy/config together and does not sign or broadcast. */
+ async adoptAllowancePolicy() {
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;
+   assert.equal(s.policyHash,policyHash(this.config.strategy),'Strategy differs from saved campaign');
+   assert(s.phase==='closed'&&s.desired!=='running'&&!s.tokenId&&s.last.nvda==='0','Allowance adoption requires stopped, closed cash custody');
+   assert(!(await this.store.pending(db,s.id)),'Unresolved transaction');
+   assert(s.last.allowances.every(a=>a.amount==='0'),'Existing allowances must be cleared');
+   assert(same((await this.chain.client.getBlock({blockNumber:BigInt(s.last.block)})).hash,s.last.hash),'Accepted state reorged');
+   const guard=await this.guard(db,s);await this.chain.verify(guard.source);
+   const current=await this.chain.snapshot(guard.source,null);assertPilotWalletContinuity(s.last,current);
+   assert(!current.position&&current.allowances.every(a=>a.amount==='0'),'Unresolved position or allowance');
+   assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),current.nonce,'Pending nonce changed');
+   const next={...structuredClone(s),allowancePolicy:canonicalAllowancePolicy(this.config.execution.allowancePolicy),last:current};
+   await db.query('BEGIN');try{
+    await this.store.save(db,next,'operator_adopted_allowance_policy');
+    // Preserve all other saved execution, signer and strategy configuration.
+    const updated=await db.query(`UPDATE ${this.store.schema}.campaigns SET config=jsonb_set(config,'{execution,allowancePolicy}',$2::jsonb) WHERE id=$1`,[s.id,JSON.stringify(next.allowancePolicy)]);
+    assert.equal(updated.rowCount,1);await db.query('COMMIT');
+   }catch(e){await db.query('ROLLBACK');throw e;}
+   return next;
+  });
+ }
 
  private async saveNativeCredit(db:PoolClient,state:PilotState,current:PilotSnapshot,proof:NativeCreditProof,reason:string) {
   const before=state.last;
@@ -43,7 +72,7 @@ export class PilotController {
  /** Operator-authorized repair finishes the cash exit, then uses normal re-entry gates. */
  async recoverNativeCredit(hashes:Hex[]) {
   return this.store.locked(this.signer.address,async db=>{
-   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;
+   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;this.assertAllowances(s);
    assert(s.phase==='halted'&&s.haltReason==='unexplained_wallet_or_nft_change','Recovery requires a wallet-continuity halt');
    assert.equal(s.policyHash,policyHash(this.config.strategy),'Recovery policy differs from saved campaign');
    assert(!(await this.store.pending(db,s.id)),'Unresolved transaction');
@@ -67,12 +96,14 @@ export class PilotController {
    assert.equal(await this.chain.client.getTransactionCount({address:s.operator,blockTag:'pending'}),s.nonce);
    const now=new Date().toISOString(),state:PilotState={version:1,id:newPilotId(),operator:s.operator,policyHash:policyHash(this.config.strategy),phase:'entry',desired,
     reserveUsdg:String(BigInt(s.usdg)-BigInt(this.config.initialCapitalQuote)),initialCapitalQuote:this.config.initialCapitalQuote,initialNative:s.native,tokenId:null,
-    retiredTokenIds:[],range:null,swapDone:false,last:s,gasSpentWei:'0',gasSpentQuote:'0',collectedFee0:'0',collectedFee1:'0',createdAt:now,updatedAt:now,closedAt:null,benchmark:null};
+    retiredTokenIds:[],range:null,swapDone:false,last:s,gasSpentWei:'0',gasSpentQuote:'0',collectedFee0:'0',collectedFee1:'0',createdAt:now,updatedAt:now,closedAt:null,benchmark:null,
+    allowancePolicy:canonicalAllowancePolicy(this.config.execution.allowancePolicy)};
    await this.store.create(db,state,this.config);return state;
   });
  }
  async request(desired:'running'|'exit'|'stopped') {
   return this.store.locked(this.signer.address,async db=>{const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;
+   this.assertAllowances(s);
    assert(s.phase!=='halted','A halted campaign requires an explicit reconciliation repair');s.desired=desired;
    if(desired!=='running'&&s.phase!=='closed')s.phase='exit';await this.store.save(db,s,`operator_requested_${desired}`);return s;});
  }
@@ -81,6 +112,7 @@ export class PilotController {
  async recoverExit() {
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;
+   this.assertAllowances(s);
    assert(s.phase==='halted'&&s.haltReason?.startsWith('transaction_reverted:'),'Recovery requires a reconciled reverted receipt');
    assert(!(await this.store.pending(db,s.id)),'Unresolved signed transaction');
    const action=(await db.query(`SELECT status FROM ${this.store.schema}.actions WHERE id=$1 AND campaign_id=$2`,[s.haltReason!.split(':')[1],s.id])).rows[0];
@@ -100,6 +132,7 @@ export class PilotController {
   });
  }
  private async recoverMintLocked(db:PoolClient,s:PilotState) {
+  this.assertAllowances(s);
   assert(s.phase==='halted'&&s.haltReason?.startsWith('transaction_reverted:'),'Recovery requires a reverted transaction halt');
   assert(s.desired==='running','Mint recovery requires running intent');
   assert.equal(s.policyHash,policyHash(this.config.strategy),'Recovery policy differs from saved campaign');
@@ -144,6 +177,7 @@ export class PilotController {
   assert(this.config.broadcastEnabled,'Broadcast is disabled');
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state,a=await this.store.pending(db,s.id);
+   this.assertAllowances(s);
    assert(a?.status==='signed'&&a.raw&&a.hash&&a.plan.kind==='approve','Retry requires the existing signed approval');
    assert(!expectedHash||same(a.hash,expectedHash),'Bootstrap approval hash changed');
    assert.equal(await verifyPilotSignature(a.intent,a.raw),a.hash);
@@ -164,6 +198,7 @@ export class PilotController {
   });
  }
  private async beforeBroadcast(action:PilotAction,state:PilotState,guard:PilotGuard) {
+  this.assertAllowances(state);
   const age=Date.now()/1000-Number(action.before.timestamp);assert(age>=0&&age<=90,'Transaction intent expired before broadcast');
   if(state.phase!=='exit')assert(guard.entryAllowed,'Current admission does not allow increasing LP exposure');
   assert(same((await this.chain.client.getBlock({blockNumber:BigInt(action.before.block)})).hash,action.before.hash),'Intent source reorged');
@@ -214,6 +249,7 @@ export class PilotController {
  async tick() {
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row,'Pilot has not been initialized');let state=row.state;
+   this.assertAllowances(state);
    assert.equal(state.policyHash,policyHash(this.config.strategy),'Running policy differs from saved campaign');
    if(state.phase==='halted'){
     if(state.haltReason?.startsWith('transaction_reverted:')&&state.desired==='running'){

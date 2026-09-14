@@ -1,0 +1,241 @@
+{
+  "workspaceTests": 519,
+  "newTests": 22,
+  "mainnetTransactions": 0,
+  "livePolicyChanged": false,
+  "checksLog": "data/stock-agnostic-allowance-checks-2026-09-14.log",
+  "checksSha256": "0f30c26e4dbcb5461b2615f8902026bac7c97cd4774b6e684c7ce61a91d06fec",
+  "cases": [
+    {
+      "mode": "persistent",
+      "path": "data/stock-agnostic-allowance-controller-2026-09-14-v2.json",
+      "sha256": "c2acd1c54f4412393796cf7d569e2465e9763a1134acb3731ac7005e987c5ec8",
+      "source": {
+        "block": "62658476",
+        "hash": "0x69f2d0a609738e1e527d3f93c2deeefcdc3923e4858ef2e3fee4a30d646ef126"
+      },
+      "minedTransactions": 29,
+      "revertedTransactions": 0,
+      "approvalGrants": 8,
+      "revocations": 7,
+      "mintedNFTsTotal": 4,
+      "finalAllowancePolicy": {
+        "kind": "persistent_finite_v1",
+        "grants": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "10000000000000000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "10000000000000000001"
+          }
+        ]
+      },
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": true,
+        "recenterBothDirections": true,
+        "collectedFeesBothTokens": true,
+        "lostAcknowledgement": true,
+        "unconfirmedReceiptBlocked": true,
+        "reorgReceiptBlocked": true,
+        "rejectedApprovalSameHashRetry": false,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": false,
+        "mintSlippageRequote": false,
+        "externalWalletChangeHalted": true,
+        "finiteBudgetReplenished": false,
+        "persistentPolicy": true,
+        "closedPolicyAdoptionAndReentry": true
+      }
+    },
+    {
+      "mode": "persistent-mint-retry",
+      "path": "data/stock-agnostic-allowance-mint-retry-2026-09-14.json",
+      "sha256": "d9cbc12f6ebb85d30b2e9ecabf00635c05c5cbdcf9e63ef6d34c14413abc8a25",
+      "source": {
+        "block": "62656537",
+        "hash": "0x2cb9c303b7b93f63f2fc396b370b466c5f7f961517e0f0a823d5d069ac2fd69f"
+      },
+      "minedTransactions": 30,
+      "revertedTransactions": 1,
+      "approvalGrants": 8,
+      "revocations": 7,
+      "mintedNFTsTotal": 4,
+      "finalAllowancePolicy": {
+        "kind": "persistent_finite_v1",
+        "grants": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "10000000000000000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "10000000000000000001"
+          }
+        ]
+      },
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": true,
+        "recenterBothDirections": true,
+        "collectedFeesBothTokens": true,
+        "lostAcknowledgement": true,
+        "unconfirmedReceiptBlocked": false,
+        "reorgReceiptBlocked": false,
+        "rejectedApprovalSameHashRetry": false,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": false,
+        "mintSlippageRequote": true,
+        "externalWalletChangeHalted": true,
+        "persistentPolicy": true,
+        "closedPolicyAdoptionAndReentry": true
+      }
+    },
+    {
+      "mode": "persistent-replenish",
+      "path": "data/stock-agnostic-allowance-replenish-2026-09-14.json",
+      "sha256": "820d4e7ed8a8111601ec814e2f99854d5ee66c1bef9ba480137e71e44ee23e13",
+      "source": {
+        "block": "62657589",
+        "hash": "0x39b9a7896250b12087abf5e9f7782cf6d4a2713b37a6607f044ed184cefe711d"
+      },
+      "minedTransactions": 33,
+      "revertedTransactions": 0,
+      "approvalGrants": 13,
+      "revocations": 6,
+      "mintedNFTsTotal": 4,
+      "finalAllowancePolicy": {
+        "kind": "persistent_finite_v1",
+        "grants": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "250000001"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "250000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "1000000000000000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "1000000000000000001"
+          }
+        ]
+      },
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": true,
+        "recenterBothDirections": true,
+        "collectedFeesBothTokens": true,
+        "lostAcknowledgement": true,
+        "unconfirmedReceiptBlocked": true,
+        "reorgReceiptBlocked": true,
+        "rejectedApprovalSameHashRetry": false,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": false,
+        "mintSlippageRequote": false,
+        "externalWalletChangeHalted": true,
+        "finiteBudgetReplenished": true,
+        "persistentPolicy": true,
+        "closedPolicyAdoptionAndReentry": true
+      }
+    },
+    {
+      "mode": "persistent-retry-approval",
+      "path": "data/stock-agnostic-allowance-publisher-retry-2026-09-14-v2.json",
+      "sha256": "d47dcff8d00675bd09acec36ecaba72237e45d5b6be2fcb661d86a1c4b9ef0dd",
+      "source": {
+        "block": "62658307",
+        "hash": "0x951d524267383d962d5f7288d4fd73bfbd8667997868f50ea63efc1e2e1cd55f"
+      },
+      "minedTransactions": 22,
+      "revertedTransactions": 0,
+      "approvalGrants": 8,
+      "revocations": 6,
+      "mintedNFTsTotal": 2,
+      "finalAllowancePolicy": {
+        "kind": "persistent_finite_v1",
+        "grants": [
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "2500000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0x73991a25C818Bf1f1128dEAaB1492D45638DE0D3",
+            "amountRaw": "10000000000000000001"
+          },
+          {
+            "token": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+            "spender": "0xCaf681a66D020601342297493863E78C959E5cb2",
+            "amountRaw": "10000000000000000001"
+          }
+        ]
+      },
+      "checks": {
+        "nonceUniqueness": true,
+        "gasReconciled": true,
+        "reservePreserved": true,
+        "entryAndExit": true,
+        "recenterBothDirections": false,
+        "collectedFeesBothTokens": false,
+        "lostAcknowledgement": false,
+        "unconfirmedReceiptBlocked": false,
+        "reorgReceiptBlocked": false,
+        "rejectedApprovalSameHashRetry": true,
+        "concurrentWorkerExcluded": true,
+        "revertedReceiptRecovery": false,
+        "mintSlippageRequote": false,
+        "externalWalletChangeHalted": true,
+        "finiteBudgetReplenished": false,
+        "persistentPolicy": true,
+        "closedPolicyAdoptionAndReentry": true
+      }
+    }
+  ]
+}

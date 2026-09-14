@@ -23,12 +23,13 @@ import {PAPER_NVDA,PAPER_POOL} from '../../src/paper/engine.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {PAPER_ROUTER,paperTokenAbi} from '../../src/paper/execution-abi.ts';
 import {json} from '../../src/live-pilot/domain.ts';
-const [envPath,output,mode]=process.argv.slice(2);assert(envPath&&output);const revertMode=mode==='revert',approvalRetryMode=mode==='retry-approval',mintRetryMode=mode==='mint-retry';
+const [envPath,output,mode]=process.argv.slice(2);assert(envPath&&output);const persistentMode=mode?.startsWith('persistent'),replenishMode=mode==='persistent-replenish',revertMode=mode==='revert',approvalRetryMode=mode==='retry-approval'||mode==='persistent-retry-approval',mintRetryMode=mode==='mint-retry'||mode==='persistent-mint-retry';
 Object.assign(process.env,parseEnv(readFileSync(envPath,'utf8')));process.env.ANVIL_BIN??='/root/.foundry/bin/anvil';
 const schema=`pilot_controller_test_${process.pid}_${Date.now()}`,store=new PilotStore(process.env.DATABASE_URL,schema);
 const key=generatePrivateKey(),account=privateKeyToAccount(key),directory=mkdtempSync(join(tmpdir(),'pilot-controller-'));
 writeFileSync(join(directory,'.env'),`TEST_PILOT_KEY=${key}\n`,{mode:0o600});
 const base=JSON.parse(readFileSync('config/live-pilot-nvda-250.json'));
+if(persistentMode)base.execution.allowancePolicy={kind:'persistent_finite_v1',grants:[USDG,PAPER_NVDA].flatMap(token=>[PAPER_ROUTER,NONFUNGIBLE_POSITION_MANAGER].map(spender=>({token,spender,amountRaw:token===USDG?(replenishMode?'250000000':'2500000000'):(replenishMode?'1000000000000000000':'10000000000000000000')})))};
 const config=livePilotConfig({...base,broadcastEnabled:true,operator:account.address,signer:{kind:'env_file',reference:'.env',variable:'TEST_PILOT_KEY'}},{allowBroadcast:true});
 const health=new PostgresRpcHealthGate({connectionString:process.env.DATABASE_URL,enabled:true,cacheMs:2000,maxSampleAgeSeconds:30}),beforeRead=()=>health.assertBulkAllowed().then(()=>{});
 const indexer=loadIndexerConfig(),upstream=createRobinhoodClient(indexer.rpcUrl,indexer.rpcTimeoutMs,{beforeRequest:beforeRead,retryCount:0});
@@ -68,6 +69,7 @@ try {
  };
  let controller=new PilotController(store,chain,config,signer,guard);
  const initial=await controller.start();assert.equal(initial.reserveUsdg,'50000000');
+ if(persistentMode){assert.equal(initial.allowancePolicy.kind,'persistent_finite_v1');await assert.rejects(()=>controller.adoptAllowancePolicy(),/closed cash/);}
  // Inject a process stop at each durable boundary, then reconstruct the controller.
  const injected=new Set(),events=[];
  const hook=async(at,action)=>{if(!injected.has(at)){injected.add(at);if(at==='broadcast')holdConfirmation=true;throw new Error(`injected_stop:${at}`);}};
@@ -132,6 +134,15 @@ try {
   assert(actions.slice(failed+1,failed+2+next).every(a=>a.plan.kind!=='swap'),'Recovery repeated a successful swap');
   assert(events.some(e=>e.phase==='mint_requote'));assert.equal(actions.filter(a=>a.status==='reverted').length,1);
  }
+ if(persistentMode){
+  const grants=actions.filter(a=>a.status==='confirmed'&&a.plan.kind==='approve'&&BigInt(a.plan.amount)>0n);
+  const perPair=new Map();for(const a of grants){const key=`${a.plan.token.toLowerCase()}:${a.plan.spender.toLowerCase()}`;perPair.set(key,(perPair.get(key)??0)+1);}
+  if(replenishMode)assert([...perPair.values()].some(n=>n>1),'Finite allowance was not replenished');
+  else assert(grants.length<=4&&[...perPair.values()].every(n=>n===1),'Repeated approval during persistent session');
+  const revocations=actions.filter(a=>a.status==='confirmed'&&a.plan.kind==='approve'&&a.plan.amount==='0').length;
+  const persistentGrants=grants.filter(a=>config.execution.allowancePolicy.grants.some(g=>g.token.toLowerCase()===a.plan.token.toLowerCase()&&g.spender.toLowerCase()===a.plan.spender.toLowerCase()&&g.amountRaw===a.plan.amount));
+  if(replenishMode)assert(revocations>0&&revocations<=4);else assert.equal(revocations,persistentGrants.length);
+ }
  const confirmed=actions.filter(a=>a.status==='confirmed'||a.status==='reverted');assert(confirmed.length>=(revertMode?3:8));
  assert.equal(new Set(confirmed.map(a=>a.intent.nonce)).size,confirmed.length);assert.equal(final.state.last.nonce,confirmed.length);
  assert.equal(final.state.last.nvda,'0');assert.equal(final.state.tokenId,null);assert(final.state.last.allowances.every(a=>a.amount==='0'));
@@ -139,9 +150,35 @@ try {
  assert(BigInt(final.state.collectedFee0)>0n&&BigInt(final.state.collectedFee1)>0n);}
  assert.equal(final.state.reserveUsdg,'50000000');assert(BigInt(final.state.last.usdg)>=50000000n);
  assert.equal(BigInt(initial.last.native)-BigInt(final.state.last.native),BigInt(final.state.gasSpentWei));
+ if(persistentMode){
+  // A configuration edit cannot alter a saved session, even when it is closed.
+  const changed=livePilotConfig({...config,execution:{...config.execution,allowancePolicy:{...config.execution.allowancePolicy,grants:config.execution.allowancePolicy.grants.map(g=>({...g,amountRaw:String(BigInt(g.amountRaw)+1n)}))}}},{allowBroadcast:true});
+  const changedChain=new PilotChain(wrapped,changed),changedController=new PilotController(store,changedChain,changed,signer,guard);
+  await assert.rejects(()=>changedController.tick(),/Allowance policy differs/);
+  const adopted=await changedController.adoptAllowancePolicy();assert.equal(adopted.id,final.state.id);assert.equal(adopted.last.nonce,final.state.last.nonce);
+  const savedConfig=(await store.locked(account.address,db=>store.current(db,account.address))).config;
+  assert.deepEqual(savedConfig.execution.allowancePolicy,adopted.allowancePolicy);
+  // Re-enter through the existing cooldown gate, with a reconstructed controller.
+  await store.pool.query(`UPDATE ${schema}.campaigns SET state=jsonb_set(state,'{closedAt}',to_jsonb($1::text))`,[new Date(Date.now()-601000).toISOString()]);
+  await changedController.request('running');let reentered=false,exitRequested=false;
+  for(let i=0;i<50;i++){
+   await changedController.tick();const next=(await store.locked(account.address,db=>store.current(db,account.address))).state;
+   if(next.phase==='holding'&&!exitRequested){reentered=true;await changedController.request('exit');exitRequested=true;}
+   if(next.phase==='closed'&&reentered)break;
+  }
+  const afterReentry=(await store.locked(account.address,db=>store.current(db,account.address))).state;
+  assert(reentered&&afterReentry.phase==='closed'&&afterReentry.last.allowances.every(a=>a.amount==='0'));
+  assert.equal(afterReentry.id,initial.id);assert.equal(BigInt(initial.last.native)-BigInt(afterReentry.last.native),BigInt(afterReentry.gasSpentWei));
+  assert(BigInt(afterReentry.last.usdg)>=50000000n);
+  const later=(await store.pool.query(`SELECT id,intent,plan,before_state AS before,status,hash,receipt FROM ${schema}.actions ORDER BY created_at`)).rows;
+  const mined=later.filter(a=>a.status==='confirmed'||a.status==='reverted');
+  assert.equal(new Set(mined.map(a=>a.intent.nonce)).size,mined.length);assert.equal(afterReentry.last.nonce,mined.length);
+  actions.splice(0,actions.length,...later);
+  controller=changedController;final.state=afterReentry;
+ }
  await fork.rpc('anvil_setBalance',[account.address,toHex(BigInt(final.state.last.native)+1n)]);
  assert.equal((await controller.tick()).phase,'halted');await assert.rejects(()=>controller.recoverExit(),/reconciled reverted/);
  writeFileSync(output,json({mode:mode??'recenter_restarts',computedAt:new Date().toISOString(),scope:'signed_owned_fork_controller_recovery',mainnetTransactions:0,source:{block:String(block.number),hash:block.hash},
-  injected:[...injected],mintedIds,events,initial,final:final.state,actions,checks:{nonceUniqueness:true,gasReconciled:true,reservePreserved:true,entryAndExit:!revertMode,recenterBothDirections:!revertMode&&!approvalRetryMode,collectedFeesBothTokens:!revertMode&&!approvalRetryMode,lostAcknowledgement:lostAcknowledgement,unconfirmedReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,reorgReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,rejectedApprovalSameHashRetry:approvalRetried,concurrentWorkerExcluded:true,revertedReceiptRecovery:revertMode,mintSlippageRequote:mintRetryMode,externalWalletChangeHalted:true}})+'\n',{flag:'wx'});
+  injected:[...injected],mintedIds,events,initial,final:final.state,actions,checks:{nonceUniqueness:true,gasReconciled:true,reservePreserved:true,entryAndExit:!revertMode,recenterBothDirections:!revertMode&&!approvalRetryMode,collectedFeesBothTokens:!revertMode&&!approvalRetryMode,lostAcknowledgement:lostAcknowledgement,unconfirmedReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,reorgReceiptBlocked:!revertMode&&!approvalRetryMode&&!mintRetryMode,rejectedApprovalSameHashRetry:approvalRetried,concurrentWorkerExcluded:true,revertedReceiptRecovery:revertMode,mintSlippageRequote:mintRetryMode,externalWalletChangeHalted:true,finiteBudgetReplenished:replenishMode,persistentPolicy:persistentMode??false,closedPolicyAdoptionAndReentry:persistentMode??false}})+'\n',{flag:'wx'});
  console.log(`Signed controller fork ${mode??'recenter_restarts'} passed`);
 }finally{await fork?.close();await store.pool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await store.close();await health.close();rmSync(directory,{recursive:true,force:true});}

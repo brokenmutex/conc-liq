@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import {z} from 'zod';import {getAddress,isAddress} from 'viem';
 import {paperPolicySchema} from '../paper/config.js';import type {TransactionPaperPolicy} from '../paper/engine.js';
+import {allowancePolicySchema,assertAllowancePairs} from '../execution/allowance-policy.js';
+import {USDG,NONFUNGIBLE_POSITION_MANAGER} from '../constants.js';
+import {PAPER_NVDA} from '../paper/engine.js';
+import {PAPER_ROUTER} from '../paper/execution-abi.js';
 const address=z.string().refine(isAddress).transform(value=>getAddress(value));
 export const livePilotSchema=z.object({
  version:z.literal(1),kind:z.literal('nvda_usdg_live_pilot_v1'),broadcastEnabled:z.boolean(),operator:address.nullable(),
@@ -10,7 +14,7 @@ export const livePilotSchema=z.object({
  ]).nullable(),
  initialCapitalQuote:z.literal('250000000'),maxAdditionalFundingQuote:z.literal('0'),gasFundingQuote:z.null(),
  strategy:paperPolicySchema,
- execution:z.object({maxPendingTransactions:z.literal(1),confirmationBlocks:z.literal(64),receiptTimeoutSeconds:z.literal(120),maxConsecutiveReverts:z.literal(1),gasLimitBufferBps:z.literal(3000)}).strict(),
+ execution:z.object({maxPendingTransactions:z.literal(1),confirmationBlocks:z.literal(64),receiptTimeoutSeconds:z.literal(120),maxConsecutiveReverts:z.literal(1),gasLimitBufferBps:z.literal(3000),allowancePolicy:allowancePolicySchema.optional()}).strict(),
  accounting:z.literal('wallet_nft_and_canonical_receipts_v1'),
 }).strict();
 export type LivePilotConfig=ReturnType<typeof livePilotConfig>;
@@ -25,5 +29,6 @@ export function livePilotConfig(raw:unknown,options?:{allowBroadcast:boolean}){
  assert.equal(s.inventoryExitPpm,undefined);assert.equal(s.maxHoldingSeconds,null);
  assert.equal(s.referencePolicy?.maxDeviationPpm,50000);assert.equal(s.holdingPolicy?.maxLagBlocks,30);
  assert.equal(s.maxSlippageBps,50);assert.equal(s.liquidityShareMode,'warn_v1');
+ assertAllowancePairs(p.execution.allowancePolicy,[USDG,getAddress(PAPER_NVDA)].flatMap(token=>[PAPER_ROUTER,NONFUNGIBLE_POSITION_MANAGER].map(spender=>({token,spender}))));
  return {...p,strategy:s as TransactionPaperPolicy};
 }

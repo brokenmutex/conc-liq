@@ -1,6 +1,7 @@
 import type {Address,Hex} from 'viem';
 import type {PaperHoldingState} from '../paper/holding.js';
 import type {PilotIntent} from './journal.js';
+import type {AllowancePolicy} from '../execution/allowance-policy.js';
 
 export interface PilotPosition {
  tokenId:string;owner:Address;token0:Address;token1:Address;fee:number;tickLower:number;tickUpper:number;
@@ -18,6 +19,7 @@ export interface PilotState {
  last:PilotSnapshot;gasSpentWei:string;gasSpentQuote:string|null;collectedFee0:string;collectedFee1:string;createdAt:string;updatedAt:string;
  closedAt:string|null;holding?:PaperHoldingState;haltReason?:string;benchmark:{usdg:string;nvda:string}|null;
  externalNativeCreditsWei?:string;
+ allowancePolicy?:AllowancePolicy;
  mintRecovery?:{attempts:number;lastActionId:string;phase:'entry'|'recenter'};
 }
 export type PilotPlan = {
