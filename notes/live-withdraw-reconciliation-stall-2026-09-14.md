@@ -56,3 +56,17 @@ Validation before release:
 - Replayed all **246 historically confirmed live actions** against the new reconciliation: 136 approvals, 45 swaps, 33 mints and 32 withdrawals; zero failures. Output: `data/live-stall-2026-09-14/historical-replay.json`.
 - `test/integration/live-withdraw-rounding.mjs` uses an isolated database schema, the canonical receipt and archive snapshots, and no signer/broadcaster. Simulated crashes before and after the atomic journal commit, then verified one confirmation, one receipt mark, one gas/fee charge, and rollback of duplicate completion. Zero signatures or broadcasts.
 - The active strategy and finite allowance configuration are unchanged. Release deployment and service restart were explicitly requested by the operator after diagnosis.
+
+## Deployed recovery
+
+- Fix source: `a691635737baeb8eda9b263b89404ec61a93d666`.
+- Clean isolated checkout: `/root/conc-liq-worktrees/withdraw-rounding-20260914`; typecheck and **508 tracked tests** passed. The database restart regression also passed from this checkout.
+- Verified sealed release: `/root/conc-liq-releases/9ef631bf07b6cde8a90cbe01152b9c66a9f67f57e25f8579ded02505baf20fca`.
+- Live worker restarted at **16:01:02 UTC / 19:01:02 Vilnius**, PID **1939364**. The systemd unit now points to the sealed release. Prior unit/config and deployment evidence are retained under `data/live-stall-2026-09-14/`.
+- Active config SHA-256 remains `677ae5398b6834af1dc1b79a8e95c0a0f7f83edc16a2be3b3819ac1c4740727b`. No strategy, allowance policy, signer or environment settings were changed, and no manual controller journal edits were made.
+- The normal controller confirmed the original withdrawal at **16:01:04.782 UTC**. The database audit proves one confirmation transition, one receipt mark, one withdrawal action for NFT 1164733, nonce advance to 250, and precisely the fee/gas increments above. The manager/core difference is persisted in the receipt facts. No replacement withdrawal was sent.
+- The next normal action was the exit swap at nonce 250, hash `0x607fdb7f148740bd076bd33d5888f6353e37a9459dddae3397a29733d2ee2477`, confirmed at 16:01:27 UTC, followed by allowance cleanup. The saved `desired=running` remains in force; re-entry follows the existing ten-minute cooldown and admission guards after the exit closes.
+
+Evidence: `release-check.log`, `release-build.log`, `before-deployment.json`, `deployment.json`, and `recovery-audit.json` under `data/live-stall-2026-09-14/`. The test fixture checked into this commit omits signed transaction bytes and credentials.
+
+Final custody check at **16:03:04 UTC / 19:03:04 Vilnius**: phase `closed` since 16:02:51.988 UTC, `desired=running`, nonce **255**, **295.093564 USDG gross wallet balance**, **zero NVDA**, all four allowances **zero**, and **no pending action**. The USDG figure includes the existing reserve and is not a profit calculation. Current chain snapshot and database state are saved in `current-custody.json`. Normal re-entry becomes eligible at about **16:12:52 UTC / 19:12:52 Vilnius**, subject to admission guards.
