@@ -237,5 +237,18 @@
         "closedPolicyAdoptionAndReentry": true
       }
     }
-  ]
+  ],
+  "isolatedTrackedTests": 484,
+  "isolatedSuites": 62,
+  "candidateRelease": {
+    "release": "/root/conc-liq/data/stock-agnostic-allowance-releases/11be421b9e15d23235951d99548573e0e1b98e4bcaa92dee5c127bd681821ddf",
+    "buildId": "11be421b9e15d23235951d99548573e0e1b98e4bcaa92dee5c127bd681821ddf",
+    "sourceCommit": "6dcfd3798392ee05d7948811ff901557433347b2",
+    "activated": false,
+    "integrityAndCompiledEngineSmokePassed": true
+  },
+  "isolatedChecks": {
+    "path": "data/stock-agnostic-allowance-isolated-checks-2026-09-14.log",
+    "sha256": "a68d882fa76a6334a1004ad5447d84fd9601981071bcb406d4337c50bfc0da0e"
+  }
 }
