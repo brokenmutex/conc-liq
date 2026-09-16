@@ -1,0 +1,23 @@
+# Rendering template: replace @RELEASE@, @ENV@, and @STATE@ before installation.
+[Unit]
+Description=NVDA AAPL GOOGL 60-minute adaptive-width paper sessions
+After=postgresql.service conc-liq-rpc-health.service
+Requires=postgresql.service
+StartLimitIntervalSec=600
+StartLimitBurst=5
+
+[Service]
+Type=simple
+WorkingDirectory=@RELEASE@
+ExecStart=@RELEASE@/bin/node @RELEASE@/launch.mjs @ENV@ adaptive-paper watch @STATE@
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=30s
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

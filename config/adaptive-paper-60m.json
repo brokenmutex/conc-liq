@@ -1,0 +1,30 @@
+{
+  "version": "adaptive_paper_60m_v1",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "1000000000",
+  "halfWidthsTicks": [10, 20, 40, 80, 160],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "forecast": { "lookbackMs": 3600000, "minimumSpanMs": 2400000, "minimumSamples": 40 },
+  "assets": [
+    {
+      "market": { "symbol": "NVDA", "rwa": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", "pool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "fork": "55e8ab327384f41b7c781997d13a659dc6a5ae55e036d39db26c5e787b9e687d" }
+    },
+    {
+      "market": { "symbol": "AAPL", "rwa": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "costs": { "entry": "178897", "recenter": "225140", "exit": "117634", "hold": "52761", "holdExit": "50835" },
+      "evidence": { "fork": "f17b51b2f98ab8d218d1e555f1cf1633c6b5089089065c9b70e0e863856f1fd5" }
+    },
+    {
+      "market": { "symbol": "GOOGL", "rwa": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3", "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "costs": { "entry": "177373", "recenter": "221310", "exit": "118088", "hold": "51335", "holdExit": "51112" },
+      "evidence": { "fork": "7502e71bb5f1b7bcbfbe3cd48e8b0e742c6c1bd37778949b69878ed9ae4ddd62" }
+    }
+  ]
+}
