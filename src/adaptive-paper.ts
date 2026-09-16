@@ -15,6 +15,7 @@ import { agileForecastStats } from "./research/agile-forecast.js";
 import type { ForecastSample } from "./research/adaptive-forecast.js";
 import type { RpcHealthEvaluation } from "./rpc-health/domain.js";
 import {appendAdaptivePaperMark,type AdaptivePaperMark} from "./adaptive-paper-history.js";
+import {migrateAdaptivePaperRuntime} from "./adaptive-paper-runtime.js";
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
 const marketSchema = z.object({
@@ -175,8 +176,9 @@ async function start(source:Source,config:Config,path:string){
 async function tick(source:Source,path:string){const state:State=parse(await readFile(path,"utf8"));assert.equal(state.version,1);assert.equal(state.configHash,digest(json(state.config)),"Adaptive paper configuration changed");assertRuntimeMatches(state.runtime,loadRuntimeIdentity());
   for(const asset of state.assets){if(asset.historyLastAt===undefined){const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,state.config);await recordHistory(path,asset,model,market,asset.last);}
     const rows=await source.rows(asset.market,asset.last.block);await advanceAsset(source,asset,state.config,rows,true,path);}await persist(path,state);return state;}
-async function main(){const [command,...args]=process.argv.slice(2);if(!["start","tick","watch","status"].includes(command??""))throw new Error("Usage: adaptive-paper start CONFIG STATE | tick STATE | watch STATE | status STATE");
+async function main(){const [command,...args]=process.argv.slice(2);if(!["start","tick","watch","status","migrate-runtime"].includes(command??""))throw new Error("Usage: adaptive-paper start CONFIG STATE | tick STATE | watch STATE | status STATE | migrate-runtime STATE FROM_BUILD");
   if(command==="status"){console.log(await readFile(args[0]!+".status.json","utf8"));return;}
+  if(command==="migrate-runtime"){const runtime=loadRuntimeIdentity();assert(runtime);console.log(JSON.stringify(await migrateAdaptivePaperRuntime(args[0]!,args[1]!,runtime)));return;}
   const config=command==="start"?configSchema.parse(JSON.parse(await readFile(args[0]!,"utf8"))):null,path=command==="start"?args[1]!:args[0]!;assert(path);
   const source=new Source(envSchema.parse(process.env).DATABASE_URL,(config??(parse(await readFile(path,"utf8")) as State).config).streamKey);await source.connect();
   try{if(command==="start"){const state=await start(source,config!,path);console.log(JSON.stringify(report(state)));return;}
