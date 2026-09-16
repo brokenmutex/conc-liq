@@ -38,6 +38,10 @@ export function positionWindow(points:readonly PositionPoint[],hours:number,now:
   else for(const s of segments){const b=bucket(s.session.group),ms=s.to-s.from;b.hours+=ms/3600000;
    if(previous?.economicNavQuote!==null)b.capitalMs+=BigInt(previous?.economicNavQuote??initial)*BigInt(ms);
    if(previous?.tickLower!==null&&previous?.tickLower!==undefined){b.activeHours+=ms/3600000;if(previous.inRange)b.inRangeHours+=ms/3600000;}}
+  // A newly enabled recorder can prove endpoint NAV without reconstructing the
+  // preceding interval's costs. Keep that interval explicitly unobserved and
+  // do not contaminate later endpoint-session accounting with its nulls.
+  if(p.historyBaseline===true){interval.pnl=sum(interval.pnl,navDelta);interval.hold=sum(interval.hold,holdDelta);interval.fees=sum(interval.fees,null);interval.gas=sum(interval.gas,null);interval.swap=sum(interval.swap,null);previous=p;continue;}
   // Restore costs to interval movement, then assign actual charges to endpoint.
   const costs=p.gasThisMarkQuote===null||p.swapThisMarkQuote===null?null:String(BigInt(p.gasThisMarkQuote)+BigInt(p.swapThisMarkQuote));
   interval.pnl=sum(interval.pnl,navDelta===null||costs===null?null:String(BigInt(navDelta)+BigInt(costs)));

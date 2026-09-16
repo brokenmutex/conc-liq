@@ -27,6 +27,9 @@ test('adaptive sidecar history deduplicates blocks and maps continuous chart att
   assert.equal(points[1]!.feesThisIntervalQuote,String(marketValue(NVDA_PAPER_MARKET,price,1000n,0n)));
   const window=positionWindow(points,1,Date.parse(second.sourceAt),'1000000000','2026-09-16T16:00:00.000Z');
   assert.equal(window.markCount,2);assert.equal(window.timeline.length,2);assert.equal(window.gaps.length,0);
+  const lifetime=positionWindow(points,24,Date.parse(second.sourceAt),'1000000000','2026-09-16T16:00:00.000Z');
+  assert.equal(lifetime.gaps.length,1);assert.equal(lifetime.rows.find(row=>row.key==='market')!.netPnlQuote,'100000');
+  assert.equal(lifetime.rows.find(row=>row.key==='unobserved')!.gasQuote,null);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 

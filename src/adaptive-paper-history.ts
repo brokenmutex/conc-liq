@@ -31,5 +31,5 @@ export function adaptiveHistoryPoint(market:PaperMarket,mark:AdaptivePaperMark,p
  const fees=baseline?null:String(marketValue(market,BigInt(mark.sqrtPriceX96),BigInt(mark.fees0)-BigInt(previous.fees0),BigInt(mark.fees1)-BigInt(previous.fees1)));
  return {sourceAt:mark.sourceAt,observedAt:mark.observedAt,block:mark.block,action:mark.action,status:mark.status,economicNavQuote:mark.navQuote,holdQuote:mark.holdQuote,
   priceQuoteX18:mark.priceQuoteX18,usdg:mark.usdg,nvda:mark.rwa,exposurePpm:mark.exposurePpm,inRange:mark.inRange,tickLower:mark.tickLower,tickUpper:mark.tickUpper,
-  feesThisIntervalQuote:fees,gasThisMarkQuote:baseline?null:mark.gasThisMarkQuote,swapThisMarkQuote:baseline?null:mark.swapThisMarkQuote,swapsThisMark:baseline?0:mark.swapsThisMark,drawdownPpm:mark.drawdownPpm};
+  feesThisIntervalQuote:fees,gasThisMarkQuote:baseline?null:mark.gasThisMarkQuote,swapThisMarkQuote:baseline?null:mark.swapThisMarkQuote,swapsThisMark:baseline?0:mark.swapsThisMark,drawdownPpm:mark.drawdownPpm,historyBaseline:baseline};
 }
