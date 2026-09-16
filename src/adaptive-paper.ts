@@ -7,13 +7,14 @@ import { z } from "zod";
 import { evaluateCanaryEntryReadiness } from "./canary-plan/entry-readiness.js";
 import { ExperimentMarket, type ExperimentEvent, type MarketSeed } from "./experiment/market.js";
 import { loadRuntimeIdentity, assertRuntimeMatches, type RuntimeIdentity } from "./runtime/identity.js";
-import { marketValue, type PaperMarket } from "./paper/market.js";
+import { marketPriceX18, marketTokens, marketValue, type PaperMarket } from "./paper/market.js";
 import { sourceSql } from "./paper/store.js";
 import { readPaperReferenceGate } from "./paper/reference.js";
 import { AdaptiveLpReplay, type AdaptivePolicy, type ResearchLpCosts } from "./research/adaptive-lp.js";
 import { agileForecastStats } from "./research/agile-forecast.js";
 import type { ForecastSample } from "./research/adaptive-forecast.js";
 import type { RpcHealthEvaluation } from "./rpc-health/domain.js";
+import {appendAdaptivePaperMark,type AdaptivePaperMark} from "./adaptive-paper-history.js";
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
 const marketSchema = z.object({
@@ -43,6 +44,7 @@ interface AssetState {
   samples:ForecastSample[]; lastSampleAt:number; growth0:bigint; growth1:bigint;
   model:Record<string,unknown>; status:"running"|"invalid"; reason?:string; blocked:Record<string,number>;
   decisions:number; forecastAvailable:number; forecastUnavailable:number;
+  historyLastAt?:number;
 }
 interface State {
   version:1; createdAt:string; config:Config; configHash:string; runtime:RuntimeIdentity; assets:AssetState[]; lastPollAt:string;
@@ -107,11 +109,31 @@ function sourceReasons(row:SourceRow,gate:{chainEligible:boolean;reasons:readonl
 }
 function restoreModel(asset:AssetState,config:Config){const model=new AdaptiveLpReplay(asset.market,asset.costs,policy(config));Object.assign(model,asset.model);return model;}
 function snapshotModel(model:AdaptiveLpReplay){return Object.fromEntries(Object.entries(model).filter(([key])=>!["market","costs","policy"].includes(key)));}
+function historyMark(asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMarket,checkpoint:SourceRow['checkpoint'],continuity:'baseline'|'continuous',action?:Record<string,unknown>):AdaptivePaperMark{
+  const source=market.source(),balances=model.balances(source),named=marketTokens(asset.market),quote=named.quoteIsToken0?balances.amount0:balances.amount1,rwa=named.quoteIsToken0?balances.amount1:balances.amount0;
+  const gross=marketValue(asset.market,source.price,balances.amount0,balances.amount1),risky=marketValue(asset.market,source.price,named.quoteIsToken0?0n:balances.amount0,named.quoteIsToken0?balances.amount1:0n),position=model.position;
+  let swapCost='0',swaps=0,kind='mark',gas='0';
+  if(action){kind=action.kind==='entry'?'enter':String(action.kind);gas=String(action.gasQuote??'0');const token=action.token;
+    if(token===0||token===1){const amountIn=BigInt(String(action.amountIn)),amountOut=BigInt(String(action.amountOut));
+      const input=marketValue(asset.market,source.price,token===0?amountIn:0n,token===1?amountIn:0n),output=marketValue(asset.market,source.price,token===1?amountOut:0n,token===0?amountOut:0n);
+      swapCost=String(input>output?input-output:0n);swaps=1;}}
+  const inRange=!!position&&source.tick>=position.tickLower&&source.tick<position.tickUpper;
+  return {version:1,symbol:asset.symbol,sourceAt:new Date(checkpoint.blockTimestamp).toISOString(),observedAt:new Date().toISOString(),block:checkpoint.block,continuity,action:kind,status:position?(inRange?'open':'recentring'):'waiting',
+    navQuote:String(gross-model.gas),holdQuote:String(model.policy.budget),sqrtPriceX96:String(source.price),priceQuoteX18:String(marketPriceX18(asset.market,source.price)),
+    usdg:String(quote),rwa:String(rwa),exposurePpm:String(gross>0n?risky*1000000n/gross:0n),inRange,tickLower:position?.tickLower??null,tickUpper:position?.tickUpper??null,
+    fees0:String(model.fees0),fees1:String(model.fees1),gasThisMarkQuote:continuity==='baseline'?null:gas,swapThisMarkQuote:continuity==='baseline'?null:swapCost,swapsThisMark:continuity==='baseline'?0:swaps,drawdownPpm:String(model.drawdownPpm)};
+}
+async function recordHistory(path:string,asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMarket,checkpoint:SourceRow['checkpoint'],action?:Record<string,unknown>){
+  const at=Date.parse(checkpoint.blockTimestamp),baseline=asset.historyLastAt===undefined;if(!baseline&&!action&&at-asset.historyLastAt!<60000)return;
+  try{await appendAdaptivePaperMark(path,historyMark(asset,model,market,checkpoint,baseline?'baseline':'continuous',action));asset.historyLastAt=at;}
+  catch(error){throw new AdaptiveHistoryWriteError(error);}
+}
+class AdaptiveHistoryWriteError extends Error {constructor(readonly original:unknown){super('Adaptive paper history write failed');}}
 function sample(asset:AssetState,market:ExperimentMarket,at:number){
   if(at-asset.lastSampleAt<60000)return;asset.samples.push({at,price:market.price,growth0:asset.growth0,growth1:asset.growth1});asset.lastSampleAt=at;
   while(asset.samples.length>1&&asset.samples[1]!.at<at-7200000)asset.samples.shift();
 }
-async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:SourceRow[],allowDecisions:boolean){
+async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:SourceRow[],allowDecisions:boolean,path?:string){
   if(asset.status==="invalid"||!rows.length)return;const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,config);
   const events=await source.events(asset.market,asset.last.block,rows.at(-1)!.checkpoint.block);let eventIndex=0;
   try{
@@ -122,13 +144,15 @@ async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:So
       }
       market.verify({price:cp.sqrtPriceX96,tick:cp.tick,liquidity:cp.liquidity,global0:cp.feeGrowth0,global1:cp.feeGrowth1});
       const at=Date.parse(cp.blockTimestamp);sample(asset,market,at);
+      const actionsBefore=model.actions.length;
       if(allowDecisions){const stats=agileForecastStats(asset.samples,at,config.forecast),gate=await source.decisionGate(row,asset.market),reasons=sourceReasons(row,gate,Date.now());
         if(reasons.length===0){if(stats)asset.forecastAvailable++;else asset.forecastUnavailable++;await model.step({...market.source(),at,block:cp.block},stats);asset.decisions++;}
         else {model.mark({...market.source(),at,block:cp.block});for(const reason of reasons)count(asset,reason);}}
       asset.last=cp;
+      if(allowDecisions&&path)await recordHistory(path,asset,model,market,cp,model.actions.length>actionsBefore?model.actions.at(-1):undefined);
     }
     assert.equal(eventIndex,events.length);asset.seed=market.seed();asset.model=snapshotModel(model);
-  }catch(error){asset.status="invalid";asset.reason=error instanceof Error?error.message:"adaptive_paper_reconstruction_failed";}
+  }catch(error){if(error instanceof AdaptiveHistoryWriteError)throw error.original;asset.status="invalid";asset.reason=error instanceof Error?error.message:"adaptive_paper_reconstruction_failed";}
 }
 function report(state:State){return {version:state.config.version,createdAt:state.createdAt,updatedAt:state.lastPollAt,executionEligible:false,broadcastsEnabled:false,
   policy:{lookbackMinutes:60,minimumSpanMinutes:40,minimumSamples:40,halfWidthsTicks:state.config.halfWidthsTicks,economicGate:true,outOfRangeTrigger:true},
@@ -149,7 +173,8 @@ async function start(source:Source,config:Config,path:string){
   await persist(path,state);return state;
 }
 async function tick(source:Source,path:string){const state:State=parse(await readFile(path,"utf8"));assert.equal(state.version,1);assert.equal(state.configHash,digest(json(state.config)),"Adaptive paper configuration changed");assertRuntimeMatches(state.runtime,loadRuntimeIdentity());
-  for(const asset of state.assets){const rows=await source.rows(asset.market,asset.last.block);await advanceAsset(source,asset,state.config,rows,true);}await persist(path,state);return state;}
+  for(const asset of state.assets){if(asset.historyLastAt===undefined){const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,state.config);await recordHistory(path,asset,model,market,asset.last);}
+    const rows=await source.rows(asset.market,asset.last.block);await advanceAsset(source,asset,state.config,rows,true,path);}await persist(path,state);return state;}
 async function main(){const [command,...args]=process.argv.slice(2);if(!["start","tick","watch","status"].includes(command??""))throw new Error("Usage: adaptive-paper start CONFIG STATE | tick STATE | watch STATE | status STATE");
   if(command==="status"){console.log(await readFile(args[0]!+".status.json","utf8"));return;}
   const config=command==="start"?configSchema.parse(JSON.parse(await readFile(args[0]!,"utf8"))):null,path=command==="start"?args[1]!:args[0]!;assert(path);

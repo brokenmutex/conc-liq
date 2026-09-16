@@ -9,6 +9,7 @@ import {USDG} from '../constants.js';
 import {PAPER_NVDA} from '../paper/engine.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
 import {readFile} from 'node:fs/promises';
+import {adaptiveHistoryPoint,readAdaptivePaperMarks} from '../adaptive-paper-history.js';
 
 const value=(a:string|bigint,b:string|bigint,sqrt:string)=>BigInt(a)+(BigInt(b)<0n?-1n:1n)*quoteValue({amount0:0n,amount1:BigInt(b)<0n?-BigInt(b):BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(sqrt)});
 const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
@@ -68,7 +69,7 @@ function adaptiveSummary(state:any,asset:any){
  const fees=marketValue(market,BigInt(seed.price),BigInt(model.fees0),BigInt(model.fees1));
  const rangeValues=p?[marketPriceX18(market,sqrtRatioAtTick(p.tickLower)),marketPriceX18(market,sqrtRatioAtTick(p.tickUpper))].sort((a,b)=>a<b?-1:1).map(String):null;
  return {id:`paper-adaptive-${String(asset.symbol).toLowerCase()}`,label:'A-60m',mode:'paper',asset:asset.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
-  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:null,feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
+  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:invalid?null:state.config.budgetQuote,feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
   swapQuote:null,exitEstimateQuote:invalid?null:String(asset.costs.exit),drawdownPpm:invalid?null:String(model.drawdownPpm),createdAt:state.createdAt,endedAt:invalid?state.lastPollAt:null,
   sourceAt:asset.last.blockTimestamp,heartbeatAt:state.lastPollAt,reasons:invalid?[asset.reason??'adaptive_paper_invalid']:[],invalidatedAt:invalid?state.lastPollAt:null,reserveQuote:'0',
   strategy:{widthTicks:p?(p.tickUpper-p.tickLower)/2:null,adaptiveHalfWidthsTicks:state.config.halfWidthsTicks,forecast:state.config.forecast,horizonMs:state.config.horizonMs,economicGate:true,outOfRangeTrigger:true,referenceTolerancePpm:50000,live:false},
@@ -99,13 +100,15 @@ export async function readPositionOverview(db:PoolClient,stream:string,adaptiveP
 export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number,adaptivePath?:string){
  const now=Date.now();
  if(id.startsWith('paper-adaptive-')){
-  const position=(await adaptivePositions(adaptivePath)).find((p:any)=>p.id===id);if(!position)return null;
-  const a=position.adaptive,point:PositionPoint={sourceAt:position.sourceAt,observedAt:position.heartbeatAt,block:'0',action:a.entries>0?'enter':'mark',status:position.status,
-   economicNavQuote:position.navQuote,holdQuote:null,priceQuoteX18:position.priceQuoteX18,usdg:position.inventory.usdg,nvda:position.inventory.nvda,exposurePpm:position.inventory.exposurePpm,
-   inRange:position.status==='open',tickLower:a.currentRange?.tickLower??null,tickUpper:a.currentRange?.tickUpper??null,feesThisIntervalQuote:null,gasThisMarkQuote:position.gasQuote,swapThisMarkQuote:null,swapsThisMark:0,drawdownPpm:position.drawdownPpm??'0'};
+  const state=await adaptiveState(adaptivePath),asset=state?.assets?.find((item:any)=>`paper-adaptive-${String(item.symbol).toLowerCase()}`===id);if(!state||!asset)return null;
+  const position=adaptiveSummary(state,asset),a=position.adaptive,marks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];
+  const points:PositionPoint[]=marks.map((mark,index)=>adaptiveHistoryPoint(asset.market,mark,marks[index-1]) as PositionPoint);
+  if(!points.length)points.push({sourceAt:position.sourceAt,observedAt:position.heartbeatAt,block:'0',action:'mark',status:position.status,
+   economicNavQuote:position.navQuote,holdQuote:position.holdQuote,priceQuoteX18:position.priceQuoteX18,usdg:position.inventory.usdg,nvda:position.inventory.nvda,exposurePpm:position.inventory.exposurePpm,
+   inRange:position.status==='open',tickLower:a.currentRange?.tickLower??null,tickUpper:a.currentRange?.tickUpper??null,feesThisIntervalQuote:null,gasThisMarkQuote:null,swapThisMarkQuote:null,swapsThisMark:0,drawdownPpm:position.drawdownPpm??'0'});
   const events=(a.actions??[]).filter((event:any)=>event.at>=now-hours*3600000).map((event:any,index:number)=>({id:String(index+1),at:new Date(event.at).toISOString(),action:event.kind,status:'accepted_model',block:event.block,scope:'adaptive_width_model',gasQuote:event.gasQuote??null,trade:{token:event.token,amountIn:event.amountIn,amountOut:event.amountOut},range:{tickLower:event.tickLower,tickUpper:event.tickUpper}})).reverse();
-  return {position,performance:positionWindow([point],hours,now,position.initialQuote,position.createdAt),events,counts:{recenters:a.recenters,recenterAttempts:a.recenterAttempts,swaps:(a.actions??[]).filter((event:any)=>event.token!==null).length},
-   limitations:['Forward modeled adaptive-width campaign; no wallet signing or chain broadcasts.','NAV uses the canonical pool path, hypothetical fee dilution and frozen fork-cost estimates.','Passive-holding comparison and interval attribution are not yet recorded for this forward adapter.']};
+  return {position,performance:positionWindow(points,hours,now,position.initialQuote,position.createdAt),events,counts:{recenters:a.recenters,recenterAttempts:a.recenterAttempts,swaps:(a.actions??[]).filter((event:any)=>event.token!==null).length},
+   limitations:['Forward modeled adaptive-width campaign; no wallet signing or chain broadcasts.','NAV uses the canonical pool path, hypothetical fee dilution and frozen fork-cost estimates.','History before the first persisted adaptive baseline remains explicitly unobserved.']};
  }
  if(id.startsWith('paper-')){
   const rows=await paperRows(db,stream),group=paperGroups(rows).find(g=>`paper-${g.latest.id}`===id);if(!group)return null;
