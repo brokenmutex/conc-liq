@@ -1194,7 +1194,7 @@ export class DashboardRepository {
     const client=await this.pool.connect();
     try {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      const result=id?await readPositionDetail(client,this.config.streamKey,id,hours):await readPositionOverview(client,this.config.streamKey);
+      const result=id?await readPositionDetail(client,this.config.streamKey,id,hours,this.config.adaptivePaperStatePath):await readPositionOverview(client,this.config.streamKey,this.config.adaptivePaperStatePath);
       await client.query("COMMIT");return result;
     } catch(error) {await client.query("ROLLBACK");throw error;} finally {client.release();}
   }

@@ -47,6 +47,7 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
  await once(server,'listening');const address=server.address();assert(address&&typeof address==='object');const base=`http://127.0.0.1:${address.port}`;
  try{
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=168')).status,200);assert.deepEqual(requests[0],{id:'paper-60',hours:168});
+  assert.equal((await fetch(base+'/api/positions/paper-adaptive-nvda?hours=24')).status,200);assert.deepEqual(requests[1],{id:'paper-adaptive-nvda',hours:24});
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=169')).status,400);assert.equal((await fetch(base+'/api/positions/nope')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-999')).status,404);assert.equal((await fetch(base+'/api/positions',{method:'POST'})).status,405);
   const page=await fetch(base+'/');assert.match(await page.text(),/Positions/);assert.match(page.headers.get('Content-Security-Policy')??'',/script-src 'self'/);

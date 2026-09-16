@@ -8,6 +8,7 @@ import {quoteValue} from '../simulator/math.js';
 import {USDG} from '../constants.js';
 import {PAPER_NVDA} from '../paper/engine.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
+import {readFile} from 'node:fs/promises';
 
 const value=(a:string|bigint,b:string|bigint,sqrt:string)=>BigInt(a)+(BigInt(b)<0n?-1n:1n)*quoteValue({amount0:0n,amount1:BigInt(b)<0n?-BigInt(b):BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(sqrt)});
 const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
@@ -55,6 +56,27 @@ async function liveRows(db:PoolClient){
   m.at AS mark_at,m.snapshot AS mark FROM live_pilot_v1.campaigns c LEFT JOIN LATERAL
   (SELECT at,snapshot FROM live_pilot_v1.marks WHERE campaign_id=c.id AND kind='mark' ORDER BY id DESC LIMIT 1) m ON TRUE ORDER BY c.heartbeat_at DESC`)).rows;
 }
+const adaptiveParse=(text:string)=>JSON.parse(text,(_key,value)=>value&&typeof value==='object'&&Object.keys(value).length===1&&typeof value.bigint==='string'?BigInt(value.bigint):value);
+async function adaptiveState(path?:string):Promise<any|null>{if(!path)return null;try{return adaptiveParse(await readFile(path,'utf8'));}catch{return null;}}
+function adaptiveSummary(state:any,asset:any){
+ const market=asset.market as PaperMarket,seed=asset.seed,model=asset.model,p=model.position,Q=1n<<128n;
+ const principal=p?principalAmounts({liquidity:BigInt(p.liquidity),tickLower:p.tickLower,tickUpper:p.tickUpper,sqrtPriceX96:BigInt(seed.price)}):{amount0:0n,amount1:0n};
+ const amount0=BigInt(model.cash0)+principal.amount0+(p?BigInt(p.fee0)/Q:0n),amount1=BigInt(model.cash1)+principal.amount1+(p?BigInt(p.fee1)/Q:0n);
+ const balances=namedBalances(market,amount0,amount1),gross=marketValue(market,BigInt(seed.price),amount0,amount1),nav=gross-BigInt(model.gas),stock=gross-balances.quote;
+ const invalid=asset.status==='invalid',outside=!!p&&(seed.tick<p.tickLower||seed.tick>=p.tickUpper),pending=model.pending?.kind??null;
+ const status=invalid?'invalid':pending==='recenter'||outside?'recentring':p?'open':'waiting';
+ const fees=marketValue(market,BigInt(seed.price),BigInt(model.fees0),BigInt(model.fees1));
+ const rangeValues=p?[marketPriceX18(market,sqrtRatioAtTick(p.tickLower)),marketPriceX18(market,sqrtRatioAtTick(p.tickUpper))].sort((a,b)=>a<b?-1:1).map(String):null;
+ return {id:`paper-adaptive-${String(asset.symbol).toLowerCase()}`,label:'A-60m',mode:'paper',asset:asset.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
+  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:null,feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
+  swapQuote:null,exitEstimateQuote:invalid?null:String(asset.costs.exit),drawdownPpm:invalid?null:String(model.drawdownPpm),createdAt:state.createdAt,endedAt:invalid?state.lastPollAt:null,
+  sourceAt:asset.last.blockTimestamp,heartbeatAt:state.lastPollAt,reasons:invalid?[asset.reason??'adaptive_paper_invalid']:[],invalidatedAt:invalid?state.lastPollAt:null,reserveQuote:'0',
+  strategy:{widthTicks:p?(p.tickUpper-p.tickLower)/2:null,adaptiveHalfWidthsTicks:state.config.halfWidthsTicks,forecast:state.config.forecast,horizonMs:state.config.horizonMs,economicGate:true,outOfRangeTrigger:true,referenceTolerancePpm:50000,live:false},
+  range:rangeValues,priceQuoteX18:String(marketPriceX18(market,BigInt(seed.price))),inventory:{usdg:String(balances.quote),nvda:String(balances.rwa),exposurePpm:String(gross>0n?stock*1000000n/gross:0n)},
+  tokenId:null,accounting:invalid?'invalid':'modeled',nextAction:status==='waiting'?(pending==='entry'?'Entry quoted; awaiting a later covered source':'Adaptive entry requires a feasible forecast and healthy guards'):status==='recentring'?'Adaptive range move pending':null,
+  adaptive:{entries:model.entries,recenters:model.recenters,recenterAttempts:model.recenterAttempts,decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked,actions:model.actions,currentRange:p?{tickLower:p.tickLower,tickUpper:p.tickUpper}:null}};
+}
+async function adaptivePositions(path?:string){const state=await adaptiveState(path);return state?.assets?.map((asset:any)=>adaptiveSummary(state,asset))??[];}
 export function liveSummary(r:any){
  const s=r.state,m=r.mark,snap=m?.snapshot??s.last,p=snap.position,hasLp=p&&BigInt(p.liquidity)>0n;
  const status=s.phase==='halted'?'halted':s.phase==='exit'?'exiting':s.phase==='recenter'?'recentring':s.phase==='closed'?(s.desired==='running'?'waiting':'closed'):
@@ -70,12 +92,21 @@ export function liveSummary(r:any){
   inventory:inventory(p,snap.sqrtPriceX96,String(BigInt(snap.usdg)-BigInt(s.reserveUsdg)),snap.nvda,m?.uncollected0,m?.uncollected1),
   tokenId:s.tokenId,accounting:m?'recorded':'unavailable',nextAction:s.phase==='halted'?'Reconciliation required before trading can resume':s.phase==='closed'&&s.desired==='running'?'Re-entry after cooldown and healthy price / chain checks':null};
 }
-export async function readPositionOverview(db:PoolClient,stream:string){
- const paper=await paperRows(db,stream),live=await liveRows(db);
- return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...live.map(liveSummary),...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
+export async function readPositionOverview(db:PoolClient,stream:string,adaptivePath?:string){
+ const paper=await paperRows(db,stream),live=await liveRows(db),adaptive=await adaptivePositions(adaptivePath);
+ return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...live.map(liveSummary),...adaptive,...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
 }
-export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number){
+export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number,adaptivePath?:string){
  const now=Date.now();
+ if(id.startsWith('paper-adaptive-')){
+  const position=(await adaptivePositions(adaptivePath)).find((p:any)=>p.id===id);if(!position)return null;
+  const a=position.adaptive,point:PositionPoint={sourceAt:position.sourceAt,observedAt:position.heartbeatAt,block:'0',action:a.entries>0?'enter':'mark',status:position.status,
+   economicNavQuote:position.navQuote,holdQuote:null,priceQuoteX18:position.priceQuoteX18,usdg:position.inventory.usdg,nvda:position.inventory.nvda,exposurePpm:position.inventory.exposurePpm,
+   inRange:position.status==='open',tickLower:a.currentRange?.tickLower??null,tickUpper:a.currentRange?.tickUpper??null,feesThisIntervalQuote:null,gasThisMarkQuote:position.gasQuote,swapThisMarkQuote:null,swapsThisMark:0,drawdownPpm:position.drawdownPpm??'0'};
+  const events=(a.actions??[]).filter((event:any)=>event.at>=now-hours*3600000).map((event:any,index:number)=>({id:String(index+1),at:new Date(event.at).toISOString(),action:event.kind,status:'accepted_model',block:event.block,scope:'adaptive_width_model',gasQuote:event.gasQuote??null,trade:{token:event.token,amountIn:event.amountIn,amountOut:event.amountOut},range:{tickLower:event.tickLower,tickUpper:event.tickUpper}})).reverse();
+  return {position,performance:positionWindow([point],hours,now,position.initialQuote,position.createdAt),events,counts:{recenters:a.recenters,recenterAttempts:a.recenterAttempts,swaps:(a.actions??[]).filter((event:any)=>event.token!==null).length},
+   limitations:['Forward modeled adaptive-width campaign; no wallet signing or chain broadcasts.','NAV uses the canonical pool path, hypothetical fee dilution and frozen fork-cost estimates.','Passive-holding comparison and interval attribution are not yet recorded for this forward adapter.']};
+ }
  if(id.startsWith('paper-')){
   const rows=await paperRows(db,stream),group=paperGroups(rows).find(g=>`paper-${g.latest.id}`===id);if(!group)return null;
   const position=paperSummary(group.latest,group.chain,rows.find(r=>r.stream_key===group.latest.stream_key)?.id??'');
