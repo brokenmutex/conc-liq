@@ -177,8 +177,37 @@ token-0-to-token-1 swap, a token-1-to-token-0 swap, or no swap.
 
 ## 5. Ten-minute scenario forecast
 
-Every feasible candidate is evaluated over the same ten-minute horizon with
-three moment-matched zero-drift diffusion scenarios:
+Every feasible candidate is evaluated over the same ten-minute horizon.
+
+**Fee occupancy (corrected 2026-09-17).** The original implementation sampled
+range occupancy at ten points along three deterministic paths (down, zero,
+up, weighted 1:4:1). Because the zero-move path never leaves any band, every
+width had at least two-thirds occupancy regardless of volatility, and fee
+income scales with liquidity, which scales with 1/width. The narrowest
+feasible width therefore always won: all 21 placements in the first 18 hours
+of this session chose ±10 ticks, including the Sep 16 18:00–20:00 UTC period
+when the trailing 10-minute sigma on NVDA was 11–20 ticks.
+
+The forecast now uses the analytic expected in-band time until first exit for
+a driftless diffusion in tick space with the trailing variance
+(`rangeOccupancy` in `src/research/adaptive-forecast.ts`). The survival
+probability is computed by the method of images and integrated over the
+horizon. A position that starts outside its band earns no forecast fees;
+re-entry is a later decision. Fee income is:
+
+```text
+fees = trailing_fee_rate × horizon × dilution × occupancy × fee_share
+```
+
+Each candidate that starts inside its band is also charged the recenter cost
+multiplied by the probability of leaving the band within the horizon. That
+charge is the management a narrow range is expected to need. With this model
+the fee-optimal half-width scales with the forecast move: about ±10 ticks when
+10-minute sigma is below roughly 10 ticks, ±20 near 20 ticks, ±40 near 40
+ticks, before the crossing charge pushes the choice wider still.
+
+**Terminal value.** Inventory value is still evaluated at three
+moment-matched zero-drift scenarios:
 
 | Scenario | Volatility displacement | Weight |
 |---|---:|---:|
@@ -186,18 +215,12 @@ three moment-matched zero-drift diffusion scenarios:
 | Central | `0` | 4 |
 | Up | `+sqrt(3) * sigma` | 1 |
 
-The expected terminal value is:
-
 ```text
-expected_terminal = (down + 4 * central + up) / 6
+expected_terminal = (down + 4 * central + up) / 6 - crossing_charge
 ```
 
-A lognormal correction is applied to the scenario price displacement. For each
-scenario, the model samples ten intermediate points across the horizon and
-counts how many fall inside the candidate range. That occupancy scales the
-fee forecast.
-
-At each terminal scenario the model:
+A lognormal correction is applied to the scenario price displacement. At each
+terminal scenario the model:
 
 1. reconstructs LP principal at the scenario price;
 2. adds idle balances and forecast fees;
@@ -208,8 +231,12 @@ At each terminal scenario the model:
 
 If the terminal unwind cannot be completely and safely quoted, the candidate
 forecast is unavailable. Among valid candidates, the width with the highest
-expected terminal USDG is selected. A narrow range can win through fee
-concentration; a wider range can win through greater expected occupancy.
+expected terminal USDG is selected.
+
+The correction is in the working tree at documentation time. The sealed
+release running the session still uses the original sampled occupancy until a
+new release is built and deployed; the earlier adaptive studies were also
+produced with the original occupancy and are not rerun here.
 
 ## 6. Economic recenter gate
 

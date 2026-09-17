@@ -58,7 +58,7 @@ export class AgileLpReplay extends AdaptiveLpReplay {
         try{
           const plan=await this.plan(m,marketRange(m.price,m.tick,width,this.market.tickSpacing));
           if(plan.tickLower===p.tickLower&&plan.tickUpper===p.tickUpper)continue;
-          const forecast=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
+          const forecast=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
           if(forecast&&(!best||forecast.terminalQuote>best.forecast.terminalQuote))best={plan,forecast};
         }catch{/* An infeasible width does not exclude the other candidates. */}
       }
@@ -68,7 +68,7 @@ export class AgileLpReplay extends AdaptiveLpReplay {
         if(this.narrowing?.width!==width)this.narrowing={width,since:m.at};
         if(m.at-this.narrowing.since<this.early.narrowingPersistenceMs){this.reject('early_narrowing_persistence');return;}
       }else this.narrowing=null;
-      const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
+      const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
       assert(keep,'early_keep_forecast_unavailable');
       const benefit=best.forecast.terminalQuote-this.cost('recenter')-keep.terminalQuote;
       const costBuffer=this.cost('recenter')*BigInt(this.policy.costBufferPpm)/1000000n;

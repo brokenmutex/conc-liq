@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {AdaptiveLpReplay,type AdaptivePolicy,type ResearchSource} from '../src/research/adaptive-lp.js';
-import {TrailingForecast,forecastPortfolio} from '../src/research/adaptive-forecast.js';
+import {TrailingForecast,forecastPortfolio,rangeOccupancy} from '../src/research/adaptive-forecast.js';
 import {NVDA_PAPER_MARKET,marketTokens} from '../src/paper/market.js';
 import {sqrtRatioAtTick as sqrt} from '../src/backtest/principal.js';
 import {historicalSwapQuote} from '../src/research/portfolio-math.js';
@@ -76,4 +76,48 @@ test('fee dilution, full-range exits and common passive benchmark remain separat
  const q0=marketTokens(NVDA_PAPER_MARKET).quoteIsToken0,hold={amount0:q0?2500000000n:2498750000n,amount1:q0?2498750000n:2500000000n};
  const a=base.summary(source(0,60000),hold),b=stress.summary(source(0,60000),hold);
  assert.equal(BigInt(a.holdTerminalCashQuote!)-BigInt(b.holdTerminalCashQuote!),costs.hold+costs.holdExit);
+});
+
+test('first-exit occupancy is exact at zero variance, zero outside the band and falls with volatility',()=>{
+ assert.deepEqual(rangeOccupancy(0,-10,10,0),{occupancy:1,exitProbability:0,inRange:true});
+ assert.deepEqual(rangeOccupancy(10,-10,10,25),{occupancy:0,exitProbability:1,inRange:false});
+ assert.deepEqual(rangeOccupancy(-11,-10,10,25),{occupancy:0,exitProbability:1,inRange:false});
+ let previous=1;
+ for(const variance of [1,9,25,100,400,1600]){
+  const r=rangeOccupancy(0,-10,10,variance);
+  assert(r.occupancy<=previous&&r.occupancy>0&&r.exitProbability>=0&&r.exitProbability<=1);previous=r.occupancy;
+ }
+ // Expected first-exit time of a centered band is w²/v, so occupancy ≈ w²/V for V ≫ w².
+ assert(Math.abs(rangeOccupancy(0,-10,10,10000).occupancy-0.01)<0.001);
+ // Scale invariance and symmetry: the band/sigma ratio determines occupancy.
+ const a=rangeOccupancy(0,-10,10,100),b=rangeOccupancy(0,-20,20,400);
+ assert(Math.abs(a.occupancy-b.occupancy)<1e-9&&Math.abs(a.exitProbability-b.exitProbability)<1e-9);
+ assert(Math.abs(rangeOccupancy(-9,-10,10,25).occupancy-rangeOccupancy(9,-10,10,25).occupancy)<1e-9);
+ assert(rangeOccupancy(-9,-10,10,25).occupancy<rangeOccupancy(0,-10,10,25).occupancy);
+});
+test('forecast fees fall with volatility and a crossing charge applies only to positions inside their band',()=>{
+ const p={tickLower:-10,tickUpper:10,liquidity:10000000000000n},rich={...stats,growth0:1n<<128n};
+ const calm=forecastPortfolio(NVDA_PAPER_MARKET,source(0,0),{amount0:0n,amount1:0n,position:p},{...rich,varianceTicksPerMs:1/600000},600000,0n,1000000,200n);
+ const wild=forecastPortfolio(NVDA_PAPER_MARKET,source(0,0),{amount0:0n,amount1:0n,position:p},{...rich,varianceTicksPerMs:400/600000},600000,0n,1000000,200n);
+ assert(calm&&wild);assert(calm.feesQuote>wild.feesQuote);assert(calm.occupancy>wild.occupancy);
+ assert.equal(calm.crossingChargeQuote,BigInt(Math.round(calm.exitProbability*1000000))*200n/1000000n);
+ assert(wild.crossingChargeQuote>calm.crossingChargeQuote&&wild.crossingChargeQuote<=200n);
+ const outside=forecastPortfolio(NVDA_PAPER_MARKET,source(50,0),{amount0:0n,amount1:0n,position:p},{...rich,varianceTicksPerMs:400/600000},600000,0n,1000000,200n);
+ assert(outside);assert.equal(outside.feesQuote,0n);assert.equal(outside.crossingChargeQuote,0n);assert.equal(outside.occupancy,0);
+});
+test('adaptive width selection widens with trailing volatility and tightens in flat markets',async()=>{
+ const wide=(tick:number,at:number):ResearchSource=>({...source(tick,at),ticks:[-100000,100000],net:t=>t===-100000?depth:t===100000?-depth:0n});
+ const adaptive:AdaptivePolicy={...policy,name:'adaptive',halfWidthsTicks:[10,20,40,80,160],adaptive:true,economicGate:true,budget:1000000000n};
+ const real={entry:176526n,recenter:220524n,exit:117376n,hold:51062n,holdExit:50834n};
+ const chosen=async(sigmaTicksPerHorizon:number,growthDiv:bigint)=>{
+  const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,real,adaptive);
+  await m.step(wide(0,0),{asOf:0,spanMs:3600000,count:60,varianceTicksPerMs:sigmaTicksPerHorizon**2/600000,growth0:(1n<<128n)/growthDiv,growth1:(1n<<128n)/growthDiv/200n});
+  assert(m.pending,JSON.stringify(m.rejected));return (m.pending.plan.tickUpper-m.pending.plan.tickLower)/2;
+ };
+ for(const growthDiv of [10n,1000n]){
+  assert.equal(await chosen(3,growthDiv),10);assert.equal(await chosen(20,growthDiv),20);assert.equal(await chosen(40,growthDiv),40);
+  let previous=0;
+  for(const sigma of [1,5,10,20,40,80]){const w=await chosen(sigma,growthDiv);assert(w>=previous);previous=w;}
+  assert(previous>=80);
+ }
 });

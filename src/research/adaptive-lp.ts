@@ -111,7 +111,7 @@ export class AdaptiveLpReplay {
       for(const width of this.policy.halfWidthsTicks){
         try{
           const plan=await this.plan(m,marketRange(m.price,m.tick,width,this.market.tickSpacing));
-          const forecast=stats?forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm):null;
+          const forecast=stats?forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter')):null;
           if(this.policy.adaptive&&!forecast)continue;
           if(!best||(forecast&&best.forecast&&forecast.terminalQuote>best.forecast.terminalQuote))best={plan,forecast};
         }catch{/* One infeasible width must not exclude the other candidates. */}
@@ -120,7 +120,7 @@ export class AdaptiveLpReplay {
       let score:Record<string,unknown>|null=null;
       if(this.policy.economicGate&&this.position){
         assert(stats&&best.forecast,'forecast_unavailable');
-        const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
+        const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
         assert(keep,'keep_forecast_unavailable');
         const benefit=best.forecast.terminalQuote-this.cost(kind)-keep.terminalQuote;
         const costBuffer=this.cost(kind)*BigInt(this.policy.costBufferPpm)/1000000n;
@@ -152,8 +152,8 @@ export class AdaptiveLpReplay {
         assert(plan.mint[`amount${token}`]*10000n>=pending.plan.mint[`amount${token}`]*BigInt(10000-this.policy.slippageBps),'frozen_mint_minimum');
       if(this.policy.economicGate&&pending.kind==='recenter'){
         assert(stats,'fill_forecast_unavailable');
-        const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
-        const move=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
+        const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
+        const move=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
         assert(keep&&move,'fill_forecast_unavailable');
         const bufferA=this.cost('recenter')*BigInt(this.policy.costBufferPpm)/1000000n,bufferB=move.feesQuote*BigInt(this.policy.feeBufferPpm)/1000000n;
         assert(move.terminalQuote-this.cost('recenter')-keep.terminalQuote>(bufferA>bufferB?bufferA:bufferB),'fill_economic_gate');

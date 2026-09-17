@@ -65,8 +65,8 @@ export class SmallBudgetLpReplay extends AdaptiveLpReplay {
     const plan=await this.plan(m,pending.plan);
     if(this.policy.economicGate){
      assert(stats,'withdraw_forecast_unavailable');
-     const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
-     const move=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm);
+     const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
+     const move=forecastPortfolio(this.market,m,{amount0:plan.mint.idle0,amount1:plan.mint.idle1,position:{...plan,liquidity:plan.mint.liquidity}},stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
      assert(keep&&move,'withdraw_forecast_unavailable');
      const a=this.cost('recenter')*BigInt(this.policy.costBufferPpm)/1000000n,b=move.feesQuote*BigInt(this.policy.feeBufferPpm)/1000000n;
      assert(move.terminalQuote-this.cost('recenter')-keep.terminalQuote>(a>b?a:b),'withdraw_economic_gate');

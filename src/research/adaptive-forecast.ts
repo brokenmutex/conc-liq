@@ -35,15 +35,76 @@ export class TrailingForecast {
   }
 }
 
-/** Three moment-matched diffusion scenarios, zero predictive drift. This is a
- * forecasting hypothesis, not the paper's continuous-time optimum. Fee income
- * uses lagged fee growth, current-depth dilution and sampled range occupancy. */
-export function forecastPortfolio(market:PaperMarket,m:SwapSource,portfolio:ForecastPortfolio,stats:ForecastStats,horizonMs:number,exitCost:bigint,feePpm=1000000) {
-  assert(horizonMs>0&&stats.spanMs>0&&feePpm>=0&&feePpm<=1000000);
+const SQRT2=Math.SQRT2;
+/** Abramowitz and Stegun 7.1.26; absolute error below 1.5e-7. Deterministic. */
+function erf(x:number){
+  const sign=x<0?-1:1,a=Math.abs(x),t=1/(1+0.3275911*a);
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-a*a);
+  return sign*y;
+}
+const normalCdf=(z:number)=>0.5*(1+erf(z/SQRT2));
+
+/** Probability that driftless Brownian motion in tick space, started at x
+ * strictly inside (a,b) with standard deviation s accumulated so far, has not
+ * yet touched either boundary. Method of images; the number of image terms
+ * grows with s relative to the band width. */
+function survival(x:number,a:number,b:number,s:number){
+  if(s<=0)return 1;
+  const width=b-a,terms=Math.ceil(3*s/width)+1;
+  let total=0;
+  for(let k=-terms;k<=terms;k++){
+    const shift=2*k*width;
+    total+=normalCdf((b-x-shift)/s)-normalCdf((a-x-shift)/s)-normalCdf((b-2*a+x-shift)/s)+normalCdf((x-a-shift)/s);
+  }
+  return Math.min(1,Math.max(0,total));
+}
+
+export interface RangeOccupancy {
+  /** Expected fraction of the horizon spent inside the band before first exit. */
+  occupancy:number;
+  /** Probability that the band is left at least once within the horizon. */
+  exitProbability:number;
+  inRange:boolean;
+}
+
+/** Expected in-band time until first exit for a driftless diffusion whose
+ * variance over the horizon is `varianceTicks`. A position that starts outside
+ * its band earns nothing here; re-entry is a separate later decision. The
+ * lognormal drift correction (well below one tick at observed variances) is
+ * ignored for occupancy and retained for the terminal price scenarios.
+ *
+ * The integral (1/T)∫₀ᵀ S(t)dt uses t=T·u², dt=2Tu·du and Simpson's rule on
+ * u∈[0,1], so the early flat part of the survival curve is resolved. */
+export function rangeOccupancy(centerTick:number,tickLower:number,tickUpper:number,varianceTicks:number):RangeOccupancy {
+  assert(Number.isFinite(centerTick)&&Number.isFinite(varianceTicks)&&tickLower<tickUpper&&varianceTicks>=0);
+  if(centerTick<tickLower||centerTick>=tickUpper)return {occupancy:0,exitProbability:1,inRange:false};
+  if(varianceTicks===0)return {occupancy:1,exitProbability:0,inRange:true};
+  const sigma=Math.sqrt(varianceTicks),n=64;
+  let sum=0;
+  for(let i=0;i<=n;i++){
+    const u=i/n,weight=i===0||i===n?1:i%2?4:2;
+    sum+=weight*2*u*survival(centerTick,tickLower,tickUpper,sigma*u);
+  }
+  const occupancy=Math.min(1,Math.max(0,sum/(3*n)));
+  return {occupancy,exitProbability:1-survival(centerTick,tickLower,tickUpper,sigma),inRange:true};
+}
+
+/** Three moment-matched diffusion scenarios for terminal inventory value, zero
+ * predictive drift. Fee income uses lagged fee growth, current-depth dilution
+ * and the analytic expected in-band time until first exit, so a band that the
+ * trailing volatility is likely to cross earns proportionally less. A position
+ * that starts inside its band is additionally charged `crossingCost` times the
+ * probability of leaving the band within the horizon: the management a narrow
+ * range is expected to need. This is a forecasting hypothesis, not the paper's
+ * continuous-time optimum. */
+export function forecastPortfolio(market:PaperMarket,m:SwapSource,portfolio:ForecastPortfolio,stats:ForecastStats,horizonMs:number,exitCost:bigint,feePpm=1000000,crossingCost=0n) {
+  assert(horizonMs>0&&stats.spanMs>0&&feePpm>=0&&feePpm<=1000000&&crossingCost>=0n);
   const center=2*Math.log(Number(m.price)/(2**96))/LOG_TICK;
   const variance=stats.varianceTicksPerMs*horizonMs;
   const points=[{z:-Math.sqrt(3),weight:1n},{z:0,weight:4n},{z:Math.sqrt(3),weight:1n}];
   const p=portfolio.position;
+  const range=p?rangeOccupancy(center,p.tickLower,p.tickUpper,variance):{occupancy:0,exitProbability:0,inRange:false};
+  const occupancyPpm=BigInt(Math.round(range.occupancy*1000000)),exitPpm=BigInt(Math.round(range.exitProbability*1000000));
   let weighted=0n,weightedFees=0n,unadjustedFees=0n;
   const shiftedSource=(shift:number)=>{
     const offset=Math.max(MIN_TICK+1,Math.min(MAX_TICK-1,Math.round(shift)));
@@ -58,17 +119,13 @@ export function forecastPortfolio(market:PaperMarket,m:SwapSource,portfolio:Fore
     if(!p||m.liquidity===0n)return 0n;
     const growth=token===0?stats.growth0:stats.growth1;
     return growth*BigInt(horizonMs)*p.liquidity*m.liquidity*occupancy*BigInt(feePpm)/
-      (BigInt(stats.spanMs)*Q128*(m.liquidity+p.liquidity)*10n*1000000n);
+      (BigInt(stats.spanMs)*Q128*(m.liquidity+p.liquidity)*1000000n*1000000n);
   };
-  if(p)unadjustedFees=marketValue(market,m.price,fee(0,10n),fee(1,10n));
+  if(p)unadjustedFees=marketValue(market,m.price,fee(0,1000000n),fee(1,1000000n));
+  const f0=fee(0,occupancyPpm),f1=fee(1,occupancyPpm);
+  const crossingChargeQuote=range.inRange?crossingCost*exitPpm/1000000n:0n;
   for(const point of points){
     const target=shiftedSource(point.z*Math.sqrt(variance)-variance*LOG_TICK/2);
-    let occupied=0n;
-    if(p)for(let i=1;i<=10;i++){
-      const fraction=(i-.5)/10,tick=center+point.z*Math.sqrt(variance*fraction)-variance*fraction*LOG_TICK/2;
-      if(tick>=p.tickLower&&tick<p.tickUpper)occupied++;
-    }
-    const f0=fee(0,occupied),f1=fee(1,occupied);
     const principal=p?principalAmounts({...p,sqrtPriceX96:target.price}):{amount0:0n,amount1:0n};
     const a=portfolio.amount0+principal.amount0+f0,b=portfolio.amount1+principal.amount1+f1;
     const q0=marketTokens(market).quoteIsToken0,risky=q0?b:a,cash=q0?a:b;
@@ -79,6 +136,7 @@ export function forecastPortfolio(market:PaperMarket,m:SwapSource,portfolio:Fore
       weighted+=point.weight*value;weightedFees+=point.weight*marketValue(market,target.price,f0,f1);
     }catch{return null;}
   }
-  return {terminalQuote:weighted/6n,feesQuote:weightedFees/6n,trailingAlwaysActiveFeesQuote:unadjustedFees,
+  return {terminalQuote:weighted/6n-crossingChargeQuote,feesQuote:weightedFees/6n,trailingAlwaysActiveFeesQuote:unadjustedFees,
+    occupancy:range.occupancy,exitProbability:range.exitProbability,crossingChargeQuote,
     asOf:stats.asOf,horizonMs,sampleCount:stats.count,varianceTicks:variance};
 }
