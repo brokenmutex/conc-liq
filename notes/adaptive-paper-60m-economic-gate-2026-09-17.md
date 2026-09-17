@@ -5,8 +5,8 @@ Strategy version: `adaptive_paper_60m_v1`
 Session state: `/root/conc-liq/data/adaptive-paper-60m-2026-09-16/state.json`  
 Configuration: `config/adaptive-paper-60m.json`  
 Implementation: `src/adaptive-paper.ts`, `src/research/agile-forecast.ts`, `src/research/adaptive-forecast.ts`, and `src/research/adaptive-lp.ts`  
-Documented source commit: `ffd2c86`  
-Deployed release at documentation time: `f602f6a12a6ce8cf3b56427539a77ac8d90f23d7813f4097811ebcad4b0c1048`
+Documented source commit: `81d2662`  
+Deployed release: `ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf` (occupancy correction, from 2026-09-17 08:45:48 UTC; previously `f602f6a12a6ce8cf3b56427539a77ac8d90f23d7813f4097811ebcad4b0c1048`)
 
 ## Scope and status
 
@@ -233,10 +233,15 @@ If the terminal unwind cannot be completely and safely quoted, the candidate
 forecast is unavailable. Among valid candidates, the width with the highest
 expected terminal USDG is selected.
 
-The correction is in the working tree at documentation time. The sealed
-release running the session still uses the original sampled occupancy until a
-new release is built and deployed; the earlier adaptive studies were also
-produced with the original occupancy and are not rerun here.
+The correction was deployed to the running session at 2026-09-17 08:45:48 UTC
+as release `ed9a77be…` (source `81d2662`): the service was stopped with no
+pending quote, the state file was backed up and migrated with
+`adaptive-paper migrate-runtime`, and only the release path in the unit
+changed. Strategy configuration, environment and session state were
+unchanged. Evidence is in `data/adaptive-occupancy-deployment-2026-09-17/`.
+Placements before that time were made by the original sampled occupancy. The
+earlier adaptive studies were also produced with the original occupancy and
+are not rerun here.
 
 ## 6. Economic recenter gate
 
