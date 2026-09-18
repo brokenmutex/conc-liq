@@ -27,6 +27,16 @@ survived contact with the evidence and one did not.
 Five books, 9,500 USDG of notional, sized under the 5% liquidity-share cap
 measured at the narrowest band each grid permits (W3 §5).
 
+**Correction, 2026-09-18 evening: GLD-3000 is dropped; four books, 7,000 USDG.**
+The first poll of the started session blocked every GLD decision with
+`oracle_feed_missing` and `paper_equity_oracle_missing`: the asset checkpoint
+has no oracle address for GLD, which the September 13 reference snapshot had
+already recorded ("rejected GLD, LLY and SGOV for missing feeds"). The W3
+replay never saw this because the offline harness does not apply the
+per-asset decision gate. A book that is blocked on every decision measures
+nothing, so it is removed from `config/adaptive-paper-restart-2026-09-18.json`
+until a GLD feed exists. The MSFT-3000 row is now the only 3000-tier book.
+
 | Book | Size | Share at that size | Half-widths | Residual span | Role |
 |---|---:|---:|---|---:|---|
 | NVDA-500 | 2,500 | 1.21% | 10/20/40/80/160 | 20 | deepest book, full cost evidence |

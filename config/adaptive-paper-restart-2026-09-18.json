@@ -41,14 +41,6 @@
       "evidence": { "fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500" }
     },
     {
-      "market": { "symbol": "GLD", "rwa": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e", "pool": "0x7A6A053eCCf1446A2633E05aA6D40D09381997ec", "fee": 3000, "tickSpacing": 60, "rwaDecimals": 18 },
-      "budgetQuote": "2500000000",
-      "halfWidthsTicks": [60, 120, 180, 240, 360],
-      "residualWidthsTicks": [120],
-      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
-      "evidence": { "fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500" }
-    },
-    {
       "market": { "symbol": "QQQ", "rwa": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68", "pool": "0xD60A5d14dB690B7Afad71F76B108071D7175597d", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
       "budgetQuote": "1000000000",
       "holdout": true,
