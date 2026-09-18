@@ -1,0 +1,17 @@
+[
+ {"name":"live_60m","forecast":{"lookbackMs":3600000,"minimumSpanMs":2400000,"minimumSamples":40}},
+ {"name":"rolling_30m","forecast":{"lookbackMs":1800000,"minimumSpanMs":1200000,"minimumSamples":20}},
+ {"name":"rolling_120m","forecast":{"lookbackMs":7200000,"minimumSpanMs":2400000,"minimumSamples":40}},
+
+ {"name":"vol15m_fee15m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":900000,"feeHalfLifeMs":900000,"weightedFeePpm":1000000}},
+ {"name":"vol15m_fee60m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":900000,"feeHalfLifeMs":3600000,"weightedFeePpm":1000000}},
+ {"name":"vol15m_feeFlat","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":900000}},
+
+ {"name":"vol60m_fee15m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":3600000,"feeHalfLifeMs":900000,"weightedFeePpm":1000000}},
+ {"name":"vol60m_fee60m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":3600000,"feeHalfLifeMs":3600000,"weightedFeePpm":1000000}},
+ {"name":"vol60m_feeFlat","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"volatilityHalfLifeMs":3600000}},
+
+ {"name":"volFlat_fee15m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"feeHalfLifeMs":900000,"weightedFeePpm":1000000}},
+ {"name":"volFlat_fee60m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"feeHalfLifeMs":3600000,"weightedFeePpm":1000000}},
+ {"name":"volFlat_feeFlat","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60}}
+]
