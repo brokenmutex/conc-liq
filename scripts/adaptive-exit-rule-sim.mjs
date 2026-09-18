@@ -31,7 +31,16 @@ const {forecastPortfolio}=await import(R+'/dist/src/research/adaptive-forecast.j
 const {historicalSwapQuote}=await import(R+'/dist/src/research/portfolio-math.js');
 const {ExperimentMarket}=await import(R+'/dist/src/experiment/market.js');
 const {marketValue,marketPriceX18,marketTokens,marketRange}=await import(R+'/dist/src/paper/market.js');
-const {sourceSql}=await import(R+'/dist/src/paper/store.js');
+// The checkpoint query is read from the DEPLOYED release even when the
+// strategy under test comes from a fresh build: the working tree's
+// `sourceSql` reads `indexer_cursors.covered_through_block`, which arrives
+// with migration 3, and that migration cannot be applied while the running
+// collectors are on a release whose readiness check demands exactly two
+// migrations. Override with CONC_LIQ_SOURCE_RELEASE once they are upgraded.
+const SOURCE_RELEASE=process.env.CONC_LIQ_SOURCE_RELEASE
+  ??'/root/conc-liq-releases/ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf';
+const {sourceSql}=await import(SOURCE_RELEASE+'/dist/src/paper/store.js');
+const {readSourceRows}=await import('./sim-source.mjs');
 
 const MIN=60000;
 
@@ -131,25 +140,21 @@ for(const a of arms){a.rule.delayMs??=0;a.rule.cooldownMs??=0;a.rule.gateReentry
 const WARMUP=75*MIN;
 const START=Date.parse(process.env.SIM_START??'2026-09-08T02:00:00Z');
 const END=Date.parse(process.env.SIM_END??new Date().toISOString());
+// Calibrated modeled fee share (W0). 1,000,000 = the deployed 100% assumption.
+const FEE_PPM=Number(process.env.SIM_FEE_PPM??1000000);
 const policyFor=(name)=>({name,halfWidthsTicks:config.halfWidthsTicks,adaptive:true,economicGate:true,budget:BigInt(config.budgetQuote),
   decisionMs:config.decisionMs,quoteTtlMs:config.quoteTtlMs,slippageBps:config.slippageBps,costBufferPpm:config.costBufferPpm,feeBufferPpm:config.feeBufferPpm,
-  gasMultiplier:1,feePpm:1000000,failEveryRecenter:0,horizonMs:config.horizonMs});
+  gasMultiplier:1,feePpm:FEE_PPM,failEveryRecenter:0,horizonMs:config.horizonMs});
 
 const db=new pg.Client({connectionString:'postgresql://root@localhost/conc_liq?host=/var/run/postgresql'});
 await db.connect();
-const out={generatedAt:new Date().toISOString(),release:R,horizonMs:config.horizonMs,forecast:config.forecast,
+const out={generatedAt:new Date().toISOString(),release:R,feePpm:FEE_PPM,horizonMs:config.horizonMs,forecast:config.forecast,
   start:new Date(START).toISOString(),end:new Date(END).toISOString(),arms:arms.map(a=>({name:a.name,rule:a.rule})),assets:{}};
 try{
   for(const item of config.assets){try{
     const market=item.market,costs=Object.fromEntries(Object.entries(item.costs).map(([k,v])=>[k,BigInt(v)]));
-    let rows=[];
-    for(let attempt=0;attempt<10;attempt++){
-      const raw=(await db.query(sourceSql+' AND c.block_timestamp>=$4 ORDER BY c.block_number,c.id',[config.streamKey,market.rwa.toLowerCase(),market.pool.toLowerCase(),new Date(START-WARMUP).toISOString()])).rows;
-      rows=raw.filter(r=>r.canonical===true&&r.covered===true&&r.coverage_identity_valid===true&&Date.parse(r.checkpoint.blockTimestamp)<=END);
-      if(raw.length&&rows.length>=raw.length*0.9)break;
-      console.error(market.symbol,'coverage flake, retrying');rows=[];await new Promise(r=>setTimeout(r,3000));
-    }
-    assert(rows.length,'no covered rows');
+    const rows=await readSourceRows(db,sourceSql,{streamKey:config.streamKey,rwa:market.rwa.toLowerCase(),
+      pool:market.pool.toLowerCase(),since:new Date(START-WARMUP).toISOString(),end:END});
     const unique=[];for(const r of rows){const p=unique.at(-1);if(p?.checkpoint.block===r.checkpoint.block)unique[unique.length-1]=r;else unique.push(r);}
     const first=unique[0],cp0=first.checkpoint;
     const seedEvents=(await db.query(`SELECT event_name,event_args FROM v3_pool_events WHERE stream_key=$1 AND LOWER(pool_address)=$2 AND block_number<=$3 AND event_name IN ('Mint','Burn','SetFeeProtocol') ORDER BY block_number,transaction_index,log_index`,

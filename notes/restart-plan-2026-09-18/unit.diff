@@ -1,0 +1,10 @@
+--- ops/conc-liq-adaptive-paper.service	2026-09-16 17:11:40.712561053 +0300
++++ notes/restart-plan-2026-09-18/conc-liq-adaptive-paper.service.proposed	2026-09-18 17:22:10.412697808 +0300
+@@ -1,6 +1,6 @@
+ # Rendering template: replace @RELEASE@, @ENV@, and @STATE@ before installation.
+ [Unit]
+-Description=NVDA AAPL GOOGL 60-minute adaptive-width paper sessions
++Description=Five-book adaptive-width paper sessions with residual ranges
+ After=postgresql.service conc-liq-rpc-health.service
+ Requires=postgresql.service
+ StartLimitIntervalSec=600

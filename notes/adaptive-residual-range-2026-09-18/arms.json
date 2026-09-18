@@ -1,0 +1,7 @@
+[{"name":"baseline","rule":{"enabled":false}},
+ {"name":"residual_w10","rule":{"enabled":true,"widths":[10]}},
+ {"name":"residual_w20","rule":{"enabled":true,"widths":[20]}},
+ {"name":"residual_w40","rule":{"enabled":true,"widths":[40]}},
+ {"name":"residual_w80","rule":{"enabled":true,"widths":[80]}},
+ {"name":"residual_adaptive","rule":{"enabled":true}},
+ {"name":"residual_adaptive_livecost","rule":{"enabled":true,"costPpmOfRecenter":789000}}]

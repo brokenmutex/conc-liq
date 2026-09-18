@@ -1,0 +1,2 @@
+[{"name":"baseline","rule":{"enabled":false}},
+ {"name":"residual_adaptive","rule":{"enabled":true}}]

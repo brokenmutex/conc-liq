@@ -1,0 +1,4 @@
+[{"name":"wrapper_w20","rule":{"enabled":true,"widths":[20]}},
+ {"name":"src_w20","rule":{"enabled":true,"widths":[20],"sourcePolicy":true}},
+ {"name":"wrapper_adaptive","rule":{"enabled":true}},
+ {"name":"src_adaptive","rule":{"enabled":true,"sourcePolicy":true}}]

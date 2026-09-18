@@ -1,0 +1,2 @@
+[{"name":"baseline","rule":{"enabled":false}},
+ {"name":"exit_0m","rule":{"enabled":true,"delayMs":0,"cooldownMs":0,"gateReentry":true}}]

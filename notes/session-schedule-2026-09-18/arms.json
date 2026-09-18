@@ -1,0 +1,7 @@
+[
+ {"name":"live_60m","forecast":{"lookbackMs":3600000,"minimumSpanMs":2400000,"minimumSamples":40}},
+ {"name":"volFlat_fee15m","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"feeHalfLifeMs":900000,"weightedFeePpm":1000000}},
+ {"name":"live_60m+open_blackout","forecast":{"lookbackMs":3600000,"minimumSpanMs":2400000,"minimumSamples":40},"schedule":{"blackout":[555,600]}},
+ {"name":"volFlat_fee15m+open_blackout","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"feeHalfLifeMs":900000,"weightedFeePpm":1000000},"schedule":{"blackout":[555,600]}},
+ {"name":"volFlat_fee15m+blackout+minw40","forecast":{"lookbackMs":21600000,"minimumSpanMs":7200000,"minimumSamples":60,"feeHalfLifeMs":900000,"weightedFeePpm":1000000},"schedule":{"blackout":[555,600],"minHalfWidth":{"from":600,"to":660,"ticks":40}}}
+]
