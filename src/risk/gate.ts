@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { coverageCursorSql, hasCoverageColumn } from "../storage/coverage-column.js";
 
 export const DEFAULT_RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS = 180;
 export const DEFAULT_RISK_GATE_MAX_CANONICALITY_AGE_SECONDS = 30;
@@ -145,6 +146,7 @@ export async function readRiskGate(
   maxCanonicalityAgeSeconds: number,
   assetSymbol?: string,
 ): Promise<RiskGateDecision> {
+  const cursor = coverageCursorSql("index_cursor", await hasCoverageColumn(client));
   const result = await client.query<RiskGateDbRow>(
     `WITH latest_attempt AS (
        SELECT id, status, risk_run_id
@@ -166,9 +168,9 @@ export async function readRiskGate(
             validation.canonical AS canonicality_canonical,
             validation.validated_at AS canonicality_validated_at,
             CASE
-              WHEN COALESCE(index_cursor.covered_through_block,index_cursor.last_scanned_block) IS NULL
+              WHEN ${cursor} IS NULL
                 OR replay_cursor.complete_through_block IS NULL THEN NULL
-              ELSE COALESCE(index_cursor.covered_through_block,index_cursor.last_scanned_block) >= r.block_number
+              ELSE ${cursor} >= r.block_number
                 AND replay_cursor.complete_through_block >= r.block_number
             END AS source_covers_snapshot
      FROM (SELECT 1) seed

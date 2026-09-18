@@ -1,4 +1,5 @@
 import {paperMarket,marketTokens,marketPriceX18} from './market.js';
+import { coverageCursorSql } from "../storage/coverage-column.js";
 import {readDilutedFees} from './diluted-fees.js';
 import assert from "node:assert/strict";
 import { continuationPolicy, readPaperChain } from "./reentry.js";
@@ -36,12 +37,7 @@ export interface SourceSqlOptions {
   /** False when `indexer_cursors.covered_through_block` does not exist yet. */
   coverageColumn?: boolean;
 }
-/** True once migration 3 has added the monotone coverage cursor column. */
-export async function hasCoverageColumn(db: { query(text: string): Promise<{ rowCount: number | null }> }): Promise<boolean> {
-  const result = await db.query(
-    "SELECT 1 FROM information_schema.columns WHERE table_schema=ANY(current_schemas(false)) AND table_name='indexer_cursors' AND column_name='covered_through_block'");
-  return (result.rowCount ?? 0) > 0;
-}
+export { hasCoverageColumn } from "../storage/coverage-column.js";
 /** Source rows for one pool. The fee tier is interpolated rather than bound,
  * so the positional parameters callers append after $3 keep their numbering.
  * Only a validated V3 fee-tier integer reaches the string. */
@@ -54,9 +50,7 @@ export function sourceSqlForFee(fee: number, options: SourceSqlOptions = {}): st
   // parse time. A caller that has checked the column is absent asks for the
   // pre-migration predicate, which is exactly the old behaviour (cursor
   // readback included).
-  const cursor = options.coverageColumn === false
-    ? "i.last_scanned_block"
-    : "COALESCE(i.covered_through_block,i.last_scanned_block)";
+  const cursor = coverageCursorSql("i", options.coverageColumn !== false);
   return `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
   'hash',c.block_hash,'blockTimestamp',c.block_timestamp,'capturedAt',c.captured_at,
   'tick',p.tick,'sqrtPriceX96',p.sqrt_price_x96::text,'liquidity',p.liquidity::text,

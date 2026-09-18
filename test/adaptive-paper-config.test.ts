@@ -21,7 +21,9 @@ describe('shipped adaptive paper configurations',()=>{
   assert.equal(c.feePpm,1000000);
   assert.equal(c.forecast.lookbackMs,21600000);
   assert.equal(c.forecast.feeHalfLifeMs,900000);
-  assert.equal(c.assets.length,5);
+  // GLD-3000 was dropped on 2026-09-18: it has no oracle feed, so every decision blocks.
+  assert.equal(c.assets.length,4);
+  assert.ok(!c.assets.some(a=>a.market.symbol==='GLD'),'GLD has no oracle feed and cannot decide');
   assert.equal(c.assets.filter(a=>a.holdout).length,1,'exactly one holdout book');
   // Every band ladder must fit its own pool's grid, on both tiers.
   for(const a of c.assets){
@@ -31,7 +33,7 @@ describe('shipped adaptive paper configurations',()=>{
    for(const w of a.residualWidthsTicks??c.residualWidthsTicks??[])
     assert.equal(w%a.market.tickSpacing,0,`${a.market.symbol} residual span ${w}`);
   }
-  assert.equal(c.assets.filter(a=>a.market.fee===3000).length,2);
+  assert.equal(c.assets.filter(a=>a.market.fee===3000).length,1);
  });
  it('rejects a forecast window that cannot cover its own minimum span',()=>{
   const c=JSON.parse(readFileSync('config/adaptive-paper-60m.json','utf8'));

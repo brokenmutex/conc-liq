@@ -68,14 +68,14 @@ function adaptiveSummary(state:any,asset:any){
  const status=invalid?'invalid':pending==='recenter'||outside?'recentring':p?'open':'waiting';
  const fees=marketValue(market,BigInt(seed.price),BigInt(model.fees0),BigInt(model.fees1));
  const rangeValues=p?[marketPriceX18(market,sqrtRatioAtTick(p.tickLower)),marketPriceX18(market,sqrtRatioAtTick(p.tickUpper))].sort((a,b)=>a<b?-1:1).map(String):null;
- return {id:`paper-adaptive-${String(asset.symbol).toLowerCase()}`,label:'A-60m',mode:'paper',asset:asset.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
-  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:invalid?null:state.config.budgetQuote,feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
+ return {id:`paper-adaptive-${String(asset.symbol).toLowerCase()}`,label:`A-${Math.round((state.config.forecast?.lookbackMs??3600000)/60000)}m${state.config.residualRange?'+R':''}`,mode:'paper',asset:asset.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
+  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:asset.budgetQuote??state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:invalid?null:(asset.budgetQuote??state.config.budgetQuote),feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
   swapQuote:null,exitEstimateQuote:invalid?null:String(asset.costs.exit),drawdownPpm:invalid?null:String(model.drawdownPpm),createdAt:state.createdAt,endedAt:invalid?state.lastPollAt:null,
   sourceAt:asset.last.blockTimestamp,heartbeatAt:state.lastPollAt,reasons:invalid?[asset.reason??'adaptive_paper_invalid']:[],invalidatedAt:invalid?state.lastPollAt:null,reserveQuote:'0',
   strategy:{widthTicks:p?(p.tickUpper-p.tickLower)/2:null,adaptiveHalfWidthsTicks:state.config.halfWidthsTicks,forecast:state.config.forecast,horizonMs:state.config.horizonMs,economicGate:true,outOfRangeTrigger:true,referenceTolerancePpm:50000,live:false},
   range:rangeValues,priceQuoteX18:String(marketPriceX18(market,BigInt(seed.price))),inventory:{usdg:String(balances.quote),nvda:String(balances.rwa),exposurePpm:String(gross>0n?stock*1000000n/gross:0n)},
   tokenId:null,accounting:invalid?'invalid':'modeled',nextAction:status==='waiting'?(pending==='entry'?'Entry quoted; awaiting a later covered source':'Adaptive entry requires a feasible forecast and healthy guards'):status==='recentring'?'Adaptive range move pending':null,
-  adaptive:{entries:model.entries,recenters:model.recenters,recenterAttempts:model.recenterAttempts,decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked,actions:model.actions,currentRange:p?{tickLower:p.tickLower,tickUpper:p.tickUpper}:null}};
+  adaptive:{holdout:asset.holdout??false,residuals:model.residuals??0,entries:model.entries,recenters:model.recenters,recenterAttempts:model.recenterAttempts,decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked,actions:model.actions,currentRange:p?{tickLower:p.tickLower,tickUpper:p.tickUpper}:null}};
 }
 async function adaptivePositions(path?:string){const state=await adaptiveState(path);return state?.assets?.map((asset:any)=>adaptiveSummary(state,asset))??[];}
 export function liveSummary(r:any){
