@@ -142,6 +142,21 @@ pre-migration `last_scanned_block` predicate. The other readers of that column
 `src/live-pilot/guard.ts`) are unchanged and still require migration 3 before
 their releases are upgraded.
 
+**Dashboard, same evening.** The paper unit was enabled on release
+`9fed9384…` (four books). The dashboard could not follow: every worker except
+the adaptive-paper runner calls `assertSchemaReady`, which requires exactly
+`REQUIRED_SCHEMA_VERSION` migration rows, so a dashboard built from this tree
+refuses the unmigrated database outright (release `c70210f3…`, commit
+`4e0cc26`, is built and smoke-tested to that failure). The running dashboard
+release `f602f6a1…` (commit `ffd2c86`) was pointed at the new state via
+`ADAPTIVE_PAPER_STATE_PATH` instead. Its adaptive panel predates per-asset
+budgets, so it labels every book `A-60m` and shows 1,000 USDG initial capital
+for the 2,500 USDG books; NAV, fees, gas, decisions and blocks are right. The
+accurate panel ships with the migration-3 upgrade (§4 steps 1–5), which also
+has to carry `conc-liq-rpc-health`, `conc-liq-accounting`,
+`conc-liq-perp-reference` and `conc-liq-paper-assets-checkpoint`, because
+they run the same schema check.
+
 ## 5. Go/no-go checklist
 
 Each item is either satisfied now, or is a step to take, or is a decision for
