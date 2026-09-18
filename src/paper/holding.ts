@@ -3,7 +3,14 @@ import type { PaperCurrentRiskRead } from './reference.js';
 import { evaluatePaperCurrentRisk } from './reference.js';
 
 export interface PaperHoldingPolicy {
-  kind: 'bounded_infrastructure_v1'; maxLagBlocks: 30; chainPauseSeconds: 60; riskPauseSeconds: 30;
+  kind: 'bounded_infrastructure_v1';
+  /** Hard lag limit, unchanged. */
+  maxLagBlocks: 30;
+  /** Budgets for a transient chain fault and for a late risk proof. Both were
+   * frozen literals set below the cadence of the producers they bound: over
+   * 13.9 days the risk snapshot interval itself exceeded 30 s in 36% of
+   * intervals, so a single late run spent the whole allowance. */
+  chainPauseSeconds: number; riskPauseSeconds: number;
 }
 export interface PaperHoldingState {
   checkedAt: string;

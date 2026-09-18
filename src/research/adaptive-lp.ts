@@ -5,10 +5,17 @@ import {solveRecenterSwap,assertRecenterPrice} from '../paper/execution-recenter
 import {replayPaperMint} from './management-audit.js';
 import {historicalSwapQuote} from './portfolio-math.js';
 import {virtualFeeCredit} from './virtual-fees.js';
-import {forecastPortfolio,type ForecastStats,type ForecastPortfolio} from './adaptive-forecast.js';
+import {forecastPortfolio,bandOccupancy,bandTraverseProbability,forecastCenterTick,
+  type ForecastStats,type ForecastPortfolio} from './adaptive-forecast.js';
 import type {FeeSegment,SwapSource} from './swap.js';
 import type {AssetReplayCosts} from './asset-replay.js';
-export interface ResearchLpCosts extends AssetReplayCosts {holdExit:bigint}
+export interface ResearchLpCosts extends AssetReplayCosts {
+  holdExit:bigint;
+  /** Withdraw + collect + mint, with no swap and no router approval. Absent,
+   * it is derived from the other frozen costs: withdraw = recenter - entry and
+   * mint = recenter - exit, so residual = 2*recenter - entry - exit. */
+  residual?:bigint;
+}
 
 type Range={tickLower:number;tickUpper:number};
 type Position=Range&{liquidity:bigint;fee0:bigint;fee1:bigint};
@@ -16,6 +23,14 @@ export interface AdaptivePolicy {
   name:string;halfWidthsTicks:readonly number[];adaptive:boolean;economicGate:boolean;
   budget:bigint;decisionMs:number;quoteTtlMs:number;horizonMs:number;slippageBps:number;
   costBufferPpm:number;feeBufferPpm:number;gasMultiplier:number;feePpm:number;failEveryRecenter:number;
+  /** Redeploy an out-of-range position as a one-sided band adjacent to the
+   * current tick, funded without a swap, when the recenter gate declines.
+   * Off by default; see notes/adaptive-residual-range-2026-09-18.md. */
+  residualRange?:boolean;
+  /** Candidate spans for that band, in ticks. Defaults to `halfWidthsTicks`.
+   * A residual band's whole span is its label, unlike a two-sided band's
+   * half-width, so the same list describes bands half as wide. */
+  residualWidthsTicks?:readonly number[];
 }
 export interface ResearchSource extends SwapSource {block:string;at:number}
 interface Plan extends Range {
@@ -32,20 +47,33 @@ const recordBalances=(b:{amount0:bigint;amount1:bigint})=>({amount0:String(b.amo
 export class AdaptiveLpReplay {
   cash0:bigint;cash1:bigint;position:Position|null=null;pending:Pending|null=null;
   gas=0n;fees0=0n;fees1=0n;allocationGap0=0n;allocationGap1=0n;partialSegments=0;
-  entries=0;recenters=0;recenterAttempts=0;failures=0;rejected:Record<string,number>={};
+  entries=0;recenters=0;recenterAttempts=0;failures=0;residuals=0;rejected:Record<string,number>={};
   last: {at:number;outside:boolean;holding:boolean;deployment:bigint;exposure:bigint}|null=null;
   firstAt:number|null=null;lastDecision:number|null=null;cooldownUntil=0;
   peak:bigint;drawdownPpm=0n;maxExposurePpm=0n;maxLiquidityRatioPpm=0n;
   holdingMs=0;outsideMs=0;totalMs=0;deploymentPpmMs=0n;exposurePpmMs=0n;gapMs=0;
   invalid:string|null=null;actions:Record<string,unknown>[]=[];scores:Record<string,unknown>[]=[];
   constructor(readonly market:PaperMarket,readonly costs:ResearchLpCosts,readonly policy:AdaptivePolicy){
-    assert(policy.budget>0n&&policy.halfWidthsTicks.length>0&&market.fee===500&&market.tickSpacing===10);
+    // Any V3 fee tier and tick grid. `marketRange` rounds to the market's own
+    // spacing and `halfWidthsTicks` must fit it, so a 3000/60 book supplies
+    // 60/120/240/480/960 in place of 10/20/40/80/160.
+    assert(policy.budget>0n&&policy.halfWidthsTicks.length>0);
+    assert(Number.isInteger(market.fee)&&market.fee>0&&market.fee<1000000,'Pool fee outside the V3 domain');
+    assert(Number.isInteger(market.tickSpacing)&&market.tickSpacing>0,'Pool tick spacing must be a positive integer');
     assert(policy.halfWidthsTicks.every(w=>Number.isInteger(w)&&w>0&&w%market.tickSpacing===0));
+    assert((policy.residualWidthsTicks??[]).every(w=>Number.isInteger(w)&&w>0&&w%market.tickSpacing===0),
+      'Residual band spans must fit the pool tick spacing');
     assert(policy.gasMultiplier>=1&&Number.isInteger(policy.gasMultiplier));
     assert(policy.feePpm>=0&&policy.feePpm<=1000000);
     const b=canonicalBalances(market,policy.budget,0n);this.cash0=b.amount0;this.cash1=b.amount1;this.peak=policy.budget;
   }
-  cost(kind:keyof ResearchLpCosts){return this.costs[kind]*BigInt(this.policy.gasMultiplier);}
+  cost(kind:keyof ResearchLpCosts){
+    const base=kind==='residual'&&this.costs.residual===undefined
+      ? 2n*this.costs.recenter-this.costs.entry-this.costs.exit
+      : this.costs[kind]!;
+    assert(base>0n,`Cost ${kind} is not positive`);
+    return base*BigInt(this.policy.gasMultiplier);
+  }
   balances(m:SwapSource){
     const p=this.position,a=p?principalAmounts({...p,sqrtPriceX96:m.price}):{amount0:0n,amount1:0n};
     return {amount0:this.cash0+a.amount0+(p?p.fee0/Q128:0n),amount1:this.cash1+a.amount1+(p?p.fee1/Q128:0n)};
@@ -132,6 +160,10 @@ export class AdaptiveLpReplay {
       const b=this.balances(m),plan=best.plan;
       this.pending={plan,at:m.at,block:m.block,reference:m.price,maxInput:plan.token===0?b.amount0:plan.token===1?b.amount1:0n,kind,score};
     }catch(e){this.reject(e instanceof Error?e.message:'quote_failed');}
+    // The gate has had its say. A position it declined to recenter is one-sided
+    // and earning nothing; redeploying it costs a fraction of a recenter and
+    // needs no swap.
+    if(this.policy.residualRange&&!this.pending&&!this.invalid&&stats)await this.residualStep(m,stats);
   }
   async fill(m:ResearchSource,stats:ForecastStats|null){
     const pending=this.pending!;
@@ -146,10 +178,17 @@ export class AdaptiveLpReplay {
       assert(plan.amount<=pending.maxInput,'frozen_input_budget');
       assertRecenterPrice(plan.price,pending.reference,this.policy.slippageBps);
       if(plan.token!==null)assert(plan.amountOut*pending.plan.amount*10000n>=pending.plan.amountOut*plan.amount*BigInt(10000-this.policy.slippageBps),'frozen_swap_minimum');
-      // Recenter follows the bounded adaptive funding convention; entry retains
-      // its quote's mint minima. Both use a later source and the frozen range.
-      if(pending.kind==='entry')for(const token of [0,1] as const)
-        assert(plan.mint[`amount${token}`]*10000n>=pending.plan.mint[`amount${token}`]*BigInt(10000-this.policy.slippageBps),'frozen_mint_minimum');
+      // Entry is bounded on the liquidity the re-planned mint produces, not on
+      // the quote's per-leg amounts. A two-sided mint funded from cash needs a
+      // swap, so a few ticks of drift between quote and fill move the legs
+      // arbitrarily far apart while the deployed liquidity barely moves: over
+      // the live pilot's 43 mints the worst per-leg deviation from plan was
+      // 9,999 bps and the worst liquidity deviation 17.9 bps, with none above
+      // 50. The old per-leg check rejected 30 of 31 gated re-entries. The
+      // recenter path is unchanged and still carries no mint bound of its own;
+      // both kinds keep the frozen swap minimum above.
+      if(pending.kind==='entry')
+        assert(plan.mint.liquidity*10000n>=pending.plan.mint.liquidity*BigInt(10000-this.policy.slippageBps),'frozen_mint_minimum');
       if(this.policy.economicGate&&pending.kind==='recenter'){
         assert(stats,'fill_forecast_unavailable');
         const keep=forecastPortfolio(this.market,m,this.portfolio(),stats,this.policy.horizonMs,this.cost('exit'),this.policy.feePpm,this.cost('recenter'));
@@ -178,6 +217,72 @@ export class AdaptiveLpReplay {
         tickLower:plan.tickLower,tickUpper:plan.tickUpper,liquidity:fail?'0':String(plan.mint.liquidity),minted0:fail?'0':String(plan.mint.amount0),minted1:fail?'0':String(plan.mint.amount1)});
     }catch(e){this.reject(e instanceof Error?e.message:'preflight_failed');}
   }
+  /** 1 when the position holds only token1 (tick at or above tickUpper), 0
+   * when only token0 (tick below tickLower), null when it is in range. */
+  heldToken(m:SwapSource):0|1|null{
+    const p=this.position;if(!p)return null;
+    if(m.tick>=p.tickUpper)return 1;
+    if(m.tick<p.tickLower)return 0;
+    return null;
+  }
+  /** The closest swap-free band on the side of the token already held. A
+   * token1 position needs the whole band at or below the tick; a token0
+   * position needs it strictly above. */
+  residualRange(m:SwapSource,span:number,token:0|1):Range{
+    const s=this.market.tickSpacing,base=Math.floor(m.tick/s)*s;
+    return token===1?{tickLower:base-span,tickUpper:base}:{tickLower:base+s,tickUpper:base+s+span};
+  }
+  /** Fee value for a hypothetical band at current depth, mirroring the fee
+   * term of `forecastPortfolio` with unstopped occupancy in its place. */
+  private bandFees(m:SwapSource,stats:ForecastStats,liquidity:bigint,occupancy:number){
+    if(m.liquidity===0n||liquidity<=0n)return 0n;
+    const occ=BigInt(Math.round(occupancy*1000000));
+    const fee=(token:0|1)=>(token===0?stats.growth0:stats.growth1)*BigInt(this.policy.horizonMs)*liquidity*m.liquidity*occ*BigInt(this.policy.feePpm)/
+      (BigInt(stats.spanMs)*Q128*(m.liquidity+liquidity)*1000000n*1000000n);
+    return marketValue(this.market,m.price,fee(0),fee(1));
+  }
+  /** Redeploy a one-sided position into an adjacent band with no swap. The
+   * inventory is identical either way, so there is no keep-versus-move
+   * terminal comparison: the gate is forecast fees against the action's own
+   * cost plus buffer, net of what keeping the current band already forecasts. */
+  async residualStep(m:ResearchSource,stats:ForecastStats){
+    const token=this.heldToken(m);
+    if(token===null||!this.position)return;
+    const center=forecastCenterTick(m.price),variance=stats.varianceTicksPerMs*this.policy.horizonMs;
+    const cost=this.cost('residual');
+    let best:{span:number;range:Range;mint:ReturnType<typeof replayPaperMint>;fees:bigint;charge:bigint;net:bigint}|null=null;
+    for(const span of this.policy.residualWidthsTicks??this.policy.halfWidthsTicks){
+      try{
+        const range=this.residualRange(m,span,token);
+        const b=this.balances(m),mint=replayPaperMint(m.price,range,b.amount0,b.amount1,0n);
+        if(mint.liquidity<=0n)continue;
+        const fees=this.bandFees(m,stats,mint.liquidity,bandOccupancy(center,range.tickLower,range.tickUpper,variance));
+        const charge=cost*BigInt(Math.round(bandTraverseProbability(center,range.tickLower,range.tickUpper,variance,token)*1000000))/1000000n;
+        const net=fees-charge;
+        if(!best||net>best.net)best={span,range,mint,fees,charge,net};
+      }catch{/* One infeasible span must not exclude the other candidates. */}
+    }
+    if(!best){this.reject('residual_infeasible');return;}
+    const p=this.position;
+    const keep=this.bandFees(m,stats,p.liquidity,bandOccupancy(center,p.tickLower,p.tickUpper,variance));
+    const benefit=best.fees-best.charge-keep;
+    const buffer=cost*BigInt(this.policy.costBufferPpm)/1000000n;
+    this.scores.push({at:m.at,asOf:stats.asOf,kind:'residual',span:best.span,benefitQuote:String(benefit),
+      bufferQuote:String(cost+buffer),accepted:benefit>cost+buffer});
+    if(benefit<=cost+buffer){this.reject('residual_gate');return;}
+    const before=this.balances(m);
+    this.gas+=cost;
+    this.cash0=best.mint.idle0;this.cash1=best.mint.idle1;
+    this.position={tickLower:best.range.tickLower,tickUpper:best.range.tickUpper,liquidity:best.mint.liquidity,fee0:0n,fee1:0n};
+    this.residuals++;
+    this.actions.push({at:m.at,block:m.block,kind:'residual',span:best.span,
+      before:recordBalances(before),afterSwap:recordBalances(before),
+      idle:recordBalances({amount0:this.cash0,amount1:this.cash1}),
+      token:null,amountIn:'0',amountOut:'0',gasQuote:String(cost),
+      tickLower:best.range.tickLower,tickUpper:best.range.tickUpper,
+      liquidity:String(best.mint.liquidity),minted0:String(best.mint.amount0),minted1:String(best.mint.amount1)});
+    this.mark(m);
+  }
   summary(m:ResearchSource,hold:{amount0:bigint;amount1:bigint}){
     this.mark(m);
     const b=this.balances(m),q0=marketTokens(this.market).quoteIsToken0;
@@ -191,7 +296,7 @@ export class AdaptiveLpReplay {
     const needsExit=!!this.position||(q0?b.amount1:b.amount0)>0n,exitCost=needsExit?this.cost('exit'):0n;
     const terminal=close(b,this.gas,exitCost),holding=close(hold,this.cost('hold'),this.cost('holdExit'));
     const marked=marketValue(this.market,m.price,b.amount0,b.amount1)-this.gas;
-    return {name:this.policy.name,fromAt:this.firstAt,toAt:m.at,entries:this.entries,recenters:this.recenters,recenterAttempts:this.recenterAttempts,partialFailures:this.failures,
+    return {name:this.policy.name,fromAt:this.firstAt,toAt:m.at,entries:this.entries,recenters:this.recenters,recenterAttempts:this.recenterAttempts,partialFailures:this.failures,residuals:this.residuals,
       markedNavQuote:String(marked),terminalCashQuote:terminal===null?null:String(terminal),holdTerminalCashQuote:holding===null?null:String(holding),
       netPnlQuote:terminal===null?null:String(terminal-this.policy.budget),alphaQuote:terminal===null||holding===null?null:String(terminal-holding),
       terminalExitCostQuote:String(exitCost),gasPaidQuote:String(this.gas),totalGasWithExitQuote:String(this.gas+exitCost),

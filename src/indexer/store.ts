@@ -19,6 +19,7 @@ interface CursorRow {
   next_block: string;
   last_scanned_block: string | null;
   last_scanned_hash: Hash | null;
+  covered_through_block: string | null;
 }
 
 interface CheckpointRow {
@@ -35,6 +36,9 @@ function cursorFromRow(row: CursorRow): IndexerCursor {
       ? null
       : BigInt(row.last_scanned_block),
     lastScannedHash: row.last_scanned_hash,
+    coveredThroughBlock: row.covered_through_block === null
+      ? null
+      : BigInt(row.covered_through_block),
     nextBlock: BigInt(row.next_block),
     streamKey: row.stream_key,
     targetSetHash: row.target_set_hash,
@@ -160,7 +164,8 @@ export class PostgresEventStore {
   public async getCursor(streamKey: string): Promise<IndexerCursor | null> {
     const result = await this.pool.query<CursorRow>(
       `SELECT stream_key, chain_id, target_set_hash, next_block,
-              last_scanned_block, last_scanned_hash
+              last_scanned_block, last_scanned_hash,
+              COALESCE(covered_through_block, last_scanned_block) AS covered_through_block
        FROM indexer_cursors WHERE stream_key = $1`,
       [streamKey],
     );
@@ -208,17 +213,27 @@ export class PostgresEventStore {
         [streamKey, fromBlock.toString()],
       );
       const anchorRow = anchor.rows[0];
+      // `last_scanned_block` is the reorg anchor and follows the surviving
+      // checkpoint rows, which are sparse. Coverage is a separate, monotone
+      // high-water mark: this call invalidated everything at or above
+      // `fromBlock` and nothing below it, so coverage ends at fromBlock - 1.
+      // Pointing coverage at the anchor instead made every consumer read no
+      // coverage at all for the ~1 s each tail cycle spends re-scanning its
+      // reorg overlap.
       await client.query(
         `INSERT INTO indexer_cursors (
            stream_key, chain_id, target_set_hash, next_block,
-           last_scanned_block, last_scanned_hash
-         ) VALUES ($1,$2,$3,$4,$5,$6)
+           last_scanned_block, last_scanned_hash, covered_through_block
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (stream_key) DO UPDATE SET
            chain_id = EXCLUDED.chain_id,
            target_set_hash = EXCLUDED.target_set_hash,
            next_block = EXCLUDED.next_block,
            last_scanned_block = EXCLUDED.last_scanned_block,
            last_scanned_hash = EXCLUDED.last_scanned_hash,
+           covered_through_block = LEAST(
+             COALESCE(indexer_cursors.covered_through_block, indexer_cursors.last_scanned_block, EXCLUDED.covered_through_block),
+             EXCLUDED.covered_through_block),
            updated_at = NOW()`,
         [
           streamKey,
@@ -227,6 +242,7 @@ export class PostgresEventStore {
           fromBlock.toString(),
           anchorRow?.block_number ?? null,
           anchorRow?.block_hash ?? null,
+          (fromBlock > 0n ? fromBlock - 1n : 0n).toString(),
         ],
       );
       await client.query("COMMIT");
@@ -269,17 +285,22 @@ export class PostgresEventStore {
           chunk.checkpoint.timestamp,
         ],
       );
+      // A saved chunk only ever extends coverage. A stale or out-of-order
+      // writer must not be able to move the high-water mark backwards; only
+      // `rewind` lowers it, and only to the block it invalidated.
       await client.query(
         `INSERT INTO indexer_cursors (
            stream_key, chain_id, target_set_hash, next_block,
-           last_scanned_block, last_scanned_hash
-         ) VALUES ($1,$2,$3,$4,$5,$6)
+           last_scanned_block, last_scanned_hash, covered_through_block
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7)
          ON CONFLICT (stream_key) DO UPDATE SET
            chain_id = EXCLUDED.chain_id,
            target_set_hash = EXCLUDED.target_set_hash,
            next_block = EXCLUDED.next_block,
            last_scanned_block = EXCLUDED.last_scanned_block,
            last_scanned_hash = EXCLUDED.last_scanned_hash,
+           covered_through_block = GREATEST(
+             COALESCE(indexer_cursors.covered_through_block, 0), EXCLUDED.covered_through_block),
            updated_at = NOW()`,
         [
           chunk.streamKey,
@@ -288,6 +309,7 @@ export class PostgresEventStore {
           (chunk.toBlock + 1n).toString(),
           chunk.toBlock.toString(),
           chunk.checkpoint.hash,
+          chunk.toBlock.toString(),
         ],
       );
       await client.query("COMMIT");

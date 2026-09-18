@@ -14,6 +14,7 @@ function cursor(overrides: Partial<IndexerCursor> = {}): IndexerCursor {
     chainId: 4663,
     lastScannedBlock: 2_999n,
     lastScannedHash: hash,
+    coveredThroughBlock: 2_999n,
     nextBlock: 3_000n,
     streamKey: "test",
     targetSetHash: hash,

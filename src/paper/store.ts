@@ -32,7 +32,14 @@ interface SourceRow {
   canonical: boolean; covered: boolean; coverage_identity_valid: boolean; asset_reasons: string[] | null;
   asset_eligible: boolean | null; deviation_ppm: string | null;
 }
-export const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
+/** Source rows for one pool. The fee tier is interpolated rather than bound,
+ * so the positional parameters callers append after $3 keep their numbering.
+ * Only a validated V3 fee-tier integer reaches the string. */
+export function sourceSqlForFee(fee: number): string {
+  if (!Number.isInteger(fee) || fee <= 0 || fee >= 1_000_000) {
+    throw new Error("Pool fee outside the V3 domain");
+  }
+  return `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
   'hash',c.block_hash,'blockTimestamp',c.block_timestamp,'capturedAt',c.captured_at,
   'tick',p.tick,'sqrtPriceX96',p.sqrt_price_x96::text,'liquidity',p.liquidity::text,
   'feeGrowth0',p.fee_growth_global0_x128::text,'feeGrowth1',p.fee_growth_global1_x128::text,
@@ -41,14 +48,14 @@ export const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.bl
   a.execution_eligible AS asset_eligible,a.reasons AS asset_reasons,
   (v.canonical IS TRUE AND v.block_number=c.block_number AND LOWER(v.expected_hash)=LOWER(c.block_hash)
     AND LOWER(v.observed_hash)=LOWER(c.block_hash)) AS canonical,
-  (i.last_scanned_block>=c.block_number AND r.complete_through_block>=c.block_number
+  (COALESCE(i.covered_through_block,i.last_scanned_block)>=c.block_number AND r.complete_through_block>=c.block_number
     AND i.chain_id=c.chain_id AND r.chain_id=c.chain_id AND i.target_set_hash=c.target_set_hash
     AND r.target_set_hash=c.target_set_hash AND t.target_set_hash=c.target_set_hash AND t.enabled
-    AND t.chain_id=4663 AND t.fee=500 AND LOWER(t.rwa_address)=$2
+    AND t.chain_id=4663 AND t.fee=${fee} AND LOWER(t.rwa_address)=$2
     AND t.created_block<=c.block_number) AS covered,
   (i.chain_id=c.chain_id AND r.chain_id=c.chain_id AND i.target_set_hash=c.target_set_hash
     AND r.target_set_hash=c.target_set_hash AND t.target_set_hash=c.target_set_hash AND t.enabled
-    AND t.chain_id=4663 AND t.fee=500 AND LOWER(t.rwa_address)=$2
+    AND t.chain_id=4663 AND t.fee=${fee} AND LOWER(t.rwa_address)=$2
     AND t.created_block<=c.block_number) AS coverage_identity_valid
  FROM v3_strategy_checkpoint_runs c JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id=c.id
  LEFT JOIN risk_snapshot_canonicality v ON v.risk_run_id=c.risk_run_id
@@ -56,8 +63,11 @@ export const sourceSql = `SELECT jsonb_build_object('id',c.id::text,'block',c.bl
  LEFT JOIN indexer_cursors i ON i.stream_key=c.stream_key
  LEFT JOIN v3_replay_cursors r ON r.stream_key=c.stream_key
  LEFT JOIN indexer_pools t ON t.stream_key=c.stream_key AND LOWER(t.pool_address)=$3
- WHERE c.stream_key=$1 AND c.chain_id=4663 AND LOWER(p.pool_address)=$3 AND p.fee=500
+ WHERE c.stream_key=$1 AND c.chain_id=4663 AND LOWER(p.pool_address)=$3 AND p.fee=${fee}
    AND p.rwa_symbol=t.rwa_symbol AND LOWER(p.rwa_address)=$2`;
+}
+/** The fee-500 books this module was written for. */
+export const sourceSql = sourceSqlForFee(500);
 
 export class PaperStore {
   private readonly pool: pg.Pool;

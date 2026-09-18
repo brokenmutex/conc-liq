@@ -24,8 +24,9 @@ function sample(t:number, reasons:string[]=[], recovery=false){
 type Risk=ReturnType<typeof evaluatePaperCurrentRisk>;
 const good={eligible:true,reasons:[],evidence:{failedChecks:[]}} as unknown as Risk;
 const stale={eligible:false,reasons:['paper_current_risk_evidence_unavailable'],evidence:{failedChecks:['canonical_validation_age']}} as unknown as Risk;
-function step(t:number,samples:ReturnType<typeof sample>[],previous?:PaperHoldingState,risk=good,riskRead:PaperCurrentRiskRead|null=null){
- return advanceHolding({now:at(t),samples,previous,risk,riskRead,policy});
+function step(t:number,samples:ReturnType<typeof sample>[],previous?:PaperHoldingState,risk=good,riskRead:PaperCurrentRiskRead|null=null,
+ override:PaperHoldingPolicy=policy){
+ return advanceHolding({now:at(t),samples,previous,risk,riskRead,policy:override});
 }
 describe('bounded holding incidents',()=>{
  it('classifies the recorded twelve later chain incidents without inventing missing hashes',()=>{
@@ -142,4 +143,39 @@ it('live holding risk does not disappear while indexed fee events catch up',asyn
  assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:true,coverage_identity_valid:true,covered:false} as never]),cp);
  assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:false,coverage_identity_valid:true}]),undefined);
  assert.equal(pilotRiskCheckpoint([{checkpoint:cp,canonical:true,coverage_identity_valid:false}]),undefined);
+});
+
+// --- W4.3: pause allowances are configured, not frozen at 60/30 ------------
+describe('configurable pause allowances',()=>{
+ const wide:PaperHoldingPolicy={...policy,chainPauseSeconds:300,riskPauseSeconds:300};
+ it('holds through a transient chain fault that the 60-second budget would exit',()=>{
+  const fault=['private_confirmed_anchor_unavailable'];
+  // A 100-second fault: past the deployed 60-second budget, inside 300.
+  const samples=[sample(0),...Array.from({length:10},(_,i)=>sample(10+i*10,fault))];
+  let tight=step(0,[sample(0)]),loose=tight;
+  for(let i=0;i<=10;i++){
+   const window=samples.filter(x=>Date.parse(x.snapshot.observedAt)<=Date.parse(at(i*10)));
+   tight=step(i*10,window,tight);
+   loose=step(i*10,window,loose,good,null,wide);
+  }
+  assert(tight.exitReasons.includes('paper_chain_pause_expired'));
+  assert(!loose.exitReasons.includes('paper_chain_pause_expired'),JSON.stringify(loose.exitReasons));
+  assert(loose.reasons.includes('paper_holding_chain_pause'),'the wider budget still pauses, it just does not exit');
+ });
+ it('holds through a risk proof that arrives later than the producer cadence',()=>{
+  // The risk producer's own interval exceeded 30 s in 36% of 50,358 intervals
+  // over 13.9 days, so a single late run spent the deployed allowance.
+  const late=(policyUsed:PaperHoldingPolicy)=>{
+   let state=step(0,[sample(0)],undefined,stale,null,policyUsed);
+   state=step(60,[sample(0),sample(60)],state,stale,null,policyUsed);
+   return step(120,[sample(0),sample(60),sample(120)],state,good,null,policyUsed);
+  };
+  assert(late(policy).exitReasons.includes('paper_risk_pause_expired'));
+  assert(!late(wide).exitReasons.includes('paper_risk_pause_expired'),JSON.stringify(late(wide).exitReasons));
+ });
+ it('leaves the hard lag limit alone',()=>{
+  const hard=holdingChainFault(sample(0,['private_block_lag_hard']).snapshot,policy.maxLagBlocks);
+  assert(hard.hard.includes('private_block_lag_hard'),'a hard lag fault is not covered by any pause budget');
+  assert.equal(policy.maxLagBlocks,30);
+ });
 });

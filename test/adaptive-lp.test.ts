@@ -121,3 +121,178 @@ test('adaptive width selection widens with trailing volatility and tightens in f
   assert(previous>=80);
  }
 });
+
+// --- W3: any V3 fee tier and tick grid -------------------------------------
+test('a 3000-tier, spacing-60 market runs the same policy on its own grid',async()=>{
+ const market={...NVDA_PAPER_MARKET,fee:3000,tickSpacing:60};
+ const depth3000=10n**18n;
+ const src=(tick:number,at:number,block=String(at+1)):ResearchSource=>({price:sqrt(tick),tick,at,block,liquidity:depth3000,
+  fee:3000,spacing:60,ticks:[-6000,6000],net:t=>t===-6000?depth3000:t===6000?-depth3000:0n});
+ const wide:AdaptivePolicy={...policy,name:'fixed_120',halfWidthsTicks:[120]};
+ const m=new AdaptiveLpReplay(market,costs,wide);
+ await m.step(src(0,0),null);assert(m.pending,JSON.stringify(m.rejected));
+ // The chosen band is centred on the 60-tick grid, not the 10-tick grid.
+ assert.equal(Math.abs(m.pending.plan.tickLower%60),0);assert.equal(Math.abs(m.pending.plan.tickUpper%60),0);
+ assert.equal(m.pending.plan.tickUpper-m.pending.plan.tickLower,240);
+ await m.step(src(0,60000),null);assert.equal(m.entries,1);
+ // Half-widths that do not fit the grid are rejected outright.
+ assert.throws(()=>new AdaptiveLpReplay(market,costs,{...policy,halfWidthsTicks:[10]}),/assert/i);
+ // Fee tiers outside the V3 domain remain rejected.
+ assert.throws(()=>new AdaptiveLpReplay({...market,fee:0},costs,wide),/V3 domain/);
+ assert.throws(()=>new AdaptiveLpReplay({...market,tickSpacing:0},costs,wide),/positive integer/);
+});
+test('the experiment book replays a swap with its own fee tier and spacing',async()=>{
+ const {ExperimentMarket}=await import('../src/experiment/market.js');
+ const seed={price:String(sqrt(0)),tick:0,liquidity:'1000000000000000000',global0:'0',global1:'0',protocol0:0,protocol1:0,
+  fee:3000,spacing:60,ticks:[{tick:-6000,gross:'1000000000000000000',net:'1000000000000000000'},
+   {tick:6000,gross:'1000000000000000000',net:'-1000000000000000000'}]};
+ const book=new ExperimentMarket(seed);
+ assert.equal(book.source().fee,3000);assert.equal(book.source().spacing,60);
+ assert.equal(book.seed().fee,3000);assert.equal(book.seed().spacing,60);
+ // Seeds written before 3000-tier support carry no tier and stay fee-500/10.
+ const {fee,spacing,...legacy}=seed;
+ const old=new ExperimentMarket(legacy);
+ assert.equal(old.source().fee,500);assert.equal(old.source().spacing,10);
+});
+
+// --- W4.1: cash-funded entry fills -----------------------------------------
+test('an entry fill is bounded on deployed liquidity, not on the quote per-leg amounts',async()=>{
+ // A wide book so a large tick move between quote and fill stays quotable.
+ const wide=(tick:number,at:number,block=String(at+1)):ResearchSource=>({price:sqrt(tick),tick,at,block,liquidity:depth,
+  fee:500,spacing:10,ticks:[-100000,100000],net:t=>t===-100000?depth:t===100000?-depth:0n});
+ const entry:AdaptivePolicy={...policy,name:'entry_160',halfWidthsTicks:[160],slippageBps:50};
+ const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,costs,entry);
+ await m.step(wide(0,0),null);assert(m.pending);
+ const quoted=m.pending.plan.mint;
+ // Drift the price well inside the frozen band before the fill.
+ await m.step(wide(30,60000),null);
+ assert.equal(m.entries,1,JSON.stringify(m.rejected));
+ const filled=m.actions.at(-1)!;
+ const legMoved=[0,1].some(t=>{
+  const q=BigInt(quoted[`amount${t}` as 'amount0']),f=BigInt(filled[`minted${t}`] as string);
+  return q>0n&&(q>f?q-f:f-q)*10000n>q*50n;
+ });
+ assert(legMoved,'the drift must move at least one leg past the old per-leg bound');
+ assert(BigInt(filled.liquidity as string)*10000n>=quoted.liquidity*BigInt(10000-50));
+});
+test('an entry fill still fails when the re-planned mint loses more liquidity than the bound allows',async()=>{
+ const wide=(tick:number,at:number,block=String(at+1)):ResearchSource=>({price:sqrt(tick),tick,at,block,liquidity:depth,
+  fee:500,spacing:10,ticks:[-100000,100000],net:t=>t===-100000?depth:t===100000?-depth:0n});
+ const entry:AdaptivePolicy={...policy,name:'entry_160',halfWidthsTicks:[160],slippageBps:50};
+ const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,costs,entry);
+ await m.step(wide(0,0),null);assert(m.pending);
+ // Inside the frozen 50-bps price band the re-plan never loses 50 bps of
+ // liquidity -- that is the point of the bound -- so raise the quoted
+ // liquidity to put the fill under it.
+ m.pending.plan.mint.liquidity=m.pending.plan.mint.liquidity*2n;
+ await m.step(wide(30,60000),null);
+ assert.equal(m.entries,0);
+ assert.equal(m.rejected.frozen_mint_minimum,1,JSON.stringify(m.rejected));
+});
+test('a drifted entry fill deploys the liquidity it quoted while both legs move far past the old bound',async()=>{
+ const wide=(tick:number,at:number,block=String(at+1)):ResearchSource=>({price:sqrt(tick),tick,at,block,liquidity:depth,
+  fee:500,spacing:10,ticks:[-100000,100000],net:t=>t===-100000?depth:t===100000?-depth:0n});
+ const entry:AdaptivePolicy={...policy,name:'entry_160',halfWidthsTicks:[160],slippageBps:50};
+ for(const drift of [5,10,20,30]){
+  const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,costs,entry);
+  await m.step(wide(0,0),null);assert(m.pending);
+  const quoted=m.pending.plan.mint;
+  await m.step(wide(drift,60000),null);
+  assert.equal(m.entries,1,`drift ${drift}: ${JSON.stringify(m.rejected)}`);
+  const filled=m.actions.at(-1)!;
+  // Legs move by hundreds to thousands of bps; liquidity moves by single bps
+  // and never downward here. The old per-leg check failed every one of these.
+  const worstLeg=Math.max(...[0,1].map(t=>{
+   const q=BigInt(quoted[`amount${t}` as 'amount0']),f=BigInt(filled[`minted${t}`] as string);
+   return q>0n?Math.abs(Number((q-f)*10000n/q)):0;
+  }));
+  assert(worstLeg>50,`drift ${drift} moved no leg past the old bound`);
+  assert(BigInt(filled.liquidity as string)*10000n>=quoted.liquidity*BigInt(10000-50));
+ }
+});
+
+// --- W1: the one-sided residual range, behind its policy flag --------------
+const residualSource=(tick:number,at:number,block=String(at+1)):ResearchSource=>({price:sqrt(tick),tick,at,block,
+ liquidity:depth,fee:500,spacing:10,ticks:[-100000,100000],net:t=>t===-100000?depth:t===100000?-depth:0n});
+const residualStats=(at:number,div=10n)=>({asOf:at,spanMs:3600000,count:60,varianceTicksPerMs:100/600000,
+ growth0:(1n<<128n)/div,growth1:(1n<<128n)/div/200n});
+const residualCosts={entry:176526n,recenter:220524n,exit:117376n,hold:51062n,holdExit:50834n};
+// A recenter nobody can afford, so the base gate always declines and the
+// residual hook is the only thing that can act.
+const unaffordable={...residualCosts,recenter:900000000n,residual:147146n};
+async function stranded(policyOverrides:Partial<AdaptivePolicy>,costs=residualCosts){
+ const p:AdaptivePolicy={...policy,name:'residual',halfWidthsTicks:[10,20,40],adaptive:true,economicGate:true,
+  budget:1000000000n,...policyOverrides};
+ const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,costs,p);
+ await m.step(residualSource(0,0),residualStats(0));
+ await m.step(residualSource(0,60000),residualStats(60000));
+ assert.equal(m.entries,1,JSON.stringify(m.rejected));
+ return m;
+}
+
+test('the residual flag is off by default and adds nothing to the deployed policy',async()=>{
+ const m=await stranded({});
+ assert.equal(m.policy.residualRange,undefined);
+ await m.step(residualSource(300,120000),residualStats(120000));
+ assert.equal(m.residuals,0);
+ assert.equal(m.summary(residualSource(300,150000),{amount0:1000000000n,amount1:0n}).residuals,0);
+});
+test('a declined recenter is followed by a one-sided residual band adjacent to the tick',async()=>{
+ const m=await stranded({residualRange:true,residualWidthsTicks:[20]},unaffordable);
+ // Fee growth an order of magnitude below the entry's, so the base gate cannot
+ // repay even a token recenter while the narrower residual band still can.
+ await m.step(residualSource(300,120000),residualStats(120000,1000n));
+ assert.equal(m.rejected.economic_gate,1,'the base gate must have declined first');
+ const a=m.actions.find(x=>x.kind==='residual');
+ assert(a,`no residual placed: ${JSON.stringify(m.rejected)}`);
+ // Holding token1 above the old band, so the new band sits at or below the tick.
+ assert.equal(a.tickUpper,300);assert.equal(a.tickLower,280);
+ assert.equal(a.token,null);assert.equal(a.amountIn,'0');
+ assert.equal(a.minted0,'0','a token1 residual must deploy no token0');
+ assert(BigInt(a.minted1 as string)>0n);
+ assert.equal(a.gasQuote,'147146');
+ assert.equal(m.residuals,1);
+ assert.equal(m.position!.tickLower,280);assert.equal(m.position!.tickUpper,300);
+});
+test('a residual placement is refused when its forecast fees do not repay it',async()=>{
+ const m=await stranded({residualRange:true,residualWidthsTicks:[20]},unaffordable);
+ await m.step(residualSource(300,120000),residualStats(120000,10n**6n));
+ assert.equal(m.residuals,0);
+ assert.equal(m.rejected.residual_gate,1,JSON.stringify(m.rejected));
+ const score=m.scores.at(-1)!;
+ assert.equal(score.kind,'residual');assert.equal(score.accepted,false);
+});
+test('a residual band on the other side is one-sided in token0',async()=>{
+ const p:AdaptivePolicy={...policy,name:'residual',halfWidthsTicks:[20],adaptive:false,economicGate:false,
+  budget:1000000000n,residualRange:true,residualWidthsTicks:[20]};
+ const m=new AdaptiveLpReplay(NVDA_PAPER_MARKET,unaffordable,p);
+ // Place a band by hand above the tick so the book holds only token0.
+ const source=residualSource(0,0);
+ m.position={tickLower:200,tickUpper:240,liquidity:0n,fee0:0n,fee1:0n};
+ assert.equal(m.heldToken(source),0);
+ const range=m.residualRange(source,20,0);
+ assert.equal(range.tickLower,10,'a token0 band must start strictly above the tick');
+ assert.equal(range.tickUpper,30);
+});
+test('the residual cost is taken from the cost bundle when it is supplied',async()=>{
+ const p:AdaptivePolicy={...policy,name:'residual',residualRange:true};
+ const derived=new AdaptiveLpReplay(NVDA_PAPER_MARKET,{entry:100n,recenter:200n,exit:80n,hold:30n,holdExit:25n},p);
+ assert.equal(derived.cost('residual'),2n*200n-100n-80n);
+ const explicit=new AdaptiveLpReplay(NVDA_PAPER_MARKET,{entry:100n,recenter:200n,exit:80n,hold:30n,holdExit:25n,residual:174n},p);
+ assert.equal(explicit.cost('residual'),174n);
+ assert.throws(()=>new AdaptiveLpReplay(NVDA_PAPER_MARKET,{entry:100n,recenter:200n,exit:80n,hold:30n,holdExit:25n},
+  {...p,residualWidthsTicks:[15]}),/tick spacing/);
+});
+test('unstopped band occupancy is positive outside the band where stopped occupancy is zero',async()=>{
+ const {bandOccupancy,bandTraverseProbability}=await import('../src/research/adaptive-forecast.js');
+ // Started exactly at the upper edge of [-20,0): stopped occupancy is 0.
+ assert.equal(rangeOccupancy(0,-20,0,400).occupancy,0);
+ const edge=bandOccupancy(0,-20,0,400);
+ assert(edge>0&&edge<0.5,`expected partial occupancy at the edge, got ${edge}`);
+ assert(bandOccupancy(-10,-20,0,0.0001)>0.99);
+ assert.equal(bandOccupancy(-10,-20,0,0),1);
+ assert.equal(bandOccupancy(5,-20,0,0),0);
+ // A narrower band is traversed more often than a wider one from the same start.
+ assert(bandTraverseProbability(0,-20,0,400,1)>bandTraverseProbability(0,-200,0,400,1));
+ assert.equal(bandTraverseProbability(0,-20,0,0,1),0);
+});

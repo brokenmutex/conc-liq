@@ -32,8 +32,8 @@ const transactionPolicySchema = strategy.extend({
   holdingPolicy: z.object({
     kind: z.literal("bounded_infrastructure_v1"),
     maxLagBlocks: z.literal(30),
-    chainPauseSeconds: z.literal(60),
-    riskPauseSeconds: z.literal(30),
+    chainPauseSeconds: z.number().int().min(60).max(900),
+    riskPauseSeconds: z.number().int().min(30).max(900),
   }).strict().optional(),
   maxSlippageBps: z.number().int().min(1).max(500),
   transactionTtlSeconds: z.number().int().min(60).max(1800),

@@ -56,6 +56,10 @@ export interface IndexerCursor {
   readonly nextBlock: bigint;
   readonly lastScannedBlock: bigint | null;
   readonly lastScannedHash: Hash | null;
+  /** Monotone event-coverage high-water mark. `lastScannedBlock` is the reorg
+   * anchor and follows the sparse checkpoint table; this is what consumers
+   * must read to decide whether a block's events are present. */
+  readonly coveredThroughBlock: bigint | null;
 }
 
 export interface IndexerChunk {

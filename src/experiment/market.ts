@@ -4,6 +4,11 @@ import type {PaperReferenceEvidence} from '../paper/reference.js';
 export interface MarketSeed {
   price:string; tick:number; liquidity:string; global0:string; global1:string; protocol0:number; protocol1:number;
   ticks:{tick:number;gross:string;net:string}[];
+  /** Pool fee in pips and tick spacing. Absent seeds predate 3000-tier support
+   * and are the fee-500, spacing-10 pools those seeds were written for.
+   * `reconstructSwap` reproduces a Swap event only with the pool's real fee and
+   * spacing, so these are not cosmetic. */
+  fee?:number; spacing?:number;
 }
 export interface ExperimentEvent {block:string;hash:string;tx:number;log:number;name:string;args:Record<string,string|number>}
 export interface ExperimentFrame {
@@ -18,16 +23,19 @@ const MASK=(1n<<256n)-1n;
 /** Shared canonical market path. Candidate inventory never mutates this book. */
 export class ExperimentMarket {
   price:bigint;tick:number;liquidity:bigint;global0:bigint;global1:bigint;protocol0:number;protocol1:number;
+  readonly fee:number;readonly spacing:number;
   readonly ticks=new Map<number,{gross:bigint;net:bigint}>();readonly sorted:number[]=[];
   constructor(seed:MarketSeed){
     this.price=BigInt(seed.price);this.tick=seed.tick;this.liquidity=BigInt(seed.liquidity);
     this.global0=BigInt(seed.global0);this.global1=BigInt(seed.global1);this.protocol0=seed.protocol0;this.protocol1=seed.protocol1;
+    this.fee=seed.fee??500;this.spacing=seed.spacing??10;
+    assert(Number.isInteger(this.fee)&&this.fee>0&&Number.isInteger(this.spacing)&&this.spacing>0,'Pool fee and tick spacing must be positive integers');
     for(const t of seed.ticks){assert(BigInt(t.gross)>0n);this.ticks.set(t.tick,{gross:BigInt(t.gross),net:BigInt(t.net)});this.sorted.push(t.tick);}
     this.sorted.sort((a,b)=>a-b);
     assert.equal([...this.ticks].filter(([t])=>t<=this.tick).reduce((n,[,t])=>n+t.net,0n),this.liquidity,'Seed tick liquidity mismatch');
   }
-  source():SwapSource{return {price:this.price,tick:this.tick,liquidity:this.liquidity,fee:500,spacing:10,ticks:this.sorted,net:t=>this.ticks.get(t)?.net??0n};}
-  seed():MarketSeed{return {price:String(this.price),tick:this.tick,liquidity:String(this.liquidity),global0:String(this.global0),global1:String(this.global1),protocol0:this.protocol0,protocol1:this.protocol1,ticks:[...this.ticks].map(([tick,t])=>({tick,gross:String(t.gross),net:String(t.net)}))};}
+  source():SwapSource{return {price:this.price,tick:this.tick,liquidity:this.liquidity,fee:this.fee,spacing:this.spacing,ticks:this.sorted,net:t=>this.ticks.get(t)?.net??0n};}
+  seed():MarketSeed{return {price:String(this.price),tick:this.tick,liquidity:String(this.liquidity),global0:String(this.global0),global1:String(this.global1),protocol0:this.protocol0,protocol1:this.protocol1,fee:this.fee,spacing:this.spacing,ticks:[...this.ticks].map(([tick,t])=>({tick,gross:String(t.gross),net:String(t.net)}))};}
   apply(e:ExperimentEvent):{segment:FeeSegment;protocol:number}[]{
     const a=e.args,out:{segment:FeeSegment;protocol:number}[]=[];
     if(e.name==='Swap'){

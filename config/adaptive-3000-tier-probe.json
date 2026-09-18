@@ -1,0 +1,26 @@
+{
+  "version": "adaptive_3000_tier_probe_2026_09_18",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "1000000000",
+  "halfWidthsTicks": [60, 120, 240, 480, 960],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "forecast": { "lookbackMs": 3600000, "minimumSpanMs": 2400000, "minimumSamples": 40 },
+  "note": "Research probe only. Half-widths are the fee-500 ladder scaled to the 3000 tier's 60-tick grid, so each band spans the same multiple of its own spacing. Costs are NVDA-500's frozen fork-derived bundle reused unchanged: mint, withdraw and swap gas are dominated by the position-manager and router call shapes rather than by the fee tier, but no fork cost probe exists for either of these pools and the numbers are therefore assumptions, not evidence.",
+  "assets": [
+    {
+      "market": { "symbol": "MSFT", "rwa": "0xe93237C50D904957Cf27E7B1133b510C669c2e74", "pool": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510", "fee": 3000, "tickSpacing": 60, "rwaDecimals": 18 },
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "costs": "reused_from_nvda_500_no_fork_probe" }
+    },
+    {
+      "market": { "symbol": "GLD", "rwa": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e", "pool": "0x7A6A053eCCf1446A2633E05aA6D40D09381997ec", "fee": 3000, "tickSpacing": 60, "rwaDecimals": 18 },
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "costs": "reused_from_nvda_500_no_fork_probe" }
+    }
+  ]
+}

@@ -89,6 +89,47 @@ export function rangeOccupancy(centerTick:number,tickLower:number,tickUpper:numb
   return {occupancy,exitProbability:1-survival(centerTick,tickLower,tickUpper,sigma),inRange:true};
 }
 
+/** Expected fraction of the horizon a driftless walk started at `x` spends
+ * inside (a,b), WITHOUT stopping at first exit.
+ *
+ * `rangeOccupancy` above is stopped occupancy, which is right for a two-sided
+ * band the strategy will manage when it is left. It returns exactly zero for a
+ * position starting outside its band. A one-sided residual range always starts
+ * outside its band, by construction — it is minted at the edge of the grid
+ * cell the price currently occupies — and it earns every time price comes
+ * back, with no action in between. Unstopped occupancy is that quantity.
+ *
+ * Same substitution t=T*u^2, dt=2Tu*du and Simpson's rule on u in [0,1] as
+ * `rangeOccupancy`, so the two are directly comparable. */
+export function bandOccupancy(centerTick:number,tickLower:number,tickUpper:number,varianceTicks:number):number {
+  assert(Number.isFinite(centerTick)&&Number.isFinite(varianceTicks)&&tickLower<tickUpper&&varianceTicks>=0);
+  if(varianceTicks===0)return centerTick>=tickLower&&centerTick<tickUpper?1:0;
+  const sigma=Math.sqrt(varianceTicks),n=64;
+  let sum=0;
+  for(let i=0;i<=n;i++){
+    const u=i/n,weight=i===0||i===n?1:i%2?4:2,s=sigma*u;
+    const inside=s<=0?(centerTick>=tickLower&&centerTick<tickUpper?1:0)
+      :normalCdf((tickUpper-centerTick)/s)-normalCdf((tickLower-centerTick)/s);
+    sum+=weight*2*u*inside;
+  }
+  return Math.min(1,Math.max(0,sum/(3*n)));
+}
+
+/** Probability that the walk ends the horizon past the far edge of a one-sided
+ * band: the state in which the inventory is fully converted and the book is
+ * one-sided again, needing another placement. `heldToken` is 1 when the band
+ * lies below the current tick and 0 when it lies above. */
+export function bandTraverseProbability(centerTick:number,tickLower:number,tickUpper:number,
+ varianceTicks:number,heldToken:0|1):number {
+  if(varianceTicks<=0)return 0;
+  const sigma=Math.sqrt(varianceTicks);
+  return heldToken===1?normalCdf((tickLower-centerTick)/sigma):1-normalCdf((tickUpper-centerTick)/sigma);
+}
+
+/** The tick-space centre `forecastPortfolio` uses, exposed so a caller scoring
+ * a band outside the portfolio path derives it identically. */
+export function forecastCenterTick(price:bigint){return 2*Math.log(Number(price)/(2**96))/LOG_TICK;}
+
 /** Three moment-matched diffusion scenarios for terminal inventory value, zero
  * predictive drift. Fee income uses lagged fee growth, current-depth dilution
  * and the analytic expected in-band time until first exit, so a band that the

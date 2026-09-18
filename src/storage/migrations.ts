@@ -10,7 +10,18 @@ export const RUNTIME_IDENTITY_SQL = `
 ALTER TABLE paper_sessions ADD COLUMN runtime_identity JSONB;
 ALTER TABLE paper_execution_runs ADD COLUMN runtime_identity JSONB;
 `;
-export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL] as const;
+// Coverage was read off `last_scanned_block`, which doubles as the reorg
+// anchor. `PostgresEventStore.rewind` re-points that anchor at the newest
+// surviving `indexer_checkpoints` row, and because every tail cycle deletes
+// the previous cycle's checkpoint the newest survivor can be millions of
+// blocks old. Consumers then saw no coverage at all for the ~1 s each cycle
+// spends between the rewind and the chunk save. Coverage gets its own column,
+// which `saveChunk` only raises and `rewind` lowers no further than the block
+// it actually invalidated.
+export const COVERAGE_CURSOR_SQL = `
+ALTER TABLE indexer_cursors ADD COLUMN covered_through_block NUMERIC(78, 0);
+`;
+export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL] as const;
 const identifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const checksum = (sql: string) => createHash("sha256").update(sql).digest("hex");
 

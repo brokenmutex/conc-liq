@@ -1,0 +1,66 @@
+{
+  "version": "adaptive_3000_tier_probe_price_ladder_2026_09_18",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "1000000000",
+  "halfWidthsTicks": [
+    60,
+    120,
+    180,
+    240,
+    360
+  ],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "forecast": {
+    "lookbackMs": 3600000,
+    "minimumSpanMs": 2400000,
+    "minimumSamples": 40
+  },
+  "note": "Research probe only. Half-widths chosen to span a comparable range in PRICE (+/-0.6% to +/-3.6%) rather than by scaling the fee-500 tick ladder 6x, which would put the widest candidate at +/-9.6%. The 3000 tier's 60-tick grid cannot express anything narrower than +/-0.6%, which is six times the fee-500 ladder's narrowest band. Costs are NVDA-500's frozen fork-derived bundle reused unchanged; no fork cost probe exists for either pool.",
+  "assets": [
+    {
+      "market": {
+        "symbol": "MSFT",
+        "rwa": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "pool": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+        "fee": 3000,
+        "tickSpacing": 60,
+        "rwaDecimals": 18
+      },
+      "costs": {
+        "entry": "176526",
+        "recenter": "220524",
+        "exit": "117376",
+        "hold": "51062",
+        "holdExit": "50834"
+      },
+      "evidence": {
+        "costs": "reused_from_nvda_500_no_fork_probe"
+      }
+    },
+    {
+      "market": {
+        "symbol": "GLD",
+        "rwa": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e",
+        "pool": "0x7A6A053eCCf1446A2633E05aA6D40D09381997ec",
+        "fee": 3000,
+        "tickSpacing": 60,
+        "rwaDecimals": 18
+      },
+      "costs": {
+        "entry": "176526",
+        "recenter": "220524",
+        "exit": "117376",
+        "hold": "51062",
+        "holdExit": "50834"
+      },
+      "evidence": {
+        "costs": "reused_from_nvda_500_no_fork_probe"
+      }
+    }
+  ]
+}

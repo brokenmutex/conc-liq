@@ -1,0 +1,59 @@
+{
+  "version": "adaptive_paper_60m_v1",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "1000000000",
+  "halfWidthsTicks": [10, 20, 40, 80, 160],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "feePpm": 1000000,
+  "residualRange": true,
+  "residualWidthsTicks": [20],
+  "forecast": {
+    "lookbackMs": 21600000,
+    "minimumSpanMs": 7200000,
+    "minimumSamples": 60,
+    "feeHalfLifeMs": 900000,
+    "weightedFeePpm": 1000000
+  },
+  "assets": [
+    {
+      "market": { "symbol": "NVDA", "rwa": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", "pool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "budgetQuote": "2500000000",
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "fork": "55e8ab327384f41b7c781997d13a659dc6a5ae55e036d39db26c5e787b9e687d" }
+    },
+    {
+      "market": { "symbol": "GOOGL", "rwa": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3", "pool": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "budgetQuote": "2500000000",
+      "costs": { "entry": "177373", "recenter": "221310", "exit": "118088", "hold": "51335", "holdExit": "51112" },
+      "evidence": { "fork": "7502e71bb5f1b7bcbfbe3cd48e8b0e742c6c1bd37778949b69878ed9ae4ddd62" }
+    },
+    {
+      "market": { "symbol": "MSFT", "rwa": "0xe93237C50D904957Cf27E7B1133b510C669c2e74", "pool": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510", "fee": 3000, "tickSpacing": 60, "rwaDecimals": 18 },
+      "budgetQuote": "1000000000",
+      "halfWidthsTicks": [60, 120, 180, 240, 360],
+      "residualWidthsTicks": [120],
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500" }
+    },
+    {
+      "market": { "symbol": "GLD", "rwa": "0xC9a981FEE1F9DEc688bb123ccDeCc63D0deBFC4e", "pool": "0x7A6A053eCCf1446A2633E05aA6D40D09381997ec", "fee": 3000, "tickSpacing": 60, "rwaDecimals": 18 },
+      "budgetQuote": "2500000000",
+      "halfWidthsTicks": [60, 120, 180, 240, 360],
+      "residualWidthsTicks": [120],
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500" }
+    },
+    {
+      "market": { "symbol": "QQQ", "rwa": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68", "pool": "0xD60A5d14dB690B7Afad71F76B108071D7175597d", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "budgetQuote": "1000000000",
+      "holdout": true,
+      "costs": { "entry": "176526", "recenter": "220524", "exit": "117376", "hold": "51062", "holdExit": "50834" },
+      "evidence": { "fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500" }
+    }
+  ]
+}

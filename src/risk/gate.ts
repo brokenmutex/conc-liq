@@ -166,9 +166,9 @@ export async function readRiskGate(
             validation.canonical AS canonicality_canonical,
             validation.validated_at AS canonicality_validated_at,
             CASE
-              WHEN index_cursor.last_scanned_block IS NULL
+              WHEN COALESCE(index_cursor.covered_through_block,index_cursor.last_scanned_block) IS NULL
                 OR replay_cursor.complete_through_block IS NULL THEN NULL
-              ELSE index_cursor.last_scanned_block >= r.block_number
+              ELSE COALESCE(index_cursor.covered_through_block,index_cursor.last_scanned_block) >= r.block_number
                 AND replay_cursor.complete_through_block >= r.block_number
             END AS source_covers_snapshot
      FROM (SELECT 1) seed

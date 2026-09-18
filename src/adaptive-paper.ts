@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFile, rename, writeFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import pg from "pg";
 import { getAddress, isAddress } from "viem";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { evaluateCanaryEntryReadiness } from "./canary-plan/entry-readiness.js";
 import { ExperimentMarket, type ExperimentEvent, type MarketSeed } from "./experiment/market.js";
 import { loadRuntimeIdentity, assertRuntimeMatches, type RuntimeIdentity } from "./runtime/identity.js";
 import { marketPriceX18, marketTokens, marketValue, type PaperMarket } from "./paper/market.js";
-import { sourceSql } from "./paper/store.js";
+import { sourceSqlForFee } from "./paper/store.js";
 import { readPaperReferenceGate } from "./paper/reference.js";
 import { AdaptiveLpReplay, type AdaptivePolicy, type ResearchLpCosts } from "./research/adaptive-lp.js";
 import { agileForecastStats } from "./research/agile-forecast.js";
@@ -18,20 +19,41 @@ import {appendAdaptivePaperMark,type AdaptivePaperMark} from "./adaptive-paper-h
 import {migrateAdaptivePaperRuntime} from "./adaptive-paper-runtime.js";
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
+/** Canonical V3 fee-to-spacing pairing for the tiers this runner supports. */
+const V3_TICK_SPACING: Record<number, number> = { 500: 10, 3000: 60 };
 const marketSchema = z.object({
   symbol: z.string().regex(/^[A-Z0-9.]+$/),
   rwa: z.string().refine(isAddress).transform(value=>getAddress(value)),
   pool: z.string().refine(isAddress).transform(value=>getAddress(value)),
-  fee: z.literal(500), tickSpacing: z.literal(10), rwaDecimals: z.literal(18),
-});
+  fee: z.union([z.literal(500), z.literal(3000)]), tickSpacing: z.union([z.literal(10), z.literal(60)]),
+  rwaDecimals: z.literal(18),
+}).refine(m=>V3_TICK_SPACING[m.fee]===m.tickSpacing,"Tick spacing does not match the pool fee tier");
 const costsSchema = z.object({ entry:z.string().regex(/^\d+$/), recenter:z.string().regex(/^\d+$/),
   exit:z.string().regex(/^\d+$/), hold:z.string().regex(/^\d+$/), holdExit:z.string().regex(/^\d+$/) });
-const configSchema = z.object({
+/** Exported so the shipped configs can be validated without starting a session. */
+export const configSchema = z.object({
   version:z.literal("adaptive_paper_60m_v1"), streamKey:z.string().min(1), budgetQuote:z.string().regex(/^[1-9]\d*$/),
   halfWidthsTicks:z.array(z.number().int().positive()).min(2), decisionMs:z.literal(30000), quoteTtlMs:z.literal(90000),
   horizonMs:z.literal(600000), slippageBps:z.literal(50), costBufferPpm:z.literal(500000), feeBufferPpm:z.literal(250000),
-  forecast:z.object({lookbackMs:z.literal(3600000),minimumSpanMs:z.literal(2400000),minimumSamples:z.literal(40)}).strict(),
-  assets:z.array(z.object({market:marketSchema,costs:costsSchema,evidence:z.record(z.string(),z.string())}).strict()).length(3),
+  // The lookback was pinned to a literal 3,600,000, which blocked deploying a
+  // different volatility window without a code change. It is a bounded range
+  // now; the half-lives decouple the variance and fee timescales inside it.
+  forecast:z.object({lookbackMs:z.number().int().min(600000).max(21600000),
+    minimumSpanMs:z.number().int().min(600000).max(21600000),minimumSamples:z.number().int().min(40).max(1000),
+    volatilityHalfLifeMs:z.number().int().positive().optional(),feeHalfLifeMs:z.number().int().positive().optional(),
+    weightedFeePpm:z.number().int().min(0).max(1000000).optional()}).strict()
+    .refine(f=>f.lookbackMs>=f.minimumSpanMs,"Forecast lookback must cover its minimum span"),
+  // A mixed-tier, mixed-size set needs per-asset budget and band ladders: a
+  // 60-tick grid cannot use the fee-500 half-widths, and the capacity cap
+  // gives each pool a different size. Absent, the top-level values apply.
+  residualRange:z.boolean().optional(),
+  residualWidthsTicks:z.array(z.number().int().positive()).min(1).optional(),
+  feePpm:z.number().int().min(0).max(1000000).optional(),
+  assets:z.array(z.object({market:marketSchema,costs:costsSchema,evidence:z.record(z.string(),z.string()),
+    budgetQuote:z.string().regex(/^[1-9]\d*$/).optional(),
+    halfWidthsTicks:z.array(z.number().int().positive()).min(2).optional(),
+    residualWidthsTicks:z.array(z.number().int().positive()).min(1).optional(),
+    holdout:z.boolean().optional()}).strict()).min(1).max(8),
 }).strict();
 type Config=z.infer<typeof configSchema>;
 
@@ -42,6 +64,8 @@ interface SourceRow {
 }
 interface AssetState {
   symbol:string; market:PaperMarket; costs:ResearchLpCosts; seed:MarketSeed; last:SourceRow["checkpoint"];
+  /** Per-asset policy overrides, persisted so a restored model is identical. */
+  budgetQuote?:string; halfWidthsTicks?:number[]; residualWidthsTicks?:number[]; holdout?:boolean;
   samples:ForecastSample[]; lastSampleAt:number; growth0:bigint; growth1:bigint;
   model:Record<string,unknown>; status:"running"|"invalid"; reason?:string; blocked:Record<string,number>;
   decisions:number; forecastAvailable:number; forecastUnavailable:number;
@@ -56,9 +80,15 @@ const parse=(value:string)=>JSON.parse(value,(_key,item)=>item&&typeof item==="o
 const digest=(value:string)=>createHash("sha256").update(value).digest("hex");
 async function atomic(path:string,value:unknown){await writeFile(path+".tmp",json(value));await rename(path+".tmp",path);}
 const count=(state:AssetState,reason:string)=>{state.blocked[reason]=(state.blocked[reason]??0)+1;};
-const policy=(config:Config):AdaptivePolicy=>({name:"rolling_60m_plus_10",halfWidthsTicks:config.halfWidthsTicks,adaptive:true,economicGate:true,
-  budget:BigInt(config.budgetQuote),decisionMs:config.decisionMs,quoteTtlMs:config.quoteTtlMs,horizonMs:config.horizonMs,
-  slippageBps:config.slippageBps,costBufferPpm:config.costBufferPpm,feeBufferPpm:config.feeBufferPpm,gasMultiplier:1,feePpm:1000000,failEveryRecenter:0});
+type AssetConfig=Config["assets"][number];
+const policy=(config:Config,asset?:Pick<AssetConfig,"budgetQuote"|"halfWidthsTicks"|"residualWidthsTicks">):AdaptivePolicy=>({
+  name:"rolling_60m_plus_10",halfWidthsTicks:asset?.halfWidthsTicks??config.halfWidthsTicks,adaptive:true,economicGate:true,
+  budget:BigInt(asset?.budgetQuote??config.budgetQuote),decisionMs:config.decisionMs,quoteTtlMs:config.quoteTtlMs,horizonMs:config.horizonMs,
+  slippageBps:config.slippageBps,costBufferPpm:config.costBufferPpm,feeBufferPpm:config.feeBufferPpm,gasMultiplier:1,
+  feePpm:config.feePpm??1000000,failEveryRecenter:0,
+  ...(config.residualRange?{residualRange:true}:{}),
+  ...(asset?.residualWidthsTicks??config.residualWidthsTicks
+    ?{residualWidthsTicks:asset?.residualWidthsTicks??config.residualWidthsTicks}:{})});
 const costs=(input:z.infer<typeof costsSchema>):ResearchLpCosts=>Object.fromEntries(Object.entries(input).map(([key,value])=>[key,BigInt(value)])) as unknown as ResearchLpCosts;
 
 class Source {
@@ -68,11 +98,17 @@ class Source {
   async close(){await this.db.end();}
   async rows(market:PaperMarket,afterBlock?:string,from?:string){
     const suffix=afterBlock!==undefined?" AND c.block_number>$4":" AND c.block_timestamp>=$4";
-    const raw=(await this.db.query<SourceRow>(sourceSql+suffix+" ORDER BY c.block_number,c.id",[this.streamKey,market.rwa.toLowerCase(),market.pool.toLowerCase(),afterBlock??from])).rows
-      .filter(row=>row.canonical===true&&row.covered===true&&row.coverage_identity_valid===true);
+    const all=(await this.db.query<SourceRow>(sourceSqlForFee(market.fee)+suffix+" ORDER BY c.block_number,c.id",[this.streamKey,market.rwa.toLowerCase(),market.pool.toLowerCase(),afterBlock??from])).rows;
+    const raw=all.filter(row=>row.canonical===true&&row.covered===true&&row.coverage_identity_valid===true);
     const unique:SourceRow[]=[];
     for(const row of raw){const prior=unique.at(-1);if(prior?.checkpoint.block===row.checkpoint.block)unique[unique.length-1]=row;else unique.push(row);}
-    return unique;
+    // Rows dropped here never reach `sourceReasons`, so until now an
+    // uncovered checkpoint left no trace at all: `event_coverage_unavailable`
+    // was unreachable and read zero for the whole 2026-09-16 session. Return
+    // the count so the caller can record what the filter removed.
+    return {rows:unique,deferred:{
+      notCanonical:all.filter(row=>row.canonical!==true).length,
+      notCovered:all.filter(row=>row.canonical===true&&(row.covered!==true||row.coverage_identity_valid!==true)).length}};
   }
   async events(market:PaperMarket,from:string,to:string):Promise<ExperimentEvent[]> {
     return (await this.db.query(`SELECT block_number::text AS block,block_hash AS hash,transaction_index AS tx,log_index AS log,event_name AS name,event_args AS args
@@ -91,6 +127,7 @@ class Source {
         if(item.gross===0n){assert.equal(item.net,0n);ticks.delete(tick);}else ticks.set(tick,item);}
     }
     const cp=row.checkpoint;return {price:cp.sqrtPriceX96,tick:cp.tick,liquidity:cp.liquidity,global0:cp.feeGrowth0,global1:cp.feeGrowth1,protocol0,protocol1,
+      fee:market.fee,spacing:market.tickSpacing,
       ticks:[...ticks].map(([tick,item])=>({tick,gross:String(item.gross),net:String(item.net)}))};
   }
   async decisionGate(row:SourceRow,market:PaperMarket){
@@ -108,7 +145,7 @@ function sourceReasons(row:SourceRow,gate:{chainEligible:boolean;reasons:readonl
   if(!gate.chainEligible)reasons.push("chain_recovery_unproven");if(age<0||age>180000)reasons.push("source_stale");
   return [...new Set(reasons)];
 }
-function restoreModel(asset:AssetState,config:Config){const model=new AdaptiveLpReplay(asset.market,asset.costs,policy(config));Object.assign(model,asset.model);return model;}
+function restoreModel(asset:AssetState,config:Config){const model=new AdaptiveLpReplay(asset.market,asset.costs,policy(config,asset));Object.assign(model,asset.model);return model;}
 function snapshotModel(model:AdaptiveLpReplay){return Object.fromEntries(Object.entries(model).filter(([key])=>!["market","costs","policy"].includes(key)));}
 function historyMark(asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMarket,checkpoint:SourceRow['checkpoint'],continuity:'baseline'|'continuous',action?:Record<string,unknown>):AdaptivePaperMark{
   const source=market.source(),balances=model.balances(source),named=marketTokens(asset.market),quote=named.quoteIsToken0?balances.amount0:balances.amount1,rwa=named.quoteIsToken0?balances.amount1:balances.amount0;
@@ -156,26 +193,37 @@ async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:So
   }catch(error){if(error instanceof AdaptiveHistoryWriteError)throw error.original;asset.status="invalid";asset.reason=error instanceof Error?error.message:"adaptive_paper_reconstruction_failed";}
 }
 function report(state:State){return {version:state.config.version,createdAt:state.createdAt,updatedAt:state.lastPollAt,executionEligible:false,broadcastsEnabled:false,
-  policy:{lookbackMinutes:60,minimumSpanMinutes:40,minimumSamples:40,halfWidthsTicks:state.config.halfWidthsTicks,economicGate:true,outOfRangeTrigger:true},
+  policy:{lookbackMinutes:state.config.forecast.lookbackMs/60000,minimumSpanMinutes:state.config.forecast.minimumSpanMs/60000,
+    minimumSamples:state.config.forecast.minimumSamples,volatilityHalfLifeMs:state.config.forecast.volatilityHalfLifeMs??null,
+    feeHalfLifeMs:state.config.forecast.feeHalfLifeMs??null,halfWidthsTicks:state.config.halfWidthsTicks,
+    residualRange:state.config.residualRange??false,feePpm:state.config.feePpm??1000000,economicGate:true,outOfRangeTrigger:true},
   assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas;
-    return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(state.config.budgetQuote)),
+    return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,holdout:asset.holdout??false,
+      budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(state.config.budgetQuote)),
       entries:model.entries,recenters:model.recenters,pending:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
-      gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
+      residuals:model.residuals,gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
 }
 async function persist(path:string,state:State){state.lastPollAt=new Date().toISOString();await atomic(path,state);await atomic(path+".status.json",report(state));}
 async function start(source:Source,config:Config,path:string){
   const createdAt=new Date().toISOString(),runtime=loadRuntimeIdentity();assertRuntimeMatches(runtime??null,runtime);assert(runtime);
   const state:State={version:1,createdAt,config,configHash:digest(json(config)),runtime,assets:[],lastPollAt:createdAt,executionEligible:false,broadcastsEnabled:false};
-  for(const item of config.assets){const rows=await source.rows(item.market,undefined,new Date(Date.now()-75*60000).toISOString());assert(rows.length>=2,`${item.market.symbol} forecast warmup checkpoints unavailable`);
+  for(const item of config.assets){const {rows}=await source.rows(item.market,undefined,new Date(Date.now()-75*60000).toISOString());assert(rows.length>=2,`${item.market.symbol} forecast warmup checkpoints unavailable`);
     const first=rows[0]!,seed=await source.seed(item.market,first),market=new ExperimentMarket(seed);market.verify({price:first.checkpoint.sqrtPriceX96,tick:first.checkpoint.tick,liquidity:first.checkpoint.liquidity,global0:first.checkpoint.feeGrowth0,global1:first.checkpoint.feeGrowth1});
-    const model=new AdaptiveLpReplay(item.market,costs(item.costs),policy(config));const asset:AssetState={symbol:item.market.symbol,market:item.market,costs:costs(item.costs),seed,last:first.checkpoint,samples:[],lastSampleAt:-Infinity,growth0:0n,growth1:0n,model:snapshotModel(model),status:"running",blocked:{},decisions:0,forecastAvailable:0,forecastUnavailable:0};
+    const model=new AdaptiveLpReplay(item.market,costs(item.costs),policy(config,item));const asset:AssetState={symbol:item.market.symbol,market:item.market,costs:costs(item.costs),seed,last:first.checkpoint,
+      budgetQuote:item.budgetQuote,halfWidthsTicks:item.halfWidthsTicks,residualWidthsTicks:item.residualWidthsTicks,holdout:item.holdout,
+      samples:[],lastSampleAt:-Infinity,growth0:0n,growth1:0n,model:snapshotModel(model),status:"running",blocked:{},decisions:0,forecastAvailable:0,forecastUnavailable:0};
     sample(asset,market,Date.parse(first.checkpoint.blockTimestamp));await advanceAsset(source,asset,config,rows.slice(1),false);assert(asset.status==="running",`${asset.symbol} warmup failed: ${asset.reason}`);state.assets.push(asset);
   }
   await persist(path,state);return state;
 }
 async function tick(source:Source,path:string){const state:State=parse(await readFile(path,"utf8"));assert.equal(state.version,1);assert.equal(state.configHash,digest(json(state.config)),"Adaptive paper configuration changed");assertRuntimeMatches(state.runtime,loadRuntimeIdentity());
   for(const asset of state.assets){if(asset.historyLastAt===undefined){const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,state.config);await recordHistory(path,asset,model,market,asset.last);}
-    const rows=await source.rows(asset.market,asset.last.block);await advanceAsset(source,asset,state.config,rows,true,path);}await persist(path,state);return state;}
+    const {rows,deferred}=await source.rows(asset.market,asset.last.block);
+    // Count what the coverage filter removed. These are deferrals, not
+    // decisions: the checkpoint is re-offered on a later poll.
+    if(deferred.notCovered)asset.blocked.event_coverage_unavailable=(asset.blocked.event_coverage_unavailable??0)+deferred.notCovered;
+    if(deferred.notCanonical)asset.blocked.checkpoint_not_canonical=(asset.blocked.checkpoint_not_canonical??0)+deferred.notCanonical;
+    await advanceAsset(source,asset,state.config,rows,true,path);}await persist(path,state);return state;}
 async function main(){const [command,...args]=process.argv.slice(2);if(!["start","tick","watch","status","migrate-runtime"].includes(command??""))throw new Error("Usage: adaptive-paper start CONFIG STATE | tick STATE | watch STATE | status STATE | migrate-runtime STATE FROM_BUILD");
   if(command==="status"){console.log(await readFile(args[0]!+".status.json","utf8"));return;}
   if(command==="migrate-runtime"){const runtime=loadRuntimeIdentity();assert(runtime);console.log(JSON.stringify(await migrateAdaptivePaperRuntime(args[0]!,args[1]!,runtime)));return;}
@@ -185,4 +233,8 @@ async function main(){const [command,...args]=process.argv.slice(2);if(!["start"
     do{const state=await tick(source,path);console.log(JSON.stringify(report(state)));if(command==="tick")break;await new Promise(resolve=>setTimeout(resolve,15000));}while(true);
   }finally{await source.close();}
 }
-main().catch(error=>{console.error(error instanceof Error?error.stack??error.message:"Adaptive paper failed");process.exitCode=1;});
+// Run only when invoked as the entry point, so the exported schema can be
+// imported for validation without starting a session.
+if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
+  main().catch(error=>{console.error(error instanceof Error?error.stack??error.message:"Adaptive paper failed");process.exitCode=1;});
+}
