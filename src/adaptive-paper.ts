@@ -201,7 +201,7 @@ function report(state:State){return {version:state.config.version,createdAt:stat
     residualRange:state.config.residualRange??false,feePpm:state.config.feePpm??1000000,economicGate:true,outOfRangeTrigger:true},
   assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas;
     return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,holdout:asset.holdout??false,
-      budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(state.config.budgetQuote)),
+      budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(asset.budgetQuote??state.config.budgetQuote)),
       entries:model.entries,recenters:model.recenters,pending:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
       residuals:model.residuals,gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
 }
