@@ -32,13 +32,31 @@ interface SourceRow {
   canonical: boolean; covered: boolean; coverage_identity_valid: boolean; asset_reasons: string[] | null;
   asset_eligible: boolean | null; deviation_ppm: string | null;
 }
+export interface SourceSqlOptions {
+  /** False when `indexer_cursors.covered_through_block` does not exist yet. */
+  coverageColumn?: boolean;
+}
+/** True once migration 3 has added the monotone coverage cursor column. */
+export async function hasCoverageColumn(db: { query(text: string): Promise<{ rowCount: number | null }> }): Promise<boolean> {
+  const result = await db.query(
+    "SELECT 1 FROM information_schema.columns WHERE table_schema=ANY(current_schemas(false)) AND table_name='indexer_cursors' AND column_name='covered_through_block'");
+  return (result.rowCount ?? 0) > 0;
+}
 /** Source rows for one pool. The fee tier is interpolated rather than bound,
  * so the positional parameters callers append after $3 keep their numbering.
  * Only a validated V3 fee-tier integer reaches the string. */
-export function sourceSqlForFee(fee: number): string {
+export function sourceSqlForFee(fee: number, options: SourceSqlOptions = {}): string {
   if (!Number.isInteger(fee) || fee <= 0 || fee >= 1_000_000) {
     throw new Error("Pool fee outside the V3 domain");
   }
+  // `covered_through_block` arrives with migration 3. COALESCE cannot help on
+  // a database that has not run it: PostgreSQL rejects the unknown column at
+  // parse time. A caller that has checked the column is absent asks for the
+  // pre-migration predicate, which is exactly the old behaviour (cursor
+  // readback included).
+  const cursor = options.coverageColumn === false
+    ? "i.last_scanned_block"
+    : "COALESCE(i.covered_through_block,i.last_scanned_block)";
   return `SELECT jsonb_build_object('id',c.id::text,'block',c.block_number::text,
   'hash',c.block_hash,'blockTimestamp',c.block_timestamp,'capturedAt',c.captured_at,
   'tick',p.tick,'sqrtPriceX96',p.sqrt_price_x96::text,'liquidity',p.liquidity::text,
@@ -48,7 +66,7 @@ export function sourceSqlForFee(fee: number): string {
   a.execution_eligible AS asset_eligible,a.reasons AS asset_reasons,
   (v.canonical IS TRUE AND v.block_number=c.block_number AND LOWER(v.expected_hash)=LOWER(c.block_hash)
     AND LOWER(v.observed_hash)=LOWER(c.block_hash)) AS canonical,
-  (COALESCE(i.covered_through_block,i.last_scanned_block)>=c.block_number AND r.complete_through_block>=c.block_number
+  (${cursor}>=c.block_number AND r.complete_through_block>=c.block_number
     AND i.chain_id=c.chain_id AND r.chain_id=c.chain_id AND i.target_set_hash=c.target_set_hash
     AND r.target_set_hash=c.target_set_hash AND t.target_set_hash=c.target_set_hash AND t.enabled
     AND t.chain_id=4663 AND t.fee=${fee} AND LOWER(t.rwa_address)=$2

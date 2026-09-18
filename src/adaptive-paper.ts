@@ -9,7 +9,7 @@ import { evaluateCanaryEntryReadiness } from "./canary-plan/entry-readiness.js";
 import { ExperimentMarket, type ExperimentEvent, type MarketSeed } from "./experiment/market.js";
 import { loadRuntimeIdentity, assertRuntimeMatches, type RuntimeIdentity } from "./runtime/identity.js";
 import { marketPriceX18, marketTokens, marketValue, type PaperMarket } from "./paper/market.js";
-import { sourceSqlForFee } from "./paper/store.js";
+import { hasCoverageColumn, sourceSqlForFee } from "./paper/store.js";
 import { readPaperReferenceGate } from "./paper/reference.js";
 import { AdaptiveLpReplay, type AdaptivePolicy, type ResearchLpCosts } from "./research/adaptive-lp.js";
 import { agileForecastStats } from "./research/agile-forecast.js";
@@ -94,11 +94,13 @@ const costs=(input:z.infer<typeof costsSchema>):ResearchLpCosts=>Object.fromEntr
 class Source {
   readonly db:pg.Client;
   constructor(readonly connectionString:string,readonly streamKey:string){this.db=new pg.Client({connectionString,application_name:"adaptive_paper_60m",options:"-c default_transaction_read_only=on -c statement_timeout=60000 -c lock_timeout=3000"});}
-  async connect(){await this.db.connect();}
+  /** Migration 3's column; detected once so an unmigrated database keeps the pre-migration predicate. */
+  coverageColumn=true;
+  async connect(){await this.db.connect();this.coverageColumn=await hasCoverageColumn(this.db);}
   async close(){await this.db.end();}
   async rows(market:PaperMarket,afterBlock?:string,from?:string){
     const suffix=afterBlock!==undefined?" AND c.block_number>$4":" AND c.block_timestamp>=$4";
-    const all=(await this.db.query<SourceRow>(sourceSqlForFee(market.fee)+suffix+" ORDER BY c.block_number,c.id",[this.streamKey,market.rwa.toLowerCase(),market.pool.toLowerCase(),afterBlock??from])).rows;
+    const all=(await this.db.query<SourceRow>(sourceSqlForFee(market.fee,{coverageColumn:this.coverageColumn})+suffix+" ORDER BY c.block_number,c.id",[this.streamKey,market.rwa.toLowerCase(),market.pool.toLowerCase(),afterBlock??from])).rows;
     const raw=all.filter(row=>row.canonical===true&&row.covered===true&&row.coverage_identity_valid===true);
     const unique:SourceRow[]=[];
     for(const row of raw){const prior=unique.at(-1);if(prior?.checkpoint.block===row.checkpoint.block)unique[unique.length-1]=row;else unique.push(row);}

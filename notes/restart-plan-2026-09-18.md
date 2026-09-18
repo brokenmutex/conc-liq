@@ -115,11 +115,22 @@ Steps 2–4 are a collection outage of a minute or two. Everything above block
 history is lost, but the gap will appear in the checkpoint series and the
 first forecast after the restart needs its full 6-hour warmup.
 
-Alternatively steps 2–5 can be skipped entirely: every consumer reads
-`COALESCE(covered_through_block, last_scanned_block)`, so the old behaviour
-survives unchanged on an unmigrated database. The restart then runs with the
-cursor flake still present, costing roughly 9% of polls. That is the lower-risk
-option and the one to take if the collectors are not to be touched.
+Alternatively steps 2–5 can be skipped entirely and the paper set run against
+the unmigrated database, with the cursor flake still present, costing roughly
+9% of polls. That is the lower-risk option and the one to take if the
+collectors are not to be touched.
+
+**Correction, 2026-09-18 evening.** The first draft of this section claimed the
+`COALESCE(covered_through_block, last_scanned_block)` readers made an
+unmigrated database transparent. They do not: PostgreSQL rejects an unknown
+column at parse time, and the first manual `adaptive-paper start` on release
+`852f4189…` failed with `column i.covered_through_block does not exist`. The
+adaptive-paper source now detects the column at connect time
+(`hasCoverageColumn` in `src/paper/store.ts`) and falls back to the
+pre-migration `last_scanned_block` predicate. The other readers of that column
+(`src/experiment/source.ts`, `src/risk/gate.ts`, `src/paper/recovery.ts`,
+`src/live-pilot/guard.ts`) are unchanged and still require migration 3 before
+their releases are upgraded.
 
 ## 5. Go/no-go checklist
 
@@ -129,11 +140,15 @@ the user. Nothing below has been done.
 ### Gates on evidence — these block a start
 
 - **G1. Fork cost probes for MSFT-3000, GLD-3000 and QQQ-500.**
-  `scripts/lp-asset-fork-check.mjs` has never been run for these pools, and all
-  three currently carry NVDA-500's bundle with
+  `scripts/lp-asset-fork-check.mjs` has never been run for the two 3000-tier
+  pools (it is hard-wired to fee 500 and a 10-tick grid), and both carry
+  NVDA-500's bundle with
   `"fork": "BLOCKED_no_fork_cost_probe_borrowed_from_nvda_500"` in the config
-  as a deliberate tripwire. The error direction favours the 3000 tier. **Not
-  satisfied.** Either run the probes or drop those three books.
+  as a deliberate tripwire. The error direction favours the 3000 tier.
+  **Not satisfied for MSFT-3000 and GLD-3000.** QQQ-500 was in fact probed on
+  2026-09-13 (`data/adaptive-lp-universe-study-2026-09-13/fork-QQQ.json`,
+  passed, gas 4–13% above NVDA-500 per stage); the config now cites that probe
+  and keeps the borrowed bundle, which slightly understates QQQ's costs.
 - **G2. The residual width is a judgement, not a measurement.**
   `residualWidthsTicks: 20` on the fee-500 books is the arm with the best alpha
   in both windows and the second-best net fees. The evaluation rule selects
