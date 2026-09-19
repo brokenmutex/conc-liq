@@ -203,7 +203,19 @@ is a safe failure but must be fixed before any live restart.
   08:00:57Z, during which coverage stopped advancing and every book deferred.
   The tail recovered by itself and resumed ten cycles in the next three minutes.
   This predates the migration and is unrelated to it, but it is now the largest
-  remaining source of `event_coverage_unavailable`.
+  remaining source of `event_coverage_unavailable`. Sampling the status file
+  every 30 s for six minutes across the boundary separates the two regimes
+  cleanly:
+
+  | regime | span | deferrals | decisions |
+  |---|---:|---:|---:|
+  | during the HyperSync 429 burst | 90 s | 37 | 0 |
+  | normal operation after it | 240 s | 4 | 30 |
+
+  So the checkpoint stream is not being lost, it is being deferred and
+  re-offered once the tail catches up, exactly as the counter is meant to
+  record. Any future reading of `event_coverage_unavailable` has to exclude the
+  first minute of each hour or it will measure the accounting job, not coverage.
 - **The dashboard is the only consumer verified on the new release.** The
   accounting, principal, nft and backtest steps ran clean, but `action-cost`
   has not completed successfully since before the upgrade for the reason above.
