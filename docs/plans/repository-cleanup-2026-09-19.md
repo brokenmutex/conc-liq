@@ -292,7 +292,7 @@ than by textual references alone:
   `audit-lp-fees-and-swaps.mjs`, `audit-lp-gas-estimates.mjs`,
   `lp-experiment-reconcile.mjs`, `lp-gas-regime-sensitivity.mjs`,
   `lp-weekend-reference.mjs`, `observe-paper-holding.mjs`,
-  `paper-recenter-fork-check.mjs`, `render-agile-lp.py`, `run-release.mjs` and
+  `paper-recenter-fork-check.mjs`, `render-agile-lp.py` and
   `verify-inventory-study.py`.
 
 "Unreferenced" here means no basename reference outside `scripts/`; it is a
@@ -573,6 +573,12 @@ Implemented foundation:
   runner release references without exporting secrets;
 - added maintained strategy, research, architecture, operations and incident
   documents.
+- added `scripts/workflows.json`, which classifies and hashes all 110 top-level
+  scripts, preserves 88 exact reproduction inputs, identifies 13 supported
+  operational entrypoints and queues nine candidates for retirement review;
+- made the workflow registry an enforced repository check, so a top-level
+  script cannot be added, removed or changed without a deliberate provenance
+  update.
 
 No active state, service, release, custody evidence, raw research input or bulk
 artifact has been deleted. Material pruning remains blocked until a durable
@@ -595,3 +601,6 @@ Implementation checkpoint:
 - Rebuildable local `dist/`, Python bytecode and five stale `.tools/*.log`
   artifacts were removed. No runtime dependency or research evidence was part
   of that cache cleanup.
+- Script movement and deletion remain deferred. The registry freezes the
+  current transitional layout so post-layout research replay can be evaluated
+  without silently changing recorded code paths or hashes.

@@ -1,0 +1,778 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-19T13:11:58.913Z",
+  "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
+  "layoutPolicy": "Existing top-level scripts remain at their recorded paths until their studies pass post-layout reproduction. New recurring tooling belongs in an owned subdirectory.",
+  "entries": [
+    {
+      "path": "scripts/activate-paper-release.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "0c3619af99f8441b89825fd72f1ee7ad909bf58d3da7a63b22241f62f7902817",
+      "bytes": 7302
+    },
+    {
+      "path": "scripts/adaptive-exit-rule-sim.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "ae2bfb1b1ae5992b3abafc666a44ecca09d95663b26d5546526797fb79292808",
+      "bytes": 14212
+    },
+    {
+      "path": "scripts/adaptive-forecast-sweep.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e0f4dddb10ed2e21daa031b388c42832f9f930d88b90a6c18125dcc1bde3ca91",
+      "bytes": 16996
+    },
+    {
+      "path": "scripts/adaptive-lp-long-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "23111505f89c807741dbca95490a28bc645b7cbe779f9500bfed4107130f659c",
+      "bytes": 11334
+    },
+    {
+      "path": "scripts/adaptive-lp-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2cf3bd4fa13a7a3987a62157eb1d077a09db6ffbe4aaf30dbdb4c804d905e384",
+      "bytes": 13662
+    },
+    {
+      "path": "scripts/adaptive-lp-universe-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "a56016f9dc81bd8fe702ea64faf3b2e1de73093511c3cf7a3f0a57243e1ef0e9",
+      "bytes": 12915
+    },
+    {
+      "path": "scripts/adaptive-residence-cap-sim.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "0d9c476cbf8abbcd469b86f8bcb895485ed287a9a63dbc067ec61433499a71fb",
+      "bytes": 9362
+    },
+    {
+      "path": "scripts/adaptive-residual-range-sim.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "c2b938f10b39f657b80adc396ba21d12ec391ec5cbc3e0023ed556016aa0642a",
+      "bytes": 22583
+    },
+    {
+      "path": "scripts/adaptive-width-replay.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "c30bc01163f433aadf5becf63589d87500eef296498d0e7bf84acaf4ef96a2b0",
+      "bytes": 6931
+    },
+    {
+      "path": "scripts/agile-lp-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "0fb1b819127a633137ed65acb8efb0389e7d82d08156ef6a3646258ed4f5ee41",
+      "bytes": 10194
+    },
+    {
+      "path": "scripts/analyze-lp-hours.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2d9be6142fede797052ff300752ee3db353274c3adddeb8bf4383960c750fdf5",
+      "bytes": 9314
+    },
+    {
+      "path": "scripts/attribute-adaptive-lp-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "4e43f2c3a5fce98862501d9d3bf6847240fb735576fd85723f7049479517c36a",
+      "bytes": 7300
+    },
+    {
+      "path": "scripts/audit-adaptive-lp-long.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "891892c4b7d3c24d1d622760ea6089888e3cb04a02ed0f4c098f38b9d65aafdb",
+      "bytes": 8484
+    },
+    {
+      "path": "scripts/audit-adaptive-lp-universe.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "7422d9ae47116fd23bcad53d09b836996d6e132938d3059baa99d7138173aa27",
+      "bytes": 10109
+    },
+    {
+      "path": "scripts/audit-agile-lp.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2ebee9ce7b375b247945bf1af93232c8493cc3ae4deec1dac69c47a0c678efb7",
+      "bytes": 6121
+    },
+    {
+      "path": "scripts/audit-lp-fees-and-swaps.mjs",
+      "category": "validation",
+      "lifecycle": "review_for_retirement",
+      "sha256": "2e8d862e442cd2578e958493135f20a99fdae78a014982b22f3cc0996a903064",
+      "bytes": 7204
+    },
+    {
+      "path": "scripts/audit-lp-gas-estimates.mjs",
+      "category": "validation",
+      "lifecycle": "review_for_retirement",
+      "sha256": "0d8483c172fef702d91d3d0dcb89d2d74536424c1e2c002c87340f2e4b5bbc1b",
+      "bytes": 4400
+    },
+    {
+      "path": "scripts/build-release.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "df0727e256d306f2693870f8af782ed1c9120059340d660cac3c28b204677366",
+      "bytes": 3032
+    },
+    {
+      "path": "scripts/capture-adaptive-lp-long.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "71e5113e57573eabb27edc892c1ad51c3e3540dce2d7cb4a724b836e671cbf46",
+      "bytes": 9963
+    },
+    {
+      "path": "scripts/capture-adaptive-lp-times.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "d67797dab3ce667fea335502b4d5d99f3bd85ff1555913bfba001bf41a27f478",
+      "bytes": 3200
+    },
+    {
+      "path": "scripts/capture-adaptive-lp-universe.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "02582b90efa247cf1d93d79ce65039aba173034dce5d842fd58101e0c6bada72",
+      "bytes": 14887
+    },
+    {
+      "path": "scripts/capture-cap-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2e91157340504fb3a932d51e6112b1b0bfab7a8cd0bde9ec0c0dd9b765b8dff4",
+      "bytes": 2970
+    },
+    {
+      "path": "scripts/capture-lp-hours.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "9881fe49736fe13fa3080e0b37f294c4ddf4c89c9b346bc2cc1a589baea8281c",
+      "bytes": 3153
+    },
+    {
+      "path": "scripts/capture-management-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "43fd066ca755ab2726198039a9527834937efa488d57399dca8ab62b53ac1424",
+      "bytes": 2751
+    },
+    {
+      "path": "scripts/certify-lp-optimizations.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "ff4cd20e298dd4de86ad1752663a1cd9ab27747bc057b12ab6e790997e67bc0f",
+      "bytes": 2450
+    },
+    {
+      "path": "scripts/check-dashboard-position-accounting.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "1b1a450fa90298839c4e7fb9e3d7a8b670f2850e87a67fc5344ac6a8eaa02859",
+      "bytes": 2540
+    },
+    {
+      "path": "scripts/check-dashboard-positions.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "d321e0a8a99176e29007af8b11cc89054cc33324535bbe2da45eb340d3a50ca1",
+      "bytes": 7585
+    },
+    {
+      "path": "scripts/check-dashboard-preview.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "c9def13f460de2b26f099abbf0be1276ecbd5f80139ff6aad47424e1f7519830",
+      "bytes": 8499
+    },
+    {
+      "path": "scripts/check-dashboard-release.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "77eae318e6884357cab4deb84f185ee745e77a8370047bd97f440eff53336581",
+      "bytes": 2094
+    },
+    {
+      "path": "scripts/compare-lp-allocation.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "36f2edb9ea9c8d5c6360f2f14ff9b78c91cb1c5a6d530db3587bb958ac46ea87",
+      "bytes": 11656
+    },
+    {
+      "path": "scripts/diagnose-adaptive-lp-universe-exits.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "44eda4b313f5ec38e952a3f9c5cde40776e1f2909c9299f5c0f4c35d1c38765c",
+      "bytes": 3325
+    },
+    {
+      "path": "scripts/diagnose-adaptive-lp-universe-marks.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "80cef1a083e67df21e394e26b9b56afd3c40255cc273f0c4564e3a8cfccc50e6",
+      "bytes": 4612
+    },
+    {
+      "path": "scripts/generate-v3-research-fixtures.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "7d5a2ff8d63051f464d087f6097a45a0da67f411abaa87b0b1e9ddab0a0024b4",
+      "bytes": 2665
+    },
+    {
+      "path": "scripts/inventory-fork-probe.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "9096eacd3664849f9a9941ab30500b658f48781e180ce827422241f589b72218",
+      "bytes": 5175
+    },
+    {
+      "path": "scripts/inventory-management-study.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2fdc2b0a5c06e5c13e7b4644f8bf4dbd75330c6c1c4e90023d0cc68ca1dd8ae8",
+      "bytes": 13514
+    },
+    {
+      "path": "scripts/live-approval-batch-fork.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "017c5d39a89d23deeaa37d1c439ec3ecb311da01718674a1bf2ecf318fd45a53",
+      "bytes": 5794
+    },
+    {
+      "path": "scripts/live-execution-cost-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "964e83d2427f4175568e08277bf8fd8e15302bed209d6701dba096f872e8735f",
+      "bytes": 7611
+    },
+    {
+      "path": "scripts/live-fee-calibration.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "756c266d9811a354fb70c8cf6bd8395e50f03dc9af1e122b5cc46224822858e0",
+      "bytes": 11112
+    },
+    {
+      "path": "scripts/live-persistent-allowance-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "315d94db4bc14df833956c9f14097b912091942723f12189bed19dc1600cb854",
+      "bytes": 5556
+    },
+    {
+      "path": "scripts/live-persistent-allowance-fork.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "ec51a5de07e723558f0a8d522bc711cd1a2d08677ac6494a027736f2e9697bb4",
+      "bytes": 14445
+    },
+    {
+      "path": "scripts/live-pilot-funded-fork-check.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "26f9ff2f8f374f257d7b029d88102ced76e9aac850d33ef62ec6ee6706e6a9cd",
+      "bytes": 3936
+    },
+    {
+      "path": "scripts/live-pilot-prepare.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "0df2a9dab46414d86e4dc44a6b9c64c4277bf59f94304dbe47b263a4dac5feb7",
+      "bytes": 11467
+    },
+    {
+      "path": "scripts/live-pilot-recenter-check.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "b3ce4fd5d040e901566c6d62b44e9a59b2a0f5822b3d59cce69b5c9670c95e2a",
+      "bytes": 3840
+    },
+    {
+      "path": "scripts/live-pilot.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "6e628d4d5a5d7e65a5e04cac7032313792a137a4c056ce940d23ae90e36fdece",
+      "bytes": 102
+    },
+    {
+      "path": "scripts/live-recenter-route-fork.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "455c0cde43bebaf8884ce5e38037b484b3ee03118ed89cd730d161c11a947f1e",
+      "bytes": 10269
+    },
+    {
+      "path": "scripts/lp-asset-fork-check.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "583199f5c9c1230609275050a5f0ef106de7c45ee1a98d395367d63ee75b4315",
+      "bytes": 5213
+    },
+    {
+      "path": "scripts/lp-asset-history-screen.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "335788e2c4293b169d2e599b2662ab87b4ffadc5b32b48733b9d9fb6982cfd01",
+      "bytes": 9305
+    },
+    {
+      "path": "scripts/lp-asset-replay.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "5b5810a928f43ace9c0a0ba453ce4a31c0610bd93e322967bce5f45b0febc869",
+      "bytes": 8923
+    },
+    {
+      "path": "scripts/lp-asset-universe.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "057b18f3e9f1cc369c1a4a6d11a31c535fbff1140f462a5532507ad7d140b12a",
+      "bytes": 5267
+    },
+    {
+      "path": "scripts/lp-cost-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "cba221c32661e18c98fb2075ad4d45a8e00f058df523fdeb8028e8f0048bd28b",
+      "bytes": 5372
+    },
+    {
+      "path": "scripts/lp-empty-quote-hook.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "63defce2f17c533a999deef0d48579e9ad145ba647c513cc3f3ffadd4749db6d",
+      "bytes": 1159
+    },
+    {
+      "path": "scripts/lp-experiment-reconcile.mjs",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "57e49572665d6d863d4b5989b8ab715cbd28b61288c6c72700c3ec4ff3b6b551",
+      "bytes": 2488
+    },
+    {
+      "path": "scripts/lp-gas-regime-sensitivity.mjs",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "b346b1888680443f75cf8b7edeeb6d714b3cded9c946f3c48c443a956eacb636",
+      "bytes": 4573
+    },
+    {
+      "path": "scripts/lp-portfolio-replay.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "afe9463574f014d0fdef77ab397ef504acadd1fb57a6e8a64b59edc53ba7f143",
+      "bytes": 10236
+    },
+    {
+      "path": "scripts/lp-portfolio-report.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "dc8f2b78db47d7c0875b694ad030b882e90754294c8833797eda0af385cd4143",
+      "bytes": 14427
+    },
+    {
+      "path": "scripts/lp-recenter-calibrate.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "a237e4c93c4e7542a4d64368c4a1a8a871c95dc64a39a545737c816a47cb7a47",
+      "bytes": 6061
+    },
+    {
+      "path": "scripts/lp-reference-backfill.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "bd8956926ca656fa3f4567a7d63df1066a9a08a26813b84408c8c0120ea3aa3c",
+      "bytes": 7465
+    },
+    {
+      "path": "scripts/lp-reference-events.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "83e40d81dad1006c70f42b187ee18426eaa764bbfe72896ca462579c4a55917a",
+      "bytes": 1506
+    },
+    {
+      "path": "scripts/lp-research.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "db48d7adfd3d610b7bcf6a6bbfbc4941f23a79200716225fa48e95c5591ef7e8",
+      "bytes": 27178
+    },
+    {
+      "path": "scripts/lp-small-budget-calibrate.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "592a80bed7d497840e0be3c78d8f63d3f06e592f40579a8307218c84a0befe15",
+      "bytes": 4521
+    },
+    {
+      "path": "scripts/lp-small-budget-capture.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "45f01e7014825fc41c220871681c2c8861685cc31c4a9e3b01666fb4db1e285c",
+      "bytes": 7687
+    },
+    {
+      "path": "scripts/lp-small-budget-fork.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "378ba3c92f75561fe93753910d993e69e3ade7b3f2c2ae6f7a8cc9fe051fcbc7",
+      "bytes": 5403
+    },
+    {
+      "path": "scripts/lp-small-budget-prepare.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e13280be1c5c4f29e8d5d2bb86decd4d1f45f1dd3c51864678f9bbf8ddad65e4",
+      "bytes": 7057
+    },
+    {
+      "path": "scripts/lp-small-budget-reference.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "0d98808d182d956119b4dcdda59e25269f1dba09001ee1a976b74c3fe72e1b2e",
+      "bytes": 2386
+    },
+    {
+      "path": "scripts/lp-small-budget-replay.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2a55bada346d06bac199694b0aa4c43425e1d4c814d825f8cab313dba2b22a1a",
+      "bytes": 10136
+    },
+    {
+      "path": "scripts/lp-small-budget-report.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "7c5a69d03c49c9b12ff4db3808162344528098fd742d74708c9af64a0875e9e5",
+      "bytes": 20184
+    },
+    {
+      "path": "scripts/lp-small-budget-verify-receipts.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "8058a16e092262e1d4fbfb4105bf7282e561bc8f6aa3a3bfe98ad6303854deab",
+      "bytes": 2946
+    },
+    {
+      "path": "scripts/lp-tick-memo-hook.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "7abcd31356bc86f7d7879fb0b47d6bf4bb8b0020f5c252127d22ef5d1529a1ee",
+      "bytes": 1586
+    },
+    {
+      "path": "scripts/lp-weekend-reference.mjs",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "f6792412d5e98945207fe39431ced4d365cc5dd0cc24d7d79590cd81bb1c3f25",
+      "bytes": 2253
+    },
+    {
+      "path": "scripts/management-counterfactual-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "7cb64ab5387191a6d973b10074dc76f8a7618d273f5499b1a8a33848c9face7e",
+      "bytes": 11996
+    },
+    {
+      "path": "scripts/management-decision-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "0058b9fade0cf7a30aee807eb76437cbbba4b6a230902adb4fb3b0d04e328e7a",
+      "bytes": 10247
+    },
+    {
+      "path": "scripts/observe-paper-holding.mjs",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "fa866c7737026958a28d60756265f1b6656401b33697a294b3eed7b3f88382a9",
+      "bytes": 2581
+    },
+    {
+      "path": "scripts/package-adaptive-lp-universe.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "5e454049f80bdd3ce6871841d51bfe92ca560901be98a4eaf6f8e6d2c27d8d1b",
+      "bytes": 4334
+    },
+    {
+      "path": "scripts/paper-boundary-recovery.mjs",
+      "category": "recovery",
+      "lifecycle": "supported_operations",
+      "sha256": "013da82e6f972fadd69cf8ec36c0041685282d88d9e06360ea5565cd45e59777",
+      "bytes": 8652
+    },
+    {
+      "path": "scripts/paper-performance-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "10279dbea3b6966b1174f72b14f28db6a05b18849ff3d7f94b63ce90b87f9745",
+      "bytes": 16154
+    },
+    {
+      "path": "scripts/paper-recenter-fork-check.mjs",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "989ca046fb231dc637e083871256b09ddc167a2097a3a09bfd0111be08153a86",
+      "bytes": 3275
+    },
+    {
+      "path": "scripts/paper-session-update.mjs",
+      "category": "recovery",
+      "lifecycle": "supported_operations",
+      "sha256": "dc1ed3bad0e1007be7749f3ed6079dad2205d78209714ecbf1693eb1dffd7b76",
+      "bytes": 6585
+    },
+    {
+      "path": "scripts/pool-universe-screen.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "95ee579a84ca0b8666a7c5190d41cae777d87e6549010f496f05851ef366a97d",
+      "bytes": 7801
+    },
+    {
+      "path": "scripts/prepare-adaptive-lp-universe.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "bc2dfd4ea2c85ac5abed0a588cc51ad0965b9db3f0ad9ab14698e9b4e9d6d1fb",
+      "bytes": 7692
+    },
+    {
+      "path": "scripts/probe-lp-allocation.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "b17392ed1836220ec7887d931bc06f2f53c779c16cab5ce1d3c60c206fbb4134",
+      "bytes": 3105
+    },
+    {
+      "path": "scripts/release-files.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "5511e87e5d5574cb8f624104eeb3b3f7df9e36c0298fc9ad0ea6a4705374d3bf",
+      "bytes": 1541
+    },
+    {
+      "path": "scripts/render-adaptive-lp-long.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "32a0fcaa0d0a038f24721c0d3a2d1d595ee5e658e489a07ed656a07712e3ec40",
+      "bytes": 5183
+    },
+    {
+      "path": "scripts/render-adaptive-lp-study.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2c71b8332dd2c8e69994c51fda9f7c76f2439b140aec243377596eed082acfcf",
+      "bytes": 2657
+    },
+    {
+      "path": "scripts/render-adaptive-lp-universe.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "2cd3d9a1a53efad804bbbaaae1c9f224bc162668c312ef08c4d5c5f03c36daf7",
+      "bytes": 10894
+    },
+    {
+      "path": "scripts/render-agile-lp.py",
+      "category": "research",
+      "lifecycle": "review_for_retirement",
+      "sha256": "ada0ecee583384e339ae7c9646b769f0ebbe88fb256603ecf52933bfb18c55c8",
+      "bytes": 2596
+    },
+    {
+      "path": "scripts/render-experiment-unit.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "1085dcba59418a1ec5bbbc80ee2022f696b52ab0883a59d9ebce6f3487038b63",
+      "bytes": 634
+    },
+    {
+      "path": "scripts/render-inventory-study.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "41310aaa0cb28b008026a34e1a9f4c931c20ae30350479a0cef75cfdfb4b34b4",
+      "bytes": 8370
+    },
+    {
+      "path": "scripts/render-offhours-recenter.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e724b1db6a80c7f85e0d68703ec58a88ab16cb21efa9e555b22906f2104799bf",
+      "bytes": 2103
+    },
+    {
+      "path": "scripts/render-paper-performance.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "54b5dcbf7388919fc48ace9921da26f81e45aaee0acc4109be835d1aaa6f94c6",
+      "bytes": 23714
+    },
+    {
+      "path": "scripts/render-release-units.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "7d2edaddc3e7eb53a675050ff5b0b2ad934288d2bf67ac970b9527d43cb20e60",
+      "bytes": 2034
+    },
+    {
+      "path": "scripts/replay-offhours-caps.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "5ef483069cf718d0d999ff4ab84b0b7f80a6646e9b82363ac1d2b0035473bc29",
+      "bytes": 6499
+    },
+    {
+      "path": "scripts/replay-offhours-recenter.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "37486b949d53629dd51a2c64413d7d00b8ef1494f1e8319ee64b929156a2dced",
+      "bytes": 8627
+    },
+    {
+      "path": "scripts/report-agile-lp.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "3427e38e45ed2ed089d06f79141030685017eb2e595e8af8e23adb794ed71b98",
+      "bytes": 18343
+    },
+    {
+      "path": "scripts/report-forecast-sweep.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "3fcf503641390756e276c7e9d59aa8f01250481c5ab6a1d713c69795e44c7101",
+      "bytes": 4144
+    },
+    {
+      "path": "scripts/report-lp-hours-allocation.py",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "15f80ea139c2e7b99559493bce00c2cbff738b9b2c5ebff5f90a278e0ccdfe87",
+      "bytes": 8564
+    },
+    {
+      "path": "scripts/run-adaptive-lp-universe.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "3eaca134d3499529ec186f234f7878d58e27e038ff3b9aeba28afb0c0164baaa",
+      "bytes": 4219
+    },
+    {
+      "path": "scripts/run-cap-validation.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "d712191b621b5fc302417b45221356563fc3d30efa00524bf85ccce1e450dbec",
+      "bytes": 2867
+    },
+    {
+      "path": "scripts/run-recenter-validation.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e7583cabfd9df79aba8ab92df627b3338d346b690dfc2256fbcd4983f4e28461",
+      "bytes": 2461
+    },
+    {
+      "path": "scripts/run-release.mjs",
+      "category": "operations",
+      "lifecycle": "supported_operations",
+      "sha256": "29feb00a3b9856e81077dbaacd4708f50a2643c56f5af35d58f04aac127a615e",
+      "bytes": 2043
+    },
+    {
+      "path": "scripts/sim-source.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "5ba4044cb678c49e893dc4bb25a2cce4c906b13d0bf11cb630b6c75f53e5d60a",
+      "bytes": 4291
+    },
+    {
+      "path": "scripts/summarize-management-audit.mjs",
+      "category": "research",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "5a51552eea8bb27974294394daed7c8ad6b883bdc8d1778f5fed063392187248",
+      "bytes": 4421
+    },
+    {
+      "path": "scripts/verify-adaptive-lp-long.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "3a57833b07243f98e2c8341525fdc3289b4612ab2828ed4e20e0be67f9cfa059",
+      "bytes": 7885
+    },
+    {
+      "path": "scripts/verify-adaptive-lp-study.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "d67366782d0d2359f3cff5479512010239165bd73974d7d460bf2e5b6775088f",
+      "bytes": 4952
+    },
+    {
+      "path": "scripts/verify-adaptive-lp-universe-source.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "fae758cd5a2d0f47de71603355b3ba01303f600fe666c655e31712628c99cd7a",
+      "bytes": 3148
+    },
+    {
+      "path": "scripts/verify-adaptive-lp-universe.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "245db53fbe1ceda53edd3c5a636b0f983f4653b729c58282e902c10bbc6117cf",
+      "bytes": 12533
+    },
+    {
+      "path": "scripts/verify-inventory-study.py",
+      "category": "validation",
+      "lifecycle": "review_for_retirement",
+      "sha256": "438789118e59c29c1e6f0ecc97d561a7860be829fa66b65c20b72b03a66edd92",
+      "bytes": 2858
+    },
+    {
+      "path": "scripts/verify-lp-empty-quote.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e481e42c19db3bc9a8c2b9952c336c4b36c4cf9f681aad51e110fee4b22a296c",
+      "bytes": 4044
+    },
+    {
+      "path": "scripts/verify-lp-tick-memo.mjs",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "139b07166581abe2da2ad032d1cc9759bda19ac71b40daf1eec59f3b11e48903",
+      "bytes": 1935
+    },
+    {
+      "path": "scripts/verify-offhours-recenter.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "9f23540b1553c8966402579ea619c0e7f0faae1641879b014eceae393203f5f4",
+      "bytes": 4109
+    },
+    {
+      "path": "scripts/verify-paper-performance.py",
+      "category": "validation",
+      "lifecycle": "frozen_reproduction",
+      "sha256": "e753c998f31dfe0e3f47ba8eb8c2a4e3f3c5f97d011bdf4a3c8801025ce92467",
+      "bytes": 9148
+    }
+  ]
+}
