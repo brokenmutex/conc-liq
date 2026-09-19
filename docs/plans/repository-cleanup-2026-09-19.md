@@ -578,3 +578,20 @@ No active state, service, release, custody evidence, raw research input or bulk
 artifact has been deleted. Material pruning remains blocked until a durable
 artifact destination is configured and the final-layout reproduction gate
 passes.
+
+Implementation checkpoint:
+
+- `5b86c5c` moves runtime evidence to owned assets/fixtures and activates the
+  documentation-path and research-manifest checks.
+- `1a880cc` adds maintained documentation, the machine-readable cleanup
+  inventory and the release-retention inventory.
+- `npm run check` passes TypeScript checking and all 582 unit tests.
+- A clean sealed release built from `1a880cc` and independently verified its
+  manifest as build
+  `7d2746d3c4180c4c7aaea483fadd835d6a84badea8ac2b298103c970212d92eb`;
+  the temporary smoke release was then removed.
+- Database integration tests remain pending because an isolated
+  `TEST_DATABASE_URL` was not available.
+- Rebuildable local `dist/`, Python bytecode and five stale `.tools/*.log`
+  artifacts were removed. No runtime dependency or research evidence was part
+  of that cache cleanup.
