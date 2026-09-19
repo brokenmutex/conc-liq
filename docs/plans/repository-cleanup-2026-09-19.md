@@ -584,7 +584,7 @@ Implemented foundation:
 No active state, service, release, custody evidence, raw research input or bulk
 artifact has been deleted. The user-approved local `archive/` destination is
 configured. Material pruning remains blocked until the final-layout
-reproduction gate passes and retained non-replayable evidence is handled.
+reproduction gate passes.
 
 Implementation checkpoint:
 
@@ -617,6 +617,8 @@ Implementation checkpoint:
   byte-equivalent to the original runners except for connection selection.
 - This is not yet pruning authorization. The verified object is retained in the
   user-approved same-host, Git-ignored `archive/` directory; final-layout replay
-  remains pending and W4.2/W4.3 retain time-dependent observations. The local
-  policy does not protect against host/disk loss. Protected inputs and outputs
-  remain in place until the other gates pass.
+  remains pending. Exact W4.2/W4.3 time-dependent evidence is hash-retained in
+  `research/evidence/`, and maintained replacements require bounded parameters
+  for future observations. The local archive policy does not protect against
+  host/disk loss. Protected layout-dependent inputs and outputs remain in place
+  until the final gate passes.

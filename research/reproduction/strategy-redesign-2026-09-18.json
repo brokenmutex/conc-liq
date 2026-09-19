@@ -304,15 +304,17 @@
       "id": "w4-cursor-probe",
       "workstream": "W4.2",
       "status": "retained_non_replayable",
-      "evidence": ["notes/execution-defects-2026-09-18/cursor-probe-2026-09-18.log", "notes/execution-defects-2026-09-18/cursor-probe.sh"],
-      "limitation": "The probe samples a running cursor at wall-clock time and its script contains an obsolete temporary output path. A rerun would be a new observation, not reproduction of the September 18 sample."
+      "evidence": ["research/evidence/strategy-redesign-2026-09-18/w4-cursor-probe-2026-09-18.log", "research/evidence/strategy-redesign-2026-09-18/w4-cursor-probe-original.sh"],
+      "replacement": "scripts/research/capture-indexer-cursor-probe.mjs",
+      "limitation": "The original probe samples a running cursor at wall-clock time and cannot be reproduced. Its exact log and obsolete original script are hash-retained as historical evidence; the maintained replacement requires an explicit output path and records bounded sampling parameters for future observations."
     },
     {
       "id": "w4-health-distributions",
       "workstream": "W4.3",
       "status": "retained_non_replayable",
-      "evidence": ["notes/execution-defects-2026-09-18/health-distributions.sql"],
-      "limitation": "Three queries scan tables without a frozen upper bound and no database snapshot was retained. Current results include later samples and cannot reproduce the original distribution."
+      "evidence": ["research/evidence/strategy-redesign-2026-09-18/w4-health-distributions-original.sql"],
+      "replacement": "scripts/research/bounded-health-distributions.sql",
+      "limitation": "The original queries lacked a frozen upper bound, so later samples cannot reproduce their reported distribution. The exact original SQL is hash-retained; the maintained replacement requires explicit inclusive time bounds for future observations."
     },
     {
       "id": "w4-route-selection",
@@ -337,6 +339,6 @@
     }
   ],
   "blockers": [
-    "W4.2 cursor and W4.3 health observations are time-dependent and remain retained as non-replayable evidence."
+    "The final script/config layout has not completed its restored-input replay."
   ]
 }

@@ -149,6 +149,10 @@ for (const unit of report.nonDeterministicUnits) {
   for (const evidence of unit.evidence ?? []) {
     assert(existsSync(evidence) && statSync(evidence).isFile(), `${unit.id}: evidence ${evidence} is not retrievable`);
   }
+  if (unit.replacement) {
+    assert(existsSync(unit.replacement) && statSync(unit.replacement).isFile(),
+      `${unit.id}: replacement ${unit.replacement} is not retrievable`);
+  }
   if (unit.status !== "verified_test_assertion") {
     assert.equal(typeof unit.limitation, "string", `${unit.id}: limitation missing`);
   }

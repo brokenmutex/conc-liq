@@ -45,14 +45,18 @@ does not protect against disk or host loss and is not recoverable from Git.
 This still does not clear the study for pruning:
 
 - the final script/config layout has not completed its restored-input replay;
-- W4.2's cursor probe is a wall-clock observation and its retained script has
-  an obsolete temporary output path;
-- W4.3's original health-distribution queries were not bounded by a frozen
-  upper timestamp, so a current query would include later evidence;
 
-The cursor log, health evidence and layout-dependent inputs and outputs
-therefore remain protected. The exact commands, fixed time bounds,
-input hashes, normalized output hashes and blocker states are in
+W4.2 and W4.3 no longer block note cleanup. Their exact non-replayable source
+files and the original cursor log are hash-retained under
+`research/evidence/strategy-redesign-2026-09-18/`. Future cursor probes require
+an explicit output and bounded sampling parameters via
+`scripts/research/capture-indexer-cursor-probe.mjs`. Future health distributions
+require explicit inclusive time bounds via
+`scripts/research/bounded-health-distributions.sql`. A future run is correctly
+classified as a new observation, not a reproduction of September 18.
+
+Layout-dependent inputs and outputs remain protected. The exact commands,
+fixed time bounds, input hashes, normalized output hashes and blocker states are in
 `research/reproduction/strategy-redesign-2026-09-18.json` and are enforced by
 `npm run check:repository`.
 

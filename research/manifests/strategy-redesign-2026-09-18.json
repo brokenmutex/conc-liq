@@ -15,8 +15,8 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "b6d6ff3bdc9506425d1391b9495764e85479f53d3ff0458a9c61ae2beb637409",
-      "bytes": 17558,
+      "sha256": "8d28633a67f0359e2dc29179654cb9524e69ef720561cd2b900fa0144fedf664",
+      "bytes": 17908,
       "role": "manifest"
     },
     {
@@ -114,6 +114,36 @@
       "sha256": "5d8c98b349bff868affe6a6c3199c68b9b6b926792d32b233d8328f090e56405",
       "bytes": 4981,
       "role": "code"
+    },
+    {
+      "path": "research/evidence/strategy-redesign-2026-09-18/w4-cursor-probe-2026-09-18.log",
+      "sha256": "fbb2e845cd464370d7a521607e2e5cb5d4166862494199c72103e93b91a8e5af",
+      "bytes": 56916,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/evidence/strategy-redesign-2026-09-18/w4-cursor-probe-original.sh",
+      "sha256": "c6779bfb4d384dbaf8f836ee4fb28e6040ef4a3b965fc98cf8114bb027333066",
+      "bytes": 422,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/evidence/strategy-redesign-2026-09-18/w4-health-distributions-original.sql",
+      "sha256": "078d08692747dd25b972b26a8c847dfa865439e663bd51cd0bbdd383f30f7b9d",
+      "bytes": 4675,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "scripts/research/capture-indexer-cursor-probe.mjs",
+      "sha256": "76dc560ded43d373f43bf45a68ef5bc0b691304ef7a4e8b18f4e59aaa77e0efa",
+      "bytes": 3086,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/bounded-health-distributions.sql",
+      "sha256": "14590d000d88bc7241034a776766a18b9666d5a0504f391af04fbee2194a66d7",
+      "bytes": 4294,
+      "role": "code"
     }
   ],
   "runtimeIdentity": {
@@ -128,7 +158,7 @@
     "postLayoutVerified": false,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Final-layout replay remains pending and two W4 observations are time-dependent. No dependent evidence may yet be pruned."
+    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Exact W4 time-dependent evidence is hash-retained with bounded replacements for future observations. Final-layout replay remains pending, so layout-dependent evidence may not yet be pruned."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",
