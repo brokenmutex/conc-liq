@@ -285,7 +285,7 @@
       "contentAddressedSnapshot": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
       "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
       "replayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
-      "limitation": "The bounded database snapshot restored, passed its data contract, and reproduced all eleven deterministic units. Its object remains staged on the source host, so database-backed inputs cannot be pruned until an independently durable copy is verified."
+      "limitation": "The bounded database snapshot restored, passed its data contract, and reproduced all eleven deterministic units. The user approved the ignored archive/ directory as the retention destination. It remains same-host and therefore does not protect against host or disk loss."
     }
   ],
   "databaseArchive": {
@@ -293,10 +293,11 @@
     "manifest": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
     "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
     "replayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
-    "status": "verified_local_staging_with_replay",
+    "status": "verified_user_approved_local_archive_with_replay",
     "restoreVerified": true,
     "restoredInputReplayVerified": true,
-    "durable": false
+    "durable": false,
+    "retentionApproved": true
   },
   "nonDeterministicUnits": [
     {
@@ -336,7 +337,6 @@
     }
   ],
   "blockers": [
-    "The verified content-addressed database archive remains on the source host; no independent durable destination and transfer verification exists.",
     "W4.2 cursor and W4.3 health observations are time-dependent and remain retained as non-replayable evidence."
   ]
 }

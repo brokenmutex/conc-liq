@@ -8,10 +8,11 @@
     "sha256": "3021364cecaf3f5aa06c8359f26a152441b8faf9c1ac0fb7eac54f0071347190",
     "compression": "zstd-19",
     "trackedManifest": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
-    "stagingPath": "data/archive-staging/79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a.tar.zst",
-    "storageClass": "same_host_local_staging",
+    "storagePath": "archive/79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a.tar.zst",
+    "storageClass": "user_approved_same_host_untracked_archive",
     "durable": false,
-    "independentlyStored": false
+    "independentlyStored": false,
+    "retentionApproved": true
   },
   "export": {
     "implementationBaseCommit": "09f3e98891f8e008e2244907fc16a2db252b898a",
@@ -38,8 +39,8 @@
   },
   "pruningAuthorized": false,
   "limitations": [
-    "The archive object is staged on the same host as the source database.",
-    "No independent durable destination or transfer verification exists."
+    "The user-approved archive directory is on the same host as the source database and is not tracked by Git.",
+    "This retention policy does not protect against host or disk loss and is not recoverable from a fresh clone."
   ],
   "restoredInputReplayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json"
 }

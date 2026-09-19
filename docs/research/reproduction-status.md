@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 
-Status: deterministic replay from the restored local database passed; evidence pruning remains blocked
+Status: deterministic replay from the approved local archive passed; evidence pruning remains blocked
 
 The post-layout audit reran every deterministic JSON-producing unit in the
 September 18 W0-W4 bundle. Frozen-release units used build
@@ -36,23 +36,27 @@ every normalized digest matched. The database adapters are mechanically proven
 byte-equivalent to the original runners except for the explicit connection
 override and comments.
 
+The user approved the repository-local, Git-ignored `archive/` directory as the
+retention destination. The content-addressed object was moved there and its
+byte length and SHA-256 were reverified. This clears the project's external
+storage policy gate, but it is deliberately recorded as same-host storage: it
+does not protect against disk or host loss and is not recoverable from Git.
+
 This still does not clear the study for pruning:
 
-- the archive object remains local staging on the same host as the source
-  database; it has not been transferred to and verified from independent
-  durable storage;
+- the final script/config layout has not completed its restored-input replay;
 - W4.2's cursor probe is a wall-clock observation and its retained script has
   an obsolete temporary output path;
 - W4.3's original health-distribution queries were not bounded by a frozen
   upper timestamp, so a current query would include later evidence;
 
-The cursor log, health evidence, database-backed inputs and all dependent
-outputs therefore remain protected. The exact commands, fixed time bounds,
+The cursor log, health evidence and layout-dependent inputs and outputs
+therefore remain protected. The exact commands, fixed time bounds,
 input hashes, normalized output hashes and blocker states are in
 `research/reproduction/strategy-redesign-2026-09-18.json` and are enforced by
 `npm run check:repository`.
 
 The archive's immutable manifest and restore receipt are under
 `research/archives/`. The 185,163,776-byte object is intentionally ignored at
-`data/archive-staging/`; its presence is useful locally but is not durable proof.
+`archive/79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a.tar.zst`.
 The restored-input replay receipt is retained beside the archive manifest.

@@ -15,8 +15,8 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "f6b8b656579797a3010b64281e4d714964bb56fecebd6aaa0c029727aad5b655",
-      "bytes": 17645,
+      "sha256": "b6d6ff3bdc9506425d1391b9495764e85479f53d3ff0458a9c61ae2beb637409",
+      "bytes": 17558,
       "role": "manifest"
     },
     {
@@ -27,14 +27,14 @@
     },
     {
       "path": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
-      "sha256": "e274680f879ff6f1a747fa5a1216249f6f0777c9f2ec150972fb7929362a3721",
-      "bytes": 1960,
+      "sha256": "ab91e96bac147a1ea404fc6df8ab9a3eb38da0e9e1851a5d645381a6b5d9c895",
+      "bytes": 2072,
       "role": "archive_receipt"
     },
     {
       "path": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
-      "sha256": "c6006108503bfe11ece38a115310f0fe4a694262e5012a83cb7e3c4b3f271788",
-      "bytes": 4466,
+      "sha256": "0aa23039aac136dd8cd65a57c0f373f694ae53f0adb8ee6d0bd1946b4b39f3bf",
+      "bytes": 4507,
       "role": "archive_receipt"
     },
     {
@@ -128,7 +128,7 @@
     "postLayoutVerified": false,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The archive still lacks independently durable storage and two W4 observations are time-dependent. No dependent evidence may be pruned."
+    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Final-layout replay remains pending and two W4 observations are time-dependent. No dependent evidence may yet be pruned."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",

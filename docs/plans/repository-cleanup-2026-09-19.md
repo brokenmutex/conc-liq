@@ -464,9 +464,10 @@ Add checks that fail when:
 
 The implementation should not start until these choices are approved:
 
-1. **Artifact destination:** recommended: content-addressed compressed bundles
-   on durable storage, with only manifests in Git. A second local directory is
-   not sufficient unless it is independently backed up.
+1. **Artifact destination:** approved: content-addressed compressed bundles in
+   the repository-local, Git-ignored `archive/` directory, with manifests in
+   Git. This user-selected retention policy survives repository cleanup but not
+   host/disk loss or a fresh clone; receipts must preserve that limitation.
 2. **Historical prose:** recommended: consolidate durable knowledge and remove
    detailed dated notes from the current tree, relying on the pre-cleanup tag
    and archive for full history.
@@ -581,9 +582,9 @@ Implemented foundation:
   update.
 
 No active state, service, release, custody evidence, raw research input or bulk
-artifact has been deleted. Material pruning remains blocked until a durable
-artifact destination is configured and the final-layout reproduction gate
-passes.
+artifact has been deleted. The user-approved local `archive/` destination is
+configured. Material pruning remains blocked until the final-layout
+reproduction gate passes and retained non-replayable evidence is handled.
 
 Implementation checkpoint:
 
@@ -596,8 +597,8 @@ Implementation checkpoint:
   manifest as build
   `7d2746d3c4180c4c7aaea483fadd835d6a84badea8ac2b298103c970212d92eb`;
   the temporary smoke release was then removed.
-- Database integration tests remain pending because an isolated
-  `TEST_DATABASE_URL` was not available.
+- Database integration tests pass against an isolated disposable database,
+  which was removed after the run.
 - Rebuildable local `dist/`, Python bytecode and five stale `.tools/*.log`
   artifacts were removed. No runtime dependency or research evidence was part
   of that cache cleanup.
@@ -614,6 +615,8 @@ Implementation checkpoint:
 - All eleven deterministic units reproduce their recorded normalized digests
   from the isolated archive restore. Explicit database adapters are proven
   byte-equivalent to the original runners except for connection selection.
-- This is not pruning authorization. The archive object remains same-host local
-  staging rather than independently durable storage, and W4.2/W4.3 retain
-  time-dependent observations. Their inputs and outputs remain protected.
+- This is not yet pruning authorization. The verified object is retained in the
+  user-approved same-host, Git-ignored `archive/` directory; final-layout replay
+  remains pending and W4.2/W4.3 retain time-dependent observations. The local
+  policy does not protect against host/disk loss. Protected inputs and outputs
+  remain in place until the other gates pass.

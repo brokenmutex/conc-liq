@@ -72,7 +72,7 @@
   "allMatched": true,
   "pruningAuthorized": false,
   "remainingLimitations": [
-    "The archive object remains on the same host as the source database.",
+    "The user-approved untracked archive remains on the same host and does not protect against host or disk loss.",
     "W4.2 cursor and W4.3 health evidence are retained time-dependent observations."
   ]
 }

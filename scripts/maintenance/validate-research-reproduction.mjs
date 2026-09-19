@@ -57,10 +57,12 @@ for (const input of report.inputFiles) {
 }
 
 const databaseArchive = report.databaseArchive;
-assert.equal(databaseArchive.status, "verified_local_staging_with_replay", "Database archive status is not recognized");
+assert.equal(databaseArchive.status, "verified_user_approved_local_archive_with_replay",
+  "Database archive status is not recognized");
 assert.equal(databaseArchive.restoreVerified, true, "Database archive restore is not verified");
 assert.equal(databaseArchive.restoredInputReplayVerified, true, "Restored-input replay is not verified");
-assert.equal(databaseArchive.durable, false, "Local staging must not be represented as durable storage");
+assert.equal(databaseArchive.durable, false, "Same-host storage must not claim independent durability");
+assert.equal(databaseArchive.retentionApproved, true, "Local archive retention has not been approved");
 for (const archivePath of [databaseArchive.manifest, databaseArchive.receipt, databaseArchive.replayReceipt]) {
   assert(existsSync(archivePath) && statSync(archivePath).isFile(), `Database archive evidence missing: ${archivePath}`);
 }
@@ -82,8 +84,9 @@ for (const file of archiveManifest.files) {
 const archiveReceipt = JSON.parse(readFileSync(databaseArchive.receipt, "utf8"));
 assert.equal(archiveReceipt.archive.contentId, manifestContentId, "Archive receipt content ID differs");
 assert.equal(archiveReceipt.archive.trackedManifest, databaseArchive.manifest, "Archive receipt manifest path differs");
-assert.equal(archiveReceipt.archive.durable, false, "Archive receipt must identify same-host staging as non-durable");
+assert.equal(archiveReceipt.archive.durable, false, "Archive receipt must identify same-host storage as non-durable");
 assert.equal(archiveReceipt.archive.independentlyStored, false, "Archive receipt cannot claim independent storage");
+assert.equal(archiveReceipt.archive.retentionApproved, true, "Archive receipt lacks approved local retention");
 assert.equal(archiveReceipt.restoreVerification.restored, true, "Archive receipt lacks a successful restore");
 assert.equal(archiveReceipt.restoreVerification.droppedAfterVerification, true,
   "Archive receipt does not confirm temporary database cleanup");
@@ -93,10 +96,12 @@ assert.match(archiveReceipt.export.scriptSha256, hex, "Archive export script dig
 assert.match(archiveReceipt.restoreVerification.scriptSha256, hex, "Archive verifier script digest is invalid");
 assert.equal(archiveReceipt.restoredInputReplayReceipt, databaseArchive.replayReceipt,
   "Archive receipt restored-input replay path differs");
-if (existsSync(archiveReceipt.archive.stagingPath)) {
-  assert.equal(statSync(archiveReceipt.archive.stagingPath).size, archiveReceipt.archive.bytes,
-    "Local staging archive byte length changed");
-}
+assert(existsSync(archiveReceipt.archive.storagePath) && statSync(archiveReceipt.archive.storagePath).isFile(),
+  "Approved local archive object is missing");
+assert.equal(statSync(archiveReceipt.archive.storagePath).size, archiveReceipt.archive.bytes,
+  "Approved local archive byte length changed");
+assert.equal(createHash("sha256").update(readFileSync(archiveReceipt.archive.storagePath)).digest("hex"),
+  archiveReceipt.archive.sha256, "Approved local archive digest changed");
 const replayReceipt = JSON.parse(readFileSync(databaseArchive.replayReceipt, "utf8"));
 assert.equal(replayReceipt.archiveContentId, manifestContentId, "Replay receipt archive content ID differs");
 assert.equal(replayReceipt.databaseInput, "isolated_archive_restore", "Replay receipt database input is invalid");
