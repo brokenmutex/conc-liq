@@ -14,8 +14,7 @@ function canonicalize(value, ignoredTopLevel, ignoredKeys, ignoredUnder, path = 
     .map(key => [key, canonicalize(value[key], ignoredTopLevel, ignoredKeys, ignoredUnder, [...path, key])]));
 }
 
-export function normalizedResearchOutput(path, ignoredTopLevel = [], ignoredKeys = [], ignoredUnderEntries = []) {
-  const parsed = JSON.parse(readFileSync(path, "utf8"));
+export function normalizedResearchOutputValue(parsed, ignoredTopLevel = [], ignoredKeys = [], ignoredUnderEntries = []) {
   const ignoredUnder = new Map();
   for (const [parent, key] of ignoredUnderEntries) {
     const keys = ignoredUnder.get(parent) ?? new Set();
@@ -23,6 +22,16 @@ export function normalizedResearchOutput(path, ignoredTopLevel = [], ignoredKeys
     ignoredUnder.set(parent, keys);
   }
   return JSON.stringify(canonicalize(parsed, new Set(ignoredTopLevel), new Set(ignoredKeys), ignoredUnder));
+}
+
+export function normalizedResearchOutput(path, ignoredTopLevel = [], ignoredKeys = [], ignoredUnderEntries = []) {
+  return normalizedResearchOutputValue(JSON.parse(readFileSync(path, "utf8")), ignoredTopLevel, ignoredKeys,
+    ignoredUnderEntries);
+}
+
+export function researchOutputDigestValue(parsed, ignoredTopLevel = [], ignoredKeys = [], ignoredUnderEntries = []) {
+  return createHash("sha256").update(normalizedResearchOutputValue(parsed, ignoredTopLevel, ignoredKeys,
+    ignoredUnderEntries)).digest("hex");
 }
 
 export function researchOutputDigest(path, ignoredTopLevel = [], ignoredKeys = [], ignoredUnderEntries = []) {

@@ -2,8 +2,8 @@
 
 Date: 2026-09-19
 
-Status: implementation in progress after review; evidence pruning remains gated
-by verified archival and post-layout reproduction
+Status: implementation in progress after review; first study-level note purge
+completed after verified archival and post-layout reproduction
 
 Scope: repository documentation, research artifacts, ignored workspace data,
 scripts, configuration, service definitions, build output and local toolchains
@@ -625,3 +625,11 @@ Implementation checkpoint:
   for future observations. The local archive policy does not protect against
   host/disk loss. Research evidence, archive objects, manifests, receipts,
   active runtime state, and custody/accounting evidence remain protected.
+- The authorized September 18 cohort has now been pruned: 33 dated files left
+  `notes/`, six exact frozen arm configurations moved under the study manifest,
+  and 27 superseded conclusions, deterministic derivatives, report helpers,
+  duplicated evidence files, and obsolete deployment snapshots were removed.
+  `research/manifests/strategy-redesign-2026-09-18/pruned-artifacts.json`
+  verifies every removed blob against the tagged pre-cleanup commit. The eleven
+  normalized result digests remain replayable without retaining generated JSON
+  in the working tree.

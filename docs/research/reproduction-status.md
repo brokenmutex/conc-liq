@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 
-Status: final-layout replay from the approved local archive passed; scoped pruning is authorized
+Status: final-layout replay passed; the authorized September 18 note purge is complete
 
 The post-layout audit reran every deterministic JSON-producing unit in the
 September 18 W0-W4 bundle. Frozen-release units used build
@@ -57,11 +57,15 @@ require explicit inclusive time bounds via
 `scripts/research/bounded-health-distributions.sql`. A future run is correctly
 classified as a new observation, not a reproduction of September 18.
 
-The study is now eligible for scoped pruning of its manifest-covered note
-copies and deterministic derivatives. Research evidence, archive objects,
-manifests, receipts, active runtime state, and custody/accounting evidence are
-excluded. The exact commands, fixed time bounds, input hashes, normalized
-output hashes and gate state are in
+The scoped purge removed 33 dated note files. Six frozen arm configurations
+were promoted into the study manifest; 27 superseded conclusions,
+deterministic derivatives, report helpers, duplicated evidence files, and
+obsolete deployment snapshots were removed. Their exact historical blobs are
+byte- and hash-verified against the tagged pre-cleanup commit by
+`research/manifests/strategy-redesign-2026-09-18/pruned-artifacts.json`.
+Research evidence, archive objects, manifests, receipts, active runtime state,
+and custody/accounting evidence remain excluded. The exact commands, fixed
+time bounds, input hashes, normalized output hashes and gate state are in
 `research/reproduction/strategy-redesign-2026-09-18.json` and are enforced by
 `npm run check:repository`.
 

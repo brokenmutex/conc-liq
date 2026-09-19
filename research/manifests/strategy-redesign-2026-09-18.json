@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "strategy-redesign-2026-09-18",
-  "status": "verified_ready_for_scoped_pruning",
+  "status": "verified_scoped_pruning_complete",
   "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
   "executionEligible": false,
   "broadcastsEnabled": false,
@@ -15,8 +15,8 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "429ccfd9274fa946653091438e0d1cfad3f642de9df9e342df622d3a910a9d50",
-      "bytes": 17930,
+      "sha256": "fd6d81493c1ac6e686aa1573d8e0e555de7f0408fd0fd6bd76795824e988adee",
+      "bytes": 18175,
       "role": "manifest"
     },
     {
@@ -38,45 +38,15 @@
       "role": "archive_receipt"
     },
     {
-      "path": "notes/strategy-redesign-handoff-2026-09-18.md",
-      "sha256": "e62431f457d1ecb35c7112dbf2ab60a966cf8cae2c8a8feb36b66ca437cd726c",
-      "bytes": 15709,
-      "role": "conclusion"
+      "path": "research/manifests/strategy-redesign-2026-09-18/pruned-artifacts.json",
+      "sha256": "db1153b0c501ffa3a1ce8aa5a033ae6caba6fdaee0b4ca413df69dce7752800d",
+      "bytes": 6931,
+      "role": "manifest"
     },
     {
-      "path": "notes/fee-calibration-2026-09-18.md",
-      "sha256": "c4882975bd7b5f83e9d29ac06b2cf92d3a3665914895b575cd8b00653343e668",
-      "bytes": 13811,
-      "role": "conclusion"
-    },
-    {
-      "path": "notes/adaptive-residual-range-2026-09-18.md",
-      "sha256": "1c864e04976d6640a9b8c695f1ab6fd3dc78754c9c6e4623a78df05cf40634a5",
-      "bytes": 21062,
-      "role": "conclusion"
-    },
-    {
-      "path": "notes/session-schedule-2026-09-18.md",
-      "sha256": "72eaf2bbf9abb96888bc8c93bb10ebf8fbb8094e20cb0c56770828a726852660",
-      "bytes": 12316,
-      "role": "conclusion"
-    },
-    {
-      "path": "notes/pool-universe-2026-09-18.md",
-      "sha256": "939248ebdc22f64442a168ad4d373002385ca9b0d2736f2f9099b7253497efdd",
-      "bytes": 16883,
-      "role": "conclusion"
-    },
-    {
-      "path": "notes/execution-defects-2026-09-18.md",
-      "sha256": "a266a428da579978a4ba363a3c8097c32cb787947d6cb7b548f2cf21302038e0",
-      "bytes": 23999,
-      "role": "conclusion"
-    },
-    {
-      "path": "notes/restart-plan-2026-09-18.md",
-      "sha256": "4900ea8d42157a92de08e632d0083cdc0d36c295d605e358a8412e2b4061897a",
-      "bytes": 19823,
+      "path": "docs/research/current-evidence.md",
+      "sha256": "b22c8f73cb50e4cb26813f5d73000688e283e0bf2ceaac167a32f6604aa65a7c",
+      "bytes": 3626,
       "role": "conclusion"
     },
     {
@@ -158,7 +128,7 @@
     "postLayoutVerified": true,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed restored-database replay after the final study-script relocation, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Exact W4 time-dependent evidence is hash-retained with bounded replacements for future observations. Scoped pruning may remove only manifest-covered note copies and deterministic derivatives."
+    "limitation": "Eleven deterministic W0-W4 outputs passed restored-database replay after the final study-script relocation, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Exact W4 time-dependent evidence is hash-retained with bounded replacements for future observations. The completed scoped purge is enumerated in the pruned-artifact manifest and every removed blob remains verifiable at the tagged pre-cleanup commit."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",

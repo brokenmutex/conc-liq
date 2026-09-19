@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { researchOutputDigest } from "./compare-research-output.mjs";
+import { spawnSync } from "node:child_process";
+import { researchOutputDigestValue } from "./compare-research-output.mjs";
 
 const path = "research/reproduction/strategy-redesign-2026-09-18.json";
 const report = JSON.parse(readFileSync(path, "utf8"));
@@ -23,6 +24,27 @@ if (report.postLayoutVerified) assert.equal(report.blockers.length, 0,
   "A verified final layout cannot retain unresolved blockers");
 else assert(report.blockers.length > 0, "Unresolved reproduction blockers must be explicit");
 
+assert.equal(typeof report.prunedArtifactsManifest, "string", "Pruned-artifact manifest path is missing");
+const prunedArtifacts = JSON.parse(readFileSync(report.prunedArtifactsManifest, "utf8"));
+assert.equal(prunedArtifacts.schemaVersion, 1, "Unsupported pruned-artifact schema");
+assert.equal(prunedArtifacts.studyId, report.studyId, "Pruned-artifact study differs");
+assert.equal(prunedArtifacts.sourceCommit, report.originalCheckoutCommit, "Pruned-artifact source commit differs");
+const historicalArtifacts = new Map();
+for (const artifact of prunedArtifacts.artifacts) {
+  assert(!historicalArtifacts.has(artifact.path), `Duplicate pruned artifact ${artifact.path}`);
+  assert.match(artifact.sha256, hex, `${artifact.path}: invalid historical digest`);
+  assert(Number.isSafeInteger(artifact.bytes) && artifact.bytes >= 0, `${artifact.path}: invalid historical byte length`);
+  assert.equal(typeof artifact.class, "string", `${artifact.path}: historical class missing`);
+  assert.equal(typeof artifact.replacement, "string", `${artifact.path}: replacement missing`);
+  const result = spawnSync("git", ["show", `${prunedArtifacts.sourceCommit}:${artifact.path}`],
+    { encoding: null, maxBuffer: 2 ** 24 });
+  assert.equal(result.status, 0, `${artifact.path}: historical blob is not retrievable from Git`);
+  assert.equal(result.stdout.length, artifact.bytes, `${artifact.path}: historical byte length changed`);
+  assert.equal(createHash("sha256").update(result.stdout).digest("hex"), artifact.sha256,
+    `${artifact.path}: historical digest changed`);
+  historicalArtifacts.set(artifact.path, result.stdout);
+}
+
 const ids = new Set();
 for (const unit of report.deterministicUnits) {
   assert.match(unit.id, /^[a-z0-9][a-z0-9-]+$/, "Invalid deterministic unit id");
@@ -33,17 +55,17 @@ for (const unit of report.deterministicUnits) {
   assert(Array.isArray(unit.command?.arguments) && unit.command.arguments.includes("{output}"),
     `${unit.id}: command must declare its output placeholder`);
   assert.equal(typeof unit.command?.executable, "string", `${unit.id}: executable missing`);
-  assert(existsSync(unit.expectedOutput) && statSync(unit.expectedOutput).isFile(),
-    `${unit.id}: expected output is not retrievable`);
+  const expectedOutput = historicalArtifacts.get(unit.expectedOutput);
+  assert(expectedOutput, `${unit.id}: expected output is not in the pruned-artifact manifest`);
   const normalization = unit.normalization;
   assert(Array.isArray(normalization?.ignoredTopLevel), `${unit.id}: ignoredTopLevel missing`);
   assert(Array.isArray(normalization?.ignoredKeys), `${unit.id}: ignoredKeys missing`);
   assert(Array.isArray(normalization?.ignoredUnder), `${unit.id}: ignoredUnder missing`);
   assert.equal(typeof normalization?.rationale, "string", `${unit.id}: normalization rationale missing`);
   assert.match(unit.normalizedSha256, hex, `${unit.id}: invalid normalized digest`);
-  assert.equal(researchOutputDigest(unit.expectedOutput, normalization.ignoredTopLevel,
+  assert.equal(researchOutputDigestValue(JSON.parse(expectedOutput.toString("utf8")), normalization.ignoredTopLevel,
     normalization.ignoredKeys, normalization.ignoredUnder), unit.normalizedSha256,
-  `${unit.id}: retained output no longer matches its normalized digest`);
+  `${unit.id}: historical output no longer matches its normalized digest`);
 }
 
 for (const input of report.inputFiles) {
