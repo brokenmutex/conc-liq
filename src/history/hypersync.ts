@@ -1,6 +1,8 @@
 import { getAddress, type Hash, type Hex } from "viem";
 import type { RawActionTransaction } from "../action-cost/domain.js";
-import { createHistoryFetch, historyRequestTarget, pace, type HistoryConfig } from "./client.js";
+import { createHistoryFetch, historyRequestTarget, pace, retryDelayMs, sleepUntilRetry,
+  MAX_HISTORY_RETRIES, RETRYABLE_HISTORY_STATUS, type HistoryConfig } from "./client.js";
+import { log } from "../logger.js";
 
 type Row = Record<string, unknown>;
 interface NativePage {
@@ -46,18 +48,39 @@ export class NativeHyperSync {
 
   private async request(path: string, body?: unknown, signal?: AbortSignal | null): Promise<unknown> {
     const requestSignal = signal ?? AbortSignal.timeout(this.config.timeoutMs ?? 60_000);
-    let response: Response;
-    try {
-      await pace(this.config.historyUrl!, this.config.requestIntervalMs ?? 0, requestSignal);
-      response = await this.fetcher(`${this.config.historyUrl!.replace(/\/$/u, "")}${path}`, {
-        method: body === undefined ? "GET" : "POST",
-        headers: { "content-type": "application/json", Authorization: `Bearer ${this.config.apiToken}` },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: requestSignal, redirect: "error",
-      });
-    } catch { throw new Error("HyperSync transport failed"); }
-    if (!response.ok) throw new Error(`HyperSync HTTP ${response.status}`);
-    try { return await response.json(); } catch { throw new Error("HyperSync returned invalid JSON"); }
+    const timeoutMs = this.config.timeoutMs ?? 60_000;
+    const url = `${this.config.historyUrl!.replace(/\/$/u, "")}${path}`;
+    // This path serves the tail's own event stream and the action-cost reader.
+    // It used to throw on the first 429, which failed a whole tail cycle or an
+    // entire accounting run while the archive path beside it retried the same
+    // status. Transport failures still fail fast, as they always did.
+    for (let attempt = 0; ; attempt += 1) {
+      let response: Response;
+      try {
+        await pace(this.config.historyUrl!, this.config.requestIntervalMs ?? 0, requestSignal);
+        response = await this.fetcher(url, {
+          method: body === undefined ? "GET" : "POST",
+          headers: { "content-type": "application/json", Authorization: `Bearer ${this.config.apiToken}` },
+          body: body === undefined ? undefined : JSON.stringify(body),
+          signal: requestSignal, redirect: "error",
+        });
+      } catch { throw new Error("HyperSync transport failed"); }
+      if (RETRYABLE_HISTORY_STATUS.includes(response.status) && attempt < MAX_HISTORY_RETRIES) {
+        await response.body?.cancel();
+        const delayMs = retryDelayMs(attempt, response.headers.get("retry-after"));
+        // A delay we cannot sit out is the caller's failure, not a retry.
+        if (delayMs <= timeoutMs) {
+          log("warn", "historical_provider_retry", {
+            provider: "hypersync", attempt: attempt + 1, maxRetries: MAX_HISTORY_RETRIES,
+            delayMs, httpStatus: response.status,
+          });
+          await sleepUntilRetry(delayMs, requestSignal, "HyperSync transport failed");
+          continue;
+        }
+      }
+      if (!response.ok) throw new Error(`HyperSync HTTP ${response.status}`);
+      try { return await response.json(); } catch { throw new Error("HyperSync returned invalid JSON"); }
+    }
   }
 
   public async chainId(signal?: AbortSignal | null): Promise<number> {

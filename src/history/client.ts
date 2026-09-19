@@ -89,6 +89,35 @@ export function historyRequestTarget(
   return config.archiveUrl;
 }
 
+/** Throttling and transient upstream failures, retried on every provider path. */
+export const RETRYABLE_HISTORY_STATUS = [429, 500, 502, 503, 504];
+export const MAX_HISTORY_RETRIES = 2;
+
+/** Delay before retrying, honouring `Retry-After` in seconds or as an HTTP date. */
+export function retryDelayMs(attempt: number, retryAfter?: string | null): number {
+  const numericSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
+  const dateDelayMs = retryAfter ? Date.parse(retryAfter) - Date.now() : Number.NaN;
+  const requestedDelayMs = Number.isFinite(numericSeconds) ? numericSeconds * 1000 : dateDelayMs;
+  return Math.max(1000, Number.isFinite(requestedDelayMs) ? requestedDelayMs : 1000 * 2 ** attempt);
+}
+
+/** Sleep that rejects with `abortMessage` if the caller cancels first. */
+export function sleepUntilRetry(delayMs: number, signal: AbortSignal | null | undefined, abortMessage: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(new Error(abortMessage));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", abort);
+      resolve();
+    }, delayMs);
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
+  });
+}
+
 const providerQueues = new Map<string, Promise<void>>();
 export async function pace(url: string, intervalMs: number, signal?: AbortSignal | null): Promise<void> {
   const preceding = providerQueues.get(url) ?? Promise.resolve();
@@ -106,30 +135,15 @@ export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch 
   const verified = new Map<string, Promise<void>>();
   async function send(url: string, init: RequestInit): Promise<unknown> {
     async function retry(attempt: number, details: { httpStatus?: number; rpcCodes?: (number | null)[]; transport?: boolean }, retryAfter?: string | null): Promise<void> {
-      const numericSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
-      const dateDelayMs = retryAfter ? Date.parse(retryAfter) - Date.now() : Number.NaN;
-      const requestedDelayMs = Number.isFinite(numericSeconds) ? numericSeconds * 1000 : dateDelayMs;
-      const delayMs = Math.max(1000, Number.isFinite(requestedDelayMs) ? requestedDelayMs : 1000 * 2 ** attempt);
+      const delayMs = retryDelayMs(attempt, retryAfter);
       if (delayMs > (config.timeoutMs ?? 60_000)) {
         throw new Error("Historical provider retry delay exceeds request timeout");
       }
       log("warn", "historical_provider_retry", {
         provider: url === config.archiveUrl ? "archive" : "history",
-        attempt: attempt + 1, maxRetries: 2, delayMs, ...details,
+        attempt: attempt + 1, maxRetries: MAX_HISTORY_RETRIES, delayMs, ...details,
       });
-      await new Promise<void>((resolve, reject) => {
-        const abort = () => {
-          clearTimeout(timer);
-          init.signal?.removeEventListener("abort", abort);
-          reject(new Error("Historical provider transport failed"));
-        };
-        const timer = setTimeout(() => {
-          init.signal?.removeEventListener("abort", abort);
-          resolve();
-        }, delayMs);
-        init.signal?.addEventListener("abort", abort, { once: true });
-        if (init.signal?.aborted) abort();
-      });
+      await sleepUntilRetry(delayMs, init.signal, "Historical provider transport failed");
     }
     for (let attempt = 0; ; attempt += 1) {
       let response: Response;
@@ -140,11 +154,11 @@ export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch 
         await pace(url, intervalMs, init.signal);
         response = await fetcher(url, { ...init, redirect: "error" });
       } catch {
-        if (init.signal?.aborted || attempt >= 2) throw new Error("Historical provider transport failed");
+        if (init.signal?.aborted || attempt >= MAX_HISTORY_RETRIES) throw new Error("Historical provider transport failed");
         await retry(attempt, { transport: true });
         continue;
       }
-      if ([429, 500, 502, 503, 504].includes(response.status) && attempt < 2) {
+      if (RETRYABLE_HISTORY_STATUS.includes(response.status) && attempt < MAX_HISTORY_RETRIES) {
         await response.body?.cancel();
         await retry(attempt, { httpStatus: response.status }, response.headers.get("retry-after"));
         continue;
@@ -168,7 +182,7 @@ export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch 
       }
       if (errors.length > 0) {
         const rpcCodes = errors.map((error) => error.code);
-        if (attempt < 2 && errors.every((error) => error.transient)) {
+        if (attempt < MAX_HISTORY_RETRIES && errors.every((error) => error.transient)) {
           await retry(attempt, { rpcCodes });
           continue;
         }

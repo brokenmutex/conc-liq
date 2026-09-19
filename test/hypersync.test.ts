@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { setImmediate } from "node:timers/promises";
 import { loadHistoryConfig, HISTORY_TRANSPORT_URL } from "../src/history/client.js";
 import { createHyperSyncFetch, NativeHyperSync } from "../src/history/hypersync.js";
+import { MAX_HISTORY_RETRIES } from "../src/history/client.js";
 
 const config = loadHistoryConfig("https://live.invalid", {
   HISTORY_SOURCE: "hypersync", ENVIO_API_TOKEN: "secret-token", HISTORY_REQUEST_INTERVAL_MS: "0",
@@ -91,14 +93,62 @@ describe("native HyperSync", () => {
     assert.equal(calls, 0);
   });
 
-  it("sanitizes HTTP, authentication, and network failures", async () => {
-    for (const status of [403, 429, 500]) {
-      const native = new NativeHyperSync(config, async () => new Response("secret-token", { status }));
-      await assert.rejects(native.chainId(), (error: Error) => {
-        assert.equal(error.message, `HyperSync HTTP ${status}`); return true;
-      });
+  it("sanitizes HTTP, authentication, and network failures", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    // 403 is the caller's problem and is refused at once; 429 and 500 are
+    // retried to exhaustion and then reported with the same sanitized message.
+    const immediate = new NativeHyperSync(config, async () => new Response("secret-token", { status: 403 }));
+    await assert.rejects(immediate.chainId(), (error: Error) => {
+      assert.equal(error.message, "HyperSync HTTP 403"); return true;
+    });
+    for (const status of [429, 500]) {
+      let calls = 0;
+      const native = new NativeHyperSync(config, async () => { calls += 1; return new Response("secret-token", { status }); });
+      const outcome = native.chainId().catch((error: Error) => error);
+      await setImmediate();
+      context.mock.timers.tick(1000); await setImmediate();
+      context.mock.timers.tick(2000); await setImmediate();
+      assert.equal((await outcome as Error).message, `HyperSync HTTP ${status}`);
+      assert.equal(calls, MAX_HISTORY_RETRIES + 1);
     }
     const native = new NativeHyperSync(config, async () => { throw new Error("secret-token"); });
     await assert.rejects(native.chainId(), /HyperSync transport failed/);
+  });
+
+  it("retries a throttled event read instead of failing the caller's cycle", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    let calls = 0;
+    const native = new NativeHyperSync(config, async () => {
+      calls += 1;
+      return calls === 1
+        ? new Response(null, { status: 429, headers: { "retry-after": "2" } })
+        : Response.json({ chain_id: 4663 });
+    });
+    const outcome = native.chainId();
+    await setImmediate();
+    assert.equal(calls, 1, "must wait rather than retry immediately");
+    context.mock.timers.tick(1999); await setImmediate();
+    assert.equal(calls, 1, "Retry-After seconds must be honoured");
+    context.mock.timers.tick(1); await setImmediate();
+    assert.equal(await outcome, 4663);
+    assert.equal(calls, 2);
+  });
+
+  it("refuses a retry it could not sit out inside the request budget", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    let calls = 0;
+    const brief = loadHistoryConfig("https://live.invalid", {
+      HISTORY_SOURCE: "hypersync", ENVIO_API_TOKEN: "secret-token",
+      HISTORY_REQUEST_INTERVAL_MS: "0", HISTORY_RPC_TIMEOUT_MS: "5000",
+    });
+    const native = new NativeHyperSync(brief, async () => {
+      calls += 1;
+      return new Response(null, { status: 429, headers: { "retry-after": "120" } });
+    });
+    await assert.rejects(native.chainId(), /HyperSync HTTP 429/);
+    assert.equal(calls, 1);
   });
 });
