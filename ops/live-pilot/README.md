@@ -1,7 +1,18 @@
-# Live pilot units
+# Live-pilot units
 
-Use a sealed release (`scripts/build-release.mjs`), never the dirty checkout or `.env` as a systemd EnvironmentFile. The deployed commands and release identities are recorded in `notes/live-pilot-controller-2026-09-12.md` and the private `data/live-pilot-deployment-2026-09-12/` bundle.
+Use a verified sealed release and the dedicated private runtime environment.
+Never run the production controller from the dirty source checkout or use the
+working-tree `.env` as a systemd environment file.
 
-`conc-liq-live-pilot.service` runs the controller continuously. Its CLI `exit` or `stop` unwinds custody; systemctl stop alone stops the worker.
+The maintained custody, stop and recovery procedure is
+[`docs/operations/live-pilot.md`](../../docs/operations/live-pilot.md).
 
-A one-time `conc-liq-live-pilot-bootstrap.timer` may run the guarded `retry-approval` CLI once per minute for the existing nonce-0 approval. Successful retry (or an already-present receipt) starts the continuous service and disables the bootstrap timer. A failed retry remains in cash and reports its blocking reason on the dashboard. It creates no new signature, nonce, gas ceiling or capital allocation. The controller's dedicated approval recovery rejects swaps, mints, withdrawals and inventory exposure. Stop both bootstrap and controller when cancelling a launch.
+The essential invariant is that stopping systemd only stops the worker. A
+requested live stop must use the sealed controller's guarded `stop` or `exit`
+flow, reconcile every signed transaction, prove closed custody and allowance
+postconditions, and only then stop the service. Never replay a completed swap
+or bypass an unresolved signed nonce.
+
+Checked-in pilot configuration remains broadcast-disabled. Any future live
+launch requires a separately reviewed private configuration and explicit
+authorization.

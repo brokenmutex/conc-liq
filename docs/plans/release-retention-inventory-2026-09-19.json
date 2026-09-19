@@ -1,0 +1,222 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-19T12:56:59.883Z",
+  "releaseRoot": "/root/conc-liq-releases",
+  "preCleanupCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "systemdAvailable": true,
+  "stateFiles": [
+    {
+      "path": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.json",
+      "sha256": "708f4976828f68189e983486fce39a463aaf33685dddc4bfa62486e75b5eed0c",
+      "bytes": 1503000,
+      "embeddedStrategyConfigHash": "a75b2d47753088c2d2aa565656a33a0846ed6a3cfe5d5c6c3fd6a8348b7f5d71",
+      "recordedStrategyConfigHash": "a75b2d47753088c2d2aa565656a33a0846ed6a3cfe5d5c6c3fd6a8348b7f5d71",
+      "embeddedStrategyConfigVerified": true
+    },
+    {
+      "path": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.pre-runtime-migration-2026-09-19.json",
+      "sha256": "b88710d8878d5ec19518ed8fe1e2d0cc8c88f266663bde160d4e5cbb44715044",
+      "bytes": 1222930,
+      "embeddedStrategyConfigHash": "a75b2d47753088c2d2aa565656a33a0846ed6a3cfe5d5c6c3fd6a8348b7f5d71",
+      "recordedStrategyConfigHash": "a75b2d47753088c2d2aa565656a33a0846ed6a3cfe5d5c6c3fd6a8348b7f5d71",
+      "embeddedStrategyConfigVerified": true
+    }
+  ],
+  "environments": [
+    {
+      "path": "/root/conc-liq/data/paper-aapl-2026-09-13.env",
+      "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+      "exactBytesRetained": true,
+      "secretsExported": false
+    },
+    {
+      "path": "/root/conc-liq/data/runtime-refactor.env",
+      "configHash": "5d3a46a4842931e979072b8042a45fb5d46bd53edf1539598b125043c4549944",
+      "exactBytesRetained": true,
+      "secretsExported": false
+    },
+    {
+      "path": "/root/conc-liq/data/dashboard-live-pilot.env",
+      "configHash": "04dd017eb29baac7063d4a1304895b1a735a8925827376266b7511107a4c1671",
+      "exactBytesRetained": true,
+      "secretsExported": false
+    }
+  ],
+  "builds": [
+    {
+      "buildId": "3a9515a575ade5d9270be55a3e84766441ccd471154da23dc80970c65971d531",
+      "path": "/root/conc-liq-releases/3a9515a575ade5d9270be55a3e84766441ccd471154da23dc80970c65971d531",
+      "exists": true,
+      "verified": true,
+      "verificationError": null,
+      "sourceCommit": "b3b14d832281b23846f83ffb9cf8e5fb9b2c5ea8",
+      "nodeVersion": "v24.20.0",
+      "references": [
+        {
+          "buildId": "3a9515a575ade5d9270be55a3e84766441ccd471154da23dc80970c65971d531",
+          "kind": "installed_unit",
+          "source": "conc-liq-tail.service",
+          "fragment": "/etc/systemd/system/conc-liq-tail.service"
+        }
+      ],
+      "environmentConfig": [],
+      "recoveryRequired": false,
+      "rollbackCompatibility": "not_assessed"
+    },
+    {
+      "buildId": "9fed9384c13f3dd8d3e1592581cd0432112e66b4c161afb051266fec6ff5c166",
+      "path": "/root/conc-liq-releases/9fed9384c13f3dd8d3e1592581cd0432112e66b4c161afb051266fec6ff5c166",
+      "exists": true,
+      "verified": true,
+      "verificationError": null,
+      "sourceCommit": "e4ec7ce110a530f68f6cc702f979d79b9536b89c",
+      "nodeVersion": "v24.20.0",
+      "references": [
+        {
+          "buildId": "9fed9384c13f3dd8d3e1592581cd0432112e66b4c161afb051266fec6ff5c166",
+          "kind": "saved_state_migration_history",
+          "source": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.json",
+          "pointer": "/runtimeHistory/0/from",
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "nodeVersion": "v24.20.0"
+        },
+        {
+          "buildId": "9fed9384c13f3dd8d3e1592581cd0432112e66b4c161afb051266fec6ff5c166",
+          "kind": "saved_state_runtime",
+          "source": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.pre-runtime-migration-2026-09-19.json",
+          "pointer": "/runtime",
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "nodeVersion": "v24.20.0"
+        }
+      ],
+      "environmentConfig": [
+        {
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "exactBytesPath": "/root/conc-liq/data/paper-aapl-2026-09-13.env",
+          "retrievable": true
+        }
+      ],
+      "recoveryRequired": true,
+      "rollbackCompatibility": "not_assessed"
+    },
+    {
+      "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+      "path": "/root/conc-liq-releases/c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+      "exists": true,
+      "verified": true,
+      "verificationError": null,
+      "sourceCommit": "4e0cc26cb8aa12174811ea23b92be1ff90a7f3f4",
+      "nodeVersion": "v24.20.0",
+      "references": [
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "saved_state_runtime",
+          "source": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.json",
+          "pointer": "/runtime",
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "nodeVersion": "v24.20.0"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "saved_state_migration_history",
+          "source": "/root/conc-liq/data/adaptive-paper-restart-2026-09-18/state.json",
+          "pointer": "/runtimeHistory/0/to",
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "nodeVersion": "v24.20.0"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "installed_unit",
+          "source": "conc-liq-paper-assets-checkpoint.service",
+          "fragment": "/etc/systemd/system/conc-liq-paper-assets-checkpoint.service"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "installed_unit",
+          "source": "conc-liq-dashboard.service",
+          "fragment": "/etc/systemd/system/conc-liq-dashboard.service"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "installed_unit",
+          "source": "conc-liq-rpc-health.service",
+          "fragment": "/etc/systemd/system/conc-liq-rpc-health.service"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "installed_unit",
+          "source": "conc-liq-strategy-checkpoint.service",
+          "fragment": "/etc/systemd/system/conc-liq-strategy-checkpoint.service"
+        },
+        {
+          "buildId": "c70210f303b5dade42b2c760342488cad700fa8c6a36d548a437fb498fc93b7c",
+          "kind": "installed_unit",
+          "source": "conc-liq-adaptive-paper.service",
+          "fragment": "/etc/systemd/system/conc-liq-adaptive-paper.service"
+        }
+      ],
+      "environmentConfig": [
+        {
+          "configHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+          "exactBytesPath": "/root/conc-liq/data/paper-aapl-2026-09-13.env",
+          "retrievable": true
+        }
+      ],
+      "recoveryRequired": true,
+      "rollbackCompatibility": "not_assessed"
+    },
+    {
+      "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+      "path": "/root/conc-liq-releases/ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+      "exists": true,
+      "verified": true,
+      "verificationError": null,
+      "sourceCommit": "81d266261a541d875c196054c5cec18b70faf0a9",
+      "nodeVersion": "v24.20.0",
+      "references": [
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/adaptive-exit-rule-sim.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/adaptive-forecast-sweep.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/adaptive-residence-cap-sim.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/adaptive-residual-range-sim.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/adaptive-width-replay.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/live-fee-calibration.mjs"
+        },
+        {
+          "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+          "kind": "research_runner",
+          "source": "scripts/pool-universe-screen.mjs"
+        }
+      ],
+      "environmentConfig": [],
+      "recoveryRequired": false,
+      "rollbackCompatibility": "not_assessed"
+    }
+  ],
+  "policy": {
+    "deletionAuthorized": false,
+    "note": "A verified historical release may be required for recovery or audit without being a rollback release compatible with the current database and state."
+  }
+}
