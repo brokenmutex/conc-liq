@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "strategy-redesign-2026-09-18",
-  "status": "retained_pending_final_layout_verification",
+  "status": "verified_ready_for_scoped_pruning",
   "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
   "executionEligible": false,
   "broadcastsEnabled": false,
@@ -15,8 +15,8 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "8d28633a67f0359e2dc29179654cb9524e69ef720561cd2b900fa0144fedf664",
-      "bytes": 17908,
+      "sha256": "429ccfd9274fa946653091438e0d1cfad3f642de9df9e342df622d3a910a9d50",
+      "bytes": 17930,
       "role": "manifest"
     },
     {
@@ -33,8 +33,8 @@
     },
     {
       "path": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
-      "sha256": "0aa23039aac136dd8cd65a57c0f373f694ae53f0adb8ee6d0bd1946b4b39f3bf",
-      "bytes": 4507,
+      "sha256": "5ac0f29e2db1d3c10fbf2ac4f2a20d30f08cde2df6ecd45a730a4b94fad4d0f7",
+      "bytes": 5123,
       "role": "archive_receipt"
     },
     {
@@ -80,33 +80,33 @@
       "role": "conclusion"
     },
     {
-      "path": "scripts/live-fee-calibration.mjs",
-      "sha256": "58f20f95f13628b1405f6f41357f7664cf449653e6d2673993a72c278d4f7c68",
-      "bytes": 11160,
+      "path": "scripts/research/live-fee-calibration.mjs",
+      "sha256": "0701d35f7587568fc1e8ebdb06b31da2f5b0b7ddd124055d0742a8b6ee1222af",
+      "bytes": 11170,
       "role": "code"
     },
     {
-      "path": "scripts/adaptive-exit-rule-sim.mjs",
-      "sha256": "40a93f938f5fac7e59d9218b190ffbf9202d5372f4a81c5900ac9e696d606e9c",
-      "bytes": 14218,
+      "path": "scripts/research/adaptive-exit-rule-sim.mjs",
+      "sha256": "4e510d4e0d0957e12a1c40312e2f67e596a0c482ecb69b733cd380c3183fcfaa",
+      "bytes": 14228,
       "role": "code"
     },
     {
-      "path": "scripts/adaptive-residual-range-sim.mjs",
-      "sha256": "b2d9e68d079227cd85ab11899a54b7219ce19a6faa6ae7974df4f3df9c438b34",
-      "bytes": 22647,
+      "path": "scripts/research/adaptive-residual-range-sim.mjs",
+      "sha256": "3dae2d1bf9a336deb1ebe5b1cd109abb236e49817335bd42d3bad1255927332e",
+      "bytes": 22657,
       "role": "code"
     },
     {
-      "path": "scripts/adaptive-forecast-sweep.mjs",
-      "sha256": "2e172f40d39a4d6da28e767bec282532dc2a5d7d3920c43fb9599abb191d6ead",
-      "bytes": 17060,
+      "path": "scripts/research/adaptive-forecast-sweep.mjs",
+      "sha256": "7e50e0cdd933aceac39f5e0979ca72c27eb1bef3008bac000e8eabd192866080",
+      "bytes": 17070,
       "role": "code"
     },
     {
-      "path": "scripts/pool-universe-screen.mjs",
-      "sha256": "8f582e7fafe53756a3351cbb136ee99861dbb3b2e5e2f7a4222f52e282b27bdf",
-      "bytes": 7849,
+      "path": "scripts/research/pool-universe-screen.mjs",
+      "sha256": "7bfc4fa89b0f31ef379b24dae222e1c76fdd6bf49bf085f444ffd023aa5eb3ee",
+      "bytes": 7859,
       "role": "code"
     },
     {
@@ -155,10 +155,10 @@
   "reproduction": {
     "mode": "original_checkout",
     "checkoutCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
-    "postLayoutVerified": false,
+    "postLayoutVerified": true,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Exact W4 time-dependent evidence is hash-retained with bounded replacements for future observations. Final-layout replay remains pending, so layout-dependent evidence may not yet be pruned."
+    "limitation": "Eleven deterministic W0-W4 outputs passed restored-database replay after the final study-script relocation, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The user approved same-host untracked archive retention, which does not protect against host or disk loss. Exact W4 time-dependent evidence is hash-retained with bounded replacements for future observations. Scoped pruning may remove only manifest-covered note copies and deterministic derivatives."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",

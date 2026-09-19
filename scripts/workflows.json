@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-19T17:39:17.984Z",
+  "generatedAt": "2026-09-19T17:56:54.682Z",
   "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
   "layoutPolicy": "Existing top-level scripts remain at their recorded paths until their studies pass post-layout reproduction. New recurring tooling belongs in an owned subdirectory.",
   "entries": [
@@ -10,20 +10,6 @@
       "lifecycle": "supported_operations",
       "sha256": "0c3619af99f8441b89825fd72f1ee7ad909bf58d3da7a63b22241f62f7902817",
       "bytes": 7302
-    },
-    {
-      "path": "scripts/adaptive-exit-rule-sim.mjs",
-      "category": "research",
-      "lifecycle": "frozen_reproduction",
-      "sha256": "40a93f938f5fac7e59d9218b190ffbf9202d5372f4a81c5900ac9e696d606e9c",
-      "bytes": 14218
-    },
-    {
-      "path": "scripts/adaptive-forecast-sweep.mjs",
-      "category": "research",
-      "lifecycle": "frozen_reproduction",
-      "sha256": "2e172f40d39a4d6da28e767bec282532dc2a5d7d3920c43fb9599abb191d6ead",
-      "bytes": 17060
     },
     {
       "path": "scripts/adaptive-lp-long-study.mjs",
@@ -52,13 +38,6 @@
       "lifecycle": "frozen_reproduction",
       "sha256": "0d9c476cbf8abbcd469b86f8bcb895485ed287a9a63dbc067ec61433499a71fb",
       "bytes": 9362
-    },
-    {
-      "path": "scripts/adaptive-residual-range-sim.mjs",
-      "category": "research",
-      "lifecycle": "frozen_reproduction",
-      "sha256": "b2d9e68d079227cd85ab11899a54b7219ce19a6faa6ae7974df4f3df9c438b34",
-      "bytes": 22647
     },
     {
       "path": "scripts/adaptive-width-replay.mjs",
@@ -262,13 +241,6 @@
       "lifecycle": "frozen_reproduction",
       "sha256": "964e83d2427f4175568e08277bf8fd8e15302bed209d6701dba096f872e8735f",
       "bytes": 7611
-    },
-    {
-      "path": "scripts/live-fee-calibration.mjs",
-      "category": "research",
-      "lifecycle": "frozen_reproduction",
-      "sha256": "58f20f95f13628b1405f6f41357f7664cf449653e6d2673993a72c278d4f7c68",
-      "bytes": 11160
     },
     {
       "path": "scripts/live-persistent-allowance-audit.mjs",
@@ -542,13 +514,6 @@
       "lifecycle": "supported_operations",
       "sha256": "dc1ed3bad0e1007be7749f3ed6079dad2205d78209714ecbf1693eb1dffd7b76",
       "bytes": 6585
-    },
-    {
-      "path": "scripts/pool-universe-screen.mjs",
-      "category": "research",
-      "lifecycle": "frozen_reproduction",
-      "sha256": "8f582e7fafe53756a3351cbb136ee99861dbb3b2e5e2f7a4222f52e282b27bdf",
-      "bytes": 7849
     },
     {
       "path": "scripts/prepare-adaptive-lp-universe.mjs",

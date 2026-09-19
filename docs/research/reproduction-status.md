@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 
-Status: deterministic replay from the approved local archive passed; evidence pruning remains blocked
+Status: final-layout replay from the approved local archive passed; scoped pruning is authorized
 
 The post-layout audit reran every deterministic JSON-producing unit in the
 September 18 W0-W4 bundle. Frozen-release units used build
@@ -42,9 +42,11 @@ byte length and SHA-256 were reverified. This clears the project's external
 storage policy gate, but it is deliberately recorded as same-host storage: it
 does not protect against disk or host loss and is not recoverable from Git.
 
-This still does not clear the study for pruning:
-
-- the final script/config layout has not completed its restored-input replay;
+The five study-specific runners now live under `scripts/research/`. The shared
+`scripts/sim-source.mjs` remains at its transitional path because an older,
+separately frozen study still imports it. All eleven deterministic units reran
+from a fresh isolated archive restore after this relocation and every
+normalized digest matched.
 
 W4.2 and W4.3 no longer block note cleanup. Their exact non-replayable source
 files and the original cursor log are hash-retained under
@@ -55,8 +57,11 @@ require explicit inclusive time bounds via
 `scripts/research/bounded-health-distributions.sql`. A future run is correctly
 classified as a new observation, not a reproduction of September 18.
 
-Layout-dependent inputs and outputs remain protected. The exact commands,
-fixed time bounds, input hashes, normalized output hashes and blocker states are in
+The study is now eligible for scoped pruning of its manifest-covered note
+copies and deterministic derivatives. Research evidence, archive objects,
+manifests, receipts, active runtime state, and custody/accounting evidence are
+excluded. The exact commands, fixed time bounds, input hashes, normalized
+output hashes and gate state are in
 `research/reproduction/strategy-redesign-2026-09-18.json` and are enforced by
 `npm run check:repository`.
 

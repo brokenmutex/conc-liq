@@ -29,7 +29,7 @@
 // Read-only: the database is opened read-only and nothing is written outside
 // the output path.
 //
-// Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/live-fee-calibration.mjs OUT.json
+// Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/research/live-fee-calibration.mjs OUT.json
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
@@ -38,7 +38,7 @@ const require=createRequire(R+'/package.json');
 const pg=require('pg');
 const {ExperimentMarket}=await import(R+'/dist/src/experiment/market.js');
 const {virtualFeeCredit}=await import(R+'/dist/src/research/virtual-fees.js');
-const {researchDatabaseUrl}=await import('./sim-source.mjs');
+const {researchDatabaseUrl}=await import('../sim-source.mjs');
 
 const Q128=1n<<128n;
 const [outPath]=process.argv.slice(2);

@@ -31,7 +31,7 @@
 // `live_60m` to the microUSDG.
 //
 // Usage: SIM_START=... SIM_END=... <release>/bin/node \
-//          scripts/adaptive-residual-range-sim.mjs OUT.json [--arms FILE]
+//          scripts/research/adaptive-residual-range-sim.mjs OUT.json [--arms FILE]
 // Set RESEARCH_DATABASE_URL only when replaying against an isolated archive restore.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
@@ -53,7 +53,7 @@ const {marketValue,marketTokens,marketPriceX18}=await import(R+'/dist/src/paper/
 const SOURCE_RELEASE=process.env.CONC_LIQ_SOURCE_RELEASE
   ??'/root/conc-liq-releases/ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf';
 const {sourceSql}=await import(SOURCE_RELEASE+'/dist/src/paper/store.js');
-const {readSourceRows,researchDatabaseUrl}=await import('./sim-source.mjs');
+const {readSourceRows,researchDatabaseUrl}=await import('../sim-source.mjs');
 
 const MIN=60000,Q128=1n<<128n,LOG_TICK=Math.log(1.0001);
 

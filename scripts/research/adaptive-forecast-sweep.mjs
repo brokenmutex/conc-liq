@@ -14,7 +14,7 @@
 // deployed 10 minutes; this sweep does not re-litigate the horizon.
 //
 // Usage:
-//   SIM_START=... SIM_END=... <release>/bin/node scripts/adaptive-forecast-sweep.mjs OUT.json [--intersect] [--marks] [--arms FILE]
+//   SIM_START=... SIM_END=... <release>/bin/node scripts/research/adaptive-forecast-sweep.mjs OUT.json [--intersect] [--marks] [--arms FILE]
 //
 // --intersect  only decide at observations where EVERY arm has a forecast,
 //              isolating estimator effects from missing-data admission.
@@ -41,7 +41,7 @@ const {marketValue,marketPriceX18,marketTokens}=await import(R+'/dist/src/paper/
 const SOURCE_RELEASE=process.env.CONC_LIQ_SOURCE_RELEASE
   ??'/root/conc-liq-releases/ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf';
 const {sourceSql}=await import(SOURCE_RELEASE+'/dist/src/paper/store.js');
-const {readSourceRows,researchDatabaseUrl}=await import('./sim-source.mjs');
+const {readSourceRows,researchDatabaseUrl}=await import('../sim-source.mjs');
 const {equityHours}=await import(R+'/dist/src/paper/trading-hours.js');
 
 // --- W2: session schedule -------------------------------------------------

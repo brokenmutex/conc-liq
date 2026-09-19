@@ -116,7 +116,11 @@ assert.equal(replayReceipt.execution.temporaryDatabaseDropped, true,
   "Replay receipt does not confirm temporary database cleanup");
 assert.equal(replayReceipt.execution.temporaryDirectoriesRemoved, true,
   "Replay receipt does not confirm temporary directory cleanup");
-assert.equal(replayReceipt.pruningAuthorized, false, "Restored-input replay alone cannot authorize pruning");
+assert.equal(replayReceipt.pruningAuthorized, report.postLayoutVerified,
+  "Replay receipt pruning state differs from final-layout verification");
+if (replayReceipt.pruningAuthorized) {
+  assert.equal(typeof replayReceipt.pruningScope, "string", "Authorized replay receipt lacks a pruning scope");
+}
 assert.equal(replayReceipt.units.length, report.deterministicUnits.length,
   "Replay receipt unit count differs from reproduction manifest");
 for (const unit of report.deterministicUnits) {
@@ -127,7 +131,7 @@ for (const unit of report.deterministicUnits) {
     `${unit.id}: restored-input digest differs from reproduction manifest`);
 }
 const expectedAdapterPaths = new Set(report.deterministicUnits
-  .map(unit => `scripts/${unit.command.arguments[0].split("/").at(-1)}`));
+  .map(unit => `scripts/research/${unit.command.arguments[0].split("/").at(-1)}`));
 expectedAdapterPaths.add("scripts/sim-source.mjs");
 assert.deepEqual(new Set(replayReceipt.adapters.map(adapter => adapter.path)), expectedAdapterPaths,
   "Replay receipt database adapter set differs from reproduction runners");
@@ -137,6 +141,8 @@ for (const adapter of replayReceipt.adapters) {
   assert.match(adapter.adapterSha256, hex, `${adapter.path}: current adapter digest is invalid`);
   assert.equal(adapter.adapterSha256, report.inputFiles.find(input => input.path === adapter.path)?.sha256,
     `${adapter.path}: replay adapter digest differs from tracked input`);
+  if (adapter.originalPath) assert.match(adapter.originalPath, /^scripts\/[a-z0-9-]+\.mjs$/,
+    `${adapter.path}: original adapter path is invalid`);
 }
 
 const nonDeterministicStatuses = new Set([

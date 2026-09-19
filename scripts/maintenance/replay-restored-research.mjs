@@ -44,25 +44,33 @@ const replaceOne = (source, current, original, path) => {
 const restoreOriginalRunner = (path, source) => {
   if (path === "scripts/live-fee-calibration.mjs") {
     source = replaceOne(source,
-      "// Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/live-fee-calibration.mjs OUT.json",
+      "// Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/research/live-fee-calibration.mjs OUT.json",
       "// Usage: <release>/bin/node scripts/live-fee-calibration.mjs OUT.json", path);
-    source = replaceOne(source, "const {researchDatabaseUrl}=await import('./sim-source.mjs');\n", "", path);
+    source = replaceOne(source, "const {researchDatabaseUrl}=await import('../sim-source.mjs');\n", "", path);
   } else if (path === "scripts/pool-universe-screen.mjs") {
     source = replaceOne(source,
-      "// Read-only. Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/pool-universe-screen.mjs OUT.json",
+      "// Read-only. Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/research/pool-universe-screen.mjs OUT.json",
       "// Read-only. Usage: <release>/bin/node scripts/pool-universe-screen.mjs OUT.json", path);
-    source = replaceOne(source, "const {researchDatabaseUrl}=await import('./sim-source.mjs');\n", "", path);
+    source = replaceOne(source, "const {researchDatabaseUrl}=await import('../sim-source.mjs');\n", "", path);
   } else if (path === "scripts/adaptive-exit-rule-sim.mjs") {
     source = replaceOne(source,
-      "// Usage: SIM_START=... SIM_END=... [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/adaptive-exit-rule-sim.mjs OUT.json [--arms FILE]",
+      "// Usage: SIM_START=... SIM_END=... [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/research/adaptive-exit-rule-sim.mjs OUT.json [--arms FILE]",
       "// Usage: SIM_START=... SIM_END=... <release>/bin/node scripts/adaptive-exit-rule-sim.mjs OUT.json [--arms FILE]", path);
-    source = replaceOne(source, "const {readSourceRows,researchDatabaseUrl}=await import('./sim-source.mjs');",
+    source = replaceOne(source, "const {readSourceRows,researchDatabaseUrl}=await import('../sim-source.mjs');",
       "const {readSourceRows}=await import('./sim-source.mjs');", path);
   } else if (path === "scripts/adaptive-residual-range-sim.mjs" || path === "scripts/adaptive-forecast-sweep.mjs") {
     source = replaceOne(source,
       "// Set RESEARCH_DATABASE_URL only when replaying against an isolated archive restore.\n", "", path);
-    source = replaceOne(source, "const {readSourceRows,researchDatabaseUrl}=await import('./sim-source.mjs');",
+    source = replaceOne(source, "const {readSourceRows,researchDatabaseUrl}=await import('../sim-source.mjs');",
       "const {readSourceRows}=await import('./sim-source.mjs');", path);
+    if (path === "scripts/adaptive-residual-range-sim.mjs") {
+      source = replaceOne(source, "//          scripts/research/adaptive-residual-range-sim.mjs OUT.json [--arms FILE]",
+        "//          scripts/adaptive-residual-range-sim.mjs OUT.json [--arms FILE]", path);
+    } else {
+      source = replaceOne(source,
+        "//   SIM_START=... SIM_END=... <release>/bin/node scripts/research/adaptive-forecast-sweep.mjs OUT.json [--intersect] [--marks] [--arms FILE]",
+        "//   SIM_START=... SIM_END=... <release>/bin/node scripts/adaptive-forecast-sweep.mjs OUT.json [--intersect] [--marks] [--arms FILE]", path);
+    }
   } else {
     assert.fail(`Unsupported database-adapted runner: ${path}`);
   }
@@ -113,16 +121,18 @@ try {
   assert.equal(release.nodeVersion, report.requiredRelease.nodeVersion, "Required release Node version changed");
   assert.equal(process.version, report.requiredRelease.nodeVersion, "Replay Node version differs from the recorded release");
 
-  const adapterPaths = [...new Set(report.deterministicUnits.map(unit => unit.command.arguments[0])
+  const originalRunnerPaths = [...new Set(report.deterministicUnits.map(unit => unit.command.arguments[0])
     .map(value => basename(value)).map(name => `scripts/${name}`))];
   const adapters = [];
-  for (const path of adapterPaths) {
-    const current = readFileSync(join(workspace, path), "utf8");
-    const original = readFileSync(join(originalCheckout, path), "utf8");
-    if (restoreOriginalRunner(path, current) !== original) {
-      throw new Error(`${path}: restored-database adapter changes more than its declared database plumbing`);
+  for (const originalPath of originalRunnerPaths) {
+    const currentPath = `scripts/research/${basename(originalPath)}`;
+    const current = readFileSync(join(workspace, currentPath), "utf8");
+    const original = readFileSync(join(originalCheckout, originalPath), "utf8");
+    if (restoreOriginalRunner(originalPath, current) !== original) {
+      throw new Error(`${currentPath}: restored-database adapter changes more than its declared database and layout plumbing`);
     }
-    adapters.push({ path, originalSha256: sha256(original), adapterSha256: sha256(current), equivalentExceptDatabaseOverride: true });
+    adapters.push({ path: currentPath, originalPath, originalSha256: sha256(original), adapterSha256: sha256(current),
+      equivalentExceptDatabaseOverride: true });
   }
   const helperPath = "scripts/sim-source.mjs";
   const currentHelper = readFileSync(join(workspace, helperPath), "utf8");
@@ -154,9 +164,9 @@ try {
     const executable = expand(unit.command.executable, replacements);
     const commandArgs = unit.command.arguments.map(value => expand(value, { ...replacements, "{output}": output }));
     if (unit.runner === "original_checkout") {
-      const scriptPath = `scripts/${basename(commandArgs[0])}`;
-      assert(adapterPaths.includes(scriptPath), `${unit.id}: original runner has no verified database adapter`);
-      commandArgs[0] = join(workspace, scriptPath);
+      const originalScriptPath = `scripts/${basename(commandArgs[0])}`;
+      assert(originalRunnerPaths.includes(originalScriptPath), `${unit.id}: original runner has no verified database adapter`);
+      commandArgs[0] = join(workspace, "scripts/research", basename(commandArgs[0]));
     }
     const environment = Object.fromEntries(Object.entries(unit.command.environment)
       .map(([key, value]) => [key, expand(value, replacements)]));

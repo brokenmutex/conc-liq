@@ -583,8 +583,9 @@ Implemented foundation:
 
 No active state, service, release, custody evidence, raw research input or bulk
 artifact has been deleted. The user-approved local `archive/` destination is
-configured. Material pruning remains blocked until the final-layout
-reproduction gate passes.
+configured. The September 18 study passed its final-layout reproduction gate;
+only its explicitly scoped, manifest-covered note copies and deterministic
+derivatives are now eligible for pruning.
 
 Implementation checkpoint:
 
@@ -615,10 +616,12 @@ Implementation checkpoint:
 - All eleven deterministic units reproduce their recorded normalized digests
   from the isolated archive restore. Explicit database adapters are proven
   byte-equivalent to the original runners except for connection selection.
-- This is not yet pruning authorization. The verified object is retained in the
-  user-approved same-host, Git-ignored `archive/` directory; final-layout replay
-  remains pending. Exact W4.2/W4.3 time-dependent evidence is hash-retained in
+- The September 18 study is authorized for scoped pruning after all eleven
+  units matched from a fresh isolated restore following relocation of its five
+  study-specific runners into `scripts/research/`. The verified object remains
+  in the user-approved same-host, Git-ignored `archive/` directory. Exact
+  W4.2/W4.3 time-dependent evidence is hash-retained in
   `research/evidence/`, and maintained replacements require bounded parameters
   for future observations. The local archive policy does not protect against
-  host/disk loss. Protected layout-dependent inputs and outputs remain in place
-  until the final gate passes.
+  host/disk loss. Research evidence, archive objects, manifests, receipts,
+  active runtime state, and custody/accounting evidence remain protected.

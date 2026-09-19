@@ -11,7 +11,7 @@
 // window. Active liquidity is time-weighted from the strategy checkpoints,
 // which is the same book the paper runner decides on.
 //
-// Read-only. Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/pool-universe-screen.mjs OUT.json
+// Read-only. Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/research/pool-universe-screen.mjs OUT.json
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
@@ -20,7 +20,7 @@ const require=createRequire(R+'/package.json');
 const pg=require('pg');
 const {sizeLiquidityForQuoteBudget}=await import(R+'/dist/src/simulator/math.js');
 const {sqrtRatioAtTick}=await import(R+'/dist/src/backtest/principal.js');
-const {researchDatabaseUrl}=await import('./sim-source.mjs');
+const {researchDatabaseUrl}=await import('../sim-source.mjs');
 
 const USDG='0x5fc5360d0400a0fd4f2af552add042d716f1d168';
 const SPACING={500:10,3000:60,10000:200,100:1};

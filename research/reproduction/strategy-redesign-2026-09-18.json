@@ -9,7 +9,7 @@
     "sourceCommit": "81d266261a541d875c196054c5cec18b70faf0a9",
     "nodeVersion": "v24.20.0"
   },
-  "postLayoutVerified": false,
+  "postLayoutVerified": true,
   "deterministicUnits": [
     {
       "id": "w0-fee-calibration",
@@ -17,7 +17,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/live-fee-calibration.mjs", "{output}"],
+        "arguments": ["scripts/research/live-fee-calibration.mjs", "{output}"],
         "environment": {}
       },
       "expectedOutput": "notes/fee-calibration-2026-09-18/live-segments.json",
@@ -36,7 +36,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/adaptive-exit-rule-sim.mjs", "{output}"],
+        "arguments": ["scripts/research/adaptive-exit-rule-sim.mjs", "{output}"],
         "environment": {
           "SIM_START": "2026-09-08T02:00:00Z",
           "SIM_END": "2026-09-17T14:05:00Z",
@@ -59,7 +59,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms-full.json"],
+        "arguments": ["scripts/research/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms-full.json"],
         "environment": {
           "SIM_START": "2026-09-08T02:00:00Z",
           "SIM_END": "2026-09-17T14:05:00Z"
@@ -81,7 +81,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms.json"],
+        "arguments": ["scripts/research/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms.json"],
         "environment": {
           "SIM_START": "2026-09-13T15:00:00Z",
           "SIM_END": "2026-09-17T14:05:00Z"
@@ -126,7 +126,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
+        "arguments": ["scripts/research/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
         "environment": {
           "SIM_START": "2026-09-08T02:00:00Z",
           "SIM_END": "2026-09-17T14:05:00Z"
@@ -148,7 +148,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
+        "arguments": ["scripts/research/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
         "environment": {
           "SIM_START": "2026-09-13T15:00:00Z",
           "SIM_END": "2026-09-17T14:05:00Z"
@@ -170,7 +170,7 @@
       "runner": "required_release",
       "command": {
         "executable": "{requiredRelease}/bin/node",
-        "arguments": ["scripts/pool-universe-screen.mjs", "{output}"],
+        "arguments": ["scripts/research/pool-universe-screen.mjs", "{output}"],
         "environment": {
           "SCREEN_SINCE": "2026-09-13T15:00:00Z",
           "SCREEN_UNTIL": "2026-09-18T13:01:51.157Z"
@@ -263,11 +263,11 @@
     {"path": "config/adaptive-3000-tier-probe.json", "bytes": 1674, "sha256": "8c1c114bc67ca9919baa9a5c2a6760d74553d72d714e2edb2f4abfc3351c7486", "class": "tracked"},
     {"path": "config/adaptive-3000-tier-price-ladder.json", "bytes": 1940, "sha256": "9c4f9f009e0c78fc55294190580f7444544c36f62e273abd84c583e3ea2bbf59", "class": "tracked"},
     {"path": "config/indexer-pools.json", "bytes": 3488, "sha256": "8e814f2dc8d1300d356be1834c5b2568dca870fe52cf158af78073e92c121cc6", "class": "tracked"},
-    {"path": "scripts/live-fee-calibration.mjs", "bytes": 11160, "sha256": "58f20f95f13628b1405f6f41357f7664cf449653e6d2673993a72c278d4f7c68", "class": "tracked"},
-    {"path": "scripts/adaptive-exit-rule-sim.mjs", "bytes": 14218, "sha256": "40a93f938f5fac7e59d9218b190ffbf9202d5372f4a81c5900ac9e696d606e9c", "class": "tracked"},
-    {"path": "scripts/adaptive-residual-range-sim.mjs", "bytes": 22647, "sha256": "b2d9e68d079227cd85ab11899a54b7219ce19a6faa6ae7974df4f3df9c438b34", "class": "tracked"},
-    {"path": "scripts/adaptive-forecast-sweep.mjs", "bytes": 17060, "sha256": "2e172f40d39a4d6da28e767bec282532dc2a5d7d3920c43fb9599abb191d6ead", "class": "tracked"},
-    {"path": "scripts/pool-universe-screen.mjs", "bytes": 7849, "sha256": "8f582e7fafe53756a3351cbb136ee99861dbb3b2e5e2f7a4222f52e282b27bdf", "class": "tracked"},
+    {"path": "scripts/research/live-fee-calibration.mjs", "bytes": 11170, "sha256": "0701d35f7587568fc1e8ebdb06b31da2f5b0b7ddd124055d0742a8b6ee1222af", "class": "tracked"},
+    {"path": "scripts/research/adaptive-exit-rule-sim.mjs", "bytes": 14228, "sha256": "4e510d4e0d0957e12a1c40312e2f67e596a0c482ecb69b733cd380c3183fcfaa", "class": "tracked"},
+    {"path": "scripts/research/adaptive-residual-range-sim.mjs", "bytes": 22657, "sha256": "3dae2d1bf9a336deb1ebe5b1cd109abb236e49817335bd42d3bad1255927332e", "class": "tracked"},
+    {"path": "scripts/research/adaptive-forecast-sweep.mjs", "bytes": 17070, "sha256": "7e50e0cdd933aceac39f5e0979ca72c27eb1bef3008bac000e8eabd192866080", "class": "tracked"},
+    {"path": "scripts/research/pool-universe-screen.mjs", "bytes": 7859, "sha256": "7bfc4fa89b0f31ef379b24dae222e1c76fdd6bf49bf085f444ffd023aa5eb3ee", "class": "tracked"},
     {"path": "scripts/sim-source.mjs", "bytes": 4981, "sha256": "5d8c98b349bff868affe6a6c3199c68b9b6b926792d32b233d8328f090e56405", "class": "tracked"},
     {"path": "notes/adaptive-residual-range-2026-09-18/arms-full.json", "bytes": 358, "sha256": "4c9247eda274ca5026f79e8302d517d38b3fb30dd27d25d9606fd72c769a6206", "class": "tracked"},
     {"path": "notes/adaptive-residual-range-2026-09-18/arms.json", "bytes": 449, "sha256": "f881e4696e6f3daac02ced53e4e6c2b0e14f21776ff07be6ba8d5e679eeaf483", "class": "tracked"},
@@ -338,7 +338,5 @@
       "limitation": "Current runtime continuity is operational evidence, not reproduction of the research bundle."
     }
   ],
-  "blockers": [
-    "The final script/config layout has not completed its restored-input replay."
-  ]
+  "blockers": []
 }
