@@ -157,6 +157,57 @@ has to carry `conc-liq-rpc-health`, `conc-liq-accounting`,
 `conc-liq-perp-reference` and `conc-liq-paper-assets-checkpoint`, because
 they run the same schema check.
 
+## 4b. Migration and fleet upgrade, executed 2026-09-19
+
+The user gave the go. The §4 safe order was followed, with the collectors
+upgraded rather than left alone. Collection outage **07:54:14Z to 07:57:27Z,
+3 min 13 s**; the migration itself took 2 s.
+
+1. Stopped the four timers, then `conc-liq-adaptive-paper`, `-dashboard`,
+   `-tail`, `-rpc-health` and the four timer-driven services.
+2. `migrate` on release `c70210f3…` applied version 3 alone. `schema_migrations`
+   now has three rows; `indexer_cursors.covered_through_block` exists, nullable,
+   and was NULL until the new tail first raised it.
+3. `adaptive-paper migrate-runtime` moved the session state from build
+   `9fed9384…` to `c70210f3…` (state sha256 `b88710d8…`, one history entry).
+   The prior state is kept at `state.pre-runtime-migration-2026-09-19.json`.
+4. Eight units repointed at `c70210f3…`: tail, rpc-health, strategy-checkpoint,
+   paper-assets-checkpoint, accounting, perp-reference, dashboard and
+   adaptive-paper. Only `WorkingDirectory` and `ExecStart` changed; the
+   originals are kept in this session's scratchpad. Started rpc-health first,
+   then tail, then the paper session and dashboard, then the timers.
+
+**Units deliberately left on their old releases**, all inactive: live-pilot and
+its bootstrap, experiment, paper, paper-aapl, paper-googl,
+paper-release-activation, usdg-grace-activation, cap-validation and
+recenter-validation. `conc-liq-live-pilot.service` is `enabled` but dead; on its
+current release it would now fail `assertSchemaReady` rather than start, which
+is a safe failure but must be fixed before any live restart.
+
+### Verification against §5
+
+| Item | Result |
+|---|---|
+| V1 | All four books `running` with decisions climbing within a minute. |
+| V2 | Policy reads `lookbackMinutes: 360`, `feeHalfLifeMs: 900000`, `residualRange: true`, `feePpm: 1000000`. |
+| V3 | **Satisfied in substance, not in wording.** 100 reads over 60 s: the pre-migration cursor (`last_scanned_block`) was blind (more than 10,000 blocks behind the tip) on **11 of 100** reads with a worst lag of **7,277,174** blocks, reproducing the 9.3% duty cycle this series measured. `COALESCE(covered_through_block,last_scanned_block)` was blind on **0 of 100**, worst lag **848** blocks. The coverage cursor does still regress by up to ~256 blocks when `rewind` re-scans the tail's reorg overlap, which is the documented design: it drops to the block it invalidated and no further. "Never regresses" was the wrong acceptance wording; "never goes blind" is the property that was fixed. Live proof: at 11:01:58 EEST `last_scanned_block` read 59,644,695 while `covered_through_block` read 66,923,447. |
+| V4 | `event_coverage_unavailable` is reachable and non-zero on every book. |
+| V5 | QQQ-500 carries `holdout: true` in the status file and the dashboard. |
+| V6 | GOOGL placed five residual ranges. Each has `action: "residual"`, `swapsThisMark: 0`, a 20-tick one-sided band, and a gas charge of **147,159**, exactly 2x221,310 - 177,373 - 118,088. The third converted the inventory back to 2,489 USDG of quote, which is the covered-call mechanism completing. |
+
+### Two things the upgrade did not fix
+
+- **HyperSync rate limiting at the top of each hour.** `conc-liq-accounting`'s
+  `action-cost` step still exits 1 on `HyperSync HTTP 429`, and while it runs it
+  starves the tail: four `tail_cycle_failed` entries between 08:00:22Z and
+  08:00:57Z, during which coverage stopped advancing and every book deferred.
+  The tail recovered by itself and resumed ten cycles in the next three minutes.
+  This predates the migration and is unrelated to it, but it is now the largest
+  remaining source of `event_coverage_unavailable`.
+- **The dashboard is the only consumer verified on the new release.** The
+  accounting, principal, nft and backtest steps ran clean, but `action-cost`
+  has not completed successfully since before the upgrade for the reason above.
+
 ## 5. Go/no-go checklist
 
 Each item is either satisfied now, or is a step to take, or is a decision for
