@@ -8,8 +8,15 @@ import { spawn, spawnSync } from "node:child_process";
 const args = process.argv.slice(2);
 const archiveIndex = args.indexOf("--archive");
 const sudoAdmin = args.includes("--admin-via-sudo-postgres");
+const replayReproduction = args.includes("--replay-reproduction");
+const replayConcurrencyIndex = args.indexOf("--replay-concurrency");
+const replayConcurrency = replayConcurrencyIndex < 0 ? 1 : Number(args[replayConcurrencyIndex + 1]);
 assert(archiveIndex >= 0 && args[archiveIndex + 1],
-  "Usage: verify-research-database-archive.mjs --archive /absolute/object.tar.zst [--admin-via-sudo-postgres]");
+  "Usage: verify-research-database-archive.mjs --archive /absolute/object.tar.zst [--admin-via-sudo-postgres] [--replay-reproduction] [--replay-concurrency 1..3]");
+assert(Number.isInteger(replayConcurrency) && replayConcurrency >= 1 && replayConcurrency <= 3,
+  "Replay concurrency must be 1, 2, or 3");
+assert(replayReproduction || replayConcurrencyIndex < 0,
+  "--replay-concurrency requires --replay-reproduction");
 const archivePath = resolve(args[archiveIndex + 1]);
 assert(archivePath.startsWith("/") && existsSync(archivePath) && statSync(archivePath).isFile(),
   "Archive must be an existing absolute file");
@@ -133,8 +140,19 @@ try {
     'canonicalRuns',(SELECT count(*) FROM risk_snapshot_canonicality WHERE canonical),
     'cursorCoveredThrough',(SELECT covered_through_block::text FROM indexer_cursors WHERE stream_key='robinhood-v3-rwa-usdg-v1'),
     'replayCompleteThrough',(SELECT complete_through_block::text FROM v3_replay_cursors WHERE stream_key='robinhood-v3-rwa-usdg-v1'))`]).stdout.trim());
+  if (replayReproduction) {
+    const replayOutput = join(extractionDirectory, "reproduction-output");
+    const result = spawnSync(process.execPath, ["scripts/maintenance/replay-restored-research.mjs",
+      "--database-url", restoreConnection, "--output-dir", replayOutput, "--archive-content-id", contentId,
+      "--concurrency", String(replayConcurrency)],
+    { cwd: process.cwd(), encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+    if (result.stderr) process.stderr.write(result.stderr);
+    if (result.status !== 0) throw new Error(`restored-input reproduction failed: ${String(result.stdout).trim()}`);
+    if (result.stdout) process.stdout.write(result.stdout);
+  }
   console.log(JSON.stringify({ archivePath, archiveBytes: statSync(archivePath).size, archiveSha256: hashFile(archivePath),
-    contentId, databaseCreator, restoredDatabase: restoreDatabase, restored: true, contract }));
+    contentId, databaseCreator, restoredDatabase: restoreDatabase, restored: true,
+    reproductionReplayed: replayReproduction, replayConcurrency: replayReproduction ? replayConcurrency : null, contract }));
 } finally {
   if (databaseCreated) {
     try { dropRestoreDatabase(); } catch (error) {

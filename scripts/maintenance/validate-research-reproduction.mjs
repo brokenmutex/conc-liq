@@ -57,10 +57,11 @@ for (const input of report.inputFiles) {
 }
 
 const databaseArchive = report.databaseArchive;
-assert.equal(databaseArchive.status, "verified_local_staging", "Database archive status is not recognized");
+assert.equal(databaseArchive.status, "verified_local_staging_with_replay", "Database archive status is not recognized");
 assert.equal(databaseArchive.restoreVerified, true, "Database archive restore is not verified");
+assert.equal(databaseArchive.restoredInputReplayVerified, true, "Restored-input replay is not verified");
 assert.equal(databaseArchive.durable, false, "Local staging must not be represented as durable storage");
-for (const archivePath of [databaseArchive.manifest, databaseArchive.receipt]) {
+for (const archivePath of [databaseArchive.manifest, databaseArchive.receipt, databaseArchive.replayReceipt]) {
   assert(existsSync(archivePath) && statSync(archivePath).isFile(), `Database archive evidence missing: ${archivePath}`);
 }
 const archiveManifest = JSON.parse(readFileSync(databaseArchive.manifest, "utf8"));
@@ -90,9 +91,47 @@ assert.equal(archiveReceipt.pruningAuthorized, false, "Local archive receipt can
 assert.match(archiveReceipt.archive.sha256, hex, "Archive object digest is invalid");
 assert.match(archiveReceipt.export.scriptSha256, hex, "Archive export script digest is invalid");
 assert.match(archiveReceipt.restoreVerification.scriptSha256, hex, "Archive verifier script digest is invalid");
+assert.equal(archiveReceipt.restoredInputReplayReceipt, databaseArchive.replayReceipt,
+  "Archive receipt restored-input replay path differs");
 if (existsSync(archiveReceipt.archive.stagingPath)) {
   assert.equal(statSync(archiveReceipt.archive.stagingPath).size, archiveReceipt.archive.bytes,
     "Local staging archive byte length changed");
+}
+const replayReceipt = JSON.parse(readFileSync(databaseArchive.replayReceipt, "utf8"));
+assert.equal(replayReceipt.archiveContentId, manifestContentId, "Replay receipt archive content ID differs");
+assert.equal(replayReceipt.databaseInput, "isolated_archive_restore", "Replay receipt database input is invalid");
+assert.equal(replayReceipt.allMatched, true, "Restored-input replay did not match every unit");
+assert.deepEqual(replayReceipt.requiredRelease, report.requiredRelease,
+  "Replay receipt required release differs from reproduction manifest");
+assert.equal(replayReceipt.originalCheckoutCommit, report.originalCheckoutCommit,
+  "Replay receipt original checkout differs from reproduction manifest");
+assert(Number.isInteger(replayReceipt.execution.concurrency) && replayReceipt.execution.concurrency >= 1
+  && replayReceipt.execution.concurrency <= 3, "Replay receipt concurrency is invalid");
+assert.equal(replayReceipt.execution.temporaryDatabaseDropped, true,
+  "Replay receipt does not confirm temporary database cleanup");
+assert.equal(replayReceipt.execution.temporaryDirectoriesRemoved, true,
+  "Replay receipt does not confirm temporary directory cleanup");
+assert.equal(replayReceipt.pruningAuthorized, false, "Restored-input replay alone cannot authorize pruning");
+assert.equal(replayReceipt.units.length, report.deterministicUnits.length,
+  "Replay receipt unit count differs from reproduction manifest");
+for (const unit of report.deterministicUnits) {
+  const replayed = replayReceipt.units.find(item => item.id === unit.id);
+  assert(replayed, `Replay receipt is missing ${unit.id}`);
+  assert.equal(replayed.matches, true, `${unit.id}: restored-input replay did not match`);
+  assert.equal(replayed.normalizedSha256, unit.normalizedSha256,
+    `${unit.id}: restored-input digest differs from reproduction manifest`);
+}
+const expectedAdapterPaths = new Set(report.deterministicUnits
+  .map(unit => `scripts/${unit.command.arguments[0].split("/").at(-1)}`));
+expectedAdapterPaths.add("scripts/sim-source.mjs");
+assert.deepEqual(new Set(replayReceipt.adapters.map(adapter => adapter.path)), expectedAdapterPaths,
+  "Replay receipt database adapter set differs from reproduction runners");
+for (const adapter of replayReceipt.adapters) {
+  assert.equal(adapter.equivalentExceptDatabaseOverride, true, `${adapter.path}: database adapter is not equivalent`);
+  assert.match(adapter.originalSha256, hex, `${adapter.path}: original adapter digest is invalid`);
+  assert.match(adapter.adapterSha256, hex, `${adapter.path}: current adapter digest is invalid`);
+  assert.equal(adapter.adapterSha256, report.inputFiles.find(input => input.path === adapter.path)?.sha256,
+    `${adapter.path}: replay adapter digest differs from tracked input`);
 }
 
 const nonDeterministicStatuses = new Set([

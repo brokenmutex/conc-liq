@@ -2,7 +2,7 @@
 
 Date: 2026-09-19
 
-Status: deterministic replay and local database restore passed; evidence pruning remains blocked
+Status: deterministic replay from the restored local database passed; evidence pruning remains blocked
 
 The post-layout audit reran every deterministic JSON-producing unit in the
 September 18 W0-W4 bundle. Frozen-release units used build
@@ -31,14 +31,16 @@ The object contains nine allowlisted tables, restored into an isolated database,
 matched every embedded file digest and row count, and passed its research data
 contract. The declared PostgreSQL integration suite also passed in a separate
 temporary database. Both temporary databases were removed after verification.
+All eleven deterministic units were then rerun against the restored database;
+every normalized digest matched. The database adapters are mechanically proven
+byte-equivalent to the original runners except for the explicit connection
+override and comments.
 
 This still does not clear the study for pruning:
 
 - the archive object remains local staging on the same host as the source
   database; it has not been transferred to and verified from independent
   durable storage;
-- deterministic research runners have not yet been replayed against the
-  restored database;
 - W4.2's cursor probe is a wall-clock observation and its retained script has
   an obsolete temporary output path;
 - W4.3's original health-distribution queries were not bounded by a frozen
@@ -53,3 +55,4 @@ input hashes, normalized output hashes and blocker states are in
 The archive's immutable manifest and restore receipt are under
 `research/archives/`. The 185,163,776-byte object is intentionally ignored at
 `data/archive-staging/`; its presence is useful locally but is not durable proof.
+The restored-input replay receipt is retained beside the archive manifest.

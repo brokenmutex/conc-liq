@@ -29,7 +29,7 @@
 // Read-only: the database is opened read-only and nothing is written outside
 // the output path.
 //
-// Usage: <release>/bin/node scripts/live-fee-calibration.mjs OUT.json
+// Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/live-fee-calibration.mjs OUT.json
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
@@ -38,6 +38,7 @@ const require=createRequire(R+'/package.json');
 const pg=require('pg');
 const {ExperimentMarket}=await import(R+'/dist/src/experiment/market.js');
 const {virtualFeeCredit}=await import(R+'/dist/src/research/virtual-fees.js');
+const {researchDatabaseUrl}=await import('./sim-source.mjs');
 
 const Q128=1n<<128n;
 const [outPath]=process.argv.slice(2);
@@ -86,7 +87,7 @@ segments.sort((a,b)=>Number(a.block-b.block));
 console.error(`segments: ${segments.length}`);
 
 // ---------------------------------------------------------------- pool book
-const db=new pg.Client({connectionString:'postgresql://root@localhost/conc_liq?host=/var/run/postgresql',
+const db=new pg.Client({connectionString:researchDatabaseUrl(),
   options:'-c default_transaction_read_only=on'});
 await db.connect();
 await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');

@@ -611,7 +611,9 @@ Implementation checkpoint:
 - The bounded PostgreSQL research inputs now have a 185,163,776-byte
   content-addressed archive and a successful isolated restore drill. The
   declared PostgreSQL integration suite also passes in a disposable database.
+- All eleven deterministic units reproduce their recorded normalized digests
+  from the isolated archive restore. Explicit database adapters are proven
+  byte-equivalent to the original runners except for connection selection.
 - This is not pruning authorization. The archive object remains same-host local
-  staging rather than independently durable storage, deterministic runners have
-  not been replayed against the restored database, and W4.2/W4.3 retain
+  staging rather than independently durable storage, and W4.2/W4.3 retain
   time-dependent observations. Their inputs and outputs remain protected.

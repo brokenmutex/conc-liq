@@ -39,7 +39,7 @@
   "pruningAuthorized": false,
   "limitations": [
     "The archive object is staged on the same host as the source database.",
-    "No independent durable destination or transfer verification exists.",
-    "The restore drill validates archive integrity, schema, row counts and the research data contract; deterministic research runners have not yet been replayed against the restored database."
-  ]
+    "No independent durable destination or transfer verification exists."
+  ],
+  "restoredInputReplayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json"
 }

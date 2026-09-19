@@ -18,6 +18,18 @@
 import assert from 'node:assert/strict';
 
 const sleep=(ms)=>new Promise(r=>setTimeout(r,ms));
+const DEFAULT_RESEARCH_DATABASE_URL='postgresql://root@localhost/conc_liq?host=/var/run/postgresql';
+
+/** Select an explicit database for offline research replay without reusing the
+ * runtime DATABASE_URL. The dedicated name prevents a service environment
+ * from silently retargeting historical research. */
+export function researchDatabaseUrl(environment=process.env){
+  const value=environment.RESEARCH_DATABASE_URL??DEFAULT_RESEARCH_DATABASE_URL;
+  const parsed=new URL(value);
+  assert(['postgres:','postgresql:'].includes(parsed.protocol),'RESEARCH_DATABASE_URL must be PostgreSQL');
+  assert(parsed.pathname.length>1,'RESEARCH_DATABASE_URL must name a database');
+  return value;
+}
 
 /** Retarget the deployed release's fee-500 checkpoint query at another tier.
  * The working tree's `sourceSqlForFee` is the real fix, but it reads

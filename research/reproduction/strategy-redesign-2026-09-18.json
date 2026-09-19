@@ -263,12 +263,12 @@
     {"path": "config/adaptive-3000-tier-probe.json", "bytes": 1674, "sha256": "8c1c114bc67ca9919baa9a5c2a6760d74553d72d714e2edb2f4abfc3351c7486", "class": "tracked"},
     {"path": "config/adaptive-3000-tier-price-ladder.json", "bytes": 1940, "sha256": "9c4f9f009e0c78fc55294190580f7444544c36f62e273abd84c583e3ea2bbf59", "class": "tracked"},
     {"path": "config/indexer-pools.json", "bytes": 3488, "sha256": "8e814f2dc8d1300d356be1834c5b2568dca870fe52cf158af78073e92c121cc6", "class": "tracked"},
-    {"path": "scripts/live-fee-calibration.mjs", "bytes": 11112, "sha256": "756c266d9811a354fb70c8cf6bd8395e50f03dc9af1e122b5cc46224822858e0", "class": "tracked"},
-    {"path": "scripts/adaptive-exit-rule-sim.mjs", "bytes": 14212, "sha256": "ae2bfb1b1ae5992b3abafc666a44ecca09d95663b26d5546526797fb79292808", "class": "tracked"},
-    {"path": "scripts/adaptive-residual-range-sim.mjs", "bytes": 22583, "sha256": "c2b938f10b39f657b80adc396ba21d12ec391ec5cbc3e0023ed556016aa0642a", "class": "tracked"},
-    {"path": "scripts/adaptive-forecast-sweep.mjs", "bytes": 16996, "sha256": "e0f4dddb10ed2e21daa031b388c42832f9f930d88b90a6c18125dcc1bde3ca91", "class": "tracked"},
-    {"path": "scripts/pool-universe-screen.mjs", "bytes": 7801, "sha256": "95ee579a84ca0b8666a7c5190d41cae777d87e6549010f496f05851ef366a97d", "class": "tracked"},
-    {"path": "scripts/sim-source.mjs", "bytes": 4291, "sha256": "5ba4044cb678c49e893dc4bb25a2cce4c906b13d0bf11cb630b6c75f53e5d60a", "class": "tracked"},
+    {"path": "scripts/live-fee-calibration.mjs", "bytes": 11160, "sha256": "58f20f95f13628b1405f6f41357f7664cf449653e6d2673993a72c278d4f7c68", "class": "tracked"},
+    {"path": "scripts/adaptive-exit-rule-sim.mjs", "bytes": 14218, "sha256": "40a93f938f5fac7e59d9218b190ffbf9202d5372f4a81c5900ac9e696d606e9c", "class": "tracked"},
+    {"path": "scripts/adaptive-residual-range-sim.mjs", "bytes": 22647, "sha256": "b2d9e68d079227cd85ab11899a54b7219ce19a6faa6ae7974df4f3df9c438b34", "class": "tracked"},
+    {"path": "scripts/adaptive-forecast-sweep.mjs", "bytes": 17060, "sha256": "2e172f40d39a4d6da28e767bec282532dc2a5d7d3920c43fb9599abb191d6ead", "class": "tracked"},
+    {"path": "scripts/pool-universe-screen.mjs", "bytes": 7849, "sha256": "8f582e7fafe53756a3351cbb136ee99861dbb3b2e5e2f7a4222f52e282b27bdf", "class": "tracked"},
+    {"path": "scripts/sim-source.mjs", "bytes": 4981, "sha256": "5d8c98b349bff868affe6a6c3199c68b9b6b926792d32b233d8328f090e56405", "class": "tracked"},
     {"path": "notes/adaptive-residual-range-2026-09-18/arms-full.json", "bytes": 358, "sha256": "4c9247eda274ca5026f79e8302d517d38b3fb30dd27d25d9606fd72c769a6206", "class": "tracked"},
     {"path": "notes/adaptive-residual-range-2026-09-18/arms.json", "bytes": 449, "sha256": "f881e4696e6f3daac02ced53e4e6c2b0e14f21776ff07be6ba8d5e679eeaf483", "class": "tracked"},
     {"path": "notes/adaptive-residual-range-2026-09-18/port-arms.json", "bytes": 266, "sha256": "64df8e0401aea76e0b00ec7816168b3a322ff81f1d80eb88898756f4e1213b1b", "class": "tracked"},
@@ -284,15 +284,18 @@
       "access": "local PostgreSQL read-only historical queries",
       "contentAddressedSnapshot": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
       "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
-      "limitation": "The bounded database snapshot restored and passed its data contract, but its object remains staged on the source host and deterministic runners have not yet been replayed against the restored database. Database-backed inputs therefore cannot be pruned."
+      "replayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
+      "limitation": "The bounded database snapshot restored, passed its data contract, and reproduced all eleven deterministic units. Its object remains staged on the source host, so database-backed inputs cannot be pruned until an independently durable copy is verified."
     }
   ],
   "databaseArchive": {
     "contentId": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
     "manifest": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
     "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
-    "status": "verified_local_staging",
+    "replayReceipt": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
+    "status": "verified_local_staging_with_replay",
     "restoreVerified": true,
+    "restoredInputReplayVerified": true,
     "durable": false
   },
   "nonDeterministicUnits": [

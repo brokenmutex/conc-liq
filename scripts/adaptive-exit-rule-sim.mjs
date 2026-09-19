@@ -18,7 +18,7 @@
 // accepts still happens; the exit only fires where the deployed strategy
 // would have sat stranded.
 //
-// Usage: SIM_START=... SIM_END=... <release>/bin/node scripts/adaptive-exit-rule-sim.mjs OUT.json [--arms FILE]
+// Usage: SIM_START=... SIM_END=... [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/adaptive-exit-rule-sim.mjs OUT.json [--arms FILE]
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
@@ -40,7 +40,7 @@ const {marketValue,marketPriceX18,marketTokens,marketRange}=await import(R+'/dis
 const SOURCE_RELEASE=process.env.CONC_LIQ_SOURCE_RELEASE
   ??'/root/conc-liq-releases/ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf';
 const {sourceSql}=await import(SOURCE_RELEASE+'/dist/src/paper/store.js');
-const {readSourceRows}=await import('./sim-source.mjs');
+const {readSourceRows,researchDatabaseUrl}=await import('./sim-source.mjs');
 
 const MIN=60000;
 
@@ -146,7 +146,7 @@ const policyFor=(name)=>({name,halfWidthsTicks:config.halfWidthsTicks,adaptive:t
   decisionMs:config.decisionMs,quoteTtlMs:config.quoteTtlMs,slippageBps:config.slippageBps,costBufferPpm:config.costBufferPpm,feeBufferPpm:config.feeBufferPpm,
   gasMultiplier:1,feePpm:FEE_PPM,failEveryRecenter:0,horizonMs:config.horizonMs});
 
-const db=new pg.Client({connectionString:'postgresql://root@localhost/conc_liq?host=/var/run/postgresql'});
+const db=new pg.Client({connectionString:researchDatabaseUrl()});
 await db.connect();
 const out={generatedAt:new Date().toISOString(),release:R,feePpm:FEE_PPM,horizonMs:config.horizonMs,forecast:config.forecast,
   start:new Date(START).toISOString(),end:new Date(END).toISOString(),arms:arms.map(a=>({name:a.name,rule:a.rule})),assets:{}};

@@ -11,7 +11,7 @@
 // window. Active liquidity is time-weighted from the strategy checkpoints,
 // which is the same book the paper runner decides on.
 //
-// Read-only. Usage: <release>/bin/node scripts/pool-universe-screen.mjs OUT.json
+// Read-only. Usage: [RESEARCH_DATABASE_URL=...] <release>/bin/node scripts/pool-universe-screen.mjs OUT.json
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
@@ -20,6 +20,7 @@ const require=createRequire(R+'/package.json');
 const pg=require('pg');
 const {sizeLiquidityForQuoteBudget}=await import(R+'/dist/src/simulator/math.js');
 const {sqrtRatioAtTick}=await import(R+'/dist/src/backtest/principal.js');
+const {researchDatabaseUrl}=await import('./sim-source.mjs');
 
 const USDG='0x5fc5360d0400a0fd4f2af552add042d716f1d168';
 const SPACING={500:10,3000:60,10000:200,100:1};
@@ -30,7 +31,7 @@ const UNTIL=process.env.SCREEN_UNTIL??new Date().toISOString();
 const BUDGETS=[1000n,2500n,5000n].map(n=>n*1000000n);
 
 const pools=JSON.parse(readFileSync('/root/conc-liq/config/indexer-pools.json','utf8')).pools;
-const db=new pg.Client({connectionString:'postgresql://root@localhost/conc_liq?host=/var/run/postgresql',
+const db=new pg.Client({connectionString:researchDatabaseUrl(),
   options:'-c default_transaction_read_only=on -c statement_timeout=600000'});
 await db.connect();
 await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');

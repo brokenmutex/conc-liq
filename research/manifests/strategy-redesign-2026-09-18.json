@@ -15,8 +15,8 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "4cdcc7f39fc31a25141166bf4e977008885fd3d68ca67007c243f3789d8b208f",
-      "bytes": 17392,
+      "sha256": "f6b8b656579797a3010b64281e4d714964bb56fecebd6aaa0c029727aad5b655",
+      "bytes": 17645,
       "role": "manifest"
     },
     {
@@ -27,8 +27,14 @@
     },
     {
       "path": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
-      "sha256": "f8585cbbf2b95351a9e7fdb6e0fd0d22a7c6f66da422bc22778d3f74ec882921",
-      "bytes": 2043,
+      "sha256": "e274680f879ff6f1a747fa5a1216249f6f0777c9f2ec150972fb7929362a3721",
+      "bytes": 1960,
+      "role": "archive_receipt"
+    },
+    {
+      "path": "research/archives/strategy-redesign-2026-09-18-database-replay-receipt.json",
+      "sha256": "c6006108503bfe11ece38a115310f0fe4a694262e5012a83cb7e3c4b3f271788",
+      "bytes": 4466,
       "role": "archive_receipt"
     },
     {
@@ -75,32 +81,38 @@
     },
     {
       "path": "scripts/live-fee-calibration.mjs",
-      "sha256": "756c266d9811a354fb70c8cf6bd8395e50f03dc9af1e122b5cc46224822858e0",
-      "bytes": 11112,
+      "sha256": "58f20f95f13628b1405f6f41357f7664cf449653e6d2673993a72c278d4f7c68",
+      "bytes": 11160,
+      "role": "code"
+    },
+    {
+      "path": "scripts/adaptive-exit-rule-sim.mjs",
+      "sha256": "40a93f938f5fac7e59d9218b190ffbf9202d5372f4a81c5900ac9e696d606e9c",
+      "bytes": 14218,
       "role": "code"
     },
     {
       "path": "scripts/adaptive-residual-range-sim.mjs",
-      "sha256": "c2b938f10b39f657b80adc396ba21d12ec391ec5cbc3e0023ed556016aa0642a",
-      "bytes": 22583,
+      "sha256": "b2d9e68d079227cd85ab11899a54b7219ce19a6faa6ae7974df4f3df9c438b34",
+      "bytes": 22647,
       "role": "code"
     },
     {
       "path": "scripts/adaptive-forecast-sweep.mjs",
-      "sha256": "e0f4dddb10ed2e21daa031b388c42832f9f930d88b90a6c18125dcc1bde3ca91",
-      "bytes": 16996,
+      "sha256": "2e172f40d39a4d6da28e767bec282532dc2a5d7d3920c43fb9599abb191d6ead",
+      "bytes": 17060,
       "role": "code"
     },
     {
       "path": "scripts/pool-universe-screen.mjs",
-      "sha256": "95ee579a84ca0b8666a7c5190d41cae777d87e6549010f496f05851ef366a97d",
-      "bytes": 7801,
+      "sha256": "8f582e7fafe53756a3351cbb136ee99861dbb3b2e5e2f7a4222f52e282b27bdf",
+      "bytes": 7849,
       "role": "code"
     },
     {
       "path": "scripts/sim-source.mjs",
-      "sha256": "5ba4044cb678c49e893dc4bb25a2cce4c906b13d0bf11cb630b6c75f53e5d60a",
-      "bytes": 4291,
+      "sha256": "5d8c98b349bff868affe6a6c3199c68b9b6b926792d32b233d8328f090e56405",
+      "bytes": 4981,
       "role": "code"
     }
   ],
@@ -116,7 +128,7 @@
     "postLayoutVerified": false,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed post-layout comparison, the bounded database archive passed a local restore drill, and PostgreSQL integration tests passed in an isolated database. The archive still lacks independently durable storage, restored-input runner replay remains pending, and two W4 observations are time-dependent. No dependent evidence may be pruned."
+    "limitation": "Eleven deterministic W0-W4 outputs passed both post-layout comparison and restored-database replay, the bounded database archive passed its restore drill, and PostgreSQL integration tests passed in an isolated database. The archive still lacks independently durable storage and two W4 observations are time-dependent. No dependent evidence may be pruned."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",
