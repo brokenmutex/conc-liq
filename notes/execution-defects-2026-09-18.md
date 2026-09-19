@@ -368,3 +368,90 @@ notes/execution-defects-2026-09-18/cursor-probe.sh
 The W4.3 distributions are SQL over `rpc_health_samples` and
 `risk_snapshot_runs`; the queries are in
 `notes/execution-defects-2026-09-18/health-distributions.sql`.
+
+## Addendum, 2026-09-19: the HyperSync quota is the binding constraint
+
+Written after the migration and fleet upgrade, while investigating the
+`tail_cycle_failed` and `action_cost_snapshot_failed` entries that appear at the
+top of every hour.
+
+### The two fetch paths had diverged
+
+`src/history/client.ts` builds two clients from the same config. The archive
+path, `createHistoryFetch`, retried 429 and 5xx twice and honoured
+`Retry-After`. The native path, `NativeHyperSync`, threw on the first non-2xx.
+The tail's own event stream and the action-cost reader both run on the native
+path, so a single throttled response failed an entire tail cycle or exited the
+hourly accounting run with status 1. Fixed in `1d5f09a`; the retry policy now
+lives in one place (`RETRYABLE_HISTORY_STATUS`, `MAX_HISTORY_RETRIES`,
+`retryDelayMs`, `sleepUntilRetry`) and both paths use it.
+
+### The backoff schedule was invented, not measured
+
+The first fix still failed. Probing the live endpoint showed why: HyperSync
+sends no `Retry-After` at all. It sends
+
+```
+x-ratelimit-cost: 1000
+x-ratelimit-limit: 30000, 30000;w=60
+x-ratelimit-remaining: 0
+x-ratelimit-reset: 7
+```
+
+so a throttled caller has to wait seconds, and the exponential schedule retried
+at 1 s and 2 s and gave up before any budget returned. `b3b14d8` prefers
+`Retry-After`, falls back to `x-ratelimit-reset`, and only then backs off
+exponentially. Observed retry delays in production are now 3 s and 14 s, which
+are real reset windows rather than a guess.
+
+### The quota itself, measured
+
+1,000 units per request against 30,000 per 60 s is **30 requests per minute for
+the whole system**. Polling `/chain_id` while only the tail ran:
+
+| observation | remaining units |
+|---|---:|
+| reset in 47 s | 15,000 |
+| reset in 35 s | 9,000 |
+| reset in 23 s | 1,000 |
+| reset in 11 s | 0, HTTP 429 |
+
+That is roughly **20 requests per minute consumed by the tail alone**, about
+two thirds of the plan, leaving ~10 for everything else. `action-cost
+--lookback-blocks 50000 --max-per-class 25` needs far more than that, so it
+fails whatever its concurrency: it failed identically at `ACTION_COST_CONCURRENCY`
+of 4 and of 1. No retry policy can manufacture budget. The retry fix is still
+worth having because it stops one throttled response from discarding a whole
+tail cycle, but it does not make the accounting job fit.
+
+### Dropping HyperSync is not the answer either
+
+`HISTORY_SOURCE=legacy` looks tempting and is a trap. `runTail` passes
+`input.historyClient ?? input.client` into `runBackfill` as the **primary**
+source of logs and checkpoints, and passes the live node only as `liveClient`.
+With no history client, `liveClient` becomes `undefined`, and both
+`verifyHistoryBoundary` calls in `runBackfill` are gated on it. So legacy mode
+silently removes the two-provider agreement check that proves the indexed
+events match the live chain, and moves every bulk log read onto the private
+node at the same time.
+
+### What would actually fix it
+
+Probed against the private node on 2026-09-19, so this is measured, not assumed:
+
+| read | head-50,000 | head-200,000 |
+|---|---|---|
+| `eth_getBlockByNumber` | served | served |
+| `eth_getTransactionReceipt` | served | served |
+| real `gasUsed` / `effectiveGasPrice` on pool transactions | 455,249 / 67,120,000 | served |
+
+Blocks are served a million deep. So **action-cost could read from the private
+node instead of HyperSync**, which removes the largest consumer from the quota
+entirely and leaves the tail with the whole 30 per minute. The cost is that it
+crosses this stack's deliberate isolation boundary: `loadHistoryConfig` refuses
+a history endpoint whose hostname matches the live node, and bulk reads against
+the private node are gated by `assertBulkAllowed`. That is an architecture
+decision, not a bug fix, so it is written down here rather than taken.
+
+The alternatives are a larger HyperSync plan, or reducing the tail's own
+~20/min by polling less often or taking larger chunks per cycle.
