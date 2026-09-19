@@ -136,6 +136,31 @@ describe("native HyperSync", () => {
     assert.equal(calls, 2);
   });
 
+  it("waits for the provider's rate-limit window when no Retry-After is sent", async (context) => {
+    context.mock.timers.enable({ apis: ["setTimeout"] });
+    context.mock.method(console, "log", () => {});
+    let calls = 0;
+    // HyperSync answers a throttled request with x-ratelimit-reset and no
+    // Retry-After. Exponential backoff would have retried at 1s, long before
+    // the window refills at 7s.
+    const native = new NativeHyperSync(config, async () => {
+      calls += 1;
+      return calls === 1
+        ? new Response(null, { status: 429, headers: {
+            "x-ratelimit-reset": "7", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "30000, 30000;w=60" } })
+        : Response.json({ chain_id: 4663 });
+    });
+    const outcome = native.chainId();
+    await setImmediate();
+    context.mock.timers.tick(1000); await setImmediate();
+    assert.equal(calls, 1, "must not retry on the exponential schedule");
+    context.mock.timers.tick(5999); await setImmediate();
+    assert.equal(calls, 1, "must wait the full reset window");
+    context.mock.timers.tick(1); await setImmediate();
+    assert.equal(await outcome, 4663);
+    assert.equal(calls, 2);
+  });
+
   it("refuses a retry it could not sit out inside the request budget", async (context) => {
     context.mock.timers.enable({ apis: ["setTimeout"] });
     context.mock.method(console, "log", () => {});

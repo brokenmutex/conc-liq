@@ -67,7 +67,8 @@ export class NativeHyperSync {
       } catch { throw new Error("HyperSync transport failed"); }
       if (RETRYABLE_HISTORY_STATUS.includes(response.status) && attempt < MAX_HISTORY_RETRIES) {
         await response.body?.cancel();
-        const delayMs = retryDelayMs(attempt, response.headers.get("retry-after"));
+        const delayMs = retryDelayMs(attempt, response.headers.get("retry-after"),
+          response.headers.get("x-ratelimit-reset"));
         // A delay we cannot sit out is the caller's failure, not a retry.
         if (delayMs <= timeoutMs) {
           log("warn", "historical_provider_retry", {

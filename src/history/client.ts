@@ -93,11 +93,23 @@ export function historyRequestTarget(
 export const RETRYABLE_HISTORY_STATUS = [429, 500, 502, 503, 504];
 export const MAX_HISTORY_RETRIES = 2;
 
-/** Delay before retrying, honouring `Retry-After` in seconds or as an HTTP date. */
-export function retryDelayMs(attempt: number, retryAfter?: string | null): number {
+/** Delay before retrying. `Retry-After` wins, in seconds or as an HTTP date.
+ * Failing that, `x-ratelimit-reset` carries the seconds until the provider's
+ * window refills; HyperSync sends that and no `Retry-After`, so without it a
+ * throttled caller retried long before any budget had returned. Exponential
+ * backoff is the last resort. */
+export function retryDelayMs(
+  attempt: number,
+  retryAfter?: string | null,
+  rateLimitReset?: string | null,
+): number {
   const numericSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
   const dateDelayMs = retryAfter ? Date.parse(retryAfter) - Date.now() : Number.NaN;
-  const requestedDelayMs = Number.isFinite(numericSeconds) ? numericSeconds * 1000 : dateDelayMs;
+  const resetSeconds = rateLimitReset ? Number(rateLimitReset) : Number.NaN;
+  const requestedDelayMs = Number.isFinite(numericSeconds) ? numericSeconds * 1000
+    : Number.isFinite(dateDelayMs) ? dateDelayMs
+    : Number.isFinite(resetSeconds) ? resetSeconds * 1000
+    : Number.NaN;
   return Math.max(1000, Number.isFinite(requestedDelayMs) ? requestedDelayMs : 1000 * 2 ** attempt);
 }
 
@@ -134,8 +146,8 @@ export async function pace(url: string, intervalMs: number, signal?: AbortSignal
 export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch = fetch): typeof fetch {
   const verified = new Map<string, Promise<void>>();
   async function send(url: string, init: RequestInit): Promise<unknown> {
-    async function retry(attempt: number, details: { httpStatus?: number; rpcCodes?: (number | null)[]; transport?: boolean }, retryAfter?: string | null): Promise<void> {
-      const delayMs = retryDelayMs(attempt, retryAfter);
+    async function retry(attempt: number, details: { httpStatus?: number; rpcCodes?: (number | null)[]; transport?: boolean }, retryAfter?: string | null, rateLimitReset?: string | null): Promise<void> {
+      const delayMs = retryDelayMs(attempt, retryAfter, rateLimitReset);
       if (delayMs > (config.timeoutMs ?? 60_000)) {
         throw new Error("Historical provider retry delay exceeds request timeout");
       }
@@ -160,7 +172,8 @@ export function createHistoryFetch(config: HistoryConfig, fetcher: typeof fetch 
       }
       if (RETRYABLE_HISTORY_STATUS.includes(response.status) && attempt < MAX_HISTORY_RETRIES) {
         await response.body?.cancel();
-        await retry(attempt, { httpStatus: response.status }, response.headers.get("retry-after"));
+        await retry(attempt, { httpStatus: response.status },
+          response.headers.get("retry-after"), response.headers.get("x-ratelimit-reset"));
         continue;
       }
       if (!response.ok) throw new Error(`Historical provider HTTP ${response.status}`);
