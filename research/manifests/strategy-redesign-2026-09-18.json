@@ -14,6 +14,12 @@
       "role": "config"
     },
     {
+      "path": "research/reproduction/strategy-redesign-2026-09-18.json",
+      "sha256": "ee4909d170b7bbf7aa1e5c448cc3c80ace0fe37750ef98cfc2d63260b9bbe64d",
+      "bytes": 16863,
+      "role": "manifest"
+    },
+    {
       "path": "notes/strategy-redesign-handoff-2026-09-18.md",
       "sha256": "e62431f457d1ecb35c7112dbf2ab60a966cf8cae2c8a8feb36b66ca437cd726c",
       "bytes": 15709,
@@ -96,8 +102,9 @@
     "mode": "original_checkout",
     "checkoutCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
     "postLayoutVerified": false,
+    "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "No bulky local or tracked evidence may be deleted until restored inputs are replayed after the final script/config layout and compact results are compared. Application tests are not a substitute for this gate."
+    "limitation": "Eleven deterministic W0-W4 outputs passed post-layout comparison, but the database has no content-addressed snapshot, two W4 observations are time-dependent, PostgreSQL integration tests are pending, and no durable archive restore drill exists. No dependent evidence may be pruned."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",

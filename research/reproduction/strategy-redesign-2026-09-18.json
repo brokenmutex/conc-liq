@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "studyId": "strategy-redesign-2026-09-18",
+  "verifiedAt": "2026-09-19T14:27:35Z",
+  "verificationCheckout": "d54c66ab7937256ae457231c5f9cd9ca095eb8a0",
+  "originalCheckoutCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "requiredRelease": {
+    "buildId": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+    "sourceCommit": "81d266261a541d875c196054c5cec18b70faf0a9",
+    "nodeVersion": "v24.20.0"
+  },
+  "postLayoutVerified": false,
+  "deterministicUnits": [
+    {
+      "id": "w0-fee-calibration",
+      "workstream": "W0",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/live-fee-calibration.mjs", "{output}"],
+        "environment": {}
+      },
+      "expectedOutput": "notes/fee-calibration-2026-09-18/live-segments.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time is presentation metadata; every measured segment and aggregate remains compared."
+      },
+      "normalizedSha256": "11f06c497ec349437273a2d7cd57d7dc2b2b804b6a3f386f906ffb756cd453e3",
+      "status": "verified"
+    },
+    {
+      "id": "w0-exit-restatement",
+      "workstream": "W0",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/adaptive-exit-rule-sim.mjs", "{output}"],
+        "environment": {
+          "SIM_START": "2026-09-08T02:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z",
+          "SIM_FEE_PPM": "1000000"
+        }
+      },
+      "expectedOutput": "notes/fee-calibration-2026-09-18/exit-restated.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time is presentation metadata; all book, arm, action and accounting fields remain compared."
+      },
+      "normalizedSha256": "c183b9da22b28cb39e6a74a861fae8c9bf0a49475a3fc673bcb786075ea1216a",
+      "status": "verified"
+    },
+    {
+      "id": "w1-residual-full",
+      "workstream": "W1",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms-full.json"],
+        "environment": {
+          "SIM_START": "2026-09-08T02:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/adaptive-residual-range-2026-09-18/residual-full.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": ["sourcePolicy"],
+        "ignoredUnder": [],
+        "rationale": "The committed runner adds sourcePolicy=false to every pre-port arm; the baseline predates that representation-only field."
+      },
+      "normalizedSha256": "9c470671a93909b7ac5f8abf0a6ced284603bb49a01cd3b8803ef6996e786835",
+      "status": "verified"
+    },
+    {
+      "id": "w1-residual-warmed",
+      "workstream": "W1",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "notes/adaptive-residual-range-2026-09-18/arms.json"],
+        "environment": {
+          "SIM_START": "2026-09-13T15:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/adaptive-residual-range-2026-09-18/residual-warmed.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": ["sourcePolicy"],
+        "ignoredUnder": [],
+        "rationale": "The committed runner adds sourcePolicy=false to every pre-port arm; the baseline predates that representation-only field."
+      },
+      "normalizedSha256": "e9b73e9c34d44e637b6de2e705356cf2a1f5e3dfcb51369ae58e15ab54628e77",
+      "status": "verified"
+    },
+    {
+      "id": "w1-ported-policy",
+      "workstream": "W1",
+      "runner": "original_checkout",
+      "command": {
+        "executable": "{node}",
+        "arguments": ["{originalCheckout}/scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "{originalCheckout}/notes/adaptive-residual-range-2026-09-18/port-arms.json"],
+        "environment": {
+          "CONC_LIQ_RELEASE": "{originalCheckout}",
+          "SIM_START": "2026-09-16T00:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/adaptive-residual-range-2026-09-18/port-check.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt", "release"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time and the isolated checkout path vary; source commit, runner bytes, actions and economics remain compared."
+      },
+      "normalizedSha256": "739e85939a43c6b69724b9c6653edce3eb8b88b90a6912efad1ce9ffa1a79e83",
+      "status": "verified"
+    },
+    {
+      "id": "w2-session-full",
+      "workstream": "W2",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
+        "environment": {
+          "SIM_START": "2026-09-08T02:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/session-schedule-2026-09-18/session-full.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time is presentation metadata; the retained warmup warning remains a declared limitation."
+      },
+      "normalizedSha256": "e0fc732030ab5aea7c23fecb563b813021c2c818f3bb1b00f7906211d73b55c6",
+      "status": "verified"
+    },
+    {
+      "id": "w2-session-warmed",
+      "workstream": "W2",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/adaptive-forecast-sweep.mjs", "{output}", "--arms", "notes/session-schedule-2026-09-18/arms.json"],
+        "environment": {
+          "SIM_START": "2026-09-13T15:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/session-schedule-2026-09-18/session-warmed.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time is presentation metadata; all session, action and accounting fields remain compared."
+      },
+      "normalizedSha256": "f91132b9d2a25e27dfd1a7f0c166abcaa2a74c409d69e0263a3bbe7d6d097201",
+      "status": "verified"
+    },
+    {
+      "id": "w3-pool-universe",
+      "workstream": "W3",
+      "runner": "required_release",
+      "command": {
+        "executable": "{requiredRelease}/bin/node",
+        "arguments": ["scripts/pool-universe-screen.mjs", "{output}"],
+        "environment": {
+          "SCREEN_SINCE": "2026-09-13T15:00:00Z",
+          "SCREEN_UNTIL": "2026-09-18T13:01:51.157Z"
+        }
+      },
+      "expectedOutput": "notes/pool-universe-2026-09-18/universe.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt"],
+        "ignoredKeys": [],
+        "ignoredUnder": [],
+        "rationale": "Generation time is presentation metadata; SCREEN_UNTIL is now pinned to the retained output instead of current time."
+      },
+      "normalizedSha256": "800031f82e821b399104231ed4f29b82c22b01820889058871fb09e92db3527f",
+      "status": "verified"
+    },
+    {
+      "id": "w3-tier3000-tick-ladder",
+      "workstream": "W3",
+      "runner": "original_checkout",
+      "command": {
+        "executable": "{node}",
+        "arguments": ["{originalCheckout}/scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "{originalCheckout}/notes/pool-universe-2026-09-18/arms.json"],
+        "environment": {
+          "CONC_LIQ_RELEASE": "{originalCheckout}",
+          "SIM_CONFIG": "{originalCheckout}/config/adaptive-3000-tier-probe.json",
+          "SIM_START": "2026-09-13T15:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/pool-universe-2026-09-18/tier3000-tick-ladder.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt", "release"],
+        "ignoredKeys": ["sourcePolicy"],
+        "ignoredUnder": [["summary", "residuals"]],
+        "rationale": "The pre-commit baseline omits sourcePolicy=false and duplicates the residual count only outside summary; checkout path and generation time also vary."
+      },
+      "normalizedSha256": "478b9439ac33235ee4d8d9d0289a8d9363c1c7e02a53d9286fdc522c4a0b96c8",
+      "status": "verified"
+    },
+    {
+      "id": "w3-tier3000-price-ladder",
+      "workstream": "W3",
+      "runner": "original_checkout",
+      "command": {
+        "executable": "{node}",
+        "arguments": ["{originalCheckout}/scripts/adaptive-residual-range-sim.mjs", "{output}", "--arms", "{originalCheckout}/notes/pool-universe-2026-09-18/arms.json"],
+        "environment": {
+          "CONC_LIQ_RELEASE": "{originalCheckout}",
+          "SIM_CONFIG": "{originalCheckout}/config/adaptive-3000-tier-price-ladder.json",
+          "SIM_START": "2026-09-13T15:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/pool-universe-2026-09-18/tier3000-price-ladder.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt", "release"],
+        "ignoredKeys": ["sourcePolicy"],
+        "ignoredUnder": [["summary", "residuals"]],
+        "rationale": "The pre-commit baseline omits sourcePolicy=false and duplicates the residual count only outside summary; checkout path and generation time also vary."
+      },
+      "normalizedSha256": "478b9439ac33235ee4d8d9d0289a8d9363c1c7e02a53d9286fdc522c4a0b96c8",
+      "status": "verified"
+    },
+    {
+      "id": "w4-entry-bound",
+      "workstream": "W4.1",
+      "runner": "original_checkout",
+      "command": {
+        "executable": "{node}",
+        "arguments": ["{originalCheckout}/scripts/adaptive-exit-rule-sim.mjs", "{output}", "--arms", "{originalCheckout}/notes/execution-defects-2026-09-18/arms.json"],
+        "environment": {
+          "CONC_LIQ_RELEASE": "{originalCheckout}",
+          "SIM_START": "2026-09-08T02:00:00Z",
+          "SIM_END": "2026-09-17T14:05:00Z"
+        }
+      },
+      "expectedOutput": "notes/execution-defects-2026-09-18/exit-after-w41.json",
+      "normalization": {
+        "ignoredTopLevel": ["generatedAt", "release"],
+        "ignoredKeys": [],
+        "ignoredUnder": [["summary", "residuals"]],
+        "rationale": "The pre-commit output omits the later additive summary residual counter; generation time and isolated checkout path also vary."
+      },
+      "normalizedSha256": "8a47f4c71330c06f71c57a14f80ef94bea3f4e483f18c63c53ff61ed638e1adf",
+      "status": "verified"
+    }
+  ],
+  "inputFiles": [
+    {"path": "config/adaptive-paper-60m.json", "bytes": 1673, "sha256": "e9d97b7c7b1906eaeb718e28cc2133669eae792dc464bfeb1284c49b5ccee5b6", "class": "tracked"},
+    {"path": "config/adaptive-3000-tier-probe.json", "bytes": 1674, "sha256": "8c1c114bc67ca9919baa9a5c2a6760d74553d72d714e2edb2f4abfc3351c7486", "class": "tracked"},
+    {"path": "config/adaptive-3000-tier-price-ladder.json", "bytes": 1940, "sha256": "9c4f9f009e0c78fc55294190580f7444544c36f62e273abd84c583e3ea2bbf59", "class": "tracked"},
+    {"path": "config/indexer-pools.json", "bytes": 3488, "sha256": "8e814f2dc8d1300d356be1834c5b2568dca870fe52cf158af78073e92c121cc6", "class": "tracked"},
+    {"path": "scripts/live-fee-calibration.mjs", "bytes": 11112, "sha256": "756c266d9811a354fb70c8cf6bd8395e50f03dc9af1e122b5cc46224822858e0", "class": "tracked"},
+    {"path": "scripts/adaptive-exit-rule-sim.mjs", "bytes": 14212, "sha256": "ae2bfb1b1ae5992b3abafc666a44ecca09d95663b26d5546526797fb79292808", "class": "tracked"},
+    {"path": "scripts/adaptive-residual-range-sim.mjs", "bytes": 22583, "sha256": "c2b938f10b39f657b80adc396ba21d12ec391ec5cbc3e0023ed556016aa0642a", "class": "tracked"},
+    {"path": "scripts/adaptive-forecast-sweep.mjs", "bytes": 16996, "sha256": "e0f4dddb10ed2e21daa031b388c42832f9f930d88b90a6c18125dcc1bde3ca91", "class": "tracked"},
+    {"path": "scripts/pool-universe-screen.mjs", "bytes": 7801, "sha256": "95ee579a84ca0b8666a7c5190d41cae777d87e6549010f496f05851ef366a97d", "class": "tracked"},
+    {"path": "scripts/sim-source.mjs", "bytes": 4291, "sha256": "5ba4044cb678c49e893dc4bb25a2cce4c906b13d0bf11cb630b6c75f53e5d60a", "class": "tracked"},
+    {"path": "notes/adaptive-residual-range-2026-09-18/arms-full.json", "bytes": 358, "sha256": "4c9247eda274ca5026f79e8302d517d38b3fb30dd27d25d9606fd72c769a6206", "class": "tracked"},
+    {"path": "notes/adaptive-residual-range-2026-09-18/arms.json", "bytes": 449, "sha256": "f881e4696e6f3daac02ced53e4e6c2b0e14f21776ff07be6ba8d5e679eeaf483", "class": "tracked"},
+    {"path": "notes/adaptive-residual-range-2026-09-18/port-arms.json", "bytes": 266, "sha256": "64df8e0401aea76e0b00ec7816168b3a322ff81f1d80eb88898756f4e1213b1b", "class": "tracked"},
+    {"path": "notes/session-schedule-2026-09-18/arms.json", "bytes": 862, "sha256": "c768b1be4db4c08089dc67048e0b5d69df90cb362f0fcab7086e58a0bc6de60b", "class": "tracked"},
+    {"path": "notes/pool-universe-2026-09-18/arms.json", "bytes": 102, "sha256": "0d61ada42a1095b7c109f828fddda46902045af6b4a17bc7a326b578b956c38f", "class": "tracked"},
+    {"path": "notes/execution-defects-2026-09-18/arms.json", "bytes": 138, "sha256": "2f7c7b0a2ad0c55af6a187739493afb15950e576605a373458e42fa78079b200", "class": "tracked"},
+    {"path": "data/live-cost-analysis-2026-09-17/ledger.json", "bytes": 14071189, "sha256": "a6b9db95b4998ea9cfc6da069cae5bcf03e420a25ca01b7ac52fb9d640a05b2f", "class": "ignored_unique_input"},
+    {"path": "data/live-cost-analysis-2026-09-17/routes.json", "bytes": 38677, "sha256": "7784e74f8f953c244ed1116b7dfc758453546eb26bd513f2730f965ead646bf9", "class": "ignored_unique_input"}
+  ],
+  "databaseDependencies": [
+    {
+      "database": "conc_liq",
+      "access": "local PostgreSQL read-only historical queries",
+      "contentAddressedSnapshot": null,
+      "limitation": "The bounded query windows replay today, but no restorable content-addressed database snapshot is registered. Database-backed inputs therefore cannot be pruned."
+    }
+  ],
+  "nonDeterministicUnits": [
+    {
+      "id": "w4-cursor-probe",
+      "workstream": "W4.2",
+      "status": "retained_non_replayable",
+      "evidence": ["notes/execution-defects-2026-09-18/cursor-probe-2026-09-18.log", "notes/execution-defects-2026-09-18/cursor-probe.sh"],
+      "limitation": "The probe samples a running cursor at wall-clock time and its script contains an obsolete temporary output path. A rerun would be a new observation, not reproduction of the September 18 sample."
+    },
+    {
+      "id": "w4-health-distributions",
+      "workstream": "W4.3",
+      "status": "retained_non_replayable",
+      "evidence": ["notes/execution-defects-2026-09-18/health-distributions.sql"],
+      "limitation": "Three queries scan tables without a frozen upper bound and no database snapshot was retained. Current results include later samples and cannot reproduce the original distribution."
+    },
+    {
+      "id": "w4-route-selection",
+      "workstream": "W4.4",
+      "status": "verified_test_assertion",
+      "command": "node --import tsx --test test/route-selection.test.ts",
+      "result": "9 tests passed, including the 19-of-58 campaign replay"
+    },
+    {
+      "id": "w4-migration-integration",
+      "workstream": "W4.2",
+      "status": "blocked_external_input",
+      "command": "npm run test:integration",
+      "limitation": "A disposable TEST_DATABASE_URL was unavailable; production database mutation is not an acceptable substitute."
+    },
+    {
+      "id": "w5-runtime-identity",
+      "workstream": "W5",
+      "status": "observed_not_reproduction",
+      "result": "The active four-book paper service remained running with executionEligible=false, broadcastsEnabled=false and no pending actions.",
+      "limitation": "Current runtime continuity is operational evidence, not reproduction of the research bundle."
+    }
+  ],
+  "blockers": [
+    "No durable content-addressed archive destination and restore drill exists.",
+    "No restorable content-addressed snapshot of the PostgreSQL research inputs exists.",
+    "W4.2 cursor and W4.3 health observations are time-dependent and remain retained as non-replayable evidence.",
+    "PostgreSQL integration tests remain pending without a disposable TEST_DATABASE_URL."
+  ]
+}

@@ -604,3 +604,11 @@ Implementation checkpoint:
 - Script movement and deletion remain deferred. The registry freezes the
   current transitional layout so post-layout research replay can be evaluated
   without silently changing recorded code paths or hashes.
+- The September 18 W0-W4 deterministic bundle was replayed after the layout
+  freeze: eleven complete normalized JSON outputs matched. Commands, fixed
+  bounds, input hashes, comparison rules and known representation-only
+  exceptions are checked in under `research/reproduction/`.
+- This is not pruning authorization. The PostgreSQL source has no restorable
+  content-addressed snapshot, W4.2/W4.3 include time-dependent observations,
+  database integration tests remain pending and no durable archive restore
+  drill exists. Their inputs and outputs remain protected.
