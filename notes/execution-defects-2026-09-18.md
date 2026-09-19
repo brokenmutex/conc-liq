@@ -417,7 +417,13 @@ the whole system**. Polling `/chain_id` while only the tail ran:
 | reset in 11 s | 0, HTTP 429 |
 
 That is roughly **20 requests per minute consumed by the tail alone**, about
-two thirds of the plan, leaving ~10 for everything else. `action-cost
+two thirds of the plan, leaving ~10 for everything else. Note that the probes
+in the table above are themselves part of what exhausted the window: two
+independent four-minute observations of the tail with nothing else touching the
+endpoint recorded 24 completed cycles, zero failures and, in one window, zero
+throttling at all. So the tail on its own fits inside the quota and runs clean.
+Throttling begins as soon as a second consumer appears, which is why it has
+always looked like an hourly problem. `action-cost
 --lookback-blocks 50000 --max-per-class 25` needs far more than that, so it
 fails whatever its concurrency: it failed identically at `ACTION_COST_CONCURRENCY`
 of 4 and of 1. No retry policy can manufacture budget. The retry fix is still
