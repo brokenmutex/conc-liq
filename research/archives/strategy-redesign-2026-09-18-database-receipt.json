@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "studyId": "strategy-redesign-2026-09-18",
+  "archive": {
+    "contentId": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
+    "fileName": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a.tar.zst",
+    "bytes": 185163776,
+    "sha256": "3021364cecaf3f5aa06c8359f26a152441b8faf9c1ac0fb7eac54f0071347190",
+    "compression": "zstd-19",
+    "trackedManifest": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
+    "stagingPath": "data/archive-staging/79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a.tar.zst",
+    "storageClass": "same_host_local_staging",
+    "durable": false,
+    "independentlyStored": false
+  },
+  "export": {
+    "implementationBaseCommit": "09f3e98891f8e008e2244907fc16a2db252b898a",
+    "script": "scripts/maintenance/archive-research-database.mjs",
+    "scriptSha256": "f245ba152bbe58fd0294edd7c37042e6195994830fcf772753ba8eceb04a6c72",
+    "sourceTransaction": "repeatable read read only"
+  },
+  "restoreVerification": {
+    "verifiedAt": "2026-09-19T15:42:08Z",
+    "script": "scripts/maintenance/verify-research-database-archive.mjs",
+    "scriptSha256": "1ddd773accf5216417a57f50a821ad2f410f801176df6516ff8113bf53a3cc68",
+    "databaseCreator": "sudo-postgres",
+    "temporaryDatabasePrefix": "conc_liq_research_restore_",
+    "restored": true,
+    "droppedAfterVerification": true,
+    "contract": {
+      "checkpointRuns": 29177,
+      "poolCheckpoints": 229797,
+      "events": 1207332,
+      "canonicalRuns": 29177,
+      "cursorCoveredThrough": "67184937",
+      "replayCompleteThrough": "67184937"
+    }
+  },
+  "pruningAuthorized": false,
+  "limitations": [
+    "The archive object is staged on the same host as the source database.",
+    "No independent durable destination or transfer verification exists.",
+    "The restore drill validates archive integrity, schema, row counts and the research data contract; deterministic research runners have not yet been replayed against the restored database."
+  ]
+}

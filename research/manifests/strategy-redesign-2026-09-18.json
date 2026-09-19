@@ -15,9 +15,21 @@
     },
     {
       "path": "research/reproduction/strategy-redesign-2026-09-18.json",
-      "sha256": "ee4909d170b7bbf7aa1e5c448cc3c80ace0fe37750ef98cfc2d63260b9bbe64d",
-      "bytes": 16863,
+      "sha256": "4cdcc7f39fc31a25141166bf4e977008885fd3d68ca67007c243f3789d8b208f",
+      "bytes": 17392,
       "role": "manifest"
+    },
+    {
+      "path": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
+      "sha256": "fd4a891c12f1378e1a4f9f783dcdee8f2391331efcdfab07965da113642be473",
+      "bytes": 4503,
+      "role": "archive_manifest"
+    },
+    {
+      "path": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
+      "sha256": "f8585cbbf2b95351a9e7fdb6e0fd0d22a7c6f66da422bc22778d3f74ec882921",
+      "bytes": 2043,
+      "role": "archive_receipt"
     },
     {
       "path": "notes/strategy-redesign-handoff-2026-09-18.md",
@@ -104,7 +116,7 @@
     "postLayoutVerified": false,
     "verificationManifest": "research/reproduction/strategy-redesign-2026-09-18.json",
     "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
-    "limitation": "Eleven deterministic W0-W4 outputs passed post-layout comparison, but the database has no content-addressed snapshot, two W4 observations are time-dependent, PostgreSQL integration tests are pending, and no durable archive restore drill exists. No dependent evidence may be pruned."
+    "limitation": "Eleven deterministic W0-W4 outputs passed post-layout comparison, the bounded database archive passed a local restore drill, and PostgreSQL integration tests passed in an isolated database. The archive still lacks independently durable storage, restored-input runner replay remains pending, and two W4 observations are time-dependent. No dependent evidence may be pruned."
   },
   "evidenceClasses": {
     "feeCalibration": "measured_live_segments_at_250_usdg",

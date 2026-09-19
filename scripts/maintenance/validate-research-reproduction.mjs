@@ -6,6 +6,12 @@ import { researchOutputDigest } from "./compare-research-output.mjs";
 const path = "research/reproduction/strategy-redesign-2026-09-18.json";
 const report = JSON.parse(readFileSync(path, "utf8"));
 const hex = /^[a-f0-9]{64}$/;
+const canonicalize = value => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
+};
+const canonical = value => JSON.stringify(canonicalize(value));
 
 assert.equal(report.schemaVersion, 1, "Unsupported reproduction schema");
 assert.equal(report.studyId, "strategy-redesign-2026-09-18", "Unexpected reproduction study");
@@ -48,6 +54,45 @@ for (const input of report.inputFiles) {
   const bytes = readFileSync(input.path);
   assert.equal(bytes.length, input.bytes, `${input.path}: byte length changed`);
   assert.equal(createHash("sha256").update(bytes).digest("hex"), input.sha256, `${input.path}: digest changed`);
+}
+
+const databaseArchive = report.databaseArchive;
+assert.equal(databaseArchive.status, "verified_local_staging", "Database archive status is not recognized");
+assert.equal(databaseArchive.restoreVerified, true, "Database archive restore is not verified");
+assert.equal(databaseArchive.durable, false, "Local staging must not be represented as durable storage");
+for (const archivePath of [databaseArchive.manifest, databaseArchive.receipt]) {
+  assert(existsSync(archivePath) && statSync(archivePath).isFile(), `Database archive evidence missing: ${archivePath}`);
+}
+const archiveManifest = JSON.parse(readFileSync(databaseArchive.manifest, "utf8"));
+const { contentId: manifestContentId, ...archiveManifestBase } = archiveManifest;
+assert.match(manifestContentId, hex, "Database archive content ID is invalid");
+assert.equal(createHash("sha256").update(canonical(archiveManifestBase)).digest("hex"), manifestContentId,
+  "Database archive manifest content ID changed");
+assert.equal(databaseArchive.contentId, manifestContentId, "Reproduction archive content ID differs from manifest");
+const archiveFileNames = new Set();
+for (const file of archiveManifest.files) {
+  assert.match(file.name, /^(?:schema\.dump|[a-z0-9_]+\.bin)$/, `Unsafe archive member ${file.name}`);
+  assert(!archiveFileNames.has(file.name), `Duplicate archive member ${file.name}`);
+  archiveFileNames.add(file.name);
+  assert(Number.isSafeInteger(file.bytes) && file.bytes >= 0, `${file.name}: invalid archive byte length`);
+  assert.match(file.sha256, hex, `${file.name}: invalid archive digest`);
+  if (file.table) assert(Number.isSafeInteger(file.rows) && file.rows >= 0, `${file.name}: invalid archive row count`);
+}
+const archiveReceipt = JSON.parse(readFileSync(databaseArchive.receipt, "utf8"));
+assert.equal(archiveReceipt.archive.contentId, manifestContentId, "Archive receipt content ID differs");
+assert.equal(archiveReceipt.archive.trackedManifest, databaseArchive.manifest, "Archive receipt manifest path differs");
+assert.equal(archiveReceipt.archive.durable, false, "Archive receipt must identify same-host staging as non-durable");
+assert.equal(archiveReceipt.archive.independentlyStored, false, "Archive receipt cannot claim independent storage");
+assert.equal(archiveReceipt.restoreVerification.restored, true, "Archive receipt lacks a successful restore");
+assert.equal(archiveReceipt.restoreVerification.droppedAfterVerification, true,
+  "Archive receipt does not confirm temporary database cleanup");
+assert.equal(archiveReceipt.pruningAuthorized, false, "Local archive receipt cannot authorize pruning");
+assert.match(archiveReceipt.archive.sha256, hex, "Archive object digest is invalid");
+assert.match(archiveReceipt.export.scriptSha256, hex, "Archive export script digest is invalid");
+assert.match(archiveReceipt.restoreVerification.scriptSha256, hex, "Archive verifier script digest is invalid");
+if (existsSync(archiveReceipt.archive.stagingPath)) {
+  assert.equal(statSync(archiveReceipt.archive.stagingPath).size, archiveReceipt.archive.bytes,
+    "Local staging archive byte length changed");
 }
 
 const nonDeterministicStatuses = new Set([

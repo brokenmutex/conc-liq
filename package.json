@@ -38,6 +38,8 @@
     "reconcile": "node --import tsx src/reconcile.ts",
     "replay": "node --import tsx src/replay.ts",
     "research:lp": "node --import tsx scripts/lp-research.mjs",
+    "research:archive-db": "node scripts/maintenance/archive-research-database.mjs",
+    "research:verify-db-archive": "node scripts/maintenance/verify-research-database-archive.mjs",
     "risk:gate": "node --import tsx src/risk-gate.ts",
     "risk:snapshot": "node --import tsx src/risk.ts",
     "rpc:health": "node --import tsx src/rpc-health.ts",

@@ -282,10 +282,19 @@
     {
       "database": "conc_liq",
       "access": "local PostgreSQL read-only historical queries",
-      "contentAddressedSnapshot": null,
-      "limitation": "The bounded query windows replay today, but no restorable content-addressed database snapshot is registered. Database-backed inputs therefore cannot be pruned."
+      "contentAddressedSnapshot": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
+      "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
+      "limitation": "The bounded database snapshot restored and passed its data contract, but its object remains staged on the source host and deterministic runners have not yet been replayed against the restored database. Database-backed inputs therefore cannot be pruned."
     }
   ],
+  "databaseArchive": {
+    "contentId": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a",
+    "manifest": "research/archives/strategy-redesign-2026-09-18-database-manifest.json",
+    "receipt": "research/archives/strategy-redesign-2026-09-18-database-receipt.json",
+    "status": "verified_local_staging",
+    "restoreVerified": true,
+    "durable": false
+  },
   "nonDeterministicUnits": [
     {
       "id": "w4-cursor-probe",
@@ -311,9 +320,9 @@
     {
       "id": "w4-migration-integration",
       "workstream": "W4.2",
-      "status": "blocked_external_input",
+      "status": "verified_test_assertion",
       "command": "npm run test:integration",
-      "limitation": "A disposable TEST_DATABASE_URL was unavailable; production database mutation is not an acceptable substitute."
+      "result": "Passed on 2026-09-19 against an isolated temporary PostgreSQL database; all test schemas and the database were removed afterward."
     },
     {
       "id": "w5-runtime-identity",
@@ -324,9 +333,7 @@
     }
   ],
   "blockers": [
-    "No durable content-addressed archive destination and restore drill exists.",
-    "No restorable content-addressed snapshot of the PostgreSQL research inputs exists.",
-    "W4.2 cursor and W4.3 health observations are time-dependent and remain retained as non-replayable evidence.",
-    "PostgreSQL integration tests remain pending without a disposable TEST_DATABASE_URL."
+    "The verified content-addressed database archive remains on the source host; no independent durable destination and transfer verification exists.",
+    "W4.2 cursor and W4.3 health observations are time-dependent and remain retained as non-replayable evidence."
   ]
 }

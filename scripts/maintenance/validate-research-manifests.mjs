@@ -23,7 +23,8 @@ for (const name of manifests) {
     assert.equal(typeof file.path, "string", `${name}: file path missing`);
     assert.match(file.sha256, hex, `${name}: ${file.path} has invalid digest`);
     assert(Number.isSafeInteger(file.bytes) && file.bytes >= 0, `${name}: ${file.path} has invalid byte length`);
-    assert(["config", "conclusion", "code", "manifest", "compact_evidence"].includes(file.role), `${name}: ${file.path} has invalid role`);
+    assert(["config", "conclusion", "code", "manifest", "compact_evidence", "archive_manifest", "archive_receipt"].includes(file.role),
+      `${name}: ${file.path} has invalid role`);
     const absolute = join(root, file.path);
     assert(existsSync(absolute) && statSync(absolute).isFile(), `${name}: ${file.path} is not retrievable`);
     const bytes = readFileSync(absolute);

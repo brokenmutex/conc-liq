@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 1,
+  "studyId": "strategy-redesign-2026-09-18",
+  "createdAt": "2026-09-19T15:22:34.369Z",
+  "source": {
+    "database": "conc_liq",
+    "databaseBytes": 13566725467,
+    "postgresVersion": "PostgreSQL 14.24 (Ubuntu 14.24-0ubuntu0.22.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0, 64-bit",
+    "transactionIsolation": "repeatable read read only"
+  },
+  "selection": {
+    "streamKey": "robinhood-v3-rwa-usdg-v1",
+    "checkpointStart": "2026-09-07T19:30:00Z",
+    "checkpointEnd": "2026-09-18T13:01:51.157Z",
+    "universeFromBlock": "62046775",
+    "universeToBlock": "66244585",
+    "simulationBounds": [
+      {
+        "symbol": "NVDA",
+        "pool": "0xd4eb21209c4d6093f80b5b84f5c45cc093ea14a3",
+        "firstBlock": "57085047",
+        "lastBlock": "65424246"
+      },
+      {
+        "symbol": "AAPL",
+        "pool": "0xaae0d815ee56e4092a5e5c2911e676fea50b2d6d",
+        "firstBlock": "61805157",
+        "lastBlock": "65424236"
+      },
+      {
+        "symbol": "GOOGL",
+        "pool": "0x34d0dc122cf9a8eb296fc5e0d3a233625d7d19b7",
+        "firstBlock": "61805157",
+        "lastBlock": "65424236"
+      },
+      {
+        "symbol": "MSFT",
+        "pool": "0xeb60bcd1d920ad6e102690ccfc6fb488899e1510",
+        "firstBlock": "62002374",
+        "lastBlock": "65424236"
+      },
+      {
+        "symbol": "GLD",
+        "pool": "0x7a6a053eccf1446a2633e05aa6d40d09381997ec",
+        "firstBlock": "62002374",
+        "lastBlock": "65424236"
+      }
+    ]
+  },
+  "exclusions": [
+    "paper runtime state",
+    "live-pilot custody and accounting",
+    "transaction receipts",
+    "environment files",
+    "credentials",
+    "signer material"
+  ],
+  "restoreOrder": [
+    "indexer_pools",
+    "indexer_cursors",
+    "v3_replay_cursors",
+    "risk_snapshot_runs",
+    "asset_risk_snapshots",
+    "risk_snapshot_canonicality",
+    "v3_strategy_checkpoint_runs",
+    "v3_strategy_pool_checkpoints",
+    "v3_pool_events"
+  ],
+  "files": [
+    {
+      "name": "schema.dump",
+      "role": "schema",
+      "bytes": 20027,
+      "sha256": "d8b352e237ea99a2426077e068c59ff0ce31925553c67b318e1e1cb042ad86f9"
+    },
+    {
+      "name": "indexer_pools.bin",
+      "role": "table_data",
+      "table": "indexer_pools",
+      "rows": 15,
+      "bytes": 3811,
+      "sha256": "77b7cb6e5f6af2d4a2fb85861f65f7288b959ca96139be0ae8ee0f850ec00d82"
+    },
+    {
+      "name": "indexer_cursors.bin",
+      "role": "table_data",
+      "table": "indexer_cursors",
+      "rows": 1,
+      "bytes": 263,
+      "sha256": "96cb2dc710623ec74fb057c668f2b4f3bb145519c3489063d81e7c7fbcd82135"
+    },
+    {
+      "name": "v3_replay_cursors.bin",
+      "role": "table_data",
+      "table": "v3_replay_cursors",
+      "rows": 1,
+      "bytes": 419,
+      "sha256": "dccf4b7075b46054ebc408b710e001a1b4b8d65b22e1e0df3491815d59392082"
+    },
+    {
+      "name": "risk_snapshot_runs.bin",
+      "role": "table_data",
+      "table": "risk_snapshot_runs",
+      "rows": 29177,
+      "bytes": 308109556,
+      "sha256": "0fd12ac49ec5f6b3cca602a84a38a2e333f16547535e482e7717d929dfc24e3b"
+    },
+    {
+      "name": "asset_risk_snapshots.bin",
+      "role": "table_data",
+      "table": "asset_risk_snapshots",
+      "rows": 115259,
+      "bytes": 252548288,
+      "sha256": "b61d6c969ede76fd6950330cd13432556d313a824eee3f4c498f857d91369d4f"
+    },
+    {
+      "name": "risk_snapshot_canonicality.bin",
+      "role": "table_data",
+      "table": "risk_snapshot_canonicality",
+      "rows": 29177,
+      "bytes": 5572816,
+      "sha256": "bb2d0b6aee9b94f280213d67106f4b104749a3e053b9cc153e65898e41db562a"
+    },
+    {
+      "name": "v3_strategy_checkpoint_runs.bin",
+      "role": "table_data",
+      "table": "v3_strategy_checkpoint_runs",
+      "rows": 29177,
+      "bytes": 452378327,
+      "sha256": "f62a71137787515d3ccb34c069222bbd77b0ddeaf3f23ba95b28a7c02a815d44"
+    },
+    {
+      "name": "v3_strategy_pool_checkpoints.bin",
+      "role": "table_data",
+      "table": "v3_strategy_pool_checkpoints",
+      "rows": 229797,
+      "bytes": 528509500,
+      "sha256": "dc70691f8299ebc590fb1959c49c68971793ce80639388423cf5e0de487fa7db"
+    },
+    {
+      "name": "v3_pool_events.bin",
+      "role": "table_data",
+      "table": "v3_pool_events",
+      "rows": 1207332,
+      "bytes": 1325475553,
+      "sha256": "b7ed48ba03edcae843855d3f75ff9791c0aa368ce98c5940db3d701912cbd579"
+    }
+  ],
+  "contentId": "79dbb9dffb5304fc53c1a86192d1cd2dc722eca222b7338b062f04f5794d241a"
+}

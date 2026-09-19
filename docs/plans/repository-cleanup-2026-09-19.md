@@ -608,7 +608,10 @@ Implementation checkpoint:
   freeze: eleven complete normalized JSON outputs matched. Commands, fixed
   bounds, input hashes, comparison rules and known representation-only
   exceptions are checked in under `research/reproduction/`.
-- This is not pruning authorization. The PostgreSQL source has no restorable
-  content-addressed snapshot, W4.2/W4.3 include time-dependent observations,
-  database integration tests remain pending and no durable archive restore
-  drill exists. Their inputs and outputs remain protected.
+- The bounded PostgreSQL research inputs now have a 185,163,776-byte
+  content-addressed archive and a successful isolated restore drill. The
+  declared PostgreSQL integration suite also passes in a disposable database.
+- This is not pruning authorization. The archive object remains same-host local
+  staging rather than independently durable storage, deterministic runners have
+  not been replayed against the restored database, and W4.2/W4.3 retain
+  time-dependent observations. Their inputs and outputs remain protected.
