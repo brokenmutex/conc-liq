@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "id": "strategy-redesign-2026-09-18",
+  "status": "retained_pending_final_layout_verification",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "executionEligible": false,
+  "broadcastsEnabled": false,
+  "scope": "W0-W5 fee calibration, residual range, session schedule, pool universe, execution defects, and guarded adaptive-paper restart",
+  "files": [
+    {
+      "path": "config/adaptive-paper-restart-2026-09-18.json",
+      "sha256": "05a31f1862279b997dfe18d2bf1d99652896deb23ef5ec91cb83ff8e46736fcf",
+      "bytes": 2645,
+      "role": "config"
+    },
+    {
+      "path": "notes/strategy-redesign-handoff-2026-09-18.md",
+      "sha256": "e62431f457d1ecb35c7112dbf2ab60a966cf8cae2c8a8feb36b66ca437cd726c",
+      "bytes": 15709,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/fee-calibration-2026-09-18.md",
+      "sha256": "c4882975bd7b5f83e9d29ac06b2cf92d3a3665914895b575cd8b00653343e668",
+      "bytes": 13811,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/adaptive-residual-range-2026-09-18.md",
+      "sha256": "1c864e04976d6640a9b8c695f1ab6fd3dc78754c9c6e4623a78df05cf40634a5",
+      "bytes": 21062,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/session-schedule-2026-09-18.md",
+      "sha256": "72eaf2bbf9abb96888bc8c93bb10ebf8fbb8094e20cb0c56770828a726852660",
+      "bytes": 12316,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/pool-universe-2026-09-18.md",
+      "sha256": "939248ebdc22f64442a168ad4d373002385ca9b0d2736f2f9099b7253497efdd",
+      "bytes": 16883,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/execution-defects-2026-09-18.md",
+      "sha256": "a266a428da579978a4ba363a3c8097c32cb787947d6cb7b548f2cf21302038e0",
+      "bytes": 23999,
+      "role": "conclusion"
+    },
+    {
+      "path": "notes/restart-plan-2026-09-18.md",
+      "sha256": "4900ea8d42157a92de08e632d0083cdc0d36c295d605e358a8412e2b4061897a",
+      "bytes": 19823,
+      "role": "conclusion"
+    },
+    {
+      "path": "scripts/live-fee-calibration.mjs",
+      "sha256": "756c266d9811a354fb70c8cf6bd8395e50f03dc9af1e122b5cc46224822858e0",
+      "bytes": 11112,
+      "role": "code"
+    },
+    {
+      "path": "scripts/adaptive-residual-range-sim.mjs",
+      "sha256": "c2b938f10b39f657b80adc396ba21d12ec391ec5cbc3e0023ed556016aa0642a",
+      "bytes": 22583,
+      "role": "code"
+    },
+    {
+      "path": "scripts/adaptive-forecast-sweep.mjs",
+      "sha256": "e0f4dddb10ed2e21daa031b388c42832f9f930d88b90a6c18125dcc1bde3ca91",
+      "bytes": 16996,
+      "role": "code"
+    },
+    {
+      "path": "scripts/pool-universe-screen.mjs",
+      "sha256": "95ee579a84ca0b8666a7c5190d41cae777d87e6549010f496f05851ef366a97d",
+      "bytes": 7801,
+      "role": "code"
+    },
+    {
+      "path": "scripts/sim-source.mjs",
+      "sha256": "5ba4044cb678c49e893dc4bb25a2cce4c906b13d0bf11cb630b6c75f53e5d60a",
+      "bytes": 4291,
+      "role": "code"
+    }
+  ],
+  "runtimeIdentity": {
+    "strategyConfigHashInActiveState": "a75b2d47753088c2d2aa565656a33a0846ed6a3cfe5d5c6c3fd6a8348b7f5d71",
+    "environmentConfigHash": "8c56a2bf4266f122b9b7388518068c69bb80d7d3e96dcc674ef6291f8528099a",
+    "environmentBytes": "retained_privately_at_data/paper-aapl-2026-09-13.env",
+    "environmentIncludedInRepository": false
+  },
+  "reproduction": {
+    "mode": "original_checkout",
+    "checkoutCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+    "postLayoutVerified": false,
+    "requiredRelease": "ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf",
+    "limitation": "No bulky local or tracked evidence may be deleted until restored inputs are replayed after the final script/config layout and compact results are compared. Application tests are not a substitute for this gate."
+  },
+  "evidenceClasses": {
+    "feeCalibration": "measured_live_segments_at_250_usdg",
+    "residualRange": "historical_conditional_model",
+    "sessionSchedule": "historical_conditional_model",
+    "poolUniverse": "historical_model_with_borrowed_msft_costs",
+    "executionDefects": "mixed_code_regression_and_operational_measurement",
+    "restart": "paper_only"
+  }
+}

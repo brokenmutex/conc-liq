@@ -32,7 +32,7 @@ live budget/range. The operator was an unfunded test address on mainnet.
   `eth_gasPrice` and `eth_getAccountInfo` shortcuts; Anvil used its fallbacks.
   No archive endpoint was used. No transaction method was forwarded upstream.
 
-The [complete local evidence](canary-evidence-2026-09-06/local-lifecycle.json)
+The [complete local evidence](../assets/evidence/canary-local-lifecycle.json)
 contains source identity, calldata, simulated receipts, position state, balance
 reconciliation, live rejection reasons, and explicit evidence limits.
 

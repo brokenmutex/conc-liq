@@ -12,7 +12,7 @@ const rehearsalSchema = z.object({
 export async function readPaperExecutionDashboard(client: PoolClient, sessionId: string) {
   let rehearsal = null;
   try {
-    const p = rehearsalSchema.parse(JSON.parse(await readFile("notes/paper-execution-evidence-2026-09-07/round-trip.json", "utf8")));
+    const p = rehearsalSchema.parse(JSON.parse(await readFile("assets/evidence/paper-round-trip.json", "utf8")));
     if (["buy_nvda","mint","decrease_and_collect","sell_nvda"].every(action=>p.transactions.some(tx=>tx.action===action)) &&
       p.transactions.reduce((sum,tx)=>sum+BigInt(tx.estimate.totalFeeWei),0n)===BigInt(p.totalGasWei) &&
       BigInt(p.entryGasWei)+BigInt(p.exitGasWei)===BigInt(p.totalGasWei)) {

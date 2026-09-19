@@ -13,8 +13,8 @@ if (!process.env.TEST_DATABASE_URL) throw Error('TEST_DATABASE_URL is required f
 const identity={buildId:'a'.repeat(64),configHash:'b'.repeat(64),nodeVersion:process.version};
 const schema=`paper_execution_audit_${process.pid}_${Date.now()}`;
 const client=new pg.Client({connectionString:process.env.TEST_DATABASE_URL});
-const entryArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/round-trip.json',import.meta.url),'utf8'));
-const exitArtifact=JSON.parse(await readFile(new URL('../../notes/paper-execution-evidence-2026-09-07/restored-exit.json',import.meta.url),'utf8')).result;
+const entryArtifact=JSON.parse(await readFile(new URL('../../assets/evidence/paper-round-trip.json',import.meta.url),'utf8'));
+const exitArtifact=JSON.parse(await readFile(new URL('../fixtures/paper-restored-exit.json',import.meta.url),'utf8')).result;
 const holdingMode=process.env.PAPER_TEST_HOLDING==='1';
 const riskFixture=JSON.parse(await readFile(new URL('../fixtures/paper-risk-snapshot.json',import.meta.url),'utf8'));
 const boundaryMode=process.env.PAPER_TEST_BOUNDARIES==='1';

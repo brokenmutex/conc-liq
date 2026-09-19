@@ -25,7 +25,7 @@ export interface AdaptivePolicy {
   costBufferPpm:number;feeBufferPpm:number;gasMultiplier:number;feePpm:number;failEveryRecenter:number;
   /** Redeploy an out-of-range position as a one-sided band adjacent to the
    * current tick, funded without a swap, when the recenter gate declines.
-   * Off by default; see notes/adaptive-residual-range-2026-09-18.md. */
+   * Off by default; enabling it is an explicit policy decision. */
   residualRange?:boolean;
   /** Candidate spans for that band, in ticks. Defaults to `halfWidthsTicks`.
    * A residual band's whole span is its label, unlike a two-sided band's

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK, Q96, sqrtRatioAtTick } from "../backtest/principal.js";
 
 // Integer v3 swap-step equations; references and differential evidence are in
-// notes/active-lp-research-2026-09-07/README.md. No floating-point token math.
+// Exact integer swap math only; no floating-point token accounting.
 const MAX256 = (1n << 256n) - 1n;
 export const ceilDiv = (a: bigint, b: bigint): bigint => {
   assert(a >= 0n && b > 0n, "Invalid unsigned division");

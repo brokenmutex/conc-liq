@@ -9,8 +9,8 @@ import { sqrtRatioAtTick } from '../../src/backtest/principal.ts';
 import { USDG } from '../../src/constants.ts';
 const schema=`paper_execution_audit_${process.pid}_${Date.now()}`;
 const client=new pg.Client({connectionString:process.env.DATABASE_URL});
-const entryArtifact=JSON.parse(await readFile(new URL('../paper-execution-evidence-2026-09-07/round-trip.json',import.meta.url),'utf8'));
-const exitArtifact=JSON.parse(await readFile(new URL('../paper-execution-evidence-2026-09-07/restored-exit.json',import.meta.url),'utf8')).result;
+const entryArtifact=JSON.parse(await readFile(new URL('../../assets/evidence/paper-round-trip.json',import.meta.url),'utf8'));
+const exitArtifact=JSON.parse(await readFile(new URL('../../test/fixtures/paper-restored-exit.json',import.meta.url),'utf8')).result;
 const policy={...DEFAULT_PAPER_POLICY,mode:'research',referencePolicy:undefined}; // Isolated mechanics fixture; never a live session.
 const stream='paper-execution-fixture';
 const calls={quote:0,entry:0,exit:0};

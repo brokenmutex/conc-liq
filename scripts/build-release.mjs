@@ -16,7 +16,7 @@ try {
  rmSync(join(scratch,'dist/test'),{recursive:true,force:true});
  for(const path of ['dashboard','config','package.json','package-lock.json'])cpSync(join(source,path),join(scratch,path),{recursive:true});
  cpSync(realpathSync(join(source,'node_modules')),join(scratch,'node_modules'),{recursive:true,verbatimSymlinks:true});
- for(const path of ['notes/canary-evidence-2026-09-06/local-lifecycle.json','notes/paper-execution-evidence-2026-09-07/round-trip.json']) {
+ for(const path of ['assets/evidence/canary-local-lifecycle.json','assets/evidence/paper-round-trip.json']) {
   mkdirSync(dirname(join(scratch,path)),{recursive:true});cpSync(join(source,path),join(scratch,path));
  }
  mkdirSync(join(scratch,'bin'));cpSync(process.execPath,join(scratch,'bin/node'));

@@ -2,7 +2,7 @@
   "name": "conc-liq",
   "version": "0.1.0",
   "private": true,
-  "description": "Read-only Robinhood Chain Uniswap v3 concentrated-liquidity observer",
+  "description": "Guarded Robinhood Chain concentrated-liquidity research, paper, and live-pilot system",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -19,7 +19,8 @@
     "build": "tsc -p tsconfig.json",
     "canary:plan": "node --import tsx src/canary-plan.ts",
     "canary:rehearse": "node --import tsx src/canary-rehearse.ts",
-    "check": "npm run typecheck && npm test",
+    "check": "npm run check:repository && npm run typecheck && npm test",
+    "check:repository": "node scripts/maintenance/check-repository-boundaries.mjs && node scripts/maintenance/validate-research-manifests.mjs",
     "dashboard": "node --import tsx src/dashboard.ts",
     "history:compare": "node --import tsx src/history-compare.ts",
     "joined-policy:replay": "node --import tsx src/joined-policy-replay.ts",

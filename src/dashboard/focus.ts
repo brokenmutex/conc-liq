@@ -94,7 +94,7 @@ export async function readDashboardFocus(client: PoolClient, config: DashboardCo
   let rehearsal = null;
   try {
     rehearsal = summarizeRehearsal(JSON.parse(await readFile(
-      "notes/canary-evidence-2026-09-06/local-lifecycle.json", "utf8",
+      "assets/evidence/canary-local-lifecycle.json", "utf8",
     )), config.streamKey);
   } catch { /* Missing evidence remains unavailable. */ }
   const entryReadiness = evaluateCanaryEntryReadiness({ now, sourceBlock: BigInt(checkpoint?.block ?? "0"), samples: samples.rows });

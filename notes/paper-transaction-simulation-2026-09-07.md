@@ -12,7 +12,7 @@ strategy profitability or exact counterfactual LP income.
 
 ## Verified execution evidence
 
-The accepted [1,000 USDG round trip](paper-execution-evidence-2026-09-07/round-trip.json)
+The accepted [1,000 USDG round trip](../assets/evidence/paper-round-trip.json)
 used source block **56,666,711**, hash
 `0xc3e6fcd9d61c9a0cd086c05ec334bf5cc3609ce983f28a227a6af6800c2a0774`,
 at 07:46:56 UTC; the run completed at 07:47:10 UTC.
@@ -37,7 +37,7 @@ with the same touched prestate. Local receipt gas prices are Anvil prices, so
 local native spend is retained as a reconciliation check, not charged as a
 Robinhood gas fee.
 
-A separate [later-exit restoration test](paper-execution-evidence-2026-09-07/restored-exit.json)
+A separate [later-exit restoration test](../test/fixtures/paper-restored-exit.json)
 restored the original **3,295,130,462,471,501** liquidity units at newer block
 **56,667,325**. It withdrew and sold the position in five measured calls using
 128 node reads. The test explicitly supplied synthetic fee claims of 1,234 raw

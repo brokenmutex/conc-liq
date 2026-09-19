@@ -67,7 +67,7 @@ describe("dashboard evidence semantics", () => {
   });
 
   it("only summarizes completed local lifecycle evidence for this stream", () => {
-    const evidence = JSON.parse(readFileSync(new URL("../notes/canary-evidence-2026-09-06/local-lifecycle.json", import.meta.url), "utf8"));
+    const evidence = JSON.parse(readFileSync(new URL("../assets/evidence/canary-local-lifecycle.json", import.meta.url), "utf8"));
     const result = summarizeRehearsal(evidence, evidence.source.streamKey);
     assert.equal(result?.scope, "local_anvil_mint_observe_decrease_collect");
     assert.deepEqual(Object.keys(result ?? {}).sort(), ["completedAt", "scope", "sourceBlock"]);
