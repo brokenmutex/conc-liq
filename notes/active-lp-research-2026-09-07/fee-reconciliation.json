@@ -1,0 +1,49 @@
+{
+  "methodology": "observed_v3_swap_step_fee_reconstruction_v1",
+  "executionEligible": false,
+  "sourceSha256": "3e9dd490a89648c00ccff91bf23626156168f558375de1d3256e80c278a21534",
+  "results": [
+    {
+      "pool": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+      "fee": 500,
+      "events": 1585288,
+      "swaps": "1539336",
+      "crossingSwaps": 28882,
+      "swapSteps": 1569268,
+      "flashEvents": "6",
+      "checkpoint": {
+        "runId": "1",
+        "block": 53589223,
+        "hash": "0xee70312d5e6d5131652c840a09b0df2e6ff0e707de0a865fe36655ebcd84b918"
+      },
+      "checkedTicks": 430,
+      "checkedPositions": 4883,
+      "matched": true,
+      "mismatches": []
+    },
+    {
+      "pool": "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B",
+      "fee": 3000,
+      "events": 20079,
+      "swaps": "14945",
+      "crossingSwaps": 557,
+      "swapSteps": 16252,
+      "flashEvents": "0",
+      "checkpoint": {
+        "runId": "1",
+        "block": 53589223,
+        "hash": "0xee70312d5e6d5131652c840a09b0df2e6ff0e707de0a865fe36655ebcd84b918"
+      },
+      "checkedTicks": 46,
+      "checkedPositions": 404,
+      "matched": true,
+      "mismatches": []
+    }
+  ],
+  "complete": true,
+  "limitations": [
+    "Reconciles observed chain state; does not establish counterfactual LP profitability",
+    "The endpoint checkpoint validates cumulative accounting but does not independently prove all event coverage",
+    "No strategy fitting or scoring on validation/holdout dates"
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "executionEligible": false,
+  "sourceSha256": "3e9dd490a89648c00ccff91bf23626156168f558375de1d3256e80c278a21534",
+  "timestampSha256": "3f269c070975e3ba552ca0a8e39a2bdd19448961977382e290a8663b7bca06f0",
+  "fromBlock": 15511376,
+  "toBlock": 17511376,
+  "from": "2026-07-21T11:02:06.000Z",
+  "to": "2026-07-23T18:42:22.000Z",
+  "decisionSeconds": 60,
+  "rangeChangeDelaySeconds": 60,
+  "persistenceObservations": 2,
+  "cooldownSeconds": 600,
+  "halfWidthsBps": [
+    50,
+    100,
+    200,
+    400
+  ],
+  "policies": [
+    "fixed",
+    "edge",
+    "immediate70",
+    "persistent70"
+  ],
+  "capacityScreenBudgetQuote": "1000000000",
+  "capacityScreenDeployedQuote": "800000000",
+  "referenceTolerancePpm": 50000,
+  "fees": null,
+  "costs": null,
+  "predictiveScorer": null,
+  "referenceScope": "No independent references available in this development window; geometry only"
+}

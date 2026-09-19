@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "executionEligible": false,
+  "frozenAt": "2026-09-07T17:14:33.245Z",
+  "fromBlock": 32367320,
+  "toBlock": 34092320,
+  "portfolioSizesUsdg": [
+    250,
+    500,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000
+  ],
+  "deploymentPpm": 800000,
+  "reservePpm": 200000,
+  "referenceTolerancePpm": 50000,
+  "policies": [
+    "fixed",
+    "edge",
+    "immediate70",
+    "persistent70"
+  ],
+  "selection": "Reuse the verified August 10-12 development window for a controlled width comparison. This weekday window cannot establish weekend profitability.",
+  "purpose": "Focused width search requested by user; screen churn and size-dependent capacity before net-economic optimization",
+  "netEconomics": null,
+  "rangeUnit": "raw_ticks_total_lower_to_upper",
+  "totalWidthsTicks": [
+    10,
+    20,
+    30,
+    40,
+    50
+  ],
+  "poolFees": [
+    500
+  ],
+  "interpretation": "Assumed total raw tick width; user clarification remains welcome. These are not tick-spacing multiples."
+}

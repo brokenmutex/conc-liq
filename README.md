@@ -1369,6 +1369,29 @@ HyperSync continues to supply historical events. The private node supplies
 bounded recent-state simulation; no additional archive infrastructure or full
 historical fee scan is required for this milestone.
 
+## Active LP historical research
+
+The [active LP proposal](notes/active-lp-strategy-proposal-2026-09-07.md) uses an
+inclusive ±5% tolerance around a valid independent NVDA/USDG reference.
+[The first historical milestone](notes/active-lp-historical-milestone-2026-09-07.md)
+reconciles observed fees across 1.61 million events and compares range/churn
+behavior in a bounded July development window. It does not rank profitability
+or change the running paper policy.
+
+`npm run research:lp -- capture|reconcile|timestamps|screen ...` runs the isolated
+research workflow. See the [evidence and reproduction commands](notes/active-lp-research-2026-09-07/README.md).
+Capture uses read-only PostgreSQL, timestamp/log verification uses bounded
+HyperSync queries, and replay/screening use preserved files. Missing historical
+independent references keep the ±5% entry gate unavailable; costs, counterfactual
+fee income and net alpha are not invented to select a candidate.
+
+The [September 8 portfolio replay](notes/active-lp-portfolio-replay-2026-09-08.md)
+adds a self-financing ledger for ±10–±50 raw ticks and the seven requested
+budgets. It reports explicitly modeled fee/cost sensitivities across weekday
+and weekend windows, preserving unavailable measured net results. The separate
+file-only runner is `scripts/lp-portfolio-replay.mjs`; reproduction commands and
+source/code fingerprints are linked in the research evidence notes.
+
 ## Source-of-truth addresses
 
 - Uniswap v3 factory: `0x1f7d7550b1b028f7571e69a784071f0205fd2efa`

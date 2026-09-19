@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "executionEligible": false,
+  "frozenAt": "2026-09-07T13:56:58.794Z",
+  "fromBlock": 32367320,
+  "toBlock": 34092320,
+  "portfolioSizesUsdg": [
+    250,
+    500,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000
+  ],
+  "deploymentPpm": 800000,
+  "reservePpm": 200000,
+  "referenceTolerancePpm": 50000,
+  "halfWidthsBps": [
+    50,
+    100,
+    200,
+    400
+  ],
+  "policies": [
+    "fixed",
+    "edge",
+    "immediate70",
+    "persistent70"
+  ],
+  "selection": "Earliest August 10 development checkpoint; bounded approximately 48-hour window, selected before strategy outcomes. Later checkpoints used only to diagnose depth, not select returns.",
+  "preflight": "Last Swap liquidity proxy at block 32367320: 4000 USDG LP at +/-2% has combined share 23201 ppm in fee500, 467481 ppm in fee3000. Full replay will incorporate later Mint/Burn changes.",
+  "purpose": "Run all sizes; capacity/geometry diagnostics available independently of blocked guarded-policy economics",
+  "netEconomics": null
+}

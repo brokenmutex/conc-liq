@@ -1,0 +1,45 @@
+{
+  "executionEligible": false,
+  "capturedAt": "2026-09-07T14:01:32.549Z",
+  "costModels": [
+    {
+      "id": "1",
+      "rwa_symbol": "NVDA",
+      "fee": 500,
+      "status": "entry_measured",
+      "entry_cost_quote_raw": "2966159",
+      "rebalance_cost_quote_raw": null,
+      "exit_cost_quote_raw": null,
+      "reasons": [
+        "rebalance_execution_path_unset"
+      ],
+      "computed_at": "2026-09-05T12:28:11.732Z"
+    }
+  ],
+  "storedRiskCoverage": [
+    {
+      "first_time": "2026-09-03T12:34:10.000Z",
+      "last_time": "2026-09-07T14:00:42.000Z",
+      "runs": "5756"
+    }
+  ],
+  "archiveReferenceProbe": {
+    "executionEligible": false,
+    "probeBlock": 32367320,
+    "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+    "feedMetadataObservedAt": "2026-09-03T12:34:10.000Z",
+    "archiveConfigured": true,
+    "referenceCoverageComplete": false,
+    "round": [
+      "18446744073709552320",
+      "22417000000",
+      "1786320019",
+      "1786320031",
+      "18446744073709552320"
+    ],
+    "status": "round_available_additional_risk_and_continuity_evidence_required"
+  },
+  "referenceProbeAgeSeconds": 1666,
+  "configuredMaxPriceAgeSeconds": 300,
+  "interpretation": "A historical round is retrievable but does not supply continuous quality-passing reference, token/issuer risk and sequencer evidence. No historical fallback reference was reconstructed in this run. Complete size-specific rebalance/exit economics remain unavailable."
+}

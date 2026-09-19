@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "executionEligible": false,
+  "frozenAt": "2026-09-07T17:23:34.221Z",
+  "fromBlock": 32367320,
+  "toBlock": 34092320,
+  "portfolioSizesUsdg": [
+    250,
+    500,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000
+  ],
+  "deploymentPpm": 800000,
+  "reservePpm": 200000,
+  "referenceTolerancePpm": 50000,
+  "policies": [
+    "fixed",
+    "edge",
+    "immediate70",
+    "persistent70"
+  ],
+  "selection": "Reuse the verified August 10-12 development window for a controlled width comparison. This weekday window cannot establish weekend profitability.",
+  "purpose": "Focused width search requested by user; screen churn and size-dependent capacity before net-economic optimization",
+  "netEconomics": null,
+  "rangeUnit": "raw_ticks_total_lower_to_upper",
+  "totalWidthsTicks": [
+    20,
+    40,
+    60,
+    80,
+    100
+  ],
+  "poolFees": [
+    500
+  ],
+  "interpretation": "User confirmed 10 to 50 raw ticks on each side of the price. Center is placed at the nearest feasible pool tick-grid midpoint.",
+  "halfWidthsTicks": [
+    10,
+    20,
+    30,
+    40,
+    50
+  ],
+  "supersedes": "tick-width-selection.json, which assumed total widths of 10-50 ticks"
+}

@@ -1,0 +1,16 @@
+{
+  "executionEligible": false,
+  "probeBlock": 32367320,
+  "feed": "0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15",
+  "feedMetadataObservedAt": "2026-09-03T12:34:10.000Z",
+  "archiveConfigured": true,
+  "referenceCoverageComplete": false,
+  "round": [
+    "18446744073709552320",
+    "22417000000",
+    "1786320019",
+    "1786320031",
+    "18446744073709552320"
+  ],
+  "status": "round_available_additional_risk_and_continuity_evidence_required"
+}

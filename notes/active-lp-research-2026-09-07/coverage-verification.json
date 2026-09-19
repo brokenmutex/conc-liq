@@ -1,0 +1,37 @@
+{
+  "executionEligible": false,
+  "sourceSha256": "3e9dd490a89648c00ccff91bf23626156168f558375de1d3256e80c278a21534",
+  "fromBlock": 15511376,
+  "toBlock": 17511376,
+  "counts": {
+    "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3": 66095,
+    "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B": 2918
+  },
+  "matchedEvents": 69013,
+  "provider": "HyperSync",
+  "queries": 22,
+  "completeness": "Exact raw log set matches the frozen database snapshot in this bounded interval",
+  "timestampSha256": "3f269c070975e3ba552ca0a8e39a2bdd19448961977382e290a8663b7bca06f0",
+  "headerCount": 53741,
+  "firstHeader": {
+    "number": 15511376,
+    "hash": "0x7e021ce644dfeebda067537cbe344195fdabcf916bfea2ff65f45d9a3c1896ad",
+    "timestamp": 1784631726
+  },
+  "lastHeader": {
+    "number": 17511376,
+    "hash": "0xe7135ba9d029551c5a8ae62444984ee18425773be1f0a4b1f3b2379bce3ce3f4",
+    "timestamp": 1784832142
+  },
+  "sourceCapturedAt": "2026-09-07T12:52:40.591Z",
+  "accountingThroughBlock": 53589223,
+  "referenceCoverage": {
+    "first_block": "55123514",
+    "first_time": "2026-09-05T12:32:48.000Z",
+    "last_block": "56848207",
+    "last_time": "2026-09-07T12:52:01.000Z",
+    "runs": "665"
+  },
+  "sourcePath": "data/lp-research-2026-09-07/source.jsonl.gz",
+  "timestampPath": "data/lp-research-2026-09-07/development-timestamps.json"
+}

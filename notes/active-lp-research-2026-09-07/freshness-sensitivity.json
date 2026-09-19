@@ -1,0 +1,48 @@
+{
+  "executionEligible": false,
+  "status": "research_sensitivity_only",
+  "window": "2026-08-10 to 2026-08-12 UTC; not a weekend experiment",
+  "cases": [
+    {
+      "nvdaMaxAgeSeconds": 300,
+      "usdgMaxAgeSeconds": 300,
+      "bothPriceFeedsPassing": 0,
+      "observations": 2877,
+      "passingPercent": 0
+    },
+    {
+      "nvdaMaxAgeSeconds": 300,
+      "usdgMaxAgeSeconds": 86400,
+      "bothPriceFeedsPassing": 125,
+      "observations": 2877,
+      "passingPercent": 4.344803614876607
+    },
+    {
+      "nvdaMaxAgeSeconds": 1800,
+      "usdgMaxAgeSeconds": 86400,
+      "bothPriceFeedsPassing": 664,
+      "observations": 2877,
+      "passingPercent": 23.07959680222454
+    },
+    {
+      "nvdaMaxAgeSeconds": 3600,
+      "usdgMaxAgeSeconds": 86400,
+      "bothPriceFeedsPassing": 1071,
+      "observations": 2877,
+      "passingPercent": 37.22627737226277
+    },
+    {
+      "nvdaMaxAgeSeconds": 86400,
+      "usdgMaxAgeSeconds": 86400,
+      "bothPriceFeedsPassing": 2877,
+      "observations": 2877,
+      "passingPercent": 100
+    }
+  ],
+  "limitations": [
+    "These are reference admission counts, not profitable trades or complete risk eligibility",
+    "No live freshness setting changed",
+    "No session-dependent or holiday exception applied; those require an explicit schedule and held-reference expiry rule",
+    "Longer ceilings do not make held prices current executable fair value"
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 2,
+  "executionEligible": false,
+  "sourceSha256": "3e9dd490a89648c00ccff91bf23626156168f558375de1d3256e80c278a21534",
+  "timestampSha256": "88595db4707df74a6b8a278bf2a19565f4bd28c89cd0883fdd7921fc3d95947a",
+  "fromBlock": 32367320,
+  "toBlock": 34092320,
+  "from": "2026-08-10T00:28:17.000Z",
+  "to": "2026-08-12T00:24:22.000Z",
+  "decisionSeconds": 60,
+  "rangeChangeDelaySeconds": 60,
+  "persistenceObservations": 2,
+  "cooldownSeconds": 600,
+  "halfWidthsBps": [
+    50,
+    100,
+    200,
+    400
+  ],
+  "policies": [
+    "fixed",
+    "edge",
+    "immediate70",
+    "persistent70"
+  ],
+  "referenceTolerancePpm": 50000,
+  "fees": null,
+  "costs": null,
+  "predictiveScorer": null,
+  "referenceScope": "Continuous independent reference and issuer-risk coverage unavailable; guarded economics blocked",
+  "portfolioSizesUsdg": [
+    250,
+    500,
+    1000,
+    2000,
+    3000,
+    4000,
+    5000
+  ],
+  "deploymentPpm": 800000,
+  "reservePpm": 200000,
+  "selectionSha256": "21d9ed1d42e9f7361f5e63cf707ccaac502c99c1d2d2297a143f5d3d6dd5ad60",
+  "capacityScope": "Constant nominal deployed budget at each geometric placement; no self-financing portfolio simulation",
+  "diagnosticShareThresholdsPpm": [
+    10000,
+    50000,
+    100000
+  ],
+  "segmentStatistics": "Unweighted observed swap segments intersecting the hypothetical range; unchanged price path",
+  "verifiedEvents": 13985,
+  "verifiedEventCounts": {
+    "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3": 13696,
+    "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B": 289
+  },
+  "verifiedHeaders": 11661
+}

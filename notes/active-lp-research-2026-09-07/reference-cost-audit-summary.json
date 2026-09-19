@@ -1,0 +1,93 @@
+{
+  "executionEligible": false,
+  "window": {
+    "fromBlock": 32367320,
+    "toBlock": 34092320
+  },
+  "referenceSummary": {
+    "observations": 2877,
+    "priceReferencePassing": 0,
+    "rwaFresh": 125,
+    "quoteFresh": 10,
+    "reasons": {
+      "rwa_oracle_price_stale": 2752,
+      "quote_oracle_price_stale": 2867
+    },
+    "guardedExecutionPassing": 0
+  },
+  "publicationCounts": {
+    "rwa": 25,
+    "quote": 2
+  },
+  "tokenSnapshotCount": 29,
+  "tokenRiskScope": "Start/end and every oracle-publication block only; not every minute",
+  "costAudit": {
+    "selectedTransactions": 70,
+    "candidateCensus": {
+      "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3:exit_bundle": 84,
+      "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3:mint_bundle": 67,
+      "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3:mixed": 27,
+      "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B:exit_bundle": 20,
+      "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B:rebalance_bundle": 2,
+      "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3:collect_bundle": 2,
+      "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B:mixed": 16,
+      "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3:rebalance_bundle": 20,
+      "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B:mint_bundle": 9
+    },
+    "pathCategories": {
+      "external_call": 49,
+      "decrease_collect": 4,
+      "other_known_manager_path": 17
+    },
+    "exitPathCandidates": [
+      {
+        "transactionHash": "0x9f59f0874001475ba0d8d71081675af3a6c5a51130503821b304920dc4548ea7",
+        "pool": [
+          "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3"
+        ],
+        "totalFeeWei": "6312340584000",
+        "gasUsed": "222156",
+        "gasUsedForL1": "0"
+      },
+      {
+        "transactionHash": "0xad2d7d5424bafeac9d1bf7e62fecc6824a4dcc24c661ecebbce8a63053648d75",
+        "pool": [
+          "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3"
+        ],
+        "totalFeeWei": "6379440612000",
+        "gasUsed": "233269",
+        "gasUsedForL1": "0"
+      },
+      {
+        "transactionHash": "0x117b09a423a2bac7475bc1ed1a49fd67e86f6964ecd6ea066116e33ac6c5d158",
+        "pool": [
+          "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3"
+        ],
+        "totalFeeWei": "5987099228000",
+        "gasUsed": "219823",
+        "gasUsedForL1": "1441"
+      },
+      {
+        "transactionHash": "0xdf6953ea4c4fff16db27e6e0e31ec6474aef01bae0410fdbc96ad129f239ec3b",
+        "pool": [
+          "0xB944cec30Bd4175855215D767ADC81F39e5f7E2B"
+        ],
+        "totalFeeWei": "5941031560000",
+        "gasUsed": "211726",
+        "gasUsedForL1": "882"
+      }
+    ],
+    "completeCostModel": false
+  },
+  "fingerprints": {
+    "data/lp-reference-2026-09-07/backfill/references.json": "bb6387cc237c21644944e4e26a179a3baa3f7f9a487bfc184c7cf39967c27e18",
+    "data/lp-reference-2026-09-07/cost-audit/receipts.json": "c003fdc0853758400792967bea54a85f7a525864715e6de10355d87da7e05c4c",
+    "data/lp-reference-2026-09-07/reference-events.json": "78a3a08f1d3c1508d70313bf1bccc4b3ea272329a166e796d8882f625320c665"
+  },
+  "remaining": [
+    "Separate per-feed and per-session freshness policy",
+    "Historical issuer and sequencer evidence",
+    "Complete comparable rebalance path, gas valuation and size-specific swap impact",
+    "Self-financing guarded portfolio replay"
+  ]
+}
