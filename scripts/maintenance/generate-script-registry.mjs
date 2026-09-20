@@ -24,17 +24,6 @@ const recovery = new Set([
   "paper-boundary-recovery.mjs",
   "paper-session-update.mjs"
 ]);
-const reviewForRetirement = new Set([
-  "audit-lp-fees-and-swaps.mjs",
-  "audit-lp-gas-estimates.mjs",
-  "lp-experiment-reconcile.mjs",
-  "lp-gas-regime-sensitivity.mjs",
-  "lp-weekend-reference.mjs",
-  "observe-paper-holding.mjs",
-  "paper-recenter-fork-check.mjs",
-  "render-agile-lp.py",
-  "verify-inventory-study.py"
-]);
 const files = readdirSync(directory).filter(name => /\.(?:mjs|py)$/.test(name) && statSync(join(directory, name)).isFile()).sort();
 const entries = files.map(name => {
   const path = join(directory, name);
@@ -44,8 +33,7 @@ const entries = files.map(name => {
   return {
     path,
     category,
-    lifecycle: reviewForRetirement.has(name) ? "review_for_retirement" :
-      operational.has(name) || recovery.has(name) ? "supported_operations" : "frozen_reproduction",
+    lifecycle: operational.has(name) || recovery.has(name) ? "supported_operations" : "frozen_reproduction",
     sha256: createHash("sha256").update(bytes).digest("hex"),
     bytes: bytes.length
   };
@@ -54,8 +42,13 @@ const report = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
   layoutBaselineCommit: "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
-  layoutPolicy: "Existing top-level scripts remain at their recorded paths until their studies pass post-layout reproduction. New recurring tooling belongs in an owned subdirectory.",
+  layoutPolicy: "Frozen top-level scripts remain at their recorded paths as legacy reproduction material. New recurring tooling belongs in an owned subdirectory.",
   entries
 };
 writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`);
-console.log(JSON.stringify({ output, scripts: entries.length, retirementReview: entries.filter(entry => entry.lifecycle === "review_for_retirement").length }));
+console.log(JSON.stringify({
+  output,
+  scripts: entries.length,
+  supportedOperations: entries.filter(entry => entry.lifecycle === "supported_operations").length,
+  frozenReproduction: entries.filter(entry => entry.lifecycle === "frozen_reproduction").length
+}));

@@ -82,7 +82,7 @@ ops/                  service templates and operator entrypoints
 scripts/              release, operations and research tooling
 research/manifests/   checked provenance and reproduction gates
 docs/                 maintained architecture, strategy and runbooks
-notes/                transitional historical material pending archival
+notes/                frozen historical evidence; not an active-work surface
 data/                 ignored runtime state and bulk evidence
 ```
 
@@ -103,12 +103,17 @@ The current strategy evidence requires at least three weeks spanning two
 weekends, complete action costs and holdout discipline before a promotion
 claim. Live operation requires a separate review and authorization.
 
-## Evidence and cleanup
+## Historical evidence
 
-Bulk research output is transitioning from `notes/` and local `data/` into
-compact manifests plus content-addressed archives. No unique source, custody
-record, saved-state release or exact configuration may be removed until its
-archive and restoration checks pass. Research must also reproduce after the
-final script/config layout; application tests alone are insufficient.
+The repository cleanup closed on 2026-09-20. Remaining files under `notes/`
+and historical top-level research scripts are frozen legacy evidence, not a
+backlog that blocks strategy development. New research belongs under
+`research/`, maintained conclusions under `docs/research/`, and reusable
+research tooling under `scripts/research/`.
+
+No unique source, custody record, saved-state release or exact configuration
+may be removed until its archive and restoration checks pass. A future change
+to frozen material must still reproduce after its final script/config layout;
+application tests alone are insufficient.
 
 The pre-cleanup source recovery point is tag `pre-cleanup-2026-09-19`.

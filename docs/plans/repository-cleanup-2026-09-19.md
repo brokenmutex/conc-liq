@@ -2,8 +2,8 @@
 
 Date: 2026-09-19
 
-Status: implementation in progress after review; first study-level note purge
-completed after verified archival and post-layout reproduction
+Status: complete as of 2026-09-20; unresolved historical evidence is frozen
+rather than forcing low-value artifact-by-artifact replay
 
 Scope: repository documentation, research artifacts, ignored workspace data,
 scripts, configuration, service definitions, build output and local toolchains
@@ -667,3 +667,32 @@ Implementation checkpoint:
   Pruning remains blocked until an isolated archive restore reproduces the
   study with explicit per-asset terminal bounds; those diagnostics must not be
   normalized away merely because the decision payloads match.
+
+## Closure decision — 2026-09-20
+
+The cleanup phase is complete. Continuing to replay and prune the remaining
+26 MiB of tracked historical notes would consume substantially more engineering
+time without improving the active strategy-development surface. The nine
+scripts previously queued for retirement total only 48 KiB and retain useful
+historical reproduction context; they are now classified as
+`frozen_reproduction` instead of an open cleanup backlog.
+
+The closed boundary is:
+
+- `src/`, `test/`, `config/`, `ops/`, maintained `docs/`, and supported
+  operational scripts are the active product surface;
+- `research/` owns new manifests, bounded evidence and reproduction receipts;
+- `scripts/research/` owns new reusable research pipelines;
+- remaining `notes/` files and frozen top-level research scripts are read-only
+  legacy evidence and must not be imported by runtime, tests or releases;
+- the retained residence-cap output remains intentionally unpruned until its
+  isolated, terminally bounded replay can match decisions, rows and events;
+- ignored `data/`, runtime state, custody/accounting evidence and releases are
+  not a general cleanup target.
+
+No further legacy deletion or directory reorganization is a prerequisite for
+strategy work. Future cleanup is demand-driven: undertake it only to unblock a
+specific change, resolve a security/storage risk, or retire a proven runtime
+dependency. The next engineering milestone is the strategy measurement gap in
+`docs/research/current-evidence.md`: fixed-token passive benchmarking and an
+independent-reference series for the active paper campaign.

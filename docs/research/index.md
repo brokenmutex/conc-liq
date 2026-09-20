@@ -12,6 +12,8 @@ because its files remain in the repository.
 | September 18 W0-W5 redesign | current paper hypothesis; final-layout restored-input replay verified | Fee calibration, residual range, session schedule, pool universe and execution fixes support the guarded four-book restart. | `research/manifests/strategy-redesign-2026-09-18.json` | Scoped note purge complete; historical blobs remain at the pre-cleanup commit and the local database archive remains vulnerable to host/disk loss |
 | Current four-book forward paper campaign | active | Results unavailable until the observation window and benchmark contract are complete. | Runtime state is protected, not a research manifest | Minimum three weeks and two weekends |
 
-Bulk artifacts remain in `notes/` and ignored `data/` during the cleanup
-transition. They may be removed only after the relevant manifest, archive and
-post-layout reproduction gate passes.
+Remaining bulk artifacts in `notes/` and ignored `data/` are frozen historical
+evidence. They are outside the active development surface and do not block new
+strategy work. They may be removed later only when a concrete storage or
+maintenance benefit justifies the relevant manifest, archive and post-layout
+reproduction gate.

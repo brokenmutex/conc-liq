@@ -11,7 +11,7 @@ const actual = readdirSync("scripts").filter(name => /\.(?:mjs|py)$/.test(name) 
 const recorded = registry.entries.map(entry => entry.path).sort();
 assert.deepEqual(recorded, actual, "Top-level script set changed; classify it in scripts/workflows.json");
 const categories = new Set(["operations", "recovery", "research", "validation"]);
-const lifecycles = new Set(["supported_operations", "frozen_reproduction", "review_for_retirement"]);
+const lifecycles = new Set(["supported_operations", "frozen_reproduction"]);
 for (const entry of registry.entries) {
   assert(categories.has(entry.category), `${entry.path}: invalid category`);
   assert(lifecycles.has(entry.lifecycle), `${entry.path}: invalid lifecycle`);

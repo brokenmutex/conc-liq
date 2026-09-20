@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-19T17:56:54.682Z",
+  "generatedAt": "2026-09-20T07:44:12.343Z",
   "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
-  "layoutPolicy": "Existing top-level scripts remain at their recorded paths until their studies pass post-layout reproduction. New recurring tooling belongs in an owned subdirectory.",
+  "layoutPolicy": "Frozen top-level scripts remain at their recorded paths as legacy reproduction material. New recurring tooling belongs in an owned subdirectory.",
   "entries": [
     {
       "path": "scripts/activate-paper-release.mjs",
@@ -91,14 +91,14 @@
     {
       "path": "scripts/audit-lp-fees-and-swaps.mjs",
       "category": "validation",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "2e8d862e442cd2578e958493135f20a99fdae78a014982b22f3cc0996a903064",
       "bytes": 7204
     },
     {
       "path": "scripts/audit-lp-gas-estimates.mjs",
       "category": "validation",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "0d8483c172fef702d91d3d0dcb89d2d74536424c1e2c002c87340f2e4b5bbc1b",
       "bytes": 4400
     },
@@ -336,14 +336,14 @@
     {
       "path": "scripts/lp-experiment-reconcile.mjs",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "57e49572665d6d863d4b5989b8ab715cbd28b61288c6c72700c3ec4ff3b6b551",
       "bytes": 2488
     },
     {
       "path": "scripts/lp-gas-regime-sensitivity.mjs",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "b346b1888680443f75cf8b7edeeb6d714b3cded9c946f3c48c443a956eacb636",
       "bytes": 4573
     },
@@ -455,7 +455,7 @@
     {
       "path": "scripts/lp-weekend-reference.mjs",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "f6792412d5e98945207fe39431ced4d365cc5dd0cc24d7d79590cd81bb1c3f25",
       "bytes": 2253
     },
@@ -476,7 +476,7 @@
     {
       "path": "scripts/observe-paper-holding.mjs",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "fa866c7737026958a28d60756265f1b6656401b33697a294b3eed7b3f88382a9",
       "bytes": 2581
     },
@@ -504,7 +504,7 @@
     {
       "path": "scripts/paper-recenter-fork-check.mjs",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "989ca046fb231dc637e083871256b09ddc167a2097a3a09bfd0111be08153a86",
       "bytes": 3275
     },
@@ -560,7 +560,7 @@
     {
       "path": "scripts/render-agile-lp.py",
       "category": "research",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "ada0ecee583384e339ae7c9646b769f0ebbe88fb256603ecf52933bfb18c55c8",
       "bytes": 2596
     },
@@ -707,7 +707,7 @@
     {
       "path": "scripts/verify-inventory-study.py",
       "category": "validation",
-      "lifecycle": "review_for_retirement",
+      "lifecycle": "frozen_reproduction",
       "sha256": "438789118e59c29c1e6f0ecc97d561a7860be829fa66b65c20b72b03a66edd92",
       "bytes": 2858
     },
