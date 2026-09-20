@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "studyId": "active-lp-portfolio-report-2026-09-08",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "reproduction": {
+    "verifiedAt": "2026-09-20T07:31:58Z",
+    "command": ".tools/node/bin/node --import tsx scripts/lp-portfolio-report.mjs in a clean checkout with the two exclusive report outputs absent and data/ linked to the retained frozen inputs",
+    "inputs": [
+      {"path":"data/lp-portfolio-2026-09-08/weekday-all-v1.json","bytes":325566587,"sha256":"3c3fb64a6a20f6177b6823b4c28c6a01aba3b2715d2916b3e70adc302f851306","class":"ignored_frozen_replay"},
+      {"path":"data/lp-portfolio-2026-09-08/weekday-1000-v1.json","bytes":47303208,"sha256":"ef1f81c1f79f26703c5e872d3aa28d0feeda539183e52d3d5fe091b3fa67e832","class":"ignored_frozen_replay"},
+      {"path":"data/lp-portfolio-2026-09-08/weekend-all-v1.json","bytes":359279816,"sha256":"ee36f88c69eaad11b49493b853d784ac9fecd997136d30f618daeea066068551","class":"ignored_frozen_replay"},
+      {"path":"data/lp-portfolio-2026-09-08/weekend-1000-v1.json","bytes":52286668,"sha256":"803513b32a8a2dd343591c5da4ba8098bc6bcffc982b1a64933cafaa2ee2a6bb","class":"ignored_frozen_replay"},
+      {"path":"data/lp-weekend-2026-09-07/backfill/references.json","bytes":1426944,"sha256":"f85e66041452fdbedd68f586535f0fb5bc2a729098a0695e4243e1be027e15d6","class":"ignored_frozen_reference"},
+      {"path":"data/lp-research-2026-09-07/weekend-timestamps.json","bytes":1963323,"sha256":"3fa09e09a951522002ae87f7b9af5e4814c7eed3a1c08d48d8cf45ea8938ddda","class":"ignored_frozen_timing"},
+      {"path":"scripts/lp-portfolio-report.mjs","bytes":14427,"sha256":"dc8f2b78db47d7c0875b694ad030b882e90754294c8833797eda0af385cd4143","class":"tracked_report_auditor"},
+      {"path":"src/research/session-reference.ts","bytes":2755,"sha256":"a892ad469ccf651875b3710fd7a8173777701fb61df18e4b4a52829bd596f2f9","class":"tracked_dependency"}
+    ],
+    "result": {
+      "bytes": 1897936,
+      "sha256": "faa0beac03b4a65ce334bc76a73e7c39851b9783af1878d16035231b0d6fa2a9",
+      "normalizedSha256": "faa0beac03b4a65ce334bc76a73e7c39851b9783af1878d16035231b0d6fa2a9",
+      "matches": true,
+      "comparison": "byte_identical",
+      "actionLedgersReconciled": 1120,
+      "thousandBudgetRunsReproduced": 160,
+      "maintainedConclusionSha256": "a49094d46eb71c941219aa12da7b2c4057e1dc802a93c2c28a0ae4e6b061cbb8"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "notes/active-lp-research-2026-09-07/portfolio-economic-sensitivity.json",
+      "bytes": 1897936,
+      "sha256": "faa0beac03b4a65ce334bc76a73e7c39851b9783af1878d16035231b0d6fa2a9",
+      "class": "verified_deterministic_derivative",
+      "replacement": "maintained conclusion plus byte-identical independently audited compact report replay"
+    }
+  ]
+}

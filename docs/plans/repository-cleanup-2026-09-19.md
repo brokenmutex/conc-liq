@@ -655,3 +655,8 @@ Implementation checkpoint:
 - The 1.02 MiB seven-size geometry sweep also reproduced byte-for-byte,
   including all 224 candidates and 28 exclusions. Its full derivative was
   removed under the same checked input and historical-recovery contract.
+- The 1.81 MiB portfolio sensitivity report was independently regenerated in
+  a disposable checkout from its four frozen replay files. It reconciled 1,120
+  action ledgers and 160 duplicated 1,000-USDG scenarios; both the JSON report
+  and maintained conclusion were byte-identical. The JSON derivative was
+  removed while the conclusion and exact replay receipt remain.
