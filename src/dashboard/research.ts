@@ -18,8 +18,22 @@ import {
 /** Trailing windows the page offers, in hours. */
 export const RESEARCH_WINDOW_HOURS = [1, 6, 24, 168] as const;
 
-/** Reference half-widths, as price fractions rounded out to the pool grid. */
-export const RESEARCH_HALF_WIDTH_FRACTIONS = [0.0025, 0.005, 0.01] as const;
+/**
+ * Reference half-widths, as price fractions rounded out to the pool grid. The
+ * set spans from about one tick spacing on the 500 tier out to a range wide
+ * enough to hold through a weekend gap, because occupancy and liquidity share
+ * pull in opposite directions and the useful width is a pool property. Widths
+ * that round to the same grid ticks for a pool report the same numbers, which
+ * is what a coarse tier genuinely offers.
+ */
+export const RESEARCH_HALF_WIDTH_FRACTIONS = [
+  0.001,
+  0.0025,
+  0.005,
+  0.01,
+  0.02,
+  0.05,
+] as const;
 
 /** Retained history. Seven days of hourly buckets. */
 export const RESEARCH_RETAINED_HOURS = 168;

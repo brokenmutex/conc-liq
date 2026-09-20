@@ -50,6 +50,16 @@ describe("research read model", () => {
   it("offers the windows the position API already accepts", () => {
     assert.deepEqual([...RESEARCH_WINDOW_HOURS], [1, 6, 24, 168]);
   });
+
+  it("spans the half-widths in ascending order from a near-spacing range", () => {
+    const fractions = [...RESEARCH_HALF_WIDTH_FRACTIONS];
+    assert.deepEqual(fractions, [...fractions].sort((a, b) => a - b));
+    assert.ok(fractions.length >= 5, "a three-point set cannot show the occupancy curve");
+    // The narrowest must still be expressible on the finest grid in use.
+    assert.equal(halfWidthTicksForFraction(fractions[0]!, 10), 10);
+    // The widest must clear a weekend gap on the coarsest tier.
+    assert.ok(halfWidthTicksForFraction(fractions.at(-1)!, 200) >= 400);
+  });
 });
 
 describe("research view semantics", () => {
@@ -59,8 +69,17 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick });",
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis });"
   ) as {
+    si(value: number | null): string;
+    yAxis(
+      geometry: {
+        width: number;
+        height: number;
+        padding: { top: number; right: number; bottom: number; left: number };
+      },
+      label: (fraction: number) => string,
+    ): string;
     leagueRows(source: unknown, hours: number, width: number): {
       key: string;
       net: number | null;
@@ -135,6 +154,34 @@ describe("research view semantics", () => {
       Array.from(ui.sortRows(rows, "net", false), (row) => row.key),
       ["CCC-500", "BBB-500", "AAA-500"],
     );
+  });
+
+  it("names magnitudes past the ceiling Intl compact notation stops at", () => {
+    // Intl renders pool-scale liquidity as "13,800,000T", which reads as noise.
+    assert.equal(ui.si(1.38e19), "13.8E");
+    assert.equal(ui.si(6.7e15), "6.7P");
+    assert.equal(ui.si(4.2e6), "4.2M");
+    assert.equal(ui.si(930), "930");
+    assert.equal(ui.si(0), "0");
+    assert.equal(ui.si(null), "—");
+    // An empty series leaves a non-finite peak; the axis must not print it.
+    assert.equal(ui.si(Infinity), "—");
+  });
+
+  it("labels three gridlines inside the plot area", () => {
+    const geometry = {
+      width: 520,
+      height: 230,
+      padding: { top: 12, right: 54, bottom: 26, left: 54 },
+    };
+    const markup = ui.yAxis(geometry, (fraction) => `${fraction}`);
+    assert.equal(markup.match(/<line /g)?.length, 3);
+    const labels = [...markup.matchAll(/<text[^>]*y="([\d.]+)"[^>]*>([^<]*)</g)];
+    assert.deepEqual(labels.map((match) => match[2]), ["0", "0.5", "1"]);
+    for (const match of labels) {
+      const y = Number(match[1]);
+      assert.ok(y >= geometry.padding.top && y <= geometry.height, `label escaped the plot at y=${y}`);
+    }
   });
 
   it("inverts the tick-to-price direction when USDG is token0", () => {

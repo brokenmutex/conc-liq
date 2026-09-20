@@ -1,7 +1,7 @@
 'use strict';
 // Read-only research view over recorded RWA pool flow. No signing, no controls.
 let snapshot = null;
-const state = { hours: 24, width: 1, pool: null, sort: 'net', descending: true };
+const state = { hours: 24, width: 2, pool: null, sort: 'net', descending: true };
 
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -9,6 +9,17 @@ const usdg = (raw) => raw == null ? null : Number(raw) / 1e6;
 const money = (value, digits = 2) => value == null ? '—' : new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
 const compact = (value) => value == null ? '—' : new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 const percent = (fraction, digits = 1) => fraction == null ? '—' : `${(fraction * 100).toFixed(digits)}%`;
+const SI_UNITS = [[1e18, 'E'], [1e15, 'P'], [1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'k']];
+// Intl compact notation stops at trillions and renders pool liquidity as an
+// unreadable "13,800,000T", so magnitudes are named all the way up here.
+const si = (value) => {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const magnitude = Math.abs(value);
+  for (const [scale, suffix] of SI_UNITS) {
+    if (magnitude >= scale) return `${(value / scale).toFixed(magnitude / scale >= 100 ? 0 : 1)}${suffix}`;
+  }
+  return value.toFixed(0);
+};
 const signClass = (value) => value == null ? 'muted' : value >= 0 ? 'positive' : 'negative';
 const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
@@ -19,6 +30,15 @@ const COLUMNS = [
   ['gross', 'Modeled fees', true], ['net', 'Net of costs', true], ['apr', 'APR', true],
   ['gate', 'Gate-valid', true],
 ];
+
+/** Three horizontal gridlines with a left-hand value label on each. */
+function yAxis({ width, height, padding }, label) {
+  return [0, 0.5, 1].map((fraction) => {
+    const y = height - padding.bottom - fraction * (height - padding.top - padding.bottom);
+    return `<line x1="${padding.left}" x2="${width - padding.right}" y1="${y}" y2="${y}" stroke="#232d3a"/>` +
+      `<text x="${padding.left - 6}" y="${y + 3}" text-anchor="end" fill="#91a0b2" font-size="10">${label(fraction)}</text>`;
+  }).join('');
+}
 
 /** Proportion bar. Drawn with attributes because the page forbids inline styles. */
 function bar(fraction) {
@@ -114,8 +134,9 @@ function renderTable(rows) {
 /** Step curve of active liquidity by tick, with spot and the reference band. */
 function depthChart(pool, halfWidthTicks) {
   const points = pool.depth;
-  if (points.length < 2) return '<svg class="chart" viewBox="0 0 520 230"></svg>';
-  const width = 520, height = 230, padding = { top: 12, right: 12, bottom: 26, left: 12 };
+  const geometry = { width: 520, height: 230, padding: { top: 12, right: 14, bottom: 26, left: 54 } };
+  const { width, height, padding } = geometry;
+  if (points.length < 2) return `<svg class="chart" viewBox="0 0 ${width} ${height}"></svg>`;
   const ticks = points.map((point) => point.tick);
   const low = Math.min(...ticks, pool.tick), high = Math.max(...ticks, pool.tick);
   const peak = Math.max(...points.map((point) => Number(point.liquidity)), 1);
@@ -129,32 +150,38 @@ function depthChart(pool, halfWidthTicks) {
   path += ` L${x(high)},${height - padding.bottom} Z`;
   const base = Math.floor(pool.tick / pool.tickSpacing) * pool.tickSpacing;
   const bandLow = Math.max(low, base - halfWidthTicks), bandHigh = Math.min(high, base + halfWidthTicks);
-  const axis = [low, Math.round((low + high) / 2), high].map((tick) =>
+  const xAxis = [low, Math.round((low + high) / 2), high].map((tick) =>
     `<text x="${x(tick)}" y="${height - 8}" text-anchor="middle" fill="#91a0b2" font-size="10">${money(priceAtTick(pool, tick), 2)}</text>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Active liquidity by price for ${esc(pool.rwaSymbol)}">
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Active liquidity by price for ${esc(pool.rwaSymbol)}, peak ${si(peak)}">
+    ${yAxis(geometry, (fraction) => si(peak * fraction))}
     <rect x="${x(bandLow)}" y="${padding.top}" width="${Math.max(1, x(bandHigh) - x(bandLow))}" height="${height - padding.top - padding.bottom}" fill="#69debd" opacity=".12"/>
     <path d="${path}" fill="#96acff" opacity=".28"/>
     <path d="${path}" fill="none" stroke="#96acff" stroke-width="1.2"/>
     <line x1="${x(pool.tick)}" x2="${x(pool.tick)}" y1="${padding.top}" y2="${height - padding.bottom}" stroke="#efbc72" stroke-width="1.4" stroke-dasharray="3 3"/>
     <line x1="${padding.left}" x2="${width - padding.right}" y1="${height - padding.bottom}" y2="${height - padding.bottom}" stroke="#28313d"/>
-    ${axis}</svg>`;
+    ${xAxis}</svg>`;
 }
 
-/** Hourly fee bars with the pool price over the selected window. */
+/** Hourly fee bars on the left scale with the pool price on the right. */
 function flowChart(pool, hours) {
   const series = pool.series.slice(-hours);
-  if (series.length === 0) return '<svg class="chart" viewBox="0 0 520 230"></svg>';
-  const width = 520, height = 230, padding = { top: 12, right: 12, bottom: 26, left: 12 };
+  const geometry = { width: 520, height: 230, padding: { top: 12, right: 54, bottom: 26, left: 54 } };
+  const { width, height, padding } = geometry;
+  if (series.length === 0) return `<svg class="chart" viewBox="0 0 ${width} ${height}"></svg>`;
   const fees = series.map((hour) => usdg(hour.feesQuote));
   const peak = Math.max(...fees, 1e-9);
   const prices = series.map((hour) => hour.priceX18 == null ? null : Number(hour.priceX18) / 1e18);
   const known = prices.filter((price) => price != null);
-  const priceLow = Math.min(...known), priceHigh = Math.max(...known);
+  // Every price can be absent over a window the checkpoint collector missed;
+  // the price scale is then undefined rather than an infinite span.
+  const hasPrice = known.length > 0;
+  const priceLow = hasPrice ? Math.min(...known) : 0, priceHigh = hasPrice ? Math.max(...known) : 0;
   const span = width - padding.left - padding.right;
   const barWidth = Math.max(1, span / series.length - 1);
   const x = (index) => padding.left + index * (span / series.length);
-  const yFee = (value) => height - padding.bottom - value / peak * (height - padding.top - padding.bottom);
-  const yPrice = (value) => height - padding.bottom - (value - priceLow) / (priceHigh - priceLow || 1) * (height - padding.top - padding.bottom);
+  const plot = height - padding.top - padding.bottom;
+  const yFee = (value) => height - padding.bottom - value / peak * plot;
+  const yPrice = (value) => height - padding.bottom - (value - priceLow) / (priceHigh - priceLow || 1) * plot;
   const bars = series.map((hour, index) =>
     `<rect x="${x(index)}" y="${yFee(fees[index])}" width="${barWidth}" height="${Math.max(0, height - padding.bottom - yFee(fees[index]))}" fill="#69debd" opacity=".55"/>`).join('');
   let line = '', open = false;
@@ -163,8 +190,13 @@ function flowChart(pool, hours) {
     line += `${open ? 'L' : 'M'}${x(index) + barWidth / 2},${yPrice(price)} `;
     open = true;
   }
+  const priceAxis = hasPrice ? [0, 0.5, 1].map((fraction) => {
+    const y = height - padding.bottom - fraction * plot;
+    return `<text x="${width - padding.right + 6}" y="${y + 3}" text-anchor="start" fill="#efbc72" font-size="10">${money(priceLow + fraction * (priceHigh - priceLow), 2)}</text>`;
+  }).join('') : '';
   const label = (index, anchor) => `<text x="${x(index) + barWidth / 2}" y="${height - 8}" text-anchor="${anchor}" fill="#91a0b2" font-size="10">${clock(series[index].hour)}</text>`;
-  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Hourly fees and price for ${esc(pool.rwaSymbol)}">
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Hourly fees and price for ${esc(pool.rwaSymbol)}, peak ${money(peak)} USDG in an hour">
+    ${yAxis(geometry, (fraction) => compact(peak * fraction))}${priceAxis}
     ${bars}<path d="${line.trim()}" fill="none" stroke="#efbc72" stroke-width="1.4"/>
     <line x1="${padding.left}" x2="${width - padding.right}" y1="${height - padding.bottom}" y2="${height - padding.bottom}" stroke="#28313d"/>
     ${label(0, 'start')}${label(series.length - 1, 'end')}</svg>`;
@@ -183,12 +215,12 @@ function renderDetail(rows) {
       <div class="chart-card"><h3>Liquidity by price</h3>
         <p>Active liquidity across initialized ticks, now. The band is a ±${reference ? reference.halfWidthPercent.toFixed(2) : '—'}% range placed at the current price.</p>
         ${depthChart(pool, halfWidth)}
-        <div class="legend"><span><i class="sw-depth"></i>Active liquidity</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
+        <div class="legend"><span><i class="sw-depth"></i>Active liquidity · L (left)</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
       </div>
       <div class="chart-card"><h3>Hourly fees and price</h3>
         <p>Fees the whole pool charged each hour, against the pool price. Selected window.</p>
         ${flowChart(pool, state.hours)}
-        <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG</span><span><i class="sw-spot"></i>Pool price</span></div>
+        <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>
       </div>
     </div>`;
 }
