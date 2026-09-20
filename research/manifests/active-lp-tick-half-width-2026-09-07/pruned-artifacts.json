@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "studyId": "active-lp-tick-half-width-2026-09-07",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "reproduction": {
+    "verifiedAt": "2026-09-20T07:26:03Z",
+    "command": ".tools/node/bin/node --import tsx scripts/lp-research.mjs ticks --input data/lp-research-2026-09-07/source.jsonl.gz --timestamps data/lp-research-2026-09-07/size-sweep-timestamps.json --selection notes/active-lp-research-2026-09-07/tick-half-width-selection.json --output <new-output>.json",
+    "inputs": [
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz","bytes":261824861,"sha256":"103b6fce486124c75221389141c7c08c61faa18314637dc91d9b55bf5ee3ff1c","class":"ignored_unique_input"},
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz.sha256","bytes":65,"sha256":"e17262930504be6e064693a42dcde5c3d9c259740dca14d317ed4173042cb60f","class":"ignored_input_digest"},
+      {"path":"data/lp-research-2026-09-07/size-sweep-timestamps.json","bytes":1784620,"sha256":"88595db4707df74a6b8a278bf2a19565f4bd28c89cd0883fdd7921fc3d95947a","class":"ignored_frozen_input"},
+      {"path":"notes/active-lp-research-2026-09-07/tick-half-width-selection.json","bytes":1182,"sha256":"b5c14a1d3ce6bc3233a0ebb564559eecccf23759114035976eab940924e0c139","class":"tracked_selection"},
+      {"path":"scripts/lp-research.mjs","bytes":27178,"sha256":"db48d7adfd3d610b7bcf6a6bbfbc4941f23a79200716225fa48e95c5591ef7e8","class":"tracked_runner"}
+    ],
+    "result": {
+      "bytes": 3384946,
+      "sha256": "0e5373e5b78548acc5516b590943b2b1b83bd4c93c1b9d0c1aea2a333b33e43b",
+      "normalizedSha256": "0e5373e5b78548acc5516b590943b2b1b83bd4c93c1b9d0c1aea2a333b33e43b",
+      "matches": true,
+      "comparison": "byte_identical"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "notes/active-lp-research-2026-09-07/tick-half-width-screen-v1.json",
+      "bytes": 3384946,
+      "sha256": "0e5373e5b78548acc5516b590943b2b1b83bd4c93c1b9d0c1aea2a333b33e43b",
+      "class": "verified_deterministic_derivative",
+      "replacement": "compact run manifest, frozen selection, corrected conclusion, and byte-identical file-only replay"
+    }
+  ]
+}

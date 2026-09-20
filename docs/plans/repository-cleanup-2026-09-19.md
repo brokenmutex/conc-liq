@@ -648,3 +648,7 @@ Implementation checkpoint:
   Its full derivative was removed; the compact original manifest, conclusion,
   exact inputs, normalized digest, command, and replay receipt remain checked
   by `research/manifests/active-lp-tick-width-2026-09-07/pruned-artifacts.json`.
+- The corrected 3.23 MiB half-width screen was then reproduced from the same
+  frozen source with its corrected selection. Both its result and compact
+  manifest were byte-identical. The full derivative was removed while its
+  conclusion, compact manifest, exact inputs, and replay receipt remain.

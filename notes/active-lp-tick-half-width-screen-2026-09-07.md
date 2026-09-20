@@ -26,7 +26,8 @@ These are range/churn and capacity results, not a self-financing portfolio repla
 
 - [Corrected frozen selection](active-lp-research-2026-09-07/tick-half-width-selection.json)
 - [Run manifest](active-lp-research-2026-09-07/tick-half-width-screen-v1.json.manifest.json)
-- [All 140 corrected results](active-lp-research-2026-09-07/tick-half-width-screen-v1.json)
+- Full output recovery and the byte-identical replay receipt are recorded in
+  `research/manifests/active-lp-tick-half-width-2026-09-07/pruned-artifacts.json`.
 - [Superseded initial interpretation](active-lp-tick-width-screen-2026-09-07.md)
 
 Use a new output path:

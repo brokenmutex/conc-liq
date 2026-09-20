@@ -8,12 +8,21 @@ const root = process.cwd();
 const manifestRoot = join(root, "research/manifests");
 const hex = /^[a-f0-9]{64}$/;
 const manifests = [];
+const currentEvidenceCache = new Map();
 const canonicalize = value => {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value === null || typeof value !== "object") return value;
   return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
 };
 const digest = bytes => createHash("sha256").update(bytes).digest("hex");
+const currentEvidence = path => {
+  if (!currentEvidenceCache.has(path)) {
+    assert(existsSync(path) && statSync(path).isFile(), `${path}: current file is not retrievable`);
+    const bytes = readFileSync(path);
+    currentEvidenceCache.set(path, { bytes: bytes.length, sha256: digest(bytes) });
+  }
+  return currentEvidenceCache.get(path);
+};
 
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -43,10 +52,9 @@ for (const manifestPath of manifests.sort()) {
       assert.match(input.sha256, hex, `${input.path}: invalid input digest`);
       assert.equal(typeof input.class, "string", `${input.path}: input class missing`);
       const inputPath = join(root, input.path);
-      assert(existsSync(inputPath) && statSync(inputPath).isFile(), `${input.path}: input is not retrievable`);
-      const bytes = readFileSync(inputPath);
-      assert.equal(bytes.length, input.bytes, `${input.path}: input byte length changed`);
-      assert.equal(digest(bytes), input.sha256, `${input.path}: input digest changed`);
+      const evidence = currentEvidence(inputPath);
+      assert.equal(evidence.bytes, input.bytes, `${input.path}: input byte length changed`);
+      assert.equal(evidence.sha256, input.sha256, `${input.path}: input digest changed`);
     }
     const result = manifest.reproduction.result;
     assert.equal(result?.matches, true, `${label}: replay result did not match`);
@@ -73,6 +81,14 @@ for (const manifestPath of manifests.sort()) {
     assert.equal(historical.stdout.length, artifact.bytes, `${artifact.path}: historical byte length changed`);
     assert.equal(digest(historical.stdout), artifact.sha256,
       `${artifact.path}: historical digest changed`);
+
+    if (manifest.reproduction?.result.comparison === "byte_identical") {
+      assert.equal(manifest.artifacts.length, 1, `${label}: byte-identical replay must identify one artifact`);
+      assert.equal(manifest.reproduction.result.bytes, artifact.bytes,
+        `${artifact.path}: replay byte length differs from historical output`);
+      assert.equal(manifest.reproduction.result.sha256, artifact.sha256,
+        `${artifact.path}: replay digest differs from historical output`);
+    }
 
     if (artifact.normalizedJson) {
       const normalized = artifact.normalizedJson;
@@ -108,13 +124,9 @@ for (const manifestPath of manifests.sort()) {
       assert(Number.isSafeInteger(sibling.bytes) && sibling.bytes >= 0,
         `${artifact.path}: retained sibling byte length invalid`);
       assert.match(sibling.sha256, hex, `${artifact.path}: retained sibling digest invalid`);
-      const siblingPath = join(root, sibling.path);
-      assert(existsSync(siblingPath) && statSync(siblingPath).isFile(),
-        `${artifact.path}: retained sibling is not retrievable`);
-      const bytes = readFileSync(siblingPath);
-      assert.equal(bytes.length, sibling.bytes, `${sibling.path}: byte length changed`);
-      assert.equal(digest(bytes), sibling.sha256,
-        `${sibling.path}: digest changed`);
+      const evidence = currentEvidence(join(root, sibling.path));
+      assert.equal(evidence.bytes, sibling.bytes, `${sibling.path}: byte length changed`);
+      assert.equal(evidence.sha256, sibling.sha256, `${sibling.path}: digest changed`);
     }
   }
 }
