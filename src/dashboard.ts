@@ -18,6 +18,12 @@ async function main(): Promise<void> {
     streamKey: config.streamKey,
   });
 
+  // The research page reads seven days of swap flow and takes seconds to
+  // build, so the first cache fill is started here rather than on first view.
+  void repository.research().catch((error: unknown) => {
+    log("warn", "research_prefetch_failed", { error: sanitizeRiskError(error) });
+  });
+
   let stopping = false;
   const stop = (signal: NodeJS.Signals): void => {
     if (stopping) return;

@@ -7,6 +7,7 @@ import type { DashboardSnapshot } from "./domain.js";
 export interface DashboardDataSource {
   snapshot(): Promise<DashboardSnapshot>;
   positions?(id?:string,hours?:number): Promise<unknown>;
+  research?(): Promise<unknown>;
 }
 
 const STATIC_FILES = new Map([
@@ -20,6 +21,9 @@ const STATIC_FILES = new Map([
   ["/preview/", { contentType: "text/html; charset=utf-8", file: "preview/index.html" }],
   ["/preview/app.js", { contentType: "text/javascript; charset=utf-8", file: "preview/app.js" }],
   ["/preview/styles.css", { contentType: "text/css; charset=utf-8", file: "preview/styles.css" }],
+  ["/research", { contentType: "text/html; charset=utf-8", file: "research.html" }],
+  ["/research.js", { contentType: "text/javascript; charset=utf-8", file: "research.js" }],
+  ["/research.css", { contentType: "text/css; charset=utf-8", file: "research.css" }],
 ]);
 
 function securityHeaders(response: ServerResponse): void {
@@ -81,6 +85,20 @@ export function createDashboardServer(
         if(!dataSource.positions){sendJson(response,503,{error:"position_source_unavailable"});return;}
         const result=await dataSource.positions(id,hours);
         sendJson(response,result===null?404:200,result??{error:"position_not_found"});return;
+      }
+      if (pathname === "/api/research") {
+        if (!dataSource.research) {
+          sendJson(response, 503, { error: "research_source_unavailable" });
+          return;
+        }
+        if (request.method === "HEAD") {
+          response.statusCode = 200;
+          response.setHeader("Cache-Control", "no-store");
+          response.end();
+          return;
+        }
+        sendJson(response, 200, await dataSource.research());
+        return;
       }
       if (pathname === "/api/dashboard") {
         if (request.method === "HEAD") {

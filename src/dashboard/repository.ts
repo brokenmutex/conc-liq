@@ -6,6 +6,7 @@ import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
 import { readPaperDashboard } from "./paper.js";
 import { readDashboardFocus } from "./focus.js";
+import { readResearch, type ResearchSnapshot } from "./research.js";
 import type {
   ActivityBucket,
   AssetRiskRow,
@@ -1179,6 +1180,12 @@ async function sources(client: PoolClient): Promise<RiskSourceEvidence> {
 
 export class DashboardRepository {
   private readonly pool: InstanceType<typeof Pool>;
+  /**
+   * The research page reads seven days of swap flow, which costs seconds. It is
+   * built at most once per refresh interval and shared by every reader.
+   */
+  private researchCache: { at: number; value: ResearchSnapshot } | null = null;
+  private researchInFlight: Promise<ResearchSnapshot> | null = null;
 
   public constructor(private readonly config: DashboardConfig) {
     this.pool = new Pool({
@@ -1197,6 +1204,38 @@ export class DashboardRepository {
       const result=id?await readPositionDetail(client,this.config.streamKey,id,hours,this.config.adaptivePaperStatePath):await readPositionOverview(client,this.config.streamKey,this.config.adaptivePaperStatePath);
       await client.query("COMMIT");return result;
     } catch(error) {await client.query("ROLLBACK");throw error;} finally {client.release();}
+  }
+
+  public async research(): Promise<ResearchSnapshot> {
+    const cached = this.researchCache;
+    if (
+      cached !== null &&
+      Date.now() - cached.at < this.config.researchRefreshMs
+    ) {
+      return cached.value;
+    }
+    this.researchInFlight ??= this.buildResearch().finally(() => {
+      this.researchInFlight = null;
+    });
+    return this.researchInFlight;
+  }
+
+  private async buildResearch(): Promise<ResearchSnapshot> {
+    const client = await this.pool.connect();
+    try {
+      await client.query(
+        "BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+      );
+      const value = await readResearch(client, this.config.streamKey);
+      await client.query("COMMIT");
+      this.researchCache = { at: Date.now(), value };
+      return value;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   public async snapshot(): Promise<DashboardSnapshot> {

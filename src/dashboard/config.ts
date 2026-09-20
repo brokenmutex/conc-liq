@@ -15,6 +15,7 @@ const environmentSchema = z.object({
   DASHBOARD_HOST: z.enum(["127.0.0.1", "::1"]).default("127.0.0.1"),
   DASHBOARD_PORT: z.coerce.number().int().min(1).max(65_535).default(4_173),
   DASHBOARD_REFRESH_MS: z.coerce.number().int().min(1_000).default(10_000),
+  RESEARCH_REFRESH_MS: z.coerce.number().int().min(10_000).default(300_000),
   ADAPTIVE_PAPER_STATE_PATH: z.string().startsWith("/").default("/root/conc-liq/data/adaptive-paper-60m-2026-09-16/state.json"),
   DATABASE_URL: z.string().min(1),
   INDEXER_STREAM_KEY: z.string().min(1).default("robinhood-v3-rwa-usdg-v1"),
@@ -35,6 +36,7 @@ export interface DashboardConfig {
   readonly host: "127.0.0.1" | "::1";
   readonly port: number;
   readonly refreshMs: number;
+  readonly researchRefreshMs: number;
   readonly riskGateMaxSnapshotAgeSeconds: number;
   readonly riskGateMaxCanonicalityAgeSeconds: number;
   readonly streamKey: string;
@@ -63,6 +65,7 @@ export function loadDashboardConfig(
     host: parsed.DASHBOARD_HOST,
     port: parsed.DASHBOARD_PORT,
     refreshMs: parsed.DASHBOARD_REFRESH_MS,
+    researchRefreshMs: parsed.RESEARCH_REFRESH_MS,
     riskGateMaxSnapshotAgeSeconds: parsed.RISK_GATE_MAX_SNAPSHOT_AGE_SECONDS,
     riskGateMaxCanonicalityAgeSeconds:
       parsed.RISK_GATE_MAX_CANONICALITY_AGE_SECONDS,
