@@ -13,8 +13,27 @@ const commands={
  'conc-liq-perp-reference.service':['perp-reference snapshot','perp-basis --rwa NVDA --fee 500'],
  'conc-liq-accounting.service':['accounting --if-new-source','principal --if-available','nft --if-configured','backtest --if-available','action-cost --lookback-blocks 50000 --max-per-class 25'],
 };
+// Units this renderer does not own, with the reason it does not. A release
+// identity is not the right thing to stamp on either of them: the adaptive
+// paper unit is a placeholder template that also needs a per-session state
+// path, and telemetry retention deliberately runs from the source checkout.
+// Rewriting them here would silently repoint a service the operator manages
+// by another route.
+const excluded={
+ 'conc-liq-adaptive-paper.service':'placeholder template; substitute @RELEASE@, @ENV@ and @STATE@ per session, as ops/experiments does',
+ 'conc-liq-telemetry-retention.service':'source-checkout maintenance that carries no release identity',
+ 'conc-liq-telemetry-retention.timer':'schedules a unit this renderer does not own',
+};
+const units=readdirSync('ops').filter(f=>f.endsWith('.service') || f.endsWith('.timer'));
+// Both lists name real files, so a renamed or deleted unit cannot leave a stale
+// entry behind that quietly stops being rendered against the new release.
+for(const name of [...Object.keys(commands),...Object.keys(excluded)])if(!units.includes(name))throw Error(`Declared unit is missing from ops/: ${name}`);
 mkdirSync(output,{recursive:true});
-for(const file of readdirSync('ops').filter(f=>f.endsWith('.service') || f.endsWith('.timer'))){
+const rendered=[],skipped={};
+for(const file of units){
+ // An unlisted unit still fails: a new service must be classified before a
+ // deployment can render it.
+ if(excluded[file]){skipped[file]=excluded[file];continue;}
  let text=readFileSync(join('ops',file),'utf8');
  if(file.endsWith('.service')){
   if(!commands[file])throw Error(`Unknown service: ${file}`);
@@ -25,5 +44,6 @@ for(const file of readdirSync('ops').filter(f=>f.endsWith('.service') || f.endsW
   if(index!==commands[file].length)throw Error(`Missing commands: ${file}`);
  }
  writeFileSync(join(output,file),text);
+ rendered.push(file);
 }
-console.log(JSON.stringify({output:resolve(output),installed:false}));
+console.log(JSON.stringify({output:resolve(output),installed:false,rendered:rendered.sort(),skipped}));

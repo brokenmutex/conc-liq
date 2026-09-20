@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T11:34:26.870Z",
+  "generatedAt": "2026-09-20T13:43:05.989Z",
   "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
   "layoutPolicy": "Frozen top-level scripts remain at their recorded paths as legacy reproduction material. New recurring tooling belongs in an owned subdirectory.",
   "entries": [
@@ -596,8 +596,8 @@
       "path": "scripts/render-release-units.mjs",
       "category": "operations",
       "lifecycle": "supported_operations",
-      "sha256": "7d2edaddc3e7eb53a675050ff5b0b2ad934288d2bf67ac970b9527d43cb20e60",
-      "bytes": 2034
+      "sha256": "43517eb8217cbedc0ebca290784f215949dcd704b41b06781fdecec9100dbdca",
+      "bytes": 3364
     },
     {
       "path": "scripts/replay-offhours-caps.mjs",
