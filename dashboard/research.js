@@ -31,6 +31,17 @@ const COLUMNS = [
   ['gate', 'Gate-valid', true],
 ];
 
+/**
+ * Pool depth read as money: the USDG a reference position of the same width
+ * would have to deploy to hold that much liquidity. Null when the pool has no
+ * sizing to scale against, and the axis then falls back to raw L.
+ */
+function depthQuote(liquidity, reference, budgetQuote) {
+  const referenceLiquidity = Number(reference?.liquidity ?? 0);
+  if (!(referenceLiquidity > 0) || !Number.isFinite(liquidity)) return null;
+  return liquidity / referenceLiquidity * (Number(budgetQuote) / 1e6);
+}
+
 /** Three horizontal gridlines with a left-hand value label on each. */
 function yAxis({ width, height, padding }, label) {
   return [0, 0.5, 1].map((fraction) => {
@@ -132,8 +143,10 @@ function renderTable(rows) {
 }
 
 /** Step curve of active liquidity by tick, with spot and the reference band. */
-function depthChart(pool, halfWidthTicks) {
+function depthChart(pool, widthIndex, budgetQuote) {
   const points = pool.depth;
+  const reference = pool.depthReferences?.[widthIndex] ?? null;
+  const halfWidthTicks = reference?.halfWidthTicks ?? pool.tickSpacing;
   const geometry = { width: 520, height: 230, padding: { top: 12, right: 14, bottom: 26, left: 54 } };
   const { width, height, padding } = geometry;
   if (points.length < 2) return `<svg class="chart" viewBox="0 0 ${width} ${height}"></svg>`;
@@ -152,8 +165,12 @@ function depthChart(pool, halfWidthTicks) {
   const bandLow = Math.max(low, base - halfWidthTicks), bandHigh = Math.min(high, base + halfWidthTicks);
   const xAxis = [low, Math.round((low + high) / 2), high].map((tick) =>
     `<text x="${x(tick)}" y="${height - 8}" text-anchor="middle" fill="#91a0b2" font-size="10">${money(priceAtTick(pool, tick), 2)}</text>`).join('');
-  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Active liquidity by price for ${esc(pool.rwaSymbol)}, peak ${si(peak)}">
-    ${yAxis(geometry, (fraction) => si(peak * fraction))}
+  const scale = (value) => {
+    const quote = depthQuote(value, reference, budgetQuote);
+    return quote === null ? si(value) : compact(quote);
+  };
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Depth by price for ${esc(pool.rwaSymbol)}, peak ${scale(peak)} USDG at the selected width, raw liquidity ${si(peak)}">
+    ${yAxis(geometry, (fraction) => scale(peak * fraction))}
     <rect x="${x(bandLow)}" y="${padding.top}" width="${Math.max(1, x(bandHigh) - x(bandLow))}" height="${height - padding.top - padding.bottom}" fill="#69debd" opacity=".12"/>
     <path d="${path}" fill="#96acff" opacity=".28"/>
     <path d="${path}" fill="none" stroke="#96acff" stroke-width="1.2"/>
@@ -206,16 +223,17 @@ function renderDetail(rows) {
   const row = rows.find((entry) => entry.pool.poolAddress === state.pool) ?? rows[0];
   if (row === undefined) { $('#detail').innerHTML = ''; return; }
   const pool = row.pool, reference = row.reference;
-  const halfWidth = reference?.halfWidthTicks ?? pool.tickSpacing;
+  const depthReference = pool.depthReferences?.[state.width] ?? null;
+  const peakLiquidity = Math.max(...pool.depth.map((point) => Number(point.liquidity)), 0);
   $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2>
       <span class="badge">${money(priceAtTick(pool, pool.tick), 2)} USDG</span>
       <span class="badge">tick ${pool.tick}</span>
       <span class="badge">spacing ${pool.tickSpacing}</span></div>
     <div class="charts">
       <div class="chart-card"><h3>Liquidity by price</h3>
-        <p>Active liquidity across initialized ticks, now. The band is a ±${reference ? reference.halfWidthPercent.toFixed(2) : '—'}% range placed at the current price.</p>
-        ${depthChart(pool, halfWidth)}
-        <div class="legend"><span><i class="sw-depth"></i>Active liquidity · L (left)</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
+        <p>Competing liquidity across initialized ticks, now, priced as the USDG a ±${depthReference ? depthReference.halfWidthPercent.toFixed(2) : '—'}% position would deploy to match it. The band is that range at the current price; peak depth is ${si(peakLiquidity)} raw liquidity.</p>
+        ${depthChart(pool, state.width, snapshot.budgetQuote)}
+        <div class="legend"><span><i class="sw-depth"></i>Depth · USDG at ±${depthReference ? depthReference.halfWidthPercent.toFixed(2) : '—'}% (left)</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
       </div>
       <div class="chart-card"><h3>Hourly fees and price</h3>
         <p>Fees the whole pool charged each hour, against the pool price. Selected window.</p>

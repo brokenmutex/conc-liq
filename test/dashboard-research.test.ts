@@ -69,9 +69,14 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick, si, yAxis });"
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote });"
   ) as {
     si(value: number | null): string;
+    depthQuote(
+      liquidity: number,
+      reference: { liquidity: string } | null,
+      budgetQuote: string,
+    ): number | null;
     yAxis(
       geometry: {
         width: number;
@@ -182,6 +187,17 @@ describe("research view semantics", () => {
       const y = Number(match[1]);
       assert.ok(y >= geometry.padding.top && y <= geometry.height, `label escaped the plot at y=${y}`);
     }
+  });
+
+  it("prices pool depth as the USDG a same-width position would deploy", () => {
+    const reference = { liquidity: "1000000000000000" };
+    // Ten times the reference liquidity costs ten budgets to match.
+    assert.equal(ui.depthQuote(1e16, reference, "1000000000"), 10_000);
+    assert.equal(ui.depthQuote(0, reference, "1000000000"), 0);
+    // Without a sizing to scale against the axis must fall back, not divide.
+    assert.equal(ui.depthQuote(1e16, null, "1000000000"), null);
+    assert.equal(ui.depthQuote(1e16, { liquidity: "0" }, "1000000000"), null);
+    assert.equal(ui.depthQuote(Infinity, reference, "1000000000"), null);
   });
 
   it("inverts the tick-to-price direction when USDG is token0", () => {

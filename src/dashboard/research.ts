@@ -89,6 +89,17 @@ export interface ResearchDepthPoint {
   readonly liquidity: string;
 }
 
+/**
+ * The budget's liquidity at each half-width, sized at the pool's current price.
+ * The depth curve is current state, so it cannot be read against the window
+ * references, which are sized at the price the window opened at.
+ */
+export interface ResearchDepthReference {
+  readonly halfWidthTicks: number;
+  readonly halfWidthPercent: number;
+  readonly liquidity: string;
+}
+
 export interface ResearchPool {
   readonly poolAddress: string;
   readonly rwaSymbol: string;
@@ -103,6 +114,7 @@ export interface ResearchPool {
   readonly series: readonly ResearchHour[];
   readonly windows: readonly ResearchWindowSummary[];
   readonly depth: readonly ResearchDepthPoint[];
+  readonly depthReferences: readonly ResearchDepthReference[];
 }
 
 export interface ResearchCosts {
@@ -140,6 +152,32 @@ export function depthCurve(
     active += entry.liquidityNet;
     return { tick: entry.tick, liquidity: active.toString() };
   });
+}
+
+/** The budget's liquidity for one half-width, centred on a tick. */
+function referenceSizing(
+  pool: { readonly token0: string; readonly token1: string },
+  tickSpacing: number,
+  centreTick: number,
+  sqrtPriceX96: bigint,
+  fraction: number,
+): { halfWidthTicks: number; halfWidthPercent: number; liquidity: bigint } {
+  const halfWidthTicks = halfWidthTicksForFraction(fraction, tickSpacing);
+  const base = Math.floor(centreTick / tickSpacing) * tickSpacing;
+  const size = sizeLiquidityForQuoteBudget({
+    budgetQuote: RESEARCH_BUDGET_QUOTE,
+    quoteToken: USDG,
+    sqrtPriceX96,
+    tickLower: base - halfWidthTicks,
+    tickUpper: base + halfWidthTicks,
+    token0: pool.token0,
+    token1: pool.token1,
+  });
+  return {
+    halfWidthTicks,
+    halfWidthPercent: (Math.exp(halfWidthTicks * TICK_LOG) - 1) * 100,
+    liquidity: size.liquidity,
+  };
 }
 
 /** Grid-aligned half-width in ticks for a target price fraction. */
@@ -351,16 +389,15 @@ function summarizeWindow(
   if (entry?.tickLast != null && entry.sqrtPriceX96 != null) {
     const base = Math.floor(entry.tickLast / tickSpacing) * tickSpacing;
     for (const fraction of RESEARCH_HALF_WIDTH_FRACTIONS) {
-      const halfWidthTicks = halfWidthTicksForFraction(fraction, tickSpacing);
-      const size = sizeLiquidityForQuoteBudget({
-        budgetQuote: RESEARCH_BUDGET_QUOTE,
-        quoteToken: USDG,
-        sqrtPriceX96: entry.sqrtPriceX96,
-        tickLower: base - halfWidthTicks,
-        tickUpper: base + halfWidthTicks,
-        token0: pool.token0,
-        token1: pool.token1,
-      });
+      const sized = referenceSizing(
+        pool,
+        tickSpacing,
+        entry.tickLast,
+        entry.sqrtPriceX96,
+        fraction,
+      );
+      const { halfWidthTicks } = sized;
+      const size = { liquidity: sized.liquidity };
       let inRangeHours = 0;
       let modeledFeesQuote = 0n;
       for (const [index, hour] of slice.entries()) {
@@ -385,7 +422,7 @@ function summarizeWindow(
         : modeledFeesQuote - roundTripQuote;
       references.push({
         halfWidthTicks,
-        halfWidthPercent: (Math.exp(halfWidthTicks * TICK_LOG) - 1) * 100,
+        halfWidthPercent: sized.halfWidthPercent,
         liquidity: size.liquidity.toString(),
         sharePpm: size.liquidity + meanLiquidity > 0n
           ? Number(
@@ -605,6 +642,20 @@ export async function readResearch(
       depth: curve.filter((point) =>
         Math.abs(point.tick - pool.tick) <= DEPTH_TICK_RADIUS
       ),
+      depthReferences: RESEARCH_HALF_WIDTH_FRACTIONS.map((fraction) => {
+        const sized = referenceSizing(
+          pool,
+          tickSpacing,
+          pool.tick,
+          pool.sqrtPriceX96,
+          fraction,
+        );
+        return {
+          halfWidthTicks: sized.halfWidthTicks,
+          halfWidthPercent: sized.halfWidthPercent,
+          liquidity: sized.liquidity.toString(),
+        };
+      }),
     };
   });
 
