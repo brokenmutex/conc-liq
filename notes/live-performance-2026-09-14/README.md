@@ -19,7 +19,7 @@ The accounting cutoff is block **62,607,582**, hash `0xfeb853e24ca0ece79766e5f72
 
 The fixed benchmark is **155.194454 USDG + 0.432011537030058711 NVDA**, retained after the campaign's first successful swap at 14:46:19 UTC on September 12. It is not a dynamically rebalanced benchmark or the composition of every subsequent mint. Differences in stock exposure therefore contribute to alpha; the entire shortfall must not be described as impermanent loss. NAV excludes the **49.927111 USDG reserve** and subtracts gas funded from the separate ETH balance. Fees are already included in NAV; gas is deducted once. Future withdrawal/liquidation costs are unavailable, so this is marked NAV, not a realizable cash-exit quote.
 
-![Live NAV, passive inventory, fees and gas](performance.png)
+![Live NAV, passive inventory, fees and gas](performance.svg)
 
 Fee income, measured by changes in cumulative collected and claimable token fees and valued at each observation's pool spot, totals **3.150421 USDG**. The actual fee-token counters are **1.281251 USDG + 0.007024941453403963 NVDA collected**, plus **0.150623 USDG + 0.000955778867583025 NVDA claimable**. Revaluing all those historical token amounts at the terminal pool spot gives **3.146983 USDG**; claimable fees alone are **0.356026 USDG**. The small difference between accrued-value income and terminal-value fees is valuation, not missing fees. No fee-counter regression beyond one raw unit was found.
 

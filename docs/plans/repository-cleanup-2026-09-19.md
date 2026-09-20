@@ -639,3 +639,6 @@ Implementation checkpoint:
   records both sides by byte length and SHA-256 and verifies each removed PDF
   against the tagged pre-cleanup commit. Original frozen renderers remain
   unchanged for historical study reproduction.
+- The two remaining tracked PNG/SVG chart pairs were visually checked through
+  a browser render. Their reports now embed the smaller scalable SVGs, and the
+  redundant PNGs are covered by the same verified presentation ledger.

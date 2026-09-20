@@ -10,7 +10,7 @@ All observations, execution runs, policy hashes, runtime identities, source hash
 
 Closed trades earned **10.018826 USDG** in reported fee value, paid **18.381092 USDG** in estimated gas and lost **8.737653 USDG** to entry/exit execution relative to source pool-price marks. Only sessions 7 and 12 earned fees exceeding gas; session 7 still lost heavily to price and inventory effects. Median holding time was **23.68 minutes**.
 
-![Campaign NAV and completed-trade decomposition](performance.png)
+![Campaign NAV and completed-trade decomposition](performance.svg)
 
 ## Every session
 

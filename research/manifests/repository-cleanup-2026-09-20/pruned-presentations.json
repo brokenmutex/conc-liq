@@ -52,6 +52,20 @@
       "sha256": "bfb3835906b75ce1fc7fb30d3b5829712c685bd7bd2a99429815ddccfe62bc10",
       "class": "redundant_presentation",
       "retainedSibling": {"path":"notes/lp-hours-and-allocation-2026-09-10/tick-excursions.png","bytes":182014,"sha256":"589cc170db00ad056f3ce46cb5689ec9eda5d6b7309f8d293c3475cb881d331a"}
+    },
+    {
+      "path": "notes/live-performance-2026-09-14/performance.png",
+      "bytes": 176444,
+      "sha256": "8eec533bf0343f913273f615c4b9639942c96fb584cae94a085978e521838f0d",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/live-performance-2026-09-14/performance.svg","bytes":160678,"sha256":"3140e64dce129c34270bac1b7872e53b93b1a82c24de4f2051fb07923cba9ec7"}
+    },
+    {
+      "path": "notes/paper-performance-2026-09-09/performance.png",
+      "bytes": 198101,
+      "sha256": "054c90b4e0903828b7f68e414200fdc42876172587eb87523c9971dfbc4ddcf6",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/paper-performance-2026-09-09/performance.svg","bytes":119131,"sha256":"cc9552f11b8251433beef50adc7dbce65a142ace906eeefa7e7e448a97b8ef55"}
     }
   ]
 }
