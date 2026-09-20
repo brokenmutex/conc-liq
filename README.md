@@ -27,6 +27,7 @@ See:
 - [research register](docs/research/index.md)
 - [runtime architecture](docs/architecture/runtime.md)
 - [live-pilot runbook](docs/operations/live-pilot.md)
+- [telemetry retention](docs/operations/telemetry-retention.md)
 - [incident invariants](docs/incidents/index.md)
 - [cleanup implementation plan](docs/plans/repository-cleanup-2026-09-19.md)
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Prune conc-liq duplicated telemetry blobs daily
+
+[Timer]
+# Off the hour, so it does not contend with the hourly accounting run.
+OnCalendar=*-*-* 04:20:00
+AccuracySec=5min
+Persistent=true
+Unit=conc-liq-telemetry-retention.service
+
+[Install]
+WantedBy=timers.target

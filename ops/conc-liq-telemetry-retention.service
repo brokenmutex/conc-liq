@@ -1,0 +1,24 @@
+# Source-checkout maintenance, not a sealed-release unit. The job issues only
+# SQL against columns that have been stable since migration 1, computes no
+# measurement and writes no research output, so it carries no release identity.
+# It refuses any database whose migration history is not exactly 1,2,3.
+[Unit]
+Description=conc-liq telemetry retention for duplicated evidence blobs
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/root/conc-liq
+EnvironmentFile=/root/conc-liq/.env
+Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/root/conc-liq/.tools/node/bin/node scripts/maintenance/prune-telemetry.mjs --retain-days 7
+# One day of arrears is ~43k checkpoint and ~31k asset rows; batching keeps each
+# transaction bounded, and the trailing VACUUM is the slowest step.
+TimeoutStartSec=30min
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
