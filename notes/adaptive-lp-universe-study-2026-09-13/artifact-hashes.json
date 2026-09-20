@@ -1,7 +1,6 @@
 {
   "artifacts": {
     "README.md": "2299d509f78fc75440f547bc817ac57d467592363adfa70b36ada1409d36424f",
-    "adaptive-vs-fixed40.pdf": "48827ba72d6477f13560221c3efe7b8690d51378d47241a258cc624145b2e477",
     "adaptive-vs-fixed40.png": "3f21540468db5134b6269abd6cd2e425b98178d66d71121c7dc8a23151527885",
     "availability.csv": "787cbc8380944e51ff86aed5895ecf4aef1f9862a3ee71c6995b43b0996832f6",
     "capacity.csv": "a5cbef30ef2fdcdb2482286d1a3aeeeea0cfb993d739ba5629f969b27cd66136",
@@ -9,7 +8,6 @@
     "capture.json": "b2194e4faaefaa10466b7af6a6f28cfe58b362024b89a1ab810518c575e95175",
     "comparisons.json": "7ea4e5df9f082e71735119f4c4897be134a584eb38c639b5c781daad8e896c68",
     "coverage.json": "99ef86e428021e968f7b49e1dc864d7e1549a02049ac59499931d37588fe7026",
-    "cross-asset-alpha.pdf": "e6081f7799bf8cf10aba713f9ccf2c3c12d465f43b55cdf6dad0b30c76d1a13e",
     "cross-asset-alpha.png": "fab992bd13c6fa9805ab20ca66eaaedca850144e2e816969895f57265ae59381",
     "evidence-amendment.json": "f9f1aec3aa056ec5456cc722a3be15e0a2be08d76ca2ed10cf5ad5ff9f61b4c9",
     "execution-manifests.json": "f779948feda4133b8edeabafa7af7bc2dd1533d7d8106d50ce4921ab675c3f11",

@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "id": "redundant-presentations-2026-09-20",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "policy": "Remove alternate PDF renderings when the checked-in report uses an equivalent retained PNG.",
+  "artifacts": [
+    {
+      "path": "notes/adaptive-lp-agility-2026-09-14/agility-comparison.pdf",
+      "bytes": 28869,
+      "sha256": "0fe8dd4d78dd71fccb2eecb9fad102982f93cbc73532653d2cb61bdef12188c4",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-agility-2026-09-14/agility-comparison.png","bytes":218623,"sha256":"453ed7a1378fc725a514fc345de9be3d6d2df99c2d592d8ec527ce32bd5106e5"}
+    },
+    {
+      "path": "notes/adaptive-lp-long-study-2026-09-13/capacity-alpha.pdf",
+      "bytes": 26887,
+      "sha256": "e6126aa42a6a2027cd4f224ada6b0e2322eb236ade815b47040317da0d2a035b",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-long-study-2026-09-13/capacity-alpha.png","bytes":188318,"sha256":"0b7ebe2bd4e96b55f2da0e3ad57ad8e38bf5a9a66f801908b1a070186a7e12db"}
+    },
+    {
+      "path": "notes/adaptive-lp-long-study-2026-09-13/weekly-alpha.pdf",
+      "bytes": 25746,
+      "sha256": "eb6e6a09c5021ea4da0c40ea639b07a65ea2e635a610d07d350bb15e5db0ca05",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-long-study-2026-09-13/weekly-alpha.png","bytes":214932,"sha256":"0fdd6861eb4e728787acd1a6a192f01133e02a012aaf5bc66f4b72215e3eebe7"}
+    },
+    {
+      "path": "notes/adaptive-lp-study-2026-09-13/net-alpha.pdf",
+      "bytes": 21850,
+      "sha256": "0b70763342efdced0a617645488cd103507f5ce2bb0f6e8e70fabe729c18a0b4",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-study-2026-09-13/net-alpha.png","bytes":106880,"sha256":"84652f83a8c792306629377d2d017905ed4fb2509bf689bed222ef3fa8a6e6db"}
+    },
+    {
+      "path": "notes/adaptive-lp-universe-study-2026-09-13/adaptive-vs-fixed40.pdf",
+      "bytes": 53673,
+      "sha256": "48827ba72d6477f13560221c3efe7b8690d51378d47241a258cc624145b2e477",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-universe-study-2026-09-13/adaptive-vs-fixed40.png","bytes":171398,"sha256":"3f21540468db5134b6269abd6cd2e425b98178d66d71121c7dc8a23151527885"}
+    },
+    {
+      "path": "notes/adaptive-lp-universe-study-2026-09-13/cross-asset-alpha.pdf",
+      "bytes": 59236,
+      "sha256": "e6081f7799bf8cf10aba713f9ccf2c3c12d465f43b55cdf6dad0b30c76d1a13e",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/adaptive-lp-universe-study-2026-09-13/cross-asset-alpha.png","bytes":200613,"sha256":"fab992bd13c6fa9805ab20ca66eaaedca850144e2e816969895f57265ae59381"}
+    },
+    {
+      "path": "notes/lp-hours-and-allocation-2026-09-10/tick-excursions.pdf",
+      "bytes": 24741,
+      "sha256": "bfb3835906b75ce1fc7fb30d3b5829712c685bd7bd2a99429815ddccfe62bc10",
+      "class": "redundant_presentation",
+      "retainedSibling": {"path":"notes/lp-hours-and-allocation-2026-09-10/tick-excursions.png","bytes":182014,"sha256":"589cc170db00ad056f3ce46cb5689ec9eda5d6b7309f8d293c3475cb881d331a"}
+    }
+  ]
+}

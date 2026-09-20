@@ -633,3 +633,9 @@ Implementation checkpoint:
   verifies every removed blob against the tagged pre-cleanup commit. The eleven
   normalized result digests remain replayable without retaining generated JSON
   in the working tree.
+- All seven tracked PDF charts were redundant alternate renderings and have
+  been removed while their referenced PNG siblings remain. The cleanup ledger
+  at `research/manifests/repository-cleanup-2026-09-20/pruned-presentations.json`
+  records both sides by byte length and SHA-256 and verifies each removed PDF
+  against the tagged pre-cleanup commit. Original frozen renderers remain
+  unchanged for historical study reproduction.

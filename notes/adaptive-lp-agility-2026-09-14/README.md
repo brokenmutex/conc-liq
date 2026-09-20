@@ -103,4 +103,4 @@ PATH="$PWD/.tools/node/bin:$PATH" node --import tsx --import ./scripts/lp-tick-m
 python3 scripts/report-agile-lp.py data/agility-reproduction
 ```
 
-Artifacts: [plan](plan.json), [summary and provenance](summary.json), [all 72 results](results.csv), [comparison chart](agility-comparison.png), [PDF chart](agility-comparison.pdf). CSV monetary fields ending in `Quote` are integer micro-USDG; percentage fields are in percent. Large canonical event slices and action ledgers remain under `data/adaptive-lp-agility-2026-09-14/`.
+Artifacts: [plan](plan.json), [summary and provenance](summary.json), [all 72 results](results.csv), and the [comparison chart](agility-comparison.png). CSV monetary fields ending in `Quote` are integer micro-USDG; percentage fields are in percent. Large canonical event slices and action ledgers remain under `data/adaptive-lp-agility-2026-09-14/`.
