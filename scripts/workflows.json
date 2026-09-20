@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-20T07:44:12.343Z",
+  "generatedAt": "2026-09-20T11:34:26.870Z",
   "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
   "layoutPolicy": "Frozen top-level scripts remain at their recorded paths as legacy reproduction material. New recurring tooling belongs in an owned subdirectory.",
   "entries": [
@@ -106,8 +106,8 @@
       "path": "scripts/build-release.mjs",
       "category": "operations",
       "lifecycle": "supported_operations",
-      "sha256": "df0727e256d306f2693870f8af782ed1c9120059340d660cac3c28b204677366",
-      "bytes": 3032
+      "sha256": "8952c0a6dfad879b9d2bda79e021674ace14e42f17fc54efc1f9b3a9a95f7571",
+      "bytes": 5424
     },
     {
       "path": "scripts/capture-adaptive-lp-long.mjs",
