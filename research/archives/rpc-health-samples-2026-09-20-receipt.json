@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "subject": "rpc_health_samples",
+  "reason": "Retention prune of an operational telemetry table that is not covered by any study archive but is read without a time bound by the W4.3 evidence query.",
+  "createdAt": "2026-09-20T08:08:00Z",
+  "source": {
+    "database": "conc_liq",
+    "table": "public.rpc_health_samples",
+    "rows": 134845,
+    "observedAtFirst": "2026-09-04T15:23:56.305Z",
+    "observedAtLast": "2026-09-20T08:05:06.681Z",
+    "tool": "pg_dump --table=public.rpc_health_samples --format=plain --no-owner --no-privileges"
+  },
+  "archive": {
+    "fileName": "7298a86228c2c848a320d065406267d1a26154cbc229d82d3ecd275ff1a018e5.sql.zst",
+    "storagePath": "archive/7298a86228c2c848a320d065406267d1a26154cbc229d82d3ecd275ff1a018e5.sql.zst",
+    "bytes": 28709571,
+    "sha256": "7298a86228c2c848a320d065406267d1a26154cbc229d82d3ecd275ff1a018e5",
+    "uncompressedBytes": 302940252,
+    "uncompressedSha256": "1adfa3e9bc1e0073c26f42cd6f07155408d0e606c5c9cd38b0914bc2363ec2d4",
+    "compression": "zstd-19",
+    "storageClass": "user_approved_same_host_untracked_archive",
+    "durable": false,
+    "independentlyStored": false
+  },
+  "restoreVerification": {
+    "verifiedAt": "2026-09-20T08:08:00Z",
+    "method": "restored into a scratch database created by sudo-postgres, then compared md5(string_agg(row::text ORDER BY id)) against the source over the identical observed_at window",
+    "temporaryDatabase": "conc_liq_health_restore_check",
+    "restoredRows": 134845,
+    "contentDigest": "30bb8017ccf9cfcacf5193f282dd2358",
+    "sourceDigest": "30bb8017ccf9cfcacf5193f282dd2358",
+    "identical": true,
+    "droppedAfterVerification": true
+  },
+  "consumers": {
+    "runtimeReadsBoundedTo": "6-16 minutes (paper executor, store, recovery, live-pilot guard, dashboard, canary plan)",
+    "unboundedReaders": [
+      "research/evidence/strategy-redesign-2026-09-18/w4-health-distributions-original.sql queries 1-3 scan the whole table",
+      "scripts/paper-performance-audit.mjs accepts an arbitrary [from, asOf] window"
+    ],
+    "foreignKeys": ["guarded_canary_plan_runs.rpc_health_sample_id (0 rows)"]
+  },
+  "pruningAuthorized": false,
+  "limitations": [
+    "The archive directory is on the same host and disk as the source database and is not tracked by Git.",
+    "Pruning the live table changes the results of the W4.3 unbounded queries when re-run against conc_liq; the archive is then the only source that reproduces the published figures."
+  ]
+}
