@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "studyId": "active-lp-size-sweep-2026-09-07",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "reproduction": {
+    "verifiedAt": "2026-09-20T07:29:28Z",
+    "command": ".tools/node/bin/node --import tsx scripts/lp-research.mjs sizes --input data/lp-research-2026-09-07/source.jsonl.gz --timestamps data/lp-research-2026-09-07/size-sweep-timestamps.json --selection notes/active-lp-research-2026-09-07/size-sweep-selection.json --output <new-output>.json",
+    "inputs": [
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz","bytes":261824861,"sha256":"103b6fce486124c75221389141c7c08c61faa18314637dc91d9b55bf5ee3ff1c","class":"ignored_unique_input"},
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz.sha256","bytes":65,"sha256":"e17262930504be6e064693a42dcde5c3d9c259740dca14d317ed4173042cb60f","class":"ignored_input_digest"},
+      {"path":"data/lp-research-2026-09-07/size-sweep-timestamps.json","bytes":1784620,"sha256":"88595db4707df74a6b8a278bf2a19565f4bd28c89cd0883fdd7921fc3d95947a","class":"ignored_frozen_input"},
+      {"path":"notes/active-lp-research-2026-09-07/size-sweep-selection.json","bytes":1020,"sha256":"21d9ed1d42e9f7361f5e63cf707ccaac502c99c1d2d2297a143f5d3d6dd5ad60","class":"tracked_selection"},
+      {"path":"scripts/lp-research.mjs","bytes":27178,"sha256":"db48d7adfd3d610b7bcf6a6bbfbc4941f23a79200716225fa48e95c5591ef7e8","class":"tracked_runner"}
+    ],
+    "result": {
+      "bytes": 1067313,
+      "sha256": "1ecb27381785b8b62ae16a2a905c5d72cd92520febbb3d8a1ad5934136b43e96",
+      "normalizedSha256": "1ecb27381785b8b62ae16a2a905c5d72cd92520febbb3d8a1ad5934136b43e96",
+      "matches": true,
+      "comparison": "byte_identical"
+    }
+  },
+  "artifacts": [
+    {
+      "path": "notes/active-lp-research-2026-09-07/size-sweep-v1.json",
+      "bytes": 1067313,
+      "sha256": "1ecb27381785b8b62ae16a2a905c5d72cd92520febbb3d8a1ad5934136b43e96",
+      "class": "verified_deterministic_derivative",
+      "replacement": "compact run manifest, frozen selection, economic-gap summary, conclusion, and byte-identical file-only replay"
+    }
+  ]
+}

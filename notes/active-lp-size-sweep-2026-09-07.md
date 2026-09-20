@@ -47,7 +47,8 @@ Every economic result remains unavailable: net alpha in USDG/percent, drawdown, 
 
 - [Frozen window and size selection](active-lp-research-2026-09-07/size-sweep-selection.json)
 - [Run manifest](active-lp-research-2026-09-07/size-sweep-v1.json.manifest.json)
-- [All 224 results and placement/segment distributions](active-lp-research-2026-09-07/size-sweep-v1.json)
+- Full output recovery and the byte-identical replay receipt are recorded in
+  `research/manifests/active-lp-size-sweep-2026-09-07/pruned-artifacts.json`.
 - [Current economic gaps and historical reference probe](active-lp-research-2026-09-07/size-sweep-economic-gaps.json)
 
 The source snapshot is unchanged from the [first historical milestone](active-lp-historical-milestone-2026-09-07.md). The timestamp file is `data/lp-research-2026-09-07/size-sweep-timestamps.json`; its SHA-256 is `88595db4707df74a6b8a278bf2a19565f4bd28c89cd0883fdd7921fc3d95947a`. The run manifest also fingerprints the original source and frozen selection.

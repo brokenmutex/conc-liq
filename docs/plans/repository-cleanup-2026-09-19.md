@@ -652,3 +652,6 @@ Implementation checkpoint:
   frozen source with its corrected selection. Both its result and compact
   manifest were byte-identical. The full derivative was removed while its
   conclusion, compact manifest, exact inputs, and replay receipt remain.
+- The 1.02 MiB seven-size geometry sweep also reproduced byte-for-byte,
+  including all 224 candidates and 28 exclusions. Its full derivative was
+  removed under the same checked input and historical-recovery contract.
