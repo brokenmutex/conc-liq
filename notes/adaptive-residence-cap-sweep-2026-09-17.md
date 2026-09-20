@@ -3,6 +3,7 @@
 Date documented: 2026-09-17  
 Strategy version: `adaptive_paper_60m_v1` (`config/adaptive-paper-60m.json`)  
 Session state: `data/adaptive-paper-60m-2026-09-16/state.json`  
+Inputs cleared 2026-09-20: `data/adaptive-paper-60m-2026-09-16/` was deleted (untracked, not archived); the session state, snapshots and mark streams cited here are no longer on disk.  
 Deployed release: `ed9a77be0a0c15bf7e3c4fc1d79e8d3ad8a10bb70081888c989483c47f8857cf` (occupancy correction, from 2026-09-17 08:45:48 UTC; previously `f602f6a12a6ce8cf3b56427539a77ac8d90f23d7813f4097811ebcad4b0c1048`)  
 Documented source commit: `56e5d04`  
 Evidence directory: `notes/adaptive-residence-cap-sweep-2026-09-17/`  
@@ -298,3 +299,6 @@ python3 notes/adaptive-residence-cap-sweep-2026-09-17/compare.py
 Both scripts read the local database directly and import the compiled
 strategy from the release directory (`CONC_LIQ_RELEASE` overrides the path).
 They never write to the database or the live session state.
+
+The `state.pre-occupancy-runtime-migration-2026-09-17.json` input was cleared on
+2026-09-20, so the first command above no longer runs as written.

@@ -3,6 +3,7 @@
 Date documented: 2026-09-17  
 Strategy version: `adaptive_paper_60m_v1`  
 Session state: `/root/conc-liq/data/adaptive-paper-60m-2026-09-16/state.json`  
+Inputs cleared 2026-09-20: `data/adaptive-paper-60m-2026-09-16/` was deleted (untracked, not archived); the session state, snapshots and mark streams cited here are no longer on disk.  
 Configuration: `config/adaptive-paper-60m.json`  
 Implementation: `src/adaptive-paper.ts`, `src/research/agile-forecast.ts`, `src/research/adaptive-forecast.ts`, and `src/research/adaptive-lp.ts`  
 Documented source commit: `81d2662`  

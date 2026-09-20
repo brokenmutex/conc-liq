@@ -260,6 +260,10 @@ state, status and marks are archived under
 `conc-liq-rpc-health`, and the checkpoint timers — was deliberately left
 running, since history accrual is the binding constraint on every study here.
 
+That archive directory was cleared on 2026-09-20 together with the live 60-minute
+state; the numbers above stand, but the state, status and mark files behind them
+are no longer on disk.
+
 A replacement set was scoped but not started. Two findings bear on it:
 
 - Of the 15 indexed and enabled pools, only three are papered, all on the 500
