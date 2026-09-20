@@ -660,3 +660,10 @@ Implementation checkpoint:
   action ledgers and 160 duplicated 1,000-USDG scenarios; both the JSON report
   and maintained conclusion were byte-identical. The JSON derivative was
   removed while the conclusion and exact replay receipt remain.
+- The 1.58 MiB September 17 adaptive-width replay was audited but retained.
+  A pinned read-only replay against the advanced live database reproduces the
+  complete historical decision prefixes, but adds two later NVDA decisions
+  and one later GOOGL decision and reports larger source row/event counts.
+  Pruning remains blocked until an isolated archive restore reproduces the
+  study with explicit per-asset terminal bounds; those diagnostics must not be
+  normalized away merely because the decision payloads match.
