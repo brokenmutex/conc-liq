@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "studyId": "active-lp-tick-width-2026-09-07",
+  "sourceCommit": "b796052648f3feddd8d368cc987351ab6e55366c",
+  "reproduction": {
+    "verifiedAt": "2026-09-20T07:20:41Z",
+    "command": ".tools/node/bin/node --import tsx scripts/lp-research.mjs ticks --input data/lp-research-2026-09-07/source.jsonl.gz --timestamps data/lp-research-2026-09-07/size-sweep-timestamps.json --selection notes/active-lp-research-2026-09-07/tick-width-selection.json --output <new-output>.json",
+    "inputs": [
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz","bytes":261824861,"sha256":"103b6fce486124c75221389141c7c08c61faa18314637dc91d9b55bf5ee3ff1c","class":"ignored_unique_input"},
+      {"path":"data/lp-research-2026-09-07/source.jsonl.gz.sha256","bytes":65,"sha256":"e17262930504be6e064693a42dcde5c3d9c259740dca14d317ed4173042cb60f","class":"ignored_input_digest"},
+      {"path":"data/lp-research-2026-09-07/size-sweep-timestamps.json","bytes":1784620,"sha256":"88595db4707df74a6b8a278bf2a19565f4bd28c89cd0883fdd7921fc3d95947a","class":"ignored_frozen_input"},
+      {"path":"notes/active-lp-research-2026-09-07/tick-width-selection.json","bytes":1003,"sha256":"a02ecf7597d35cdae1908412c83338e50c5f73fbfd80b4d6a1ac72cfebfe5d6f","class":"tracked_selection"},
+      {"path":"scripts/lp-research.mjs","bytes":27178,"sha256":"db48d7adfd3d610b7bcf6a6bbfbc4941f23a79200716225fa48e95c5591ef7e8","class":"tracked_runner"}
+    ],
+    "result": {
+      "bytes": 5815668,
+      "sha256": "0a78ed5a51d090c3e65883a817dbeb4063713dacf2988ab4bf826d0ee818dbda",
+      "normalizedSha256": "e5374e3291f390f211d575e50606dd25e9e41f41f8a4fe35d5a23a83a15ba2bb",
+      "matches": true
+    }
+  },
+  "artifacts": [
+    {
+      "path": "notes/active-lp-research-2026-09-07/tick-width-screen-v1.json",
+      "bytes": 5815693,
+      "sha256": "53ff2445279657d1a6e1d4d4f87041f0594b19168c77487fe1a04e56c3594e07",
+      "class": "superseded_deterministic_derivative",
+      "replacement": "compact run manifest, frozen selection, historical conclusion, and verified file-only replay",
+      "normalizedJson": {
+        "ignoredPaths": [["manifest", "widthSelection"]],
+        "sha256": "e5374e3291f390f211d575e50606dd25e9e41f41f8a4fe35d5a23a83a15ba2bb",
+        "rationale": "The current frozen runner changes only the prose description of the already-superseded total-width interpretation; all 140 candidate results and every other manifest field match."
+      }
+    }
+  ]
+}

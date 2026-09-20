@@ -30,7 +30,8 @@ The results establish much higher churn and concentration than the earlier ±2% 
 
 - [Frozen focused selection](active-lp-research-2026-09-07/tick-width-selection.json)
 - [Run manifest](active-lp-research-2026-09-07/tick-width-screen-v1.json.manifest.json)
-- [All 140 results, balances, placements and capacity distributions](active-lp-research-2026-09-07/tick-width-screen-v1.json)
+- Full output recovery and the verified replay receipt are recorded in
+  `research/manifests/active-lp-tick-width-2026-09-07/pruned-artifacts.json`.
 
 Use a new output file:
 

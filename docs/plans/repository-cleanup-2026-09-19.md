@@ -642,3 +642,9 @@ Implementation checkpoint:
 - The two remaining tracked PNG/SVG chart pairs were visually checked through
   a browser render. Their reports now embed the smaller scalable SVGs, and the
   redundant PNGs are covered by the same verified presentation ledger.
+- The superseded 5.6 MiB total-width screen was reproduced from its frozen
+  file-only source, timestamps, selection, and current frozen runner. All 140
+  candidates matched after excluding one declared prose-only manifest field.
+  Its full derivative was removed; the compact original manifest, conclusion,
+  exact inputs, normalized digest, command, and replay receipt remain checked
+  by `research/manifests/active-lp-tick-width-2026-09-07/pruned-artifacts.json`.

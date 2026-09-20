@@ -8,6 +8,12 @@ const root = process.cwd();
 const manifestRoot = join(root, "research/manifests");
 const hex = /^[a-f0-9]{64}$/;
 const manifests = [];
+const canonicalize = value => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
+};
+const digest = bytes => createHash("sha256").update(bytes).digest("hex");
 
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -26,6 +32,28 @@ for (const manifestPath of manifests.sort()) {
   assert.equal(manifest.schemaVersion, 1, `${label}: unsupported schema`);
   assert.match(manifest.sourceCommit, /^[a-f0-9]{40}$/, `${label}: invalid source commit`);
   assert(Array.isArray(manifest.artifacts) && manifest.artifacts.length > 0, `${label}: artifacts missing`);
+  if (manifest.reproduction) {
+    assert.equal(typeof manifest.reproduction.command, "string", `${label}: reproduction command missing`);
+    assert(Array.isArray(manifest.reproduction.inputs), `${label}: reproduction inputs missing`);
+    for (const input of manifest.reproduction.inputs) {
+      assert.equal(typeof input.path, "string", `${label}: reproduction input path missing`);
+      assert(!input.path.startsWith("/") && !input.path.split("/").includes(".."),
+        `${label}: unsafe reproduction input path ${input.path}`);
+      assert(Number.isSafeInteger(input.bytes) && input.bytes >= 0, `${input.path}: invalid input byte length`);
+      assert.match(input.sha256, hex, `${input.path}: invalid input digest`);
+      assert.equal(typeof input.class, "string", `${input.path}: input class missing`);
+      const inputPath = join(root, input.path);
+      assert(existsSync(inputPath) && statSync(inputPath).isFile(), `${input.path}: input is not retrievable`);
+      const bytes = readFileSync(inputPath);
+      assert.equal(bytes.length, input.bytes, `${input.path}: input byte length changed`);
+      assert.equal(digest(bytes), input.sha256, `${input.path}: input digest changed`);
+    }
+    const result = manifest.reproduction.result;
+    assert.equal(result?.matches, true, `${label}: replay result did not match`);
+    assert(Number.isSafeInteger(result.bytes) && result.bytes >= 0, `${label}: replay byte length invalid`);
+    assert.match(result.sha256, hex, `${label}: replay digest invalid`);
+    assert.match(result.normalizedSha256, hex, `${label}: replay normalized digest invalid`);
+  }
   const paths = new Set();
   for (const artifact of manifest.artifacts) {
     assert.equal(typeof artifact.path, "string", `${label}: artifact path missing`);
@@ -43,8 +71,34 @@ for (const manifestPath of manifests.sort()) {
       { encoding: null, maxBuffer: 2 ** 26 });
     assert.equal(historical.status, 0, `${artifact.path}: historical blob is not retrievable from Git`);
     assert.equal(historical.stdout.length, artifact.bytes, `${artifact.path}: historical byte length changed`);
-    assert.equal(createHash("sha256").update(historical.stdout).digest("hex"), artifact.sha256,
+    assert.equal(digest(historical.stdout), artifact.sha256,
       `${artifact.path}: historical digest changed`);
+
+    if (artifact.normalizedJson) {
+      const normalized = artifact.normalizedJson;
+      assert(Array.isArray(normalized.ignoredPaths), `${artifact.path}: ignored JSON paths missing`);
+      assert.match(normalized.sha256, hex, `${artifact.path}: normalized digest invalid`);
+      assert.equal(typeof normalized.rationale, "string", `${artifact.path}: normalization rationale missing`);
+      const value = JSON.parse(historical.stdout.toString("utf8"));
+      for (const ignoredPath of normalized.ignoredPaths) {
+        assert(Array.isArray(ignoredPath) && ignoredPath.length > 0 && ignoredPath.every(Boolean),
+          `${artifact.path}: invalid ignored JSON path`);
+        let parent = value;
+        for (const segment of ignoredPath.slice(0, -1)) {
+          assert(parent && typeof parent === "object" && Object.hasOwn(parent, segment),
+            `${artifact.path}: ignored JSON path is absent`);
+          parent = parent[segment];
+        }
+        const key = ignoredPath.at(-1);
+        assert(parent && typeof parent === "object" && Object.hasOwn(parent, key),
+          `${artifact.path}: ignored JSON key is absent`);
+        delete parent[key];
+      }
+      const normalizedDigest = digest(JSON.stringify(canonicalize(value)));
+      assert.equal(normalizedDigest, normalized.sha256, `${artifact.path}: normalized historical digest changed`);
+      if (manifest.reproduction) assert.equal(manifest.reproduction.result.normalizedSha256, normalizedDigest,
+        `${artifact.path}: replay and historical normalized digests differ`);
+    }
 
     if (artifact.retainedSibling) {
       const sibling = artifact.retainedSibling;
@@ -59,7 +113,7 @@ for (const manifestPath of manifests.sort()) {
         `${artifact.path}: retained sibling is not retrievable`);
       const bytes = readFileSync(siblingPath);
       assert.equal(bytes.length, sibling.bytes, `${sibling.path}: byte length changed`);
-      assert.equal(createHash("sha256").update(bytes).digest("hex"), sibling.sha256,
+      assert.equal(digest(bytes), sibling.sha256,
         `${sibling.path}: digest changed`);
     }
   }
