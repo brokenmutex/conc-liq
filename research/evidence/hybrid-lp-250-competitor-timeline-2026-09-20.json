@@ -1,0 +1,2055 @@
+{
+  "schemaVersion": 1,
+  "id": "hybrid-lp-250-competitor-timeline-2026-09-20",
+  "source": {
+    "analysisSha256": "5233eadf080f0f7f53591dca08c4c69ad194e6ec940eee2e7874c2092040411f",
+    "captureSha256": "5fcb5df0520c1347a5b442b0bb53179adf19d996db467eddc882101002ebc7a3"
+  },
+  "counts": {
+    "cohortPositions": 47,
+    "fullySettled": 35,
+    "retainingLiquidity": 12,
+    "senderTransactionsWithAmcSwaps": 52,
+    "amcSwapEvents": 56
+  },
+  "timeline": [
+    {
+      "hash": "0xcadd5f54d4e0215c3cae76212014d29f3563cc62401598e60a3c95da7fa8a303",
+      "block": 53975719,
+      "at": "2026-09-04T04:20:08.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-299235630348073338386",
+      "amount1": "1000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": null,
+        "after": {
+          "tokenId": "1008723",
+          "kind": "Mint",
+          "hash": "0xe2139b11c516be202af823207d79042d3120008d5431d8d7e817ee04a186c651",
+          "at": "2026-09-04T04:25:31.000Z",
+          "liquidity": "9570293950599232"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xf7894c69d10511080de684785ecb1e7b06bfbf67a51ab5465ccc2ff987a30bf9",
+      "block": 53980022,
+      "at": "2026-09-04T04:27:25.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1448048302782043279530",
+      "amount1": "4702154266",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "9570293950599232"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1008723",
+          "kind": "Mint",
+          "hash": "0xe2139b11c516be202af823207d79042d3120008d5431d8d7e817ee04a186c651",
+          "at": "2026-09-04T04:25:31.000Z",
+          "liquidity": "9570293950599232"
+        },
+        "after": {
+          "tokenId": "1008723",
+          "kind": "Burn",
+          "hash": "0x56fa32141c80a9b063f0ac9235c02f8d9a36a7bdb2d46262e8a65948af09f2ba",
+          "at": "2026-09-04T04:27:46.000Z",
+          "liquidity": "9570293950599232"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x47a86a0a4f5e339961d316799f14bc5460b07886c0e9beb7d7ee51c43faab056",
+      "block": 53981779,
+      "at": "2026-09-04T04:30:24.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1406698541762904063423",
+      "amount1": "4622231324",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "125667442946133853"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1008816",
+          "kind": "Mint",
+          "hash": "0x2088c131cb3499f9162cc0c8823385a938860e78be01b93b845045fe61115edd",
+          "at": "2026-09-04T04:29:03.000Z",
+          "liquidity": "125667442946133853"
+        },
+        "after": {
+          "tokenId": "1008816",
+          "kind": "Mint",
+          "hash": "0x9afa4fa99c299a17e6a9a4c3c3ea2b497e172d71b772401906c9194702398ad8",
+          "at": "2026-09-04T04:30:49.000Z",
+          "liquidity": "113598045841508237"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x3456623611735ac1e92ab1c16662c11392588e5f43815c62ac9c3d52c70fce15",
+      "block": 53989308,
+      "at": "2026-09-04T04:43:05.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 3,
+      "amount0": "574358685460278159763",
+      "amount1": "-1748139196",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "570806073834883429"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x52a29871343914bab5de488906582da72ebfd452048946f307c093851903b37c",
+          "at": "2026-09-04T04:42:41.000Z",
+          "liquidity": "570806073834883429"
+        },
+        "after": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x93b6c2d5cb2b1e7d38505990437390e0765581ec9a2481d9a3f135aea0256666",
+          "at": "2026-09-04T04:43:38.000Z",
+          "liquidity": "570806073834883429"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x1957274f1962478d16df9bb579f0360d71afdee8d5f2107b1af110635c6abf7d",
+      "block": 53989531,
+      "at": "2026-09-04T04:43:28.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "2144002525451566619442",
+      "amount1": "-6407468688",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "570806073834883429"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x52a29871343914bab5de488906582da72ebfd452048946f307c093851903b37c",
+          "at": "2026-09-04T04:42:41.000Z",
+          "liquidity": "570806073834883429"
+        },
+        "after": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x93b6c2d5cb2b1e7d38505990437390e0765581ec9a2481d9a3f135aea0256666",
+          "at": "2026-09-04T04:43:38.000Z",
+          "liquidity": "570806073834883429"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xbaede479241bbe67595416d3585491873bca0899c3b31eb6098efe7380d8e91a",
+      "block": 53989788,
+      "at": "2026-09-04T04:43:54.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "2480370461162685352540",
+      "amount1": "-7411681453",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x93b6c2d5cb2b1e7d38505990437390e0765581ec9a2481d9a3f135aea0256666",
+          "at": "2026-09-04T04:43:38.000Z",
+          "liquidity": "570806073834883429"
+        },
+        "after": {
+          "tokenId": "1009070",
+          "kind": "Mint",
+          "hash": "0x73dc42a5d55b0c98840c2cd3b896e6c74fc6b3a36961ec8dd781042ece18900f",
+          "at": "2026-09-04T04:46:55.000Z",
+          "liquidity": "349699108360074410"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x76f413bb85282096b22c8ccd8af9626042237f1317aefc9093bec81202d25a3d",
+      "block": 53990645,
+      "at": "2026-09-04T04:45:21.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-2260186100046583534448",
+      "amount1": "6830210000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009001",
+          "kind": "Burn",
+          "hash": "0x93b6c2d5cb2b1e7d38505990437390e0765581ec9a2481d9a3f135aea0256666",
+          "at": "2026-09-04T04:43:38.000Z",
+          "liquidity": "570806073834883429"
+        },
+        "after": {
+          "tokenId": "1009070",
+          "kind": "Mint",
+          "hash": "0x73dc42a5d55b0c98840c2cd3b896e6c74fc6b3a36961ec8dd781042ece18900f",
+          "at": "2026-09-04T04:46:55.000Z",
+          "liquidity": "349699108360074410"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x1c858a8325eb088518867235874c06346e59c8abe3c85c10158f552887a9f57c",
+      "block": 53993969,
+      "at": "2026-09-04T04:50:57.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1180726025982824297958",
+      "amount1": "3522580235",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "349699108360074410"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009070",
+          "kind": "Mint",
+          "hash": "0x73dc42a5d55b0c98840c2cd3b896e6c74fc6b3a36961ec8dd781042ece18900f",
+          "at": "2026-09-04T04:46:55.000Z",
+          "liquidity": "349699108360074410"
+        },
+        "after": {
+          "tokenId": "1009070",
+          "kind": "Mint",
+          "hash": "0x0537fb7186ad1e4247a2ac4d1522561fc910e212f78bbad5d7cdeecb510e8f98",
+          "at": "2026-09-04T04:51:11.000Z",
+          "liquidity": "274955089470288355"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x693c8bb4452ced51315c0855e0f6d53a237e67ef29b3ef3208533cc7c29888e6",
+      "block": 53994506,
+      "at": "2026-09-04T04:51:52.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1746762716450869314726",
+      "amount1": "5208832297",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "624654197830362765"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009070",
+          "kind": "Mint",
+          "hash": "0x0537fb7186ad1e4247a2ac4d1522561fc910e212f78bbad5d7cdeecb510e8f98",
+          "at": "2026-09-04T04:51:11.000Z",
+          "liquidity": "274955089470288355"
+        },
+        "after": {
+          "tokenId": "1009189",
+          "kind": "Mint",
+          "hash": "0xd04e0416d64d116dd885bce47020a293a4d6c57d16be88cbb2b644f1beb771d0",
+          "at": "2026-09-04T04:54:07.000Z",
+          "liquidity": "1123994437087360027"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x8e30e69892ae6699ac77463aea9da33eb2cea2efcf5611b81470587980c4df40",
+      "block": 54002490,
+      "at": "2026-09-04T05:05:16.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1370421126502443525571",
+      "amount1": "4008130618",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "4170699228611427245"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009231",
+          "kind": "Mint",
+          "hash": "0x6da6e138944ad6176fd2f6cd25232bd3dc9be88467a9423f8c21f3a57ca53dda",
+          "at": "2026-09-04T04:56:56.000Z",
+          "liquidity": "4170699228611427245"
+        },
+        "after": {
+          "tokenId": "1009231",
+          "kind": "Mint",
+          "hash": "0xade651b27a74cc341be66fab204568b04463c141b5070ff18141e1c2205f0991",
+          "at": "2026-09-04T05:05:28.000Z",
+          "liquidity": "1092021393921224899"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x0514acbb5e55707819b511cdcab11dff3db3516ad1467df5baebff31b39b45b1",
+      "block": 54007559,
+      "at": "2026-09-04T05:13:48.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-634835204726702939711",
+      "amount1": "1909658253",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "3047556425649803466"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009231",
+          "kind": "Burn",
+          "hash": "0x2901ad94ab62c28cbef9c2706a5e1a2359c616f8effab02d7040ff531f6b4dbb",
+          "at": "2026-09-04T05:12:31.000Z",
+          "liquidity": "3947040466899489108"
+        },
+        "after": {
+          "tokenId": "1009562",
+          "kind": "Mint",
+          "hash": "0x022133180b0556218889a5b0ef707072a59829b1cedcb93031360cb787a22923",
+          "at": "2026-09-04T05:15:16.000Z",
+          "liquidity": "672545932809563111"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x9bb81401b33ec3c4ccbeeea89c3c79f10973e5f68771ab5a2b642f8f461378fc",
+      "block": 54017143,
+      "at": "2026-09-04T05:30:01.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-188324073443213390144",
+      "amount1": "621214586",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "4973279065162299497"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1009859",
+          "kind": "Mint",
+          "hash": "0x9b5ff9dec7505fac53f859ed75bb6fbb4f3638cc9cfebed44573d8ff7316d79b",
+          "at": "2026-09-04T05:28:32.000Z",
+          "liquidity": "2858545836420284157"
+        },
+        "after": {
+          "tokenId": "1009859",
+          "kind": "Burn",
+          "hash": "0xe75591f6729c872434ae0399610afbfe81ade6b520cfce838ca1bee14000b110",
+          "at": "2026-09-04T05:31:08.000Z",
+          "liquidity": "2858545836420284157"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x0b276bcdb06fbc00759f9510ccf1548320d89da6396c9503df630809f201a6e0",
+      "block": 54061525,
+      "at": "2026-09-04T06:44:57.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "94638317721832132023",
+      "amount1": "-404454750",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1010653",
+          "kind": "Burn",
+          "hash": "0x2a972cc9ca5a9db3d49598f61709ce002c57e331c7aab2838dd797dcca63bf6e",
+          "at": "2026-09-04T06:42:09.000Z",
+          "liquidity": "1053936948075699562"
+        },
+        "after": {
+          "tokenId": "1011869",
+          "kind": "Mint",
+          "hash": "0xc953afecc8df179eb9cf28772b1e290d99bdde4179d423cce0c215a2aa58f2da",
+          "at": "2026-09-04T07:16:19.000Z",
+          "liquidity": "20486840384998945"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x6d0a804b20dce4aad357eb7db3da7695cf0d3ac2c45f6c6220913805a64b976f",
+      "block": 54079784,
+      "at": "2026-09-04T07:15:47.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-75422150676448989529",
+      "amount1": "303921996",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1010653",
+          "kind": "Burn",
+          "hash": "0x2a972cc9ca5a9db3d49598f61709ce002c57e331c7aab2838dd797dcca63bf6e",
+          "at": "2026-09-04T06:42:09.000Z",
+          "liquidity": "1053936948075699562"
+        },
+        "after": {
+          "tokenId": "1011869",
+          "kind": "Mint",
+          "hash": "0xc953afecc8df179eb9cf28772b1e290d99bdde4179d423cce0c215a2aa58f2da",
+          "at": "2026-09-04T07:16:19.000Z",
+          "liquidity": "20486840384998945"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x392b6e0bd0cd8d8715bcfd0ced0ae63a489dd740454e3e1ffa5783d6ef6d14ec",
+      "block": 54137779,
+      "at": "2026-09-04T08:53:40.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-2626171381999533066631",
+      "amount1": "8167130000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1012075",
+          "kind": "Burn",
+          "hash": "0x636cd5871db9f6d564e80e9781c4bc0a51e37619702bdf49d8da2d731f5cab5e",
+          "at": "2026-09-04T07:29:33.000Z",
+          "liquidity": "7542363624058317"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Mint",
+          "hash": "0xb3cea389c1317e97872eca67fc063a26da005e439ff8ad9593492f4f3cb3ec5e",
+          "at": "2026-09-04T08:56:13.000Z",
+          "liquidity": "1240754105530990392"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xa6cd04ffde53c4b8801cb9ece0f6f0c69495d95b1236aee6417b9cf97b519ff4",
+      "block": 54138296,
+      "at": "2026-09-04T08:54:35.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-329387445840144770439",
+      "amount1": "1000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1012075",
+          "kind": "Burn",
+          "hash": "0x636cd5871db9f6d564e80e9781c4bc0a51e37619702bdf49d8da2d731f5cab5e",
+          "at": "2026-09-04T07:29:33.000Z",
+          "liquidity": "7542363624058317"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Mint",
+          "hash": "0xb3cea389c1317e97872eca67fc063a26da005e439ff8ad9593492f4f3cb3ec5e",
+          "at": "2026-09-04T08:56:13.000Z",
+          "liquidity": "1240754105530990392"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x79b03f6d811304c55a8945e31a9b12cbcac0690e52c40695f34ebaccdc5acf1b",
+      "block": 54141048,
+      "at": "2026-09-04T08:59:12.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-2944116939718314180050",
+      "amount1": "9000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "1240754105530990392"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013746",
+          "kind": "Mint",
+          "hash": "0xb3cea389c1317e97872eca67fc063a26da005e439ff8ad9593492f4f3cb3ec5e",
+          "at": "2026-09-04T08:56:13.000Z",
+          "liquidity": "1240754105530990392"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Mint",
+          "hash": "0x3ed85e19053b5ea6c8b088a1d664b69e671c17836db1b0e987c62e35d1bcbb20",
+          "at": "2026-09-04T08:59:31.000Z",
+          "liquidity": "4807312617104085125"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x9f01853de23f7eee9665e8f88c64c88344bea8ae8de2e4f188e53da34ea4f962",
+      "block": 54147184,
+      "at": "2026-09-04T09:09:31.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "4000000000000000000000",
+      "amount1": "-11972638369",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "8070145423392491354"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x5acd0b4c8e6bc9c5a94570f0389afec9aa4a1e52d967f41b41ea0c97d5289808",
+          "at": "2026-09-04T09:08:07.000Z",
+          "liquidity": "2022078700757415836"
+        },
+        "after": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x2db89bbcaf9243bbae2363536b6e804eaf4c993f59143f7a5a012ae57700d578",
+          "at": "2026-09-04T09:10:31.000Z",
+          "liquidity": "2022078700757415837"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x6b60ac443304556f43aaf53267cc07a17fcc3a80c6dda2223c932e13fcc8a6b3",
+      "block": 54147516,
+      "at": "2026-09-04T09:10:05.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "2846132716284537005559",
+      "amount1": "-8511537319",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "8070145423392491354"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x5acd0b4c8e6bc9c5a94570f0389afec9aa4a1e52d967f41b41ea0c97d5289808",
+          "at": "2026-09-04T09:08:07.000Z",
+          "liquidity": "2022078700757415836"
+        },
+        "after": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x2db89bbcaf9243bbae2363536b6e804eaf4c993f59143f7a5a012ae57700d578",
+          "at": "2026-09-04T09:10:31.000Z",
+          "liquidity": "2022078700757415837"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x4265d24f6c27f919135e99d3317311796089d46ddff194b3fe5a502593af3cbd",
+      "block": 54148044,
+      "at": "2026-09-04T09:10:58.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "3200000000000000000000",
+      "amount1": "-9559325063",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "6048066722635075517"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x2db89bbcaf9243bbae2363536b6e804eaf4c993f59143f7a5a012ae57700d578",
+          "at": "2026-09-04T09:10:31.000Z",
+          "liquidity": "2022078700757415837"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Burn",
+          "hash": "0xca745db6ef90b44e18c457bca473b1eec8466a8e11c5f88fb89c8315ae124093",
+          "at": "2026-09-04T09:12:18.000Z",
+          "liquidity": "5987586055408724761"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x66ce5d4fe8285ae6d2dda02ed37678c820b2bfb75f3f06a5f4c8d9f1d55fdd07",
+      "block": 54148182,
+      "at": "2026-09-04T09:11:12.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "3470480211417196547150",
+      "amount1": "-10353395030",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "6048066722635075517"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013924",
+          "kind": "Burn",
+          "hash": "0x2db89bbcaf9243bbae2363536b6e804eaf4c993f59143f7a5a012ae57700d578",
+          "at": "2026-09-04T09:10:31.000Z",
+          "liquidity": "2022078700757415837"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Burn",
+          "hash": "0xca745db6ef90b44e18c457bca473b1eec8466a8e11c5f88fb89c8315ae124093",
+          "at": "2026-09-04T09:12:18.000Z",
+          "liquidity": "5987586055408724761"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x4c5aa96335c52982d087429444389e0a2681e65b0da189b45f1f4d0fe3b875e9",
+      "block": 54154772,
+      "at": "2026-09-04T09:22:21.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "6267104639578576843743",
+      "amount1": "-18552165357",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "8586166404214313868"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1014137",
+          "kind": "Burn",
+          "hash": "0x6127382edc707ca2e9c61ab7e38b76c6a1b4f78590b61b49c2095f17586664f5",
+          "at": "2026-09-04T09:19:53.000Z",
+          "liquidity": "1559630275139477561"
+        },
+        "after": {
+          "tokenId": "1014214",
+          "kind": "Burn",
+          "hash": "0xea94824e307130a52ed4c42a23bdf00728a210e421ce4b8447ccba4a0f76e4a0",
+          "at": "2026-09-04T09:23:08.000Z",
+          "liquidity": "8525685736987963112"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x9a334aceae4fe83ebca9a62adc23d9f6f98228f71e8e7d25abea668dd5355904",
+      "block": 54157857,
+      "at": "2026-09-04T09:27:34.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "6638230597770101703164",
+      "amount1": "-19588443861",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "60480667226350756"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1014318",
+          "kind": "Burn",
+          "hash": "0x39cfd5d2d6ad9495a31668731543a9e18f2909f811e2d9cf0891589f2ce2d3a1",
+          "at": "2026-09-04T09:25:57.000Z",
+          "liquidity": "2546581607594616850"
+        },
+        "after": {
+          "tokenId": "1014834",
+          "kind": "Mint",
+          "hash": "0x2a75e76bcd19e9bcbdf6837398233ed8c17cd3c5458b2ccf877a05b3b2794c39",
+          "at": "2026-09-04T09:51:37.000Z",
+          "liquidity": "1279143442503467345"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x3432c98062b8ec8539152082b9860164b400d88dd3bff618b2ca004ae5a80b51",
+      "block": 54178215,
+      "at": "2026-09-04T10:01:49.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "2651550000000000000000",
+      "amount1": "-7565637589",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "60480667226350756"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1014834",
+          "kind": "Burn",
+          "hash": "0xeebf83a12c48ba19fc2e5183c0895513c4d75d2a4c5fb6c7dd9fcdcc36435a7b",
+          "at": "2026-09-04T10:00:06.000Z",
+          "liquidity": "1279143442503467345"
+        },
+        "after": {
+          "tokenId": "1013746",
+          "kind": "Burn",
+          "hash": "0xf80c6239a379a7c17611e6a3fbb9e9f652df37f38d6d1a243558850d127aae9b",
+          "at": "2026-09-04T10:11:13.000Z",
+          "liquidity": "60480667226350756"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x800e435267cb53ca55c2e05c121d9a348c48c2c95a9a0884c284ff6b6a9e70b7",
+      "block": 54186679,
+      "at": "2026-09-04T10:16:04.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-267748551365276199449",
+      "amount1": "750000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 0,
+        "liquidity": "0"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1013746",
+          "kind": "Burn",
+          "hash": "0xf80c6239a379a7c17611e6a3fbb9e9f652df37f38d6d1a243558850d127aae9b",
+          "at": "2026-09-04T10:11:13.000Z",
+          "liquidity": "60480667226350756"
+        },
+        "after": {
+          "tokenId": "1015223",
+          "kind": "Mint",
+          "hash": "0x7a487945b1a2ba36450fb82135ade9c4535acd384c839c7a1580ed843e414ca2",
+          "at": "2026-09-04T10:17:06.000Z",
+          "liquidity": "673734248745431480"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x722eac0998676ecbfb574c726a5b35c93201304db305afdc67f5f2869f48222e",
+      "block": 54187668,
+      "at": "2026-09-04T10:17:46.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-2525894921666331052188",
+      "amount1": "7000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "673734248745431480"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015223",
+          "kind": "Mint",
+          "hash": "0x7a487945b1a2ba36450fb82135ade9c4535acd384c839c7a1580ed843e414ca2",
+          "at": "2026-09-04T10:17:06.000Z",
+          "liquidity": "673734248745431480"
+        },
+        "after": {
+          "tokenId": "1015223",
+          "kind": "Mint",
+          "hash": "0x74cbd447e651dc081ae45ebb8bf2d0f6e83739261fe689d2c4d13ca3383609bd",
+          "at": "2026-09-04T10:18:16.000Z",
+          "liquidity": "1093951917998178709"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x2a700ef0e0c0d64d53b1cda04698c03a6b659259245ba265d1f2a96fee89b773",
+      "block": 54188626,
+      "at": "2026-09-04T10:19:20.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-721656133434265729491",
+      "amount1": "2000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "1767686166743610189"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015223",
+          "kind": "Mint",
+          "hash": "0x74cbd447e651dc081ae45ebb8bf2d0f6e83739261fe689d2c4d13ca3383609bd",
+          "at": "2026-09-04T10:18:16.000Z",
+          "liquidity": "1093951917998178709"
+        },
+        "after": {
+          "tokenId": "1015264",
+          "kind": "Mint",
+          "hash": "0xf531fbc1c6d38ccfb74c6a01c86299ef9bf5d9d5b17119bcd1b2a6a4bfbac1fb",
+          "at": "2026-09-04T10:19:50.000Z",
+          "liquidity": "2411242070745079858"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x3f334b688e5d3c8f9969114bc91c6d5464d0940e6400ef76c267920964c20748",
+      "block": 54190471,
+      "at": "2026-09-04T10:22:28.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-3607565092238370798562",
+      "amount1": "10000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "6312125169581426464"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Mint",
+          "hash": "0x6e424453e1f3d5db345e223b5dfaae133ac8304970e5e885f845afe235598a10",
+          "at": "2026-09-04T10:21:25.000Z",
+          "liquidity": "567113332622009243"
+        },
+        "after": {
+          "tokenId": "1015264",
+          "kind": "Mint",
+          "hash": "0x03c0b7374ce2760399e6f64569656bbaf9f446b584d8e7abc903b3fad251bf43",
+          "at": "2026-09-04T10:22:44.000Z",
+          "liquidity": "2224319260377972764"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x2bd3fba03139f5411f0b62bfb09b85e48e1ee2a874a46a7e8dac1b2422e88d1b",
+      "block": 54190987,
+      "at": "2026-09-04T10:23:20.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "-1982479304633568128149",
+      "amount1": "5500000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "8536444429959399228"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Mint",
+          "hash": "0x03c0b7374ce2760399e6f64569656bbaf9f446b584d8e7abc903b3fad251bf43",
+          "at": "2026-09-04T10:22:44.000Z",
+          "liquidity": "2224319260377972764"
+        },
+        "after": {
+          "tokenId": "1015264",
+          "kind": "Mint",
+          "hash": "0x3cb5b6390a31c10978f514ed27e8725b38193186524e27ea60c9c4ca9e998619",
+          "at": "2026-09-04T10:23:35.000Z",
+          "liquidity": "2514233361205924358"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x26a997986dd0cb514c2e45916bdd2e0bb7818a1ba5b20c6d2f23b3d24be5b871",
+      "block": 54203448,
+      "at": "2026-09-04T10:44:16.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "4046050074000000000000",
+      "amount1": "-11109917105",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "110506777911653236"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Burn",
+          "hash": "0x89b3f53ddfba20982b81158292437fb6005a31306d8c011cb6e1934179c6c444",
+          "at": "2026-09-04T10:43:30.000Z",
+          "liquidity": "10940171013253670350"
+        },
+        "after": {
+          "tokenId": "1015656",
+          "kind": "Mint",
+          "hash": "0x5a263fff55c964792e9d349cb90d461202f1d7dbf7b7d5bc475e7068759f583b",
+          "at": "2026-09-04T10:46:10.000Z",
+          "liquidity": "14101151176050232757"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x49c4b1b245d70f0f4abe1916e5eb7d2a4c7f03855ba8e62bbbe215d6a2ee49d4",
+      "block": 54203663,
+      "at": "2026-09-04T10:44:38.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "3625034058000000000000",
+      "amount1": "-9948877238",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "110506777911653236"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Burn",
+          "hash": "0x89b3f53ddfba20982b81158292437fb6005a31306d8c011cb6e1934179c6c444",
+          "at": "2026-09-04T10:43:30.000Z",
+          "liquidity": "10940171013253670350"
+        },
+        "after": {
+          "tokenId": "1015656",
+          "kind": "Mint",
+          "hash": "0x5a263fff55c964792e9d349cb90d461202f1d7dbf7b7d5bc475e7068759f583b",
+          "at": "2026-09-04T10:46:10.000Z",
+          "liquidity": "14101151176050232757"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xd8cc25d77ece0ff904271e63052cf98edd2dec8cc891ae158d3125a3ad32f45f",
+      "block": 54204031,
+      "at": "2026-09-04T10:45:15.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "3625034058000000000000",
+      "amount1": "-9940707516",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "110506777911653236"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Burn",
+          "hash": "0x89b3f53ddfba20982b81158292437fb6005a31306d8c011cb6e1934179c6c444",
+          "at": "2026-09-04T10:43:30.000Z",
+          "liquidity": "10940171013253670350"
+        },
+        "after": {
+          "tokenId": "1015656",
+          "kind": "Mint",
+          "hash": "0x5a263fff55c964792e9d349cb90d461202f1d7dbf7b7d5bc475e7068759f583b",
+          "at": "2026-09-04T10:46:10.000Z",
+          "liquidity": "14101151176050232757"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xf49fa587ef3156604ac9fefb4674fdcb4b4ced64d13bea40a13eedbcc252ae06",
+      "block": 54214306,
+      "at": "2026-09-04T11:02:36.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "982674872633470172853",
+      "amount1": "-2694919372",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "14101151176050232757"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Burn",
+          "hash": "0xaaccc8124480591274f2435eff3bdbf6192bb8ad00c9ccb0bca340084004633f",
+          "at": "2026-09-04T11:02:18.000Z",
+          "liquidity": "3228845985992238080"
+        },
+        "after": {
+          "tokenId": "1015944",
+          "kind": "Mint",
+          "hash": "0x45ba5961c369be6f161848afb424c1949f2df8281cefbde7d5d189b5029045dc",
+          "at": "2026-09-04T11:09:59.000Z",
+          "liquidity": "2648283460058668318"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xfaf42d77ea1a47f808aea5d228fa28345aa96aaf3e2d79bc1d7e6ee35cfdd42e",
+      "block": 54214475,
+      "at": "2026-09-04T11:02:54.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "737006154475095000000",
+      "amount1": "-2021279658",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "14101151176050232757"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015264",
+          "kind": "Burn",
+          "hash": "0xaaccc8124480591274f2435eff3bdbf6192bb8ad00c9ccb0bca340084004633f",
+          "at": "2026-09-04T11:02:18.000Z",
+          "liquidity": "3228845985992238080"
+        },
+        "after": {
+          "tokenId": "1015944",
+          "kind": "Mint",
+          "hash": "0x45ba5961c369be6f161848afb424c1949f2df8281cefbde7d5d189b5029045dc",
+          "at": "2026-09-04T11:09:59.000Z",
+          "liquidity": "2648283460058668318"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xb5992b718bf48814a417d490b5db6118e188a74c0ac897534243eae2cadd93c9",
+      "block": 54231465,
+      "at": "2026-09-04T11:31:33.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 2,
+      "amount0": "5000000000000000000000",
+      "amount1": "-13327641928",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "229811347167025815"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1016296",
+          "kind": "Burn",
+          "hash": "0x97dd16a4caa03d3c22d0aed520136265da34888067baab618bddc87fcb8c7448",
+          "at": "2026-09-04T11:30:08.000Z",
+          "liquidity": "28984178759620981833"
+        },
+        "after": {
+          "tokenId": "1016296",
+          "kind": "Mint",
+          "hash": "0x2a1c1a98427826d4ca0fddddd96d2118bef3fe15ce1166e8c5ef8628b18940d2",
+          "at": "2026-09-04T11:33:21.000Z",
+          "liquidity": "17250292897762676626"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x70027b59187af6a033ab9145764f832b0e94df2ecc535ac34d62541faf15f9a4",
+      "block": 54232031,
+      "at": "2026-09-04T11:32:31.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "4400000000000000000000",
+      "amount1": "-11714601453",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 1,
+        "liquidity": "229811347167025815"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1016296",
+          "kind": "Burn",
+          "hash": "0x97dd16a4caa03d3c22d0aed520136265da34888067baab618bddc87fcb8c7448",
+          "at": "2026-09-04T11:30:08.000Z",
+          "liquidity": "28984178759620981833"
+        },
+        "after": {
+          "tokenId": "1016296",
+          "kind": "Mint",
+          "hash": "0x2a1c1a98427826d4ca0fddddd96d2118bef3fe15ce1166e8c5ef8628b18940d2",
+          "at": "2026-09-04T11:33:21.000Z",
+          "liquidity": "17250292897762676626"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x53574f2845f23ed3ddaa2f8c8bcd4da018eddf7cea10e842c4f18e2259fc52de",
+      "block": 54250818,
+      "at": "2026-09-04T12:04:09.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "3508834879200000000000",
+      "amount1": "-9360495899",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "317390176863804370"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015975",
+          "kind": "Burn",
+          "hash": "0x132e7bd7742435504d41b1ec247d5ded4e68ca63146e1c2a8cafe238e0f98ec8",
+          "at": "2026-09-04T12:03:22.000Z",
+          "liquidity": "14343837540731582681"
+        },
+        "after": {
+          "tokenId": "1016958",
+          "kind": "Mint",
+          "hash": "0x8a97e964bc80c9f3083f6489f1c9f867fd698f82fa058d007c23fd79dea27879",
+          "at": "2026-09-04T12:09:47.000Z",
+          "liquidity": "9869264128957272131"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x0fd6eb7c04da75b326456ef781ac0e39b797fd598ea709e35b6af6aabfc8027c",
+      "block": 54251236,
+      "at": "2026-09-04T12:04:52.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "4627031853600000000000",
+      "amount1": "-12328794614",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "317390176863804370"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015975",
+          "kind": "Burn",
+          "hash": "0x132e7bd7742435504d41b1ec247d5ded4e68ca63146e1c2a8cafe238e0f98ec8",
+          "at": "2026-09-04T12:03:22.000Z",
+          "liquidity": "14343837540731582681"
+        },
+        "after": {
+          "tokenId": "1016958",
+          "kind": "Mint",
+          "hash": "0x8a97e964bc80c9f3083f6489f1c9f867fd698f82fa058d007c23fd79dea27879",
+          "at": "2026-09-04T12:09:47.000Z",
+          "liquidity": "9869264128957272131"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xb88fa8d596f049532ffa881ddb251cf8b2bb2fb384b895faf55a9900df69784d",
+      "block": 54252735,
+      "at": "2026-09-04T12:07:21.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "3210637259878482676400",
+      "amount1": "-8525536978",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 2,
+        "liquidity": "317390176863804370"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1015975",
+          "kind": "Burn",
+          "hash": "0x132e7bd7742435504d41b1ec247d5ded4e68ca63146e1c2a8cafe238e0f98ec8",
+          "at": "2026-09-04T12:03:22.000Z",
+          "liquidity": "14343837540731582681"
+        },
+        "after": {
+          "tokenId": "1016958",
+          "kind": "Mint",
+          "hash": "0x8a97e964bc80c9f3083f6489f1c9f867fd698f82fa058d007c23fd79dea27879",
+          "at": "2026-09-04T12:09:47.000Z",
+          "liquidity": "9869264128957272131"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x6e129b5dd4e18dff4a0d770181bec7e32ddd6144af445c97c721aa3b6d7ccafa",
+      "block": 54271943,
+      "at": "2026-09-04T12:39:50.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "4500000000000000000000",
+      "amount1": "-11862777091",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 3,
+        "liquidity": "416082818153377092"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1016958",
+          "kind": "Burn",
+          "hash": "0x3ae81312c9a86ed6f3164c48e3e0b7f3dd8c50160455be536a0f38c125b3abfd",
+          "at": "2026-09-04T12:38:13.000Z",
+          "liquidity": "9770571487667699409"
+        },
+        "after": {
+          "tokenId": "1017522",
+          "kind": "Mint",
+          "hash": "0xa69866f7ba549fce3404990aea68b1e59391389867180a6e55e6ec6cb7ffd2a8",
+          "at": "2026-09-04T12:43:06.000Z",
+          "liquidity": "4776702284614636821"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xf79a7a395d04fdff79a804bbde5ab7f6cf9421f94413dd22cf00af13d02a49a0",
+      "block": 54272644,
+      "at": "2026-09-04T12:41:02.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "4750000000000000000000",
+      "amount1": "-12495880186",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 3,
+        "liquidity": "416082818153377092"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1016958",
+          "kind": "Burn",
+          "hash": "0x3ae81312c9a86ed6f3164c48e3e0b7f3dd8c50160455be536a0f38c125b3abfd",
+          "at": "2026-09-04T12:38:13.000Z",
+          "liquidity": "9770571487667699409"
+        },
+        "after": {
+          "tokenId": "1017522",
+          "kind": "Mint",
+          "hash": "0xa69866f7ba549fce3404990aea68b1e59391389867180a6e55e6ec6cb7ffd2a8",
+          "at": "2026-09-04T12:43:06.000Z",
+          "liquidity": "4776702284614636821"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x76fefb35feee3bb6b1e7d152fda1d8868da96fe844cf70fedccfa366491717b2",
+      "block": 54286390,
+      "at": "2026-09-04T13:04:13.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "5000000000000000000000",
+      "amount1": "-13042331627",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 4,
+        "liquidity": "463849840999523461"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1017522",
+          "kind": "Burn",
+          "hash": "0x0b9d5c809afe1c74ee06632b69172ea1d0263d14a931e709c26f918acb3ad091",
+          "at": "2026-09-04T12:57:54.000Z",
+          "liquidity": "4728935261768490452"
+        },
+        "after": {
+          "tokenId": "1019727",
+          "kind": "Mint",
+          "hash": "0x3e2bb3d5ac68db03a214cb96eaed82cc3713ccd7d924e60a2d0d97e55f9f51fb",
+          "at": "2026-09-04T14:28:47.000Z",
+          "liquidity": "2044226063880228905"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x8053428b9ce64477050023c270ed2f851d1ad60fc565fc729715a680582094bb",
+      "block": 54286797,
+      "at": "2026-09-04T13:04:48.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "3731140000000000000000",
+      "amount1": "-9715735672",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 4,
+        "liquidity": "463849840999523461"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1017522",
+          "kind": "Burn",
+          "hash": "0x0b9d5c809afe1c74ee06632b69172ea1d0263d14a931e709c26f918acb3ad091",
+          "at": "2026-09-04T12:57:54.000Z",
+          "liquidity": "4728935261768490452"
+        },
+        "after": {
+          "tokenId": "1019727",
+          "kind": "Mint",
+          "hash": "0x3e2bb3d5ac68db03a214cb96eaed82cc3713ccd7d924e60a2d0d97e55f9f51fb",
+          "at": "2026-09-04T14:28:47.000Z",
+          "liquidity": "2044226063880228905"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x97aba4e96157ec1563058c423ac074d0cbd09bd5003e0bc88b9d4da7d79714fb",
+      "block": 54336117,
+      "at": "2026-09-04T14:28:00.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-2676428483140215381045",
+      "amount1": "7374347176",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 4,
+        "liquidity": "463849840999523461"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1017522",
+          "kind": "Burn",
+          "hash": "0x0b9d5c809afe1c74ee06632b69172ea1d0263d14a931e709c26f918acb3ad091",
+          "at": "2026-09-04T12:57:54.000Z",
+          "liquidity": "4728935261768490452"
+        },
+        "after": {
+          "tokenId": "1019727",
+          "kind": "Mint",
+          "hash": "0x3e2bb3d5ac68db03a214cb96eaed82cc3713ccd7d924e60a2d0d97e55f9f51fb",
+          "at": "2026-09-04T14:28:47.000Z",
+          "liquidity": "2044226063880228905"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x06364fcf82dbcca478466b9deabbc1ae9b14408eb2e45b9567a4f9600a2ce5c3",
+      "block": 54337753,
+      "at": "2026-09-04T14:30:47.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-3649542277952775053139",
+      "amount1": "10000000000",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 6,
+        "liquidity": "2770338448361636714"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1019791",
+          "kind": "Mint",
+          "hash": "0x798046557ae464d1ab912bc4a322300d023ec3bbcb0d22e6443bf534b1ebe93a",
+          "at": "2026-09-04T14:30:14.000Z",
+          "liquidity": "262262543481884348"
+        },
+        "after": {
+          "tokenId": "1019727",
+          "kind": "Burn",
+          "hash": "0x4db283ef307635aca229580b6fb3b9bbc94cce76a6459c30121773a88b9762f3",
+          "at": "2026-09-04T14:31:09.000Z",
+          "liquidity": "2023783803241426615"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x21b3dbb7b7251e5b88a57db37ee57caac967728ed3b6f979a38c4acc43ff526c",
+      "block": 54339328,
+      "at": "2026-09-04T14:33:27.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-1152748672946267745883",
+      "amount1": "3159185416",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 7,
+        "liquidity": "3458592763437035239"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1016296",
+          "kind": "Burn",
+          "hash": "0xfabae9193819e0dbe83e2aca292786a666fd5421812bf2375a876b6454ef9f59",
+          "at": "2026-09-04T14:33:15.000Z",
+          "liquidity": "170777899687850499"
+        },
+        "after": {
+          "tokenId": "1019812",
+          "kind": "Mint",
+          "hash": "0x09bca14a72ca881d65d70d6737b363c8f4dcdae529c2bcc3f0575c3766fbe8ed",
+          "at": "2026-09-04T14:33:41.000Z",
+          "liquidity": "2097139430696845557"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x215b37c2542e5b68f5094e1720b95c0e0a498308c290df2bea08821b1a842931",
+      "block": 54365444,
+      "at": "2026-09-04T15:17:30.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-831520524650296337785",
+      "amount1": "2283053024",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 8,
+        "liquidity": "10268692388669751103"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1019791",
+          "kind": "Burn",
+          "hash": "0x48f6752ace4020411efa5ddbb7f1a6ff880825cd76ac6b969bc3f7ceac4b3bee",
+          "at": "2026-09-04T15:06:43.000Z",
+          "liquidity": "259639918047065504"
+        },
+        "after": {
+          "tokenId": "1020743",
+          "kind": "Mint",
+          "hash": "0x9e10adbac235747f2b62de8fb96b36cfc52895754872e63ae5c6945330003b3a",
+          "at": "2026-09-04T15:17:57.000Z",
+          "liquidity": "4989305652268617538"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x98448f2aa5938a1167c2b7caa5231de9d8ca2491fd4653f8f2e510a133c3e956",
+      "block": 54366614,
+      "at": "2026-09-04T15:19:25.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 2,
+      "amount0": "-2207347173648488875333",
+      "amount1": "6104585615",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 9,
+        "liquidity": "5454269594208901264"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1020009",
+          "kind": "Burn",
+          "hash": "0x44cd2328b3acb3c9c85c24742f9fd9f28dc4ac3433678bf0ae77e8c7147d1d7d",
+          "at": "2026-09-04T15:18:07.000Z",
+          "liquidity": "9803728446729467377"
+        },
+        "after": {
+          "tokenId": "1020743",
+          "kind": "Burn",
+          "hash": "0xe2194c9c8d2041acf22c49d66f794cbfd6230f280b6510f0dae7a556dd152c9a",
+          "at": "2026-09-04T15:19:47.000Z",
+          "liquidity": "4989305652268617538"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x5159991884d6e80d7dbdc09ecfee9ee99c0209d66d6a1fde8e7b161f22dc5921",
+      "block": 54367291,
+      "at": "2026-09-04T15:20:34.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "-2442860038762877410498",
+      "amount1": "6765830014",
+      "direction": "buy_amc_with_usdg",
+      "liveCohort": {
+        "positions": 8,
+        "liquidity": "464963941940283726"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1020743",
+          "kind": "Burn",
+          "hash": "0xe2194c9c8d2041acf22c49d66f794cbfd6230f280b6510f0dae7a556dd152c9a",
+          "at": "2026-09-04T15:19:47.000Z",
+          "liquidity": "4989305652268617538"
+        },
+        "after": {
+          "tokenId": "1020780",
+          "kind": "Mint",
+          "hash": "0x8fc0c77de54cc4edffdbdad7184315048d570ed2ca894776b320dc8368efd463",
+          "at": "2026-09-04T15:22:26.000Z",
+          "liquidity": "6637455818794307546"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x7d171402649e7692fee2d88db80f9efaeefeb849e847e1a2fc2596f154c89480",
+      "block": 54386017,
+      "at": "2026-09-04T15:52:07.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "4500000000000000000000",
+      "amount1": "-12207908398",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 9,
+        "liquidity": "629680340916324602"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1020780",
+          "kind": "Burn",
+          "hash": "0xd0f54f3ffe162dde2a406d22012caefe8cbc7cd1ad207f8f99a30269adc1dc54",
+          "at": "2026-09-04T15:48:23.000Z",
+          "liquidity": "6592438685859119776"
+        },
+        "after": {
+          "tokenId": "1021286",
+          "kind": "Mint",
+          "hash": "0xf93ec44c7d9a8fd2563aa30fd78a162c33163b6520f81a8e91d685a9410c96f4",
+          "at": "2026-09-04T15:56:46.000Z",
+          "liquidity": "740994005476993315"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0x59fa02bf275049956c78060d28961129c519db66d5ce8b95437d7003165de416",
+      "block": 54386280,
+      "at": "2026-09-04T15:52:34.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x8876789976decbfcbbbe364623c63652db8c0904",
+      "routeLegs": 1,
+      "amount0": "2250000000000000000000",
+      "amount1": "-6100777093",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 9,
+        "liquidity": "629680340916324602"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1020780",
+          "kind": "Burn",
+          "hash": "0xd0f54f3ffe162dde2a406d22012caefe8cbc7cd1ad207f8f99a30269adc1dc54",
+          "at": "2026-09-04T15:48:23.000Z",
+          "liquidity": "6592438685859119776"
+        },
+        "after": {
+          "tokenId": "1021286",
+          "kind": "Mint",
+          "hash": "0xf93ec44c7d9a8fd2563aa30fd78a162c33163b6520f81a8e91d685a9410c96f4",
+          "at": "2026-09-04T15:56:46.000Z",
+          "liquidity": "740994005476993315"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    },
+    {
+      "hash": "0xa1ee71c6d54e078fb0118837a86677ac60c7411382b604e586764d657c259343",
+      "block": 54463031,
+      "at": "2026-09-04T18:02:00.000Z",
+      "sender": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "router": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "routeLegs": 1,
+      "amount0": "1852864091148000000000",
+      "amount1": "-4973403573",
+      "direction": "sell_amc_for_usdg",
+      "liveCohort": {
+        "positions": 12,
+        "liquidity": "677421861158790076"
+      },
+      "neighboringLpActions": {
+        "before": {
+          "tokenId": "1022725",
+          "kind": "Burn",
+          "hash": "0x34c957b4bb91178f89ca2e3d3a6856876400dc320e8b2d4865a614b35fbdd614",
+          "at": "2026-09-04T17:59:57.000Z",
+          "liquidity": "1624476219531346339"
+        },
+        "after": {
+          "tokenId": "1027499",
+          "kind": "Mint",
+          "hash": "0x662a5cf0abe1279177471ed2bc3814f5bd6d49181ef30506103626d386b72929",
+          "at": "2026-09-04T23:37:34.000Z",
+          "liquidity": "2791263715780241294"
+        }
+      },
+      "walletBalances": {
+        "status": "unavailable",
+        "reason": "per_transaction_balance_reconstruction_not_retained_in_compact_analysis"
+      },
+      "ownFlowFeeAttribution": {
+        "status": "unavailable",
+        "reason": "complete_crossing_and_competing_liquidity_attribution_not_implemented"
+      }
+    }
+  ],
+  "behaviors": [
+    {
+      "observed": "Range placement and inventory swaps are separate transactions",
+      "test": "Compare keep, no-swap redeploy, and bounded-swap redeploy"
+    },
+    {
+      "observed": "Top-ups and partial removals leave idle and residual inventory",
+      "test": "Value every wallet and LP token after each stage"
+    },
+    {
+      "observed": "Some positions overlap and remain open",
+      "test": "Use one managed NFT first; do not infer a 47-position requirement"
+    }
+  ],
+  "executionEligible": false,
+  "promotionEligible": false
+}

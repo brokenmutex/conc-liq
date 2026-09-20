@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "id": "hybrid-lp-250-2026-09-20",
+  "status": "rejected_inactive_diagnostic_complete",
+  "sourceCommit": "4e72f355ac07d47473087fce6e02503da73c829c",
+  "executionEligible": false,
+  "broadcastsEnabled": false,
+  "scope": "Bounded competitor attribution, inventory-preserving prerequisite, staged hybrid LP engine, and preregistered $250 AAPL/NVDA development comparison",
+  "files": [
+    {
+      "path": "config/adaptive-paper-inventory-250.json",
+      "sha256": "ad7edfb837a99bfef0bf56e12ca584428cbda42828eb21beeeb97558fab4958f",
+      "bytes": 1269,
+      "role": "config"
+    },
+    {
+      "path": "config/hybrid-lp-250-paper.json",
+      "sha256": "1d60177b6b200e0f3e9dbda67fc021faf8a2af10044a929b8b6149fb8e0caace",
+      "bytes": 2093,
+      "role": "config"
+    },
+    {
+      "path": "docs/operations/hybrid-lp-250-canary-checklist.md",
+      "sha256": "869428e6a9e39a79c44cd6c1c6143b609902c075ce1c94b9c7918bed562c7dab",
+      "bytes": 4014,
+      "role": "conclusion"
+    },
+    {
+      "path": "docs/plans/hybrid-lp-250-sol-2026-09-20.md",
+      "sha256": "9e6ddf3bbd31253af5f1e3b9540b1562f300159679bc80c370dee5811801af79",
+      "bytes": 19201,
+      "role": "conclusion"
+    },
+    {
+      "path": "docs/research/competitor-88a0641-2026-09-20.md",
+      "sha256": "444b34ab01abb771514372b88710bf19faf332c90ce24bb7e28037bb5b2aead6",
+      "bytes": 14773,
+      "role": "conclusion"
+    },
+    {
+      "path": "docs/research/competitor-cluster-amc-2026-09-04.md",
+      "sha256": "1f1c2d49fffe5036e340560a9296533be2a8e136718a907be92ea43fb5102eda",
+      "bytes": 9425,
+      "role": "conclusion"
+    },
+    {
+      "path": "docs/research/hybrid-lp-250-results.md",
+      "sha256": "b9cffcfda8d273dd7f51039eb5f71ea1b266ea4bd2627867684d0597305d5473",
+      "bytes": 7795,
+      "role": "conclusion"
+    },
+    {
+      "path": "docs/research/index.md",
+      "sha256": "f13e2a926463cb84fcc54d29417e30634d450c3baea57660c87e241b02c1d58b",
+      "bytes": 3205,
+      "role": "conclusion"
+    },
+    {
+      "path": "research/evidence/competitor-88a0641-2026-09-20.json",
+      "sha256": "f5af5aedbf4032ad3094de2a4dbab59b87c3ab7df23e8e392df7430f482c9ba0",
+      "bytes": 60508,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/evidence/competitor-cluster-amc-2026-09-04.json",
+      "sha256": "158ed68b3a907a6c5a0cb3211abd929748ba1f732c985562731232741f91aae0",
+      "bytes": 30524,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/evidence/hybrid-lp-250-competitor-timeline-2026-09-20.json",
+      "sha256": "8bfc4a922a8e4c3fc950e7e7a4b2f410d581012cd8a1fd57c857622c691f695e",
+      "bytes": 74216,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/evidence/hybrid-lp-250-results-2026-09-20.json",
+      "sha256": "df4fa3f49ec5bb101b584c8925f089b94940dcfc53cd7188b75b9e43fd876967",
+      "bytes": 75490,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "research/experiments/hybrid-lp-250-2026-09-20.json",
+      "sha256": "0add9d0397184a7f4f3e4bcee232f98363917e213fde9a77d2a0aefed29fc062",
+      "bytes": 5592,
+      "role": "manifest"
+    },
+    {
+      "path": "research/fixtures/hybrid-lp-250/competitor-attribution.json",
+      "sha256": "1dee9f4545df4c8a9ce9de17431ade9b83dd1eccd140cc55e852512e7cb67a31",
+      "bytes": 2568,
+      "role": "compact_evidence"
+    },
+    {
+      "path": "scripts/research/competitor-cluster-day.mjs",
+      "sha256": "ac038e64c50d284a72c11adb8e8ea04e21471ff227213212e972813feaf1daec",
+      "bytes": 22355,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/competitor-lp-analyze.mjs",
+      "sha256": "d7c6a064ca97a98739228e40fb167c158c05f46c90b492cca9988d6b11508a79",
+      "bytes": 9885,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/competitor-lp-capture.mjs",
+      "sha256": "db523353ed750cf9fe677e3d3e25dd78834487d96dc0ccb86558f17a6c4e596b",
+      "bytes": 11297,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/hybrid-competitor-timeline.mjs",
+      "sha256": "4a37b43d37b34b9d265e6d141caa70060dffcdab81a8c218a2ec08d8afe08402",
+      "bytes": 4334,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/hybrid-lp-compact.mjs",
+      "sha256": "5c36763ff12605e217c2d21d88898ff4831fec034f281b050490155d3417f996",
+      "bytes": 4116,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/hybrid-lp-replay.mjs",
+      "sha256": "51d72d9e6a4c9d1e48e0c3466d0a77e3cf9daaf7fa8e40c7a55ac5d9333394bd",
+      "bytes": 10154,
+      "role": "code"
+    },
+    {
+      "path": "scripts/research/inventory-range-replay.mjs",
+      "sha256": "84568acacfc08da81365b48d8673c1544c4232370d4dcd0b751c9eed26e9db09",
+      "bytes": 7332,
+      "role": "code"
+    },
+    {
+      "path": "src/adaptive-paper.ts",
+      "sha256": "e4995be3f2b38ff333eba9ca5cffdacb4bf001ef408b4149d34a3ef0fcd61899",
+      "bytes": 29568,
+      "role": "code"
+    },
+    {
+      "path": "src/research/adaptive-forecast.ts",
+      "sha256": "4004d0b006d2754f81797e26120e152a444573e346b3c48a69e224ea440597dc",
+      "bytes": 11103,
+      "role": "code"
+    },
+    {
+      "path": "src/research/hybrid-lp.ts",
+      "sha256": "579f04beb5bde75b4f35cb65427d2f62e18033fe68c64366e1c5c572b5f1dd28",
+      "bytes": 23540,
+      "role": "code"
+    },
+    {
+      "path": "src/research/inventory-lp.ts",
+      "sha256": "73d908ef5252b16ba38313fc01810ad9eec0aabcb770505dba5fcb87643fbabf",
+      "bytes": 6486,
+      "role": "code"
+    },
+    {
+      "path": "src/research/inventory-range.ts",
+      "sha256": "b738de2137bd9d14d223c2944dc0ad7aac683cf68cbb9d588556dc46fb1f7a38",
+      "bytes": 1455,
+      "role": "code"
+    },
+    {
+      "path": "test/competitor-lp-analysis.test.ts",
+      "sha256": "b5473187a0c61576706aaea31d7300bcef82e6d2d9ada98c9252d55f127fbed0",
+      "bytes": 4511,
+      "role": "code"
+    },
+    {
+      "path": "test/hybrid-competitor-fixture.test.ts",
+      "sha256": "1406015ab3d47cb5cb3c8329e2447740eca7f63087f34cac015eff987f9c53ac",
+      "bytes": 2798,
+      "role": "code"
+    },
+    {
+      "path": "test/hybrid-lp.test.ts",
+      "sha256": "e8bb72e6f44ecbca3bb3df64266a1db88ae4641e7f2adf1199cf0f98dd8730bd",
+      "bytes": 13220,
+      "role": "code"
+    },
+    {
+      "path": "test/inventory-range.test.ts",
+      "sha256": "8cf9766502cc0b72bed663e5afd05991cbb99c81e5a38c5c056f0d733f25a677",
+      "bytes": 7131,
+      "role": "code"
+    }
+  ],
+  "reproduction": {
+    "mode": "original_checkout",
+    "checkoutCommit": "4e72f355ac07d47473087fce6e02503da73c829c",
+    "nodeVersion": "v24.20.0",
+    "postLayoutVerified": true,
+    "limitation": "The tracked compact result pins ignored full replay outputs retained on this host. Development dates were previously inspected; independent historical marks, complete validation data, and measured hybrid-stage costs are unavailable. No hybrid candidate entered, so no service activation package was prepared.",
+    "validation": {
+      "command": "PATH=\"$PWD/.tools/node/bin:$PATH\" npm run check",
+      "tests": 625,
+      "passed": 625,
+      "failed": 0,
+      "diffCheck": true
+    }
+  },
+  "decision": {
+    "candidate": null,
+    "outcome": "rejected",
+    "executionEligible": false,
+    "holdout": "QQQ untouched"
+  }
+}

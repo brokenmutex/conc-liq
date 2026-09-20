@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "id": "hybrid-lp-250-2026-09-20",
+  "preparedAt": "2026-09-20T18:00:00Z",
+  "sourceCommit": "4e72f355ac07d47473087fce6e02503da73c829c",
+  "nodeVersion": "v24.20.0",
+  "executionEligible": false,
+  "broadcastsEnabled": false,
+  "capital": {
+    "totalQuote": "250000000",
+    "strategyInventoryQuote": "240000000",
+    "gasReserveQuote": "10000000",
+    "refillAllowed": false
+  },
+  "splits": {
+    "development": {
+      "assets": ["AAPL", "NVDA"],
+      "from": "2026-09-08T00:00:00Z",
+      "to": "2026-09-11T19:30:00Z",
+      "reason": "Previously inspected retained dates; mechanics and provisional ranking only"
+    },
+    "validation": {
+      "assets": [],
+      "status": "unavailable",
+      "reason": "No uninspected, independently marked retained period with complete staged costs"
+    },
+    "holdout": {
+      "assets": ["QQQ"],
+      "status": "untouched",
+      "selectionUse": false
+    }
+  },
+  "policy": {
+    "forecastLookbackMs": 3600000,
+    "forecastMinimumSpanMs": 2400000,
+    "forecastMinimumSamples": 40,
+    "forecastHorizonMs": 600000,
+    "decisionMs": 30000,
+    "cooldownMs": 600000,
+    "confirmations": 2,
+    "stageTtlMs": 180000,
+    "spanSpacings": [1, 2, 4, 8, 16, 32],
+    "lowerOffsetPpm": [-1000000, -500000, 0, 1000000],
+    "deploymentPpm": [500000, 1000000],
+    "swapInputPpm": [100000, 250000, 500000],
+    "maxSwapInputPpm": 500000,
+    "costBufferPpm": 500000,
+    "feeBufferPpm": 250000,
+    "slippageBps": 50,
+    "maximumRiskyExposurePpm": 1000000,
+    "maximumDrawdownPpm": 100000,
+    "minimumReferenceCoveragePpm": 950000
+  },
+  "scenarios": [
+    {
+      "name": "base",
+      "gasMultiplier": 1,
+      "feePpm": 1000000,
+      "delayMultiplier": 1,
+      "adverseSelectionPpm": 1000
+    },
+    {
+      "name": "double_gas_half_fees_delayed",
+      "gasMultiplier": 2,
+      "feePpm": 500000,
+      "delayMultiplier": 2,
+      "adverseSelectionPpm": 2500
+    }
+  ],
+  "selection": {
+    "requiresPositiveNetPnl": true,
+    "requiresPositiveIndependentReferenceAlpha": true,
+    "requiresCompleteValidationData": true,
+    "requiresAllStressScenarios": true,
+    "requiresProspectivePaperWeeks": 3,
+    "requiresProspectivePaperWeekends": 2,
+    "maximumCandidatesFrozen": 1,
+    "tuningOnHoldoutAllowed": false
+  },
+  "inputs": [
+    {"path": "data/lp-small-budget-2026-09-13/plan.json", "sha256": "fbc024440c0655fc8d01fa3fca56ef9fe347a66214ead1b4e9b972061a118e85", "class": "retained_plan"},
+    {"path": "data/lp-small-budget-2026-09-13/prepared.json", "sha256": "8b343cc06e5ea74d2440f52a733382d5bb94d02308538b5ea5958bbfef78d206", "class": "retained_manifest"},
+    {"path": "data/lp-small-budget-2026-09-13/sources-v2/AAPL.json", "sha256": "2448fb91c3007d3e18b848b9c6d9f85ceca0e34fd829c34b1d0136b69d9079fe", "class": "canonical_pool_capture"},
+    {"path": "data/lp-small-budget-2026-09-13/sources-v2/NVDA.json", "sha256": "a34a0ef6fb63d2759c51fc9bd9f572b3a4e14fcedbf1e56cd1d178f85f6e6a17", "class": "canonical_pool_capture"},
+    {"path": "data/competitor-cluster-amc-2026-09-04/capture.json", "sha256": "5fcb5df0520c1347a5b442b0bb53179adf19d996db467eddc882101002ebc7a3", "class": "public_chain_capture"},
+    {"path": "data/competitor-cluster-amc-2026-09-04/analysis.json", "sha256": "5233eadf080f0f7f53591dca08c4c69ad194e6ec940eee2e7874c2092040411f", "class": "competitor_analysis"},
+    {"path": "data/competitor-88a0641-2026-09-20/capture.json", "sha256": "db07325b8aa71f4d6e4a7ce5ebbdcd095d7c8e6abfe38bb030150aac467ae36e", "class": "public_chain_capture"},
+    {"path": "data/competitor-88a0641-2026-09-20/analysis.json", "sha256": "6ea33cf9d4cf01767b9132232ea9c0c865d77c8831b4ae045db2625b3e89c1d6", "class": "competitor_analysis"}
+  ],
+  "costProvenance": {
+    "entryExitAndAggregateRecenter": "borrowed retained September 13 median and stress scenarios",
+    "stageSplit": "assumed split from retained median stage weights; not a measured AAPL or NVDA hybrid bundle",
+    "approval": "unavailable; research assumes an adequate existing allowance and charges zero",
+    "swapFeeAndHistoricalPriceImpact": "embedded in exact historical V3 quote",
+    "adverseSelection": "preregistered sensitivity allowance",
+    "independentReference": "unavailable for retained replay"
+  },
+  "baseline": {
+    "testsPassed": 606,
+    "preExistingFailures": 0,
+    "dirtyPrerequisites": [
+      "docs/research/index.md",
+      "src/adaptive-paper.ts",
+      "config/adaptive-paper-inventory-250.json",
+      "docs/plans/hybrid-lp-250-sol-2026-09-20.md",
+      "docs/research/competitor-88a0641-2026-09-20.md",
+      "docs/research/competitor-cluster-amc-2026-09-04.md",
+      "research/evidence/competitor-88a0641-2026-09-20.json",
+      "research/evidence/competitor-cluster-amc-2026-09-04.json",
+      "scripts/research/competitor-cluster-day.mjs",
+      "scripts/research/competitor-lp-analyze.mjs",
+      "scripts/research/competitor-lp-capture.mjs",
+      "scripts/research/inventory-range-replay.mjs",
+      "src/research/inventory-lp.ts",
+      "src/research/inventory-range.ts",
+      "test/competitor-lp-analysis.test.ts",
+      "test/inventory-range.test.ts"
+    ]
+  },
+  "limitations": [
+    "Development dates were inspected before this manifest and cannot validate selection",
+    "Hypothetical actions do not rewrite subsequent canonical market flow",
+    "Historical independent reference marks are unavailable",
+    "Staged cost splits are assumptions rather than measured bundle evidence",
+    "No signer, funding, service activation, state migration, or transaction broadcast is authorized"
+  ]
+}

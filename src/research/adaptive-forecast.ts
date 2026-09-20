@@ -130,6 +130,16 @@ export function bandTraverseProbability(centerTick:number,tickLower:number,tickU
  * a band outside the portfolio path derives it identically. */
 export function forecastCenterTick(price:bigint){return 2*Math.log(Number(price)/(2**96))/LOG_TICK;}
 
+// A bounded replay evaluates the same range/source/variance tuple across gas,
+// fee, deployment and fixed-width arms. Cache only the analytic occupancy; all
+// token amounts, depth dilution, fees and terminal values remain arm-specific.
+const occupancyCache=new Map<string,RangeOccupancy>();
+function replayRangeOccupancy(center:number,lower:number,upper:number,variance:number){
+  const key=`${center}:${lower}:${upper}:${variance}`,cached=occupancyCache.get(key);if(cached)return cached;
+  const value=rangeOccupancy(center,lower,upper,variance);
+  if(occupancyCache.size>=100000)occupancyCache.clear();occupancyCache.set(key,value);return value;
+}
+
 /** Three moment-matched diffusion scenarios for terminal inventory value, zero
  * predictive drift. Fee income uses lagged fee growth, current-depth dilution
  * and the analytic expected in-band time until first exit, so a band that the
@@ -144,7 +154,7 @@ export function forecastPortfolio(market:PaperMarket,m:SwapSource,portfolio:Fore
   const variance=stats.varianceTicksPerMs*horizonMs;
   const points=[{z:-Math.sqrt(3),weight:1n},{z:0,weight:4n},{z:Math.sqrt(3),weight:1n}];
   const p=portfolio.position;
-  const range=p?rangeOccupancy(center,p.tickLower,p.tickUpper,variance):{occupancy:0,exitProbability:0,inRange:false};
+  const range=p?replayRangeOccupancy(center,p.tickLower,p.tickUpper,variance):{occupancy:0,exitProbability:0,inRange:false};
   const occupancyPpm=BigInt(Math.round(range.occupancy*1000000)),exitPpm=BigInt(Math.round(range.exitProbability*1000000));
   let weighted=0n,weightedFees=0n,unadjustedFees=0n;
   const shiftedSource=(shift:number)=>{

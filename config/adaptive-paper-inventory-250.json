@@ -1,0 +1,32 @@
+{
+  "version": "adaptive_paper_60m_v1",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "240000000",
+  "halfWidthsTicks": [10, 20, 40, 80, 160],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "forecast": { "lookbackMs": 3600000, "minimumSpanMs": 2400000, "minimumSamples": 40 },
+  "inventoryRange": {
+    "kind": "inventory_preserving_v1",
+    "spanSpacings": [1, 2, 4, 8, 16, 32],
+    "cooldownMs": 600000,
+    "confirmations": 2,
+    "gasBudgetQuote": "10000000"
+  },
+  "assets": [
+    {
+      "market": { "symbol": "AAPL", "rwa": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D", "fee": 500, "tickSpacing": 10, "rwaDecimals": 18 },
+      "costs": { "entry": "202013", "recenter": "217516", "exit": "131805", "hold": "56328", "holdExit": "55848", "residual": "162855" },
+      "evidence": {
+        "mode": "research_paper_only_not_live_authorization",
+        "costs": "retained_small_budget_2026_09_13_median_profile",
+        "noSwapCost": "scenario_asset_recenter_scaled_by_NVDA_withdraw_plus_mint_stage_weights_not_measured_bundle",
+        "study": "competitor_88a0641_2026_09_20"
+      }
+    }
+  ]
+}

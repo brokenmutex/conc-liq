@@ -1,0 +1,72 @@
+{
+  "version": "adaptive_paper_60m_v1",
+  "streamKey": "robinhood-v3-rwa-usdg-v1",
+  "budgetQuote": "240000000",
+  "halfWidthsTicks": [10, 20, 40, 80, 160],
+  "decisionMs": 30000,
+  "quoteTtlMs": 90000,
+  "horizonMs": 600000,
+  "slippageBps": 50,
+  "costBufferPpm": 500000,
+  "feeBufferPpm": 250000,
+  "forecast": {
+    "lookbackMs": 3600000,
+    "minimumSpanMs": 2400000,
+    "minimumSamples": 40
+  },
+  "hybridRange": {
+    "kind": "hybrid_staged_v1",
+    "spanSpacings": [1, 2, 4, 8, 16, 32],
+    "lowerOffsetPpm": [-1000000, -750000, -500000, -250000, 0, 250000, 1000000],
+    "deploymentPpm": [250000, 500000, 750000, 1000000],
+    "swapInputPpm": [25000, 50000, 100000, 200000, 350000, 500000],
+    "maxSwapInputPpm": 500000,
+    "minLiquidity": "1",
+    "cooldownMs": 600000,
+    "confirmations": 2,
+    "gasBudgetQuote": "10000000",
+    "stageTtlMs": 180000,
+    "stageDelayMs": {
+      "approval": 30000,
+      "withdraw_collect": 30000,
+      "swap": 60000,
+      "mint": 60000
+    }
+  },
+  "assets": [
+    {
+      "market": {
+        "symbol": "AAPL",
+        "rwa": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "pool": "0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D",
+        "fee": 500,
+        "tickSpacing": 10,
+        "rwaDecimals": 18
+      },
+      "costs": {
+        "entry": "202013",
+        "recenter": "217516",
+        "exit": "131805",
+        "hold": "56328",
+        "holdExit": "55848",
+        "residual": "162855"
+      },
+      "hybridCosts": {
+        "approval": "0",
+        "withdrawCollect": "46750",
+        "swap": "54661",
+        "mint": "116105",
+        "exit": "131805",
+        "adverseSelectionPpm": 1000,
+        "approvalRequired": false
+      },
+      "evidence": {
+        "mode": "inactive_research_paper_only_not_live_authorization",
+        "costs": "retained_small_budget_2026_09_13_median_scenario",
+        "stageSplit": "borrowed_NVDA_stage_weights_scaled_to_AAPL_not_measured_bundle",
+        "allowance": "assumed_existing_for_research_approval_cost_unavailable",
+        "study": "hybrid_lp_250_2026_09_20"
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "sourceAnalysisSha256": "5233eadf080f0f7f53591dca08c4c69ad194e6ec940eee2e7874c2092040411f",
+  "aggregate": {
+    "cohortPositions": 47,
+    "fullySettledPositions": 35,
+    "positionsRetainingLiquidity": 12,
+    "amcSwapTransactionsSeptember4": 52,
+    "maximumConcurrentNonzeroLiquidity": 13
+  },
+  "counterexampleSwap": {
+    "hash": "0xcadd5f54d4e0215c3cae76212014d29f3563cc62401598e60a3c95da7fa8a303",
+    "at": "2026-09-04T04:20:08.000Z",
+    "amount0": "-299235630348073338386",
+    "amount1": "1000000000",
+    "pool": "0xaa34fea710a1a737840329051d81d3b0b7c564d5"
+  },
+  "partialWithdrawal": {
+    "tokenId": "1019791",
+    "addedLiquidity": ["262262543481884348", "10072250840035880541"],
+    "burnedLiquidity": ["259639918047065504", "9974124730815992391"],
+    "remainingLiquidity": "100748734654706994",
+    "firstBurnAt": "2026-09-04T15:06:43.000Z",
+    "lastBurnAt": "2026-09-04T15:45:28.000Z",
+    "lastCoreCollect": {
+      "hash": "0x306ac7d2a7db794e761cd5f3af497ad8dcc02596e58223d58e62ee5772528d00",
+      "amount0": "7278320990046295419246",
+      "amount1": "30365507525",
+      "recipient": "0xC0051F40aBF4B7F9Aa1E81D38558D38d4D1Ad130",
+      "actualErc20PaymentsMatched": true
+    }
+  },
+  "topUp": {
+    "tokenId": "1027499",
+    "mintCount": 4,
+    "mintLiquidity": ["2791263715780241294", "15915505962388786248", "7987427903358065906", "8157802009846592605"]
+  },
+  "midnightSpanningPosition": {
+    "tokenId": "1027499",
+    "mintedAt": "2026-09-04T23:37:34.000Z",
+    "fullyWithdrawnAt": "2026-09-05T12:16:03.000Z",
+    "september4FeesRaw": ["59901764583952322113", "199001145"],
+    "lifetimeFeesRaw": ["531340967309622840168", "1242297813"],
+    "september4CenterMarkedQuote": "359142907",
+    "lifetimeCenterMarkedQuote": "2662788173",
+    "finalCoreCollect": {
+      "hash": "0x0fbc58dfca96feaa550e7db554680158a38f8de9e49a3dd009417731b9171cb3",
+      "amount0": "565357249298571247536",
+      "amount1": "198000577",
+      "recipient": "0xC0051F40aBF4B7F9Aa1E81D38558D38d4D1Ad130",
+      "actualErc20PaymentsMatched": true
+    },
+    "remainingLiquidity": "0"
+  },
+  "interpretation": {
+    "observed": [
+      "The first withdrawal is not a full close",
+      "The position received four liquidity additions",
+      "The position spans the September 4 UTC boundary",
+      "The sender transaction contains an AMC pool Swap"
+    ],
+    "unavailable": [
+      "private trading intent",
+      "whole-wallet independent-reference profit",
+      "exact cohort fee share caused by every own swap segment"
+    ]
+  }
+}

@@ -20,6 +20,8 @@ import {migrateAdaptivePaperRuntime} from "./adaptive-paper-runtime.js";
 import {deriveAdaptivePassiveBenchmark,valueAdaptivePassiveBenchmark,type AdaptivePassiveBenchmark} from "./paper/adaptive-benchmark.js";
 import {adaptiveReferenceValuation,type AdaptiveReferenceValuation} from "./paper/adaptive-reference.js";
 import type {PaperReferenceDecision} from "./paper/reference.js";
+import {InventoryLpReplay} from './research/inventory-lp.js';
+import {HybridLpReplay,type HybridStageCosts} from './research/hybrid-lp.js';
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
 /** Canonical V3 fee-to-spacing pairing for the tiers this runner supports. */
@@ -32,7 +34,11 @@ const marketSchema = z.object({
   rwaDecimals: z.literal(18),
 }).refine(m=>V3_TICK_SPACING[m.fee]===m.tickSpacing,"Tick spacing does not match the pool fee tier");
 const costsSchema = z.object({ entry:z.string().regex(/^\d+$/), recenter:z.string().regex(/^\d+$/),
-  exit:z.string().regex(/^\d+$/), hold:z.string().regex(/^\d+$/), holdExit:z.string().regex(/^\d+$/) });
+  exit:z.string().regex(/^\d+$/), hold:z.string().regex(/^\d+$/), holdExit:z.string().regex(/^\d+$/),
+  residual:z.string().regex(/^[1-9]\d*$/).optional() });
+const hybridCostsSchema=z.object({approval:z.string().regex(/^\d+$/),withdrawCollect:z.string().regex(/^\d+$/),
+  swap:z.string().regex(/^\d+$/),mint:z.string().regex(/^\d+$/),exit:z.string().regex(/^\d+$/),
+  adverseSelectionPpm:z.number().int().min(0).max(1000000),approvalRequired:z.boolean()}).strict();
 /** Exported so the shipped configs can be validated without starting a session. */
 export const configSchema = z.object({
   version:z.literal("adaptive_paper_60m_v1"), streamKey:z.string().min(1), budgetQuote:z.string().regex(/^[1-9]\d*$/),
@@ -52,12 +58,32 @@ export const configSchema = z.object({
   residualRange:z.boolean().optional(),
   residualWidthsTicks:z.array(z.number().int().positive()).min(1).optional(),
   feePpm:z.number().int().min(0).max(1000000).optional(),
+  inventoryRange:z.object({kind:z.literal('inventory_preserving_v1'),
+    spanSpacings:z.array(z.number().int().min(1).max(64)).min(1).max(8),
+    cooldownMs:z.number().int().min(60000),confirmations:z.number().int().min(2).max(10),
+    gasBudgetQuote:z.string().regex(/^[1-9]\d*$/)}).strict().optional(),
+  hybridRange:z.object({kind:z.literal('hybrid_staged_v1'),
+    spanSpacings:z.array(z.number().int().min(1).max(64)).min(1).max(16),
+    lowerOffsetPpm:z.array(z.number().int().min(-1000000).max(1000000)).min(1).max(16),
+    deploymentPpm:z.array(z.number().int().min(1).max(1000000)).min(1).max(8),
+    swapInputPpm:z.array(z.number().int().min(1).max(1000000)).max(16),
+    maxSwapInputPpm:z.number().int().min(1).max(1000000),minLiquidity:z.string().regex(/^[1-9]\d*$/),
+    cooldownMs:z.number().int().min(60000),confirmations:z.number().int().min(2).max(10),
+    gasBudgetQuote:z.string().regex(/^[1-9]\d*$/),stageTtlMs:z.number().int().min(30000).max(600000),
+    stageDelayMs:z.object({approval:z.number().int().min(0).max(600000),withdraw_collect:z.number().int().min(0).max(600000),
+      swap:z.number().int().min(0).max(600000),mint:z.number().int().min(0).max(600000)}).strict()}).strict()
+    .refine(h=>h.swapInputPpm.every(n=>n<=h.maxSwapInputPpm),'Swap grid exceeds its input cap').optional(),
   assets:z.array(z.object({market:marketSchema,costs:costsSchema,evidence:z.record(z.string(),z.string()),
+    hybridCosts:hybridCostsSchema.optional(),
     budgetQuote:z.string().regex(/^[1-9]\d*$/).optional(),
     halfWidthsTicks:z.array(z.number().int().positive()).min(2).optional(),
     residualWidthsTicks:z.array(z.number().int().positive()).min(1).optional(),
     holdout:z.boolean().optional()}).strict()).min(1).max(8),
-}).strict();
+}).strict().refine(c=>!(c.inventoryRange&&c.hybridRange),'Inventory and hybrid challengers are mutually exclusive')
+  .refine(c=>!c.inventoryRange||(!c.residualRange&&c.assets.every(a=>a.costs.residual!==undefined)),
+    'Inventory-preserving paper requires explicit no-swap costs and residualRange disabled')
+  .refine(c=>!c.hybridRange||(!c.residualRange&&c.assets.every(a=>a.hybridCosts!==undefined)),
+    'Hybrid paper requires explicit staged costs and residualRange disabled');
 type Config=z.infer<typeof configSchema>;
 
 interface SourceRow {
@@ -69,6 +95,7 @@ interface AssetState {
   symbol:string; market:PaperMarket; costs:ResearchLpCosts; seed:MarketSeed; last:SourceRow["checkpoint"];
   /** Per-asset policy overrides, persisted so a restored model is identical. */
   budgetQuote?:string; halfWidthsTicks?:number[]; residualWidthsTicks?:number[]; holdout?:boolean;
+  hybridCosts?:z.infer<typeof hybridCostsSchema>;
   samples:ForecastSample[]; lastSampleAt:number; growth0:bigint; growth1:bigint;
   model:Record<string,unknown>; status:"running"|"invalid"; reason?:string; blocked:Record<string,number>;
   decisions:number; forecastAvailable:number; forecastUnavailable:number;
@@ -152,8 +179,18 @@ function sourceReasons(row:SourceRow,gate:{chainEligible:boolean;reasons:readonl
   if(!gate.chainEligible)reasons.push("chain_recovery_unproven");if(age<0||age>180000)reasons.push("source_stale");
   return [...new Set(reasons)];
 }
-function restoreModel(asset:AssetState,config:Config){const model=new AdaptiveLpReplay(asset.market,asset.costs,policy(config,asset));Object.assign(model,asset.model);return model;}
-function snapshotModel(model:AdaptiveLpReplay){return Object.fromEntries(Object.entries(model).filter(([key])=>!["market","costs","policy"].includes(key)));}
+function createModel(asset:Pick<AssetState,'market'|'costs'|'budgetQuote'|'halfWidthsTicks'|'residualWidthsTicks'|'hybridCosts'>,config:Config){
+  if(config.hybridRange){assert(asset.hybridCosts);const {kind:_kind,...h}=config.hybridRange,c=asset.hybridCosts;
+    const hybridCosts:HybridStageCosts={...c,approval:BigInt(c.approval),withdrawCollect:BigInt(c.withdrawCollect),swap:BigInt(c.swap),mint:BigInt(c.mint),exit:BigInt(c.exit)};
+    return new HybridLpReplay(asset.market,asset.costs,policy(config,asset),{...h,
+      grid:{spanSpacings:h.spanSpacings,lowerOffsetPpm:h.lowerOffsetPpm,deploymentPpm:h.deploymentPpm,swapInputPpm:h.swapInputPpm,
+        maxSwapInputPpm:h.maxSwapInputPpm,minLiquidity:BigInt(h.minLiquidity)},costs:hybridCosts,gasBudgetQuote:BigInt(h.gasBudgetQuote)});
+  }
+  return config.inventoryRange?new InventoryLpReplay(asset.market,asset.costs,policy(config,asset),{
+    ...config.inventoryRange,gasBudgetQuote:BigInt(config.inventoryRange.gasBudgetQuote)}):new AdaptiveLpReplay(asset.market,asset.costs,policy(config,asset));
+}
+function restoreModel(asset:AssetState,config:Config){const model=createModel(asset,config);Object.assign(model,asset.model);return model;}
+function snapshotModel(model:AdaptiveLpReplay){return Object.fromEntries(Object.entries(model).filter(([key])=>!["market","costs","policy","inventory","hybrid"].includes(key)));}
 function captureBenchmark(asset:AssetState,model:AdaptiveLpReplay){
   const derived=deriveAdaptivePassiveBenchmark(model.actions);if(!derived)return false;
   if(asset.benchmark){assert.deepEqual(asset.benchmark,derived,"Adaptive passive benchmark changed after entry");return false;}
@@ -180,9 +217,13 @@ async function recordHistory(path:string,asset:AssetState,model:AdaptiveLpReplay
   catch(error){throw new AdaptiveHistoryWriteError(error);}
 }
 class AdaptiveHistoryWriteError extends Error {constructor(readonly original:unknown){super('Adaptive paper history write failed');}}
-function sample(asset:AssetState,market:ExperimentMarket,at:number){
+export function retainForecastSamples(samples:ForecastSample[],at:number,lookbackMs:number){
+  assert(Number.isSafeInteger(lookbackMs)&&lookbackMs>0);
+  while(samples.length>1&&samples[1]!.at<at-lookbackMs)samples.shift();
+}
+function sample(asset:AssetState,market:ExperimentMarket,at:number,lookbackMs:number){
   if(at-asset.lastSampleAt<60000)return;asset.samples.push({at,price:market.price,growth0:asset.growth0,growth1:asset.growth1});asset.lastSampleAt=at;
-  while(asset.samples.length>1&&asset.samples[1]!.at<at-7200000)asset.samples.shift();
+  retainForecastSamples(asset.samples,at,lookbackMs);
 }
 async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:SourceRow[],allowDecisions:boolean,path?:string){
   if(asset.status==="invalid"||!rows.length)return;const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,config);
@@ -194,7 +235,7 @@ async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:So
         if(segment.token===0)asset.growth0+=growth;else asset.growth1+=growth;model.accrue(segment,protocol);
       }
       market.verify({price:cp.sqrtPriceX96,tick:cp.tick,liquidity:cp.liquidity,global0:cp.feeGrowth0,global1:cp.feeGrowth1});
-      const at=Date.parse(cp.blockTimestamp);sample(asset,market,at);
+      const at=Date.parse(cp.blockTimestamp);sample(asset,market,at,config.forecast.lookbackMs);
       const actionsBefore=model.actions.length;let reference:PaperReferenceDecision|null=null;
       if(allowDecisions){const stats=agileForecastStats(asset.samples,at,config.forecast),gate=await source.decisionGate(row,asset.market),reasons=sourceReasons(row,gate,Date.now());reference=gate.reference;
         if(reasons.length===0){if(stats)asset.forecastAvailable++;else asset.forecastUnavailable++;await model.step({...market.source(),at,block:cp.block},stats);asset.decisions++;}
@@ -211,24 +252,25 @@ function report(state:State){return {version:state.config.version,createdAt:stat
   policy:{lookbackMinutes:state.config.forecast.lookbackMs/60000,minimumSpanMinutes:state.config.forecast.minimumSpanMs/60000,
     minimumSamples:state.config.forecast.minimumSamples,volatilityHalfLifeMs:state.config.forecast.volatilityHalfLifeMs??null,
     feeHalfLifeMs:state.config.forecast.feeHalfLifeMs??null,halfWidthsTicks:state.config.halfWidthsTicks,
-    residualRange:state.config.residualRange??false,feePpm:state.config.feePpm??1000000,economicGate:true,outOfRangeTrigger:true},
+    residualRange:state.config.residualRange??false,feePpm:state.config.feePpm??1000000,economicGate:true,
+    outOfRangeTrigger:!state.config.inventoryRange&&!state.config.hybridRange,inventoryRange:state.config.inventoryRange??null,hybridRange:state.config.hybridRange??null},
   assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas,hold=valueAdaptivePassiveBenchmark(asset.market,market.price,asset.benchmark);
     return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,holdout:asset.holdout??false,
       budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(asset.budgetQuote??state.config.budgetQuote)),
       holdQuote:hold===null?null:String(hold),alphaQuote:hold===null?null:String(nav-hold),benchmark:asset.benchmark??null,reference:asset.reference??null,
-      entries:model.entries,recenters:model.recenters,pending:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
+      entries:model.entries,recenters:model.recenters,pending:model instanceof HybridLpReplay?model.hybridPending?.stage??null:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
       residuals:model.residuals,gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
 }
 async function persist(path:string,state:State){state.lastPollAt=new Date().toISOString();await atomic(path,state);await atomic(path+".status.json",report(state));}
 async function start(source:Source,config:Config,path:string){
   const createdAt=new Date().toISOString(),runtime=loadRuntimeIdentity();assertRuntimeMatches(runtime??null,runtime);assert(runtime);
   const state:State={version:1,createdAt,config,configHash:digest(json(config)),runtime,assets:[],lastPollAt:createdAt,executionEligible:false,broadcastsEnabled:false};
-  for(const item of config.assets){const {rows}=await source.rows(item.market,undefined,new Date(Date.now()-75*60000).toISOString());assert(rows.length>=2,`${item.market.symbol} forecast warmup checkpoints unavailable`);
+  for(const item of config.assets){const {rows}=await source.rows(item.market,undefined,new Date(Date.now()-config.forecast.lookbackMs-15*60000).toISOString());assert(rows.length>=2,`${item.market.symbol} forecast warmup checkpoints unavailable`);
     const first=rows[0]!,seed=await source.seed(item.market,first),market=new ExperimentMarket(seed);market.verify({price:first.checkpoint.sqrtPriceX96,tick:first.checkpoint.tick,liquidity:first.checkpoint.liquidity,global0:first.checkpoint.feeGrowth0,global1:first.checkpoint.feeGrowth1});
-    const model=new AdaptiveLpReplay(item.market,costs(item.costs),policy(config,item));const asset:AssetState={symbol:item.market.symbol,market:item.market,costs:costs(item.costs),seed,last:first.checkpoint,
-      budgetQuote:item.budgetQuote,halfWidthsTicks:item.halfWidthsTicks,residualWidthsTicks:item.residualWidthsTicks,holdout:item.holdout,
+    const model=createModel({...item,costs:costs(item.costs)},config);const asset:AssetState={symbol:item.market.symbol,market:item.market,costs:costs(item.costs),seed,last:first.checkpoint,
+      budgetQuote:item.budgetQuote,halfWidthsTicks:item.halfWidthsTicks,residualWidthsTicks:item.residualWidthsTicks,holdout:item.holdout,hybridCosts:item.hybridCosts,
       samples:[],lastSampleAt:-Infinity,growth0:0n,growth1:0n,model:snapshotModel(model),status:"running",blocked:{},decisions:0,forecastAvailable:0,forecastUnavailable:0};
-    sample(asset,market,Date.parse(first.checkpoint.blockTimestamp));await advanceAsset(source,asset,config,rows.slice(1),false);assert(asset.status==="running",`${asset.symbol} warmup failed: ${asset.reason}`);state.assets.push(asset);
+    sample(asset,market,Date.parse(first.checkpoint.blockTimestamp),config.forecast.lookbackMs);await advanceAsset(source,asset,config,rows.slice(1),false);assert(asset.status==="running",`${asset.symbol} warmup failed: ${asset.reason}`);state.assets.push(asset);
   }
   await persist(path,state);return state;
 }

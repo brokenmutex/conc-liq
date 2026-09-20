@@ -1,0 +1,1037 @@
+{
+  "schemaVersion": 1,
+  "auditedOn": "2026-09-20",
+  "anchor": {
+    "chainId": 4663,
+    "wallets": [
+      "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "0xa7b474644912d08210c8962564e2f53fd0a7d5cf"
+    ],
+    "manager": "0x73991a25c818bf1f1128deaab1492d45638de0d3",
+    "pool": "0xaa34fea710a1a737840329051d81d3b0b7c564d5",
+    "first": 53821289,
+    "dayEndExclusive": 54675544,
+    "settlementEndExclusive": 55532250,
+    "boundaries": [
+      {
+        "block": 53821288,
+        "hash": "0xce33938455ee97d99d65f6d19072912d938074e01e4fc8dc7f2a9ba4eb2a8ee0",
+        "timestamp": 1788479999
+      },
+      {
+        "block": 54675543,
+        "hash": "0xa3a43813d3ac3c7e69a4d6ce8262338a9f0fab8744a8d11fb1e8a001d90d4c76",
+        "timestamp": 1788566399
+      },
+      {
+        "block": 55532249,
+        "hash": "0x655915993d3b20055f32cbce0fedeba2a5b40a573108657f821fc89833bfc52b",
+        "timestamp": 1788652799
+      }
+    ]
+  },
+  "captureSha256": "5fcb5df0520c1347a5b442b0bb53179adf19d996db467eddc882101002ebc7a3",
+  "codeSha256": "ac038e64c50d284a72c11adb8e8ea04e21471ff227213212e972813feaf1daec",
+  "cohortPositions": 47,
+  "maximumConcurrentNonzeroLiquidity": 13,
+  "fullySettledPositions": 35,
+  "positionsRetainingLiquidity": 12,
+  "totals": {
+    "windowFeesAtCenterQuote": "17923252497",
+    "windowFeesAtEndQuote": "17159703181",
+    "dayFeesAtCenterQuote": "15614735401",
+    "dayFeesAtMidnightQuote": "15140012979",
+    "initialAtCenterQuote": "1422209206121",
+    "allDepositsAtActionQuote": "2257807596416"
+  },
+  "settledOnlyTotals": {
+    "closedCenterMarkedTokenFlowPnlBeforeGasQuote": "12104018964",
+    "closedCashflowPnlBeforeGasQuote": "5793859771"
+  },
+  "dayTransactionSummary": {
+    "originating": 392,
+    "withV3Swaps": 93,
+    "withAmcPoolSwaps": 52,
+    "amcPoolSwapEvents": 56
+  },
+  "cohortActionReceipts": 137,
+  "cohortActionReceiptsWithSwaps": 0,
+  "inRangeFullClosures": 10,
+  "nonceCoverage": [
+    {
+      "wallet": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "before": 734,
+      "after": 1232,
+      "transactions": 498,
+      "additionalNonceLookups": 59,
+      "complete": true
+    },
+    {
+      "wallet": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "before": 0,
+      "after": 10,
+      "transactions": 10,
+      "additionalNonceLookups": 4,
+      "complete": true
+    }
+  ],
+  "tokenLedgerReconciled": true,
+  "internalTransfers": [
+    {
+      "hash": "0x342b51af25641a5ba2ca0e0762eaba41251c0b7b186409caf05080e64a75b0c6",
+      "block": 54095717,
+      "from": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "to": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "amount": "50000000000"
+    },
+    {
+      "hash": "0xedabc9e62daefcb9855b027b40316c7fa291a485b9819644e76c9f7478cd058d",
+      "block": 54098887,
+      "from": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "to": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "amount": "40000000000"
+    },
+    {
+      "hash": "0x924449861d562f3b73b38025a7b1072b2c8dc109dbaed52b6585d3c75408f85d",
+      "block": 54135806,
+      "from": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "to": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "amount": "30000000000"
+    },
+    {
+      "hash": "0xe9065f3987b17d08a520437f4037a98bd262a2c27029da49d0f4d8c87774e497",
+      "block": 54137468,
+      "from": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "to": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "amount": "39000000000"
+    },
+    {
+      "hash": "0xb4de9957c9bc3fc25871e0085cb314e855a114b19bfebe0ecaa79433b84fcb45",
+      "block": 55035173,
+      "from": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "to": "0xa7b474644912d08210c8962564e2f53fd0a7d5cf",
+      "token": "0x5fc5360d0400a0fd4f2af552add042d716f1d168",
+      "amount": "3000000000"
+    }
+  ],
+  "positions": [
+    {
+      "id": "1008723",
+      "mintedAt": "2026-09-04T04:25:31.000Z",
+      "closedAt": "2026-09-04T04:27:46.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "565917719683563831",
+        "1875259"
+      ],
+      "dayFeesRaw": [
+        "565917719683563831",
+        "1875259"
+      ],
+      "dayFeesAtCenterQuote": "3675711",
+      "windowFeesAtCenterQuote": "3675711"
+    },
+    {
+      "id": "1008816",
+      "mintedAt": "2026-09-04T04:29:03.000Z",
+      "closedAt": "2026-09-04T04:36:33.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "23196917388991880749",
+        "71348407"
+      ],
+      "dayFeesRaw": [
+        "23196917388991880749",
+        "71348407"
+      ],
+      "dayFeesAtCenterQuote": "143398771",
+      "windowFeesAtCenterQuote": "143398771"
+    },
+    {
+      "id": "1008897",
+      "mintedAt": "2026-09-04T04:35:04.000Z",
+      "closedAt": "2026-09-04T04:38:54.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "19275193546817476156",
+        "46926344"
+      ],
+      "dayFeesRaw": [
+        "19275193546817476156",
+        "46926344"
+      ],
+      "dayFeesAtCenterQuote": "109363643",
+      "windowFeesAtCenterQuote": "109363643"
+    },
+    {
+      "id": "1008969",
+      "mintedAt": "2026-09-04T04:39:35.000Z",
+      "closedAt": "2026-09-04T04:41:40.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "27075634972672046636",
+        "55172340"
+      ],
+      "dayFeesRaw": [
+        "27075634972672046636",
+        "55172340"
+      ],
+      "dayFeesAtCenterQuote": "140797513",
+      "windowFeesAtCenterQuote": "140797513"
+    },
+    {
+      "id": "1009001",
+      "mintedAt": "2026-09-04T04:42:05.000Z",
+      "closedAt": "2026-09-04T04:43:38.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1009070",
+      "mintedAt": "2026-09-04T04:46:55.000Z",
+      "closedAt": "2026-09-04T04:55:00.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "43675048413128748692",
+        "108598045"
+      ],
+      "dayFeesRaw": [
+        "43675048413128748692",
+        "108598045"
+      ],
+      "dayFeesAtCenterQuote": "239850760",
+      "windowFeesAtCenterQuote": "239850760"
+    },
+    {
+      "id": "1009189",
+      "mintedAt": "2026-09-04T04:54:07.000Z",
+      "closedAt": "2026-09-04T04:56:13.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "12388413408501269845",
+        "17853807"
+      ],
+      "dayFeesRaw": [
+        "12388413408501269845",
+        "17853807"
+      ],
+      "dayFeesAtCenterQuote": "54529345",
+      "windowFeesAtCenterQuote": "54529345"
+    },
+    {
+      "id": "1009231",
+      "mintedAt": "2026-09-04T04:56:56.000Z",
+      "closedAt": "2026-09-04T05:12:31.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "112374824490701863742",
+        "453166104"
+      ],
+      "dayFeesRaw": [
+        "112374824490701863742",
+        "453166104"
+      ],
+      "dayFeesAtCenterQuote": "779914096",
+      "windowFeesAtCenterQuote": "779914096"
+    },
+    {
+      "id": "1009496",
+      "mintedAt": "2026-09-04T05:11:19.000Z",
+      "closedAt": "2026-09-04T05:17:47.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "26681491105688993311",
+        "91603796"
+      ],
+      "dayFeesRaw": [
+        "26681491105688993311",
+        "91603796"
+      ],
+      "dayFeesAtCenterQuote": "170121080",
+      "windowFeesAtCenterQuote": "170121080"
+    },
+    {
+      "id": "1009562",
+      "mintedAt": "2026-09-04T05:15:16.000Z",
+      "closedAt": "2026-09-04T06:11:33.000Z",
+      "adds": 3,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "401966419703624475931",
+        "1226611643"
+      ],
+      "dayFeesRaw": [
+        "401966419703624475931",
+        "1226611643"
+      ],
+      "dayFeesAtCenterQuote": "2434605362",
+      "windowFeesAtCenterQuote": "2434605362"
+    },
+    {
+      "id": "1009837",
+      "mintedAt": "2026-09-04T05:27:12.000Z",
+      "closedAt": "2026-09-04T05:27:50.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1009859",
+      "mintedAt": "2026-09-04T05:28:32.000Z",
+      "closedAt": "2026-09-04T05:31:08.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1009910",
+      "mintedAt": "2026-09-04T05:31:44.000Z",
+      "closedAt": "2026-09-04T05:40:33.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "25820610448718118159",
+        "72634520"
+      ],
+      "dayFeesRaw": [
+        "25820610448718118159",
+        "72634520"
+      ],
+      "dayFeesAtCenterQuote": "155276476",
+      "windowFeesAtCenterQuote": "155276476"
+    },
+    {
+      "id": "1010138",
+      "mintedAt": "2026-09-04T05:42:25.000Z",
+      "closedAt": "2026-09-04T05:43:04.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1010167",
+      "mintedAt": "2026-09-04T05:43:44.000Z",
+      "closedAt": "2026-09-04T05:44:39.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1010194",
+      "mintedAt": "2026-09-04T05:45:29.000Z",
+      "closedAt": "2026-09-04T05:48:36.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesRaw": [
+        "0",
+        "0"
+      ],
+      "dayFeesAtCenterQuote": "0",
+      "windowFeesAtCenterQuote": "0"
+    },
+    {
+      "id": "1010316",
+      "mintedAt": "2026-09-04T05:49:17.000Z",
+      "closedAt": "2026-09-04T06:10:45.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "22887242601002089797",
+        "84164862"
+      ],
+      "dayFeesRaw": [
+        "22887242601002089797",
+        "84164862"
+      ],
+      "dayFeesAtCenterQuote": "153985283",
+      "windowFeesAtCenterQuote": "153985283"
+    },
+    {
+      "id": "1010653",
+      "mintedAt": "2026-09-04T06:12:27.000Z",
+      "closedAt": "2026-09-04T06:42:09.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "86274010136950228121",
+        "271659929"
+      ],
+      "dayFeesRaw": [
+        "86274010136950228121",
+        "271659929"
+      ],
+      "dayFeesAtCenterQuote": "538026826",
+      "windowFeesAtCenterQuote": "538026826"
+    },
+    {
+      "id": "1011869",
+      "mintedAt": "2026-09-04T07:16:19.000Z",
+      "closedAt": "2026-09-04T07:21:33.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "6450680283748331552",
+        "24739840"
+      ],
+      "dayFeesRaw": [
+        "6450680283748331552",
+        "24739840"
+      ],
+      "dayFeesAtCenterQuote": "50750813",
+      "windowFeesAtCenterQuote": "50750813"
+    },
+    {
+      "id": "1012075",
+      "mintedAt": "2026-09-04T07:27:42.000Z",
+      "closedAt": "2026-09-04T07:29:33.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "675989825534386416",
+        "2428541"
+      ],
+      "dayFeesRaw": [
+        "675989825534386416",
+        "2428541"
+      ],
+      "dayFeesAtCenterQuote": "4912268",
+      "windowFeesAtCenterQuote": "4912268"
+    },
+    {
+      "id": "1013746",
+      "mintedAt": "2026-09-04T08:56:13.000Z",
+      "closedAt": "2026-09-04T10:11:13.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "201975072417030040780",
+        "473990996"
+      ],
+      "dayFeesRaw": [
+        "201975072417030040780",
+        "473990996"
+      ],
+      "dayFeesAtCenterQuote": "1080968611",
+      "windowFeesAtCenterQuote": "1080968611"
+    },
+    {
+      "id": "1013819",
+      "mintedAt": "2026-09-04T09:00:09.000Z",
+      "closedAt": "2026-09-04T09:05:38.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "71968059384491729133",
+        "141281260"
+      ],
+      "dayFeesRaw": [
+        "71968059384491729133",
+        "141281260"
+      ],
+      "dayFeesAtCenterQuote": "359515630",
+      "windowFeesAtCenterQuote": "359515630"
+    },
+    {
+      "id": "1013924",
+      "mintedAt": "2026-09-04T09:06:17.000Z",
+      "closedAt": "2026-09-04T09:10:31.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "25924256848107259009",
+        "82217946"
+      ],
+      "dayFeesRaw": [
+        "25924256848107259009",
+        "82217946"
+      ],
+      "dayFeesAtCenterQuote": "160359858",
+      "windowFeesAtCenterQuote": "160359858"
+    },
+    {
+      "id": "1014050",
+      "mintedAt": "2026-09-04T09:12:59.000Z",
+      "closedAt": "2026-09-04T09:17:52.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "55424423595111808595",
+        "119852731"
+      ],
+      "dayFeesRaw": [
+        "55424423595111808595",
+        "119852731"
+      ],
+      "dayFeesAtCenterQuote": "283935129",
+      "windowFeesAtCenterQuote": "283935129"
+    },
+    {
+      "id": "1014137",
+      "mintedAt": "2026-09-04T09:16:46.000Z",
+      "closedAt": "2026-09-04T09:19:53.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "6937001378352808497",
+        "40339521"
+      ],
+      "dayFeesRaw": [
+        "6937001378352808497",
+        "40339521"
+      ],
+      "dayFeesAtCenterQuote": "60631355",
+      "windowFeesAtCenterQuote": "60631355"
+    },
+    {
+      "id": "1014214",
+      "mintedAt": "2026-09-04T09:19:33.000Z",
+      "closedAt": "2026-09-04T09:23:08.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "24882983372191536330",
+        "158806791"
+      ],
+      "dayFeesRaw": [
+        "24882983372191536330",
+        "158806791"
+      ],
+      "dayFeesAtCenterQuote": "232031494",
+      "windowFeesAtCenterQuote": "232031494"
+    },
+    {
+      "id": "1014318",
+      "mintedAt": "2026-09-04T09:24:27.000Z",
+      "closedAt": "2026-09-04T09:25:57.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "10948433059329430497",
+        "13582344"
+      ],
+      "dayFeesRaw": [
+        "10948433059329430497",
+        "13582344"
+      ],
+      "dayFeesAtCenterQuote": "46287877",
+      "windowFeesAtCenterQuote": "46287877"
+    },
+    {
+      "id": "1014834",
+      "mintedAt": "2026-09-04T09:51:37.000Z",
+      "closedAt": "2026-09-04T10:00:06.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "16452785591666610443",
+        "25140587"
+      ],
+      "dayFeesRaw": [
+        "16452785591666610443",
+        "25140587"
+      ],
+      "dayFeesAtCenterQuote": "72551125",
+      "windowFeesAtCenterQuote": "72551125"
+    },
+    {
+      "id": "1015223",
+      "mintedAt": "2026-09-04T10:17:06.000Z",
+      "closedAt": "2026-09-04T10:20:13.000Z",
+      "adds": 2,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "9109997282575527162",
+        "19976602"
+      ],
+      "dayFeesRaw": [
+        "9109997282575527162",
+        "19976602"
+      ],
+      "dayFeesAtCenterQuote": "45299877",
+      "windowFeesAtCenterQuote": "45299877"
+    },
+    {
+      "id": "1015264",
+      "mintedAt": "2026-09-04T10:19:50.000Z",
+      "closedAt": "2026-09-04T11:02:18.000Z",
+      "adds": 6,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "187024092790094072177",
+        "465177433"
+      ],
+      "dayFeesRaw": [
+        "187024092790094072177",
+        "465177433"
+      ],
+      "dayFeesAtCenterQuote": "981942974",
+      "windowFeesAtCenterQuote": "981942974"
+    },
+    {
+      "id": "1015656",
+      "mintedAt": "2026-09-04T10:46:10.000Z",
+      "closedAt": "2026-09-04T11:12:40.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "74025600052814356865",
+        "27151861"
+      ],
+      "dayFeesRaw": [
+        "74025600052814356865",
+        "27151861"
+      ],
+      "dayFeesAtCenterQuote": "229859199",
+      "windowFeesAtCenterQuote": "229859199"
+    },
+    {
+      "id": "1015944",
+      "mintedAt": "2026-09-04T11:09:59.000Z",
+      "closedAt": "2026-09-04T11:11:30.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "4339827603548933002",
+        "3850146"
+      ],
+      "dayFeesRaw": [
+        "4339827603548933002",
+        "3850146"
+      ],
+      "dayFeesAtCenterQuote": "15592326",
+      "windowFeesAtCenterQuote": "15592326"
+    },
+    {
+      "id": "1015975",
+      "mintedAt": "2026-09-04T11:12:11.000Z",
+      "closedAt": null,
+      "adds": 5,
+      "remainingLiquidity": "144887247886177603",
+      "windowFeesRaw": [
+        "236417692866816925038",
+        "490115698"
+      ],
+      "dayFeesRaw": [
+        "236417692866816925038",
+        "490115698"
+      ],
+      "dayFeesAtCenterQuote": "1125959731",
+      "windowFeesAtCenterQuote": "1125959731"
+    },
+    {
+      "id": "1016296",
+      "mintedAt": "2026-09-04T11:29:41.000Z",
+      "closedAt": null,
+      "adds": 2,
+      "remainingLiquidity": "1725029289776268",
+      "windowFeesRaw": [
+        "68229473088472422406",
+        "248355990"
+      ],
+      "dayFeesRaw": [
+        "68201649530650925671",
+        "248297128"
+      ],
+      "dayFeesAtCenterQuote": "430627856",
+      "windowFeesAtCenterQuote": "430761102"
+    },
+    {
+      "id": "1016958",
+      "mintedAt": "2026-09-04T12:09:47.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "98692641289572722",
+      "windowFeesRaw": [
+        "96894252657782263740",
+        "217569791"
+      ],
+      "dayFeesRaw": [
+        "96344276106446356004",
+        "217318240"
+      ],
+      "dayFeesAtCenterQuote": "473344946",
+      "windowFeesAtCenterQuote": "475058013"
+    },
+    {
+      "id": "1017522",
+      "mintedAt": "2026-09-04T12:43:06.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "47767022846146369",
+      "windowFeesRaw": [
+        "4557082415524886074",
+        "7112082"
+      ],
+      "dayFeesRaw": [
+        "4135853600875727250",
+        "6583813"
+      ],
+      "dayFeesAtCenterQuote": "17508748",
+      "windowFeesAtCenterQuote": "19149701"
+    },
+    {
+      "id": "1019727",
+      "mintedAt": "2026-09-04T14:28:47.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "20442260638802290",
+      "windowFeesRaw": [
+        "5919172537292523318",
+        "9093235"
+      ],
+      "dayFeesRaw": [
+        "5919172537292523318",
+        "9093235"
+      ],
+      "dayFeesAtCenterQuote": "25399487",
+      "windowFeesAtCenterQuote": "25399487"
+    },
+    {
+      "id": "1019791",
+      "mintedAt": "2026-09-04T14:30:14.000Z",
+      "closedAt": null,
+      "adds": 2,
+      "remainingLiquidity": "100748734654706994",
+      "windowFeesRaw": [
+        "166473024952315001906",
+        "405314880"
+      ],
+      "dayFeesRaw": [
+        "166473024952315001906",
+        "405314880"
+      ],
+      "dayFeesAtCenterQuote": "861174796",
+      "windowFeesAtCenterQuote": "861174796"
+    },
+    {
+      "id": "1019812",
+      "mintedAt": "2026-09-04T14:31:45.000Z",
+      "closedAt": null,
+      "adds": 2,
+      "remainingLiquidity": "49799554487015212",
+      "windowFeesRaw": [
+        "109286736111856715632",
+        "247172824"
+      ],
+      "dayFeesRaw": [
+        "109286736111856715632",
+        "247172824"
+      ],
+      "dayFeesAtCenterQuote": "545540775",
+      "windowFeesAtCenterQuote": "545540775"
+    },
+    {
+      "id": "1020009",
+      "mintedAt": "2026-09-04T14:37:55.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "99027560067974418",
+      "windowFeesRaw": [
+        "375919871975431922848",
+        "1137140082"
+      ],
+      "dayFeesRaw": [
+        "375919871975431922848",
+        "1137140082"
+      ],
+      "dayFeesAtCenterQuote": "2154258564",
+      "windowFeesAtCenterQuote": "2154258564"
+    },
+    {
+      "id": "1020743",
+      "mintedAt": "2026-09-04T15:17:57.000Z",
+      "closedAt": "2026-09-04T15:19:47.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "109090097548755059",
+        "30866681"
+      ],
+      "dayFeesRaw": [
+        "109090097548755059",
+        "30866681"
+      ],
+      "dayFeesAtCenterQuote": "31164512",
+      "windowFeesAtCenterQuote": "31164512"
+    },
+    {
+      "id": "1020780",
+      "mintedAt": "2026-09-04T15:22:26.000Z",
+      "closedAt": null,
+      "adds": 2,
+      "remainingLiquidity": "66590289756152726",
+      "windowFeesRaw": [
+        "44446382678527724139",
+        "89493162"
+      ],
+      "dayFeesRaw": [
+        "44446382678527724139",
+        "89493162"
+      ],
+      "dayFeesAtCenterQuote": "211934930",
+      "windowFeesAtCenterQuote": "211934930"
+    },
+    {
+      "id": "1021286",
+      "mintedAt": "2026-09-04T15:56:46.000Z",
+      "closedAt": null,
+      "adds": 3,
+      "remainingLiquidity": "35023919237260312",
+      "windowFeesRaw": [
+        "136578235854243470905",
+        "364336169"
+      ],
+      "dayFeesRaw": [
+        "136578235854243470905",
+        "364336169"
+      ],
+      "dayFeesAtCenterQuote": "736096800",
+      "windowFeesAtCenterQuote": "736096800"
+    },
+    {
+      "id": "1022239",
+      "mintedAt": "2026-09-04T17:06:47.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "2350843028116854",
+      "windowFeesRaw": [
+        "6432017663584436953",
+        "10717858"
+      ],
+      "dayFeesRaw": [
+        "6333303482257739231",
+        "10592297"
+      ],
+      "dayFeesAtCenterQuote": "28039405",
+      "windowFeesAtCenterQuote": "28436906"
+    },
+    {
+      "id": "1022458",
+      "mintedAt": "2026-09-04T17:25:16.000Z",
+      "closedAt": null,
+      "adds": 1,
+      "remainingLiquidity": "10366757977088308",
+      "windowFeesRaw": [
+        "6543921814285445564",
+        "23411867"
+      ],
+      "dayFeesRaw": [
+        "6318943007922496531",
+        "23031701"
+      ],
+      "dayFeesAtCenterQuote": "40077520",
+      "windowFeesAtCenterQuote": "41064583"
+    },
+    {
+      "id": "1022725",
+      "mintedAt": "2026-09-04T17:48:19.000Z",
+      "closedAt": "2026-09-04T17:59:57.000Z",
+      "adds": 1,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "6693456499549504523",
+        "8170678"
+      ],
+      "dayFeesRaw": [
+        "6693456499549504523",
+        "8170678"
+      ],
+      "dayFeesAtCenterQuote": "26281022",
+      "windowFeesAtCenterQuote": "26281022"
+    },
+    {
+      "id": "1027499",
+      "mintedAt": "2026-09-04T23:37:34.000Z",
+      "closedAt": "2026-09-05T12:16:03.000Z",
+      "adds": 4,
+      "remainingLiquidity": "0",
+      "windowFeesRaw": [
+        "531340967309622840168",
+        "1242297813"
+      ],
+      "dayFeesRaw": [
+        "59901764583952322113",
+        "199001145"
+      ],
+      "dayFeesAtCenterQuote": "359142907",
+      "windowFeesAtCenterQuote": "2662788173"
+    }
+  ],
+  "dayAmcSwapHashes": [
+    "0xcadd5f54d4e0215c3cae76212014d29f3563cc62401598e60a3c95da7fa8a303",
+    "0xf7894c69d10511080de684785ecb1e7b06bfbf67a51ab5465ccc2ff987a30bf9",
+    "0x47a86a0a4f5e339961d316799f14bc5460b07886c0e9beb7d7ee51c43faab056",
+    "0x3456623611735ac1e92ab1c16662c11392588e5f43815c62ac9c3d52c70fce15",
+    "0x1957274f1962478d16df9bb579f0360d71afdee8d5f2107b1af110635c6abf7d",
+    "0xbaede479241bbe67595416d3585491873bca0899c3b31eb6098efe7380d8e91a",
+    "0x76f413bb85282096b22c8ccd8af9626042237f1317aefc9093bec81202d25a3d",
+    "0x1c858a8325eb088518867235874c06346e59c8abe3c85c10158f552887a9f57c",
+    "0x693c8bb4452ced51315c0855e0f6d53a237e67ef29b3ef3208533cc7c29888e6",
+    "0x8e30e69892ae6699ac77463aea9da33eb2cea2efcf5611b81470587980c4df40",
+    "0x0514acbb5e55707819b511cdcab11dff3db3516ad1467df5baebff31b39b45b1",
+    "0x9bb81401b33ec3c4ccbeeea89c3c79f10973e5f68771ab5a2b642f8f461378fc",
+    "0x0b276bcdb06fbc00759f9510ccf1548320d89da6396c9503df630809f201a6e0",
+    "0x6d0a804b20dce4aad357eb7db3da7695cf0d3ac2c45f6c6220913805a64b976f",
+    "0x392b6e0bd0cd8d8715bcfd0ced0ae63a489dd740454e3e1ffa5783d6ef6d14ec",
+    "0xa6cd04ffde53c4b8801cb9ece0f6f0c69495d95b1236aee6417b9cf97b519ff4",
+    "0x79b03f6d811304c55a8945e31a9b12cbcac0690e52c40695f34ebaccdc5acf1b",
+    "0x9f01853de23f7eee9665e8f88c64c88344bea8ae8de2e4f188e53da34ea4f962",
+    "0x6b60ac443304556f43aaf53267cc07a17fcc3a80c6dda2223c932e13fcc8a6b3",
+    "0x4265d24f6c27f919135e99d3317311796089d46ddff194b3fe5a502593af3cbd",
+    "0x66ce5d4fe8285ae6d2dda02ed37678c820b2bfb75f3f06a5f4c8d9f1d55fdd07",
+    "0x4c5aa96335c52982d087429444389e0a2681e65b0da189b45f1f4d0fe3b875e9",
+    "0x9a334aceae4fe83ebca9a62adc23d9f6f98228f71e8e7d25abea668dd5355904",
+    "0x3432c98062b8ec8539152082b9860164b400d88dd3bff618b2ca004ae5a80b51",
+    "0x800e435267cb53ca55c2e05c121d9a348c48c2c95a9a0884c284ff6b6a9e70b7",
+    "0x722eac0998676ecbfb574c726a5b35c93201304db305afdc67f5f2869f48222e",
+    "0x2a700ef0e0c0d64d53b1cda04698c03a6b659259245ba265d1f2a96fee89b773",
+    "0x3f334b688e5d3c8f9969114bc91c6d5464d0940e6400ef76c267920964c20748",
+    "0x2bd3fba03139f5411f0b62bfb09b85e48e1ee2a874a46a7e8dac1b2422e88d1b",
+    "0x26a997986dd0cb514c2e45916bdd2e0bb7818a1ba5b20c6d2f23b3d24be5b871",
+    "0x49c4b1b245d70f0f4abe1916e5eb7d2a4c7f03855ba8e62bbbe215d6a2ee49d4",
+    "0xd8cc25d77ece0ff904271e63052cf98edd2dec8cc891ae158d3125a3ad32f45f",
+    "0xf49fa587ef3156604ac9fefb4674fdcb4b4ced64d13bea40a13eedbcc252ae06",
+    "0xfaf42d77ea1a47f808aea5d228fa28345aa96aaf3e2d79bc1d7e6ee35cfdd42e",
+    "0xb5992b718bf48814a417d490b5db6118e188a74c0ac897534243eae2cadd93c9",
+    "0x70027b59187af6a033ab9145764f832b0e94df2ecc535ac34d62541faf15f9a4",
+    "0x53574f2845f23ed3ddaa2f8c8bcd4da018eddf7cea10e842c4f18e2259fc52de",
+    "0x0fd6eb7c04da75b326456ef781ac0e39b797fd598ea709e35b6af6aabfc8027c",
+    "0xb88fa8d596f049532ffa881ddb251cf8b2bb2fb384b895faf55a9900df69784d",
+    "0x6e129b5dd4e18dff4a0d770181bec7e32ddd6144af445c97c721aa3b6d7ccafa",
+    "0xf79a7a395d04fdff79a804bbde5ab7f6cf9421f94413dd22cf00af13d02a49a0",
+    "0x76fefb35feee3bb6b1e7d152fda1d8868da96fe844cf70fedccfa366491717b2",
+    "0x8053428b9ce64477050023c270ed2f851d1ad60fc565fc729715a680582094bb",
+    "0x97aba4e96157ec1563058c423ac074d0cbd09bd5003e0bc88b9d4da7d79714fb",
+    "0x06364fcf82dbcca478466b9deabbc1ae9b14408eb2e45b9567a4f9600a2ce5c3",
+    "0x21b3dbb7b7251e5b88a57db37ee57caac967728ed3b6f979a38c4acc43ff526c",
+    "0x215b37c2542e5b68f5094e1720b95c0e0a498308c290df2bea08821b1a842931",
+    "0x98448f2aa5938a1167c2b7caa5231de9d8ca2491fd4653f8f2e510a133c3e956",
+    "0x5159991884d6e80d7dbdc09ecfee9ee99c0209d66d6a1fde8e7b161f22dc5921",
+    "0x7d171402649e7692fee2d88db80f9efaeefeb849e847e1a2fc2596f154c89480",
+    "0x59fa02bf275049956c78060d28961129c519db66d5ce8b95437d7003165de416",
+    "0xa1ee71c6d54e078fb0118837a86677ac60c7411382b604e586764d657c259343"
+  ],
+  "swapCounterexamples": [
+    {
+      "hash": "0xcadd5f54d4e0215c3cae76212014d29f3563cc62401598e60a3c95da7fa8a303",
+      "from": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "to": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "at": "2026-09-04T04:20:08.000Z",
+      "events": [
+        {
+          "address": "0xaa34fea710a1a737840329051d81d3b0b7c564d5",
+          "index": 12,
+          "name": "Swap",
+          "args": {
+            "sender": "0x8F10B468b06c6FD214B65F87778827F7D113f996",
+            "recipient": "0x8F10B468b06c6FD214B65F87778827F7D113f996",
+            "amount0": "-299235630348073338386",
+            "amount1": "1000000000",
+            "sqrtPriceX96": "144665249884305459767625",
+            "liquidity": "825314060187094155",
+            "tick": -264282
+          }
+        }
+      ]
+    },
+    {
+      "hash": "0xf7894c69d10511080de684785ecb1e7b06bfbf67a51ab5465ccc2ff987a30bf9",
+      "from": "0xc0051f40abf4b7f9aa1e81d38558d38d4d1ad130",
+      "to": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+      "at": "2026-09-04T04:27:25.000Z",
+      "events": [
+        {
+          "address": "0xaa34fea710a1a737840329051d81d3b0b7c564d5",
+          "index": 217,
+          "name": "Swap",
+          "args": {
+            "sender": "0x8F10B468b06c6FD214B65F87778827F7D113f996",
+            "recipient": "0x8F10B468b06c6FD214B65F87778827F7D113f996",
+            "amount0": "-1448048302782043279530",
+            "amount1": "4702154266",
+            "sqrtPriceX96": "142579830790057699898911",
+            "liquidity": "7643511563578814386",
+            "tick": -264573
+          }
+        }
+      ]
+    }
+  ],
+  "publicRpcCrossCheck": {
+    "endpoint": "https://rpc.mainnet.chain.robinhood.com",
+    "receiptHash": "0xf7894c69d10511080de684785ecb1e7b06bfbf67a51ab5465ccc2ff987a30bf9",
+    "blockHash": "0xd31c492fe0429afe0ce2238958a286afd720e693d5e517a8a2a34fe3506092c6",
+    "receiptLogsExactlyMatched": true
+  },
+  "valuationUnit": "USDG raw, six decimals; not USD or net wallet profit",
+  "limits": [
+    "Scope is September 4 births and AMC/USDG wallet balances through September 5. Other assets/protocol positions are not valued.",
+    "Exact token fees are separate from pool-price and fixed-center valuation diagnostics; independent-reference and net wallet P&L remain unavailable.",
+    "Nonce coverage proves originating transactions only, not every call initiated by another address on behalf of the wallets.",
+    "Zero decoded V3 swaps does not prove no off-chain hedge or no other protocol trade.",
+    "Unused wallet inventory is not automatically free strategy capital; collateral/other commitments are unknown."
+  ],
+  "executionEligible": false
+}
