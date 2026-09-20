@@ -18,6 +18,8 @@ import type { RpcHealthEvaluation } from "./rpc-health/domain.js";
 import {appendAdaptivePaperMark,type AdaptivePaperMark} from "./adaptive-paper-history.js";
 import {migrateAdaptivePaperRuntime} from "./adaptive-paper-runtime.js";
 import {deriveAdaptivePassiveBenchmark,valueAdaptivePassiveBenchmark,type AdaptivePassiveBenchmark} from "./paper/adaptive-benchmark.js";
+import {adaptiveReferenceValuation,type AdaptiveReferenceValuation} from "./paper/adaptive-reference.js";
+import type {PaperReferenceDecision} from "./paper/reference.js";
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
 /** Canonical V3 fee-to-spacing pairing for the tiers this runner supports. */
@@ -72,6 +74,7 @@ interface AssetState {
   decisions:number; forecastAvailable:number; forecastUnavailable:number;
   historyLastAt?:number;
   benchmark?:AdaptivePassiveBenchmark;
+  reference?:AdaptiveReferenceValuation|null;
 }
 interface State {
   version:1; createdAt:string; config:Config; configHash:string; runtime:RuntimeIdentity; assets:AssetState[]; lastPollAt:string;
@@ -167,7 +170,7 @@ function historyMark(asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMa
   const inRange=!!position&&source.tick>=position.tickLower&&source.tick<position.tickUpper;
   const hold=valueAdaptivePassiveBenchmark(asset.market,source.price,asset.benchmark);
   return {version:1,symbol:asset.symbol,sourceAt:new Date(checkpoint.blockTimestamp).toISOString(),observedAt:new Date().toISOString(),block:checkpoint.block,continuity,action:kind,status:position?(inRange?'open':'recentring'):'waiting',
-    navQuote:String(gross-model.gas),holdQuote:hold===null?null:String(hold),benchmarkKind:asset.benchmark?.kind??null,sqrtPriceX96:String(source.price),priceQuoteX18:String(marketPriceX18(asset.market,source.price)),
+    navQuote:String(gross-model.gas),holdQuote:hold===null?null:String(hold),benchmarkKind:asset.benchmark?.kind??null,reference:asset.reference?{...asset.reference,reasons:[...asset.reference.reasons]}:null,sqrtPriceX96:String(source.price),priceQuoteX18:String(marketPriceX18(asset.market,source.price)),
     usdg:String(quote),rwa:String(rwa),exposurePpm:String(gross>0n?risky*1000000n/gross:0n),inRange,tickLower:position?.tickLower??null,tickUpper:position?.tickUpper??null,
     fees0:String(model.fees0),fees1:String(model.fees1),gasThisMarkQuote:continuity==='baseline'?null:gas,swapThisMarkQuote:continuity==='baseline'?null:swapCost,swapsThisMark:continuity==='baseline'?0:swaps,drawdownPpm:String(model.drawdownPpm)};
 }
@@ -192,11 +195,12 @@ async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:So
       }
       market.verify({price:cp.sqrtPriceX96,tick:cp.tick,liquidity:cp.liquidity,global0:cp.feeGrowth0,global1:cp.feeGrowth1});
       const at=Date.parse(cp.blockTimestamp);sample(asset,market,at);
-      const actionsBefore=model.actions.length;
-      if(allowDecisions){const stats=agileForecastStats(asset.samples,at,config.forecast),gate=await source.decisionGate(row,asset.market),reasons=sourceReasons(row,gate,Date.now());
+      const actionsBefore=model.actions.length;let reference:PaperReferenceDecision|null=null;
+      if(allowDecisions){const stats=agileForecastStats(asset.samples,at,config.forecast),gate=await source.decisionGate(row,asset.market),reasons=sourceReasons(row,gate,Date.now());reference=gate.reference;
         if(reasons.length===0){if(stats)asset.forecastAvailable++;else asset.forecastUnavailable++;await model.step({...market.source(),at,block:cp.block},stats);asset.decisions++;}
         else {model.mark({...market.source(),at,block:cp.block});for(const reason of reasons)count(asset,reason);}}
       if(captureBenchmark(asset,model))asset.historyLastAt=undefined;
+      const balances=model.balances(market.source());asset.reference=adaptiveReferenceValuation({market:asset.market,decision:reference,amount0:balances.amount0,amount1:balances.amount1,costsPaidQuote:model.gas,benchmark:asset.benchmark});
       asset.last=cp;
       if(allowDecisions&&path)await recordHistory(path,asset,model,market,cp,model.actions.length>actionsBefore?model.actions.at(-1):undefined);
     }
@@ -211,7 +215,7 @@ function report(state:State){return {version:state.config.version,createdAt:stat
   assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas,hold=valueAdaptivePassiveBenchmark(asset.market,market.price,asset.benchmark);
     return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,holdout:asset.holdout??false,
       budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(asset.budgetQuote??state.config.budgetQuote)),
-      holdQuote:hold===null?null:String(hold),alphaQuote:hold===null?null:String(nav-hold),benchmark:asset.benchmark??null,
+      holdQuote:hold===null?null:String(hold),alphaQuote:hold===null?null:String(nav-hold),benchmark:asset.benchmark??null,reference:asset.reference??null,
       entries:model.entries,recenters:model.recenters,pending:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
       residuals:model.residuals,gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
 }

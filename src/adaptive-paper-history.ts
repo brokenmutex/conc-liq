@@ -7,6 +7,9 @@ const markSchema=z.object({
  version:z.literal(1),symbol:z.string().regex(/^[A-Z0-9.]+$/),sourceAt:z.string().datetime({offset:true}),observedAt:z.string().datetime({offset:true}),block:z.string().regex(/^\d+$/),
  continuity:z.enum(['baseline','continuous']),action:z.string().min(1),status:z.string().min(1),navQuote:z.string().regex(/^-?\d+$/),holdQuote:z.string().regex(/^-?\d+$/).nullable(),
  benchmarkKind:z.literal(ADAPTIVE_BENCHMARK_KIND).nullable().optional(),
+ reference:z.object({eligible:z.boolean(),basis:z.enum(['heartbeat_valid','held_equity_reference','unavailable']),priceX18:z.string().regex(/^\d+$/).nullable(),
+  updatedAt:z.string().datetime({offset:true}).nullable(),sourceBlock:z.string().regex(/^\d+$/),ageSeconds:z.number().nullable(),reasons:z.array(z.string()),
+  navQuote:z.string().regex(/^-?\d+$/).nullable(),holdQuote:z.string().regex(/^-?\d+$/).nullable(),alphaQuote:z.string().regex(/^-?\d+$/).nullable()}).strict().nullable().optional(),
  sqrtPriceX96:z.string().regex(/^\d+$/),priceQuoteX18:z.string().regex(/^\d+$/),usdg:z.string().regex(/^-?\d+$/),rwa:z.string().regex(/^-?\d+$/),exposurePpm:z.string().regex(/^-?\d+$/),
  inRange:z.boolean(),tickLower:z.number().int().nullable(),tickUpper:z.number().int().nullable(),fees0:z.string().regex(/^\d+$/),fees1:z.string().regex(/^\d+$/),
  gasThisMarkQuote:z.string().regex(/^\d+$/).nullable(),swapThisMarkQuote:z.string().regex(/^\d+$/).nullable(),swapsThisMark:z.number().int().nonnegative(),drawdownPpm:z.string().regex(/^\d+$/),
@@ -32,6 +35,7 @@ export function adaptiveHistoryPoint(market:PaperMarket,mark:AdaptivePaperMark,p
  const baseline=mark.continuity==='baseline'||!previous;
  const fees=baseline?null:String(marketValue(market,BigInt(mark.sqrtPriceX96),BigInt(mark.fees0)-BigInt(previous.fees0),BigInt(mark.fees1)-BigInt(previous.fees1)));
  return {sourceAt:mark.sourceAt,observedAt:mark.observedAt,block:mark.block,action:mark.action,status:mark.status,economicNavQuote:mark.navQuote,holdQuote:mark.holdQuote,
+  referenceNavQuote:mark.reference?.navQuote??null,referenceHoldQuote:mark.reference?.holdQuote??null,referenceAlphaQuote:mark.reference?.alphaQuote??null,referencePriceX18:mark.reference?.priceX18??null,
   priceQuoteX18:mark.priceQuoteX18,usdg:mark.usdg,nvda:mark.rwa,exposurePpm:mark.exposurePpm,inRange:mark.inRange,tickLower:mark.tickLower,tickUpper:mark.tickUpper,
   feesThisIntervalQuote:fees,gasThisMarkQuote:baseline?null:mark.gasThisMarkQuote,swapThisMarkQuote:baseline?null:mark.swapThisMarkQuote,swapsThisMark:baseline?0:mark.swapsThisMark,drawdownPpm:mark.drawdownPpm,historyBaseline:baseline};
 }

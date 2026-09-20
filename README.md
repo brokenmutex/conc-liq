@@ -96,9 +96,9 @@ The active four-book paper experiment uses NVDA and GOOGL selected books, an
 exploratory MSFT fee-3000 book with borrowed cost assumptions, and a QQQ
 holdout. Its persisted state remains execution-ineligible and
 broadcast-disabled. The source tree now implements a fixed-token passive
-benchmark, but the deployed sealed paper release predates it and the
-independent-reference series remains unavailable. Do not interpret early P&L
-versus cash as LP alpha.
+benchmark and a separate fail-closed independent-reference series, but the
+deployed sealed paper release predates them. Do not interpret early P&L versus
+cash as LP alpha.
 
 The current strategy evidence requires at least three weeks spanning two
 weekends, complete action costs and holdout discipline before a promotion

@@ -18,12 +18,14 @@ test('adaptive sidecar history deduplicates blocks and maps continuous chart att
  const dir=await mkdtemp(join(tmpdir(),'adaptive-paper-history-')),state=join(dir,'state.json');
  try{
   const first=mark('10','2026-09-16T17:00:00.000Z',{continuity:'baseline',gasThisMarkQuote:null,swapThisMarkQuote:null});
-  const second=mark('11','2026-09-16T17:01:00.000Z',{navQuote:'1000100000',action:'recenter',fees0:'1000',gasThisMarkQuote:'25000',swapThisMarkQuote:'5000',swapsThisMark:1});
+  const second=mark('11','2026-09-16T17:01:00.000Z',{navQuote:'1000100000',action:'recenter',fees0:'1000',gasThisMarkQuote:'25000',swapThisMarkQuote:'5000',swapsThisMark:1,
+   reference:{eligible:true,basis:'heartbeat_valid',priceX18:'215000000000000000000',updatedAt:'2026-09-16T17:00:55.000Z',sourceBlock:'11',ageSeconds:5,reasons:[],navQuote:'1000050000',holdQuote:'999900000',alphaQuote:'150000'}});
   await appendAdaptivePaperMark(state,first);await appendAdaptivePaperMark(state,second);await appendAdaptivePaperMark(state,{...second,observedAt:'2026-09-16T17:01:01.000Z'});
   await appendFile(`${state}.nvda.marks.jsonl`,'{"version":');
   const marks=await readAdaptivePaperMarks(state,'NVDA');assert.equal(marks.length,2);assert.equal(marks[1]!.observedAt,'2026-09-16T17:01:01.000Z');
   const points=marks.map((item,index)=>adaptiveHistoryPoint(NVDA_PAPER_MARKET,item,marks[index-1]) as PositionPoint);
   assert.equal(points[0]!.gasThisMarkQuote,null);assert.equal(points[1]!.gasThisMarkQuote,'25000');assert.equal(points[1]!.swapThisMarkQuote,'5000');assert.equal(points[1]!.action,'recenter');
+  assert.equal(points[1]!.referenceNavQuote,'1000050000');assert.equal(points[1]!.referenceAlphaQuote,'150000');
   assert.equal(points[1]!.feesThisIntervalQuote,String(marketValue(NVDA_PAPER_MARKET,price,1000n,0n)));
   const window=positionWindow(points,1,Date.parse(second.sourceAt),'1000000000','2026-09-16T16:00:00.000Z');
   assert.equal(window.markCount,2);assert.equal(window.timeline.length,2);assert.equal(window.gaps.length,0);
