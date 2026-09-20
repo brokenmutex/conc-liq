@@ -66,15 +66,20 @@ The guarded restart has four books:
 
 The runtime persists `executionEligible=false` and
 `broadcastsEnabled=false`. Early P&L versus cash is operational evidence only.
-The current adaptive runtime still needs the fixed-token passive benchmark
-defined in [the strategy contract](../strategy/active-lp.md) before its reported
-return can be called LP alpha.
+The source tree now derives a fixed-token passive benchmark from each book's
+exact post-entry inventory and shared entry cost. It excludes older sidecar
+marks that reported the initial cash budget as holding NAV. The currently
+deployed sealed paper release predates this change, and independent-reference
+valuation remains unavailable, so current reported return still cannot be
+called LP alpha.
 
 ## Open gates
 
 - Complete the three-week, two-weekend paper observation period.
 - Keep QQQ excluded from selection.
-- Implement the fixed-token passive benchmark and independent-reference series.
+- Deploy the fixed-token passive benchmark through the guarded runtime migration
+  and collect provenance-bearing marks.
+- Implement the independent-reference valuation series.
 - Probe MSFT-specific entry, recenter and exit costs.
 - Separate tail and action-cost provider budgets without weakening quorum.
 - Persist complete decision-frame provenance.

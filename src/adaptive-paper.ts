@@ -17,6 +17,7 @@ import type { ForecastSample } from "./research/adaptive-forecast.js";
 import type { RpcHealthEvaluation } from "./rpc-health/domain.js";
 import {appendAdaptivePaperMark,type AdaptivePaperMark} from "./adaptive-paper-history.js";
 import {migrateAdaptivePaperRuntime} from "./adaptive-paper-runtime.js";
+import {deriveAdaptivePassiveBenchmark,valueAdaptivePassiveBenchmark,type AdaptivePassiveBenchmark} from "./paper/adaptive-benchmark.js";
 
 const envSchema = z.object({ DATABASE_URL: z.string().min(1) });
 /** Canonical V3 fee-to-spacing pairing for the tiers this runner supports. */
@@ -70,6 +71,7 @@ interface AssetState {
   model:Record<string,unknown>; status:"running"|"invalid"; reason?:string; blocked:Record<string,number>;
   decisions:number; forecastAvailable:number; forecastUnavailable:number;
   historyLastAt?:number;
+  benchmark?:AdaptivePassiveBenchmark;
 }
 interface State {
   version:1; createdAt:string; config:Config; configHash:string; runtime:RuntimeIdentity; assets:AssetState[]; lastPollAt:string;
@@ -149,6 +151,11 @@ function sourceReasons(row:SourceRow,gate:{chainEligible:boolean;reasons:readonl
 }
 function restoreModel(asset:AssetState,config:Config){const model=new AdaptiveLpReplay(asset.market,asset.costs,policy(config,asset));Object.assign(model,asset.model);return model;}
 function snapshotModel(model:AdaptiveLpReplay){return Object.fromEntries(Object.entries(model).filter(([key])=>!["market","costs","policy"].includes(key)));}
+function captureBenchmark(asset:AssetState,model:AdaptiveLpReplay){
+  const derived=deriveAdaptivePassiveBenchmark(model.actions);if(!derived)return false;
+  if(asset.benchmark){assert.deepEqual(asset.benchmark,derived,"Adaptive passive benchmark changed after entry");return false;}
+  asset.benchmark=derived;return true;
+}
 function historyMark(asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMarket,checkpoint:SourceRow['checkpoint'],continuity:'baseline'|'continuous',action?:Record<string,unknown>):AdaptivePaperMark{
   const source=market.source(),balances=model.balances(source),named=marketTokens(asset.market),quote=named.quoteIsToken0?balances.amount0:balances.amount1,rwa=named.quoteIsToken0?balances.amount1:balances.amount0;
   const gross=marketValue(asset.market,source.price,balances.amount0,balances.amount1),risky=marketValue(asset.market,source.price,named.quoteIsToken0?0n:balances.amount0,named.quoteIsToken0?balances.amount1:0n),position=model.position;
@@ -158,8 +165,9 @@ function historyMark(asset:AssetState,model:AdaptiveLpReplay,market:ExperimentMa
       const input=marketValue(asset.market,source.price,token===0?amountIn:0n,token===1?amountIn:0n),output=marketValue(asset.market,source.price,token===1?amountOut:0n,token===0?amountOut:0n);
       swapCost=String(input>output?input-output:0n);swaps=1;}}
   const inRange=!!position&&source.tick>=position.tickLower&&source.tick<position.tickUpper;
+  const hold=valueAdaptivePassiveBenchmark(asset.market,source.price,asset.benchmark);
   return {version:1,symbol:asset.symbol,sourceAt:new Date(checkpoint.blockTimestamp).toISOString(),observedAt:new Date().toISOString(),block:checkpoint.block,continuity,action:kind,status:position?(inRange?'open':'recentring'):'waiting',
-    navQuote:String(gross-model.gas),holdQuote:String(model.policy.budget),sqrtPriceX96:String(source.price),priceQuoteX18:String(marketPriceX18(asset.market,source.price)),
+    navQuote:String(gross-model.gas),holdQuote:hold===null?null:String(hold),benchmarkKind:asset.benchmark?.kind??null,sqrtPriceX96:String(source.price),priceQuoteX18:String(marketPriceX18(asset.market,source.price)),
     usdg:String(quote),rwa:String(rwa),exposurePpm:String(gross>0n?risky*1000000n/gross:0n),inRange,tickLower:position?.tickLower??null,tickUpper:position?.tickUpper??null,
     fees0:String(model.fees0),fees1:String(model.fees1),gasThisMarkQuote:continuity==='baseline'?null:gas,swapThisMarkQuote:continuity==='baseline'?null:swapCost,swapsThisMark:continuity==='baseline'?0:swaps,drawdownPpm:String(model.drawdownPpm)};
 }
@@ -188,6 +196,7 @@ async function advanceAsset(source:Source,asset:AssetState,config:Config,rows:So
       if(allowDecisions){const stats=agileForecastStats(asset.samples,at,config.forecast),gate=await source.decisionGate(row,asset.market),reasons=sourceReasons(row,gate,Date.now());
         if(reasons.length===0){if(stats)asset.forecastAvailable++;else asset.forecastUnavailable++;await model.step({...market.source(),at,block:cp.block},stats);asset.decisions++;}
         else {model.mark({...market.source(),at,block:cp.block});for(const reason of reasons)count(asset,reason);}}
+      if(captureBenchmark(asset,model))asset.historyLastAt=undefined;
       asset.last=cp;
       if(allowDecisions&&path)await recordHistory(path,asset,model,market,cp,model.actions.length>actionsBefore?model.actions.at(-1):undefined);
     }
@@ -199,9 +208,10 @@ function report(state:State){return {version:state.config.version,createdAt:stat
     minimumSamples:state.config.forecast.minimumSamples,volatilityHalfLifeMs:state.config.forecast.volatilityHalfLifeMs??null,
     feeHalfLifeMs:state.config.forecast.feeHalfLifeMs??null,halfWidthsTicks:state.config.halfWidthsTicks,
     residualRange:state.config.residualRange??false,feePpm:state.config.feePpm??1000000,economicGate:true,outOfRangeTrigger:true},
-  assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas;
+  assets:state.assets.map(asset=>{const model=restoreModel(asset,state.config),market=new ExperimentMarket(asset.seed),balances=model.balances(market.source()),nav=marketValue(asset.market,market.price,balances.amount0,balances.amount1)-model.gas,hold=valueAdaptivePassiveBenchmark(asset.market,market.price,asset.benchmark);
     return {symbol:asset.symbol,status:asset.status,reason:asset.reason??null,holdout:asset.holdout??false,
       budgetQuote:asset.budgetQuote??state.config.budgetQuote,fee:asset.market.fee,sourceAt:asset.last.blockTimestamp,sourceBlock:asset.last.block,navQuote:String(nav),pnlQuote:String(nav-BigInt(asset.budgetQuote??state.config.budgetQuote)),
+      holdQuote:hold===null?null:String(hold),alphaQuote:hold===null?null:String(nav-hold),benchmark:asset.benchmark??null,
       entries:model.entries,recenters:model.recenters,pending:model.pending?.kind??null,currentRange:model.position?{tickLower:model.position.tickLower,tickUpper:model.position.tickUpper}:null,
       residuals:model.residuals,gasQuote:String(model.gas),fees0:String(model.fees0),fees1:String(model.fees1),decisions:asset.decisions,forecastAvailable:asset.forecastAvailable,forecastUnavailable:asset.forecastUnavailable,rejected:model.rejected,blocked:asset.blocked};})};
 }
@@ -219,7 +229,8 @@ async function start(source:Source,config:Config,path:string){
   await persist(path,state);return state;
 }
 async function tick(source:Source,path:string){const state:State=parse(await readFile(path,"utf8"));assert.equal(state.version,1);assert.equal(state.configHash,digest(json(state.config)),"Adaptive paper configuration changed");assertRuntimeMatches(state.runtime,loadRuntimeIdentity());
-  for(const asset of state.assets){if(asset.historyLastAt===undefined){const market=new ExperimentMarket(asset.seed),model=restoreModel(asset,state.config);await recordHistory(path,asset,model,market,asset.last);}
+  for(const asset of state.assets){const restored=restoreModel(asset,state.config);if(captureBenchmark(asset,restored))asset.historyLastAt=undefined;
+    if(asset.historyLastAt===undefined){const market=new ExperimentMarket(asset.seed);await recordHistory(path,asset,restored,market,asset.last);}
     const {rows,deferred}=await source.rows(asset.market,asset.last.block);
     // Count what the coverage filter removed. These are deferrals, not
     // decisions: the checkpoint is re-offered on a later poll.

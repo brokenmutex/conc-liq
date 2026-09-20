@@ -1,10 +1,12 @@
 import {appendFile,readFile} from 'node:fs/promises';
 import {z} from 'zod';
 import {marketValue,type PaperMarket} from './paper/market.js';
+import {ADAPTIVE_BENCHMARK_KIND} from './paper/adaptive-benchmark.js';
 
 const markSchema=z.object({
  version:z.literal(1),symbol:z.string().regex(/^[A-Z0-9.]+$/),sourceAt:z.string().datetime({offset:true}),observedAt:z.string().datetime({offset:true}),block:z.string().regex(/^\d+$/),
- continuity:z.enum(['baseline','continuous']),action:z.string().min(1),status:z.string().min(1),navQuote:z.string().regex(/^-?\d+$/),holdQuote:z.string().regex(/^-?\d+$/),
+ continuity:z.enum(['baseline','continuous']),action:z.string().min(1),status:z.string().min(1),navQuote:z.string().regex(/^-?\d+$/),holdQuote:z.string().regex(/^-?\d+$/).nullable(),
+ benchmarkKind:z.literal(ADAPTIVE_BENCHMARK_KIND).nullable().optional(),
  sqrtPriceX96:z.string().regex(/^\d+$/),priceQuoteX18:z.string().regex(/^\d+$/),usdg:z.string().regex(/^-?\d+$/),rwa:z.string().regex(/^-?\d+$/),exposurePpm:z.string().regex(/^-?\d+$/),
  inRange:z.boolean(),tickLower:z.number().int().nullable(),tickUpper:z.number().int().nullable(),fees0:z.string().regex(/^\d+$/),fees1:z.string().regex(/^\d+$/),
  gasThisMarkQuote:z.string().regex(/^\d+$/).nullable(),swapThisMarkQuote:z.string().regex(/^\d+$/).nullable(),swapsThisMark:z.number().int().nonnegative(),drawdownPpm:z.string().regex(/^\d+$/),

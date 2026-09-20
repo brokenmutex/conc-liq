@@ -10,6 +10,7 @@ import {PAPER_NVDA} from '../paper/engine.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
 import {readFile} from 'node:fs/promises';
 import {adaptiveHistoryPoint,readAdaptivePaperMarks} from '../adaptive-paper-history.js';
+import {valueAdaptivePassiveBenchmark} from '../paper/adaptive-benchmark.js';
 
 const value=(a:string|bigint,b:string|bigint,sqrt:string)=>BigInt(a)+(BigInt(b)<0n?-1n:1n)*quoteValue({amount0:0n,amount1:BigInt(b)<0n?-BigInt(b):BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(sqrt)});
 const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
@@ -64,12 +65,13 @@ function adaptiveSummary(state:any,asset:any){
  const principal=p?principalAmounts({liquidity:BigInt(p.liquidity),tickLower:p.tickLower,tickUpper:p.tickUpper,sqrtPriceX96:BigInt(seed.price)}):{amount0:0n,amount1:0n};
  const amount0=BigInt(model.cash0)+principal.amount0+(p?BigInt(p.fee0)/Q:0n),amount1=BigInt(model.cash1)+principal.amount1+(p?BigInt(p.fee1)/Q:0n);
  const balances=namedBalances(market,amount0,amount1),gross=marketValue(market,BigInt(seed.price),amount0,amount1),nav=gross-BigInt(model.gas),stock=gross-balances.quote;
+ const hold=valueAdaptivePassiveBenchmark(market,BigInt(seed.price),asset.benchmark);
  const invalid=asset.status==='invalid',outside=!!p&&(seed.tick<p.tickLower||seed.tick>=p.tickUpper),pending=model.pending?.kind??null;
  const status=invalid?'invalid':pending==='recenter'||outside?'recentring':p?'open':'waiting';
  const fees=marketValue(market,BigInt(seed.price),BigInt(model.fees0),BigInt(model.fees1));
  const rangeValues=p?[marketPriceX18(market,sqrtRatioAtTick(p.tickLower)),marketPriceX18(market,sqrtRatioAtTick(p.tickUpper))].sort((a,b)=>a<b?-1:1).map(String):null;
  return {id:`paper-adaptive-${String(asset.symbol).toLowerCase()}`,label:`A-${Math.round((state.config.forecast?.lookbackMs??3600000)/60000)}m${state.config.residualRange?'+R':''}`,mode:'paper',asset:asset.symbol,quote:'USDG',fee:market.fee,quoteIsToken0:marketTokens(market).quoteIsToken0,
-  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:asset.budgetQuote??state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:invalid?null:(asset.budgetQuote??state.config.budgetQuote),feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
+  sessionIds:[],hasLiquidity:!!p,status,history:invalid,initialQuote:asset.budgetQuote??state.config.budgetQuote,navQuote:invalid?null:String(nav),holdQuote:invalid||hold===null?null:String(hold),feesQuote:invalid?null:String(fees),gasQuote:invalid?null:String(model.gas),
   swapQuote:null,exitEstimateQuote:invalid?null:String(asset.costs.exit),drawdownPpm:invalid?null:String(model.drawdownPpm),createdAt:state.createdAt,endedAt:invalid?state.lastPollAt:null,
   sourceAt:asset.last.blockTimestamp,heartbeatAt:state.lastPollAt,reasons:invalid?[asset.reason??'adaptive_paper_invalid']:[],invalidatedAt:invalid?state.lastPollAt:null,reserveQuote:'0',
   strategy:{widthTicks:p?(p.tickUpper-p.tickLower)/2:null,adaptiveHalfWidthsTicks:state.config.halfWidthsTicks,forecast:state.config.forecast,horizonMs:state.config.horizonMs,economicGate:true,outOfRangeTrigger:true,referenceTolerancePpm:50000,live:false},
@@ -101,7 +103,10 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
  const now=Date.now();
  if(id.startsWith('paper-adaptive-')){
   const state=await adaptiveState(adaptivePath),asset=state?.assets?.find((item:any)=>`paper-adaptive-${String(item.symbol).toLowerCase()}`===id);if(!state||!asset)return null;
-  const position=adaptiveSummary(state,asset),a=position.adaptive,marks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];
+  const position=adaptiveSummary(state,asset),a=position.adaptive,allMarks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];
+  // Marks written before benchmark provenance was introduced reported budget
+  // as holding NAV. Preserve them on disk, but exclude them from alpha.
+  const marks=allMarks.filter(mark=>mark.benchmarkKind!==undefined);
   const points:PositionPoint[]=marks.map((mark,index)=>adaptiveHistoryPoint(asset.market,mark,marks[index-1]) as PositionPoint);
   if(!points.length)points.push({sourceAt:position.sourceAt,observedAt:position.heartbeatAt,block:'0',action:'mark',status:position.status,
    economicNavQuote:position.navQuote,holdQuote:position.holdQuote,priceQuoteX18:position.priceQuoteX18,usdg:position.inventory.usdg,nvda:position.inventory.nvda,exposurePpm:position.inventory.exposurePpm,
