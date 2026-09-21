@@ -37,7 +37,7 @@
     "numeraire": "USD"
   },
   "limits": {
-    "fullWidthSpacings": 20,
+    "fullWidthSpacings": 4,
     "maxDeploymentValue": "250000000000000000000",
     "minDeploymentPpm": 980000,
     "maxSwapInputValue": "150000000000000000000",

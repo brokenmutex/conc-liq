@@ -54,6 +54,7 @@ test('two chain profiles parse with explicit addresses, decimals, costs, and a s
 });
 test('centered fixed span handles negative ticks and rejects bounds',()=>{
  assert.deepEqual(rangeKeeperRange(-1,10,20),{tickLower:-110,tickUpper:90});
+ assert.deepEqual(rangeKeeperRange(218103,10,4),{tickLower:218080,tickUpper:218120});
  assert.throws(()=>rangeKeeperRange(887270,10,20),/tick_bounds/);
 });
 test('entry uses exact inventory without swap and requires two distinct observations',async()=>{
@@ -107,8 +108,9 @@ test('one-sided entry finds the minimum feasible raw swap without spending on re
  const range=r.candidate!.range;
  const prior=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
- assert(r.candidate!.deployedValue>=102n*unit);
- assert(value<102n*unit);
+ const sizingTarget=200n*unit*998000n/1000000n;
+ assert(r.candidate!.deployedValue>=sizingTarget);
+ assert(value<sizingTarget);
 });
 test('minimum-swap solver finds a narrow feasible window before ratio overshoot',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
@@ -119,8 +121,9 @@ test('minimum-swap solver finds a narrow feasible window before ratio overshoot'
  assert(amount<128n*unit,'The first exponential probe after the window would be infeasible');
  const previous=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
- assert(r.candidate.deployedValue>=198n*unit);
- assert(value<198n*unit,'Raw-unit predecessor must miss the buffered sizing target');
+ const sizingTarget=200n*unit*998000n/1000000n;
+ assert(r.candidate.deployedValue>=sizingTarget);
+ assert(value<sizingTarget,'Raw-unit predecessor must miss the buffered sizing target');
 });
 test('minimum-swap search fits the confirmation window with bounded provider rounds',async()=>{
  const i=input(observation({wallet0:200n*unit,wallet1:0n})),base=i.quote;

@@ -51,9 +51,9 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  const base0=wallet0*fraction/PPM,base1=wallet1*fraction/PPM;
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/PPM;
  // A swap sized to the exact hard floor has no room for quote or pool movement
- // during the approval receipts. Spend the least input that targets one extra
- // percent of the LP cap, while never raising the $250 deployment ceiling.
- const sizingFloor=min(l.maxDeploymentValue,floor+l.maxDeploymentValue/100n);
+ // during the approval receipts. Target 99.8% of the LP cap when feasible;
+ // the actual mint still scales down to the cap and enforces the hard floor.
+ const sizingFloor=max(floor,l.maxDeploymentValue*998_000n/PPM);
  const evaluate=(a0:bigint,a1:bigint,price:bigint)=>{
   if(price<=sqrtRatioAtTick(range.tickLower)||price>=sqrtRatioAtTick(range.tickUpper))return null;
   const m=replayPaperMint(price,range,a0,a1,0n);

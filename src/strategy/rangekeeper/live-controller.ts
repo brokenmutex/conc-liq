@@ -9,7 +9,7 @@ import {RangeKeeperChain} from './chain.js';
 import {rangeKeeperConfirmedSource,inspectRangeKeeperLaunch} from './live-preflight.js';
 import {RangeKeeperLiveStore} from './live-store.js';
 import {loadRangeKeeperSigner} from './live-signer.js';
-import {type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
+import {rangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
 import {readRangeKeeperReferences} from './reference.js';
 import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
@@ -59,6 +59,19 @@ export function assertCostedRangeKeeperResume(old:RangeKeeperLiveState,expectedC
  const spent=sumCost(old.costEvents);
  assert(spent!==null&&spent<limits.maxRollingCost&&spent<limits.maxCampaignCost,
   'Existing costs exhaust the campaign budget');
+}
+
+/** The closed campaign may adopt only the operator's reviewed 200-to-40-tick
+ * change. Its original config hash and stored config must both agree. */
+export function assertRangeKeeperWidthMigration(oldHash:Hex,recordedConfig:unknown,next:RangeKeeperConfig){
+ const prior=structuredClone(next);
+ const width=(recordedConfig as {limits?:{fullWidthSpacings?:unknown}})?.limits?.fullWidthSpacings;
+ assert(Number.isSafeInteger(width),'Stored campaign width is invalid');
+ prior.limits.fullWidthSpacings=width as number;
+ assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(prior)),'Campaign changed beyond range width');
+ assert.equal(rangeKeeperConfigHash(prior),oldHash,'Stored campaign hash does not match prior policy');
+ assert(width===next.limits.fullWidthSpacings||(width===20&&next.limits.fullWidthSpacings===4),
+  'Only the reviewed 200-to-40-tick migration is allowed');
 }
 
 export class RangeKeeperLiveController {
@@ -195,8 +208,9 @@ export class RangeKeeperLiveController {
   return this.store.locked(this.signer.address,async db=>{
    const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to resume');
    const old=row.state;
+   assertRangeKeeperWidthMigration(old.configHash,row.config,this.config);
    assertCostedRangeKeeperResume(old,expectedCampaignId,expectedPreviousBuildId,this.buildId,
-    rangeKeeperConfigHash(this.config),this.signer.address,this.config.limits);
+    old.configHash,this.signer.address,this.config.limits);
    const ledger=(await db.query(`SELECT count(*)::int AS n,
     count(*) FILTER (WHERE status<>'confirmed')::int AS unresolved FROM ${this.store.schema}.actions WHERE campaign_id=$1`,
     [old.id])).rows[0];
@@ -212,18 +226,25 @@ export class RangeKeeperLiveController {
    assert.equal(proof.funding.reserve0,old.reserve0,'Strategy token0 reserve changed');
    assert.equal(proof.funding.reserve1,old.reserve1,'Strategy token1 reserve changed');
    assert.equal(proof.funding.reserveNativeWei,old.reserveNativeWei,'Native reserve changed');
-   const next={...old,buildId:this.buildId,phase:'entry' as const,desired:'running' as const,
+   const next={...old,buildId:this.buildId,configHash:rangeKeeperConfigHash(this.config),
+    phase:'entry' as const,desired:'running' as const,
     policy:initialRangeKeeperState(this.config,this.buildId),last:proof.wallet,candidate:null,
     swapDone:false,swapConfirmedAt:null,withdrawDone:false,actionStartCostIndex:old.costEvents.length,
     reservedActionCost:0n,lastMarkTimestamp:proof.source.timestamp,lastReason:'resumed_costed_closed',closedAt:null};
    if(!apply)return next;
    await db.query('BEGIN');try{
     await this.store.mark(db,old.id,proof.source.block,'costed_resume_preflight',{
-     previousBuildId:old.buildId,previousClosedAt:old.closedAt,retainedCostEvents:old.costEvents.length,
+     previousBuildId:old.buildId,previousConfigHash:old.configHash,nextConfigHash:next.configHash,
+     previousWidth:(row.config as {limits:{fullWidthSpacings:number}}).limits.fullWidthSpacings,
+     nextWidth:this.config.limits.fullWidthSpacings,previousClosedAt:old.closedAt,retainedCostEvents:old.costEvents.length,
      retainedGasSpentWei:old.gasSpentWei,source:proof.source,funding:proof.funding,candidate:proof.candidate,
      envelope:proof.envelope,nativeRequiredWei:proof.nativeRequiredWei,reference:proof.reference,
      forkSimulated:proof.forkSimulated});
-    await this.store.save(db,next,'costed_resume');await db.query('COMMIT');
+    await this.store.save(db,next,'costed_resume');
+    const updated=await db.query(`UPDATE ${this.store.schema}.campaigns SET config=$2 WHERE id=$1`,
+     [old.id,rangeKeeperJson(this.config)]);
+    assert.equal(updated.rowCount,1,'Campaign config migration lost its row');
+    await db.query('COMMIT');
    }catch(error){await db.query('ROLLBACK');throw error;}
    return next;
   });

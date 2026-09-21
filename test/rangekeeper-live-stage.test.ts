@@ -4,15 +4,27 @@ import {test} from 'node:test';
 import {keccak256} from 'viem';
 import {parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
 import {nextRangeKeeperStage,RangeKeeperMintUnavailableError} from '../src/strategy/rangekeeper/live-stage.js';
-import {assertCostedRangeKeeperResume,assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
+import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
+import {rangeKeeperJson} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RobinhoodClient} from '../src/client.js';
 
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(new URL('../config/rangekeeper-v1-aapl-disabled.json',import.meta.url),'utf8')));
 const stageConfig={...config,limits:{...config.limits,maxDeploymentValue:300n*10n**18n,minDeploymentPpm:900000}};
 const p=config.pool,price0=999991430000000000n,price1=335529829280000000000n;
+test('closed costed campaign may change only 200-tick width to 40 ticks',()=>{
+ const previous={...config,limits:{...config.limits,fullWidthSpacings:20}};
+ const stored=JSON.parse(rangeKeeperJson(previous));
+ assert.doesNotThrow(()=>assertRangeKeeperWidthMigration(rangeKeeperConfigHash(previous),stored,config));
+ assert.throws(()=>assertRangeKeeperWidthMigration(rangeKeeperConfigHash(previous),stored,
+  {...config,limits:{...config.limits,maxCampaignCost:config.limits.maxCampaignCost+1n}}),
+  /beyond range width/);
+ assert.throws(()=>assertRangeKeeperWidthMigration(rangeKeeperConfigHash(previous),stored,
+  {...config,limits:{...config.limits,fullWidthSpacings:2}}),
+  /reviewed 200-to-40-tick/);
+});
 test('rearm accepts only the exact closed no-transaction campaign and new build',()=>{
  const old={id:'470e5f84-ab82-4735-92f9-57e96c05b344',buildId:'old-build',
   configHash:rangeKeeperConfigHash(config),operator:config.operator!,phase:'closed',desired:'stopped',
@@ -107,14 +119,17 @@ test('a capped swap keeps wallet surplus outside both staging and mint sizing',a
  const livePrices={price0,price1:335632887590000000000n};
  const approval=await nextRangeKeeperStage(state,before,capped,chain,livePrices);
  assert.equal(approval?.kind,'approve');
- if(approval?.kind==='approve')assert.equal(approval.amount,candidate.swap.amountIn);
+ if(approval?.kind==='approve')assert.equal(approval.amount,before.wallet0);
+ const withApproval={...before,allowances:allowances.map(a=>a.token===p.token0&&a.spender===p.router?
+  {...a,amount:before.wallet0}:a)};
+ assert.equal((await nextRangeKeeperStage(state,withApproval,capped,chain,livePrices))?.kind,'swap');
  const after={...before,wallet0:before.wallet0-candidate.swap.amountIn,
   wallet1:candidate.swap.quotedOut};
  const mintApproval=await nextRangeKeeperStage({...state,swapDone:true},after,capped,chain,livePrices);
  assert.equal(mintApproval?.kind,'approve');
  if(mintApproval?.kind==='approve'){
   assert.equal(mintApproval.spender,'positionManager');
-  assert.equal(mintApproval.amount,candidate.amount0Desired);
+  assert.equal(mintApproval.amount,after.wallet0);
  }
 });
 test('a drifted post-swap mint scales excess value down and rejects an underfunded range',async()=>{

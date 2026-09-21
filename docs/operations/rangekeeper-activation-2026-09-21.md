@@ -1,6 +1,6 @@
 # RangeKeeper v1.0.0 bounded activation record
 
-Status on September 21, 2026: **first live attempt closed without a trade; both services disabled**. The operator completed the ETH top-up and authorized zero-allowance cleanup. RangeKeeper was initialized and briefly activated, then safely stopped after its entry-confirmation gate failed to advance. This is not evidence of a live fill or net alpha.
+Status on September 21, 2026: **prior attempts are closed with no active LP; both services are inactive and disabled**. Canonical approval and one entry-swap receipt exist, but no RangeKeeper NFT was minted. All swap inventory was sold and monitored allowances were revoked on the last close. The user selected a 40-tick full width and finite approvals covering the allocated token balance. The costed campaign ledger and original expiry must carry into any resumed build.
 
 | Field | Frozen proposal or current evidence |
 | --- | --- |
@@ -9,14 +9,16 @@ Status on September 21, 2026: **first live attempt closed without a trade; both 
 | Operator and signer | Former pilot wallet `0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52`; `/root/conc-liq/.env` variable `WALLET_PRIVATE_KEY` (address match checked; key bytes omitted) |
 | Wallet code | EIP-7702 delegation to `0x63c0c19a282a1b52b07dd5a65b58948a07dae32b`; target bytecode hash `0xa06befcb6f1d7b6c566a607d9d5d932f9b267f3470e55940225c6ee9c4c5e6b0` |
 | First-attempt release | `/root/conc-liq-releases/76245cc3c52a23c042ffa705beb855efec35ef0c9fe0f7501de906e824f22455`; source commit `4559977a43242a089c656d73ce099a4cf8d04258` |
-| Prepared rearm release | `/root/conc-liq-releases/d8096f211bcb7f64c89c575d32aeec45e2bae37090f03554a99fcb834bcb7605`; build ID `d8096f211bcb7f64c89c575d32aeec45e2bae37090f03554a99fcb834bcb7605`; source commit `8eca162e89203b8f7740c149e642130a35fcb5bc`; manifest verified |
-| Private configuration | `/root/conc-liq/data/rangekeeper-v1-aapl-live.json`, mode 0600, parsed hash `0xd52d6127fd036474095c2267a72878ecbea735ecfe6811d9920c5fa5036e043f`; checked-in disabled hash `0x8d678349ac0f29ef4a964d505968017f53bc86203f16c0d7500e291e7776457a` |
+| Previous sealed release | `/root/conc-liq-releases/c81d65741eeca005898c23258c782fc77a3f4c3c821ccaeaffcea261a2e01f12`; its campaign is closed and has receipt costs |
+| Private configuration | `/root/conc-liq/data/rangekeeper-v1-aapl-live.json`, mode 0600, 40-tick parsed hash `0x220eb9e116750b6a27d12e32f93a77b41740217d2aa35d1b9b164f7238004fa5`; prior 200-tick hash `0xd52d6127fd036474095c2267a72878ecbea735ecfe6811d9920c5fa5036e043f` |
 | Runtime and service | `/root/conc-liq/data/rangekeeper-v1-runtime.env`, mode 0600, with separate archive and publisher URLs; rendered but uninstalled unit `/root/conc-liq/data/conc-liq-rangekeeper.service` |
 | Capital | $325 aggregate ceiling: at most $300 of frozen strategy inventory and $25 of native gas; no automatic refill. All 275170862 raw USDG and zero AAPL at the post-top-up read fit the strategy ceiling. |
-| LP and trade limits | Full width 20 spacings; $250 maximum LP deployment and $245 minimum; direct entry swap at most $150 and 60% of sizing allocation; $2 reference shortfall, 50 bps slippage, 20,000 ppm pool share, 95% risky-token exposure |
+| LP and trade limits | Full width 4 spacings (40 ticks, about 20 each side); $250 maximum LP deployment and $245 minimum; direct entry swap at most $150 and 60% of sizing allocation; $2 reference shortfall, 50 bps slippage, 20,000 ppm pool share, 95% risky-token exposure |
 | Risk and cost limits | $5 action, $10 rolling, $15 campaign cost; $20 loss, 10% drawdown; 0.001 ETH minimum complete-exit reserve plus fresh fee-based bound |
-| Scope and window | Start only after all gates pass and a human records the start time; expiry 12 hours after initialization. At most entry and one ordinary recenter, plus required guarded exit/cleanup. |
+| Scope and window | Original expiry `1790043601` remains binding; at most entry and one ordinary recenter, plus required guarded exit/cleanup. |
 | Stop postconditions | No unresolved signed nonce; no active RangeKeeper liquidity or owed tokens; all 43 legacy and newly retired NFTs owned and empty; zero AAPL; zero router, manager, and Permit2 allowances for both tokens; exact wallet, gas, and receipt reconciliation; independently valued P&L recorded or explicitly unavailable. |
+
+A read-only full-wallet fork check with the 40-tick private config passed at confirmed block 68,898,851 (`0x764bfbbad0675cf802446f399d996e5c68e9c6e1d095f625ffa466851383fbe3`). The previous sealed code projected about $247.50 in LP, a 130855973-raw-USDG swap, 7574 ppm pool share, and 1194019840000000 wei native requirement against 8389412958958364 wei available; native shortfall was zero. It observed 275193563 raw USDG and zero AAPL. This proves feasibility for that historical source and old sizing target only. The next sealed build, with the buffered $249.50 target, requires its own fresh fork check before any resume.
 
 The operator's confirmed self-transaction `0x3188e266b31c91dc14a6aa1c54d8a5a47ecdfbab49aab0e154b68169cd9dc207` at block 68,805,212 spent 20000000 raw USDG, burned 7339790831611360 raw WETH into native ETH, and paid 11229568784000 wei gas. Native increased by 7328561262827360 wei. The EIP-7702 authorization advanced the operator nonce from 302 to 304 and introduced the pinned wallet delegation. It also set USDG's allowance to Permit2 `0x000000000022D473030F116dDEE9F6B43aC78BA3` to `2^256-1`, then spent 20000000 raw USDG through it, leaving `2^256-1-20000000`; AAPL's Permit2 allowance remained zero.
 
