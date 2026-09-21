@@ -11,6 +11,7 @@ import {positionWindow,type PositionPoint} from './position-performance.js';
 import {readFile} from 'node:fs/promises';
 import {adaptiveHistoryPoint,readAdaptivePaperMarks} from '../adaptive-paper-history.js';
 import {valueAdaptivePassiveBenchmark} from '../paper/adaptive-benchmark.js';
+import {readRangeKeeperRows,rangeKeeperPosition,rangeKeeperDetail} from './rangekeeper-position.js';
 
 const value=(a:string|bigint,b:string|bigint,sqrt:string)=>BigInt(a)+(BigInt(b)<0n?-1n:1n)*quoteValue({amount0:0n,amount1:BigInt(b)<0n?-BigInt(b):BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(sqrt)});
 const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
@@ -96,11 +97,15 @@ export function liveSummary(r:any){
   tokenId:s.tokenId,accounting:m?'recorded':'unavailable',nextAction:s.phase==='halted'?'Reconciliation required before trading can resume':s.phase==='closed'&&s.desired==='running'?'Re-entry after cooldown and healthy price / chain checks':null};
 }
 export async function readPositionOverview(db:PoolClient,stream:string,adaptivePath?:string){
- const paper=await paperRows(db,stream),live=await liveRows(db),adaptive=await adaptivePositions(adaptivePath);
- return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...live.map(liveSummary),...adaptive,...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
+ const paper=await paperRows(db,stream),live=await liveRows(db),rangekeeper=await readRangeKeeperRows(db),adaptive=await adaptivePositions(adaptivePath);
+ return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...rangekeeper.map(rangeKeeperPosition),...live.map(liveSummary),...adaptive,...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
 }
 export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number,adaptivePath?:string){
  const now=Date.now();
+ if(id.startsWith('live-rk-')){
+  const row=(await readRangeKeeperRows(db)).find(r=>`live-rk-${r.id}`===id);
+  return row?rangeKeeperDetail(db,row,hours):null;
+ }
  if(id.startsWith('paper-adaptive-')){
   const state=await adaptiveState(adaptivePath),asset=state?.assets?.find((item:any)=>`paper-adaptive-${String(item.symbol).toLowerCase()}`===id);if(!state||!asset)return null;
   const position=adaptiveSummary(state,asset),a=position.adaptive,allMarks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];

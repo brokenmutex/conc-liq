@@ -79,7 +79,7 @@ export function createDashboardServer(
       if(pathname === "/api/positions" || pathname.startsWith("/api/positions/")) {
         const url=new URL(request.url!,"http://localhost"),id=pathname === "/api/positions"?undefined:pathname.slice(15);
         const hours=Number(url.searchParams.get("hours")??24);
-        if((id!==undefined&&!/^(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|live-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(id))||![1,6,24,168].includes(hours)) {
+        if((id!==undefined&&!/^(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|live-(rk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(id))||![1,6,24,168].includes(hours)) {
           sendJson(response,400,{error:"invalid_position_request"});return;
         }
         if(!dataSource.positions){sendJson(response,503,{error:"position_source_unavailable"});return;}

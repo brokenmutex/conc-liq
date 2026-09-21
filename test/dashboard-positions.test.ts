@@ -4,6 +4,8 @@ import {once} from 'node:events';
 import {positionWindow,type PositionPoint} from '../src/dashboard/position-performance.js';
 import {createDashboardServer} from '../src/dashboard/server.js';
 import {loadDashboardConfig} from '../src/dashboard/config.js';
+import {rangeKeeperPosition} from '../src/dashboard/rangekeeper-position.js';
+import {rangeKeeperJson} from '../src/strategy/rangekeeper/live-domain.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
  sourceAt:at,observedAt:at,block:'1',action:'mark',status:'open',economicNavQuote:nav,holdQuote:'100000000',priceQuoteX18:'220000000000000000000',
@@ -41,6 +43,21 @@ test('downsampling preserves full performance totals and entry / recenter marker
  const w=positionWindow(ps,168,start+2200*1000,'100000000',ps[0]!.sourceAt);
  assert(w.sampled);assert(w.timeline.length<ps.length);assert(w.timeline.some(p=>p.action==='recenter'));assert.equal(total(w.rows,'netPnlQuote'),2199n);assert.equal(total(w.rows,'feeIncomeQuote'),2200n);
 });
+test('RangeKeeper live ledger produces an AAPL position without inventing current NAV',()=>{
+ const state={id:'470e5f84-ab82-4735-92f9-57e96c05b344',phase:'holding',desired:'running',createdAt:1790000401,
+  expiresAt:1790043601,closedAt:null,activeTokenId:1259529n,lastReason:'inside_range',
+  last:{tick:218070,source:{block:68950417n,hash:'0xabc',timestamp:1790009091},
+   position:{tokenId:1259529n,liquidity:6859071559694655n,tickLower:218050,tickUpper:218090},
+   wallet0:3317684n,wallet1:57521280515648516n,nativeWei:8271603109714364n,
+   allowances:[{amount:0n},{amount:0n}]}};
+ const row={id:state.id,state:JSON.parse(rangeKeeperJson(state)),heartbeat_at:new Date('2026-09-21T16:45:24Z'),monitor:[]};
+ const position=rangeKeeperPosition(row as any);
+ assert.equal(position.asset,'AAPL');assert.equal(position.mode,'live');assert.equal(position.status,'open');
+ assert.equal(position.history,false);assert.equal(position.hasLiquidity,true);assert.equal(position.tokenId,'1259529');
+ assert.equal(position.rangekeeper.tickUpper!-position.rangekeeper.tickLower!,40);
+ assert.equal(position.rangekeeper.nonzeroAllowances,0);
+ assert.equal(position.navQuote,null);assert.equal(position.holdQuote,null);
+});
 test('HTTP position endpoint validates identifiers and permits 168 hours; legacy stays behind diagnostics',async()=>{
  const requests:any[]=[];const server=createDashboardServer({snapshot:async()=>({} as any),positions:async(id,hours)=>{requests.push({id,hours});return id==='paper-999'?null:{positions:[]};}},
   {...loadDashboardConfig({DATABASE_URL:'postgresql://unused/test'}),port:0});
@@ -48,6 +65,7 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
  try{
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=168')).status,200);assert.deepEqual(requests[0],{id:'paper-60',hours:168});
   assert.equal((await fetch(base+'/api/positions/paper-adaptive-nvda?hours=24')).status,200);assert.deepEqual(requests[1],{id:'paper-adaptive-nvda',hours:24});
+  assert.equal((await fetch(base+'/api/positions/live-rk-470e5f84-ab82-4735-92f9-57e96c05b344')).status,200);
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=169')).status,400);assert.equal((await fetch(base+'/api/positions/nope')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-999')).status,404);assert.equal((await fetch(base+'/api/positions',{method:'POST'})).status,405);
   const page=await fetch(base+'/');assert.match(await page.text(),/Positions/);assert.match(page.headers.get('Content-Security-Policy')??'',/script-src 'self'/);

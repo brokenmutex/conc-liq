@@ -3,3 +3,4 @@
 [hidden]{display:none!important}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:300px;overflow:auto}.activity-list time{min-width:112px}.fact-row strong{overflow-wrap:anywhere}.badge.recentring,.badge.exiting{color:var(--amber);border-color:#6a5130}.sample-clock{font-variant-numeric:tabular-nums}.session-note{flex-wrap:wrap}.invalid-message{overflow-wrap:anywhere}#connection-banner{justify-content:center}.chart path{vector-effect:non-scaling-stroke}
 
 .badge.halted{color:var(--red);border-color:#8d4550;background:#3b2029}
+.rangekeeper-note{color:var(--muted);font-size:12px;line-height:1.6;margin:18px 0}.position-detail>.detail-bottom>h3{padding:16px 0 10px}
