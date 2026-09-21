@@ -35,7 +35,7 @@ Build from a clean reviewed commit with `npm run release:build -- /root/conc-liq
 With `RK_RELEASE` set to the exact sealed path and `RK_CONFIG` to the private config, run these in order. Preflight is read-only and supports `--fork` for the exact current candidate. `init` creates the isolated `rangekeeper_v1` ledger after all gates pass; it does not broadcast. The service runs the same sealed controller every 30 seconds.
 
 ```sh
-RK_RELEASE=/root/conc-liq-releases/REPLACE_WITH_VERIFIED_BUILD_ID
+RK_RELEASE=/root/conc-liq-releases/f986b1259727f3c896970d3f0f35d1e48f5363d7436886a608c054bfbbabd1ed
 RK_CONFIG=/root/conc-liq/data/rangekeeper-v1-aapl-live.json
 RK_RUNTIME=/root/conc-liq/data/rangekeeper-v1-runtime.env
 "$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live preflight "$RK_CONFIG" --fork
@@ -46,7 +46,7 @@ RK_RUNTIME=/root/conc-liq/data/rangekeeper-v1-runtime.env
 
 Before `init`, confirm `conc-liq-live-pilot.service` is inactive **and disabled**, its saved state is closed/stopped with no pending action, and all 43 NFTs are still retired. Confirm the completed Permit2 revocation remains effective for both tokens; disable the old service only in an authorized cutover. `init` also requires fresh full-wallet allocation, independent references, zero router/manager allowances, no pending nonce, passing fork simulation, enough native for the bounded scope and exit, pinned wallet delegation code, and a matching private signer.
 
-The first live campaign later incurred approval and swap costs, so it can no longer use untraded rearm. For a new sealed build, use `resume-preflight` and `resume-costed` with campaign ID `470e5f84-ab82-4735-92f9-57e96c05b344` and the exact previous build ID from the [activation record](rangekeeper-activation-2026-09-21.md). Both services must be inactive and disabled. The dry run checks the closed custody, previous config and hash, a fresh full-wallet fork, native reserve, and the unexpired original window. Applying preserves the campaign ID, cost receipts, baseline, and original expiry while changing only the reviewed width and build.
+The 40-tick live attempt completed its swap but missed the mint floor and closed safely. It is no longer armed. A future release needs review of that execution result before another activation; a passing static fork alone did not keep the narrow range feasible through sequential receipts. If a new build is justified before the original expiry, use `resume-preflight` and `resume-costed` with campaign ID `470e5f84-ab82-4735-92f9-57e96c05b344` and the exact previous build ID from the [activation record](rangekeeper-activation-2026-09-21.md). Both services must be inactive and disabled. The dry run checks closed custody, previous config and hash, a fresh full-wallet fork, native reserve, and the unexpired original window. Applying preserves the campaign ID, cost receipts, baseline, and original expiry while changing only the reviewed width and build.
 
 ```sh
 "$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live resume-preflight "$RK_CONFIG" 470e5f84-ab82-4735-92f9-57e96c05b344 PREVIOUS_BUILD_ID
