@@ -1,6 +1,6 @@
 # RangeKeeper v1.0.0: bounded AAPL/USDG launch
 
-RangeKeeper is a fixed-width, inventory-funded V3 LP controller. Its machine identity is `rangekeeper_v1`, strategy version `1.0.0`, and state schema 1. The first profile is Robinhood Chain 4663 AAPL/USDG, fee 500, tick spacing 10, pool `0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D`. The selected operator is the former pilot wallet `0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52`. Its 43 former pilot NFTs must remain owned, empty, and owed zero. The [AAPL profile](../../config/rangekeeper-v1-aapl-disabled.json) is broadcast-disabled. [NVDA](../../config/rangekeeper-v1-nvda-disabled.json) is a second read-only identity check; its gas envelope is not admitted.
+RangeKeeper is a fixed-width, inventory-funded V3 LP controller. Its machine identity is `rangekeeper_v1`, strategy version `1.0.0`, and state schema 1. The first profile is Robinhood Chain 4663 AAPL/USDG, fee 500, tick spacing 10, pool `0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D`. The selected operator is the former pilot wallet `0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52`. Its 43 former pilot NFTs must remain owned, empty, and owed zero. The [AAPL profile](../../config/rangekeeper-v1-aapl-disabled.json) is broadcast-disabled. [NVDA](../../config/rangekeeper-v1-nvda-disabled.json) is a second read-only identity check; its gas envelope is not admitted. The [activation record](rangekeeper-activation-2026-09-21.md) names the sealed build and current launch blockers.
 
 ## Decision and custody rule
 
