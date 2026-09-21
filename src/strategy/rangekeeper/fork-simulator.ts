@@ -9,6 +9,9 @@ import {RangeKeeperChain,type RangeKeeperSource} from './chain.js';
 import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from './calldata.js';
 import type {RangeKeeperCandidate,RangeKeeperLimits,RangeKeeperPool} from './domain.js';
 import {mintedRangeKeeperTokenId,reconcileRangeKeeperAction} from './live-reconcile.js';
+import {nextRangeKeeperStage} from './live-stage.js';
+import type {RangeKeeperLiveState} from './live-domain.js';
+import type {RangeKeeperConfig} from './config.js';
 
 async function freePort(){
  const server=createServer();await new Promise<void>((resolve,reject)=>server.once('error',reject).listen(0,'127.0.0.1',resolve));
@@ -21,7 +24,7 @@ const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
  * impersonated locally and no mainnet key or publishing client is available. */
 export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBinary:string;source:RangeKeeperSource;
  pool:RangeKeeperPool;limits:RangeKeeperLimits;operator:Address;candidate:RangeKeeperCandidate;
- activeTokenId:bigint|null}){
+ activeTokenId:bigint|null;prices:{price0:bigint;price1:bigint}}){
  const {source,pool,limits,operator,candidate}=input;
  assert(input.rpcUrl&&input.anvilBinary&&candidate.sourceBlock<=source.block&&source.timestamp<=candidate.expiresAt);
  const port=await freePort(),url=`http://127.0.0.1:${port}`;
@@ -42,11 +45,11 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
   await chain.verify(source);
   let current=await chain.snapshot(source,operator,input.activeTokenId);
   const gasByStage:{kind:string;gasUsed:bigint}[]=[];
-  const send=async(plan:RangeKeeperTxPlan)=>{
+  const send=async(plan:RangeKeeperTxPlan,futureApprovalCap=0n)=>{
    authorizeRangeKeeperTx(pool,{operator,wallet0:current.wallet0,wallet1:current.wallet1,tick:current.tick,
     sqrtPriceX96:current.sqrtPriceX96,timestamp:current.source.timestamp,
     position:current.position?{...current.position,tokenId:current.position.tokenId!}:null},plan,
-    limits.maxSlippageBps,limits.fullWidthSpacings);
+    limits.maxSlippageBps,limits.fullWidthSpacings,futureApprovalCap);
    const call=encodeRangeKeeperTx(pool,operator,plan);
    await client.call({account:operator,to:call.to,data:call.data});
    const estimated=await client.estimateGas({account:operator,to:call.to,data:call.data});
@@ -66,12 +69,12 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
    assert.equal(proof.status,'success');gasByStage.push({kind:plan.kind,gasUsed:receipt.gasUsed});current=after;
    return proof;
   };
-  const grant=async(token:0|1,spender:'router'|'positionManager',amount:bigint)=>{
+  const grant=async(token:0|1,spender:'router'|'positionManager',amount:bigint,futureApprovalCap=0n)=>{
    const tokenAddress=token===0?pool.token0:pool.token1,spenderAddress=spender==='router'?pool.router:pool.positionManager;
    const allowance=current.allowances.find(a=>same(a.token,tokenAddress)&&same(a.spender,spenderAddress));assert(allowance);
    if(allowance.amount>=amount)return;
    if(allowance.amount>0n)await send({kind:'approve',token,spender,amount:0n});
-   await send({kind:'approve',token,spender,amount});
+   await send({kind:'approve',token,spender,amount},futureApprovalCap);
   };
   if(input.activeTokenId!==null){
    const p=current.position;assert(p&&p.tokenId===input.activeTokenId&&p.liquidity>0n);
@@ -81,14 +84,32 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
     min0:a.amount0*haircut/10_000n,min1:a.amount1*haircut/10_000n,deadline:BigInt(current.source.timestamp+300)});
   }
   if(candidate.swap){
-   const sw=candidate.swap;await grant(sw.token,'router',sw.amountIn);
+   const sw=candidate.swap,acquired:0|1=sw.token===0?1:0;
+   const inventory=sw.token===0?current.wallet0:current.wallet1;
+   const price=acquired===0?input.prices.price0:input.prices.price1;
+   const decimals=acquired===0?pool.decimals0:pool.decimals1;
+   assert(price>0n);
+   const futureCap=limits.maxDeploymentValue*10n**BigInt(decimals)/price;
+   await grant(sw.token,'positionManager',inventory);
+   await grant(acquired,'positionManager',futureCap,futureCap);
+   await grant(sw.token,'router',inventory);
    await send({kind:'swap',token:sw.token,amountIn:sw.amountIn,minOut:sw.minOut,
     deadline:BigInt(current.source.timestamp+300)});
   }
-  await grant(0,'positionManager',candidate.amount0Desired);
-  await grant(1,'positionManager',candidate.amount1Desired);
-  await send({kind:'mint',candidate,deadline:BigInt(current.source.timestamp+300)});
-  assert(current.position?.liquidity&&current.position.liquidity>=candidate.liquidity);
+  let mintPlan:RangeKeeperTxPlan;
+  if(candidate.swap){
+   const state={phase:'entry',candidate,swapDone:true,activeTokenId:null,reserve0:0n,reserve1:0n,
+    reserveNativeWei:0n} as RangeKeeperLiveState;
+   const plan=await nextRangeKeeperStage(state,current,{pool,limits} as RangeKeeperConfig,chain,input.prices);
+   assert(plan?.kind==='mint','Post-swap fork mint is infeasible or missing a preapproval');
+   mintPlan=plan;
+  }else{
+   await grant(0,'positionManager',candidate.amount0Desired);
+   await grant(1,'positionManager',candidate.amount1Desired);
+   mintPlan={kind:'mint',candidate,deadline:BigInt(current.source.timestamp+300)};
+  }
+  await send(mintPlan);
+  assert(current.position?.liquidity&&current.position.liquidity>=mintPlan.candidate.liquidity);
   return {source,createdTokenId:current.position.tokenId,gasByStage};
  }finally{
   child.kill('SIGTERM');

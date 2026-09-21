@@ -21,12 +21,16 @@ export interface RangeKeeperWallet {
 
 /** Semantic authorization is mandatory immediately before signing. The caller
  * must also bind this calldata to a canonical source, nonce, and gas envelope. */
-export function authorizeRangeKeeperTx(pool:RangeKeeperPool,wallet:RangeKeeperWallet,plan:RangeKeeperTxPlan,slippageBps:number,fullWidthSpacings:number){
+export function authorizeRangeKeeperTx(pool:RangeKeeperPool,wallet:RangeKeeperWallet,plan:RangeKeeperTxPlan,slippageBps:number,fullWidthSpacings:number,futureApprovalCap=0n){
  assert(Number.isInteger(slippageBps)&&slippageBps>0&&slippageBps<=50);
  const token=(index:0|1)=>index===0?pool.token0:pool.token1;
  const available=(index:0|1)=>index===0?wallet.wallet0:wallet.wallet1;
  if(plan.kind==='approve'){
-  assert(plan.amount>=0n&&plan.amount<=available(plan.token),'Approval exceeds available strategy token');
+  assert(futureApprovalCap>=0n);
+  assert(plan.amount>=0n&&plan.amount<=available(plan.token)+futureApprovalCap,
+   'Approval exceeds available or bounded future strategy token');
+  assert(futureApprovalCap===0n||plan.spender==='positionManager',
+   'Only position-manager approval may anticipate swap inventory');
   return;
  }
  assert(plan.deadline>BigInt(wallet.timestamp)&&plan.deadline<=BigInt(wallet.timestamp+300),'Transaction deadline invalid');

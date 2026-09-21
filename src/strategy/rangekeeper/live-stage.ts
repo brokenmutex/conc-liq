@@ -24,13 +24,14 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   const a=s.allowances.find(a=>same(a.token,token(i))&&same(a.spender,spender(kind)));
   assert(a,'Configured allowance pair missing');return a.amount;
  };
- const grant=(i:0|1,kind:'router'|'positionManager',needed:bigint):RangeKeeperTxPlan|null=>{
-  const available=i===0?funds.amount0:funds.amount1;assert(needed>=0n&&needed<=available);
+ const grant=(i:0|1,kind:'router'|'positionManager',needed:bigint,futureCap?:bigint):RangeKeeperTxPlan|null=>{
+  const available=i===0?funds.amount0:funds.amount1,cap=futureCap??available;
+  assert(needed>=0n&&needed<=cap&&cap>=available);
   const current=allowance(i,kind);
   if(current>=needed)return null;
   // Grant the current strategy inventory once, so a fresh quote that needs
   // slightly more input does not incur a reset and second approval.
-  return {kind:'approve',token:i,spender:kind,amount:current>0n?0n:available};
+  return {kind:'approve',token:i,spender:kind,amount:current>0n?0n:cap};
  };
  const deadline=BigInt(s.source.timestamp+300);
  if(state.phase==='exit'){
@@ -99,6 +100,21 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   if(projectedValue<l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n||
    projectedValue>l.maxDeploymentValue)
    throw new RangeKeeperStaleCandidateError('Current quote cannot fund approved range');
+  // Approve both mint legs before the swap. At a 40-tick width, waiting for
+  // manager approvals after the swap cost the historical mint its feasible
+  // price window. The acquired leg has a finite $250 raw-token cap even
+  // though the wallet does not own it yet.
+  const acquired:0|1=c.swap.token===0?1:0;
+  const acquiredPrice=acquired===0?prices.price0:prices.price1;
+  const acquiredDecimals=acquired===0?p.decimals0:p.decimals1;
+  assert(acquiredPrice>0n);
+  const acquiredCap=l.maxDeploymentValue*10n**BigInt(acquiredDecimals)/acquiredPrice;
+  const futureCap=acquired===0?(funds.amount0>acquiredCap?funds.amount0:acquiredCap):
+   (funds.amount1>acquiredCap?funds.amount1:acquiredCap);
+  const managerInput=grant(c.swap.token,'positionManager',c.swap.token===0?funds.amount0:funds.amount1);
+  if(managerInput)return managerInput;
+  const managerOutput=grant(acquired,'positionManager',acquired===0?c.amount0Desired:c.amount1Desired,futureCap);
+  if(managerOutput)return managerOutput;
   const approval=grant(c.swap.token,'router',c.swap.amountIn);if(approval)return approval;
   return {kind:'swap',token:c.swap.token,amountIn:c.swap.amountIn,
    minOut:haircut(quote.amountOut,l.maxSlippageBps),deadline};
@@ -109,10 +125,11 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
  // A stage can take longer than the 90-second confirmation window. Once a
  // swap or withdrawal has changed custody, reprice only this same range and
  // never repeat a completed swap to restore a guessed ratio.
- // Preserve the approved capped inventory after a swap. In particular, the
- // unspent wallet surplus must not dilute the acquired leg at mint time.
- let desired0=c.swap?(funds.amount0<c.amount0Desired?funds.amount0:c.amount0Desired):c.amount0Desired;
- let desired1=c.swap?(funds.amount1<c.amount1Desired?funds.amount1:c.amount1Desired):c.amount1Desired;
+ // After a completed swap, use the actual strategy inventory in this same
+ // range. Idle USDG can rescue a narrow mint as the token ratio moves; the
+ // cap below still prevents more than $250 from entering LP.
+ let desired0=c.swap?funds.amount0:c.amount0Desired;
+ let desired1=c.swap?funds.amount1:c.amount1Desired;
  assert(desired0<=funds.amount0&&desired1<=funds.amount1,'Frozen mint allocation unavailable');
  let mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
  let deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);

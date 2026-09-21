@@ -80,7 +80,8 @@ export async function inspectRangeKeeperLaunch(input:{client:RobinhoodClient;con
   simulate:async frozen=>{
    if(!input.simulateFork)return true;
    await simulateRangeKeeperCandidate({rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary,source,
-    pool:p,limits:config.limits,operator,candidate:frozen,activeTokenId:null});return true;
+    pool:p,limits:config.limits,operator,candidate:frozen,activeTokenId:null,
+    prices:{price0:refs.price0!,price1:refs.price1!}});return true;
   }});
  assert(final.candidate,`Candidate admission failed: ${final.reason}`);
  // Two economic actions are entry and one recenter. This funds both plus the

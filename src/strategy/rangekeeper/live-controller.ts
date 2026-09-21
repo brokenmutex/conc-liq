@@ -365,9 +365,23 @@ export class RangeKeeperLiveController {
   assert.equal(await this.publisher.getTransactionCount({address:s.operator,blockTag:'pending'}),snapshot.nonce,
    'Publisher sees a conflicting pending nonce');
   const funds=strategyBalances(snapshot,s);
+  let futureApprovalCap=0n;
+  if(plan.kind==='approve'&&plan.amount>(plan.token===0?funds.amount0:funds.amount1)){
+   const sw=s.candidate?.swap;
+   assert((s.phase==='entry'||s.phase==='recenter')&&!s.swapDone&&sw&&
+    plan.spender==='positionManager'&&plan.token!==sw.token,
+    'Future approval lacks a frozen acquisition');
+   const price=plan.token===0?prices.price0:prices.price1;
+   const decimals=plan.token===0?this.config.pool.decimals0:this.config.pool.decimals1;
+   assert(price>0n);
+   const maxRaw=this.config.limits.maxDeploymentValue*10n**BigInt(decimals)/price;
+   futureApprovalCap=maxRaw;
+   assert(plan.amount<=maxRaw,'Future approval exceeds LP value cap');
+  }
   authorizeRangeKeeperTx(this.config.pool,{...snapshot,position:snapshot.position?{...snapshot.position,tokenId:snapshot.position.tokenId!}:null,
    wallet0:funds.amount0,wallet1:funds.amount1,
-   timestamp:snapshot.source.timestamp},plan,this.config.limits.maxSlippageBps,this.config.limits.fullWidthSpacings);
+   timestamp:snapshot.source.timestamp},plan,this.config.limits.maxSlippageBps,this.config.limits.fullWidthSpacings,
+   futureApprovalCap);
   const tx=encodeRangeKeeperTx(this.config.pool,s.operator,plan);
   const latest=await this.client.getBlock();
   assert(latest.baseFeePerGas&&latest.baseFeePerGas>0n);
@@ -495,8 +509,8 @@ export class RangeKeeperLiveController {
      actionCost:envelope.actionCostValue,actionGasWei:envelope.actionGasWei,
      requiredExitReserveWei:envelope.requiredExitReserveWei,liquiditySharePpm:Number(share)},
      simulate:async candidate=>{await simulateRangeKeeperCandidate({rpcUrl:this.archiveRpcUrl,anvilBinary:this.anvilBinary,
-      source,pool:this.config.pool,limits:this.config.limits,operator:s.operator,candidate,
-      activeTokenId:s.activeTokenId});return true;}});
+     source,pool:this.config.pool,limits:this.config.limits,operator:s.operator,candidate,
+      activeTokenId:s.activeTokenId,prices:{price0:refs.price0!,price1:refs.price1!}});return true;}});
     s.policy=decision.state;s.lastReason=decision.reason;
     if(decision.action==='safety_exit'){s.phase='exit';s.desired='stopped';}
     if(decision.action==='execute'&&decision.candidate){

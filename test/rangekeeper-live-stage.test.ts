@@ -79,9 +79,9 @@ test('an approval delay refreshes the same approved swap amount from a canonical
  const snapshot={source,operator:config.operator!,wallet0:295170862n,wallet1:0n,
   nativeWei:10n**16n,position:null,tick:218130,sqrtPriceX96:0n,
   allowances:[{token:p.token0,spender:p.router,amount:candidate.swap.amountIn},
-   {token:p.token0,spender:p.positionManager,amount:0n},
+   {token:p.token0,spender:p.positionManager,amount:295170862n},
    {token:p.token1,spender:p.router,amount:0n},
-   {token:p.token1,spender:p.positionManager,amount:0n}]} as RangeKeeperSnapshot;
+   {token:p.token1,spender:p.positionManager,amount:stageConfig.limits.maxDeploymentValue*10n**18n/price1}]} as RangeKeeperSnapshot;
  let quoted=0;
  const chain={quote:async()=>{quoted++;return {amountOut:candidate.swap.quotedOut,
   priceAfter:candidate.swap.priceAfter,feeValue:candidate.swap.feeValue,
@@ -94,7 +94,7 @@ test('an approval delay refreshes the same approved swap amount from a canonical
   assert.equal(plan.deadline,800n);
  }
 });
-test('a capped swap keeps wallet surplus outside both staging and mint sizing',async()=>{
+test('a capped swap preapproves both mint legs and the router before trading',async()=>{
  const capped={...config,limits:{...config.limits,maxDeploymentValue:250n*10n**18n,minDeploymentPpm:980000}};
  const source={block:2n,hash:`0x${'22'.repeat(32)}` as const,timestamp:500};
  const candidate={kind:'entry' as const,range:{tickLower:218050,tickUpper:218250},
@@ -119,17 +119,30 @@ test('a capped swap keeps wallet surplus outside both staging and mint sizing',a
  const livePrices={price0,price1:335632887590000000000n};
  const approval=await nextRangeKeeperStage(state,before,capped,chain,livePrices);
  assert.equal(approval?.kind,'approve');
- if(approval?.kind==='approve')assert.equal(approval.amount,before.wallet0);
- const withApproval={...before,allowances:allowances.map(a=>a.token===p.token0&&a.spender===p.router?
+ if(approval?.kind==='approve'){
+  assert.equal(approval.spender,'positionManager');
+  assert.equal(approval.token,0);
+  assert.equal(approval.amount,before.wallet0);
+ }
+ const withUsdManager={...before,allowances:allowances.map(a=>a.token===p.token0&&a.spender===p.positionManager?
+  {...a,amount:before.wallet0}:a)};
+ const stockApproval=await nextRangeKeeperStage(state,withUsdManager,capped,chain,livePrices);
+ const stockCap=capped.limits.maxDeploymentValue*10n**18n/livePrices.price1;
+ assert.deepEqual(stockApproval,{kind:'approve',token:1,spender:'positionManager',amount:stockCap});
+ const withManagers={...withUsdManager,allowances:withUsdManager.allowances.map(a=>a.token===p.token1&&a.spender===p.positionManager?
+  {...a,amount:stockCap}:a)};
+ const routerApproval=await nextRangeKeeperStage(state,withManagers,capped,chain,livePrices);
+ assert.deepEqual(routerApproval,{kind:'approve',token:0,spender:'router',amount:before.wallet0});
+ const withApproval={...withManagers,allowances:withManagers.allowances.map(a=>a.token===p.token0&&a.spender===p.router?
   {...a,amount:before.wallet0}:a)};
  assert.equal((await nextRangeKeeperStage(state,withApproval,capped,chain,livePrices))?.kind,'swap');
- const after={...before,wallet0:before.wallet0-candidate.swap.amountIn,
+ const after={...withApproval,wallet0:before.wallet0-candidate.swap.amountIn,
   wallet1:candidate.swap.quotedOut};
- const mintApproval=await nextRangeKeeperStage({...state,swapDone:true},after,capped,chain,livePrices);
- assert.equal(mintApproval?.kind,'approve');
- if(mintApproval?.kind==='approve'){
-  assert.equal(mintApproval.spender,'positionManager');
-  assert.equal(mintApproval.amount,after.wallet0);
+ const mint=await nextRangeKeeperStage({...state,swapDone:true},after,capped,chain,livePrices);
+ assert.equal(mint?.kind,'mint');
+ if(mint?.kind==='mint'){
+  assert(mint.candidate.deployedValue>=245n*10n**18n);
+  assert(mint.candidate.deployedValue<=250n*10n**18n);
  }
 });
 test('a drifted post-swap mint scales excess value down and rejects an underfunded range',async()=>{
@@ -160,4 +173,48 @@ test('a drifted post-swap mint scales excess value down and rejects an underfund
  }
  await assert.rejects(nextRangeKeeperStage(state,{...snapshot,wallet1:200000000000000000n},
   capped,{} as RangeKeeperChain,prices),RangeKeeperMintUnavailableError);
+});
+test('the failed 40-tick entry could mint before approval delay and use idle USDG on later ticks',async()=>{
+ const candidate={kind:'entry' as const,range:{tickLower:218090,tickUpper:218130},
+  swap:{token:0 as const,amountIn:143040867n,quotedOut:423931823296336723n,
+   minOut:421812164179855039n,priceAfter:4314246143813801979750295328179705n,
+   feeValue:71519820569884905n,shortfallValue:0n},
+  amount0Desired:106961202n,amount1Desired:423931823296336723n,
+  amount0Min:105897734n,amount1Min:421812164179855027n,
+  liquidity:6794153103498356n,deployedValue:249500000064287647351n,
+  sourceBlock:68907827n,sourceHash:`0x${'cc'.repeat(32)}` as const,expiresAt:1790004921};
+ const state={phase:'entry',candidate,swapDone:true,activeTokenId:null,
+  reserve0:0n,reserve1:0n,reserveNativeWei:0n} as RangeKeeperLiveState;
+ const stockPrice=337485935960000000000n;
+ const snapshot={source:{block:68909156n,hash:`0x${'aa'.repeat(32)}` as const,timestamp:1790004965},
+  operator:config.operator!,wallet0:132152696n,wallet1:423955610653043361n,
+  nativeWei:10n**16n,position:null,tick:218113,
+  sqrtPriceX96:4314292042204425506861169193207304n,
+  allowances:[{token:p.token0,spender:p.router,amount:132152696n},
+   {token:p.token0,spender:p.positionManager,amount:275193563n},
+   {token:p.token1,spender:p.router,amount:0n},
+   {token:p.token1,spender:p.positionManager,
+    amount:config.limits.maxDeploymentValue*10n**18n/stockPrice}]} as RangeKeeperSnapshot;
+ const prices={price0:999991430000000000n,price1:stockPrice};
+ const immediate=await nextRangeKeeperStage(state,snapshot,config,{} as RangeKeeperChain,prices);
+ assert.equal(immediate?.kind,'mint');
+ if(immediate?.kind==='mint'){
+  assert(immediate.candidate.deployedValue>=245n*10n**18n);
+  assert(immediate.candidate.deployedValue<=250n*10n**18n);
+ }
+ const later={...snapshot,source:{...snapshot.source,block:68909889n,timestamp:1790005039},
+  tick:218110,sqrtPriceX96:4313623716782692767893606704481265n};
+ const repriced=await nextRangeKeeperStage(state,later,config,{} as RangeKeeperChain,
+  {price0:1000080000000000000n,price1:stockPrice});
+ assert.equal(repriced?.kind,'mint');
+ if(repriced?.kind==='mint'){
+  assert(repriced.candidate.amount0Desired>candidate.amount0Desired,
+   'Previously idle USDG is admitted only after the completed swap');
+  assert(repriced.candidate.deployedValue>=245n*10n**18n);
+  assert(repriced.candidate.deployedValue<=250n*10n**18n);
+ }
+ await assert.rejects(nextRangeKeeperStage(state,{...later,
+  source:{...later.source,block:68910599n,timestamp:1790005108},tick:218107,
+  sqrtPriceX96:4313136158835044232948535785310267n},config,{} as RangeKeeperChain,
+  {price0:1000080000000000000n,price1:stockPrice}),RangeKeeperMintUnavailableError);
 });

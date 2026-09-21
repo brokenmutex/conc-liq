@@ -27,6 +27,17 @@ test('generic swap calldata uses address order and configured tier regardless of
  assert.equal(nested.args[0].fee,3000);
 });
 
+test('future acquired-token approval is finite and restricted to the position manager',()=>{
+ const wallet={operator:addr(10),wallet0:0n,wallet1:0n,tick:0,
+  sqrtPriceX96:sqrtRatioAtTick(0),timestamp:1000,position:null};
+ const grant={kind:'approve' as const,token:0 as const,spender:'positionManager' as const,amount:500n};
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,grant,50,20),/bounded future strategy token/);
+ assert.doesNotThrow(()=>authorizeRangeKeeperTx(pool,wallet,grant,50,20,500n));
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,grant,50,20,499n),/bounded future strategy token/);
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,{...grant,spender:'router'},50,20,500n),
+  /Only position-manager approval/);
+});
+
 test('generic receipt recognizes raw token deltas by address with reversed quote order',()=>{
  const abi=parseAbi(['event Transfer(address indexed from,address indexed to,uint256 value)']);
  const operator=addr(10),router=pool.router;
