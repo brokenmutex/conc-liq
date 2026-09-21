@@ -2,6 +2,10 @@
 
 The approved multi-position design is now the main dashboard at `/`. Live positions appear first, paper positions second, using the same metrics, charts, inventory/range facts, session attribution and activity layout. The current ledger adapters serve NVDA/USDG; the browser renders position records and asset filters without single-position selectors. Additional assets need their own validated accounting adapter.
 
+## Standing requirement for future deployments — 21 September 2026
+
+Every new live or paper deployment must support the same position dashboard view from its first session, and retain that view after closure: position rows; value versus passive holding, price and range, and inventory charts; 1h, 6h, 24h, and 1w windows; position metrics and inventory/range facts; market-session attribution and activity. Add the ledger adapter and recorded history needed for that view as part of the deployment. Show unavailable values and coverage gaps explicitly when evidence is missing; do not infer NAV, fees, costs, or passive alpha from pool spot or mint value. Verify the actual position API and desktop/mobile dashboard against the sealed release used for deployment.
+
 Both sections offer 1h, 6h, 24h and **1 week (168h)** windows. Charts use actual timestamps, New York market-session shading, changing series legends, entry/recenter/cash-exit markers and keyboard/pointer inspection. The window remains a real elapsed-time window; it does not synthesize history before the campaign started. Gaps over 15 minutes break chart lines and their economic movement is separately attributed. Available coverage is displayed beneath each session table.
 
 ## Data and accounting
