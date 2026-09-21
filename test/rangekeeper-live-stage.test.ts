@@ -3,8 +3,8 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {keccak256} from 'viem';
 import {parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
-import {nextRangeKeeperStage} from '../src/strategy/rangekeeper/live-stage.js';
-import {assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
+import {nextRangeKeeperStage,RangeKeeperMintUnavailableError} from '../src/strategy/rangekeeper/live-stage.js';
+import {assertCostedRangeKeeperResume,assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -25,6 +25,21 @@ test('rearm accepts only the exact closed no-transaction campaign and new build'
  assert.throws(()=>guard({...old,costEvents:[{} as RangeKeeperLiveState['costEvents'][number]]}),/no economic action/);
  assert.throws(()=>guard({...old,phase:'entry'}),/completely reconciled/);
  assert.throws(()=>guard(old,'old-build'),/new sealed build/);
+});
+test('costed resume retains the closed campaign and rejects changed custody or exhausted spend',()=>{
+ const old={id:'470e5f84-ab82-4735-92f9-57e96c05b344',buildId:'old-build',
+  configHash:rangeKeeperConfigHash(config),operator:config.operator!,phase:'closed',desired:'stopped',
+  lastReason:'complete_exit_reconciled',closedAt:1000,economicActions:0,recenters:0,
+  activeTokenId:null,retiredTokenIds:[],candidate:null,legacyNftCount:43n,
+  last:{position:null,wallet1:0n,nftCount:43n,allowances:[]},gasSpentWei:1n,
+  costEvents:[{gasValue:1n,swapFeeValue:0n,swapShortfallValue:0n}]} as unknown as RangeKeeperLiveState;
+ const guard=(state:RangeKeeperLiveState=old)=>assertCostedRangeKeeperResume(state,old.id,'old-build',
+  'new-build',old.configHash,old.operator,config.limits);
+ assert.doesNotThrow(()=>guard());
+ assert.throws(()=>guard({...old,last:{...old.last,wallet1:1n}}),/fully exited/);
+ assert.throws(()=>guard({...old,costEvents:[]}),/retained receipt costs/);
+ assert.throws(()=>guard({...old,costEvents:[{gasValue:config.limits.maxCampaignCost,
+  swapFeeValue:0n,swapShortfallValue:0n} as RangeKeeperLiveState['costEvents'][number]]}),/budget/);
 });
 test('wallet-code gate pins the delegated operator and target bytecode',async()=>{
  const source={block:10n,hash:`0x${'aa'.repeat(32)}` as const,timestamp:100};
@@ -101,4 +116,33 @@ test('a capped swap keeps wallet surplus outside both staging and mint sizing',a
   assert.equal(mintApproval.spender,'positionManager');
   assert.equal(mintApproval.amount,candidate.amount0Desired);
  }
+});
+test('a drifted post-swap mint scales excess value down and rejects an underfunded range',async()=>{
+ const capped={...config,limits:{...config.limits,maxDeploymentValue:250n*10n**18n,minDeploymentPpm:980000}};
+ const source={block:2n,hash:`0x${'22'.repeat(32)}` as const,timestamp:500};
+ const candidate={kind:'entry' as const,range:{tickLower:218050,tickUpper:218250},swap:{token:0 as const,
+  amountIn:128866313n,quotedOut:383538180808486242n,minOut:381620489904443810n,
+  priceAfter:4323357006059969185046779627547153n,feeValue:0n,shortfallValue:0n},
+  amount0Desired:150000000n,amount1Desired:470000000000000000n,amount0Min:0n,amount1Min:0n,
+  liquidity:1n,deployedValue:245n*10n**18n,sourceBlock:1n,
+  sourceHash:`0x${'11'.repeat(32)}` as const,expiresAt:90};
+ const state={phase:'entry',candidate,swapDone:true,activeTokenId:null,
+  reserve0:0n,reserve1:0n,reserveNativeWei:0n} as RangeKeeperLiveState;
+ const allowances=[{token:p.token0,spender:p.router,amount:0n},
+  {token:p.token0,spender:p.positionManager,amount:150000000n},
+  {token:p.token1,spender:p.router,amount:0n},
+  {token:p.token1,spender:p.positionManager,amount:470000000000000000n}];
+ const snapshot={source,operator:config.operator!,wallet0:180000000n,wallet1:470000000000000000n,
+  nativeWei:10n**16n,position:null,tick:218155,sqrtPriceX96:candidate.swap.priceAfter,
+  allowances} as RangeKeeperSnapshot;
+ const prices={price0,price1:335632887590000000000n};
+ const mint=await nextRangeKeeperStage(state,snapshot,capped,{} as RangeKeeperChain,prices);
+ assert.equal(mint?.kind,'mint');
+ if(mint?.kind==='mint'){
+  assert(mint.candidate.amount0Desired<candidate.amount0Desired);
+  assert(mint.candidate.deployedValue>=245n*10n**18n);
+  assert(mint.candidate.deployedValue<=250n*10n**18n);
+ }
+ await assert.rejects(nextRangeKeeperStage(state,{...snapshot,wallet1:200000000000000000n},
+  capped,{} as RangeKeeperChain,prices),RangeKeeperMintUnavailableError);
 });

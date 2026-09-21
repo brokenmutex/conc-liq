@@ -12,6 +12,7 @@ import type {RangeKeeperLiveState,RangeKeeperSnapshot} from './live-domain.js';
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const haircut=(n:bigint,bps:number)=>n*(10_000n-BigInt(bps))/10_000n;
 export class RangeKeeperStaleCandidateError extends Error {}
+export class RangeKeeperMintUnavailableError extends Error {}
 
 export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKeeperSnapshot,
  config:RangeKeeperConfig,chain:RangeKeeperChain,prices:{price0:bigint;price1:bigint}):Promise<RangeKeeperTxPlan|null>{
@@ -100,20 +101,28 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   return {kind:'swap',token:c.swap.token,amountIn:c.swap.amountIn,
    minOut:haircut(quote.amountOut,l.maxSlippageBps),deadline};
  }
- assert(s.tick>=c.range.tickLower&&s.tick<c.range.tickUpper,'Frozen mint range no longer contains price');
- assert(s.sqrtPriceX96>sqrtRatioAtTick(c.range.tickLower)&&s.sqrtPriceX96<sqrtRatioAtTick(c.range.tickUpper));
+ if(s.tick<c.range.tickLower||s.tick>=c.range.tickUpper||
+  s.sqrtPriceX96<=sqrtRatioAtTick(c.range.tickLower)||s.sqrtPriceX96>=sqrtRatioAtTick(c.range.tickUpper))
+  throw new RangeKeeperMintUnavailableError('Frozen mint range no longer contains price');
  // A stage can take longer than the 90-second confirmation window. Once a
  // swap or withdrawal has changed custody, reprice only this same range and
  // never repeat a completed swap to restore a guessed ratio.
  // Preserve the approved capped inventory after a swap. In particular, the
  // unspent wallet surplus must not dilute the acquired leg at mint time.
- const desired0=c.swap?(funds.amount0<c.amount0Desired?funds.amount0:c.amount0Desired):c.amount0Desired;
- const desired1=c.swap?(funds.amount1<c.amount1Desired?funds.amount1:c.amount1Desired):c.amount1Desired;
+ let desired0=c.swap?(funds.amount0<c.amount0Desired?funds.amount0:c.amount0Desired):c.amount0Desired;
+ let desired1=c.swap?(funds.amount1<c.amount1Desired?funds.amount1:c.amount1Desired):c.amount1Desired;
  assert(desired0<=funds.amount0&&desired1<=funds.amount1,'Frozen mint allocation unavailable');
- const mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
- const deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
+ let mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
+ let deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
+ if(deployed>l.maxDeploymentValue){
+  const fraction=l.maxDeploymentValue*1_000_000n/deployed;
+  desired0=desired0*fraction/1_000_000n;desired1=desired1*fraction/1_000_000n;
+  mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
+  deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
+ }
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n;
- assert(mint.liquidity>0n&&deployed>=floor&&deployed<=l.maxDeploymentValue,'Repriced mint misses deployment bounds');
+ if(mint.liquidity===0n||deployed<floor||deployed>l.maxDeploymentValue)
+  throw new RangeKeeperMintUnavailableError('Repriced mint misses deployment bounds');
  const refreshed={...c,amount0Desired:desired0,amount1Desired:desired1,
   amount0Min:haircut(mint.amount0,l.maxSlippageBps),amount1Min:haircut(mint.amount1,l.maxSlippageBps),
   liquidity:mint.liquidity,deployedValue:deployed,sourceBlock:s.source.block,sourceHash:s.source.hash,

@@ -17,7 +17,7 @@ export interface RangeKeeperLiveState {
  retiredTokenIds:string[];legacyNftCount:bigint;
  reserve0:bigint;reserve1:bigint;reserveNativeWei:bigint;
  initial0:bigint;initial1:bigint;initialNativeWei:bigint;initialStrategyValue:bigint;
- candidate:RangeKeeperCandidate|null;swapDone:boolean;withdrawDone:boolean;
+ candidate:RangeKeeperCandidate|null;swapDone:boolean;swapConfirmedAt:number|null;withdrawDone:boolean;
  actionStartCostIndex:number;reservedActionCost:bigint;
  mintRecoveryAttempts:number;
  collectedFee0:bigint;collectedFee1:bigint;gasSpentWei:bigint;

@@ -13,7 +13,7 @@ import {type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSna
 import {readRangeKeeperReferences} from './reference.js';
 import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
-import {nextRangeKeeperStage,RangeKeeperStaleCandidateError} from './live-stage.js';
+import {nextRangeKeeperStage,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from './live-stage.js';
 import {planRangeKeeper,rawValue} from './planner.js';
 import {rangeKeeperCostEnvelope,assertRangeKeeperStageGas,rangeKeeperForkGasUnits} from './cost.js';
 import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from './calldata.js';
@@ -42,6 +42,25 @@ export function assertUntradedRangeKeeperRearm(old:RangeKeeperLiveState,expected
   'Rearm requires a campaign with no economic action or cost');
 }
 
+export function assertCostedRangeKeeperResume(old:RangeKeeperLiveState,expectedCampaignId:string,
+ expectedPreviousBuildId:string,nextBuildId:string,configHash:Hex,operator:string,limits:RangeKeeperConfig['limits']){
+ assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
+ assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
+ assert.notEqual(old.buildId,nextBuildId,'Resume requires a new sealed build');
+ assert.equal(old.configHash,configHash,'Campaign configuration changed');
+ assert(same(old.operator,operator),'Campaign operator changed');
+ assert(old.phase==='closed'&&old.desired==='stopped'&&old.lastReason==='complete_exit_reconciled'&&old.closedAt!==null,
+  'Only a completely reconciled closed campaign may resume');
+ assert(old.economicActions===0&&old.recenters===0&&old.activeTokenId===null&&old.retiredTokenIds.length===0&&
+  old.candidate===null&&old.last.position===null&&old.last.wallet1===0n&&
+  old.last.nftCount===old.legacyNftCount&&old.last.allowances.every(a=>a.amount===0n),
+  'Costed resume requires a fully exited pre-mint campaign');
+ assert(old.costEvents.length>0&&old.gasSpentWei>0n,'Costed resume requires retained receipt costs');
+ const spent=sumCost(old.costEvents);
+ assert(spent!==null&&spent<limits.maxRollingCost&&spent<limits.maxCampaignCost,
+  'Existing costs exhaust the campaign budget');
+}
+
 export class RangeKeeperLiveController {
  readonly chain:RangeKeeperChain;
  constructor(readonly store:RangeKeeperLiveStore,readonly config:RangeKeeperConfig,
@@ -62,7 +81,7 @@ export class RangeKeeperLiveController {
    reserve0:proof.funding.reserve0,reserve1:proof.funding.reserve1,reserveNativeWei:proof.funding.reserveNativeWei,
    initial0:proof.funding.allocation.amount0,initial1:proof.funding.allocation.amount1,
    initialNativeWei:proof.funding.allocation.nativeWei,initialStrategyValue:proof.funding.bookedStrategyValue,
-   candidate:null,swapDone:false,withdrawDone:false,actionStartCostIndex:0,reservedActionCost:0n,
+   candidate:null,swapDone:false,swapConfirmedAt:null,withdrawDone:false,actionStartCostIndex:0,reservedActionCost:0n,
    mintRecoveryAttempts:0,collectedFee0:0n,collectedFee1:0n,gasSpentWei:0n,costEvents:[],
    highWaterValue:proof.funding.bookedStrategyValue,activeSeconds:0,outsideSeconds:0,lastMarkTimestamp:at,
    lastReason:reason,closedAt:null};
@@ -168,6 +187,47 @@ export class RangeKeeperLiveController {
    return next;
   });
  }
+ /** Resume a closed pre-mint campaign without resetting its spend, passive
+  * baseline, action ledger, or 12-hour expiry. */
+ async resumeCosted(expectedCampaignId:string,expectedPreviousBuildId:string,apply:boolean){
+  this.serviceGate();
+  assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to resume');
+   const old=row.state;
+   assertCostedRangeKeeperResume(old,expectedCampaignId,expectedPreviousBuildId,this.buildId,
+    rangeKeeperConfigHash(this.config),this.signer.address,this.config.limits);
+   const ledger=(await db.query(`SELECT count(*)::int AS n,
+    count(*) FILTER (WHERE status<>'confirmed')::int AS unresolved FROM ${this.store.schema}.actions WHERE campaign_id=$1`,
+    [old.id])).rows[0];
+   assert.equal(ledger?.n,old.costEvents.length,'Receipt cost ledger differs from action history');
+   assert.equal(ledger?.unresolved,0,'Unresolved RangeKeeper action exists');
+   assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
+   await this.oldPilotClosed(db);
+   const proof=await inspectRangeKeeperLaunch({client:this.client,config:this.config,buildId:this.buildId,
+    rpcUrl:this.archiveRpcUrl,anvilBinary:this.anvilBinary,simulateFork:true});
+   assert(proof.source.timestamp<old.expiresAt,'Original bounded campaign window expired');
+   assert.equal(proof.nativeShortfallWei,0n,'Native funding is below the complete scoped requirement');
+   await this.exactCustody(old.last,proof.wallet,null);
+   assert.equal(proof.funding.reserve0,old.reserve0,'Strategy token0 reserve changed');
+   assert.equal(proof.funding.reserve1,old.reserve1,'Strategy token1 reserve changed');
+   assert.equal(proof.funding.reserveNativeWei,old.reserveNativeWei,'Native reserve changed');
+   const next={...old,buildId:this.buildId,phase:'entry' as const,desired:'running' as const,
+    policy:initialRangeKeeperState(this.config,this.buildId),last:proof.wallet,candidate:null,
+    swapDone:false,swapConfirmedAt:null,withdrawDone:false,actionStartCostIndex:old.costEvents.length,
+    reservedActionCost:0n,lastMarkTimestamp:proof.source.timestamp,lastReason:'resumed_costed_closed',closedAt:null};
+   if(!apply)return next;
+   await db.query('BEGIN');try{
+    await this.store.mark(db,old.id,proof.source.block,'costed_resume_preflight',{
+     previousBuildId:old.buildId,previousClosedAt:old.closedAt,retainedCostEvents:old.costEvents.length,
+     retainedGasSpentWei:old.gasSpentWei,source:proof.source,funding:proof.funding,candidate:proof.candidate,
+     envelope:proof.envelope,nativeRequiredWei:proof.nativeRequiredWei,reference:proof.reference,
+     forkSimulated:proof.forkSimulated});
+    await this.store.save(db,next,'costed_resume');await db.query('COMMIT');
+   }catch(error){await db.query('ROLLBACK');throw error;}
+   return next;
+  });
+ }
  async requestStop(){return this.store.locked(this.signer.address,async db=>{
   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;this.assertIdentity(s);
   s.desired='stopped';if(s.phase!=='closed'&&s.phase!=='halted')s.phase='exit';
@@ -264,12 +324,12 @@ export class RangeKeeperLiveController {
    s.retiredTokenIds.push(String(action.plan.tokenId));s.activeTokenId=null;s.withdrawDone=true;
    s.lastReason='withdraw_collected';
   }else if(action.plan.kind==='swap'){
-   if(s.phase==='entry'||s.phase==='recenter')s.swapDone=true;
+   if(s.phase==='entry'||s.phase==='recenter'){s.swapDone=true;s.swapConfirmedAt=source.timestamp;}
    s.lastReason='swap_confirmed';
   }else if(action.plan.kind==='mint'){
    assert(created!==null);s.activeTokenId=created;s.economicActions++;
    if(s.phase==='recenter')s.recenters++;
-   s.phase='holding';s.candidate=null;s.swapDone=false;s.withdrawDone=false;
+   s.phase='holding';s.candidate=null;s.swapDone=false;s.swapConfirmedAt=null;s.withdrawDone=false;
    s.reservedActionCost=0n;s.lastReason='mint_confirmed';
   }else s.lastReason='approval_confirmed';
   await this.store.finish(db,action,s,{receipt,proof},receipt.status==='success'?'confirmed':'reverted');
@@ -381,7 +441,7 @@ export class RangeKeeperLiveController {
    s.lastReason=loss?'loss_limit':drawdown?'drawdown_limit':detached?'independent_price_band':
     !snapshot.unlocked?'pool_locked':source.timestamp>=s.expiresAt?'scope_expired':'operator_stop';
   }
-  if((s.phase==='holding'||s.phase==='entry')&&s.economicActions<this.config.campaignScope.maxEconomicActions&&s.recenters<this.config.limits.maxRecenters&&
+  if((s.phase==='holding'||(s.phase==='entry'&&s.candidate===null))&&s.economicActions<this.config.campaignScope.maxEconomicActions&&s.recenters<this.config.limits.maxRecenters&&
    source.timestamp<s.expiresAt){
    const observation={block:source.block,hash:source.hash,timestamp:source.timestamp,tick:snapshot.tick,
     sqrtPriceX96:snapshot.sqrtPriceX96,continuity:'canonical' as const,wallet0:funds.amount0,wallet1:funds.amount1,
@@ -419,7 +479,9 @@ export class RangeKeeperLiveController {
     s.policy=decision.state;s.lastReason=decision.reason;
     if(decision.action==='safety_exit'){s.phase='exit';s.desired='stopped';}
     if(decision.action==='execute'&&decision.candidate){
-     s.phase=decision.candidate.kind;s.candidate=decision.candidate;s.swapDone=false;s.withdrawDone=false;
+     assert(s.candidate===null&&!s.swapDone&&!s.withdrawDone,
+      'An in-flight economic action cannot be replaced by a new proposal');
+     s.phase=decision.candidate.kind;s.candidate=decision.candidate;s.swapDone=false;s.swapConfirmedAt=null;s.withdrawDone=false;
      s.actionStartCostIndex=s.costEvents.length;s.reservedActionCost=envelope.actionCostValue;
     }
    }else{s.policy=preview.state;s.lastReason=preview.reason;
@@ -429,12 +491,19 @@ export class RangeKeeperLiveController {
    let stage:RangeKeeperTxPlan|null;
    try{stage=await nextRangeKeeperStage(s,snapshot,this.config,this.chain,prices);}
    catch(error){
-    if(!(error instanceof RangeKeeperStaleCandidateError)||s.phase!=='entry'||s.swapDone||s.withdrawDone)throw error;
-    // No swap or withdrawal changed custody. Discard the proposal and require
-    // two fresh observations before any transaction is prepared.
-    s.candidate=null;s.policy.confirmation=null;s.lastReason='stale_entry_quote';
-    await this.store.save(db,s,s.lastReason);
-    return {status:s.lastReason,state:s};
+    if((error instanceof RangeKeeperStaleCandidateError||error instanceof RangeKeeperMintUnavailableError)&&
+     s.phase==='entry'&&!s.swapDone&&!s.withdrawDone){
+     // No swap or withdrawal changed custody. Require two fresh observations.
+     s.candidate=null;s.policy.confirmation=null;s.lastReason='stale_entry_quote';
+     await this.store.save(db,s,s.lastReason);return {status:s.lastReason,state:s};
+    }
+    if(error instanceof RangeKeeperMintUnavailableError&&s.swapDone&&s.swapConfirmedAt!==null&&s.candidate){
+     const inRange=snapshot.tick>=s.candidate.range.tickLower&&snapshot.tick<s.candidate.range.tickUpper;
+     if(inRange&&source.timestamp-s.swapConfirmedAt<300)s.lastReason='repriced_mint_wait';
+     else{s.phase='exit';s.desired='stopped';s.candidate=null;s.lastReason='repriced_mint_exit';}
+     await this.store.save(db,s,s.lastReason);return {status:s.lastReason,state:s};
+    }
+    throw error;
    }
    if(stage){await this.store.save(db,s,s.lastReason);return {status:'submitted',
     result:await this.submit(db,s,snapshot,stage,{...prices,nativePrice:refs.nativePrice}),state:s};}

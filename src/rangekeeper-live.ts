@@ -12,7 +12,8 @@ import {rangeKeeperJson} from './strategy/rangekeeper/live-domain.js';
 
 const [command,configPath,...args]=process.argv.slice(2);
 assert(command&&configPath,'Usage: rangekeeper-live COMMAND CONFIG [ARG]');
-const mutation=new Set(['init','rearm-preflight','rearm-untraded','tick','run','stop','recover-exit','recover-mint']);
+const mutation=new Set(['init','rearm-preflight','rearm-untraded','resume-preflight','resume-costed',
+ 'tick','run','stop','recover-exit','recover-mint']);
 assert(command==='preflight'||command==='status'||mutation.has(command),'Unknown RangeKeeper command');
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(resolve(configPath),'utf8')),{allowBroadcast:true});
 const archive=process.env.RH_ARCHIVE_RPC_URL;
@@ -64,6 +65,11 @@ if(command==='preflight'){
     assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
      'Rearm requires exact closed campaign ID and previous build ID');
     output(await controller.rearmUntraded(args[0]!,args[1]!,command==='rearm-untraded'));
+   }
+   else if(command==='resume-preflight'||command==='resume-costed'){
+    assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
+     'Resume requires exact closed campaign ID and previous build ID');
+    output(await controller.resumeCosted(args[0]!,args[1]!,command==='resume-costed'));
    }
    else if(command==='stop')output(await controller.requestStop());
    else if(command==='recover-exit')output(await controller.recoverExit());
