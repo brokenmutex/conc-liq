@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {keccak256} from 'viem';
-import {parseRangeKeeperConfig} from '../src/strategy/rangekeeper/config.js';
+import {parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
 import {nextRangeKeeperStage} from '../src/strategy/rangekeeper/live-stage.js';
+import {assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -12,6 +13,19 @@ import type {RobinhoodClient} from '../src/client.js';
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(new URL('../config/rangekeeper-v1-aapl-disabled.json',import.meta.url),'utf8')));
 const stageConfig={...config,limits:{...config.limits,maxDeploymentValue:300n*10n**18n,minDeploymentPpm:900000}};
 const p=config.pool,price0=999991430000000000n,price1=335529829280000000000n;
+test('rearm accepts only the exact closed no-transaction campaign and new build',()=>{
+ const old={id:'470e5f84-ab82-4735-92f9-57e96c05b344',buildId:'old-build',
+  configHash:rangeKeeperConfigHash(config),operator:config.operator!,phase:'closed',desired:'stopped',
+  lastReason:'complete_exit_reconciled',closedAt:1000,economicActions:0,recenters:0,
+  activeTokenId:null,retiredTokenIds:[],candidate:null,swapDone:false,gasSpentWei:0n,costEvents:[]} as unknown as RangeKeeperLiveState;
+ const guard=(state:RangeKeeperLiveState=old,buildId='new-build')=>
+  assertUntradedRangeKeeperRearm(state,old.id,'old-build',buildId,old.configHash,old.operator);
+ assert.doesNotThrow(()=>guard());
+ assert.throws(()=>guard({...old,economicActions:1}),/no economic action/);
+ assert.throws(()=>guard({...old,costEvents:[{} as RangeKeeperLiveState['costEvents'][number]]}),/no economic action/);
+ assert.throws(()=>guard({...old,phase:'entry'}),/completely reconciled/);
+ assert.throws(()=>guard(old,'old-build'),/new sealed build/);
+});
 test('wallet-code gate pins the delegated operator and target bytecode',async()=>{
  const source={block:10n,hash:`0x${'aa'.repeat(32)}` as const,timestamp:100};
  const target=config.walletCode.kind==='eip7702'?config.walletCode.delegate:null;

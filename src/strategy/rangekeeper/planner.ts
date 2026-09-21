@@ -34,9 +34,11 @@ export interface RangeKeeperPlannerInput {
  simulate:(candidate:RangeKeeperCandidate)=>Promise<boolean>;
 }
 
-function candidateIdentity(c:RangeKeeperCandidate){
- return [c.kind,c.range.tickLower,c.range.tickUpper,c.swap?.token??'none',String(c.swap?.amountIn??0n),
-  String(c.amount0Desired),String(c.amount1Desired),String(c.amount0Min),String(c.amount1Min),String(c.liquidity)].join(':');
+function candidatePolicyIdentity(c:RangeKeeperCandidate){
+ // A second canonical observation must independently support the same range
+ // and direct route. Exact quote amounts may change with pool inventory, so
+ // they are re-sized and re-simulated at the second source, never replayed.
+ return [c.kind,c.range.tickLower,c.range.tickUpper,c.swap?.token??'none'].join(':');
 }
 
 async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;tickUpper:number},kind:'entry'|'recenter'){
@@ -201,11 +203,12 @@ export async function planRangeKeeper(input:RangeKeeperPlannerInput):Promise<Ran
  const nextRisk=input.quoteToken===0?rawValue(next1,o.price1,input.decimals1):rawValue(next0,o.price0,input.decimals0);
  if(nextEquity<=0n||nextRisk*PPM>nextEquity*BigInt(l.maxExposurePpm))return result('wait','resulting_exposure_limit');
  const prior=s.confirmation;
- const frozen=prior&&o.timestamp-prior.firstAt<=90&&o.block>prior.firstBlock&&candidateIdentity(prior.candidate)===candidateIdentity(candidate)?prior.candidate:candidate;
- try{if(!await input.simulate(frozen))return result('wait','calldata_simulation_failed');}
+ const samePolicy=prior&&o.timestamp-prior.firstAt<=l.maxObservationGapSeconds&&
+  o.block>prior.firstBlock&&candidatePolicyIdentity(prior.candidate)===candidatePolicyIdentity(candidate);
+ try{if(!await input.simulate(candidate))return result('wait','calldata_simulation_failed');}
  catch{return result('wait','calldata_simulation_unavailable');}
- if(prior&&o.timestamp-prior.firstAt<=90&&o.block>prior.firstBlock&&candidateIdentity(prior.candidate)===candidateIdentity(candidate)){
-  s.confirmation=null;return result('execute','two_confirmations',prior.candidate);
+ if(samePolicy){
+  s.confirmation=null;return result('execute','two_confirmations',candidate);
  }
  s.confirmation={candidate,firstBlock:o.block,firstHash:o.hash,firstAt:o.timestamp};
  return result('confirm','first_confirmation',candidate);

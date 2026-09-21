@@ -60,8 +60,20 @@ test('entry uses exact inventory without swap and requires two distinct observat
  const i=input(),first=await planRangeKeeper(i);
  assert.equal(first.action,'confirm');assert.equal(first.candidate?.swap,null);
  const second=await planRangeKeeper({...i,state:first.state,observation:observation({block:2n,timestamp:1030})});
- assert.equal(second.action,'execute');assert.equal(second.candidate?.sourceBlock,1n);
+ assert.equal(second.action,'execute');assert.equal(second.candidate?.sourceBlock,2n);
  assert.equal((await planRangeKeeper({...i,state:first.state})).reason,'duplicate_or_backward_observation');
+});
+test('second observation confirms the same range and route with its own changed quote',async()=>{
+ const first=await planRangeKeeper(input());
+ assert.equal(first.action,'confirm');
+ const current=observation({block:2n,timestamp:1030,tick:1,sqrtPriceX96:sqrtRatioAtTick(1)});
+ const second=await planRangeKeeper({...input(current),state:first.state});
+ assert.equal(second.action,'execute',second.reason);
+ assert.equal(second.candidate?.sourceBlock,2n);
+ assert.deepEqual(second.candidate?.range,first.candidate?.range);
+ assert.notEqual(second.candidate?.liquidity,first.candidate?.liquidity);
+ const late=await planRangeKeeper({...input(observation({block:3n,timestamp:1091})),state:first.state});
+ assert.equal(late.action,'confirm');
 });
 test('timer and frozen candidate survive versioned serialization; legacy state is rejected',async()=>{
  const first=await planRangeKeeper(input());

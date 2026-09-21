@@ -28,6 +28,20 @@ const sumCost=(events:RangeKeeperLiveState['costEvents'])=>events.reduce<bigint|
  sum===null||e.gasValue===null||e.swapFeeValue===null||e.swapShortfallValue===null?null:
  sum+e.gasValue+e.swapFeeValue+e.swapShortfallValue,0n);
 
+export function assertUntradedRangeKeeperRearm(old:RangeKeeperLiveState,expectedCampaignId:string,
+ expectedPreviousBuildId:string,nextBuildId:string,configHash:Hex,operator:string){
+ assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
+ assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
+ assert.notEqual(old.buildId,nextBuildId,'Rearm requires a new sealed build');
+ assert.equal(old.configHash,configHash,'Campaign configuration changed');
+ assert(same(old.operator,operator),'Campaign operator changed');
+ assert(old.phase==='closed'&&old.desired==='stopped'&&old.lastReason==='complete_exit_reconciled'&&old.closedAt!==null,
+  'Only a completely reconciled closed campaign may rearm');
+ assert(old.economicActions===0&&old.recenters===0&&old.activeTokenId===null&&old.retiredTokenIds.length===0&&
+  old.candidate===null&&!old.swapDone&&old.gasSpentWei===0n&&old.costEvents.length===0,
+  'Rearm requires a campaign with no economic action or cost');
+}
+
 export class RangeKeeperLiveController {
  readonly chain:RangeKeeperChain;
  constructor(readonly store:RangeKeeperLiveStore,readonly config:RangeKeeperConfig,
@@ -36,6 +50,22 @@ export class RangeKeeperLiveController {
   readonly archiveRpcUrl:string,readonly anvilBinary:string,readonly serviceGate:()=>void){
   assert(config.operator&&same(config.operator,signer.address));
   this.chain=new RangeKeeperChain(client,config.pool,config.zeroAllowances);
+ }
+ private freshState(proof:Awaited<ReturnType<typeof inspectRangeKeeperLaunch>>,id:string,
+  reason:string):RangeKeeperLiveState{
+  const at=proof.source.timestamp;
+  return {version:1,id,operator:this.signer.address,
+   configHash:rangeKeeperConfigHash(this.config),buildId:this.buildId,phase:'entry',desired:'running',haltReason:null,
+   createdAt:at,expiresAt:at+this.config.campaignScope.maxDurationSeconds,economicActions:0,recenters:0,
+   policy:initialRangeKeeperState(this.config,this.buildId),last:proof.wallet,activeTokenId:null,
+   retiredTokenIds:[],legacyNftCount:proof.wallet.nftCount,
+   reserve0:proof.funding.reserve0,reserve1:proof.funding.reserve1,reserveNativeWei:proof.funding.reserveNativeWei,
+   initial0:proof.funding.allocation.amount0,initial1:proof.funding.allocation.amount1,
+   initialNativeWei:proof.funding.allocation.nativeWei,initialStrategyValue:proof.funding.bookedStrategyValue,
+   candidate:null,swapDone:false,withdrawDone:false,actionStartCostIndex:0,reservedActionCost:0n,
+   mintRecoveryAttempts:0,collectedFee0:0n,collectedFee1:0n,gasSpentWei:0n,costEvents:[],
+   highWaterValue:proof.funding.bookedStrategyValue,activeSeconds:0,outsideSeconds:0,lastMarkTimestamp:at,
+   lastReason:reason,closedAt:null};
  }
  private assertIdentity(s:RangeKeeperLiveState){
   assert.equal(s.version,1);assert.equal(s.configHash,rangeKeeperConfigHash(this.config));
@@ -94,24 +124,48 @@ export class RangeKeeperLiveController {
    const proof=await inspectRangeKeeperLaunch({client:this.client,config:this.config,buildId:this.buildId,
     rpcUrl:this.archiveRpcUrl,anvilBinary:this.anvilBinary,simulateFork:true});
    assert.equal(proof.nativeShortfallWei,0n,'Native funding is below entry, recenter, and complete-exit requirement');
-   const at=proof.source.timestamp;
-   const state:RangeKeeperLiveState={version:1,id:randomUUID(),operator:this.signer.address,
-    configHash:rangeKeeperConfigHash(this.config),buildId:this.buildId,phase:'entry',desired:'running',haltReason:null,
-    createdAt:at,expiresAt:at+this.config.campaignScope.maxDurationSeconds,economicActions:0,recenters:0,
-    policy:initialRangeKeeperState(this.config,this.buildId),last:proof.wallet,activeTokenId:null,
-    retiredTokenIds:[],legacyNftCount:proof.wallet.nftCount,
-    reserve0:proof.funding.reserve0,reserve1:proof.funding.reserve1,reserveNativeWei:proof.funding.reserveNativeWei,
-    initial0:proof.funding.allocation.amount0,initial1:proof.funding.allocation.amount1,
-    initialNativeWei:proof.funding.allocation.nativeWei,initialStrategyValue:proof.funding.bookedStrategyValue,
-    candidate:null,swapDone:false,withdrawDone:false,actionStartCostIndex:0,reservedActionCost:0n,
-    mintRecoveryAttempts:0,collectedFee0:0n,collectedFee1:0n,gasSpentWei:0n,costEvents:[],
-    highWaterValue:proof.funding.bookedStrategyValue,activeSeconds:0,outsideSeconds:0,lastMarkTimestamp:at,
-    lastReason:'initialized',closedAt:null};
+   const state=this.freshState(proof,randomUUID(),'initialized');
    await this.store.create(db,state,this.config);
    await this.store.mark(db,state.id,proof.source.block,'launch_preflight',{
     source:proof.source,funding:proof.funding,candidate:proof.candidate,envelope:proof.envelope,
     nativeRequiredWei:proof.nativeRequiredWei,reference:proof.reference,forkSimulated:proof.forkSimulated});
    return state;
+  });
+ }
+ /** A failed no-trade launch may reuse its isolated campaign row only after
+  * proving the old close, empty action ledger, unchanged custody and a fresh
+  * full-wallet fork. The old state remains in append-only transitions. */
+ async rearmUntraded(expectedCampaignId:string,expectedPreviousBuildId:string,apply:boolean){
+  this.serviceGate();
+  assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to rearm');
+   const old=row.state;
+   assertUntradedRangeKeeperRearm(old,expectedCampaignId,expectedPreviousBuildId,this.buildId,
+    rangeKeeperConfigHash(this.config),this.signer.address);
+   assert.equal((await db.query(`SELECT count(*)::int AS n FROM ${this.store.schema}.actions WHERE campaign_id=$1`,
+    [old.id])).rows[0]?.n,0,'An action ledger exists for this campaign');
+   assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
+   await this.oldPilotClosed(db);
+   const proof=await inspectRangeKeeperLaunch({client:this.client,config:this.config,buildId:this.buildId,
+    rpcUrl:this.archiveRpcUrl,anvilBinary:this.anvilBinary,simulateFork:true});
+   assert.equal(proof.nativeShortfallWei,0n,'Native funding is below the complete scoped requirement');
+   await this.exactCustody(old.last,proof.wallet,null);
+   assert.equal(proof.funding.allocation.amount0,old.initial0,'Strategy token0 allocation changed');
+   assert.equal(proof.funding.allocation.amount1,old.initial1,'Strategy token1 allocation changed');
+   assert.equal(proof.funding.allocation.nativeWei,old.initialNativeWei,'Native allocation changed');
+   const next=this.freshState(proof,old.id,'rearmed_untraded');
+   if(!apply)return next;
+   await db.query('BEGIN');
+   try{
+    await this.store.mark(db,old.id,proof.source.block,'untraded_rearm_preflight',{
+     previousBuildId:old.buildId,previousClosedAt:old.closedAt,source:proof.source,funding:proof.funding,
+     candidate:proof.candidate,envelope:proof.envelope,nativeRequiredWei:proof.nativeRequiredWei,
+     reference:proof.reference,forkSimulated:proof.forkSimulated});
+    await this.store.save(db,next,'untraded_rearm');
+    await db.query('COMMIT');
+   }catch(error){await db.query('ROLLBACK');throw error;}
+   return next;
   });
  }
  async requestStop(){return this.store.locked(this.signer.address,async db=>{

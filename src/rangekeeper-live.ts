@@ -12,7 +12,7 @@ import {rangeKeeperJson} from './strategy/rangekeeper/live-domain.js';
 
 const [command,configPath,...args]=process.argv.slice(2);
 assert(command&&configPath,'Usage: rangekeeper-live COMMAND CONFIG [ARG]');
-const mutation=new Set(['init','tick','run','stop','recover-exit','recover-mint']);
+const mutation=new Set(['init','rearm-preflight','rearm-untraded','tick','run','stop','recover-exit','recover-mint']);
 assert(command==='preflight'||command==='status'||mutation.has(command),'Unknown RangeKeeper command');
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(resolve(configPath),'utf8')),{allowBroadcast:true});
 const archive=process.env.RH_ARCHIVE_RPC_URL;
@@ -60,6 +60,11 @@ if(command==='preflight'){
    const controller=new RangeKeeperLiveController(store,config,client,publisher,signer,buildId,archive,anvil,gate);
    await store.initialize();
    if(command==='init')output(await controller.start());
+   else if(command==='rearm-preflight'||command==='rearm-untraded'){
+    assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
+     'Rearm requires exact closed campaign ID and previous build ID');
+    output(await controller.rearmUntraded(args[0]!,args[1]!,command==='rearm-untraded'));
+   }
    else if(command==='stop')output(await controller.requestStop());
    else if(command==='recover-exit')output(await controller.recoverExit());
    else if(command==='recover-mint')output(await controller.recoverMint());
@@ -70,7 +75,10 @@ if(command==='preflight'){
     while(true){
      const result=await controller.tick();output({status:result.status,result:'result' in result?result.result:null});
      if(result.state.phase==='closed'||result.state.phase==='halted')break;
-     await new Promise(resolve=>setTimeout(resolve,30_000));
+     // The first quote pass can consume most of the confirmation window.
+     // Still require a distinct canonical block and fresh simulated quote.
+     const delay=result.status==='first_confirmation'||result.status==='duplicate_or_backward_observation'?1_000:30_000;
+     await new Promise(resolve=>setTimeout(resolve,delay));
     }
    }
   }
