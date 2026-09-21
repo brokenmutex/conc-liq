@@ -37,7 +37,7 @@ const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New
 const WINDOWS = [[1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
 const COLUMNS = [
   ['pool', 'Pool', false], ['swaps', 'Swaps', true], ['volume', 'Volume · USDG', true],
-  ['fees', 'Pool fees', true], ['share', 'Your share', true], ['inRange', 'In range', true],
+  ['fees', 'LP fees', true], ['share', 'Your share', true], ['inRange', 'In range', true],
   ['gross', 'Modeled fees', true], ['net', 'Net of costs', true], ['apr', 'APR', true],
   ['gate', 'Gate-valid', true],
 ];
@@ -68,6 +68,19 @@ function bar(fraction) {
   return `<svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">` +
     `<rect width="100" height="4" rx="2" fill="#233040"/>` +
     `<rect width="${filled.toFixed(1)}" height="4" rx="2" fill="#69debd"/></svg>`;
+}
+
+/**
+ * The protocol's share of the fee, as a percentage. `feeProtocol` is the v3
+ * divisor, so a 4 hands a quarter of every fee to the protocol and a 0 hands
+ * over nothing. The two legs are set independently and are shown as a range
+ * when a pool ever splits them.
+ */
+function protocolCut(pool) {
+  const share = (divisor) => divisor > 0 ? 100 / divisor : 0;
+  const low = Math.min(share(pool.feeProtocol0), share(pool.feeProtocol1));
+  const high = Math.max(share(pool.feeProtocol0), share(pool.feeProtocol1));
+  return low === high ? `${low.toFixed(1)}%` : `${low.toFixed(1)}–${high.toFixed(1)}%`;
 }
 
 /** Human USDG price at a tick, anchored on the pool's observed price. */
@@ -128,6 +141,7 @@ function renderTable(rows) {
   const roundTrip = usdg(snapshot.costs.roundTripQuote);
   $('#assumptions').textContent =
     `Reference position: ${money(budget, 0)} USDG entered at the window's opening price and never rebalanced. ` +
+    `Fees are the LP side only: the protocol's cut of each pool's fee is already removed. ` +
     `Modeled fees credit the position's liquidity share of recorded flow for the ${grain(snapshot)} buckets price stayed inside the range. ` +
     (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG mint + exit round trip.`);
 
@@ -261,7 +275,8 @@ function renderDetail(rows) {
   $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2>
       <span class="badge">${money(priceAtTick(pool, pool.tick), 2)} USDG</span>
       <span class="badge">tick ${pool.tick}</span>
-      <span class="badge">spacing ${pool.tickSpacing}</span></div>
+      <span class="badge">spacing ${pool.tickSpacing}</span>
+      <span class="badge">${protocolCut(pool)} to protocol</span></div>
     <div class="charts">
       <div class="chart-card"><h3>Liquidity by price</h3>
         <p>Competing liquidity across initialized ticks, now, priced as the USDG a ±${depthReference ? depthReference.halfWidthPercent.toFixed(2) : '—'}% position would deploy to match it. The band is that range at the current price; peak depth is ${si(peakLiquidity)} raw liquidity.</p>

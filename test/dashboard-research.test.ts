@@ -5,6 +5,7 @@ import { runInNewContext } from "node:vm";
 import {
   depthCurve,
   halfWidthTicksForFraction,
+  lpFeeOfGross,
   quoteValueOfRwa,
   RESEARCH_BUCKET_MINUTES,
   RESEARCH_BUCKETS_PER_HOUR,
@@ -33,6 +34,22 @@ describe("research read model", () => {
     assert.equal(halfWidthTicksForFraction(0.01, 200), 200);
     for (const fraction of RESEARCH_HALF_WIDTH_FRACTIONS) {
       assert.equal(halfWidthTicksForFraction(fraction, 60) % 60, 0);
+    }
+  });
+
+  it("pays liquidity the fee left after the protocol's divisor", () => {
+    // v3 keeps feeAmount/feeProtocol for the protocol, so a 4 leaves three
+    // quarters for liquidity and a 6 leaves five sixths.
+    assert.equal(lpFeeOfGross(1_000n, 4), 750n);
+    assert.equal(lpFeeOfGross(1_200n, 6), 1_000n);
+    // A pool that never set one pays the whole fee to liquidity.
+    assert.equal(lpFeeOfGross(1_000n, 0), 1_000n);
+    // The division truncates toward the protocol's side, as the pool's does.
+    assert.equal(lpFeeOfGross(7n, 4), 6n);
+    assert.equal(lpFeeOfGross(0n, 4), 0n);
+    // Fees never grow, whatever the divisor.
+    for (const divisor of [0, 4, 5, 6, 7, 8, 9, 10]) {
+      assert.ok(lpFeeOfGross(1_000_000n, divisor) <= 1_000_000n);
     }
   });
 
@@ -97,9 +114,10 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS });"
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS, protocolCut });"
   ) as {
     MAX_BARS: number;
+    protocolCut(pool: { feeProtocol0: number; feeProtocol1: number }): string;
     condense(
       series: readonly {
         bucket: string;
@@ -243,6 +261,15 @@ describe("research view semantics", () => {
       priceX18: null,
     }));
     assert.equal(ui.condense(series)[0]!.priceX18, null);
+  });
+
+  it("states the protocol's share rather than the divisor it is stored as", () => {
+    assert.equal(ui.protocolCut({ feeProtocol0: 4, feeProtocol1: 4 }), "25.0%");
+    assert.equal(ui.protocolCut({ feeProtocol0: 6, feeProtocol1: 6 }), "16.7%");
+    assert.equal(ui.protocolCut({ feeProtocol0: 0, feeProtocol1: 0 }), "0.0%");
+    // The legs are set independently, so a split pool reports the range.
+    assert.equal(ui.protocolCut({ feeProtocol0: 4, feeProtocol1: 6 }), "16.7–25.0%");
+    assert.equal(ui.protocolCut({ feeProtocol0: 0, feeProtocol1: 4 }), "0.0–25.0%");
   });
 
   it("names magnitudes past the ceiling Intl compact notation stops at", () => {

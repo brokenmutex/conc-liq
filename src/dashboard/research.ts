@@ -2,9 +2,10 @@
 //
 // The page compares what a unit of liquidity earns across the indexed pool
 // universe, so every number here is derived the same way the bounded universe
-// screen derives it: gross fees come from the recorded Swap amounts (the pool
-// charges `fee` pips of the input token), both legs are valued in USDG at the
-// pool's own price, and active liquidity comes from the strategy checkpoints.
+// screen derives it: fees come from the recorded Swap amounts (the pool charges
+// `fee` pips of the input token) net of the protocol's cut, both legs are
+// valued in USDG at the pool's own price, and active liquidity comes from the
+// strategy checkpoints.
 //
 // Nothing here authorizes execution. The reference-position columns are a
 // modeled no-rebalance entry over recorded flow, not realized LP performance.
@@ -127,6 +128,9 @@ export interface ResearchPool {
   readonly poolAddress: string;
   readonly rwaSymbol: string;
   readonly fee: number;
+  /** Protocol fee divisors, per leg. Zero means the whole fee reaches LPs. */
+  readonly feeProtocol0: number;
+  readonly feeProtocol1: number;
   readonly tickSpacing: number;
   readonly quoteIsToken0: boolean;
   readonly rwaDecimals: number;
@@ -155,6 +159,22 @@ export interface ResearchSnapshot {
   readonly buckets: readonly string[];
   readonly costs: ResearchCosts;
   readonly pools: readonly ResearchPool[];
+}
+
+/**
+ * The LP side of a charged fee. `feeProtocol` is the v3 divisor: the pool keeps
+ * `feeAmount / feeProtocol` for the protocol and pays the rest to liquidity,
+ * and zero means no protocol cut at all.
+ *
+ * The pool applies this per swap step; here it is applied to a bucket's total,
+ * which can differ by up to a raw unit per swap from the on-chain split. Over
+ * the NVDA 500 pool's whole recorded history the two agree at 24.96% against a
+ * nominal 25%, the residue being protocol sweeps that straddle the range the
+ * comparison was taken over.
+ */
+export function lpFeeOfGross(gross: bigint, feeProtocol: number): bigint {
+  if (feeProtocol <= 0) return gross;
+  return gross - gross / BigInt(feeProtocol);
 }
 
 /** Raw RWA amount valued in raw USDG at an 18-decimal USDG/RWA price. */
@@ -327,6 +347,44 @@ async function readIdentities(
   }));
 }
 
+/** Per-leg protocol fee divisors, keyed by lowercase pool address. */
+interface ProtocolFee {
+  readonly fee0: number;
+  readonly fee1: number;
+}
+
+async function readProtocolFees(
+  client: PoolClient,
+  streamKey: string,
+): Promise<ReadonlyMap<string, ProtocolFee>> {
+  // The latest setting per pool. Every indexed pool is followed from its own
+  // Initialize, so a pool with no event has never carried a protocol fee. The
+  // setting is applied across the whole retained window, which is exact while
+  // it is unchanged; a pool that changed it mid-window would have the buckets
+  // before the change split at the new rate.
+  const { rows } = await client.query<{
+    pool_address: string;
+    fee_protocol0: number;
+    fee_protocol1: number;
+  }>(
+    `SELECT DISTINCT ON (lower(pool_address))
+            lower(pool_address) AS pool_address,
+            (event_args->>'feeProtocol0New')::int AS fee_protocol0,
+            (event_args->>'feeProtocol1New')::int AS fee_protocol1
+       FROM v3_pool_events
+      WHERE stream_key = $1 AND event_name = 'SetFeeProtocol'
+      ORDER BY lower(pool_address), block_number DESC,
+               transaction_index DESC, log_index DESC`,
+    [streamKey],
+  );
+  return new Map(
+    rows.map((row) => [row.pool_address, {
+      fee0: row.fee_protocol0,
+      fee1: row.fee_protocol1,
+    }]),
+  );
+}
+
 interface BucketCheckpointRow {
   pool_address: string;
   bkt: Date;
@@ -495,6 +553,7 @@ export async function readResearch(
   const since = axis[0]!.toISOString();
   const identities = await readIdentities(client, streamKey);
   const costs = await readCosts(client);
+  const protocolFees = await readProtocolFees(client, streamKey);
   const roundTripQuote = costs.roundTripQuote === null
     ? null
     : BigInt(costs.roundTripQuote);
@@ -626,10 +685,19 @@ export async function readResearch(
     const quoteIsToken0 = pool.token0.toLowerCase() === USDG.toLowerCase();
     const series = accumulators.get(pool.poolAddress) ??
       Array.from({ length: axis.length }, emptyBucket);
+    const protocol = protocolFees.get(pool.poolAddress) ?? { fee0: 0, fee1: 0 };
     const view = series.map((entry, index): ResearchBucket => {
       const priceX18 = entry.priceX18 ?? pool.priceX18;
-      const fee0 = entry.in0 * BigInt(pool.fee) / 1_000_000n;
-      const fee1 = entry.in1 * BigInt(pool.fee) / 1_000_000n;
+      // Only the LP side is reported: the protocol's cut never reaches a
+      // position, so crediting it would overstate every fee column downstream.
+      const fee0 = lpFeeOfGross(
+        entry.in0 * BigInt(pool.fee) / 1_000_000n,
+        protocol.fee0,
+      );
+      const fee1 = lpFeeOfGross(
+        entry.in1 * BigInt(pool.fee) / 1_000_000n,
+        protocol.fee1,
+      );
       const value = (amount0: bigint, amount1: bigint): bigint =>
         quoteIsToken0
           ? amount0 + quoteValueOfRwa(amount1, priceX18, pool.rwaDecimals)
@@ -655,6 +723,8 @@ export async function readResearch(
       poolAddress: pool.poolAddress,
       rwaSymbol: pool.rwaSymbol,
       fee: pool.fee,
+      feeProtocol0: protocol.fee0,
+      feeProtocol1: protocol.fee1,
       tickSpacing,
       quoteIsToken0,
       rwaDecimals: pool.rwaDecimals,
