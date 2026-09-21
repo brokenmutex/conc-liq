@@ -128,6 +128,21 @@ USDG 0.99999143 USD, AAPL 335.52982928 USD, ETH 2663.91445529 USD, and
 reference eligibility. These values can change; an old mark cannot admit a
 later transaction.
 
+A sealed read-only release was built from commit
+`821e60015cfbbb9cf16bceb45705ad9ba8a02b2e`. Its build ID is
+`8ddb065eef95973cc4608c15b962562d032fa1ac29771885b84b311b2a4d39ac`,
+at `/root/conc-liq-releases/8ddb065eef95973cc4608c15b962562d032fa1ac29771885b84b311b2a4d39ac`.
+The release verifier passed, and its pinned Node launcher ran the actual
+RangeKeeper inspector against the AAPL profile, which now binds the selected
+operator address. The inspector's config hash was
+`0x900beb36c7116dfb9585592685e689d1bb6b5ef6d50dfcb0917b8e5cff302b77`.
+At its confirmed block 68,652,185, hash
+`0xbaac9b3fc0398f521721e770b021c51aa7dc4b921ad3aa17585cf52195d2f885`,
+the wallet still had 295170862 raw USDG,
+zero AAPL, 1113588596335004 wei, 43 NFTs, nonce 302, and zero relevant
+allowances. This release contains no live controller; verification only proves
+that the sealed read-only path works.
+
 ## Launch record and remaining gates
 
 Proposed campaign: one AAPL/USDG pool, this existing operator, at most 240 USD
@@ -143,8 +158,9 @@ allowances, nonce, and receipt costs before recording closure.
 This launch record is **not yet runnable**. The generic signer/controller/store
 integration, wallet-level lock across the former pilot, live per-stage cost and
 exit-reserve estimator, receipt-backed custody reconciliation and accounting,
-crash/revert recovery, exact-pool fork lifecycle, sealed release, and service
-definition are still required. Existing research stage splits are borrowed and
+crash/revert recovery, controller-driven exact-pool fork lifecycle, live sealed
+release, and service definition are still required. Existing research stage
+splits are borrowed and
 cannot establish these costs. The current config rejects `broadcastEnabled=true`.
 No funding, approvals, transactions, service changes, or campaign state were
 performed while preparing this record. Keep the old pilot stopped during any
