@@ -75,7 +75,7 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  const quoted=async(amount:bigint)=>{
   const q=seen.get(amount)??await input.quote(token,amount);
   assert(q.sourceBlock===o.block&&q.sourceHash.toLowerCase()===o.hash.toLowerCase(),'rangekeeper_quote_source');
-  assert(q.amountOut>0n&&q.priceAfter>0n&&q.feeValue>=0n&&q.shortfallValue>=0n,'rangekeeper_invalid_quote');
+  assert(q.amountOut>=0n&&q.priceAfter>0n&&q.feeValue>=0n&&q.shortfallValue>=0n,'rangekeeper_invalid_quote');
   for(const [otherAmount,other] of seen){
    const smaller=amount<otherAmount;
    assert(smaller?q.amountOut<=other.amountOut:q.amountOut>=other.amountOut,'rangekeeper_quote_nonmonotonic_output');
@@ -84,6 +84,9 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
   }
   seen.set(amount,q);
   assert(q.shortfallValue<=l.maxSwapShortfallValue,'rangekeeper_swap_shortfall');
+  // Sub-token dust may quote zero output. It cannot fund active liquidity,
+  // but it is a valid lower search bound on a pool with unequal decimals.
+  if(q.amountOut===0n)return null;
   const next0=token===0?base0-amount:base0+q.amountOut;
   const next1=token===1?base1-amount:base1+q.amountOut;
   if(next0<0n||next1<0n)return null;

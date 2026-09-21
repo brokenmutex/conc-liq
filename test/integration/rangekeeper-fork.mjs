@@ -4,10 +4,10 @@ import {readFileSync} from 'node:fs';
 import {parseEnv} from 'node:util';
 import {createPublicClient,http,zeroAddress} from 'viem';
 import {robinhoodChain} from '../../src/constants.js';
-import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.js';
+import {initialRangeKeeperState,parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.js';
 import {RangeKeeperChain} from '../../src/strategy/rangekeeper/chain.js';
 import {encodeRangeKeeperTx,authorizeRangeKeeperTx} from '../../src/strategy/rangekeeper/calldata.js';
-import {rangeKeeperRange} from '../../src/strategy/rangekeeper/planner.js';
+import {planRangeKeeper} from '../../src/strategy/rangekeeper/planner.js';
 import {rangeKeeperReceiptFacts,proveRangeKeeperCollection} from '../../src/strategy/rangekeeper/receipt.js';
 import {replayPaperMint} from '../../src/research/management-audit.js';
 import {principalAmounts} from '../../src/backtest/principal.js';
@@ -44,6 +44,19 @@ try{
  const prior=await chain.snapshot(source,operator,null);
  assert(prior.wallet0>=200_000_000n&&prior.wallet1===0n,'Fork wallet does not match proposed funding custody');
  const transactions=[];
+ const strategy0=240_002_056n,price0=999991430000000000n,price1=335529829280000000000n,nativePrice=2663914455290000000000n;
+ const initialObservation={block:source.block,hash:source.hash,timestamp:source.timestamp,tick:prior.tick,
+  sqrtPriceX96:prior.sqrtPriceX96,continuity:'canonical',wallet0:strategy0,wallet1:0n,released0:0n,released1:0n,
+  nativeWei:3n*10n**15n,requiredExitReserveWei:config.limits.exitReserveWei,price0,price1,nativePrice,
+  position:null,pending:false,entryAllowed:true,safeExitRequired:false,executionReady:true,liquiditySharePpm:1000,
+  actionCost:28n*10n**17n,actionGasWei:10n**15n,reservedCost:0n,rollingSpentCost:0n,campaignSpentCost:0n,
+  campaignStartValue:240n*10n**18n,highWaterValue:240n*10n**18n,recenters:0};
+ const proposal=await planRangeKeeper({state:initialRangeKeeperState(config,'fork-rehearsal'),observation:initialObservation,
+  limits:config.limits,spacing:config.pool.tickSpacing,decimals0:config.pool.decimals0,decimals1:config.pool.decimals1,
+  quoteToken:config.pool.quoteToken,maxPoolDeviationPpm:config.referencePolicy.maxPoolDeviationPpm,
+  quote:(token,amount)=>chain.quote(source,token,amount,price0,price1),simulate:async()=>true});
+ assert.equal(proposal.action,'confirm',proposal.reason);assert(proposal.candidate?.swap?.token===0,'Expected a minimum USDG input swap');
+ const frozen=proposal.candidate;
  const send=async(plan,wallet)=>{
   authorizeRangeKeeperTx(config.pool,wallet,plan,config.limits.maxSlippageBps,config.limits.fullWidthSpacings);
   const call=encodeRangeKeeperTx(config.pool,operator,plan);
@@ -59,19 +72,15 @@ try{
   timestamp:s.source.timestamp,position:s.position});
  const snap=async(id=null)=>{const b=await client.getBlock();return chain.snapshot({block:b.number,hash:b.hash,timestamp:Number(b.timestamp)},operator,id);};
  let s=prior;
- await send({kind:'approve',token:0,spender:'router',amount:100_000_000n},wallet(s));s=await snap();
- const quote=await chain.quote(s.source,0,100_000_000n,999991430000000000n,335529829280000000000n);
- const swap={kind:'swap',token:0,amountIn:100_000_000n,minOut:quote.amountOut*9950n/10000n,deadline:BigInt(s.source.timestamp+300)};
+ await send({kind:'approve',token:0,spender:'router',amount:frozen.swap.amountIn},wallet(s));s=await snap();
+ const swap={kind:'swap',token:0,amountIn:frozen.swap.amountIn,minOut:frozen.swap.minOut,deadline:BigInt(s.source.timestamp+300)};
  const swapReceipt=await send(swap,wallet(s));
  const swapFacts=rangeKeeperReceiptFacts(config.pool,operator,swapReceipt);
- assert.equal(swapFacts.wallet0,-100_000_000n);assert(swapFacts.wallet1>=swap.minOut);
+ assert.equal(swapFacts.wallet0,-swap.amountIn);assert(swapFacts.wallet1>=swap.minOut);
  s=await snap();assert(s.wallet1>0n);
- const range=rangeKeeperRange(s.tick,config.pool.tickSpacing,config.limits.fullWidthSpacings);
- const desired0=100_000_000n,desired1=s.wallet1;
- const m=replayPaperMint(s.sqrtPriceX96,range,desired0,desired1,0n);assert(m.liquidity>0n);
- const candidate={kind:'entry',range,swap:null,amount0Desired:desired0,amount1Desired:desired1,
-  amount0Min:m.amount0*9950n/10000n,amount1Min:m.amount1*9950n/10000n,liquidity:m.liquidity,
-  deployedValue:0n,sourceBlock:s.source.block,sourceHash:s.source.hash,expiresAt:s.source.timestamp+90};
+ const desired0=frozen.amount0Desired,desired1=frozen.amount1Desired;
+ const m=replayPaperMint(s.sqrtPriceX96,frozen.range,desired0,desired1,0n);assert(m.liquidity>=frozen.liquidity);
+ const candidate={...frozen};
  await send({kind:'approve',token:0,spender:'positionManager',amount:desired0},wallet(s));s=await snap();
  await send({kind:'approve',token:1,spender:'positionManager',amount:desired1},wallet(s));s=await snap();
  let forcedRevertGasWei=null;
@@ -116,10 +125,12 @@ try{
  console.log(JSON.stringify({forkBlock:blockArg,sourceHash:first.hash,operator,pool:config.pool.pool,
   initialNftCount:String(prior.nftCount),createdTokenId:String(tokenId),finalNftCount:String(s.nftCount),
   finalLiquidity:String(s.position.liquidity),finalOwed0:String(s.position.tokensOwed0),finalOwed1:String(s.position.tokensOwed1),
-  swapInputRaw:String(swap.amountIn),swapOutputRaw:String(swapFacts.wallet1),fee0Raw:String(collection.fee0),fee1Raw:String(collection.fee1),
+  strategyAllocation0Raw:String(strategy0),minimumSwapInputRaw:String(swap.amountIn),swapOutputRaw:String(swapFacts.wallet1),
+  swapInputRaw:String(swap.amountIn),fee0Raw:String(collection.fee0),fee1Raw:String(collection.fee1),
   finalAaplRaw:String(s.wallet1),allowanceCountNonzero:0,
   totalForkGasWei:String(transactions.reduce((n,t)=>n+BigInt(t.gasWei),0n)),forcedRevertGasWei,transactions}));
 }catch(error){
- console.error(`RangeKeeper fork rehearsal failed: ${error instanceof Error?error.name:'unknown'}`);
+ const detail=error instanceof Error?error.message.replace(/https?:\/\/\S+/g,'[redacted-url]').slice(0,240):'unknown';
+ console.error(`RangeKeeper fork rehearsal failed: ${error instanceof Error?error.name:'unknown'}: ${detail}`);
  process.exitCode=1;
 }finally{stop();}

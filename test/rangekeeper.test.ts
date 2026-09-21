@@ -96,6 +96,15 @@ test('one-sided entry finds the minimum feasible raw swap without spending on re
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
  assert(value<100n*unit);
 });
+test('minimum-swap search advances past valid zero-output dust quotes',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const i=input(o),quote=i.quote;
+ const result=await planRangeKeeper({...i,quote:async(token,amount)=>{
+  const q=await quote(token,amount);return amount<1000n?{...q,amountOut:0n}:q;
+ }});
+ assert.equal(result.action,'confirm');
+ assert(result.candidate?.swap?.amountIn&&result.candidate.swap.amountIn>=1000n);
+});
 test('safety exit precedes missing reference, limits, and ordinary timer',async()=>{
  const o=observation({safeExitRequired:true,price0:null,actionCost:null,position:{tokenId:'1',tickLower:-20,tickUpper:0,liquidity:1n}});
  assert.equal((await planRangeKeeper(input(o))).action,'safety_exit');

@@ -68,12 +68,13 @@ exact-calldata fork simulation or a current fill guarantee. The USD cost of
 that quote was not computed from a same-block independent reference.
 
 The [pinned-fork rehearsal](../../test/integration/rangekeeper-fork.mjs) at
-block 68,644,757 exercised approvals, a 100 USDG direct swap, mint, full
+block 68,644,757 exercised approvals, the planner's minimum 42067093-raw-USDG
+direct swap for the proposed 240002056-raw-USDG strategy allocation, mint, full
 withdrawal and core Collect proof, AAPL sale, and allowance cleanup using the
 existing wallet as an impersonated fork account. It created NFT 1253122 and
 finished with zero liquidity, zero tokens owed, zero AAPL, and zero allowance
 on all four configured token/spender pairs. Its 12 local transactions used
-0.001420469509860124 ETH at fork gas prices: 0.000841448779732191 ETH for
+0.001420519181639680 ETH at fork gas prices: 0.000841498451511747 ETH for
 entry and 0.000579020730127933 ETH for exit/cleanup, or about 2.242 and
 1.542 USD at the independent ETH mark above. These are **fork estimates**,
 not canonical live receipts; the fork topped up native gas locally and did not
@@ -86,7 +87,7 @@ prove that the current wallet balance funds the complete lifecycle. Run with:
 ```
 
 The optional `force-mint-revert` argument mined a reverted mint after the
-completed entry swap, charged its 267003520485415 wei fork gas once, retained
+completed entry swap, charged its 267015824180875 wei fork gas once, retained
 the same token balances, then completed the mint and full exit without a second
 entry swap. This checks a concrete failure boundary in the calldata path; a
 durable live controller must still prove the same behavior across a restart.
