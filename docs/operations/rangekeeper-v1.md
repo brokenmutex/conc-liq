@@ -52,7 +52,7 @@ The proposed full width is 20 spacings, or 200 ticks. Maximum deployment is
 campaign cost ceilings are 3, 6, and 8 USD; maximum risky-token exposure is
 95%, loss 20 USD, drawdown 10%, and ordinary recenter count four. The configured
 0.001 ETH floor for exit reserve exceeds the pinned-fork complete-exit spend
-of 0.000579020730127933 ETH. It is still a fork estimate rather than a live
+of 0.000577761514159717 ETH. It is still a fork estimate rather than a live
 guarantee: the planner also requires a fresh, higher current estimate when needed.
 These are bounded operating choices, not tuned profitability results.
 
@@ -74,9 +74,9 @@ withdrawal and core Collect proof, AAPL sale, and allowance cleanup using the
 existing wallet as an impersonated fork account. It created NFT 1253122 and
 finished with zero liquidity, zero tokens owed, zero AAPL, and zero allowance
 on all four configured token/spender pairs. Its 12 local transactions used
-0.001420519181639680 ETH at fork gas prices: 0.000841498451511747 ETH for
-entry and 0.000579020730127933 ETH for exit/cleanup, or about 2.242 and
-1.542 USD at the independent ETH mark above. These are **fork estimates**,
+0.001416201034614478 ETH at fork gas prices: 0.000838439520454761 ETH for
+entry and 0.000577761514159717 ETH for exit/cleanup, or about 2.234 and
+1.539 USD at the independent ETH mark above. These are **fork estimates**,
 not canonical live receipts; the fork topped up native gas locally and did not
 prove that the current wallet balance funds the complete lifecycle. Run with:
 
@@ -87,7 +87,7 @@ prove that the current wallet balance funds the complete lifecycle. Run with:
 ```
 
 The optional `force-mint-revert` argument mined a reverted mint after the
-completed entry swap, charged its 267015824180875 wei fork gas once, retained
+completed entry swap, charged its 266191971255925 wei fork gas once, retained
 the same token balances, then completed the mint and full exit without a second
 entry swap. This checks a concrete failure boundary in the calldata path; a
 durable live controller must still prove the same behavior across a restart.
@@ -130,9 +130,9 @@ reference eligibility. These values can change; an old mark cannot admit a
 later transaction.
 
 A sealed read-only release was built from commit
-`821e60015cfbbb9cf16bceb45705ad9ba8a02b2e`. Its build ID is
-`8ddb065eef95973cc4608c15b962562d032fa1ac29771885b84b311b2a4d39ac`,
-at `/root/conc-liq-releases/8ddb065eef95973cc4608c15b962562d032fa1ac29771885b84b311b2a4d39ac`.
+`b9a01ac6379d1569bb6d6f8b16383099f227c887`. Its build ID is
+`004a2ef664786aeddd7c04b721ffeb14f430ecb8f37d7c2d8c2ccaa4009b6507`,
+at `/root/conc-liq-releases/004a2ef664786aeddd7c04b721ffeb14f430ecb8f37d7c2d8c2ccaa4009b6507`.
 The release verifier passed, and its pinned Node launcher ran the actual
 RangeKeeper inspector against the AAPL profile, which now binds the selected
 operator address. The inspector's config hash was

@@ -56,7 +56,19 @@ try{
   quoteToken:config.pool.quoteToken,maxPoolDeviationPpm:config.referencePolicy.maxPoolDeviationPpm,
   quote:(token,amount)=>chain.quote(source,token,amount,price0,price1),simulate:async()=>true});
  assert.equal(proposal.action,'confirm',proposal.reason);assert(proposal.candidate?.swap?.token===0,'Expected a minimum USDG input swap');
- const frozen=proposal.candidate;
+ await client.request({method:'evm_increaseTime',params:[30]});
+ await client.request({method:'evm_mine',params:[]});
+ const secondBlock=await client.getBlock();
+ const secondSource={block:secondBlock.number,hash:secondBlock.hash,timestamp:Number(secondBlock.timestamp)};
+ const secondSnapshot=await chain.snapshot(secondSource,operator,null);
+ const confirmed=await planRangeKeeper({state:proposal.state,
+  observation:{...initialObservation,block:secondSource.block,hash:secondSource.hash,timestamp:secondSource.timestamp,
+   tick:secondSnapshot.tick,sqrtPriceX96:secondSnapshot.sqrtPriceX96},
+  limits:config.limits,spacing:config.pool.tickSpacing,decimals0:config.pool.decimals0,decimals1:config.pool.decimals1,
+  quoteToken:config.pool.quoteToken,maxPoolDeviationPpm:config.referencePolicy.maxPoolDeviationPpm,
+  quote:(token,amount)=>chain.quote(secondSource,token,amount,price0,price1),simulate:async()=>true});
+ assert.equal(confirmed.action,'execute',confirmed.reason);
+ const frozen=confirmed.candidate;
  const send=async(plan,wallet)=>{
   authorizeRangeKeeperTx(config.pool,wallet,plan,config.limits.maxSlippageBps,config.limits.fullWidthSpacings);
   const call=encodeRangeKeeperTx(config.pool,operator,plan);
@@ -71,7 +83,7 @@ try{
  const wallet=(s)=>({operator,wallet0:s.wallet0,wallet1:s.wallet1,tick:s.tick,sqrtPriceX96:s.sqrtPriceX96,
   timestamp:s.source.timestamp,position:s.position});
  const snap=async(id=null)=>{const b=await client.getBlock();return chain.snapshot({block:b.number,hash:b.hash,timestamp:Number(b.timestamp)},operator,id);};
- let s=prior;
+ let s=secondSnapshot;
  await send({kind:'approve',token:0,spender:'router',amount:frozen.swap.amountIn},wallet(s));s=await snap();
  const swap={kind:'swap',token:0,amountIn:frozen.swap.amountIn,minOut:frozen.swap.minOut,deadline:BigInt(s.source.timestamp+300)};
  const swapReceipt=await send(swap,wallet(s));
