@@ -107,7 +107,8 @@ test('one-sided entry finds the minimum feasible raw swap without spending on re
  const range=r.candidate!.range;
  const prior=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
- assert(value<100n*unit);
+ assert(r.candidate!.deployedValue>=102n*unit);
+ assert(value<102n*unit);
 });
 test('minimum-swap solver finds a narrow feasible window before ratio overshoot',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
@@ -118,7 +119,8 @@ test('minimum-swap solver finds a narrow feasible window before ratio overshoot'
  assert(amount<128n*unit,'The first exponential probe after the window would be infeasible');
  const previous=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
- assert(value<196n*unit,'Raw-unit predecessor must miss the floor');
+ assert(r.candidate.deployedValue>=198n*unit);
+ assert(value<198n*unit,'Raw-unit predecessor must miss the buffered sizing target');
 });
 test('minimum-swap search fits the confirmation window with bounded provider rounds',async()=>{
  const i=input(observation({wallet0:200n*unit,wallet1:0n})),base=i.quote;

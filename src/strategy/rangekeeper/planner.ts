@@ -50,6 +50,10 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  // The cap is fixed at campaign creation. Token surplus remains idle inventory.
  const base0=wallet0*fraction/PPM,base1=wallet1*fraction/PPM;
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/PPM;
+ // A swap sized to the exact hard floor has no room for quote or pool movement
+ // during the approval receipts. Spend the least input that targets one extra
+ // percent of the LP cap, while never raising the $250 deployment ceiling.
+ const sizingFloor=min(l.maxDeploymentValue,floor+l.maxDeploymentValue/100n);
  const evaluate=(a0:bigint,a1:bigint,price:bigint)=>{
   if(price<=sqrtRatioAtTick(range.tickLower)||price>=sqrtRatioAtTick(range.tickUpper))return null;
   const m=replayPaperMint(price,range,a0,a1,0n);
@@ -59,7 +63,7 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  };
  const initial=evaluate(base0,base1,o.sqrtPriceX96);
  const make=(a0:bigint,a1:bigint,price:bigint,swap:RangeKeeperCandidate['swap']):RangeKeeperCandidate|null=>{
-  const r=evaluate(a0,a1,price);if(!r?.feasible)return null;
+  const r=evaluate(a0,a1,price);if(!r?.feasible||swap&&r.deployed<sizingFloor)return null;
   const haircut=10_000n-BigInt(l.maxSlippageBps);
   return {kind,range,swap,amount0Desired:a0,amount1Desired:a1,
    amount0Min:r.m.amount0*haircut/10_000n,amount1Min:r.m.amount1*haircut/10_000n,
@@ -123,17 +127,17 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
   const result=await quoted(amount);
   if(result.deployed>peakValue){peak=amount;peakValue=result.deployed;}
  }
- if(peakValue<floor)return null;
+ if(peakValue<sizingFloor)return null;
  lo=0n;hi=peak;
  while(hi-lo>1n&&evaluated.size<400){
   const span=hi-lo;
   if(span<4n){
    const middle=(lo+hi)/2n,result=await quoted(middle);
-   if(result.deployed>=floor)hi=middle;else lo=middle;
+   if(result.deployed>=sizingFloor)hi=middle;else lo=middle;
   }else{
    const points=[lo+span/4n,lo+span/2n,hi-span/4n];
    const values=await Promise.all(points.map(quoted));
-   const first=values.findIndex(value=>value.deployed>=floor);
+   const first=values.findIndex(value=>value.deployed>=sizingFloor);
    if(first<0)lo=points[2]!;
    else{hi=points[first]!;if(first>0)lo=points[first-1]!;}
   }
