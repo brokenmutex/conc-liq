@@ -29,6 +29,11 @@ export const rangeKeeperConfigSchema=z.object({
  schemaVersion:z.literal(1),policyId:z.literal('rangekeeper_v1'),strategyVersion:z.literal('1.0.0'),
  broadcastEnabled:z.boolean(),operator:address.nullable(),pool:profileSchema,limits:limitsSchema,
  signer:z.object({kind:z.literal('env_file'),reference:z.string().min(1),variable:z.string().regex(/^[A-Z][A-Z0-9_]*$/)}).strict().nullable().default(null),
+ walletCode:z.discriminatedUnion('kind',[
+  z.object({kind:z.literal('eoa')}).strict(),
+  z.object({kind:z.literal('eip7702'),delegate:address,delegateCodeHash:hash}).strict(),
+ ]).default({kind:'eoa'}),
+ zeroAllowances:z.array(z.object({token:address,spender:address}).strict()).default([]),
  legacyRetiredTokenIds:z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
  campaignScope:z.object({maxDurationSeconds:z.number().int().positive().max(86400),
   maxEconomicActions:z.number().int().positive().max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
@@ -50,6 +55,10 @@ export const rangeKeeperConfigSchema=z.object({
  if(p.limits.maxSwapInputValue>p.strategyFundingValue)fail('Swap input exceeds strategy allocation');
  if(p.limits.maxRollingCost>p.limits.maxCampaignCost)fail('Rolling cost exceeds campaign cost');
  if(new Set(p.legacyRetiredTokenIds).size!==p.legacyRetiredTokenIds.length)fail('Repeated legacy NFT ID');
+ if(new Set(p.zeroAllowances.map(a=>`${a.token.toLowerCase()}:${a.spender.toLowerCase()}`)).size!==p.zeroAllowances.length)
+  fail('Repeated guarded allowance pair');
+ if(p.zeroAllowances.some(a=>a.token.toLowerCase()!==p.pool.token0.toLowerCase()&&a.token.toLowerCase()!==p.pool.token1.toLowerCase()))
+  fail('Guarded allowance token is outside the configured pool');
  if(p.legacyRetiredTokenIds.length&&!p.operator)fail('Legacy NFT proof requires a selected operator');
  if(p.broadcastEnabled&&(!p.operator||!p.signer))fail('Live execution requires a frozen operator and signer reference');
 });

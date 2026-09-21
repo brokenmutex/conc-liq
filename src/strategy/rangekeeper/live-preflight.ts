@@ -9,6 +9,7 @@ import {initialRangeKeeperState} from './config.js';
 import {planRangeKeeper,rawValue} from './planner.js';
 import {rangeKeeperCostEnvelope} from './cost.js';
 import {simulateRangeKeeperCandidate} from './fork-simulator.js';
+import {verifyRangeKeeperWalletCode} from './wallet-code.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const min=(a:bigint,b:bigint)=>a<b?a:b;
@@ -26,8 +27,9 @@ export async function inspectRangeKeeperLaunch(input:{client:RobinhoodClient;con
  rpcUrl:string;anvilBinary:string;simulateFork:boolean}){
  const {client,config}=input,p=config.pool,operator=config.operator;
  assert(operator,'Launch profile needs an operator');
- const chain=new RangeKeeperChain(client,p),source=await rangeKeeperConfirmedSource(client);
+ const chain=new RangeKeeperChain(client,p,config.zeroAllowances),source=await rangeKeeperConfirmedSource(client);
  await chain.verify(source);
+ await verifyRangeKeeperWalletCode(client,source,operator,config);
  const wallet=await chain.snapshot(source,operator,null);
  assert.equal(wallet.nftCount,BigInt(config.legacyRetiredTokenIds.length),'Unknown NFT ownership at launch');
  for(const id of config.legacyRetiredTokenIds){

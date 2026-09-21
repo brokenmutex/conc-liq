@@ -15,7 +15,8 @@ export interface RangeKeeperSource {block:bigint;hash:Hex;timestamp:number}
 
 /** Address-based read adapter. It has no signer or broadcast API. */
 export class RangeKeeperChain {
- constructor(readonly client:RobinhoodClient,readonly pool:RangeKeeperPool){}
+ constructor(readonly client:RobinhoodClient,readonly pool:RangeKeeperPool,
+  readonly extraAllowancePairs:readonly {token:Address;spender:Address}[]=[]){}
  async verify(source:RangeKeeperSource){
   const {client:c,pool:p}=this,b=source.block;
   assert.equal(p.chainId,ROBINHOOD_CHAIN_ID,'Unsupported chain');
@@ -64,7 +65,9 @@ export class RangeKeeperChain {
     c.readContract({address:p.positionManager,abi:nonfungiblePositionManagerReadAbi,functionName:'ownerOf',args:[tokenId],blockNumber:b}),
     c.readContract({address:p.positionManager,abi:nonfungiblePositionManagerReadAbi,functionName:'positions',args:[tokenId],blockNumber:b})]),
   ]);
-  const allowances=[];for(const token of [p.token0,p.token1])for(const spender of [p.router,p.positionManager])
+  const pairs=[...([p.token0,p.token1] as const).flatMap(token=>[p.router,p.positionManager].map(spender=>({token,spender}))),
+   ...this.extraAllowancePairs];
+  const allowances=[];for(const {token,spender} of pairs)
    allowances.push({token,spender,amount:await c.readContract({address:token,abi:paperTokenAbi,functionName:'allowance',args:[operator,spender],blockNumber:b})});
   assert(same((await c.getBlock({blockNumber:b})).hash,source.hash),'Snapshot source changed');
   const pos=position?{tokenId,owner:position[0],token0:position[1][2],token1:position[1][3],fee:position[1][4],

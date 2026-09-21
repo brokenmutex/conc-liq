@@ -72,7 +72,9 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  const bound=min(available*BigInt(l.maxSwapInputPpm)/PPM,affordableRaw(l.maxSwapInputValue,priceIn,decimalsIn));
  if(bound===0n)return null;
  const seen=new Map<bigint,SwapQuote>();
+ const evaluated=new Map<bigint,{candidate:RangeKeeperCandidate|null;deployed:bigint}>();
  const quoted=async(amount:bigint)=>{
+  const prior=evaluated.get(amount);if(prior)return prior;
   const q=seen.get(amount)??await input.quote(token,amount);
   assert(q.sourceBlock===o.block&&q.sourceHash.toLowerCase()===o.hash.toLowerCase(),'rangekeeper_quote_source');
   assert(q.amountOut>=0n&&q.priceAfter>0n&&q.feeValue>=0n&&q.shortfallValue>=0n,'rangekeeper_invalid_quote');
@@ -83,33 +85,52 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
     (smaller?q.priceAfter<=other.priceAfter:q.priceAfter>=other.priceAfter),'rangekeeper_quote_nonmonotonic_price');
   }
   seen.set(amount,q);
-  assert(q.shortfallValue<=l.maxSwapShortfallValue,'rangekeeper_swap_shortfall');
   // Sub-token dust may quote zero output. It cannot fund active liquidity,
   // but it is a valid lower search bound on a pool with unequal decimals.
-  if(q.amountOut===0n)return null;
+  if(q.amountOut===0n){const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;}
   const next0=token===0?base0-amount:base0+q.amountOut;
   const next1=token===1?base1-amount:base1+q.amountOut;
-  if(next0<0n||next1<0n)return null;
-  if(q.priceAfter<=sqrtRatioAtTick(range.tickLower)||q.priceAfter>=sqrtRatioAtTick(range.tickUpper))return null;
+  if(next0<0n||next1<0n){const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;}
+  if(q.priceAfter<=sqrtRatioAtTick(range.tickLower)||q.priceAfter>=sqrtRatioAtTick(range.tickUpper)){
+   const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;
+  }
+  const sized=evaluate(next0,next1,q.priceAfter);
+  if(!sized){const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;}
   const haircut=10_000n-BigInt(l.maxSlippageBps);
-  return make(next0,next1,q.priceAfter,{token,amountIn:amount,quotedOut:q.amountOut,
-   minOut:q.amountOut*haircut/10_000n,priceAfter:q.priceAfter,feeValue:q.feeValue,shortfallValue:q.shortfallValue});
+  const candidate=q.shortfallValue<=l.maxSwapShortfallValue?make(next0,next1,q.priceAfter,{token,amountIn:amount,quotedOut:q.amountOut,
+   minOut:q.amountOut*haircut/10_000n,priceAfter:q.priceAfter,feeValue:q.feeValue,shortfallValue:q.shortfallValue}):null;
+  const result={candidate:candidate??null,deployed:sized.deployed};evaluated.set(amount,result);return result;
  };
- let upper=1n,lower=0n,found:RangeKeeperCandidate|null=null,calls=0;
- while(upper<=bound&&calls<80){
-  const c=await quoted(upper);calls++;
-  if(c){found=c;break;}
-  if(upper===bound)break;
-  lower=upper;upper=min(bound,upper*2n);
+ // Minted value rises as the missing leg is acquired, then falls when the
+ // swap overshoots the range's inventory ratio. Exponential feasibility
+ // probing can jump across a narrow valid window (e.g. 98% of a $250 cap).
+ // Find the value peak first, then search the increasing side for the first
+ // feasible raw input. Any unproven shape or quote budget fails closed.
+ let lo=1n,hi=bound;
+ while(hi-lo>3n&&evaluated.size<320){
+  const third=(hi-lo)/3n,m1=lo+third,m2=hi-third;
+  const [a,b]=await Promise.all([quoted(m1),quoted(m2)]);
+  if(a.deployed<b.deployed)lo=m1+1n;
+  else if(a.deployed>b.deployed)hi=m2-1n;
+  else {lo=m1;hi=m2;}
  }
+ if(hi-lo>3n)return null;
+ let peak=lo,peakValue=0n;
+ for(let amount=lo;amount<=hi;amount++){
+  const result=await quoted(amount);
+  if(result.deployed>peakValue){peak=amount;peakValue=result.deployed;}
+ }
+ if(peakValue<floor)return null;
+ lo=0n;hi=peak;
+ while(hi-lo>1n&&evaluated.size<400){
+  const middle=(lo+hi)/2n,result=await quoted(middle);
+  if(result.deployed>=floor)hi=middle;else lo=middle;
+ }
+ if(hi-lo>1n)return null;
+ const found=(await quoted(hi)).candidate;
  if(!found)return null;
- while(upper-lower>1n&&calls<160){
-  const middle=(upper+lower)/2n,c=await quoted(middle);calls++;
-  if(c){upper=middle;found=c;}else lower=middle;
- }
- if(upper-lower>1n)return null;
- // Prove minimality at the raw-unit predecessor, including quote impact.
- if(upper>1n&&await quoted(upper-1n))return null;
+ // The predecessor must fail even after its own price impact and quote.
+ if(hi>1n&&(await quoted(hi-1n)).candidate)return null;
  return found;
 }
 

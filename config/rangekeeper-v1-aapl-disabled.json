@@ -5,6 +5,11 @@
   "broadcastEnabled": false,
   "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
   "signer": {"kind":"env_file","reference":"/root/conc-liq/.env","variable":"WALLET_PRIVATE_KEY"},
+  "walletCode": {"kind":"eip7702","delegate":"0x63c0c19a282a1b52b07dd5a65b58948a07dae32b","delegateCodeHash":"0xa06befcb6f1d7b6c566a607d9d5d932f9b267f3470e55940225c6ee9c4c5e6b0"},
+  "zeroAllowances": [
+    {"token":"0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168","spender":"0x000000000022D473030F116dDEE9F6B43aC78BA3"},
+    {"token":"0xaf3d76f1834a1d425780943c99ea8a608f8a93f9","spender":"0x000000000022D473030F116dDEE9F6B43aC78BA3"}
+  ],
   "legacyRetiredTokenIds": ["1145652","1145825","1146039","1146281","1146461","1146954","1151380","1152065","1152397","1153147","1153164","1153654","1154552","1155292","1156147","1159108","1159293","1159311","1159476","1160438","1162154","1162225","1162294","1162743","1162908","1163237","1163816","1164023","1164035","1164340","1164488","1164688","1164733","1167525","1168753","1169167","1171023","1171366","1171433","1171896","1171979","1175747","1176212"],
   "campaignScope": {"maxDurationSeconds":43200,"maxEconomicActions":2},
   "pool": {
@@ -33,10 +38,10 @@
   },
   "limits": {
     "fullWidthSpacings": 20,
-    "maxDeploymentValue": "300000000000000000000",
-    "minDeploymentPpm": 900000,
+    "maxDeploymentValue": "250000000000000000000",
+    "minDeploymentPpm": 980000,
     "maxSwapInputValue": "150000000000000000000",
-    "maxSwapInputPpm": 500000,
+    "maxSwapInputPpm": 600000,
     "maxSwapShortfallValue": "2000000000000000000",
     "maxSlippageBps": 50,
     "maxActionCost": "5000000000000000000",
@@ -56,7 +61,7 @@
     "nativeMaxAgeSeconds": 86400,
     "maxPoolDeviationPpm": 50000
   },
-  "campaignValue": "310000000000000000000",
+  "campaignValue": "325000000000000000000",
   "strategyFundingValue": "300000000000000000000",
-  "nativeFundingValue": "10000000000000000000"
+  "nativeFundingValue": "25000000000000000000"
 }

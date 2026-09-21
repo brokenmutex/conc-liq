@@ -49,7 +49,7 @@ test('two chain profiles parse with explicit addresses, decimals, costs, and a s
   const raw=JSON.parse(readFileSync(new URL(`../config/rangekeeper-v1-${name}-disabled.json`,import.meta.url),'utf8'));
   const p=parseRangeKeeperConfig(raw);
   assert.equal(p.pool.decimals0,6);assert.equal(p.pool.decimals1,18);
-  assert.equal(p.campaignValue,BigInt(name==='aapl'?310:250)*unit);assert.equal(p.broadcastEnabled,false);
+  assert.equal(p.campaignValue,BigInt(name==='aapl'?325:250)*unit);assert.equal(p.broadcastEnabled,false);
  }
 });
 test('centered fixed span handles negative ticks and rejects bounds',()=>{
@@ -96,6 +96,17 @@ test('one-sided entry finds the minimum feasible raw swap without spending on re
  const prior=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
  assert(value<100n*unit);
+});
+test('minimum-swap solver finds a narrow feasible window before ratio overshoot',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const limits={...config.limits,maxSwapInputValue:150n*unit,minDeploymentPpm:980000};
+ const r=await planRangeKeeper({...input(o),limits});
+ assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
+ const amount=r.candidate.swap.amountIn,range=r.candidate.range;
+ assert(amount<128n*unit,'The first exponential probe after the window would be infeasible');
+ const previous=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
+ const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
+ assert(value<196n*unit,'Raw-unit predecessor must miss the floor');
 });
 test('minimum-swap search advances past valid zero-output dust quotes',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});

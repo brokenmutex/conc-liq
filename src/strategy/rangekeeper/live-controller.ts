@@ -20,6 +20,7 @@ import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from 
 import {mintedRangeKeeperTokenId,reconcileRangeKeeperAction} from './live-reconcile.js';
 import {simulateRangeKeeperCandidate} from './fork-simulator.js';
 import {nonfungiblePositionManagerReadAbi} from '../../nft/abi.js';
+import {verifyRangeKeeperWalletCode} from './wallet-code.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const ceil=(a:bigint,b:bigint)=>(a+b-1n)/b;
@@ -34,7 +35,7 @@ export class RangeKeeperLiveController {
   readonly signer:ReturnType<typeof loadRangeKeeperSigner>,readonly buildId:string,
   readonly archiveRpcUrl:string,readonly anvilBinary:string,readonly serviceGate:()=>void){
   assert(config.operator&&same(config.operator,signer.address));
-  this.chain=new RangeKeeperChain(client,config.pool);
+  this.chain=new RangeKeeperChain(client,config.pool,config.zeroAllowances);
  }
  private assertIdentity(s:RangeKeeperLiveState){
   assert.equal(s.version,1);assert.equal(s.configHash,rangeKeeperConfigHash(this.config));
@@ -54,6 +55,7 @@ export class RangeKeeperLiveController {
  private async exactCustody(before:RangeKeeperSnapshot,after:RangeKeeperSnapshot,activeTokenId:bigint|null){
   assert(same((await this.client.getBlock({blockNumber:before.source.block})).hash,before.source.hash),
    'Accepted RangeKeeper source reorged');
+  await verifyRangeKeeperWalletCode(this.client,after.source,after.operator,this.config);
   assert(same(before.operator,after.operator));
   assert.equal(after.wallet0,before.wallet0,'Unexplained token0 balance');
   assert.equal(after.wallet1,before.wallet1,'Unexplained token1 balance');
