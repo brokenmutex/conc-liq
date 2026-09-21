@@ -21,6 +21,17 @@ const si = (value) => {
   return value.toFixed(0);
 };
 const signClass = (value) => value == null ? 'muted' : value >= 0 ? 'positive' : 'negative';
+// The series grain is set by the read model and shipped in the snapshot, so
+// the view derives its bucket arithmetic rather than assuming hourly points.
+const perHour = (source) => 60 / source.bucketMinutes;
+const minutesLabel = (minutes) => minutes % 60 === 0 ? `${minutes / 60}h` : `${minutes}m`;
+const grain = (source) => minutesLabel(source.bucketMinutes);
+// The plot is about 412px wide, so beyond this many bars they stop being
+// distinguishable. Longer windows fold buckets together for the chart only;
+// the league table and every window figure keep the full grain.
+const MAX_BARS = 200;
+const stride = (count) => Math.max(1, Math.ceil(count / MAX_BARS));
+const barGrain = (source, count) => minutesLabel(source.bucketMinutes * stride(count));
 const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
 const WINDOWS = [[1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
@@ -79,7 +90,7 @@ function leagueRows(source, hours, widthIndex) {
       volume: usdg(window?.volumeQuote) ?? 0,
       fees: usdg(window?.feesQuote) ?? 0,
       share: reference?.sharePpm == null ? null : reference.sharePpm / 1e6,
-      inRange: reference == null || window == null ? null : reference.inRangeHours / Math.min(hours, source.hours.length),
+      inRange: reference == null || window == null ? null : reference.inRangeBuckets / Math.min(hours * perHour(source), source.buckets.length),
       gross: usdg(reference?.modeledFeesQuote),
       net: usdg(reference?.modeledNetQuote),
       apr: reference?.aprPpm == null ? null : reference.aprPpm / 1e6,
@@ -117,7 +128,7 @@ function renderTable(rows) {
   const roundTrip = usdg(snapshot.costs.roundTripQuote);
   $('#assumptions').textContent =
     `Reference position: ${money(budget, 0)} USDG entered at the window's opening price and never rebalanced. ` +
-    `Modeled fees credit the position's liquidity share of recorded flow for the hours price stayed inside the range. ` +
+    `Modeled fees credit the position's liquidity share of recorded flow for the ${grain(snapshot)} buckets price stayed inside the range. ` +
     (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG mint + exit round trip.`);
 
   $('#league thead').innerHTML = `<tr>${COLUMNS.map(([key, title, numeric]) => {
@@ -179,15 +190,37 @@ function depthChart(pool, widthIndex, budgetQuote) {
     ${xAxis}</svg>`;
 }
 
-/** Hourly fee bars on the left scale with the pool price on the right. */
-function flowChart(pool, hours) {
-  const series = pool.series.slice(-hours);
+/**
+ * Fold a series down to at most MAX_BARS points. Fees add across a fold, and
+ * the price is the last one the fold actually observed, so a fold that spans a
+ * gap in the checkpoints still reports the price it ended on rather than none.
+ */
+function condense(series) {
+  const step = stride(series.length);
+  if (step === 1) return series;
+  const folded = [];
+  for (let index = 0; index < series.length; index += step) {
+    const chunk = series.slice(index, index + step);
+    const priced = chunk.filter((bucket) => bucket.priceX18 != null);
+    folded.push({
+      bucket: chunk[0].bucket,
+      feesQuote: chunk.reduce((total, bucket) => total + BigInt(bucket.feesQuote), 0n).toString(),
+      priceX18: priced.length === 0 ? null : priced[priced.length - 1].priceX18,
+    });
+  }
+  return folded;
+}
+
+/** Per-bucket fee bars on the left scale with the pool price on the right. */
+function flowChart(pool, buckets) {
+  const drawn = barGrain(snapshot, Math.min(buckets, pool.series.length));
+  const series = condense(pool.series.slice(-buckets));
   const geometry = { width: 520, height: 230, padding: { top: 12, right: 54, bottom: 26, left: 54 } };
   const { width, height, padding } = geometry;
   if (series.length === 0) return `<svg class="chart" viewBox="0 0 ${width} ${height}"></svg>`;
-  const fees = series.map((hour) => usdg(hour.feesQuote));
+  const fees = series.map((bucket) => usdg(bucket.feesQuote));
   const peak = Math.max(...fees, 1e-9);
-  const prices = series.map((hour) => hour.priceX18 == null ? null : Number(hour.priceX18) / 1e18);
+  const prices = series.map((bucket) => bucket.priceX18 == null ? null : Number(bucket.priceX18) / 1e18);
   const known = prices.filter((price) => price != null);
   // Every price can be absent over a window the checkpoint collector missed;
   // the price scale is then undefined rather than an infinite span.
@@ -199,7 +232,7 @@ function flowChart(pool, hours) {
   const plot = height - padding.top - padding.bottom;
   const yFee = (value) => height - padding.bottom - value / peak * plot;
   const yPrice = (value) => height - padding.bottom - (value - priceLow) / (priceHigh - priceLow || 1) * plot;
-  const bars = series.map((hour, index) =>
+  const bars = series.map((bucket, index) =>
     `<rect x="${x(index)}" y="${yFee(fees[index])}" width="${barWidth}" height="${Math.max(0, height - padding.bottom - yFee(fees[index]))}" fill="#69debd" opacity=".55"/>`).join('');
   let line = '', open = false;
   for (const [index, price] of prices.entries()) {
@@ -211,8 +244,8 @@ function flowChart(pool, hours) {
     const y = height - padding.bottom - fraction * plot;
     return `<text x="${width - padding.right + 6}" y="${y + 3}" text-anchor="start" fill="#efbc72" font-size="10">${money(priceLow + fraction * (priceHigh - priceLow), 2)}</text>`;
   }).join('') : '';
-  const label = (index, anchor) => `<text x="${x(index) + barWidth / 2}" y="${height - 8}" text-anchor="${anchor}" fill="#91a0b2" font-size="10">${clock(series[index].hour)}</text>`;
-  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Hourly fees and price for ${esc(pool.rwaSymbol)}, peak ${money(peak)} USDG in an hour">
+  const label = (index, anchor) => `<text x="${x(index) + barWidth / 2}" y="${height - 8}" text-anchor="${anchor}" fill="#91a0b2" font-size="10">${clock(series[index].bucket)}</text>`;
+  return `<svg class="chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fees and price for ${esc(pool.rwaSymbol)} in ${drawn} buckets, peak ${money(peak)} USDG in a bucket">
     ${yAxis(geometry, (fraction) => compact(peak * fraction))}${priceAxis}
     ${bars}<path d="${line.trim()}" fill="none" stroke="#efbc72" stroke-width="1.4"/>
     <line x1="${padding.left}" x2="${width - padding.right}" y1="${height - padding.bottom}" y2="${height - padding.bottom}" stroke="#28313d"/>
@@ -235,9 +268,9 @@ function renderDetail(rows) {
         ${depthChart(pool, state.width, snapshot.budgetQuote)}
         <div class="legend"><span><i class="sw-depth"></i>Depth · USDG at ±${depthReference ? depthReference.halfWidthPercent.toFixed(2) : '—'}% (left)</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
       </div>
-      <div class="chart-card"><h3>Hourly fees and price</h3>
-        <p>Fees the whole pool charged each hour, against the pool price. Selected window.</p>
-        ${flowChart(pool, state.hours)}
+      <div class="chart-card"><h3>Fees and price</h3>
+        <p>Fees the whole pool charged in each ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} bucket, against the pool price. Selected window.</p>
+        ${flowChart(pool, state.hours * perHour(snapshot))}
         <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>
       </div>
     </div>`;
@@ -251,7 +284,7 @@ function render() {
   renderTable(rows);
   renderDetail(rows);
   $('#status').textContent = `Built ${clock(snapshot.generatedAt)} ET`;
-  $('#footnote').textContent = `${snapshot.pools.length} pools · ${snapshot.hours.length}h retained · stream ${snapshot.streamKey}`;
+  $('#footnote').textContent = `${snapshot.pools.length} pools · ${snapshot.buckets.length / perHour(snapshot)}h retained in ${grain(snapshot)} buckets · stream ${snapshot.streamKey}`;
 }
 
 document.addEventListener('click', (event) => {

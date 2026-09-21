@@ -6,7 +6,11 @@ import {
   depthCurve,
   halfWidthTicksForFraction,
   quoteValueOfRwa,
+  RESEARCH_BUCKET_MINUTES,
+  RESEARCH_BUCKETS_PER_HOUR,
   RESEARCH_HALF_WIDTH_FRACTIONS,
+  RESEARCH_RETAINED_BUCKETS,
+  RESEARCH_RETAINED_HOURS,
   RESEARCH_WINDOW_HOURS,
 } from "../src/dashboard/research.js";
 
@@ -51,6 +55,30 @@ describe("research read model", () => {
     assert.deepEqual([...RESEARCH_WINDOW_HOURS], [1, 6, 24, 168]);
   });
 
+  it("keeps a grain every window tiles in whole buckets", () => {
+    // A grain that did not divide an hour would leave the shortest window
+    // straddling a partial bucket, which the slice arithmetic cannot express.
+    assert.equal(RESEARCH_BUCKETS_PER_HOUR, 60 / RESEARCH_BUCKET_MINUTES);
+    assert.ok(Number.isInteger(RESEARCH_BUCKETS_PER_HOUR));
+    for (const hours of RESEARCH_WINDOW_HOURS) {
+      assert.ok(
+        Number.isInteger(hours * RESEARCH_BUCKETS_PER_HOUR),
+        `the ${hours}h window does not tile the grain`,
+      );
+    }
+    // The shortest window has to carry more than the single point it held at
+    // the hourly grain, which is the reason for the finer series.
+    assert.ok(RESEARCH_WINDOW_HOURS[0]! * RESEARCH_BUCKETS_PER_HOUR >= 4);
+  });
+
+  it("retains the same span at the finer grain", () => {
+    assert.equal(
+      RESEARCH_RETAINED_BUCKETS,
+      RESEARCH_RETAINED_HOURS * RESEARCH_BUCKETS_PER_HOUR,
+    );
+    assert.equal(RESEARCH_RETAINED_BUCKETS, 672);
+  });
+
   it("spans the half-widths in ascending order from a near-spacing range", () => {
     const fractions = [...RESEARCH_HALF_WIDTH_FRACTIONS];
     assert.deepEqual(fractions, [...fractions].sort((a, b) => a - b));
@@ -69,8 +97,16 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote });"
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS });"
   ) as {
+    MAX_BARS: number;
+    condense(
+      series: readonly {
+        bucket: string;
+        feesQuote: string;
+        priceX18: string | null;
+      }[],
+    ): { bucket: string; feesQuote: string; priceX18: string | null }[];
     si(value: number | null): string;
     depthQuote(
       liquidity: number,
@@ -105,7 +141,7 @@ describe("research view semantics", () => {
   const pool = (
     symbol: string,
     net: string | null,
-    inRangeHours: number,
+    inRangeBuckets: number,
   ) => ({
     poolAddress: `0x${symbol}`,
     rwaSymbol: symbol,
@@ -124,7 +160,7 @@ describe("research view semantics", () => {
         halfWidthTicks: 10,
         halfWidthPercent: 0.1,
         sharePpm: 1_000,
-        inRangeHours,
+        inRangeBuckets,
         modeledFeesQuote: "900000",
         modeledNetQuote: net,
         aprPpm: net === null ? null : 250_000,
@@ -136,18 +172,24 @@ describe("research view semantics", () => {
 
   it("reports an unavailable modeled net rather than substituting zero", () => {
     const rows = ui.leagueRows(
-      { pools: [pool("AAA", null, 12)], hours: new Array(168) },
+      {
+        pools: [pool("AAA", null, 48)],
+        bucketMinutes: 15,
+        buckets: new Array(672),
+      },
       24,
       0,
     );
     assert.equal(rows[0]!.net, null);
+    // 48 of the 24-hour window's 96 quarter-hour buckets held the range.
     assert.equal(rows[0]!.inRange, 0.5);
   });
 
   it("sorts unavailable values last in both directions", () => {
     const rows = ui.leagueRows({
       pools: [pool("AAA", null, 1), pool("BBB", "3000000", 1), pool("CCC", "1000000", 1)],
-      hours: new Array(168),
+      bucketMinutes: 15,
+      buckets: new Array(672),
     }, 24, 0);
     // The rows come from the script's own realm, so they are copied back into
     // a host array before the strict comparison.
@@ -159,6 +201,48 @@ describe("research view semantics", () => {
       Array.from(ui.sortRows(rows, "net", false), (row) => row.key),
       ["CCC-500", "BBB-500", "AAA-500"],
     );
+  });
+
+  it("folds a long series into bars the plot can still separate", () => {
+    const series = Array.from({ length: 672 }, (_unused, index) => ({
+      bucket: new Date(index * 900_000).toISOString(),
+      feesQuote: "100",
+      priceX18: index % 4 === 3 ? null : String(index),
+    }));
+    const folded = ui.condense(series);
+    // 672 quarter-hours over a 200-bar budget folds four at a time, which is
+    // the hourly series the page drew before the grain was refined.
+    assert.equal(folded.length, 168);
+    assert.ok(folded.length <= ui.MAX_BARS);
+    // Fees add across a fold rather than being sampled from it.
+    assert.equal(folded[0]!.feesQuote, "400");
+    assert.equal(
+      folded.reduce((total, bar) => total + Number(bar.feesQuote), 0),
+      672 * 100,
+    );
+    // The fold is labelled by the bucket it opens on.
+    assert.equal(folded[1]!.bucket, series[4]!.bucket);
+    // Every fold here ends on an absent price, so it reports the last one it
+    // actually observed rather than dropping the point out of the line.
+    assert.equal(folded[0]!.priceX18, "2");
+  });
+
+  it("leaves a series the plot can already separate untouched", () => {
+    const series = Array.from({ length: 96 }, (_unused, index) => ({
+      bucket: new Date(index * 900_000).toISOString(),
+      feesQuote: "100",
+      priceX18: String(index),
+    }));
+    assert.equal(ui.condense(series), series);
+  });
+
+  it("reports no price for a fold that observed none", () => {
+    const series = Array.from({ length: 672 }, (_unused, index) => ({
+      bucket: new Date(index * 900_000).toISOString(),
+      feesQuote: "0",
+      priceX18: null,
+    }));
+    assert.equal(ui.condense(series)[0]!.priceX18, null);
   });
 
   it("names magnitudes past the ceiling Intl compact notation stops at", () => {

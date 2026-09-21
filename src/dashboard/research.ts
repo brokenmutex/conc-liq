@@ -35,20 +35,42 @@ export const RESEARCH_HALF_WIDTH_FRACTIONS = [
   0.05,
 ] as const;
 
-/** Retained history. Seven days of hourly buckets. */
+/**
+ * Series grain, in minutes. The strategy checkpoint collectors sample every
+ * indexed pool about every 31 seconds, so a 15-minute bucket carries roughly
+ * 29 samples and still reports when a collector run is missed. The grain has
+ * to divide an hour, because the trailing windows above are named in hours and
+ * are sliced out of this series in whole buckets.
+ */
+export const RESEARCH_BUCKET_MINUTES = 15;
+
+/** Buckets per hour, at the grain above. */
+export const RESEARCH_BUCKETS_PER_HOUR = 60 / RESEARCH_BUCKET_MINUTES;
+
+if (!Number.isInteger(RESEARCH_BUCKETS_PER_HOUR)) {
+  throw new Error(
+    `research grain of ${RESEARCH_BUCKET_MINUTES} minutes does not divide an hour`,
+  );
+}
+
+/** Retained history, in hours. */
 export const RESEARCH_RETAINED_HOURS = 168;
+
+/** Retained history at the series grain. */
+export const RESEARCH_RETAINED_BUCKETS = RESEARCH_RETAINED_HOURS *
+  RESEARCH_BUCKETS_PER_HOUR;
 
 /** Reference position budget: 1,000 USDG at six decimals. */
 export const RESEARCH_BUDGET_QUOTE = 1_000_000_000n;
 
 const QUOTE_DECIMALS = 6;
-const HOUR_MS = 3_600_000;
+const BUCKET_MS = RESEARCH_BUCKET_MINUTES * 60_000;
 const TICK_LOG = Math.log(1.0001);
 /** Ticks either side of spot kept in the depth curve; about +/-16% in price. */
 const DEPTH_TICK_RADIUS = 1_500;
 
-export interface ResearchHour {
-  readonly hour: string;
+export interface ResearchBucket {
+  readonly bucket: string;
   readonly swaps: number;
   readonly volumeQuote: string;
   readonly feesQuote: string;
@@ -66,15 +88,16 @@ export interface ResearchReference {
   readonly halfWidthPercent: number;
   readonly liquidity: string;
   readonly sharePpm: number | null;
-  readonly inRangeHours: number;
+  readonly inRangeBuckets: number;
   readonly modeledFeesQuote: string;
   readonly modeledNetQuote: string | null;
   readonly aprPpm: number | null;
 }
 
 export interface ResearchWindowSummary {
+  /** Window length in hours; the series under it is sliced in buckets. */
   readonly hours: number;
-  readonly observedHours: number;
+  readonly observedBuckets: number;
   readonly swaps: number;
   readonly volumeQuote: string;
   readonly feesQuote: string;
@@ -111,7 +134,7 @@ export interface ResearchPool {
   readonly priceX18: string;
   readonly liquidity: string;
   readonly observedAt: string;
-  readonly series: readonly ResearchHour[];
+  readonly series: readonly ResearchBucket[];
   readonly windows: readonly ResearchWindowSummary[];
   readonly depth: readonly ResearchDepthPoint[];
   readonly depthReferences: readonly ResearchDepthReference[];
@@ -128,7 +151,8 @@ export interface ResearchSnapshot {
   readonly streamKey: string;
   readonly budgetQuote: string;
   readonly quoteDecimals: number;
-  readonly hours: readonly string[];
+  readonly bucketMinutes: number;
+  readonly buckets: readonly string[];
   readonly costs: ResearchCosts;
   readonly pools: readonly ResearchPool[];
 }
@@ -203,7 +227,7 @@ interface PoolIdentity {
   readonly observedAt: Date;
 }
 
-interface HourAccumulator {
+interface BucketAccumulator {
   swaps: number;
   in0: bigint;
   in1: bigint;
@@ -218,7 +242,7 @@ interface HourAccumulator {
   deviationPpm: bigint | null;
 }
 
-function emptyHour(): HourAccumulator {
+function emptyBucket(): BucketAccumulator {
   return {
     swaps: 0,
     in0: 0n,
@@ -303,9 +327,9 @@ async function readIdentities(
   }));
 }
 
-interface HourlyCheckpointRow {
+interface BucketCheckpointRow {
   pool_address: string;
-  hr: Date;
+  bkt: Date;
   checkpoints: string;
   valid_checkpoints: string;
   mean_liquidity: string;
@@ -326,13 +350,17 @@ interface SwapBucketRow {
   tick_max: number;
 }
 
-/** Dense descending-to-ascending hour axis ending at the current hour. */
-function hourAxis(now: Date): readonly Date[] {
-  const end = Math.floor(now.getTime() / HOUR_MS) * HOUR_MS;
+/**
+ * Dense ascending bucket axis ending at the bucket the current time falls in.
+ * Buckets are floored against the Unix epoch, which is the same origin the
+ * `date_bin` call below aligns to, so the two agree without a conversion.
+ */
+function bucketAxis(now: Date): readonly Date[] {
+  const end = Math.floor(now.getTime() / BUCKET_MS) * BUCKET_MS;
   return Array.from(
-    { length: RESEARCH_RETAINED_HOURS },
+    { length: RESEARCH_RETAINED_BUCKETS },
     (_unused, index) =>
-      new Date(end - (RESEARCH_RETAINED_HOURS - 1 - index) * HOUR_MS),
+      new Date(end - (RESEARCH_RETAINED_BUCKETS - 1 - index) * BUCKET_MS),
   );
 }
 
@@ -340,39 +368,41 @@ function summarizeWindow(
   pool: PoolIdentity,
   tickSpacing: number,
   quoteIsToken0: boolean,
-  series: readonly ResearchHour[],
-  accumulators: readonly HourAccumulator[],
+  series: readonly ResearchBucket[],
+  accumulators: readonly BucketAccumulator[],
   hours: number,
   roundTripQuote: bigint | null,
 ): ResearchWindowSummary {
-  const from = Math.max(0, series.length - hours);
+  // Windows are named in hours; the series under them is at the finer grain.
+  const buckets = hours * RESEARCH_BUCKETS_PER_HOUR;
+  const from = Math.max(0, series.length - buckets);
   const slice = series.slice(from);
   const sliceAccumulators = accumulators.slice(from);
   let swaps = 0;
   let volumeQuote = 0n;
   let feesQuote = 0n;
   let liquiditySum = 0n;
-  let observedHours = 0;
+  let observedBuckets = 0;
   let checkpoints = 0;
   let validCheckpoints = 0;
-  for (const [index, hour] of slice.entries()) {
-    swaps += hour.swaps;
-    volumeQuote += BigInt(hour.volumeQuote);
-    feesQuote += BigInt(hour.feesQuote);
+  for (const [index, bucket] of slice.entries()) {
+    swaps += bucket.swaps;
+    volumeQuote += BigInt(bucket.volumeQuote);
+    feesQuote += BigInt(bucket.feesQuote);
     const accumulator = sliceAccumulators[index]!;
     checkpoints += accumulator.checkpoints;
     validCheckpoints += accumulator.validCheckpoints;
     if (accumulator.checkpoints > 0) {
       liquiditySum += accumulator.meanLiquidity;
-      observedHours += 1;
+      observedBuckets += 1;
     }
   }
-  const meanLiquidity = observedHours > 0
-    ? liquiditySum / BigInt(observedHours)
+  const meanLiquidity = observedBuckets > 0
+    ? liquiditySum / BigInt(observedBuckets)
     : 0n;
 
   // The reference position enters at the window's opening price and is never
-  // rebalanced, so it is sized once, from the close of the hour before the
+  // rebalanced, so it is sized once, from the close of the bucket before the
   // window when one is retained.
   const entry = accumulators[Math.max(0, from - 1)] ?? sliceAccumulators[0];
   const first = slice[0];
@@ -398,23 +428,24 @@ function summarizeWindow(
       );
       const { halfWidthTicks } = sized;
       const size = { liquidity: sized.liquidity };
-      let inRangeHours = 0;
+      let inRangeBuckets = 0;
       let modeledFeesQuote = 0n;
-      for (const [index, hour] of slice.entries()) {
-        // An hour the checkpoint collector missed has no observed liquidity, so
-        // crediting it would hand the position the pool's whole fee take.
+      for (const [index, bucket] of slice.entries()) {
+        // A bucket the checkpoint collector missed has no observed liquidity,
+        // so crediting it would hand the position the pool's whole fee take.
         if (sliceAccumulators[index]!.checkpoints === 0) continue;
-        const low = hour.tickMin ?? hour.tickLast;
-        const high = hour.tickMax ?? hour.tickLast;
+        const low = bucket.tickMin ?? bucket.tickLast;
+        const high = bucket.tickMax ?? bucket.tickLast;
         if (low === null || high === null) continue;
         if (low < base - halfWidthTicks || high > base + halfWidthTicks) {
           continue;
         }
-        inRangeHours += 1;
+        inRangeBuckets += 1;
         const shared = size.liquidity +
           sliceAccumulators[index]!.meanLiquidity;
         if (shared > 0n) {
-          modeledFeesQuote += BigInt(hour.feesQuote) * size.liquidity / shared;
+          modeledFeesQuote += BigInt(bucket.feesQuote) * size.liquidity /
+            shared;
         }
       }
       const modeledNetQuote = roundTripQuote === null
@@ -429,9 +460,11 @@ function summarizeWindow(
             size.liquidity * 1_000_000n / (size.liquidity + meanLiquidity),
           )
           : null,
-        inRangeHours,
+        inRangeBuckets,
         modeledFeesQuote: modeledFeesQuote.toString(),
         modeledNetQuote: modeledNetQuote?.toString() ?? null,
+        // The window is still measured in hours, so the annualization is
+        // unaffected by the grain the buckets above are counted in.
         aprPpm: modeledNetQuote === null
           ? null
           : Number(modeledNetQuote * 1_000_000n / RESEARCH_BUDGET_QUOTE) *
@@ -442,7 +475,7 @@ function summarizeWindow(
 
   return {
     hours,
-    observedHours,
+    observedBuckets,
     swaps,
     volumeQuote: volumeQuote.toString(),
     feesQuote: feesQuote.toString(),
@@ -458,7 +491,7 @@ export async function readResearch(
   streamKey: string,
 ): Promise<ResearchSnapshot> {
   const now = new Date();
-  const axis = hourAxis(now);
+  const axis = bucketAxis(now);
   const since = axis[0]!.toISOString();
   const identities = await readIdentities(client, streamKey);
   const costs = await readCosts(client);
@@ -466,9 +499,11 @@ export async function readResearch(
     ? null
     : BigInt(costs.roundTripQuote);
 
-  const hourly = await client.query<HourlyCheckpointRow>(
+  const bucketed = await client.query<BucketCheckpointRow>(
+    // `date_bin` is anchored on the Unix epoch so the bins line up with the
+    // axis above, which floors the same way.
     `SELECT p.pool_address,
-            date_trunc('hour', c.block_timestamp) AS hr,
+            date_bin($3::interval, c.block_timestamp, TIMESTAMPTZ 'epoch') AS bkt,
             count(*)::text AS checkpoints,
             count(*) FILTER (WHERE p.status = 'valid')::text AS valid_checkpoints,
             avg(p.liquidity)::numeric(78, 0)::text AS mean_liquidity,
@@ -481,21 +516,21 @@ export async function readResearch(
        JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id = c.id
       WHERE c.stream_key = $1 AND c.block_timestamp >= $2
       GROUP BY 1, 2`,
-    [streamKey, since],
+    [streamKey, since, `${RESEARCH_BUCKET_MINUTES} minutes`],
   );
 
-  const indexOfHour = new Map(
-    axis.map((hour, index) => [hour.getTime(), index]),
+  const indexOfBucket = new Map(
+    axis.map((bucket, index) => [bucket.getTime(), index]),
   );
-  const accumulators = new Map<string, HourAccumulator[]>();
-  const hourStartBlock = new Array<bigint | null>(axis.length).fill(null);
-  for (const row of hourly.rows) {
-    const index = indexOfHour.get(row.hr.getTime());
+  const accumulators = new Map<string, BucketAccumulator[]>();
+  const bucketStartBlock = new Array<bigint | null>(axis.length).fill(null);
+  for (const row of bucketed.rows) {
+    const index = indexOfBucket.get(row.bkt.getTime());
     if (index === undefined) continue;
     const pool = row.pool_address;
     let series = accumulators.get(pool);
     if (series === undefined) {
-      series = Array.from({ length: axis.length }, emptyHour);
+      series = Array.from({ length: axis.length }, emptyBucket);
       accumulators.set(pool, series);
     }
     const entry = series[index]!;
@@ -509,13 +544,13 @@ export async function readResearch(
       ? null
       : BigInt(row.mean_deviation);
     const blockLo = BigInt(row.block_lo);
-    const known = hourStartBlock[index] ?? null;
-    if (known === null || blockLo < known) hourStartBlock[index] = blockLo;
+    const known = bucketStartBlock[index] ?? null;
+    if (known === null || blockLo < known) bucketStartBlock[index] = blockLo;
   }
 
-  // Hours the checkpoint collector missed carry no block boundary, so the swap
-  // buckets are mapped onto the hours that do, in ascending block order.
-  const anchored = hourStartBlock
+  // Buckets the checkpoint collector missed carry no block boundary, so the
+  // swap buckets are mapped onto the ones that do, in ascending block order.
+  const anchored = bucketStartBlock
     .map((block, index) => ({ block, index }))
     .filter((entry): entry is { block: bigint; index: number } =>
       entry.block !== null
@@ -525,7 +560,7 @@ export async function readResearch(
 
   if (boundaries.length > 0) {
     const swaps = await client.query<SwapBucketRow>(
-      // Swaps are assigned to an hour by the checkpoint block that opened it.
+      // Swaps are assigned to a bucket by the checkpoint block that opened it.
       // The event payload is projected down before aggregating: grouping the
       // raw rows sorts the whole jsonb column to disk and costs seconds.
       `SELECT pool_address, anchor, count(*)::text AS swaps,
@@ -590,8 +625,8 @@ export async function readResearch(
     const tickSpacing = tickSpacingForFee(pool.fee);
     const quoteIsToken0 = pool.token0.toLowerCase() === USDG.toLowerCase();
     const series = accumulators.get(pool.poolAddress) ??
-      Array.from({ length: axis.length }, emptyHour);
-    const view = series.map((entry, index): ResearchHour => {
+      Array.from({ length: axis.length }, emptyBucket);
+    const view = series.map((entry, index): ResearchBucket => {
       const priceX18 = entry.priceX18 ?? pool.priceX18;
       const fee0 = entry.in0 * BigInt(pool.fee) / 1_000_000n;
       const fee1 = entry.in1 * BigInt(pool.fee) / 1_000_000n;
@@ -600,7 +635,7 @@ export async function readResearch(
           ? amount0 + quoteValueOfRwa(amount1, priceX18, pool.rwaDecimals)
           : amount1 + quoteValueOfRwa(amount0, priceX18, pool.rwaDecimals);
       return {
-        hour: axis[index]!.toISOString(),
+        bucket: axis[index]!.toISOString(),
         swaps: entry.swaps,
         volumeQuote: value(entry.in0, entry.in1).toString(),
         feesQuote: value(fee0, fee1).toString(),
@@ -664,7 +699,8 @@ export async function readResearch(
     streamKey,
     budgetQuote: RESEARCH_BUDGET_QUOTE.toString(),
     quoteDecimals: QUOTE_DECIMALS,
-    hours: axis.map((hour) => hour.toISOString()),
+    bucketMinutes: RESEARCH_BUCKET_MINUTES,
+    buckets: axis.map((bucket) => bucket.toISOString()),
     costs,
     pools: pools.sort((left, right) =>
       left.rwaSymbol.localeCompare(right.rwaSymbol) || left.fee - right.fee
