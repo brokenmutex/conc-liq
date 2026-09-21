@@ -26,7 +26,7 @@ The top-up also changed USDG's allowance to the [official Permit2 spender](https
 
 The earlier read-only fork preflight at confirmed block 68,809,030, hash `0x1cd712f98c05783d92b389a1472232c9f24245a5eab531b3b9ac6a5016e8a112` observed 275170862 raw USDG, zero AAPL, and 8442149859162364 wei native ETH. It projected about $245 in LP with a 123664761-raw-USDG minimum swap and 885 ppm pool share. Its conservative native requirement was 1183682560000000 wei, so the native shortfall was **zero** at that source. This preflight preceded the new Permit2-zero guard and is not a passing launch proof under the revised config. Recheck custody, fee prices, code identity, and all six monitored allowances after revocation.
 
-The checked-in disabled profile hashes to `0x8d678349ac0f29ef4a964d505968017f53bc86203f16c0d7500e291e7776457a` with the current parser. The prepared private broadcast-enabled copy hashes to `0xd52d6127fd036474095c2267a72878ecbea735ecfe6811d9920c5fa5036e043f`; the signer resolves to the selected operator. The release must be rebuilt from these source changes, then its build ID recorded alongside that hash. The key reference is `/root/conc-liq/.env`, variable `WALLET_PRIVATE_KEY`; never copy key bytes into this document or the runtime environment file.
+The checked-in disabled profile hashes to `0x8d678349ac0f29ef4a964d505968017f53bc86203f16c0d7500e291e7776457a` with the current parser. The prepared private broadcast-enabled copy hashes to `0xd52d6127fd036474095c2267a72878ecbea735ecfe6811d9920c5fa5036e043f`; the signer resolves to the selected operator. The sealed release build ID is `76245cc3c52a23c042ffa705beb855efec35ef0c9fe0f7501de906e824f22455`, from source commit `4559977a43242a089c656d73ce099a4cf8d04258`. The key reference is `/root/conc-liq/.env`, variable `WALLET_PRIVATE_KEY`; never copy key bytes into this document or the runtime environment file.
 
 ## Prepare and operate a sealed package
 
@@ -35,7 +35,7 @@ Build from a clean reviewed commit with `npm run release:build -- /root/conc-liq
 With `RK_RELEASE` set to the exact sealed path and `RK_CONFIG` to the private config, run these in order. Preflight is read-only and supports `--fork` for the exact current candidate. `init` creates the isolated `rangekeeper_v1` ledger after all gates pass; it does not broadcast. The service runs the same sealed controller every 30 seconds.
 
 ```sh
-RK_RELEASE=/root/conc-liq-releases/BUILD_ID
+RK_RELEASE=/root/conc-liq-releases/76245cc3c52a23c042ffa705beb855efec35ef0c9fe0f7501de906e824f22455
 RK_CONFIG=/root/conc-liq/data/rangekeeper-v1-aapl-live.json
 RK_RUNTIME=/root/conc-liq/data/rangekeeper-v1-runtime.env
 "$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live preflight "$RK_CONFIG" --fork
