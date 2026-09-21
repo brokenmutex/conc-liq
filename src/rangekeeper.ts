@@ -23,6 +23,8 @@ const chain=new RangeKeeperChain(client,config.pool);
 const identity=await chain.verify(source);
 const reference=await readRangeKeeperReferences(client,source,config);
 const operator=operatorArg?getAddress(operatorArg):config.operator;
+assert(!config.operator||!operator||operator.toLowerCase()===config.operator.toLowerCase(),
+ 'Inspected operator differs from the frozen campaign configuration');
 const wallet=operator?await chain.snapshot(source,operator,null):null;
 console.log(JSON.stringify({policyId:config.policyId,strategyVersion:config.strategyVersion,configHash:rangeKeeperConfigHash(config),
  broadcastEnabled:false,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},

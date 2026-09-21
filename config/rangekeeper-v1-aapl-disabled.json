@@ -3,7 +3,7 @@
   "policyId": "rangekeeper_v1",
   "strategyVersion": "1.0.0",
   "broadcastEnabled": false,
-  "operator": null,
+  "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
   "pool": {
     "chainId": 4663,
     "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
