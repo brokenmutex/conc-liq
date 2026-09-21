@@ -109,14 +109,15 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  // Find the value peak first, then search the increasing side for the first
  // feasible raw input. Any unproven shape or quote budget fails closed.
  let lo=1n,hi=bound;
- while(hi-lo>3n&&evaluated.size<320){
-  const third=(hi-lo)/3n,m1=lo+third,m2=hi-third;
-  const [a,b]=await Promise.all([quoted(m1),quoted(m2)]);
-  if(a.deployed<b.deployed)lo=m1+1n;
-  else if(a.deployed>b.deployed)hi=m2-1n;
-  else {lo=m1;hi=m2;}
+ while(hi-lo>4n&&evaluated.size<320){
+  const span=hi-lo,points=[lo,lo+span/4n,lo+span/2n,hi-span/4n,hi];
+  const values=await Promise.all(points.map(quoted));
+  // Keep the two intervals adjoining the leftmost maximum. Quoting the five
+  // probes concurrently halves the search span in one provider round trip.
+  let best=0;for(let i=1;i<values.length;i++)if(values[i]!.deployed>values[best]!.deployed)best=i;
+  lo=points[Math.max(0,best-1)]!;hi=points[Math.min(4,best+1)]!;
  }
- if(hi-lo>3n)return null;
+ if(hi-lo>4n)return null;
  let peak=lo,peakValue=0n;
  for(let amount=lo;amount<=hi;amount++){
   const result=await quoted(amount);
@@ -125,8 +126,17 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  if(peakValue<floor)return null;
  lo=0n;hi=peak;
  while(hi-lo>1n&&evaluated.size<400){
-  const middle=(lo+hi)/2n,result=await quoted(middle);
-  if(result.deployed>=floor)hi=middle;else lo=middle;
+  const span=hi-lo;
+  if(span<4n){
+   const middle=(lo+hi)/2n,result=await quoted(middle);
+   if(result.deployed>=floor)hi=middle;else lo=middle;
+  }else{
+   const points=[lo+span/4n,lo+span/2n,hi-span/4n];
+   const values=await Promise.all(points.map(quoted));
+   const first=values.findIndex(value=>value.deployed>=floor);
+   if(first<0)lo=points[2]!;
+   else{hi=points[first]!;if(first>0)lo=points[first-1]!;}
+  }
  }
  if(hi-lo>1n)return null;
  const found=(await quoted(hi)).candidate;

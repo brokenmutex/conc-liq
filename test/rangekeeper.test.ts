@@ -120,6 +120,17 @@ test('minimum-swap solver finds a narrow feasible window before ratio overshoot'
  const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
  assert(value<196n*unit,'Raw-unit predecessor must miss the floor');
 });
+test('minimum-swap search fits the confirmation window with bounded provider rounds',async()=>{
+ const i=input(observation({wallet0:200n*unit,wallet1:0n})),base=i.quote;
+ let pending=0,rounds=0;
+ const result=await planRangeKeeper({...i,limits:{...i.limits,maxSwapInputValue:150n*unit,minDeploymentPpm:980000},
+  quote:async(token,amount)=>{
+   if(pending++===0)rounds++;
+   try{await Promise.resolve();return await base(token,amount);}finally{pending--;}
+  }});
+ assert.equal(result.action,'confirm',result.reason);
+ assert(rounds<130,`Minimum swap required ${rounds} sequential quote rounds`);
+});
 test('minimum-swap search advances past valid zero-output dust quotes',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
  const i=input(o),quote=i.quote;

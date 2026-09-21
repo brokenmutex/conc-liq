@@ -74,7 +74,7 @@ try{
  const frozen=confirmed.candidate;
  if(mode==='verify-live-simulator'){
   const proof=await simulateRangeKeeperCandidate({rpcUrl:archive,anvilBinary:'/root/.foundry/bin/anvil',
-   source,pool:config.pool,limits:config.limits,operator,candidate:frozen,activeTokenId:null});
+   source,pool:config.pool,limits:config.limits,operator,candidate:proposal.candidate,activeTokenId:null});
   assert(proof.createdTokenId>0n&&proof.gasByStage.some(stage=>stage.kind==='mint'));
  }
  const send=async(plan,before)=>{
