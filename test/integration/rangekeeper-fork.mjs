@@ -7,8 +7,10 @@ import {robinhoodChain} from '../../src/constants.js';
 import {initialRangeKeeperState,parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.js';
 import {RangeKeeperChain} from '../../src/strategy/rangekeeper/chain.js';
 import {encodeRangeKeeperTx,authorizeRangeKeeperTx} from '../../src/strategy/rangekeeper/calldata.js';
-import {planRangeKeeper} from '../../src/strategy/rangekeeper/planner.js';
+import {planRangeKeeper,rawValue} from '../../src/strategy/rangekeeper/planner.js';
 import {rangeKeeperReceiptFacts,proveRangeKeeperCollection} from '../../src/strategy/rangekeeper/receipt.js';
+import {mintedRangeKeeperTokenId,reconcileRangeKeeperAction} from '../../src/strategy/rangekeeper/live-reconcile.js';
+import {simulateRangeKeeperCandidate} from '../../src/strategy/rangekeeper/fork-simulator.js';
 import {replayPaperMint} from '../../src/research/management-audit.js';
 import {principalAmounts} from '../../src/backtest/principal.js';
 import {applyRangeKeeperStageReceipt} from '../../src/strategy/rangekeeper/stages.js';
@@ -44,13 +46,14 @@ try{
  const prior=await chain.snapshot(source,operator,null);
  assert(prior.wallet0>=200_000_000n&&prior.wallet1===0n,'Fork wallet does not match proposed funding custody');
  const transactions=[];
- const strategy0=240_002_056n,price0=999991430000000000n,price1=335529829280000000000n,nativePrice=2663914455290000000000n;
+ const strategy0=prior.wallet0,price0=999991430000000000n,price1=335529829280000000000n,nativePrice=2663914455290000000000n;
  const initialObservation={block:source.block,hash:source.hash,timestamp:source.timestamp,tick:prior.tick,
   sqrtPriceX96:prior.sqrtPriceX96,continuity:'canonical',wallet0:strategy0,wallet1:0n,released0:0n,released1:0n,
   nativeWei:3n*10n**15n,requiredExitReserveWei:config.limits.exitReserveWei,price0,price1,nativePrice,
   position:null,pending:false,entryAllowed:true,safeExitRequired:false,executionReady:true,liquiditySharePpm:1000,
   actionCost:28n*10n**17n,actionGasWei:10n**15n,reservedCost:0n,rollingSpentCost:0n,campaignSpentCost:0n,
-  campaignStartValue:240n*10n**18n,highWaterValue:240n*10n**18n,recenters:0};
+  campaignStartValue:rawValue(strategy0,price0,config.pool.decimals0),
+  highWaterValue:rawValue(strategy0,price0,config.pool.decimals0),recenters:0};
  const proposal=await planRangeKeeper({state:initialRangeKeeperState(config,'fork-rehearsal'),observation:initialObservation,
   limits:config.limits,spacing:config.pool.tickSpacing,decimals0:config.pool.decimals0,decimals1:config.pool.decimals1,
   quoteToken:config.pool.quoteToken,maxPoolDeviationPpm:config.referencePolicy.maxPoolDeviationPpm,
@@ -69,13 +72,24 @@ try{
   quote:(token,amount)=>chain.quote(secondSource,token,amount,price0,price1),simulate:async()=>true});
  assert.equal(confirmed.action,'execute',confirmed.reason);
  const frozen=confirmed.candidate;
- const send=async(plan,wallet)=>{
-  authorizeRangeKeeperTx(config.pool,wallet,plan,config.limits.maxSlippageBps,config.limits.fullWidthSpacings);
+ if(mode==='verify-live-simulator'){
+  const proof=await simulateRangeKeeperCandidate({rpcUrl:archive,anvilBinary:'/root/.foundry/bin/anvil',
+   source,pool:config.pool,limits:config.limits,operator,candidate:frozen,activeTokenId:null});
+  assert(proof.createdTokenId>0n&&proof.gasByStage.some(stage=>stage.kind==='mint'));
+ }
+ const send=async(plan,before)=>{
+  authorizeRangeKeeperTx(config.pool,wallet(before),plan,config.limits.maxSlippageBps,config.limits.fullWidthSpacings);
   const call=encodeRangeKeeperTx(config.pool,operator,plan);
   await client.call({account:operator,to:call.to,data:call.data});
   const hash=await client.request({method:'eth_sendTransaction',params:[{from:operator,to:call.to,data:call.data,gas:'0x7a1200'}]});
   const receipt=await client.waitForTransactionReceipt({hash});
   assert.equal(receipt.status,'success',`${plan.kind} reverted`);
+  const block=await client.getBlock({blockNumber:receipt.blockNumber});
+  const id=plan.kind==='mint'?mintedRangeKeeperTokenId(config.pool,operator,receipt):before.position?.tokenId??null;
+  const after=await chain.snapshot({block:block.number,hash:block.hash,timestamp:Number(block.timestamp)},operator,id);
+  const reconciled=reconcileRangeKeeperAction(config.pool,{hash,plan,before,
+   intent:{operator,gas:'8000000',maxFeePerGas:'100000000000'}},receipt,after);
+  assert.equal(reconciled.status,'success');
   transactions.push({kind:plan.kind,gasUsed:String(receipt.gasUsed),effectiveGasPrice:String(receipt.effectiveGasPrice),
    gasWei:String(receipt.gasUsed*receipt.effectiveGasPrice),hash});
   return receipt;
@@ -84,17 +98,17 @@ try{
   timestamp:s.source.timestamp,position:s.position});
  const snap=async(id=null)=>{const b=await client.getBlock();return chain.snapshot({block:b.number,hash:b.hash,timestamp:Number(b.timestamp)},operator,id);};
  let s=secondSnapshot;
- await send({kind:'approve',token:0,spender:'router',amount:frozen.swap.amountIn},wallet(s));s=await snap();
+ await send({kind:'approve',token:0,spender:'router',amount:frozen.swap.amountIn},s);s=await snap();
  const swap={kind:'swap',token:0,amountIn:frozen.swap.amountIn,minOut:frozen.swap.minOut,deadline:BigInt(s.source.timestamp+300)};
- const swapReceipt=await send(swap,wallet(s));
+ const swapReceipt=await send(swap,s);
  const swapFacts=rangeKeeperReceiptFacts(config.pool,operator,swapReceipt);
  assert.equal(swapFacts.wallet0,-swap.amountIn);assert(swapFacts.wallet1>=swap.minOut);
  s=await snap();assert(s.wallet1>0n);
  const desired0=frozen.amount0Desired,desired1=frozen.amount1Desired;
  const m=replayPaperMint(s.sqrtPriceX96,frozen.range,desired0,desired1,0n);assert(m.liquidity>=frozen.liquidity);
  const candidate={...frozen};
- await send({kind:'approve',token:0,spender:'positionManager',amount:desired0},wallet(s));s=await snap();
- await send({kind:'approve',token:1,spender:'positionManager',amount:desired1},wallet(s));s=await snap();
+ await send({kind:'approve',token:0,spender:'positionManager',amount:desired0},s);s=await snap();
+ await send({kind:'approve',token:1,spender:'positionManager',amount:desired1},s);s=await snap();
  let forcedRevertGasWei=null;
  if(mode==='force-mint-revert'){
   const invalid={...candidate,amount0Min:desired0+1n};
@@ -112,7 +126,7 @@ try{
   s=await snap();assert.equal(s.wallet0,before.wallet0);assert.equal(s.wallet1,before.wallet1);
   assert.equal(s.nftCount,before.nftCount);assert.equal(s.nonce,before.nonce+1);
  }
- const mintReceipt=await send({kind:'mint',candidate,deadline:BigInt(s.source.timestamp+300)},wallet(s));
+ const mintReceipt=await send({kind:'mint',candidate,deadline:BigInt(s.source.timestamp+300)},s);
  const mintFacts=rangeKeeperReceiptFacts(config.pool,operator,mintReceipt);
  const created=mintFacts.nfts.filter(x=>x.from.toLowerCase()===zeroAddress&&x.to.toLowerCase()===operator.toLowerCase());
  assert.equal(created.length,1);const tokenId=created[0].tokenId;
@@ -120,17 +134,17 @@ try{
  const position=s.position,principal=principalAmounts({...position,sqrtPriceX96:s.sqrtPriceX96});
  const withdrawal={kind:'withdraw',tokenId,liquidity:position.liquidity,min0:principal.amount0*9950n/10000n,
   min1:principal.amount1*9950n/10000n,deadline:BigInt(s.source.timestamp+300)};
- const exitReceipt=await send(withdrawal,wallet(s));
+ const exitReceipt=await send(withdrawal,s);
  const exitFacts=rangeKeeperReceiptFacts(config.pool,operator,exitReceipt);
  const collection=proveRangeKeeperCollection({pool:config.pool,operator,tokenId,tickLower:position.tickLower,tickUpper:position.tickUpper,facts:exitFacts});
  s=await snap(tokenId);assert(s.position?.liquidity===0n&&s.position.tokensOwed0===0n&&s.position.tokensOwed1===0n);
- await send({kind:'approve',token:1,spender:'router',amount:s.wallet1},wallet(s));s=await snap(tokenId);
+ await send({kind:'approve',token:1,spender:'router',amount:s.wallet1},s);s=await snap(tokenId);
  const saleQuote=await chain.quote(s.source,1,s.wallet1,999991430000000000n,335529829280000000000n);
  const sale={kind:'swap',token:1,amountIn:s.wallet1,minOut:saleQuote.amountOut*9950n/10000n,deadline:BigInt(s.source.timestamp+300)};
- const saleReceipt=await send(sale,wallet(s));s=await snap(tokenId);assert.equal(s.wallet1,0n);
+ const saleReceipt=await send(sale,s);s=await snap(tokenId);assert.equal(s.wallet1,0n);
  // Revoke all four grants made during this fork rehearsal.
  for(const [token,spender] of [[0,'router'],[0,'positionManager'],[1,'positionManager'],[1,'router']]){
-  await send({kind:'approve',token,spender,amount:0n},wallet(s));s=await snap(tokenId);
+  await send({kind:'approve',token,spender,amount:0n},s);s=await snap(tokenId);
  }
  assert.equal(s.allowances.filter(a=>a.amount>0n).length,0);
  assert.equal(s.nftCount,prior.nftCount+1n);

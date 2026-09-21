@@ -49,7 +49,7 @@ test('two chain profiles parse with explicit addresses, decimals, costs, and a s
   const raw=JSON.parse(readFileSync(new URL(`../config/rangekeeper-v1-${name}-disabled.json`,import.meta.url),'utf8'));
   const p=parseRangeKeeperConfig(raw);
   assert.equal(p.pool.decimals0,6);assert.equal(p.pool.decimals1,18);
-  assert.equal(p.campaignValue,250n*unit);assert.equal(p.broadcastEnabled,false);
+  assert.equal(p.campaignValue,BigInt(name==='aapl'?310:250)*unit);assert.equal(p.broadcastEnabled,false);
  }
 });
 test('centered fixed span handles negative ticks and rejects bounds',()=>{
@@ -127,13 +127,15 @@ test('first-pool cost envelope prices complete entry and exit at a fresh bounded
  assert(proposal.candidate?.swap);
  const envelope=rangeKeeperCostEnvelope({candidate:proposal.candidate,limits:config.limits,
   poolAddress:'0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D',
-  baseFeePerGasWei:1_000_000_000n,nativePriceValue:2_664n*unit,existingPosition:false});
+  baseFeePerGasWei:1_000_000_000n,marketGasPriceWei:1_000_000_000n,
+  nativePriceValue:2_664n*unit,existingPosition:false});
  assert.equal(envelope.actionGasUnits,1_130_000n);
  assert.equal(envelope.completeExitGasUnits,900_000n);
  assert.equal(envelope.maxFeePerGasWei,1_250_000_000n);
  assert(envelope.requiredExitReserveWei>=1_125_000_000_000_000n);
  assert.throws(()=>rangeKeeperCostEnvelope({candidate:proposal.candidate!,limits:config.limits,
-  poolAddress:config.pool.pool,baseFeePerGasWei:1_000_000_000n,nativePriceValue:2_664n*unit,existingPosition:false}),/No fork gas evidence/);
+  poolAddress:config.pool.pool,baseFeePerGasWei:1_000_000_000n,marketGasPriceWei:1_000_000_000n,
+  nativePriceValue:2_664n*unit,existingPosition:false}),/No fork gas evidence/);
  assertRangeKeeperStageGas('mint',470_694n);
  assert.throws(()=>assertRangeKeeperStageGas('mint',650_001n),/gas_bound/);
 });

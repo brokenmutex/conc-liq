@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {resolve} from 'node:path';
+import {createRobinhoodClient} from './client.js';
+import {parseRangeKeeperConfig,rangeKeeperConfigHash} from './strategy/rangekeeper/config.js';
+import {inspectRangeKeeperLaunch} from './strategy/rangekeeper/live-preflight.js';
+import {loadRangeKeeperSigner} from './strategy/rangekeeper/live-signer.js';
+import {RangeKeeperLiveStore} from './strategy/rangekeeper/live-store.js';
+import {RangeKeeperLiveController} from './strategy/rangekeeper/live-controller.js';
+import {rangeKeeperJson} from './strategy/rangekeeper/live-domain.js';
+
+const [command,configPath,...args]=process.argv.slice(2);
+assert(command&&configPath,'Usage: rangekeeper-live COMMAND CONFIG [ARG]');
+const mutation=new Set(['init','tick','run','stop','recover-exit','recover-mint']);
+assert(command==='preflight'||command==='status'||mutation.has(command),'Unknown RangeKeeper command');
+const config=parseRangeKeeperConfig(JSON.parse(readFileSync(resolve(configPath),'utf8')),{allowBroadcast:true});
+const archive=process.env.RH_ARCHIVE_RPC_URL;
+assert(archive,'RH_ARCHIVE_RPC_URL required');
+const client=createRobinhoodClient(archive,20_000,{retryCount:0});
+const buildId=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'{}').buildId as string|undefined;
+const anvil=process.env.ANVIL_BIN??'/root/.foundry/bin/anvil';
+const output=(v:unknown)=>console.log(rangeKeeperJson(v));
+const gate=()=>{
+ for(const type of ['is-active','is-enabled']){
+  const result=spawnSync('systemctl',[type,'conc-liq-live-pilot.service'],{encoding:'utf8',timeout:5000});
+  assert(result.status!==null&&!result.error,'Cannot verify former pilot service status');
+  assert(type==='is-active'?result.stdout.trim()==='inactive':result.stdout.trim()==='disabled',
+   `Former pilot service must be ${type==='is-active'?'inactive':'disabled'}`);
+ }
+};
+if(command==='preflight'){
+ assert(buildId,'Sealed release identity required');
+ const proof=await inspectRangeKeeperLaunch({client,config,buildId,rpcUrl:archive,anvilBinary:anvil,
+  simulateFork:args.includes('--fork')});
+ output({configHash:rangeKeeperConfigHash(config),source:proof.source,pool:proof.pool,operator:proof.operator,
+  allocation:proof.funding.allocation,bookedStrategyValue:proof.funding.bookedStrategyValue,
+  candidate:proof.candidate,liquiditySharePpm:proof.liquiditySharePpm,
+  nativeRequiredWei:proof.nativeRequiredWei,nativeShortfallWei:proof.nativeShortfallWei,
+  forkSimulated:proof.forkSimulated,preflightReason:proof.preflightReason});
+}else{
+ const database=process.env.DATABASE_URL;assert(database,'DATABASE_URL required');
+ const store=new RangeKeeperLiveStore(database);
+ try{
+  if(command==='status'){
+   assert(config.operator,'Status needs configured operator');
+   output(await store.locked(config.operator,async db=>{
+    const row=await store.current(db,config.operator!);if(!row)return null;
+    const pending=await store.pending(db,row.state.id);
+    return {state:row.state,monitor:row.monitor,heartbeatAt:row.heartbeatAt,
+     pending:pending?{id:pending.id,status:pending.status,kind:pending.plan.kind,
+      nonce:pending.intent.nonce,hash:pending.hash,broadcastAt:pending.broadcastAt,error:pending.error}:null};
+   }));
+  }else{
+   assert(buildId,'Sealed release identity required');
+   const publisherUrl=process.env.RH_BROADCAST_RPC_URL;
+   assert(publisherUrl,'RH_BROADCAST_RPC_URL required for live commands');
+   const publisher=createRobinhoodClient(publisherUrl,20_000,{retryCount:0});
+   const signer=loadRangeKeeperSigner(config,process.cwd());
+   const controller=new RangeKeeperLiveController(store,config,client,publisher,signer,buildId,archive,anvil,gate);
+   await store.initialize();
+   if(command==='init')output(await controller.start());
+   else if(command==='stop')output(await controller.requestStop());
+   else if(command==='recover-exit')output(await controller.recoverExit());
+   else if(command==='recover-mint')output(await controller.recoverMint());
+   else if(command==='tick'){
+    const result=await controller.tick();output({status:result.status,result:'result' in result?result.result:null});
+   }else{
+    assert(command==='run');
+    while(true){
+     const result=await controller.tick();output({status:result.status,result:'result' in result?result.result:null});
+     if(result.state.phase==='closed'||result.state.phase==='halted')break;
+     await new Promise(resolve=>setTimeout(resolve,30_000));
+    }
+   }
+  }
+ }finally{await store.close();}
+}

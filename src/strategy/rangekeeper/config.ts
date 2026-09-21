@@ -28,6 +28,10 @@ const limitsSchema=z.object({
 export const rangeKeeperConfigSchema=z.object({
  schemaVersion:z.literal(1),policyId:z.literal('rangekeeper_v1'),strategyVersion:z.literal('1.0.0'),
  broadcastEnabled:z.boolean(),operator:address.nullable(),pool:profileSchema,limits:limitsSchema,
+ signer:z.object({kind:z.literal('env_file'),reference:z.string().min(1),variable:z.string().regex(/^[A-Z][A-Z0-9_]*$/)}).strict().nullable().default(null),
+ legacyRetiredTokenIds:z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
+ campaignScope:z.object({maxDurationSeconds:z.number().int().positive().max(86400),
+  maxEconomicActions:z.number().int().positive().max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
  referencePolicy:z.object({
   token0:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),
    session:z.enum(['verified_24_7','latest_equity_session']),corporateAction:z.literal('reject_pending')}).strict(),
@@ -45,11 +49,18 @@ export const rangeKeeperConfigSchema=z.object({
  if(p.limits.maxDeploymentValue>p.strategyFundingValue)fail('Deployment exceeds strategy allocation');
  if(p.limits.maxSwapInputValue>p.strategyFundingValue)fail('Swap input exceeds strategy allocation');
  if(p.limits.maxRollingCost>p.limits.maxCampaignCost)fail('Rolling cost exceeds campaign cost');
- if(p.broadcastEnabled)fail('RangeKeeper broadcast is unavailable until generic execution is sealed and verified');
+ if(new Set(p.legacyRetiredTokenIds).size!==p.legacyRetiredTokenIds.length)fail('Repeated legacy NFT ID');
+ if(p.legacyRetiredTokenIds.length&&!p.operator)fail('Legacy NFT proof requires a selected operator');
+ if(p.broadcastEnabled&&(!p.operator||!p.signer))fail('Live execution requires a frozen operator and signer reference');
 });
 export type RangeKeeperConfig=z.infer<typeof rangeKeeperConfigSchema>;
 
-export function parseRangeKeeperConfig(raw:unknown):RangeKeeperConfig {return rangeKeeperConfigSchema.parse(raw);}
+export function parseRangeKeeperConfig(raw:unknown,options:{allowBroadcast?:boolean}={}):RangeKeeperConfig {
+ const config=rangeKeeperConfigSchema.parse(raw);
+ assert(!config.broadcastEnabled||options.allowBroadcast===true,
+  'RangeKeeper broadcast requires the explicit live-controller parser');
+ return config;
+}
 export function rangeKeeperConfigHash(config:RangeKeeperConfig):Hex {
  return `0x${createHash('sha256').update(JSON.stringify(config,(_,v)=>typeof v==='bigint'?String(v):v)).digest('hex')}`;
 }

@@ -1,184 +1,54 @@
-# RangeKeeper v1.0.0: policy and launch preparation
+# RangeKeeper v1.0.0: bounded AAPL/USDG launch
 
-Prepared September 21, 2026. Machine policy ID `rangekeeper_v1`; configuration
-and state schema version 1. The implementation in this checkout is **read-only
-and broadcast-disabled**. This page records a proposed AAPL/USDG campaign, not
-an instruction to fund or start it.
+RangeKeeper is a fixed-width, inventory-funded V3 LP controller. Its machine identity is `rangekeeper_v1`, strategy version `1.0.0`, and state schema 1. The first profile is Robinhood Chain 4663 AAPL/USDG, fee 500, tick spacing 10, pool `0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D`. The selected operator is the former pilot wallet `0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52`. Its 43 former pilot NFTs must remain owned, empty, and owed zero. The [AAPL profile](../../config/rangekeeper-v1-aapl-disabled.json) is broadcast-disabled. [NVDA](../../config/rangekeeper-v1-nvda-disabled.json) is a second read-only identity check; its gas envelope is not admitted.
 
-## Frozen decision rule
+## Decision and custody rule
 
-On a canonical observation, reconcile pending custody before making another
-decision. An initial entry may be considered immediately. An active position
-within `[tickLower, tickUpper)` is held; the lower boundary is inside and the
-upper boundary outside. On the first observed exit, store the block, hash, market
-time, NFT, and range. Only consecutive outside observations no more than 90
-seconds apart preserve the timer. A return, gap, reorg, or new NFT resets it.
-After 300 seconds, evaluate at most every 30 seconds. A rejected proposal does
-not reset the exit timer.
+The controller reconciles a signed receipt at 64 confirmations before reading new custody or using another nonce. It verifies token, native, allowance, and NFT deltas against that receipt, including a core-pool Collect on withdrawal. Unsigned prepared intents can be cancelled after a crash. A signed intent remains pending until its exact hash resolves; an unknown broadcast acknowledgement may only resend the same bytes. A reverted mint halts until an operator checks the canonical receipt and chooses `recover-mint` or `recover-exit`. Mint recovery cannot repeat a completed swap.
 
-The sole ordinary range is centered on the floor-aligned current tick, using a
-fixed, positive even full span. Size the exact no-swap mint first. If it cannot
-meet the deployment floor, quote the minimum feasible raw input in the token
-left idle by the no-swap mint. Recheck quote-source identity, price movement,
-raw-input and shortfall caps, exact mint math, independent price band, exposure,
-action/rolling/campaign costs, and the current complete-exit native reserve.
-The same raw proposal must survive two distinct eligible observations within
-90 seconds, followed by exact calldata simulation. No fee forecast, volatility
-forecast, payback estimate, or old-policy comparison enters the decision.
-Safety exits bypass the ordinary timer and confirmation.
+On entry, exact no-swap sizing is checked first. If it misses the deployment floor, the planner finds the minimum feasible direct swap of idle inventory. The proposal needs two distinct eligible canonical observations within 90 seconds. Once minted, the range is held while the pool tick is inside `[lower,upper)`. An outside observation starts a five-minute timer; a return, gap, reorg, or NFT change clears it. Rejected economic proposals do not clear a continuing outside timer. Safety exits bypass that timer. Every submission is simulated, estimated, bounded by fork-derived stage gas, and checked against a fresh fee cap and native complete-exit reserve. A delayed approval triggers a fresh canonical quote for the same swap amount and range. A later mint reprices that range from actual inventory; infeasibility stops the stage instead of inventing an extra swap.
 
-Value reporting uses 18-decimal USD units. Token and native balances remain raw
-integers. The strategy allocation, native allocation, and all probe costs share
-one 250 USD-equivalent campaign cap, with no automatic refill. An existing
-wallet's prior funds are reserved in raw units at activation and excluded from
-campaign P&L. A later outside transfer requires separate receipt-backed credit
-attribution before the campaign can continue.
+Inventory and fees are valued with independent USDG, AAPL, and ETH references. The ledger records gross fees by token, gas, direct-swap fee and shortfall, net P&L after gas, exposure, drawdown, active/outside time, recenter count, decision reasons, and receipt-level custody. Missing valuation blocks a new economic action; no pool-spot fallback is used. The campaign has no automatic refill. A later transfer into the wallet is an unexplained custody change and blocks new transactions until reconciled.
 
-## Proposed first profile and limits
+## Capital and limits
 
-The selected pool is Robinhood Chain 4663 AAPL/USDG, V3 fee 500 and tick
-spacing 10. The official [Uniswap deployment registry](https://github.com/Uniswap/contracts/blob/main/deployments/4663.md)
-lists the factory, position manager, router, and QuoterV2 used here. The
-[disabled AAPL profile](../../config/rangekeeper-v1-aapl-disabled.json) freezes
-their addresses, pool/token bytecode hashes, ordering, decimals, independent
-reference identities, and all numeric limits. The
-[disabled NVDA profile](../../config/rangekeeper-v1-nvda-disabled.json) exercises
-the same policy with a second verified pool. Symbols never authorize a contract.
+The campaign cap is $310 equivalent: at most $300 of strategy inventory and $10 of native gas. At activation, all then-available USDG and verified AAPL in the wallet are frozen as raw strategy amounts if their independent value fits $300. This supersedes the earlier $250/$240 proposal. The cap does not promise that all USDG enters the LP: the minimum deployment is 90% of the $300 cap, or $270; the rest remains strategy inventory in the wallet. The entry swap is capped at $150 and 50% of available input, with at most $2 reference shortfall. Full width is 20 spacings (200 ticks), slippage cap 50 bps, and LP share cap 20,000 ppm. Action, rolling, and campaign cost ceilings are $5, $10, and $15. Maximum risky-token exposure is 95%, loss limit $20, drawdown 10%, and the first scope is 12 hours with at most two economic actions (entry and one recenter) plus complete exit. The config's four-recenter ceiling is subordinate to that scope.
 
-The proposed full width is 20 spacings, or 200 ticks. Maximum deployment is
-200 USD, the minimum is 40% of that cap, the optional swap input is at most
-100 USD and 50% of available input inventory, and swap shortfall is at most
-2 USD. Slippage is at most 50 bps. The proposed action, rolling 24-hour, and
-campaign cost ceilings are 5, 10, and 15 USD; maximum risky-token exposure is
-95%, loss 20 USD, drawdown 10%, and ordinary recenter count four. The configured
-0.001 ETH floor for exit reserve exceeds the pinned-fork complete-exit spend
-of 0.000577761514159717 ETH. It is still a fork estimate rather than a live
-guarantee: the planner also requires a fresh, higher current estimate when needed.
-These are bounded operating choices, not tuned profitability results. The
-5/10/15 cost ceilings allow a fresh conservative gas envelope above the exact
-fork receipts; they do not themselves prove a live action is affordable. The
-first-pool estimator budgets 80k gas per approval, 240k per swap, 650k for
-mint, 300k for withdrawal/Collect, and 70k per cleanup approval, all above
-the corresponding fork uses. It binds those estimates to this AAPL pool and
-uses a fresh base-fee cap with a 25% margin. If a stage estimate exceeds its
-bound or the aggregate action and complete-exit reserve cannot fit the native
-allocation, admission fails. No equivalent NVDA gas profile is admitted.
+The 0.001 ETH exit floor exceeds the complete-exit amount measured on the pinned fork; it is not a live gas guarantee. Admission budgets entry, one recenter, complete exit, and 20% native margin using a fee cap 25% above the higher of fresh market gas price and base fee. Stage gas limits are 80k approval, 240k swap, 650k mint, 300k withdrawal/Collect, and 70k cleanup approval. Only AAPL/USDG has the pinned-fork evidence supporting those limits.
 
-Read-only chain verification at block 68,638,898, hash
-`0x526aad262956c46aeb954fb4bb3e4a502e53d58f6f61688d41b074dd2d373dfe`,
-confirmed factory/pool/periphery links, token order, 6/18 decimals, fee,
-spacing, and configured code hashes for AAPL and NVDA. At block 68,638,103,
-an AAPL pool quote for 100 USDG output 298026471145608693 raw AAPL and left
-the post-swap price inside `[218060,218260)`. Exact integer mint math on that
-quote used 84068172 raw USDG and 298026471145608693 raw AAPL, leaving 15931828
-raw USDG idle. This is mechanical feasibility from a quote; it is not an
-exact-calldata fork simulation or a current fill guarantee. The USD cost of
-that quote was not computed from a same-block independent reference.
+## Evidence and current blockers
 
-The [pinned-fork rehearsal](../../test/integration/rangekeeper-fork.mjs) at
-block 68,644,757 exercised approvals, the planner's minimum 42067093-raw-USDG
-direct swap for the proposed 240002056-raw-USDG strategy allocation, mint, full
-withdrawal and core Collect proof, AAPL sale, and allowance cleanup using the
-existing wallet as an impersonated fork account. It created NFT 1253122 and
-finished with zero liquidity, zero tokens owed, zero AAPL, and zero allowance
-on all four configured token/spender pairs. Its 12 local transactions used
-0.001416201034614478 ETH at fork gas prices: 0.000838439520454761 ETH for
-entry and 0.000577761514159717 ETH for exit/cleanup, or about 2.234 and
-1.539 USD at the independent ETH mark above. These are **fork estimates**,
-not canonical live receipts; the fork topped up native gas locally and did not
-prove that the current wallet balance funds the complete lifecycle. Run with:
+The full-wallet AAPL fork rehearsal at block 68,644,757 exercised the direct swap, approvals, mint, withdrawal with core Collect, risky-token sale, and allowance cleanup. Its separate forced-mint-revert case charged gas once and completed without a second entry swap. Fork gas is an estimate at the fork's roughly 1-gwei price, not a canonical live cost. No RangeKeeper live receipt or net-alpha claim exists yet. The first bounded funded lifecycle will itself measure canonical costs; an unexpected cost or custody failure blocks progression.
+
+Read-only preflight at confirmed block 68,772,886, hash `0xeb5883587ba6135524b1905afcb50beae76a133cb79aad995466d5bbdba830c2` on September 21, 2026 checked all 43 legacy NFTs and relevant allowances. It allocated 295170862 raw USDG (295.170862 USDG), zero AAPL, and 1113588596335004 wei native ETH. Independent USDG value was about $295.1683. The candidate deployed about $270.0000 in range and used 142826815 raw USDG in its minimum feasible swap; these are quote and integer-math results, not a live fill. The conservative native requirement was 1185963520000000 wei, leaving a shortfall of 72374923664996 wei (0.000072374923664996 ETH) against that observed balance. The old pilot service was inactive but **enabled**. Both conditions block initialization. Recheck funding and fee prices at cutover; topping up only the stale shortfall leaves no margin for drift.
+
+The checked-in disabled profile hashes to `0x1295b4c9005e86ac20fa12a2087436fd74781ded70630dc4a15662bfeeda3bbf` with the current parser. The prepared private broadcast-enabled copy hashes to `0x27ba4886882de035e53eb1e4d5f2fe1ae47a0f992f65a02c53118cd3b221ae97`; the signer resolves to the selected operator. Record the sealed build ID alongside that hash after release preparation. The key reference is `/root/conc-liq/.env`, variable `WALLET_PRIVATE_KEY`; never copy key bytes into this document or the runtime environment file.
+
+## Prepare and operate a sealed package
+
+Build from a clean reviewed commit with `npm run release:build -- /root/conc-liq-releases` and verify its pinned `bin/node launch.mjs --verify`. The [service template](../../ops/rangekeeper/conc-liq-rangekeeper.service.template) and [runtime template](../../ops/rangekeeper/runtime.env.template) provide an isolated service. A private copy of the AAPL config is prepared at `/root/conc-liq/data/rangekeeper-v1-aapl-live.json` with `broadcastEnabled: true` and mode 0600; it preserves the operator, signer reference, pool identity, 43 legacy IDs, and limits. A private runtime file at `/root/conc-liq/data/rangekeeper-v1-runtime.env` carries `DATABASE_URL`, `RH_ARCHIVE_RPC_URL`, and `RH_BROADCAST_RPC_URL`, also mode 0600. The signing key remains separate and private. Recheck both private files and their hashes before activation.
+
+With `RK_RELEASE` set to the exact sealed path and `RK_CONFIG` to the private config, run these in order. Preflight is read-only and supports `--fork` for the exact current candidate. `init` creates the isolated `rangekeeper_v1` ledger after all gates pass; it does not broadcast. The service runs the same sealed controller every 30 seconds.
 
 ```sh
-/root/conc-liq/.tools/node/bin/node --import tsx \
-  test/integration/rangekeeper-fork.mjs \
-  data/live-pilot-runtime.env config/rangekeeper-v1-aapl-disabled.json 68644757
+RK_RELEASE=/root/conc-liq-releases/BUILD_ID
+RK_CONFIG=/root/conc-liq/data/rangekeeper-v1-aapl-live.json
+RK_RUNTIME=/root/conc-liq/data/rangekeeper-v1-runtime.env
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live preflight "$RK_CONFIG" --fork
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live init "$RK_CONFIG"
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live status "$RK_CONFIG"
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live tick "$RK_CONFIG"
 ```
 
-The optional `force-mint-revert` argument mined a reverted mint after the
-completed entry swap, charged its 266191971255925 wei fork gas once, retained
-the same token balances, then completed the mint and full exit without a second
-entry swap. This checks a concrete failure boundary in the calldata path; a
-durable live controller must still prove the same behavior across a restart.
+Before `init`, confirm `conc-liq-live-pilot.service` is inactive **and disabled**, its saved state is closed/stopped with no pending action, and all 43 NFTs are still retired. Disable the old service only in an authorized cutover. `init` also requires fresh full-wallet allocation, independent references, no pre-existing AAPL/USDG allowances, no pending nonce, passing fork simulation, enough native for the bounded scope and exit, and a matching private signer.
 
-## Reusing the former pilot wallet
-
-The proposed operator is `0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52`.
-The former NVDA live-pilot service was inactive and its saved campaign was
-closed/stopped on September 15. At confirmed block 68,642,776, hash
-`0x285ebadd0b4bcaa2e254f881b99f6f63db6dc1bdb52534f611eab9758945dd54`,
-the wallet owned 43 NFTs, exactly matching the former campaign's retired-ID
-list. Every ID was still owned by the operator with zero liquidity and zero
-owed tokens. USDG was 295170862 raw, AAPL and NVDA were zero, native ETH was
-1113588596335004 wei, the four USDG/AAPL router/manager allowances were zero,
-and the confirmed and pending nonce were both 302. This supports reuse without
-adopting a legacy NFT. Repeat the full check at launch; the saved September 15
-state is historical evidence, not a substitute for a fresh canonical read.
-
-At the independent references observed at block 68,644,757, 240 USD-equivalent
-would allocate at most 240002056 raw USDG from that wallet, leaving 55168806
-raw USDG outside the campaign. The wallet's then-current ETH valued about
-2.9665 USD, below the 10 USD gas allocation ceiling and below the fork's
-complete lifecycle gas spend. Both the raw allocation
-and its reference must be frozen again at the activation block. Existing funds
-count toward the 250 total cap; they are not free extra capital.
-
-Run the bounded read-only inspection with the archive RPC environment file:
+For a requested stop, issue `stop` and keep ticking until `closed`. At expiry the controller requests the same guarded exit. Exit must reconcile withdrawal/Collect, sale of the risky token, allowance revocation, every signed nonce, all retired NFTs, and wallet balances. A halted reverted action needs operator inspection and one explicit recovery choice.
 
 ```sh
-/root/conc-liq/.tools/node/bin/node --import tsx src/rangekeeper.ts inspect \
-  config/rangekeeper-v1-aapl-disabled.json \
-  0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52 \
-  data/live-pilot-runtime.env
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live stop "$RK_CONFIG"
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live recover-exit "$RK_CONFIG"
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live recover-mint "$RK_CONFIG"
+"$RK_RELEASE/bin/node" "$RK_RELEASE/launch.mjs" "$RK_RUNTIME" rangekeeper-live status "$RK_CONFIG"
 ```
 
-The inspector verifies chain identity and independent AAPL, USDG, and ETH
-references at a confirmed block. An initial run at block 68,644,757 reported
-USDG 0.99999143 USD, AAPL 335.52982928 USD, ETH 2663.91445529 USD, and
-reference eligibility. These values can change; an old mark cannot admit a
-later transaction.
-
-A sealed read-only release was built from commit
-`344bb4a2311f6a566c10d8821c1ee3f98c3c7da6`. Its build ID is
-`28fe4c97a8fb34c1cd0bc58a4f5881770c265882aa75fc95cdf7ea3e1416bad6`,
-at `/root/conc-liq-releases/28fe4c97a8fb34c1cd0bc58a4f5881770c265882aa75fc95cdf7ea3e1416bad6`.
-The release verifier passed, and its pinned Node launcher ran the actual
-RangeKeeper inspector against the AAPL profile, which now binds the selected
-operator address. The inspector's config hash was
-`0x5df3daf9ba8d56eaf54f854bd1e2353b34212cadae66d2ea1646b76a3808e540`.
-At its confirmed block 68,657,351, hash
-`0x6e77487ea4f6027661d4fb5955e163415992312e9f77d30d2f1b1175788a566b`,
-the wallet still had 295170862 raw USDG,
-zero AAPL, 1113588596335004 wei, 43 NFTs, nonce 302, and zero relevant
-allowances. This release contains no live controller; verification only proves
-that the sealed read-only path works.
-
-That block's base fee was 49498000 wei. At the estimator's 25% fee margin,
-its 1,130,000-unit entry bound is 69915925000000 wei and its complete-exit
-reserve remains the larger configured floor of 1000000000000000 wei. The
-observed 1113588596335004-wei balance clears that provisional sum by only
-43672671335004 wei. A fresh stage estimate, current fee, and custody check
-must govern any future launch; the fork's approximately 1-gwei gas prices are
-not a claim about current chain fees.
-
-## Launch record and remaining gates
-
-Proposed campaign: one AAPL/USDG pool, this existing operator, at most 240 USD
-of strategy inventory plus 10 USD of native gas value, with no separate probe
-budget. Existing signer reference is an environment-file key at
-`/root/conc-liq/.env` under `WALLET_PRIVATE_KEY`; no key bytes belong in this
-record. Proposed initial scope is 12 hours, at most one entry and one ordinary
-recenter, plus the necessary guarded exit/cleanup. The four-recenter config
-ceiling is an outer safety cap; the first campaign would have the tighter
-two-action scope. At expiry, request guarded unwind and prove wallet, NFT,
-allowances, nonce, and receipt costs before recording closure.
-
-This launch record is **not yet runnable**. The generic signer/controller/store
-integration, wallet-level lock across the former pilot, live per-stage cost and
-exit-reserve estimator, receipt-backed custody reconciliation and accounting,
-crash/revert recovery, controller-driven exact-pool fork lifecycle, live sealed
-release, and service definition are still required. Existing research stage
-splits are borrowed and
-cannot establish these costs. The current config rejects `broadcastEnabled=true`.
-No funding, approvals, transactions, service changes, or campaign state were
-performed while preparing this record. Keep the old pilot stopped during any
-future RangeKeeper operation on the same wallet.
+The scope covers the first bounded cost-probe entry, any one admitted recenter, and a complete exit. Record canonical transaction hashes, receipt costs, balances, LP NFT identity, allowances, remaining limits, and net P&L versus frozen initial strategy inventory before calling it closed. A signed pending intent, missing independent valuation, unknown transfer, or incomplete Collect is a custody block, never a reason to force a fresh nonce or mark an exit complete.

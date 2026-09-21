@@ -25,16 +25,18 @@ export interface RangeKeeperCostEnvelope {
  * revocations are budgeted even if an observed allowance lets one be skipped.
  * Swap fee and independent-reference shortfall are charged once. */
 export function rangeKeeperCostEnvelope(input:{
- candidate:RangeKeeperCandidate;limits:RangeKeeperLimits;baseFeePerGasWei:bigint;
+ candidate:RangeKeeperCandidate;limits:RangeKeeperLimits;baseFeePerGasWei:bigint;marketGasPriceWei:bigint;
  nativePriceValue:bigint;existingPosition:boolean;poolAddress:Address;
 }):RangeKeeperCostEnvelope {
  const {candidate:c,limits:l}=input,u=rangeKeeperForkGasUnits;
  assert.equal(input.poolAddress.toLowerCase(),AAPL_POOL.toLowerCase(),'No fork gas evidence for this pool');
- assert(input.baseFeePerGasWei>0n&&input.nativePriceValue>0n,'Fresh fee and native reference required');
+ assert(input.baseFeePerGasWei>0n&&input.marketGasPriceWei>0n&&input.nativePriceValue>0n,
+  'Fresh fee and native reference required');
  assert(c.swap===null||c.swap.feeValue>=0n&&c.swap.shortfallValue>=0n);
  // A 25% next-block fee margin. A higher future base fee must stop submission
  // and require a new envelope; the controller must never silently increase it.
- const fee=ceil(input.baseFeePerGasWei*5n,4n);
+ const marketFee=input.marketGasPriceWei>input.baseFeePerGasWei?input.marketGasPriceWei:input.baseFeePerGasWei;
+ const fee=ceil(marketFee*5n,4n);
  const actionUnits=(input.existingPosition?u.withdrawCollect:0n)+u.approval*2n+u.mint+
   (c.swap?u.approval+u.swap:0n);
  const exitUnits=u.withdrawCollect+u.approval+u.swap+u.cleanupApproval*4n;

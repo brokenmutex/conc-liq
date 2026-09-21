@@ -1,0 +1,19 @@
+[Unit]
+Description=RangeKeeper v1.0.0 bounded AAPL/USDG campaign
+After=network-online.target postgresql.service
+Wants=network-online.target
+Conflicts=conc-liq-live-pilot.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/conc-liq-releases/@BUILD_ID@
+ExecStart=/root/conc-liq-releases/@BUILD_ID@/bin/node /root/conc-liq-releases/@BUILD_ID@/launch.mjs /root/conc-liq/data/rangekeeper-v1-runtime.env rangekeeper-live run /root/conc-liq/data/rangekeeper-v1-aapl-live.json
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=30
+NoNewPrivileges=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

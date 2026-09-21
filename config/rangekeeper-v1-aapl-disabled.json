@@ -4,6 +4,9 @@
   "strategyVersion": "1.0.0",
   "broadcastEnabled": false,
   "operator": "0xdCC9348Ade9cA0A13249a44a63Db5411A8e72D52",
+  "signer": {"kind":"env_file","reference":"/root/conc-liq/.env","variable":"WALLET_PRIVATE_KEY"},
+  "legacyRetiredTokenIds": ["1145652","1145825","1146039","1146281","1146461","1146954","1151380","1152065","1152397","1153147","1153164","1153654","1154552","1155292","1156147","1159108","1159293","1159311","1159476","1160438","1162154","1162225","1162294","1162743","1162908","1163237","1163816","1164023","1164035","1164340","1164488","1164688","1164733","1167525","1168753","1169167","1171023","1171366","1171433","1171896","1171979","1175747","1176212"],
+  "campaignScope": {"maxDurationSeconds":43200,"maxEconomicActions":2},
   "pool": {
     "chainId": 4663,
     "factory": "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
@@ -30,9 +33,9 @@
   },
   "limits": {
     "fullWidthSpacings": 20,
-    "maxDeploymentValue": "200000000000000000000",
-    "minDeploymentPpm": 400000,
-    "maxSwapInputValue": "100000000000000000000",
+    "maxDeploymentValue": "300000000000000000000",
+    "minDeploymentPpm": 900000,
+    "maxSwapInputValue": "150000000000000000000",
     "maxSwapInputPpm": 500000,
     "maxSwapShortfallValue": "2000000000000000000",
     "maxSlippageBps": 50,
@@ -53,7 +56,7 @@
     "nativeMaxAgeSeconds": 86400,
     "maxPoolDeviationPpm": 50000
   },
-  "campaignValue": "250000000000000000000",
-  "strategyFundingValue": "240000000000000000000",
+  "campaignValue": "310000000000000000000",
+  "strategyFundingValue": "300000000000000000000",
   "nativeFundingValue": "10000000000000000000"
 }
