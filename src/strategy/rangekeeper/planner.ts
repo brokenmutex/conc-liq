@@ -10,15 +10,30 @@ const remaining=(limit:bigint,spent:bigint)=>limit>spent?limit-spent:0n;
 export const rawValue=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
 const affordableRaw=(value:bigint,price:bigint,decimals:number)=>value*10n**BigInt(decimals)/price;
 
-/** A full even span centered on the floor-aligned current tick. */
+/** A full even span centered on the nearest usable tick. */
 export function rangeKeeperRange(tick:number,spacing:number,fullWidthSpacings:number){
  assert(Number.isSafeInteger(tick)&&Number.isSafeInteger(spacing)&&spacing>0);
  assert(Number.isSafeInteger(fullWidthSpacings)&&fullWidthSpacings>0&&fullWidthSpacings%2===0);
- const anchor=Math.floor(tick/spacing)*spacing,half=fullWidthSpacings/2;
+ const anchor=Math.round(tick/spacing)*spacing,half=fullWidthSpacings/2;
  const tickLower=anchor-half*spacing,tickUpper=anchor+half*spacing;
  assert(tickLower>=MIN_TICK&&tickUpper<=MAX_TICK,'rangekeeper_tick_bounds');
  assert(tick>=tickLower&&tick<tickUpper,'rangekeeper_centered_range_missed_price');
  return {tickLower,tickUpper};
+}
+
+/** Size a mint from available inventory while keeping deployed LP under its cap. */
+export function sizeRangeKeeperMint(price:bigint,range:{tickLower:number;tickUpper:number},
+ amount0:bigint,amount1:bigint,price0:bigint,price1:bigint,decimals0:number,decimals1:number,cap:bigint){
+ let desired0=amount0,desired1=amount1;
+ let mint=replayPaperMint(price,range,desired0,desired1,0n);
+ let deployed=rawValue(mint.amount0,price0,decimals0)+rawValue(mint.amount1,price1,decimals1);
+ if(deployed>cap){
+  const fraction=cap*PPM/deployed;
+  desired0=desired0*fraction/PPM;desired1=desired1*fraction/PPM;
+  mint=replayPaperMint(price,range,desired0,desired1,0n);
+  deployed=rawValue(mint.amount0,price0,decimals0)+rawValue(mint.amount1,price1,decimals1);
+ }
+ return {desired0,desired1,mint,deployed};
 }
 
 export interface SwapQuote {
@@ -47,7 +62,8 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  const wallet0=o.wallet0+o.released0,wallet1=o.wallet1+o.released1;
  const total=rawValue(wallet0,p0,d0)+rawValue(wallet1,p1,d1);
  const fraction=total>l.maxDeploymentValue?l.maxDeploymentValue*PPM/total:PPM;
- // The cap is fixed at campaign creation. Token surplus remains idle inventory.
+ // No-swap entry uses the capped allocation. Swaps may use wallet surplus;
+ // the mint itself is separately capped below.
  const base0=wallet0*fraction/PPM,base1=wallet1*fraction/PPM;
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/PPM;
  // A swap sized to the exact hard floor has no room for quote or pool movement
@@ -56,24 +72,24 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  const sizingFloor=max(floor,l.maxDeploymentValue*998_000n/PPM);
  const evaluate=(a0:bigint,a1:bigint,price:bigint)=>{
   if(price<=sqrtRatioAtTick(range.tickLower)||price>=sqrtRatioAtTick(range.tickUpper))return null;
-  const m=replayPaperMint(price,range,a0,a1,0n);
-  if(m.liquidity===0n)return null;
-  const deployed=rawValue(m.amount0,p0,d0)+rawValue(m.amount1,p1,d1);
-  return {m,deployed,feasible:deployed>=floor&&deployed<=l.maxDeploymentValue};
+  const sized=sizeRangeKeeperMint(price,range,a0,a1,p0,p1,d0,d1,l.maxDeploymentValue);
+  if(sized.mint.liquidity===0n)return null;
+  return {...sized,feasible:sized.deployed>=floor&&sized.deployed<=l.maxDeploymentValue};
  };
  const initial=evaluate(base0,base1,o.sqrtPriceX96);
  const make=(a0:bigint,a1:bigint,price:bigint,swap:RangeKeeperCandidate['swap']):RangeKeeperCandidate|null=>{
   const r=evaluate(a0,a1,price);if(!r?.feasible||swap&&r.deployed<sizingFloor)return null;
   const haircut=10_000n-BigInt(l.maxSlippageBps);
-  return {kind,range,swap,amount0Desired:a0,amount1Desired:a1,
-   amount0Min:r.m.amount0*haircut/10_000n,amount1Min:r.m.amount1*haircut/10_000n,
-   liquidity:r.m.liquidity,deployedValue:r.deployed,sourceBlock:o.block,sourceHash:o.hash,expiresAt:o.timestamp+90};
+  return {kind,range,swap,amount0Desired:r.desired0,amount1Desired:r.desired1,
+   amount0Min:r.mint.amount0*haircut/10_000n,amount1Min:r.mint.amount1*haircut/10_000n,
+   liquidity:r.mint.liquidity,deployedValue:r.deployed,sourceBlock:o.block,sourceHash:o.hash,expiresAt:o.timestamp+90};
  };
  if(initial?.feasible)return make(base0,base1,o.sqrtPriceX96,null);
- // The token left idle by the exact no-swap mint is the only allowed input.
- const idle0=initial?.m.idle0??base0,idle1=initial?.m.idle1??base1;
+ // The capped no-swap mint identifies the surplus leg. The swap may draw
+ // from full strategy inventory, while the eventual mint remains capped.
+ const idle0=initial?.mint.idle0??base0,idle1=initial?.mint.idle1??base1;
  const token:0|1=rawValue(idle0,p0,d0)>rawValue(idle1,p1,d1)?0:1;
- const available=token===0?base0:base1,priceIn=token===0?p0:p1,decimalsIn=token===0?d0:d1;
+ const available=token===0?wallet0:wallet1,priceIn=token===0?p0:p1,decimalsIn=token===0?d0:d1;
  if(available===0n)return null;
  const bound=min(available*BigInt(l.maxSwapInputPpm)/PPM,affordableRaw(l.maxSwapInputValue,priceIn,decimalsIn));
  if(bound===0n)return null;
@@ -94,8 +110,8 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
   // Sub-token dust may quote zero output. It cannot fund active liquidity,
   // but it is a valid lower search bound on a pool with unequal decimals.
   if(q.amountOut===0n){const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;}
-  const next0=token===0?base0-amount:base0+q.amountOut;
-  const next1=token===1?base1-amount:base1+q.amountOut;
+  const next0=token===0?wallet0-amount:wallet0+q.amountOut;
+  const next1=token===1?wallet1-amount:wallet1+q.amountOut;
   if(next0<0n||next1<0n){const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;}
   if(q.priceAfter<=sqrtRatioAtTick(range.tickLower)||q.priceAfter>=sqrtRatioAtTick(range.tickUpper)){
    const result={candidate:null,deployed:0n};evaluated.set(amount,result);return result;

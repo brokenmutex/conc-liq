@@ -53,8 +53,9 @@ test('two chain profiles parse with explicit addresses, decimals, costs, and a s
  }
 });
 test('centered fixed span handles negative ticks and rejects bounds',()=>{
- assert.deepEqual(rangeKeeperRange(-1,10,20),{tickLower:-110,tickUpper:90});
+ assert.deepEqual(rangeKeeperRange(-1,10,20),{tickLower:-100,tickUpper:100});
  assert.deepEqual(rangeKeeperRange(218103,10,4),{tickLower:218080,tickUpper:218120});
+ assert.deepEqual(rangeKeeperRange(218068,10,4),{tickLower:218050,tickUpper:218090});
  assert.throws(()=>rangeKeeperRange(887270,10,20),/tick_bounds/);
 });
 test('entry uses exact inventory without swap and requires two distinct observations',async()=>{

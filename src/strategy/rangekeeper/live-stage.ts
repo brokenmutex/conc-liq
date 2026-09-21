@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import {sqrtRatioAtTick} from '../../backtest/principal.js';
 import {principalAmounts} from '../../backtest/principal.js';
-import {replayPaperMint} from '../../research/management-audit.js';
 import {strategyBalances} from './funding.js';
-import {rawValue} from './planner.js';
+import {sizeRangeKeeperMint} from './planner.js';
 import type {RangeKeeperConfig} from './config.js';
 import type {RangeKeeperChain} from './chain.js';
 import type {RangeKeeperTxPlan} from './calldata.js';
@@ -86,19 +85,13 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
    throw new RangeKeeperStaleCandidateError('Current swap quote is unavailable or too costly');
   if(quote.priceAfter<=sqrtRatioAtTick(c.range.tickLower)||quote.priceAfter>=sqrtRatioAtTick(c.range.tickUpper))
    throw new RangeKeeperStaleCandidateError('Current swap would leave the approved range');
-  // The planner spends from the capped allocation, leaving wallet surplus idle.
-  // Rescaling the whole wallet after the swap changes the planned token ratio.
-  const inventoryValue=rawValue(funds.amount0,prices.price0,p.decimals0)+rawValue(funds.amount1,prices.price1,p.decimals1);
-  const fraction=inventoryValue>l.maxDeploymentValue?l.maxDeploymentValue*1_000_000n/inventoryValue:1_000_000n;
-  const base0=funds.amount0*fraction/1_000_000n,base1=funds.amount1*fraction/1_000_000n;
-  if(c.swap.amountIn>(c.swap.token===0?base0:base1))
-   throw new RangeKeeperStaleCandidateError('Frozen swap exceeds capped allocation');
-  const after0=c.swap.token===0?base0-c.swap.amountIn:base0+quote.amountOut;
-  const after1=c.swap.token===1?base1-c.swap.amountIn:base1+quote.amountOut;
-  const projected=replayPaperMint(quote.priceAfter,c.range,after0,after1,0n);
-  const projectedValue=rawValue(projected.amount0,prices.price0,p.decimals0)+rawValue(projected.amount1,prices.price1,p.decimals1);
-  if(projectedValue<l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n||
-   projectedValue>l.maxDeploymentValue)
+  const after0=c.swap.token===0?funds.amount0-c.swap.amountIn:funds.amount0+quote.amountOut;
+  const after1=c.swap.token===1?funds.amount1-c.swap.amountIn:funds.amount1+quote.amountOut;
+  const projected=sizeRangeKeeperMint(quote.priceAfter,c.range,after0,after1,
+   prices.price0,prices.price1,p.decimals0,p.decimals1,l.maxDeploymentValue);
+  if(projected.mint.liquidity===0n||
+   projected.deployed<l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n||
+   projected.deployed>l.maxDeploymentValue)
    throw new RangeKeeperStaleCandidateError('Current quote cannot fund approved range');
   // Approve both mint legs before the swap. At a 40-tick width, waiting for
   // manager approvals after the swap cost the historical mint its feasible
@@ -128,17 +121,11 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
  // After a completed swap, use the actual strategy inventory in this same
  // range. Idle USDG can rescue a narrow mint as the token ratio moves; the
  // cap below still prevents more than $250 from entering LP.
- let desired0=c.swap?funds.amount0:c.amount0Desired;
- let desired1=c.swap?funds.amount1:c.amount1Desired;
- assert(desired0<=funds.amount0&&desired1<=funds.amount1,'Frozen mint allocation unavailable');
- let mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
- let deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
- if(deployed>l.maxDeploymentValue){
-  const fraction=l.maxDeploymentValue*1_000_000n/deployed;
-  desired0=desired0*fraction/1_000_000n;desired1=desired1*fraction/1_000_000n;
-  mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
-  deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
- }
+ const available0=c.swap?funds.amount0:c.amount0Desired;
+ const available1=c.swap?funds.amount1:c.amount1Desired;
+ assert(available0<=funds.amount0&&available1<=funds.amount1,'Frozen mint allocation unavailable');
+ const {desired0,desired1,mint,deployed}=sizeRangeKeeperMint(s.sqrtPriceX96,c.range,available0,available1,
+  prices.price0,prices.price1,p.decimals0,p.decimals1,l.maxDeploymentValue);
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n;
  if(mint.liquidity===0n||deployed<floor||deployed>l.maxDeploymentValue)
   throw new RangeKeeperMintUnavailableError('Repriced mint misses deployment bounds');
