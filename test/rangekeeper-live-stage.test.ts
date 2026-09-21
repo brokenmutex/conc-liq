@@ -67,3 +67,38 @@ test('an approval delay refreshes the same approved swap amount from a canonical
   assert.equal(plan.deadline,800n);
  }
 });
+test('a capped swap keeps wallet surplus outside both staging and mint sizing',async()=>{
+ const capped={...config,limits:{...config.limits,maxDeploymentValue:250n*10n**18n,minDeploymentPpm:980000}};
+ const source={block:2n,hash:`0x${'22'.repeat(32)}` as const,timestamp:500};
+ const candidate={kind:'entry' as const,range:{tickLower:218050,tickUpper:218250},
+  swap:{token:0 as const,amountIn:128866313n,quotedOut:383538180808486242n,
+   minOut:381620489904443810n,priceAfter:4323357006059969185046779627547153n,
+   feeValue:64432604307848795n,shortfallValue:72748885621983026n},
+  amount0Desired:121135770n,amount1Desired:383538180808486242n,
+  amount0Min:115691606n,amount1Min:381620489904443689n,
+  liquidity:1340762399459297n,deployedValue:245000001666406247232n,
+  sourceBlock:1n,sourceHash:`0x${'11'.repeat(32)}` as const,expiresAt:90};
+ const state={phase:'entry',candidate,swapDone:false,activeTokenId:null,
+  reserve0:0n,reserve1:0n,reserveNativeWei:0n} as RangeKeeperLiveState;
+ const allowances=[{token:p.token0,spender:p.router,amount:0n},
+  {token:p.token0,spender:p.positionManager,amount:0n},
+  {token:p.token1,spender:p.router,amount:0n},
+  {token:p.token1,spender:p.positionManager,amount:0n}];
+ const before={source,operator:config.operator!,wallet0:275170862n,wallet1:0n,
+  nativeWei:10n**16n,position:null,tick:218155,sqrtPriceX96:candidate.swap.priceAfter,
+  allowances} as RangeKeeperSnapshot;
+ const chain={quote:async()=>({...candidate.swap,amountOut:candidate.swap.quotedOut,
+  sourceBlock:source.block,sourceHash:source.hash})} as unknown as RangeKeeperChain;
+ const livePrices={price0,price1:335632887590000000000n};
+ const approval=await nextRangeKeeperStage(state,before,capped,chain,livePrices);
+ assert.equal(approval?.kind,'approve');
+ if(approval?.kind==='approve')assert.equal(approval.amount,candidate.swap.amountIn);
+ const after={...before,wallet0:before.wallet0-candidate.swap.amountIn,
+  wallet1:candidate.swap.quotedOut};
+ const mintApproval=await nextRangeKeeperStage({...state,swapDone:true},after,capped,chain,livePrices);
+ assert.equal(mintApproval?.kind,'approve');
+ if(mintApproval?.kind==='approve'){
+  assert.equal(mintApproval.spender,'positionManager');
+  assert.equal(mintApproval.amount,candidate.amount0Desired);
+ }
+});

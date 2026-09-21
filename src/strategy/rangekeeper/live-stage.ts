@@ -11,6 +11,7 @@ import type {RangeKeeperLiveState,RangeKeeperSnapshot} from './live-domain.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const haircut=(n:bigint,bps:number)=>n*(10_000n-BigInt(bps))/10_000n;
+export class RangeKeeperStaleCandidateError extends Error {}
 
 export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKeeperSnapshot,
  config:RangeKeeperConfig,chain:RangeKeeperChain,prices:{price0:bigint;price1:bigint}):Promise<RangeKeeperTxPlan|null>{
@@ -77,18 +78,24 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   // amount/range stay frozen, but output and price impact must be requoted at
   // every canonical submission source.
   const quote=await chain.quote(s.source,c.swap.token,c.swap.amountIn,prices.price0,prices.price1);
-  assert(quote.amountOut>0n&&quote.shortfallValue<=l.maxSwapShortfallValue,
-   'Current swap quote is unavailable or too costly');
-  assert(quote.priceAfter>sqrtRatioAtTick(c.range.tickLower)&&quote.priceAfter<sqrtRatioAtTick(c.range.tickUpper),
-   'Current swap would leave the approved range');
-  const after0=c.swap.token===0?funds.amount0-c.swap.amountIn:funds.amount0+quote.amountOut;
-  const after1=c.swap.token===1?funds.amount1-c.swap.amountIn:funds.amount1+quote.amountOut;
-  const value=rawValue(after0,prices.price0,p.decimals0)+rawValue(after1,prices.price1,p.decimals1);
-  const fraction=value>l.maxDeploymentValue?l.maxDeploymentValue*1_000_000n/value:1_000_000n;
-  const projected=replayPaperMint(quote.priceAfter,c.range,after0*fraction/1_000_000n,after1*fraction/1_000_000n,0n);
+  if(quote.amountOut<=0n||quote.shortfallValue>l.maxSwapShortfallValue)
+   throw new RangeKeeperStaleCandidateError('Current swap quote is unavailable or too costly');
+  if(quote.priceAfter<=sqrtRatioAtTick(c.range.tickLower)||quote.priceAfter>=sqrtRatioAtTick(c.range.tickUpper))
+   throw new RangeKeeperStaleCandidateError('Current swap would leave the approved range');
+  // The planner spends from the capped allocation, leaving wallet surplus idle.
+  // Rescaling the whole wallet after the swap changes the planned token ratio.
+  const inventoryValue=rawValue(funds.amount0,prices.price0,p.decimals0)+rawValue(funds.amount1,prices.price1,p.decimals1);
+  const fraction=inventoryValue>l.maxDeploymentValue?l.maxDeploymentValue*1_000_000n/inventoryValue:1_000_000n;
+  const base0=funds.amount0*fraction/1_000_000n,base1=funds.amount1*fraction/1_000_000n;
+  if(c.swap.amountIn>(c.swap.token===0?base0:base1))
+   throw new RangeKeeperStaleCandidateError('Frozen swap exceeds capped allocation');
+  const after0=c.swap.token===0?base0-c.swap.amountIn:base0+quote.amountOut;
+  const after1=c.swap.token===1?base1-c.swap.amountIn:base1+quote.amountOut;
+  const projected=replayPaperMint(quote.priceAfter,c.range,after0,after1,0n);
   const projectedValue=rawValue(projected.amount0,prices.price0,p.decimals0)+rawValue(projected.amount1,prices.price1,p.decimals1);
-  assert(projectedValue>=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n&&
-   projectedValue<=l.maxDeploymentValue,'Current quote cannot fund approved range');
+  if(projectedValue<l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n||
+   projectedValue>l.maxDeploymentValue)
+   throw new RangeKeeperStaleCandidateError('Current quote cannot fund approved range');
   const approval=grant(c.swap.token,'router',c.swap.amountIn);if(approval)return approval;
   return {kind:'swap',token:c.swap.token,amountIn:c.swap.amountIn,
    minOut:haircut(quote.amountOut,l.maxSlippageBps),deadline};
@@ -98,9 +105,11 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
  // A stage can take longer than the 90-second confirmation window. Once a
  // swap or withdrawal has changed custody, reprice only this same range and
  // never repeat a completed swap to restore a guessed ratio.
- const inventoryValue=rawValue(funds.amount0,prices.price0,p.decimals0)+rawValue(funds.amount1,prices.price1,p.decimals1);
- const fraction=inventoryValue>l.maxDeploymentValue?l.maxDeploymentValue*1_000_000n/inventoryValue:1_000_000n;
- const desired0=funds.amount0*fraction/1_000_000n,desired1=funds.amount1*fraction/1_000_000n;
+ // Preserve the approved capped inventory after a swap. In particular, the
+ // unspent wallet surplus must not dilute the acquired leg at mint time.
+ const desired0=c.swap?(funds.amount0<c.amount0Desired?funds.amount0:c.amount0Desired):c.amount0Desired;
+ const desired1=c.swap?(funds.amount1<c.amount1Desired?funds.amount1:c.amount1Desired):c.amount1Desired;
+ assert(desired0<=funds.amount0&&desired1<=funds.amount1,'Frozen mint allocation unavailable');
  const mint=replayPaperMint(s.sqrtPriceX96,c.range,desired0,desired1,0n);
  const deployed=rawValue(mint.amount0,prices.price0,p.decimals0)+rawValue(mint.amount1,prices.price1,p.decimals1);
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/1_000_000n;

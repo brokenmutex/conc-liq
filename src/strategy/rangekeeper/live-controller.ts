@@ -13,7 +13,7 @@ import {type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSna
 import {readRangeKeeperReferences} from './reference.js';
 import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
-import {nextRangeKeeperStage} from './live-stage.js';
+import {nextRangeKeeperStage,RangeKeeperStaleCandidateError} from './live-stage.js';
 import {planRangeKeeper,rawValue} from './planner.js';
 import {rangeKeeperCostEnvelope,assertRangeKeeperStageGas,rangeKeeperForkGasUnits} from './cost.js';
 import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from './calldata.js';
@@ -426,7 +426,16 @@ export class RangeKeeperLiveController {
     if(preview.action==='safety_exit'){s.phase='exit';s.desired='stopped';}}
   }
   if(s.phase==='exit'||s.phase==='entry'||s.phase==='recenter'||s.phase==='holding'){
-   const stage=await nextRangeKeeperStage(s,snapshot,this.config,this.chain,prices);
+   let stage:RangeKeeperTxPlan|null;
+   try{stage=await nextRangeKeeperStage(s,snapshot,this.config,this.chain,prices);}
+   catch(error){
+    if(!(error instanceof RangeKeeperStaleCandidateError)||s.phase!=='entry'||s.swapDone||s.withdrawDone)throw error;
+    // No swap or withdrawal changed custody. Discard the proposal and require
+    // two fresh observations before any transaction is prepared.
+    s.candidate=null;s.policy.confirmation=null;s.lastReason='stale_entry_quote';
+    await this.store.save(db,s,s.lastReason);
+    return {status:s.lastReason,state:s};
+   }
    if(stage){await this.store.save(db,s,s.lastReason);return {status:'submitted',
     result:await this.submit(db,s,snapshot,stage,{...prices,nativePrice:refs.nativePrice}),state:s};}
    if(s.phase==='exit'){
