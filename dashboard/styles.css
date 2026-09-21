@@ -3,4 +3,20 @@
 [hidden]{display:none!important}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:300px;overflow:auto}.activity-list time{min-width:112px}.fact-row strong{overflow-wrap:anywhere}.badge.recentring,.badge.exiting{color:var(--amber);border-color:#6a5130}.sample-clock{font-variant-numeric:tabular-nums}.session-note{flex-wrap:wrap}.invalid-message{overflow-wrap:anywhere}#connection-banner{justify-content:center}.chart path{vector-effect:non-scaling-stroke}
 
 .badge.halted{color:var(--red);border-color:#8d4550;background:#3b2029}
-.rangekeeper-note{color:var(--muted);font-size:12px;line-height:1.6;margin:18px 0}.position-detail>.detail-bottom>h3{padding:16px 0 10px}
+.rangekeeper-detail .metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 0}
+.rangekeeper-detail .metric{min-width:0;padding:0 16px}
+.rangekeeper-detail .metric:first-child,.rangekeeper-detail .metric:nth-child(4){padding-left:0}
+.rangekeeper-detail .metric-value{font-size:clamp(16px,1.6vw,22px);white-space:normal;overflow-wrap:anywhere}
+.rangekeeper-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 28px;margin-top:18px}
+.rangekeeper-facts .fact-row{min-width:0}
+.rangekeeper-note{color:var(--muted);font-size:12px;line-height:1.6;margin:18px 0}
+.rangekeeper-receipts{border-top:1px solid var(--border);padding:16px 0 18px}
+.rangekeeper-receipts summary{cursor:pointer;font-size:13px;font-weight:600;list-style-position:inside}
+.rangekeeper-receipts summary .muted{font-size:11px;font-weight:400;margin-left:8px}
+.rangekeeper-receipts ul{list-style:none;padding:0;margin:10px 0 0}
+.rangekeeper-receipts li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:center;border-top:1px solid var(--border);padding:9px 0;font-size:11px}
+.rangekeeper-receipts li span{min-width:0}
+.rangekeeper-receipts li small{display:block;color:var(--muted);margin-top:3px}
+.rangekeeper-receipts li code{color:var(--muted);font-size:11px;overflow-wrap:anywhere;text-align:right}
+@media(max-width:800px){.rangekeeper-detail .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rangekeeper-detail .metric{padding:0 12px}.rangekeeper-detail .metric:nth-child(odd){padding-left:0}.rangekeeper-detail .metric:nth-child(even){padding-right:0}.rangekeeper-detail .metric-value{font-size:18px}}
+@media(max-width:600px){.masthead{height:auto;flex-wrap:wrap;padding:16px 0;gap:14px}.masthead nav{order:3;width:100%;gap:16px;overflow-x:auto;white-space:nowrap}.rangekeeper-facts{grid-template-columns:1fr}.rangekeeper-receipts li{grid-template-columns:1fr}.rangekeeper-receipts li code{text-align:left}}
