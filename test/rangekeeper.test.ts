@@ -6,6 +6,7 @@ import {replayPaperMint} from '../src/research/management-audit.js';
 import {assertRangeKeeperState,initialRangeKeeperState,parseRangeKeeperConfig} from '../src/strategy/rangekeeper/config.js';
 import {parseRangeKeeperState,serializeRangeKeeperState} from '../src/strategy/rangekeeper/state.js';
 import {applyRangeKeeperStageReceipt,type RangeKeeperStageLedger} from '../src/strategy/rangekeeper/stages.js';
+import {assertRangeKeeperStageGas,rangeKeeperCostEnvelope} from '../src/strategy/rangekeeper/cost.js';
 import {allocateRangeKeeperFunding,strategyBalances} from '../src/strategy/rangekeeper/funding.js';
 import {planRangeKeeper,rangeKeeperRange,rawValue,type RangeKeeperPlannerInput} from '../src/strategy/rangekeeper/planner.js';
 import type {RangeKeeperObservation} from '../src/strategy/rangekeeper/domain.js';
@@ -120,6 +121,21 @@ test('ordinary action requires every cost budget, reference, and native exit res
  assert.equal((await planRangeKeeper(input(observation({nativeWei:unit/100n})))).reason,'native_exit_reserve');
  assert.equal((await planRangeKeeper(input(observation({requiredExitReserveWei:null})))).reason,'complete_exit_reserve_unavailable');
  assert.equal((await planRangeKeeper(input(observation({nativePrice:null})))).reason,'independent_reference_unavailable');
+});
+test('first-pool cost envelope prices complete entry and exit at a fresh bounded fee',async()=>{
+ const proposal=await planRangeKeeper(input(observation({wallet0:200n*unit,wallet1:0n})));
+ assert(proposal.candidate?.swap);
+ const envelope=rangeKeeperCostEnvelope({candidate:proposal.candidate,limits:config.limits,
+  poolAddress:'0xAae0d815EE56e4092a5E5C2911E676Fea50B2d6D',
+  baseFeePerGasWei:1_000_000_000n,nativePriceValue:2_664n*unit,existingPosition:false});
+ assert.equal(envelope.actionGasUnits,1_130_000n);
+ assert.equal(envelope.completeExitGasUnits,900_000n);
+ assert.equal(envelope.maxFeePerGasWei,1_250_000_000n);
+ assert(envelope.requiredExitReserveWei>=1_125_000_000_000_000n);
+ assert.throws(()=>rangeKeeperCostEnvelope({candidate:proposal.candidate!,limits:config.limits,
+  poolAddress:config.pool.pool,baseFeePerGasWei:1_000_000_000n,nativePriceValue:2_664n*unit,existingPosition:false}),/No fork gas evidence/);
+ assertRangeKeeperStageGas('mint',470_694n);
+ assert.throws(()=>assertRangeKeeperStageGas('mint',650_001n),/gas_bound/);
 });
 test('reverted and successful canonical receipts are each charged exactly once',()=>{
  const ledger:RangeKeeperStageLedger={stage:'swap',completedHashes:[],gasSpentWei:0n,costSpentValue:0n,
