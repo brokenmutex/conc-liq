@@ -49,12 +49,20 @@ The proposed full width is 20 spacings, or 200 ticks. Maximum deployment is
 200 USD, the minimum is 40% of that cap, the optional swap input is at most
 100 USD and 50% of available input inventory, and swap shortfall is at most
 2 USD. Slippage is at most 50 bps. The proposed action, rolling 24-hour, and
-campaign cost ceilings are 3, 6, and 8 USD; maximum risky-token exposure is
+campaign cost ceilings are 5, 10, and 15 USD; maximum risky-token exposure is
 95%, loss 20 USD, drawdown 10%, and ordinary recenter count four. The configured
 0.001 ETH floor for exit reserve exceeds the pinned-fork complete-exit spend
 of 0.000577761514159717 ETH. It is still a fork estimate rather than a live
 guarantee: the planner also requires a fresh, higher current estimate when needed.
-These are bounded operating choices, not tuned profitability results.
+These are bounded operating choices, not tuned profitability results. The
+5/10/15 cost ceilings allow a fresh conservative gas envelope above the exact
+fork receipts; they do not themselves prove a live action is affordable. The
+first-pool estimator budgets 80k gas per approval, 240k per swap, 650k for
+mint, 300k for withdrawal/Collect, and 70k per cleanup approval, all above
+the corresponding fork uses. It binds those estimates to this AAPL pool and
+uses a fresh base-fee cap with a 25% margin. If a stage estimate exceeds its
+bound or the aggregate action and complete-exit reserve cannot fit the native
+allocation, admission fails. No equivalent NVDA gas profile is admitted.
 
 Read-only chain verification at block 68,638,898, hash
 `0x526aad262956c46aeb954fb4bb3e4a502e53d58f6f61688d41b074dd2d373dfe`,
@@ -124,25 +132,33 @@ Run the bounded read-only inspection with the archive RPC environment file:
 ```
 
 The inspector verifies chain identity and independent AAPL, USDG, and ETH
-references at a confirmed block. The last run at block 68,644,757 reported
+references at a confirmed block. An initial run at block 68,644,757 reported
 USDG 0.99999143 USD, AAPL 335.52982928 USD, ETH 2663.91445529 USD, and
 reference eligibility. These values can change; an old mark cannot admit a
 later transaction.
 
 A sealed read-only release was built from commit
-`b9a01ac6379d1569bb6d6f8b16383099f227c887`. Its build ID is
-`004a2ef664786aeddd7c04b721ffeb14f430ecb8f37d7c2d8c2ccaa4009b6507`,
-at `/root/conc-liq-releases/004a2ef664786aeddd7c04b721ffeb14f430ecb8f37d7c2d8c2ccaa4009b6507`.
+`344bb4a2311f6a566c10d8821c1ee3f98c3c7da6`. Its build ID is
+`28fe4c97a8fb34c1cd0bc58a4f5881770c265882aa75fc95cdf7ea3e1416bad6`,
+at `/root/conc-liq-releases/28fe4c97a8fb34c1cd0bc58a4f5881770c265882aa75fc95cdf7ea3e1416bad6`.
 The release verifier passed, and its pinned Node launcher ran the actual
 RangeKeeper inspector against the AAPL profile, which now binds the selected
 operator address. The inspector's config hash was
-`0x900beb36c7116dfb9585592685e689d1bb6b5ef6d50dfcb0917b8e5cff302b77`.
-At its confirmed block 68,652,185, hash
-`0xbaac9b3fc0398f521721e770b021c51aa7dc4b921ad3aa17585cf52195d2f885`,
+`0x5df3daf9ba8d56eaf54f854bd1e2353b34212cadae66d2ea1646b76a3808e540`.
+At its confirmed block 68,657,351, hash
+`0x6e77487ea4f6027661d4fb5955e163415992312e9f77d30d2f1b1175788a566b`,
 the wallet still had 295170862 raw USDG,
 zero AAPL, 1113588596335004 wei, 43 NFTs, nonce 302, and zero relevant
 allowances. This release contains no live controller; verification only proves
 that the sealed read-only path works.
+
+That block's base fee was 49498000 wei. At the estimator's 25% fee margin,
+its 1,130,000-unit entry bound is 69915925000000 wei and its complete-exit
+reserve remains the larger configured floor of 1000000000000000 wei. The
+observed 1113588596335004-wei balance clears that provisional sum by only
+43672671335004 wei. A fresh stage estimate, current fee, and custody check
+must govern any future launch; the fork's approximately 1-gwei gas prices are
+not a claim about current chain fees.
 
 ## Launch record and remaining gates
 
