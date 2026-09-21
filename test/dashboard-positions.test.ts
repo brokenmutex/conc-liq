@@ -4,7 +4,7 @@ import {once} from 'node:events';
 import {positionWindow,type PositionPoint} from '../src/dashboard/position-performance.js';
 import {createDashboardServer} from '../src/dashboard/server.js';
 import {loadDashboardConfig} from '../src/dashboard/config.js';
-import {rangeKeeperPosition} from '../src/dashboard/rangekeeper-position.js';
+import {rangeKeeperPosition,rangeKeeperDetail} from '../src/dashboard/rangekeeper-position.js';
 import {rangeKeeperJson} from '../src/strategy/rangekeeper/live-domain.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
@@ -43,20 +43,55 @@ test('downsampling preserves full performance totals and entry / recenter marker
  const w=positionWindow(ps,168,start+2200*1000,'100000000',ps[0]!.sourceAt);
  assert(w.sampled);assert(w.timeline.length<ps.length);assert(w.timeline.some(p=>p.action==='recenter'));assert.equal(total(w.rows,'netPnlQuote'),2199n);assert.equal(total(w.rows,'feeIncomeQuote'),2200n);
 });
-test('RangeKeeper live ledger produces an AAPL position without inventing current NAV',()=>{
+test('RangeKeeper live ledger values only an eligible recorded mark',()=>{
  const state={id:'470e5f84-ab82-4735-92f9-57e96c05b344',phase:'holding',desired:'running',createdAt:1790000401,
   expiresAt:1790043601,closedAt:null,activeTokenId:1259529n,lastReason:'inside_range',
+  initial0:250000000n,initial1:0n,initialStrategyValue:250000000000000000000n,reserve0:0n,reserve1:0n,costEvents:[],
   last:{tick:218070,source:{block:68950417n,hash:'0xabc',timestamp:1790009091},
    position:{tokenId:1259529n,liquidity:6859071559694655n,tickLower:218050,tickUpper:218090},
    wallet0:3317684n,wallet1:57521280515648516n,nativeWei:8271603109714364n,
    allowances:[{amount:0n},{amount:0n}]}};
- const row={id:state.id,state:JSON.parse(rangeKeeperJson(state)),heartbeat_at:new Date('2026-09-21T16:45:24Z'),monitor:[]};
+ const config={pool:{fee:500,quoteToken:0,decimals0:6,decimals1:18,reference1:'AAPL/USD'}};
+ const mark={source:state.last.source,phase:'holding',nav:252000000000000000000n,gasValue:1000000000000000000n,
+  inventory0:120000000n,inventory1:400000000000000000n,grossFee0:100000n,grossFee1:0n,
+  exposurePpm:520000,poolPriceTick:218070,activeTokenId:1259529n,
+  reference:{eligible:true,price0:1000000000000000000n,price1:330000000000000000000n}};
+ const row={id:state.id,state:JSON.parse(rangeKeeperJson(state)),config,valuation:JSON.parse(rangeKeeperJson(mark)),
+  heartbeat_at:new Date('2026-09-21T16:45:24Z'),monitor:[]};
  const position=rangeKeeperPosition(row as any);
  assert.equal(position.asset,'AAPL');assert.equal(position.mode,'live');assert.equal(position.status,'open');
  assert.equal(position.history,false);assert.equal(position.hasLiquidity,true);assert.equal(position.tokenId,'1259529');
  assert.equal(position.rangekeeper.tickUpper!-position.rangekeeper.tickLower!,40);
  assert.equal(position.rangekeeper.nonzeroAllowances,0);
- assert.equal(position.navQuote,null);assert.equal(position.holdQuote,null);
+ assert.equal(position.navQuote,'251000000');assert.equal(position.holdQuote,'250000000');
+ assert.equal(position.feesQuote,'100000');assert.equal(position.range!.length,2);
+ assert.equal(rangeKeeperPosition({...row,valuation:null} as any).navQuote,null);
+});
+test('RangeKeeper detail exposes recorded value and range history to the shared chart',async()=>{
+ const now=Math.floor(Date.now()/1000),id='470e5f84-ab82-4735-92f9-57e96c05b344';
+ const last={tick:218070,source:{block:10n,hash:'0xabc',timestamp:now-60},
+  position:{tokenId:123n,liquidity:1000n,tickLower:218050,tickUpper:218090},wallet0:10000000n,wallet1:0n,nativeWei:0n,allowances:[]};
+ const state={id,createdAt:now-180,expiresAt:now+3600,closedAt:null,phase:'holding',desired:'running',
+  activeTokenId:123n,last,lastReason:'inside_range',initial0:250000000n,initial1:0n,
+  initialStrategyValue:250000000000000000000n,reserve0:0n,reserve1:0n,costEvents:[],recenters:0};
+ const config={pool:{fee:500,quoteToken:0,decimals0:6,decimals1:18,reference1:'AAPL/USD'}};
+ const valuation=(timestamp:number,nav:bigint)=>({source:{block:BigInt(timestamp),timestamp},phase:'holding',nav,
+  gasValue:0n,inventory0:10000000n,inventory1:0n,grossFee0:0n,grossFee1:0n,exposurePpm:0,
+  poolPriceTick:218070,activeTokenId:123n,
+  reference:{eligible:true,price0:1000000000000000000n,price1:330000000000000000000n}});
+ const marks=[valuation(now-120,250000000000000000000n),valuation(now-60,251000000000000000000n)]
+  .map((m,i)=>({id:String(i+1),at:new Date(m.source.timestamp*1000),snapshot:JSON.parse(rangeKeeperJson(m))}));
+ const row={id,state:JSON.parse(rangeKeeperJson(state)),config,valuation:marks[1]!.snapshot,
+  first_source_timestamp:String(now-120),heartbeat_at:new Date(),monitor:[]};
+ const db={query:async(sql:string)=>({rows:sql.includes('FROM rangekeeper_v1.transitions')?
+  [{at:new Date((now-150)*1000),state:row.state}]:sql.includes('kind=\'valuation\' AND at>=$2')?
+  marks:[]})};
+ const detail=await rangeKeeperDetail(db as any,row as any,1);
+ assert.equal(detail.performance.markCount,2);
+ assert.equal(detail.performance.timeline[0]!.action,'enter');
+ assert.equal(detail.performance.timeline[1]!.economicNavQuote,'251000000');
+ assert.equal(detail.performance.timeline[1]!.tickLower,218050);
+ assert.equal(detail.performance.rows.reduce((n,r)=>n+BigInt(r.netPnlQuote??0),0n),1000000n);
 });
 test('HTTP position endpoint validates identifiers and permits 168 hours; legacy stays behind diagnostics',async()=>{
  const requests:any[]=[];const server=createDashboardServer({snapshot:async()=>({} as any),positions:async(id,hours)=>{requests.push({id,hours});return id==='paper-999'?null:{positions:[]};}},
