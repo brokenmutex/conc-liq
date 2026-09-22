@@ -3,9 +3,9 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {keccak256} from 'viem';
 import {initialRangeKeeperState,parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
-import {nextRangeKeeperStage,RangeKeeperMintUnavailableError} from '../src/strategy/rangekeeper/live-stage.js';
+import {nextRangeKeeperStage,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
 import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm,
- assertRangeKeeperCountMigration} from '../src/strategy/rangekeeper/live-controller.js';
+ assertRangeKeeperCountMigration,settleRangeKeeperStaleStage} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -15,6 +15,21 @@ import type {RobinhoodClient} from '../src/client.js';
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(new URL('../config/rangekeeper-v1-aapl-disabled.json',import.meta.url),'utf8')));
 const stageConfig={...config,limits:{...config.limits,maxDeploymentValue:300n*10n**18n,minDeploymentPpm:900000}};
 const p=config.pool,price0=999991430000000000n,price1=335529829280000000000n;
+test('post-withdraw stale recenter halts with custody preserved and requires explicit exit recovery',()=>{
+ const candidate={kind:'recenter'} as RangeKeeperLiveState['candidate'];
+ const state={phase:'recenter',desired:'running',haltReason:null,lastReason:'withdraw_collected',
+  policy:initialRangeKeeperState(config,'test-build'),candidate,withdrawDone:true,swapDone:false,
+  activeTokenId:null,retiredTokenIds:['1271827']} as RangeKeeperLiveState;
+ assert.equal(settleRangeKeeperStaleStage(state,new RangeKeeperStaleCandidateError('Current swap would leave the approved range')),
+  'stale_recenter_after_withdraw');
+ assert.equal(state.phase,'halted');assert.equal(state.desired,'stopped');
+ assert.equal(state.haltReason,'stale_recenter_after_withdraw');
+ assert.equal(state.candidate,candidate);assert.deepEqual(state.retiredTokenIds,['1271827']);
+ assert.equal(state.swapDone,false);assert.equal(state.withdrawDone,true);
+ const unsent={...state,phase:'recenter' as const,withdrawDone:false,desired:'running' as const,haltReason:null};
+ assert.equal(settleRangeKeeperStaleStage(unsent,new RangeKeeperStaleCandidateError('stale')),null);
+ assert.equal(unsent.phase,'recenter');
+});
 test('closed costed campaign may change only 200-tick width to 40 ticks',()=>{
  const previous={...config,limits:{...config.limits,fullWidthSpacings:20}};
  const stored=JSON.parse(rangeKeeperJson(previous));

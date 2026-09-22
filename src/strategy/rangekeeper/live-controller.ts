@@ -28,6 +28,23 @@ const sumCost=(events:RangeKeeperLiveState['costEvents'])=>events.reduce<bigint|
  sum===null||e.gasValue===null||e.swapFeeValue===null||e.swapShortfallValue===null?null:
  sum+e.gasValue+e.swapFeeValue+e.swapShortfallValue,0n);
 
+/** A completed withdrawal cannot be undone to retry the frozen proposal. */
+export function settleRangeKeeperStaleStage(s:RangeKeeperLiveState,error:unknown):string|null{
+ if(!(error instanceof RangeKeeperStaleCandidateError||error instanceof RangeKeeperMintUnavailableError))return null;
+ if(s.phase==='entry'&&!s.swapDone&&!s.withdrawDone){
+  s.candidate=null;s.policy.confirmation=null;s.lastReason='stale_entry_quote';
+  return s.lastReason;
+ }
+ if(s.phase==='recenter'&&s.withdrawDone&&!s.swapDone&&s.activeTokenId===null){
+  // Preserve the retired NFT and candidate for custody review. A new range
+  // needs an explicit recovery decision, not an automatic second trade.
+  s.phase='halted';s.desired='stopped';s.haltReason='stale_recenter_after_withdraw';
+  s.lastReason=s.haltReason;
+  return s.lastReason;
+ }
+ return null;
+}
+
 export function assertUntradedRangeKeeperRearm(old:RangeKeeperLiveState,expectedCampaignId:string,
  expectedPreviousBuildId:string,nextBuildId:string,configHash:Hex,operator:string){
  assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
@@ -363,7 +380,9 @@ export class RangeKeeperLiveController {
  });}
  async recoverExit(){return this.store.locked(this.signer.address,async db=>{
   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;this.assertIdentity(s);
-  assert(s.phase==='halted'&&s.haltReason?.startsWith('transaction_reverted:'),'Only a reconciled revert can recover into exit');
+  assert(s.phase==='halted'&&(s.haltReason?.startsWith('transaction_reverted:')||
+   s.haltReason==='stale_recenter_after_withdraw'),
+   'Only a reconciled revert or post-withdraw stale recenter can recover into exit');
   assert(!(await this.store.pending(db,s.id)),'Signed transaction remains unresolved');
   const source=await this.source(),now=await this.chain.snapshot(source,s.operator,s.activeTokenId);
   await this.exactCustody(s.last,now,s.activeTokenId);
@@ -635,12 +654,8 @@ export class RangeKeeperLiveController {
    let stage:RangeKeeperTxPlan|null;
    try{stage=await nextRangeKeeperStage(s,snapshot,this.config,this.chain,prices);}
    catch(error){
-    if((error instanceof RangeKeeperStaleCandidateError||error instanceof RangeKeeperMintUnavailableError)&&
-     s.phase==='entry'&&!s.swapDone&&!s.withdrawDone){
-     // No swap or withdrawal changed custody. Require two fresh observations.
-     s.candidate=null;s.policy.confirmation=null;s.lastReason='stale_entry_quote';
-     await this.store.save(db,s,s.lastReason);return {status:s.lastReason,state:s};
-    }
+    const settled=settleRangeKeeperStaleStage(s,error);
+    if(settled){await this.store.save(db,s,settled);return {status:settled,state:s};}
     if(error instanceof RangeKeeperMintUnavailableError&&s.swapDone&&s.swapConfirmedAt!==null&&s.candidate){
      const inRange=snapshot.tick>=s.candidate.range.tickLower&&snapshot.tick<s.candidate.range.tickUpper;
      if(inRange&&source.timestamp-s.swapConfirmedAt<300)s.lastReason='repriced_mint_wait';
