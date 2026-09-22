@@ -489,8 +489,10 @@ and an explicit distinction between implemented, deployed and live-validated.
   predecessor wallet exclusion and restart-safe operation claims. A separate
   loopback command service has operator sessions, origin/CSRF checks, bounded
   JSON, strict draft schemas and initial routes. Both mode capabilities report
-  unavailable. Fresh preview generation, full lifecycle transitions and the
-  worker adapter remain.
+  unavailable; HTTP operation acceptance returns 503 until fresh preflight and
+  an execution adapter exist. Claims are mode-scoped and cannot mark an action
+  successful without a reconciled completion path. Fresh preview generation,
+  full lifecycle transitions and the worker adapter remain.
 - W2: in progress only at the pure strategy boundary. Static/manual range
   rounding, exact no-swap sizing, hold semantics and safety precedence are
   implemented. RangeKeeper mint math is now neutral to the retired research

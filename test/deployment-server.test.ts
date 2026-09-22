@@ -39,6 +39,10 @@ it('command API requires operator session, exact origin and CSRF before a draft 
    {origin,cookie,'x-csrf-token':csrfToken})).status,400);
   const created=await post('/api/deployments/drafts',draft,{origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(created.status,201);assert.equal(calls.length,1);
+  const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
+   {origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(accept.status,503);
+  assert.deepEqual(await accept.json(),{error:'operation_preflight_unavailable'});
   const catalog=await fetch(url+'/api/strategies',{headers:{cookie}});
   assert.equal(catalog.status,200);
   const body=await catalog.json() as {strategies:{id:string;paper:boolean;live:boolean}[]};

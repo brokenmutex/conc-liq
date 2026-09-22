@@ -30,6 +30,10 @@ try{
  await assert.rejects(store.createDraft({...draftInput,config:{...draftInput.config,spender:'0x'+'d'.repeat(40)}}));
  await assert.rejects(store.createDraft({...draftInput,config:{...draftInput.config,calldata:'0xdeadbeef'}}));
  const draft=await store.createDraft(draftInput);
+ await assert.rejects(store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
+  request:{kind:'open'},proposal:{sourceBlock:'1'},evidence:{blockHash:'0x'+'2'.repeat(64)},
+  expiresAt:new Date(Date.now()+10*60*1000)}),
+  error=>error instanceof DeploymentConflict&&error.code==='preview_expiry_too_distant');
  const preview=await store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{sourceBlock:'1',token0Raw:'0'},
   evidence:{blockHash:'0x'+'2'.repeat(64)},expiresAt:new Date(Date.now()+60000)});
@@ -54,15 +58,21 @@ try{
  assert.equal(replay.id,first.id);assert.equal(replay.replayed,true);
  await assert.rejects(store.acceptOperation(draft.id,{...command,contentDigest:'f'.repeat(64)},'operator'),
   error=>error instanceof DeploymentConflict&&error.code==='idempotency_conflict');
- const claimed=await Promise.all([store.claimNext('worker-one',30),store.claimNext('worker-two',30)]);
+ assert.equal(await store.claimNext('paper-worker',30,'paper'),null);
+ const claimed=await Promise.all([store.claimNext('worker-one',30,'live'),store.claimNext('worker-two',30,'live')]);
  assert.equal(claimed.filter(Boolean).length,1);
  const owner=claimed[0]?'worker-one':'worker-two';
  assert.equal(claimed.find(Boolean).id,first.id);
  await assert.rejects(store.advanceClaim(first.id,owner==='worker-one'?'worker-two':'worker-one',
-  'preflight','executing',null),error=>error instanceof DeploymentConflict&&error.code==='claim_lost');
+  'preflight','executing',null),error=>error instanceof DeploymentConflict&&error.code==='claim_lost_or_transition_disallowed');
  await store.advanceClaim(first.id,owner,'source_checked','executing',null);
+ await store.renewClaim(first.id,owner,30);
+ await assert.rejects(store.advanceClaim(first.id,owner,'backwards','preflighting',null),
+  error=>error instanceof DeploymentConflict&&error.code==='claim_lost_or_transition_disallowed');
+ await assert.rejects(store.advanceClaim(first.id,owner,'unproven','succeeded',null),
+  error=>error instanceof DeploymentConflict&&error.code==='invalid_claim_transition');
  await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second' WHERE id=$1`,[first.id]);
- const recovered=await store.claimNext('worker-restart',30);
+ const recovered=await store.claimNext('worker-restart',30,'live');
  assert.equal(recovered.id,first.id);assert.equal(recovered.stage,'source_checked');
  assert.equal(recovered.status,'executing');
  const second=await store.createDraft(draftInput);

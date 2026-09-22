@@ -54,7 +54,9 @@ export class DeploymentStore {
   * proposal/evidence; it supplies only the operator's requested action. */
  async recordPreview(raw:PreviewInput){
   const input=previewInput.parse(raw),id=randomUUID(),digest=previewDigest(input);
-  if(input.expiresAt.getTime()<=Date.now())throw new DeploymentConflict('preview_expired');
+  const remainingMs=input.expiresAt.getTime()-Date.now();
+  if(remainingMs<=0)throw new DeploymentConflict('preview_expired');
+  if(remainingMs>120_000)throw new DeploymentConflict('preview_expiry_too_distant');
   return this.transaction(async db=>{
    const campaign=(await db.query<{current_revision:number}>(
     'SELECT current_revision FROM deployment_campaigns WHERE id=$1 FOR SHARE',[input.campaignId])).rows[0];
@@ -111,23 +113,24 @@ export class DeploymentStore {
 
  /** Claims only a persisted operation. A recovered claim retains its stage so
   * the worker can reconcile the linked signed intent before any new action. */
- async claimNext(workerId:string,leaseSeconds:number){
+ async claimNext(workerId:string,leaseSeconds:number,mode:'paper'|'live'){
   if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
   if(!Number.isSafeInteger(leaseSeconds)||leaseSeconds<5||leaseSeconds>300)throw new DeploymentConflict('invalid_lease');
+  if(mode!=='paper'&&mode!=='live')throw new DeploymentConflict('invalid_worker_mode');
   return this.transaction(async db=>{
    const result=await db.query<{id:string;campaign_id:string;status:string;stage:string;attempts:number}>(`
     WITH candidate AS (
-      SELECT id FROM deployment_operations
-      WHERE status IN ('queued','preflighting','executing','confirming','reconciling')
-        AND (claim_until IS NULL OR claim_until<clock_timestamp())
-      ORDER BY created_at,id FOR UPDATE SKIP LOCKED LIMIT 1
+      SELECT o.id FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
+      WHERE c.mode=$3 AND o.status IN ('queued','preflighting','executing','confirming','reconciling')
+        AND (o.claim_until IS NULL OR o.claim_until<clock_timestamp())
+      ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 1
     )
     UPDATE deployment_operations o SET
       claimed_by=$1,claim_until=clock_timestamp()+($2::integer*interval '1 second'),
       attempts=o.attempts+1,status=CASE WHEN o.status='queued' THEN 'preflighting' ELSE o.status END,
       updated_at=clock_timestamp()
     FROM candidate WHERE o.id=candidate.id
-    RETURNING o.id,o.campaign_id,o.status,o.stage,o.attempts`,[workerId,leaseSeconds]);
+    RETURNING o.id,o.campaign_id,o.status,o.stage,o.attempts`,[workerId,leaseSeconds,mode]);
    return result.rows[0]??null;
   });
  }
@@ -141,17 +144,35 @@ export class DeploymentStore {
  }
 
  async advanceClaim(id:string,workerId:string,stage:string,
-  status:'preflighting'|'executing'|'confirming'|'reconciling'|'succeeded'|'rejected'|'blocked'|'cancelled',
+  status:'preflighting'|'executing'|'confirming'|'reconciling'|'blocked',
   reason:string|null){
   if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId)||!/^[a-z][a-z0-9_]{0,63}$/.test(stage))
    throw new DeploymentConflict('invalid_claim_transition');
+  const prior:{[key:string]:string[]}={
+   preflighting:['preflighting'],executing:['preflighting','executing'],
+   confirming:['executing','confirming'],reconciling:['executing','confirming','reconciling'],
+   blocked:['preflighting','executing','confirming','reconciling'],
+  };
+  const allowed=prior[status];
+  if(!allowed)throw new DeploymentConflict('invalid_claim_transition');
   const result=await this.pool.query(`UPDATE deployment_operations SET status=$3,stage=$4,reason=$5,
-   claimed_by=CASE WHEN $3 IN ('succeeded','rejected','blocked','cancelled') THEN NULL ELSE claimed_by END,
-   claim_until=CASE WHEN $3 IN ('succeeded','rejected','blocked','cancelled') THEN NULL ELSE claim_until END,
+   claimed_by=CASE WHEN $3='blocked' THEN NULL ELSE claimed_by END,
+   claim_until=CASE WHEN $3='blocked' THEN NULL ELSE claim_until END,
    updated_at=clock_timestamp()
    WHERE id=$1 AND claimed_by=$2 AND claim_until>=clock_timestamp() AND
-     status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
-   [id,workerId,status,stage,reason]);
+     status=ANY($6::text[]) RETURNING id`,
+   [id,workerId,status,stage,reason,allowed]);
+  if(result.rowCount!==1)throw new DeploymentConflict('claim_lost_or_transition_disallowed');
+ }
+
+ async renewClaim(id:string,workerId:string,leaseSeconds:number){
+  if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId)||!Number.isSafeInteger(leaseSeconds)||
+   leaseSeconds<5||leaseSeconds>300)throw new DeploymentConflict('invalid_lease');
+  const result=await this.pool.query(`UPDATE deployment_operations SET
+   claim_until=clock_timestamp()+($3::integer*interval '1 second'),updated_at=clock_timestamp()
+   WHERE id=$1 AND claimed_by=$2 AND claim_until>=clock_timestamp() AND
+    status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
+   [id,workerId,leaseSeconds]);
   if(result.rowCount!==1)throw new DeploymentConflict('claim_lost');
  }
 

@@ -1,7 +1,7 @@
 import {createHash,randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
 import {createServer,type IncomingMessage,type ServerResponse} from 'node:http';
 import {z,ZodError} from 'zod';
-import {acceptInput,draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
+import {draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
 import {DeploymentConflict} from './store.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -120,9 +120,9 @@ export function createDeploymentCommandServer(store:CommandStore,
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){
     if(!uuid.test(acceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
-    const input=acceptInput.parse(await jsonBody(request));
-    const result=await store.acceptOperation(acceptMatch[1]!,input,'operator');
-    send(response,202,result);return;
+    // Fresh chain and cost preflight is not wired yet. A trusted preview in
+    // storage alone must never make the incomplete worker path operable.
+    send(response,503,{error:'operation_preflight_unavailable'});return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
    if(operationMatch&&request.method==='GET'){
