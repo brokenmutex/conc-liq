@@ -8,16 +8,44 @@ const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const address=z.string().refine(isAddress).transform(value=>getAddress(value));
 const hash=z.string().regex(/^[0-9a-f]{64}$/);
 const jsonRecord=z.record(z.string(),z.unknown());
+const ppm=z.number().int().min(0).max(1_000_000);
+const bps=z.number().int().min(0).max(10_000);
+const expiry=z.iso.datetime({offset:true});
+const commonLimits=z.object({
+ maxDeploymentValue:raw,minDeploymentValue:raw,
+ maxExposurePpm:ppm,maxLossValue:raw,maxDrawdownPpm:ppm,
+ maxActionCost:raw,maxRollingCost:raw,maxCampaignCost:raw,
+ exitReserveWei:raw,expiryAt:expiry.optional(),
+}).strict();
+const staticParameters=z.object({
+ tickLower:z.number().int().min(-887272).max(887272),
+ tickUpper:z.number().int().min(-887272).max(887272),
+ limits:commonLimits.optional(),
+}).strict().refine(value=>value.tickLower<value.tickUpper,{message:'range_order'});
+const rangeKeeperParameters=z.object({
+ fullWidthSpacings:z.number().int().min(2).max(2000).refine(value=>value%2===0),
+ limits:commonLimits.extend({
+  minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
+  maxSwapShortfallValue:raw,maxSlippageBps:bps,maxRecenters:z.number().int().nonnegative(),
+  maxLiquiditySharePpm:ppm,maxObservationGapSeconds:z.number().int().positive(),
+ }).optional(),
+}).strict();
 
 export const draftInput=z.object({
  mode:z.enum(['paper','live']),chainId:z.literal(4663),wallet:address,
  marketProfileId:z.uuid(),strategyId,
- strategyVersion:z.string().min(1).max(64),
- stateSchemaVersion:z.number().int().positive(),
+ strategyVersion:z.literal('1.0.0'),
+ stateSchemaVersion:z.literal(1),
  allocation:z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw}).strict(),
- config:jsonRecord,
-}).strict();
+ config:z.unknown(),
+}).strict().superRefine((value,ctx)=>{
+ const result=(value.strategyId==='static_manual_v1'?staticParameters:rangeKeeperParameters).safeParse(value.config);
+ if(!result.success)ctx.addIssue({code:'custom',message:'invalid_strategy_parameters',path:['config']});
+});
 export type DraftInput=z.infer<typeof draftInput>;
+export function parseStrategyParameters(id:z.infer<typeof strategyId>,value:unknown):Record<string,unknown>{
+ return (id==='static_manual_v1'?staticParameters:rangeKeeperParameters).parse(value);
+}
 
 export const operationKind=z.enum([
  'open','pause','resume','change_range','change_strategy','close_retain','close_convert',

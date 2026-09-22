@@ -1,7 +1,7 @@
 import {randomUUID} from 'node:crypto';
 import pg,{type PoolClient} from 'pg';
 import {assertDeploymentSchemaReady} from '../storage/compatibility.js';
-import {acceptInput,contentHash,draftInput,previewDigest,previewInput,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
+import {acceptInput,contentHash,draftInput,parseStrategyParameters,previewDigest,previewInput,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
 
 export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
@@ -10,9 +10,15 @@ export class DeploymentConflict extends Error {
 /** The new command ledger. It owns no signer and performs no startup DDL. */
 export class DeploymentStore {
  private readonly pool:pg.Pool;
- constructor(connectionString:string){this.pool=new pg.Pool({connectionString,max:3,statement_timeout:15000});}
- async assertReady(){await assertDeploymentSchemaReady(this.pool);}
- async close(){await this.pool.end();}
+ private readonly readPool:pg.Pool;
+ constructor(connectionString:string){
+  this.pool=new pg.Pool({connectionString,max:3,statement_timeout:15000});
+  const readUrl=new URL(connectionString);
+  readUrl.searchParams.set('options',`${readUrl.searchParams.get('options')??''} -c default_transaction_read_only=on`.trim());
+  this.readPool=new pg.Pool({connectionString:readUrl.toString(),max:2,statement_timeout:15000});
+ }
+ async assertReady(){await assertDeploymentSchemaReady(this.readPool);}
+ async close(){await Promise.all([this.pool.end(),this.readPool.end()]);}
 
  private async transaction<T>(work:(db:PoolClient)=>Promise<T>):Promise<T>{
   const db=await this.pool.connect();
@@ -25,7 +31,7 @@ export class DeploymentStore {
 
  async createDraft(raw:DraftInput){
   const input=draftInput.parse(raw),id=randomUUID(),wallet=input.wallet.toLowerCase();
-  const config={...input.config,strategyId:input.strategyId,strategyVersion:input.strategyVersion,
+  const config={...parseStrategyParameters(input.strategyId,input.config),strategyId:input.strategyId,strategyVersion:input.strategyVersion,
    stateSchemaVersion:input.stateSchemaVersion};
   const configHash=contentHash(config);
   return this.transaction(async db=>{
@@ -124,6 +130,14 @@ export class DeploymentStore {
     RETURNING o.id,o.campaign_id,o.status,o.stage,o.attempts`,[workerId,leaseSeconds]);
    return result.rows[0]??null;
   });
+ }
+
+ async operation(id:string){
+  const result=await this.readPool.query<{id:string;campaign_id:string;kind:string;status:string;stage:string;
+   reason:string|null;attempts:number;created_at:Date;updated_at:Date}>(
+   `SELECT id,campaign_id,kind,status,stage,reason,attempts,created_at,updated_at
+    FROM deployment_operations WHERE id=$1`,[id]);
+  return result.rows[0]??null;
  }
 
  async advanceClaim(id:string,workerId:string,stage:string,

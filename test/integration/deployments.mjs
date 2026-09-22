@@ -27,6 +27,8 @@ try{
   strategyId:'static_manual_v1',strategyVersion:'1.0.0',stateSchemaVersion:1,
   allocation:{token0Raw:'0',token1Raw:'250000000',nativeWei:'10000000000000000'},config:{tickLower:10,tickUpper:20}};
  await assert.rejects(store.createDraft({...draftInput,strategyId:'adaptive_v1'}));
+ await assert.rejects(store.createDraft({...draftInput,config:{...draftInput.config,spender:'0x'+'d'.repeat(40)}}));
+ await assert.rejects(store.createDraft({...draftInput,config:{...draftInput.config,calldata:'0xdeadbeef'}}));
  const draft=await store.createDraft(draftInput);
  const preview=await store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{sourceBlock:'1',token0Raw:'0'},
@@ -47,6 +49,7 @@ try{
  }
  const first=await store.acceptOperation(draft.id,command,'operator');
  assert.equal(first.status,'queued');assert.equal(first.replayed,false);
+ assert.equal((await store.operation(first.id)).status,'queued');
  const replay=await store.acceptOperation(draft.id,command,'operator');
  assert.equal(replay.id,first.id);assert.equal(replay.replayed,true);
  await assert.rejects(store.acceptOperation(draft.id,{...command,contentDigest:'f'.repeat(64)},'operator'),
