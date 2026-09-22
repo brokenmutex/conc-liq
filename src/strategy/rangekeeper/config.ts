@@ -35,7 +35,7 @@ export const rangeKeeperConfigSchema=z.object({
  ]).default({kind:'eoa'}),
  zeroAllowances:z.array(z.object({token:address,spender:address}).strict()).default([]),
  legacyRetiredTokenIds:z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
- campaignScope:z.object({maxDurationSeconds:z.number().int().positive().max(86400),
+ campaignScope:z.object({maxDurationSeconds:z.number().int().min(0).max(86400),
   maxEconomicActions:z.number().int().positive().max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
  referencePolicy:z.object({
   token0:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),

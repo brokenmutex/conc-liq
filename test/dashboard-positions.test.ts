@@ -66,6 +66,8 @@ test('RangeKeeper live ledger values only an eligible recorded mark',()=>{
  assert.equal(position.navQuote,'251000000');assert.equal(position.holdQuote,'250000000');
  assert.equal(position.feesQuote,'100000');assert.equal(position.range!.length,2);
  assert.equal(rangeKeeperPosition({...row,valuation:null} as any).navQuote,null);
+ assert.equal(rangeKeeperPosition({...row,state:JSON.parse(rangeKeeperJson({...state,
+  expiresAt:Number.MAX_SAFE_INTEGER}))} as any).rangekeeper.expiresAt,null);
 });
 test('RangeKeeper detail exposes recorded value and range history to the shared chart',async()=>{
  const now=Math.floor(Date.now()/1000),id='470e5f84-ab82-4735-92f9-57e96c05b344';

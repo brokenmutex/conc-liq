@@ -70,7 +70,8 @@ export function rangeKeeperPosition(row:RangeKeeperRow){
   rangekeeper:{phase:s.phase,desired:s.desired,tick:s.last.tick,tickLower:p?.tickLower??null,tickUpper:p?.tickUpper??null,
    sourceBlock:String(s.last.source.block),sourceHash:s.last.source.hash,liquidity:p?String(p.liquidity):null,
    wallet0:String(s.last.wallet0),wallet1:String(s.last.wallet1),nativeWei:String(s.last.nativeWei),valuationCurrent:isCurrent,
-   nonzeroAllowances:s.last.allowances.filter(a=>a.amount>0n).length,expiresAt:iso(s.expiresAt),lastReason:s.lastReason}};
+   nonzeroAllowances:s.last.allowances.filter(a=>a.amount>0n).length,
+   expiresAt:s.expiresAt===Number.MAX_SAFE_INTEGER?null:iso(s.expiresAt),lastReason:s.lastReason}};
 }
 
 export async function rangeKeeperDetail(db:PoolClient,row:RangeKeeperRow,hours:number){

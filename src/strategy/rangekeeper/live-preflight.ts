@@ -84,10 +84,11 @@ export async function inspectRangeKeeperLaunch(input:{client:RobinhoodClient;con
     prices:{price0:refs.price0!,price1:refs.price1!}});return true;
   }});
  assert(final.candidate,`Candidate admission failed: ${final.reason}`);
- // Two economic actions are entry and one recenter. This funds both plus the
- // separate full-exit reserve; a 20% native margin absorbs modest fee drift.
+ // A bounded campaign funds entry and one recenter. An open-ended campaign
+ // funds the next action and a complete exit; every later action is gated again.
  const recenterGasWei=(envelope.actionGasUnits+300_000n)*envelope.maxFeePerGasWei;
- const scopeGasWei=envelope.actionGasWei+(config.campaignScope.maxEconomicActions>1?recenterGasWei:0n);
+ const scopeGasWei=envelope.actionGasWei+
+  (config.campaignScope.maxDurationSeconds===0?0n:config.campaignScope.maxEconomicActions>1?recenterGasWei:0n);
  const nativeRequiredWei=envelope.requiredExitReserveWei+(scopeGasWei*6n+4n)/5n;
  const nativeShortfallWei=nativeRequiredWei>funding.allocation.nativeWei?nativeRequiredWei-funding.allocation.nativeWei:0n;
  const latestConfirmed=await client.getBlock({blockNumber:source.block});

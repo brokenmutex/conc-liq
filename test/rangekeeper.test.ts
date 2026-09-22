@@ -44,6 +44,12 @@ test('config requires all live limits and cannot activate an unsealed generic pa
  assert.throws(()=>parseRangeKeeperConfig({...config,broadcastEnabled:true}));
  assert.throws(()=>parseRangeKeeperConfig({...config,limits:{...config.limits,maxActionCost:undefined}}));
 });
+test('zero campaign duration explicitly permits an open-ended guarded session',()=>{
+ const raw=JSON.parse(readFileSync(new URL('../config/rangekeeper-v1-aapl-disabled.json',import.meta.url),'utf8'));
+ const open=parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:0,maxEconomicActions:2}});
+ assert.equal(open.campaignScope.maxDurationSeconds,0);
+ assert.throws(()=>parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:-1,maxEconomicActions:2}}));
+});
 test('two chain profiles parse with explicit addresses, decimals, costs, and a shared total cap',()=>{
  for(const name of ['nvda','aapl']){
   const raw=JSON.parse(readFileSync(new URL(`../config/rangekeeper-v1-${name}-disabled.json`,import.meta.url),'utf8'));

@@ -12,7 +12,10 @@ export class RangeKeeperLiveStore {
  async initialize(){
   await this.pool.query(`CREATE SCHEMA IF NOT EXISTS ${this.schema};
    CREATE TABLE IF NOT EXISTS ${this.schema}.campaigns(id uuid PRIMARY KEY,operator text UNIQUE NOT NULL,
-    state jsonb NOT NULL,config jsonb NOT NULL,heartbeat_at timestamptz,monitor jsonb NOT NULL DEFAULT '[]');
+    state jsonb NOT NULL,config jsonb NOT NULL,heartbeat_at timestamptz,monitor jsonb NOT NULL DEFAULT '[]',
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp());
+   ALTER TABLE ${this.schema}.campaigns ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT clock_timestamp();
+   ALTER TABLE ${this.schema}.campaigns DROP CONSTRAINT IF EXISTS campaigns_operator_key;
    CREATE TABLE IF NOT EXISTS ${this.schema}.actions(id uuid PRIMARY KEY,campaign_id uuid NOT NULL REFERENCES ${this.schema}.campaigns(id),
     nonce bigint NOT NULL,intent jsonb NOT NULL,plan jsonb NOT NULL,before_state jsonb NOT NULL,
     status text NOT NULL CHECK(status IN('prepared','signed','confirmed','reverted','cancelled')),
@@ -40,7 +43,8 @@ export class RangeKeeperLiveStore {
    [state.id,state.operator.toLowerCase(),rangeKeeperJson(state),rangeKeeperJson(config)]);
  }
  async current(db:PoolClient,operator:string){
-  const row=(await db.query(`SELECT state,config,monitor,heartbeat_at FROM ${this.schema}.campaigns WHERE operator=$1`,[operator.toLowerCase()])).rows[0];
+  const row=(await db.query(`SELECT state,config,monitor,heartbeat_at FROM ${this.schema}.campaigns
+   WHERE operator=$1 ORDER BY created_at DESC,id DESC LIMIT 1`,[operator.toLowerCase()])).rows[0];
   return row?{state:parseRangeKeeperJson<RangeKeeperLiveState>(row.state),config:row.config,
    monitor:row.monitor as string[],heartbeatAt:row.heartbeat_at as string|null}:null;
  }

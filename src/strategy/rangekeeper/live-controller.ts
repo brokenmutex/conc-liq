@@ -88,7 +88,8 @@ export class RangeKeeperLiveController {
   const at=proof.source.timestamp;
   return {version:1,id,operator:this.signer.address,
    configHash:rangeKeeperConfigHash(this.config),buildId:this.buildId,phase:'entry',desired:'running',haltReason:null,
-   createdAt:at,expiresAt:at+this.config.campaignScope.maxDurationSeconds,economicActions:0,recenters:0,
+   createdAt:at,expiresAt:this.config.campaignScope.maxDurationSeconds===0?Number.MAX_SAFE_INTEGER:
+    at+this.config.campaignScope.maxDurationSeconds,economicActions:0,recenters:0,
    policy:initialRangeKeeperState(this.config,this.buildId),last:proof.wallet,activeTokenId:null,
    retiredTokenIds:[],legacyNftCount:proof.wallet.nftCount,
    reserve0:proof.funding.reserve0,reserve1:proof.funding.reserve1,reserveNativeWei:proof.funding.reserveNativeWei,
@@ -151,11 +152,25 @@ export class RangeKeeperLiveController {
   this.serviceGate();
   assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
   return this.store.locked(this.signer.address,async db=>{
-   assert(!(await this.store.current(db,this.signer.address)),'RangeKeeper campaign already exists');
+   const previous=await this.store.current(db,this.signer.address);
+   if(previous){
+    const old=previous.state;
+    assert(old.phase==='closed'&&old.desired==='stopped'&&old.lastReason==='complete_exit_reconciled'&&
+     old.closedAt!==null&&old.activeTokenId===null&&old.last.position===null,
+     'Previous RangeKeeper campaign is not reconciled and closed');
+    assert(!(await this.store.pending(db,old.id)),'Previous campaign has a pending transaction');
+    const unresolved=(await db.query(`SELECT count(*)::int AS n FROM ${this.store.schema}.actions
+     WHERE campaign_id=$1 AND status<>'confirmed'`,[old.id])).rows[0]?.n;
+    assert.equal(unresolved,0,'Previous campaign has unresolved actions');
+    for(const id of old.retiredTokenIds)assert(this.config.legacyRetiredTokenIds.includes(id),
+     `New campaign omits retired NFT ${id}`);
+    await this.proveRetiredCustody(old,old.last.source);
+   }
    await this.oldPilotClosed(db);
    const proof=await inspectRangeKeeperLaunch({client:this.client,config:this.config,buildId:this.buildId,
     rpcUrl:this.archiveRpcUrl,anvilBinary:this.anvilBinary,simulateFork:true});
    assert.equal(proof.nativeShortfallWei,0n,'Native funding is below entry, recenter, and complete-exit requirement');
+   if(previous)await this.exactCustody(previous.state.last,proof.wallet,null);
    const state=this.freshState(proof,randomUUID(),'initialized');
    await this.store.create(db,state,this.config);
    await this.store.mark(db,state.id,proof.source.block,'launch_preflight',{
