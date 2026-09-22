@@ -36,13 +36,27 @@ export function settleRangeKeeperStaleStage(s:RangeKeeperLiveState,error:unknown
   return s.lastReason;
  }
  if(s.phase==='recenter'&&s.withdrawDone&&!s.swapDone&&s.activeTokenId===null){
-  // Preserve the retired NFT and candidate for custody review. A new range
-  // needs an explicit recovery decision, not an automatic second trade.
-  s.phase='halted';s.desired='stopped';s.haltReason='stale_recenter_after_withdraw';
-  s.lastReason=s.haltReason;
+  // The withdrawal is reconciled. Reconfirm a new candidate from wallet
+  // inventory while retaining the retired NFT and complete action spend.
+  s.candidate=null;s.policy.confirmation=null;s.policy.exit=null;
+  s.reservedActionCost=0n;s.lastReason='stale_recenter_replan';
   return s.lastReason;
  }
  return null;
+}
+
+export function assertRangeKeeperStaleRecenterMigration(old:RangeKeeperLiveState,recordedConfig:unknown,
+ next:RangeKeeperConfig,expectedCampaignId:string,expectedPreviousBuildId:string,nextBuildId:string){
+ assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
+ assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
+ assert.notEqual(old.buildId,nextBuildId,'Recovery requires a new sealed build');
+ assert.equal(old.configHash,rangeKeeperConfigHash(next),'Campaign configuration changed');
+ assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(next)),'Stored campaign config changed');
+ assertRangeKeeperState(old.policy,next,old.buildId);
+ assert(old.phase==='recenter'&&old.desired==='running'&&old.haltReason===null&&
+  old.candidate?.kind==='recenter'&&old.withdrawDone&&!old.swapDone&&old.activeTokenId===null&&
+  old.last.position?.liquidity===0n&&old.retiredTokenIds.includes(String(old.last.position.tokenId))&&
+  old.closedAt===null,'Only a reconciled post-withdraw recenter may migrate');
 }
 
 export function assertUntradedRangeKeeperRearm(old:RangeKeeperLiveState,expectedCampaignId:string,
@@ -373,6 +387,43 @@ export class RangeKeeperLiveController {
    return {state:next,proof};
   });
  }
+ /** Pin a new bugfix build to an interrupted, fully withdrawn recenter. No
+  * transaction or proposal is changed by the migration itself. */
+ async migrateStaleRecenter(expectedCampaignId:string,expectedPreviousBuildId:string,apply:boolean){
+  this.serviceGate();
+  assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to migrate');
+   const old=row.state;
+   assertRangeKeeperStaleRecenterMigration(old,row.config,this.config,expectedCampaignId,
+    expectedPreviousBuildId,this.buildId);
+   assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
+   const latest=(await db.query(`SELECT status,plan FROM ${this.store.schema}.actions
+    WHERE campaign_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1`,[old.id])).rows[0];
+   assert(latest?.status==='confirmed'&&latest.plan?.kind==='withdraw',
+    'Last action is not a confirmed withdrawal');
+   await this.oldPilotClosed(db);
+   const source=await this.source();await this.chain.verify(source);
+   const snapshot=await this.chain.snapshot(source,old.operator,null);
+   await this.exactCustody(old.last,snapshot,null);
+   assert.equal(snapshot.nftCount,old.legacyNftCount+BigInt(old.retiredTokenIds.length),
+    'Unexpected NFT ownership count');
+   await this.proveRetiredCustody(old,source);
+   const next={...old,buildId:this.buildId,policy:{...old.policy,buildId:this.buildId},
+    last:snapshot,lastReason:'stale_recenter_build_migrated'};
+   const proof={previousBuildId:old.buildId,nextBuildId:this.buildId,source,
+    withdrawnTokenId:String(old.last.position!.tokenId),retiredTokenIds:old.retiredTokenIds,
+    candidate:old.candidate,actionStartCostIndex:old.actionStartCostIndex,
+    costEvents:old.costEvents.length,swapDone:old.swapDone,withdrawDone:old.withdrawDone};
+   if(!apply)return {state:next,proof};
+   await db.query('BEGIN');try{
+    await this.store.mark(db,old.id,source.block,'stale_recenter_migration_preflight',proof);
+    await this.store.save(db,next,'stale_recenter_build_migrated');
+    await db.query('COMMIT');
+   }catch(error){await db.query('ROLLBACK');throw error;}
+   return {state:next,proof};
+  });
+ }
  async requestStop(){return this.store.locked(this.signer.address,async db=>{
   const row=await this.store.current(db,this.signer.address);assert(row);const s=row.state;this.assertIdentity(s);
   s.desired='stopped';if(s.phase!=='closed'&&s.phase!=='halted')s.phase='exit';
@@ -602,7 +653,9 @@ export class RangeKeeperLiveController {
    s.lastReason=loss?'loss_limit':drawdown?'drawdown_limit':detached?'independent_price_band':
     !snapshot.unlocked?'pool_locked':source.timestamp>=s.expiresAt?'scope_expired':'operator_stop';
   }
-  if((s.phase==='holding'||(s.phase==='entry'&&s.candidate===null))&&
+  const replanAfterWithdrawal=s.phase==='recenter'&&s.candidate===null&&s.withdrawDone&&
+   !s.swapDone&&s.activeTokenId===null;
+  if((s.phase==='holding'||(s.phase==='entry'&&s.candidate===null)||replanAfterWithdrawal)&&
    (this.config.campaignScope.maxEconomicActions===0||s.economicActions<this.config.campaignScope.maxEconomicActions)&&
    (this.config.limits.maxRecenters===0||s.recenters<this.config.limits.maxRecenters)&&
    source.timestamp<s.expiresAt){
@@ -618,7 +671,13 @@ export class RangeKeeperLiveController {
     reservedCost:0n,rollingSpentCost:sumCost(s.costEvents)??this.config.limits.maxRollingCost,
     campaignSpentCost:sumCost(s.costEvents)??this.config.limits.maxCampaignCost,
     campaignStartValue:s.initialStrategyValue,highWaterValue:s.highWaterValue,recenters:s.recenters};
-   const input={state:s.policy,observation,limits:this.config.limits,spacing:this.config.pool.tickSpacing,
+   const actionSpent=replanAfterWithdrawal?sumCost(s.costEvents.slice(s.actionStartCostIndex)):0n;
+   assert(actionSpent!==null,'Recenter recovery lacks receipt-valued action costs');
+   const actionLimit=replanAfterWithdrawal?
+    this.config.limits.maxActionCost>actionSpent?this.config.limits.maxActionCost-actionSpent:0n:
+    this.config.limits.maxActionCost;
+   const input={state:s.policy,observation,limits:{...this.config.limits,maxActionCost:actionLimit},
+    spacing:this.config.pool.tickSpacing,
     decimals0:this.config.pool.decimals0,decimals1:this.config.pool.decimals1,quoteToken:this.config.pool.quoteToken,
     maxPoolDeviationPpm:this.config.referencePolicy.maxPoolDeviationPpm,
     quote:(token:0|1,amount:bigint)=>this.chain.quote(source,token,amount,refs.price0!,refs.price1!),simulate:async()=>true};
@@ -642,10 +701,13 @@ export class RangeKeeperLiveController {
     s.policy=decision.state;s.lastReason=decision.reason;
     if(decision.action==='safety_exit'){s.phase='exit';s.desired='stopped';}
     if(decision.action==='execute'&&decision.candidate){
-     assert(s.candidate===null&&!s.swapDone&&!s.withdrawDone,
+     assert(s.candidate===null&&!s.swapDone&&(!s.withdrawDone||replanAfterWithdrawal),
       'An in-flight economic action cannot be replaced by a new proposal');
-     s.phase=decision.candidate.kind;s.candidate=decision.candidate;s.swapDone=false;s.swapConfirmedAt=null;s.withdrawDone=false;
-     s.actionStartCostIndex=s.costEvents.length;s.reservedActionCost=envelope.actionCostValue;
+     s.phase=replanAfterWithdrawal?'recenter':decision.candidate.kind;
+     s.candidate=replanAfterWithdrawal?{...decision.candidate,kind:'recenter'}:decision.candidate;
+     s.swapDone=false;s.swapConfirmedAt=null;
+     if(!replanAfterWithdrawal){s.withdrawDone=false;s.actionStartCostIndex=s.costEvents.length;}
+     s.reservedActionCost=envelope.actionCostValue;
     }
    }else{s.policy=preview.state;s.lastReason=preview.reason;
     if(preview.action==='safety_exit'){s.phase='exit';s.desired='stopped';}}

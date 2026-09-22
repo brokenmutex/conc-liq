@@ -5,7 +5,8 @@ import {keccak256} from 'viem';
 import {initialRangeKeeperState,parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
 import {nextRangeKeeperStage,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
 import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm,
- assertRangeKeeperCountMigration,settleRangeKeeperStaleStage} from '../src/strategy/rangekeeper/live-controller.js';
+ assertRangeKeeperCountMigration,assertRangeKeeperStaleRecenterMigration,
+ settleRangeKeeperStaleStage} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -15,20 +16,37 @@ import type {RobinhoodClient} from '../src/client.js';
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(new URL('../config/rangekeeper-v1-aapl-disabled.json',import.meta.url),'utf8')));
 const stageConfig={...config,limits:{...config.limits,maxDeploymentValue:300n*10n**18n,minDeploymentPpm:900000}};
 const p=config.pool,price0=999991430000000000n,price1=335529829280000000000n;
-test('post-withdraw stale recenter halts with custody preserved and requires explicit exit recovery',()=>{
+test('post-withdraw stale recenter discards only the candidate and retains settled custody and cost scope',()=>{
  const candidate={kind:'recenter'} as RangeKeeperLiveState['candidate'];
  const state={phase:'recenter',desired:'running',haltReason:null,lastReason:'withdraw_collected',
   policy:initialRangeKeeperState(config,'test-build'),candidate,withdrawDone:true,swapDone:false,
-  activeTokenId:null,retiredTokenIds:['1271827']} as RangeKeeperLiveState;
+  activeTokenId:null,retiredTokenIds:['1271827'],actionStartCostIndex:4,reservedActionCost:10n} as RangeKeeperLiveState;
  assert.equal(settleRangeKeeperStaleStage(state,new RangeKeeperStaleCandidateError('Current swap would leave the approved range')),
-  'stale_recenter_after_withdraw');
- assert.equal(state.phase,'halted');assert.equal(state.desired,'stopped');
- assert.equal(state.haltReason,'stale_recenter_after_withdraw');
- assert.equal(state.candidate,candidate);assert.deepEqual(state.retiredTokenIds,['1271827']);
+  'stale_recenter_replan');
+ assert.equal(state.phase,'recenter');assert.equal(state.desired,'running');
+ assert.equal(state.haltReason,null);assert.equal(state.candidate,null);
+ assert.deepEqual(state.retiredTokenIds,['1271827']);
  assert.equal(state.swapDone,false);assert.equal(state.withdrawDone,true);
+ assert.equal(state.actionStartCostIndex,4);assert.equal(state.reservedActionCost,0n);
  const unsent={...state,phase:'recenter' as const,withdrawDone:false,desired:'running' as const,haltReason:null};
  assert.equal(settleRangeKeeperStaleStage(unsent,new RangeKeeperStaleCandidateError('stale')),null);
  assert.equal(unsent.phase,'recenter');
+});
+test('stale recenter build migration requires the exact withdrawn campaign and unchanged config',()=>{
+ const old={id:'31802d63-9ec8-423c-bc1b-f781f8b44f92',buildId:'old-build',
+  configHash:rangeKeeperConfigHash(config),policy:initialRangeKeeperState(config,'old-build'),
+  phase:'recenter',desired:'running',haltReason:null,candidate:{kind:'recenter'},
+  withdrawDone:true,swapDone:false,activeTokenId:null,closedAt:null,
+  retiredTokenIds:['1271827'],last:{position:{tokenId:1271827n,liquidity:0n}}} as RangeKeeperLiveState;
+ const recorded=JSON.parse(rangeKeeperJson(config));
+ const guard=(state:RangeKeeperLiveState=old,proposal=config,stored:unknown=recorded)=>
+  assertRangeKeeperStaleRecenterMigration(state,stored,proposal,old.id,'old-build','new-build');
+ assert.doesNotThrow(()=>guard());
+ assert.throws(()=>guard({...old,withdrawDone:false}),/reconciled post-withdraw/);
+ assert.throws(()=>guard({...old,swapDone:true}),/reconciled post-withdraw/);
+ assert.throws(()=>guard({...old,activeTokenId:1271827n}),/reconciled post-withdraw/);
+ assert.throws(()=>guard(old,{...config,limits:{...config.limits,maxActionCost:config.limits.maxActionCost+1n}}),/configuration changed/);
+ assert.throws(()=>guard(old,config,{...recorded,operator:'0x0000000000000000000000000000000000000000'}),/config changed/);
 });
 test('closed costed campaign may change only 200-tick width to 40 ticks',()=>{
  const previous={...config,limits:{...config.limits,fullWidthSpacings:20}};
