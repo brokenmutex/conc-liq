@@ -1,5 +1,5 @@
 [Unit]
-Description=RangeKeeper v1.0.0 bounded AAPL/USDG campaign
+Description=RangeKeeper v1.0.0 AAPL/USDG live campaign
 After=network-online.target postgresql.service
 Wants=network-online.target
 Conflicts=conc-liq-live-pilot.service

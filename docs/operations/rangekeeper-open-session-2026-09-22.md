@@ -25,3 +25,27 @@ initial status. The installed systemd unit must name the same sealed build and
 private configuration. `rangekeeper-live stop` requests a guarded exit, then
 the unit exits once custody is reconciled. Use the commands and recovery
 rules in [the RangeKeeper runbook](rangekeeper-v1.md).
+
+## Activation record
+
+The previous campaign closed at confirmed block 69,296,369 with 276272972
+raw USDG, zero AAPL, 8246516797624364 wei native, nonce 339, 44 retired
+NFTs, and zero guarded allowances. The new preflight passed a full-wallet fork
+at confirmed block 69,442,126, hash
+`0x19e14f91f889c253354ad973360b99503edda1de5c07c1009a216903325ba3d9`.
+It projected 249.500001947510562344 USD-equivalent LP, 5763 ppm pool share,
+1093401280000000 wei bounded native requirement, and zero native shortfall.
+These are source-specific estimates, not realized economics.
+
+The sealed worker build is
+`2ba1dde7fd115690755148e4adb429c1bcacd6f5d4e2088853307a00ebe3c4a4`
+from commit `be65cca`. It initialized new campaign
+`31802d63-9ec8-423c-bc1b-f781f8b44f92` with 44 retired NFTs and an
+open-ended expiry sentinel. The installed worker started at 2026-09-22
+06:33:24 UTC, with zero restarts. The dashboard build is
+`3106f1c5e5b248e2ee2dfc8037274ca6728df7d2447a07553a41f3350fc1ba23`.
+The live API shows the new campaign alongside the closed campaign; the new
+campaign has no expiry, and its current detail contains valuation/chart data.
+Chromium desktop and mobile captures are in
+`data/rangekeeper-open-units-2026-09-22/` and
+`data/rangekeeper-open-dashboard-final-2026-09-22/`.
