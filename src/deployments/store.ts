@@ -257,31 +257,48 @@ export class DeploymentStore {
     const to=(await db.query<Mark>(`${markSql} AND id>$2 ORDER BY id LIMIT 1`,
      [id,from.id])).rows[0];
     if(!to){await db.query('COMMIT');return null;}
-    if(to.provenance.classification!=='paper_model_principal_valuation'||
+    const closing=to.provenance.classification==='paper_model_partial_close';
+    if(!['paper_model_principal_valuation','paper_model_partial_close'].includes(
+      String(to.provenance.classification))||
      !['paper_model_provisional','paper_model_principal_valuation'].includes(
       String(from.provenance.classification))||from.revision!==to.revision)
      throw new DeploymentConflict('paper_fee_next_mark_unsupported');
-    const snapshot=(mark:Mark)=>{
+    if(closing){
+     const preview=(await db.query<{proposal:Record<string,unknown>}>(`
+      SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2`,
+      [to.provenance.previewId,id])).rows[0];
+     const close=paperCloseRetainModelSchema.safeParse(preview?.proposal.paperCloseRetainModel);
+     if(!close.success||close.data.previousMarkId!==from.id||
+      close.data.openMarkId!==to.provenance.openMarkId||
+      close.data.openModelHash!==to.provenance.openModelHash||
+      contentHash(close.data.source)!==contentHash(to.provenance.source)||
+      contentHash(close.data.poolState)!==contentHash(to.provenance.poolState)||
+      to.inventory.position!==null)
+      throw new DeploymentConflict('paper_fee_close_endpoint_unavailable');
+    }
+    const snapshot=(mark:Mark,positionRequired=true)=>{
      const source=paperFeeMarkSourceSchema.safeParse(mark.provenance.source),
       state=paperFeeMarkStateSchema.safeParse(mark.provenance.poolState),
-      position=paperFeePositionSchema.safeParse(mark.inventory.position);
-     if(!source.success||!state.success||!position.success||
+      position=positionRequired?paperFeePositionSchema.safeParse(mark.inventory.position):null;
+     if(!source.success||!state.success||(positionRequired&&!position?.success)||
       source.data.block!==mark.source_block||
       source.data.hash.toLowerCase()!==mark.source_hash?.toLowerCase())
       throw new DeploymentConflict('paper_fee_mark_integrity');
      return {source:source.data,tick:state.data.tick,
       sqrtPriceX96:BigInt(state.data.sqrtPriceX96),
-      poolLiquidity:BigInt(state.data.poolLiquidity),position:position.data};
+      poolLiquidity:BigInt(state.data.poolLiquidity),position:position?.data??null};
     };
-    const before=snapshot(from),after=snapshot(to);
-    if(after.position.liquidity!==before.position.liquidity||
-     after.position.tickLower!==before.position.tickLower||
-     after.position.tickUpper!==before.position.tickUpper||
+    const before=snapshot(from),after=snapshot(to,!closing);
+    if(!before.position||!closing&&(!after.position||
+      after.position.liquidity!==before.position.liquidity||
+      after.position.tickLower!==before.position.tickLower||
+      after.position.tickUpper!==before.position.tickUpper)||
      BigInt(after.source.block)<=BigInt(before.source.block))
      throw new DeploymentConflict('paper_fee_position_or_source_changed');
     await db.query('COMMIT');
     return {profile:profile.data,stream:evidence.data.streamKey,
      targetSetHash:evidence.data.indexerTargetSetHash,fromMarkId:from.id,toMarkId:to.id,
+     ending:closing?'close_retain' as const:'valuation' as const,
      before:{source:before.source,tick:before.tick,sqrtPriceX96:before.sqrtPriceX96,
       poolLiquidity:before.poolLiquidity},
      after:{source:after.source,tick:after.tick,sqrtPriceX96:after.sqrtPriceX96,
@@ -810,19 +827,34 @@ export class DeploymentStore {
     marks[0]!.revision!==marks[1]!.revision)
     throw new DeploymentConflict('paper_fee_marks_unavailable');
    const [from,to]=marks as [typeof marks[number],typeof marks[number]];
+   const closing=to.provenance.classification==='paper_model_partial_close';
    if(!['paper_model_provisional','paper_model_principal_valuation'].includes(
     String(from.provenance.classification))||
-    to.provenance.classification!=='paper_model_principal_valuation'||
+    !['paper_model_principal_valuation','paper_model_partial_close'].includes(
+     String(to.provenance.classification))||
     from.source_block!==interval.from.block||to.source_block!==interval.to.block||
     from.source_hash?.toLowerCase()!==interval.from.hash.toLowerCase()||
     to.source_hash?.toLowerCase()!==interval.to.hash.toLowerCase())
     throw new DeploymentConflict('paper_fee_mark_source_mismatch');
-   for(const mark of [from,to]){
+   for(const mark of closing?[from]:[from,to]){
     const position=mark.inventory.position as Record<string,unknown>|undefined;
     if(!position||position.liquidity!==interval.liquidity||
      position.tickLower!==interval.range.tickLower||
      position.tickUpper!==interval.range.tickUpper)
      throw new DeploymentConflict('paper_fee_position_mismatch');
+   }
+   if(closing){
+    const preview=(await db.query<{proposal:Record<string,unknown>}>(`
+     SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2`,
+     [to.provenance.previewId,campaignId])).rows[0];
+    const close=paperCloseRetainModelSchema.safeParse(preview?.proposal.paperCloseRetainModel);
+    if(!close.success||close.data.previousMarkId!==from.id||
+     close.data.openMarkId!==to.provenance.openMarkId||
+     close.data.openModelHash!==to.provenance.openModelHash||
+     contentHash(close.data.source)!==contentHash(to.provenance.source)||
+     contentHash(close.data.poolState)!==contentHash(to.provenance.poolState)||
+     to.inventory.position!==null)
+     throw new DeploymentConflict('paper_fee_close_endpoint_unavailable');
    }
    const skipped=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM deployment_marks
     WHERE campaign_id=$1 AND id>$2 AND id<$3) AS found`,[campaignId,fromMarkId,toMarkId])).rows[0]?.found;

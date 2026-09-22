@@ -539,8 +539,48 @@ try{
   error=>error instanceof DeploymentConflict&&error.code==='paper_close_claim_lost');
  const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker');
  assert.equal(closed.replayed,false);
- await assert.rejects(store.paperFeeSamplingState(paperDraft.id),
-  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_next_mark_unsupported');
+ const closingFeeState=await store.paperFeeSamplingState(paperDraft.id);
+ assert.equal(closingFeeState.fromMarkId,valuation.markId);
+ assert.equal(closingFeeState.toMarkId,closed.markId);
+ assert.equal(closingFeeState.ending,'close_retain');
+ assert.equal(closingFeeState.liquidity,BigInt(paperModel.candidate.liquidity));
+ const closingFeeSeed={...feeSeed,global0:String(feeMarket.global0),
+  global1:String(feeMarket.global1)};
+ const closingFeeBefore={source:{block:'101',hash:valuationFrame.source.hash},
+  poolState:{tick:feeMarket.tick,sqrtPriceX96:String(feeMarket.price),
+   poolLiquidity:String(feeMarket.liquidity),feeGrowthGlobal0X128:String(feeMarket.global0),
+   feeGrowthGlobal1X128:String(feeMarket.global1)}};
+ const closingFeeEvent={block:'102',hash:closeFrame.source.hash,tx:0,log:0,
+  name:'Flash',args:{paid0:'0',paid1:String(10n**20n)}};
+ feeMarket.apply(closingFeeEvent);
+ const closingFeeProof=replayPaperFeeInterval(closingFeeSeed,[closingFeeEvent],closingFeeBefore,
+  {source:{block:'102',hash:closeFrame.source.hash},poolState:{tick:feeMarket.tick,
+   sqrtPriceX96:String(feeMarket.price),poolLiquidity:String(feeMarket.liquidity),
+   feeGrowthGlobal0X128:String(feeMarket.global0),
+   feeGrowthGlobal1X128:String(feeMarket.global1)}},paperModel.candidate.range,
+  BigInt(paperModel.candidate.liquidity),
+  {address:poolAddress,token0,token1,fee:3000,tickSpacing:60});
+ const verifiedCloseFee={...closingFeeProof,coverage:{stream:'test-stream',targetSetHash,
+  completeThroughBlock:'102',completeThroughHash:closeFrame.source.hash,
+  chainAnchorRecheckRequired:false}};
+ await assert.rejects(store.recordTrustedPaperFeeEvidence(paperDraft.id,
+  valuation.markId,closed.markId,{...verifiedCloseFee,
+   to:{...verifiedCloseFee.to,hash:sourceHash}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_mark_source_mismatch');
+ const savedClosingFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,
+  valuation.markId,closed.markId,verifiedCloseFee);
+ assert.equal(savedClosingFee.replayed,false);
+ assert.deepEqual(await store.recordTrustedPaperFeeEvidence(paperDraft.id,
+  valuation.markId,closed.markId,verifiedCloseFee),
+  {evidenceId:savedClosingFee.evidenceId,replayed:true});
+ assert.equal(await store.paperFeeSamplingState(paperDraft.id),null);
+ const closingCarry=(await admin.query(`SELECT carry FROM deployment_paper_fee_evidence
+  WHERE id=$1`,[savedClosingFee.evidenceId])).rows[0].carry;
+ assert.equal(closingCarry.intervals,2);
+ assert.equal(closingCarry.through.hash,closeFrame.source.hash);
+ assert.equal(closingCarry.token1.lowerRawQ128,
+  String(BigInt(verifiedFeeInterval.token1.lowerRawQ128)+
+   BigInt(verifiedCloseFee.token1.lowerRawQ128)));
  assert.deepEqual(await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker'),
   {markId:closed.markId,replayed:true});
  const finalLedger=(await admin.query(`SELECT kind,amount_raw,value_raw,source
@@ -601,7 +641,7 @@ try{
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();

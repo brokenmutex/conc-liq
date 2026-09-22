@@ -563,11 +563,14 @@ and an explicit distinction between implemented, deployed and live-validated.
   idempotent write were tested; no production schema was migrated. The record
   is separate from earned-fee ledger entries and leaves mark fee income and NAV
   null. An internal one-interval sampler now loads the next adjacent mark pair,
-  uses the canonical chain/indexer reader and appends the proof. It returns no
-  work when caught up and flags a closing mark as an unsupported fee interval;
-  no service schedules it yet. Calibrated fee capture and the earned paper fee
-  ledger/marks remain unfinished. The modeled credit is not booked as earned
-  fees or net P&L.
+  uses the canonical chain/indexer reader and appends the proof. The accepted
+  retain-close model permits a final interval through its block-level snapshot:
+  the hypothetical position is present for observed events through that block,
+  then the modeled exit occurs after the snapshot. Its closing carry is still
+  hypothetical; final retained balances and fees remain unavailable. The sampler
+  returns no work when caught up, and no service schedules it yet. Calibrated
+  fee capture and the earned paper fee ledger/marks remain unfinished. The
+  modeled credit is not booked as earned fees or net P&L.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 676 tests;

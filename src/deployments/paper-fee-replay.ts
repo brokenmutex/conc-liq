@@ -229,9 +229,9 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
 
 export type CanonicalPaperFeeInterval=Awaited<ReturnType<typeof readCanonicalPaperFeeInterval>>;
 
-/** Advances one missing paper interval using only canonical reads and the
- * append-only hypothetical evidence table. A closed/unsupported next mark is
- * surfaced by the state reader rather than silently skipping its fee gap. */
+/** Advances one missing paper interval using canonical reads and the
+ * append-only hypothetical evidence table. The accepted retain-close snapshot
+ * is an endpoint after all observed events in its source block. */
 export async function recordCanonicalPaperFeeEvidence(store:DeploymentStore,
  client:RobinhoodClient,indexer:Pool,campaignId:string){
  const state=await store.paperFeeSamplingState(campaignId);
