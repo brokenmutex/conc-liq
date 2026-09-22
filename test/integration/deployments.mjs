@@ -76,7 +76,7 @@ try{
  const paperLimits={maxDeploymentValue:String(250n*10n**18n),minDeploymentValue:'1',
   maxExposurePpm:1000000,maxLossValue:String(250n*10n**18n),maxDrawdownPpm:1000000,
   maxActionCost:String(10n**18n),maxRollingCost:String(10n**18n),maxCampaignCost:String(10n**18n),
-  exitReserveWei:'1000000000000000'};
+  exitReserveWei:'1000000000000000',maxSlippageBps:50};
  const paperDraft=await store.createDraft({...draftInput,mode:'paper',
   allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
   config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}});

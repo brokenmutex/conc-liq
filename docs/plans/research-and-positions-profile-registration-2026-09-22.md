@@ -55,9 +55,16 @@ it expires with the indicative source and must be refreshed before any future
 execution path. It is a modeled expense and bound, not a paid cost or a
 validated calibration claim. Missing, stale, rejected, ambiguous or cross-pool
 profiles leave the cost unavailable. Swap, fee capture, delay and failure
-expenses remain missing;
-net economics remain null. No profile is automatically inserted by this
+expenses remain missing; net economics remain null. No profile is automatically inserted by this
 command, and no live wallet is used for paper estimation.
+
+For a verified paper draft in an isolated development database,
+`src/deployments-paper-gas-sample.ts` can produce a new owned-fork exact-call
+report. Set `ANVIL_BIN` to the local Anvil binary and provide the same read-only
+RPC URL used for profile verification. Its arguments are the paper draft UUID
+and a new output JSON path. It records evidence only; profile ingestion and
+validation remain separate work. The first synthetic probe and its limits are
+in `docs/research/paper-static-gas-calibration-2026-09-22.md`.
 
 The candidate has no persisted preview ID and `actionAvailable: false`.
 

@@ -15,7 +15,7 @@ const commonLimits=z.object({
  maxDeploymentValue:raw,minDeploymentValue:raw,
  maxExposurePpm:ppm,maxLossValue:raw,maxDrawdownPpm:ppm,
  maxActionCost:raw,maxRollingCost:raw,maxCampaignCost:raw,
- exitReserveWei:raw,expiryAt:expiry.optional(),
+ exitReserveWei:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=500),expiryAt:expiry.optional(),
 }).strict();
 export const staticParameters=z.object({
  tickLower:z.number().int().min(-887272).max(887272),
@@ -26,7 +26,7 @@ export const rangeKeeperParameters=z.object({
  fullWidthSpacings:z.number().int().min(2).max(2000).refine(value=>value%2===0),
  limits:commonLimits.extend({
   minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
-  maxSwapShortfallValue:raw,maxSlippageBps:bps,maxRecenters:z.number().int().nonnegative(),
+   maxSwapShortfallValue:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=50),maxRecenters:z.number().int().nonnegative(),
   maxLiquiditySharePpm:ppm,maxObservationGapSeconds:z.number().int().positive(),
  }).optional(),
 }).strict();

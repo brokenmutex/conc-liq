@@ -506,7 +506,12 @@ and an explicit distinction between implemented, deployed and live-validated.
   fall back to older versions or unrelated AAPL allowances. There are no new
   populated or validated profiles yet; absent evidence leaves costs unavailable.
   RangeKeeper mint math is neutral to the retired research module. Paper
-  execution, calibration collection/validation and UI flows remain.
+  execution, calibration validation/ingestion and UI flows remain. An owned-fork
+  static/manual no-swap collector now records exact-call Nitro estimates for
+  six stages without a signer or upstream write. The first AAPL/USDG synthetic
+  probe is retained in `research/calibration/` and described in
+  `docs/research/paper-static-gas-calibration-2026-09-22.md`; it is one
+  provisional point, not a populated profile, a paper fill or validation.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 671 tests;
