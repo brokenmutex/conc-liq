@@ -198,3 +198,19 @@ export async function recordCanonicalNextPaperAccounting(store:DeploymentStore,
   }
  });
 }
+
+/** Bounded, restart-safe journal pass for one campaign. A later run picks up
+ * the first unprojected mark; missing fee evidence or revoked sources stop
+ * the pass without changing prior snapshots. */
+export async function projectCanonicalPaperAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string,maxMarks=100){
+ assert(Number.isSafeInteger(maxMarks)&&maxMarks>=1&&maxMarks<=100,
+  'Paper accounting projection budget invalid');
+ const projected:string[]=[];
+ for(let n=0;n<maxMarks;n++){
+  const next=await recordCanonicalNextPaperAccounting(store,client,campaignId);
+  if(!next)return {projected,caughtUp:true};
+  projected.push(next.markId);
+ }
+ return {projected,caughtUp:false};
+}

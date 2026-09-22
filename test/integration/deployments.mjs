@@ -19,7 +19,8 @@ import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_ST
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
-import {recordCanonicalNextPaperAccounting} from '../../src/deployments/paper-accounting.ts';
+import {recordCanonicalNextPaperAccounting,projectCanonicalPaperAccounting}
+ from '../../src/deployments/paper-accounting.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
@@ -159,6 +160,7 @@ try{
    timestamp:BigInt(frame.source.timestamp)};
  }};
  const recordAccounting=()=>recordCanonicalNextPaperAccounting(store,accountingClient,paperDraft.id);
+ const projectAccounting=()=>projectCanonicalPaperAccounting(store,accountingClient,paperDraft.id);
  const indicative=buildIndicativePaperOpenPreview(paperInput,frame);
  assert.equal(indicative.status,'indicative');assert.equal(indicative.actionAvailable,false);
  assert.equal(indicative.economics,null);assert.equal(indicative.candidate.range.fullWidthTicks,180);
@@ -509,7 +511,9 @@ try{
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,2);
  assert.equal((await store.paperValuationState(paperDraft.id)).previous.markId,valuation.markId);
- await assert.rejects(recordAccounting(),
+ await assert.rejects(projectCanonicalPaperAccounting(store,accountingClient,paperDraft.id,0),
+  /Paper accounting projection budget invalid/);
+ await assert.rejects(projectAccounting(),
   error=>error instanceof DeploymentConflict&&
    error.code==='paper_accounting_fee_evidence_unavailable');
  const feeState=await store.paperFeeSamplingState(paperDraft.id);
@@ -585,12 +589,12 @@ try{
  accountingReorgDuringRead=false;
  await store.close();store=new DeploymentStore(url.toString());
  await store.assertReady();
- const valuedAccounting=await recordAccounting();
- assert.equal(valuedAccounting.kind,'valuation');
- assert.equal(valuedAccounting.markId,valuation.markId);
+ const valuedPass=await projectCanonicalPaperAccounting(store,accountingClient,paperDraft.id,1);
+ assert.deepEqual(valuedPass,{projected:[valuation.markId],caughtUp:false});
+ assert.deepEqual(await projectAccounting(),{projected:[],caughtUp:true});
  assert.equal(await recordAccounting(),null);
  const valuedSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
-  WHERE id=$1`,[valuedAccounting.snapshotId])).rows[0].snapshot;
+  WHERE source_mark_id=$1`,[valuation.markId])).rows[0].snapshot;
  assert.equal(valuedSnapshot.feeEvidence.id,savedFee.evidenceId);
  assert.equal(valuedSnapshot.inventory.fee1Raw,
   String(BigInt(verifiedFeeInterval.token1.lowerRawQ128)/(1n<<128n)));
@@ -684,15 +688,13 @@ try{
   error=>error instanceof DeploymentConflict&&error.code==='paper_accounting_prior_fee_unavailable');
  await replaceFeeEvidence(persistedFee.proof,persistedFee.carry);
  const parallelAccounting=await Promise.all([
-  recordAccounting(),
-  recordAccounting()]);
- const closedAccounting=parallelAccounting.find(result=>result!==null);
- assert.equal(parallelAccounting.filter(result=>result===null).length,1);
- assert.equal(closedAccounting.kind,'close_retain');
- assert.equal(closedAccounting.markId,closed.markId);
+  projectAccounting(),
+  projectAccounting()]);
+ assert.deepEqual(parallelAccounting.map(result=>result.projected.length).sort(),[0,1]);
+ assert.equal(parallelAccounting.find(result=>result.projected.length)?.projected[0],closed.markId);
  assert.equal(await recordAccounting(),null);
  const closedSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
-  WHERE id=$1`,[closedAccounting.snapshotId])).rows[0].snapshot;
+  WHERE source_mark_id=$1`,[closed.markId])).rows[0].snapshot;
  assert.equal(closedSnapshot.inventory.hasLiquidity,false);
  assert.equal(closedSnapshot.inventory.token0Raw,
   String(BigInt(closeModel.retainedLowerBound.token0Raw)+BigInt(closedSnapshot.inventory.fee0Raw)));

@@ -613,6 +613,14 @@ and an explicit distinction between implemented, deployed and live-validated.
   snapshot; restart and concurrent close projection still pass. This covers
   canonicality when a snapshot is written. A durable worker and read-time
   revocation of already written scenarios are still outstanding.
+- R2 projection pass follow-up: a bounded one-campaign helper now advances at
+  most 100 unprojected journal marks using the canonical append path. It
+  reports whether it caught up, propagates missing fee evidence and invalid
+  anchors, and resumes from persisted rows after store recreation. The
+  isolated deployment test covers its budget, missing-interval stop, restart
+  and concurrent close projection. It does not sample missing intervals,
+  schedule itself, audit older anchors after projection, or enable HTTP paper
+  acceptance; those remain worker and monitor gates.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.
