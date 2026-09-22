@@ -558,8 +558,13 @@ and an explicit distinction between implemented, deployed and live-validated.
   rechecks both hashes after indexed replay. A read-only Q128 carry requires
   verified adjacent intervals with the same pool, range, liquidity, stream and
   target set; it preserves fractional credits and rejects gaps and repeats.
-  Calibrated fee capture, persistence and the paper fee ledger/marks remain
-  unfinished. The modeled credit is not booked as earned fees or net P&L.
+  An append-only v5 table now stores that verified interval proof and continuous
+  carry against adjacent paper marks. The isolated v4-to-v5 migration and
+  idempotent write were tested; no production schema was migrated. The record
+  is separate from earned-fee ledger entries and leaves mark fee income and NAV
+  null. No sampler currently calls this write path. Calibrated fee capture and
+  the earned paper fee ledger/marks remain unfinished. The modeled credit is
+  not booked as earned fees or net P&L.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 676 tests;

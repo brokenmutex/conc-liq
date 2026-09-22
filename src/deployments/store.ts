@@ -14,6 +14,7 @@ import {buildPaperOpenModel,paperOpenModelSchema} from './paper-open-model.js';
 import {buildPaperCloseRetainModel,paperCloseRetainModelSchema} from './paper-close-model.js';
 import {buildPaperPrincipalValuation,paperPrincipalValuationSchema} from './paper-valuation.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
+import {advancePaperFeeCarry,type CanonicalPaperFeeInterval,type PaperFeeCarry} from './paper-fee-replay.js';
 import {z} from 'zod';
 
 const paperGasAttestationSchema=z.object({
@@ -691,6 +692,93 @@ export class DeploymentStore {
     WHERE id=$1`,[model.campaignId,model.poolState.tick>=parsed.data.candidate.range.tickLower&&
      model.poolState.tick<parsed.data.candidate.range.tickUpper?'inside':'outside']);
    return {markId:mark.id,replayed:false};
+  });
+ }
+
+ /** Stores verified hypothetical fee bounds beside, never inside, the earned
+  * fee ledger. The caller must be the canonical chain/indexer reader. */
+ async recordTrustedPaperFeeEvidence(campaignId:string,fromMarkId:string,toMarkId:string,
+  interval:CanonicalPaperFeeInterval){
+  const proofHash=contentHash(interval);
+  return this.transaction(async db=>{
+   const campaign=(await db.query<{mode:string;profile:unknown;profile_hash:string;
+    evidence:unknown}>(`SELECT c.mode,p.profile,p.profile_hash,p.evidence
+    FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
+   const profile=marketProfileSchema.safeParse(campaign?.profile),
+    evidence=marketProfileEvidenceSchema.safeParse(campaign?.evidence);
+   if(!campaign||campaign.mode!=='paper'||!profile.success||!evidence.success||
+    contentHash(campaign.profile)!==campaign.profile_hash||
+    referenceProofHash(evidence.data.referenceProof)!==evidence.data.references.proofHash||
+    (['poolCodeHash','token0CodeHash','token1CodeHash','managerCodeHash',
+     'quoterCodeHash'] as const).some(key=>profile.data.pool[key].toLowerCase()!==
+      evidence.data.contractHashes[key].toLowerCase()))
+    throw new DeploymentConflict('paper_fee_campaign_unavailable');
+   const p=profile.data.pool;
+   if(interval.pool!==p.pool.toLowerCase()||interval.token0Address!==p.token0.toLowerCase()||
+    interval.token1Address!==p.token1.toLowerCase()||interval.fee!==p.fee||
+    interval.tickSpacing!==p.tickSpacing||
+    interval.coverage.stream!==evidence.data.streamKey||
+    interval.coverage.targetSetHash!==evidence.data.indexerTargetSetHash)
+    throw new DeploymentConflict('paper_fee_profile_mismatch');
+   const marks=(await db.query<{id:string;revision:number;source_block:string|null;
+    source_hash:string|null;inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
+    SELECT id::text,revision,source_block::text,source_hash,inventory,provenance
+    FROM deployment_marks WHERE campaign_id=$1 AND id IN ($2,$3) ORDER BY id`,
+    [campaignId,fromMarkId,toMarkId])).rows;
+   if(marks.length!==2||marks[0]!.id!==fromMarkId||marks[1]!.id!==toMarkId||
+    marks[0]!.revision!==marks[1]!.revision)
+    throw new DeploymentConflict('paper_fee_marks_unavailable');
+   const [from,to]=marks as [typeof marks[number],typeof marks[number]];
+   if(!['paper_model_provisional','paper_model_principal_valuation'].includes(
+    String(from.provenance.classification))||
+    to.provenance.classification!=='paper_model_principal_valuation'||
+    from.source_block!==interval.from.block||to.source_block!==interval.to.block||
+    from.source_hash?.toLowerCase()!==interval.from.hash.toLowerCase()||
+    to.source_hash?.toLowerCase()!==interval.to.hash.toLowerCase())
+    throw new DeploymentConflict('paper_fee_mark_source_mismatch');
+   for(const mark of [from,to]){
+    const position=mark.inventory.position as Record<string,unknown>|undefined;
+    if(!position||position.liquidity!==interval.liquidity||
+     position.tickLower!==interval.range.tickLower||
+     position.tickUpper!==interval.range.tickUpper)
+     throw new DeploymentConflict('paper_fee_position_mismatch');
+   }
+   const skipped=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM deployment_marks
+    WHERE campaign_id=$1 AND id>$2 AND id<$3) AS found`,[campaignId,fromMarkId,toMarkId])).rows[0]?.found;
+   if(skipped)throw new DeploymentConflict('paper_fee_mark_gap');
+   const existing=(await db.query<{id:string;from_mark_id:string;proof_hash:string}>(`
+    SELECT id::text,from_mark_id::text,proof_hash FROM deployment_paper_fee_evidence
+    WHERE campaign_id=$1 AND to_mark_id=$2`,[campaignId,toMarkId])).rows[0];
+   if(existing){
+    if(existing.from_mark_id===fromMarkId&&existing.proof_hash===proofHash)
+     return {evidenceId:existing.id,replayed:true};
+    throw new DeploymentConflict('paper_fee_conflicting_interval');
+   }
+   const open=(await db.query<{source_block:string|null;source_hash:string|null}>(`
+    SELECT source_block::text,source_hash FROM deployment_marks WHERE campaign_id=$1
+     AND provenance->>'classification'='paper_model_provisional' ORDER BY id LIMIT 2`,
+    [campaignId])).rows;
+   if(open.length!==1||!open[0]!.source_block||!open[0]!.source_hash)
+    throw new DeploymentConflict('paper_fee_open_mark_unavailable');
+   const prior=(await db.query<{carry:PaperFeeCarry;carry_hash:string}>(`
+    SELECT carry,carry_hash FROM deployment_paper_fee_evidence
+    WHERE campaign_id=$1 AND to_mark_id=$2`,[campaignId,fromMarkId])).rows[0];
+   if(from.provenance.classification==='paper_model_provisional'&&prior||
+    from.provenance.classification!=='paper_model_provisional'&&!prior)
+    throw new DeploymentConflict('paper_fee_prior_evidence_unavailable');
+   if(prior&&contentHash(prior.carry)!==prior.carry_hash)
+    throw new DeploymentConflict('paper_fee_prior_evidence_integrity');
+   let carry:PaperFeeCarry;
+   try{carry=advancePaperFeeCarry(prior?.carry??null,interval,
+    {block:open[0]!.source_block,hash:open[0]!.source_hash});}
+   catch{throw new DeploymentConflict('paper_fee_interval_rejected');}
+   const inserted=(await db.query<{id:string}>(`INSERT INTO deployment_paper_fee_evidence
+    (campaign_id,from_mark_id,to_mark_id,proof,proof_hash,carry,carry_hash)
+    VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id::text`,
+    [campaignId,fromMarkId,toMarkId,JSON.stringify(interval),proofHash,
+     JSON.stringify(carry),contentHash(carry)])).rows[0]!;
+   return {evidenceId:inserted.id,replayed:false};
   });
  }
 

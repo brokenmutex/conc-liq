@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 // Exact supported migration history. Change only alongside a reviewed migration.
 // Read-only workers must never repair or bootstrap a database implicitly.
 export const REQUIRED_SCHEMA_VERSION = 3;
-export const DEPLOYMENT_SCHEMA_VERSION = 4;
+export const DEPLOYMENT_SCHEMA_VERSION = 5;
 export const SCHEMA_ERROR = "Database schema incompatible; run the release's explicit db:migrate command before starting workers";
 
 export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): Promise<void> {
@@ -22,8 +22,8 @@ export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): P
   }
 }
 
-/** The new command ledger requires v4. Existing read-only services can still
- * run against the checked v3 schema until an authorized migration. */
+/** The new command ledger requires v5. Existing read-only services can still
+ * run against checked v3/v4 schemas until an authorized migration. */
 export async function assertDeploymentSchemaReady(db: Pick<Pool | PoolClient,"query">):Promise<void>{
  await assertSchemaReady(db);
  const row=(await db.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0];

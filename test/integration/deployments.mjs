@@ -20,11 +20,12 @@ import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
+import {ExperimentMarket} from '../../src/experiment/market.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
  from '../../src/dashboard/deployment-position.ts';
 import {readPositionOverview,readPositionDetail} from '../../src/dashboard/positions.ts';
 import {createDashboardServer} from '../../src/dashboard/server.ts';
-import {readIndexedPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
+import {readIndexedPaperFeeInterval,replayPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
@@ -34,7 +35,7 @@ let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -449,6 +450,60 @@ try{
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,2);
  assert.equal((await store.paperValuationState(paperDraft.id)).previous.markId,valuation.markId);
+ const feeSeed={price:String(frame.sqrtPriceX96),tick:frame.tick,
+  liquidity:String(frame.poolLiquidity),global0:'0',global1:'0',protocol0:0,protocol1:0,
+  fee:paperInput.profile.pool.fee,spacing:paperInput.profile.pool.tickSpacing,
+  ticks:[{tick:-276420,gross:String(frame.poolLiquidity),net:String(frame.poolLiquidity)},
+   {tick:-276240,gross:String(frame.poolLiquidity),net:String(-frame.poolLiquidity)}]};
+ const feeMarket=new ExperimentMarket(feeSeed);
+ const hypotheticalFeeEvent={block:'101',hash:valuationFrame.source.hash,tx:0,log:0,
+  name:'Flash',args:{paid0:'0',paid1:String(10n**20n)}};
+ feeMarket.apply(hypotheticalFeeEvent);
+ const feeInterval=replayPaperFeeInterval(feeSeed,[hypotheticalFeeEvent],
+  {source:{block:'100',hash:sourceHash},poolState:{tick:frame.tick,
+   sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity),
+   feeGrowthGlobal0X128:'0',feeGrowthGlobal1X128:'0'}},
+  {source:{block:'101',hash:valuationFrame.source.hash},poolState:{tick:feeMarket.tick,
+   sqrtPriceX96:String(feeMarket.price),poolLiquidity:String(feeMarket.liquidity),
+   feeGrowthGlobal0X128:String(feeMarket.global0),
+   feeGrowthGlobal1X128:String(feeMarket.global1)}},
+  paperModel.candidate.range,BigInt(paperModel.candidate.liquidity),
+  {address:poolAddress,token0,token1,fee:3000,tickSpacing:60});
+ // Stubbed canonical recheck here exercises persistence, not RPC validation.
+ const verifiedFeeInterval={...feeInterval,coverage:{stream:'test-stream',
+  targetSetHash,completeThroughBlock:'101',completeThroughHash:valuationFrame.source.hash,
+  chainAnchorRecheckRequired:false}};
+ await assert.rejects(store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,{...verifiedFeeInterval,coverage:{...verifiedFeeInterval.coverage,
+   chainAnchorRecheckRequired:true}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_interval_rejected');
+ await assert.rejects(store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,{...verifiedFeeInterval,to:{...verifiedFeeInterval.to,hash:sourceHash}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_mark_source_mismatch');
+ const savedFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,verifiedFeeInterval);
+ assert.equal(savedFee.replayed,false);
+ assert.deepEqual(await store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,verifiedFeeInterval),{evidenceId:savedFee.evidenceId,replayed:true});
+ await assert.rejects(store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,{...verifiedFeeInterval,fee:500}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_profile_mismatch');
+ await assert.rejects(store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
+  valuation.markId,{...verifiedFeeInterval,token1:{...verifiedFeeInterval.token1,
+   lowerRawQ128:'0',lowerAmountRaw:'0'}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_fee_conflicting_interval');
+ const persistedFee=(await admin.query(`SELECT proof,carry,proof_hash,carry_hash
+  FROM deployment_paper_fee_evidence WHERE id=$1`,[savedFee.evidenceId])).rows[0];
+ assert.equal(persistedFee.carry.intervals,1);
+ assert.equal(persistedFee.carry.token1.lowerRawQ128,verifiedFeeInterval.token1.lowerRawQ128);
+ assert.equal(persistedFee.proof.accounting,'modeled_hypothetical_fee_share');
+ await assert.rejects(admin.query('UPDATE deployment_paper_fee_evidence SET proof=$2 WHERE id=$1',
+  [savedFee.evidenceId,'{}']),/append-only/);
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+  WHERE campaign_id=$1 AND kind='fee'`,[paperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query(`SELECT economics->>'feeIncome' AS fee_income,
+  economics->>'netNav' AS net_nav FROM deployment_marks WHERE id=$1`,
+  [valuation.markId])).rows[0].fee_income,null);
  const closeFrame={...frame,source:{...frame.source,block:'102',hash:'0x'+'5'.repeat(64)}};
  const closeCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:paperModel.candidate},
   gasRows,poolAddress,10n**18n,1_000_000_000n);
@@ -534,7 +589,7 @@ try{
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','immutable hypothetical fee evidence stays outside earned ledger','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();
