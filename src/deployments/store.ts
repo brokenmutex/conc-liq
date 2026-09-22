@@ -24,6 +24,16 @@ const paperGasAttestationSchema=z.object({
  profileHash:z.string().regex(/^[0-9a-f]{64}$/),
  verifiedAt:z.iso.datetime({offset:true}),
 }).strict();
+const paperFeeMarkSourceSchema=z.object({
+ block:z.string().regex(/^(0|[1-9][0-9]*)$/),
+ hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+ timestamp:z.number().int().nonnegative(),
+}).strict();
+const paperFeeMarkStateSchema=z.object({tick:z.number().int(),
+ sqrtPriceX96:z.string().regex(/^(0|[1-9][0-9]*)$/),
+ poolLiquidity:z.string().regex(/^(0|[1-9][0-9]*)$/)}).strict();
+const paperFeePositionSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+ liquidity:z.string().regex(/^[1-9][0-9]*$/)}).passthrough();
 
 export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
@@ -210,6 +220,76 @@ export class DeploymentStore {
   return {openModel:open.data,openMarkId:row.open_mark_id,
    previous:{markId:row.latest_mark_id,sourceBlock:row.latest_source_block,
     sourceHash:row.latest_source_hash},profile:profile.data};
+ }
+
+ /** Returns one adjacent, unrecorded paper interval. No network call or write
+  * occurs here; the later append rechecks both marks under the campaign lock. */
+ async paperFeeSamplingState(id:string){
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   try{
+    const campaign=(await db.query<{mode:string;profile:unknown;profile_hash:string;
+     evidence:unknown}>(`SELECT c.mode,p.profile,p.profile_hash,p.evidence
+     FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+     WHERE c.id=$1`,[id])).rows[0];
+    const profile=marketProfileSchema.safeParse(campaign?.profile),
+     evidence=marketProfileEvidenceSchema.safeParse(campaign?.evidence);
+    if(!campaign||campaign.mode!=='paper'||!profile.success||!evidence.success||
+     contentHash(campaign.profile)!==campaign.profile_hash||
+     referenceProofHash(evidence.data.referenceProof)!==evidence.data.references.proofHash)
+     throw new DeploymentConflict('paper_fee_campaign_unavailable');
+    const last=(await db.query<{to_mark_id:string}>(`
+     SELECT to_mark_id::text FROM deployment_paper_fee_evidence
+     WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[id])).rows[0];
+    const markSql=`SELECT id::text,revision,source_block::text,source_hash,inventory,provenance
+     FROM deployment_marks WHERE campaign_id=$1`;
+    type Mark={id:string;revision:number;source_block:string|null;source_hash:string|null;
+     inventory:Record<string,unknown>;provenance:Record<string,unknown>};
+    const from=(await db.query<Mark>(last?`${markSql} AND id=$2`:
+     `${markSql} ORDER BY id LIMIT 1`,last?[id,last.to_mark_id]:[id])).rows[0];
+    if(!from){
+     if(last)throw new DeploymentConflict('paper_fee_prior_mark_unavailable');
+     await db.query('COMMIT');return null;
+    }
+    if(!last&&from.provenance.classification!=='paper_model_provisional')
+     throw new DeploymentConflict('paper_fee_open_mark_unavailable');
+    const to=(await db.query<Mark>(`${markSql} AND id>$2 ORDER BY id LIMIT 1`,
+     [id,from.id])).rows[0];
+    if(!to){await db.query('COMMIT');return null;}
+    if(to.provenance.classification!=='paper_model_principal_valuation'||
+     !['paper_model_provisional','paper_model_principal_valuation'].includes(
+      String(from.provenance.classification))||from.revision!==to.revision)
+     throw new DeploymentConflict('paper_fee_next_mark_unsupported');
+    const snapshot=(mark:Mark)=>{
+     const source=paperFeeMarkSourceSchema.safeParse(mark.provenance.source),
+      state=paperFeeMarkStateSchema.safeParse(mark.provenance.poolState),
+      position=paperFeePositionSchema.safeParse(mark.inventory.position);
+     if(!source.success||!state.success||!position.success||
+      source.data.block!==mark.source_block||
+      source.data.hash.toLowerCase()!==mark.source_hash?.toLowerCase())
+      throw new DeploymentConflict('paper_fee_mark_integrity');
+     return {source:source.data,tick:state.data.tick,
+      sqrtPriceX96:BigInt(state.data.sqrtPriceX96),
+      poolLiquidity:BigInt(state.data.poolLiquidity),position:position.data};
+    };
+    const before=snapshot(from),after=snapshot(to);
+    if(after.position.liquidity!==before.position.liquidity||
+     after.position.tickLower!==before.position.tickLower||
+     after.position.tickUpper!==before.position.tickUpper||
+     BigInt(after.source.block)<=BigInt(before.source.block))
+     throw new DeploymentConflict('paper_fee_position_or_source_changed');
+    await db.query('COMMIT');
+    return {profile:profile.data,stream:evidence.data.streamKey,
+     targetSetHash:evidence.data.indexerTargetSetHash,fromMarkId:from.id,toMarkId:to.id,
+     before:{source:before.source,tick:before.tick,sqrtPriceX96:before.sqrtPriceX96,
+      poolLiquidity:before.poolLiquidity},
+     after:{source:after.source,tick:after.tick,sqrtPriceX96:after.sqrtPriceX96,
+      poolLiquidity:after.poolLiquidity},
+     range:{tickLower:before.position.tickLower,tickUpper:before.position.tickUpper},
+     liquidity:BigInt(before.position.liquidity)};
+   }catch(error){await db.query('ROLLBACK');throw error;}
+  }finally{db.release();}
  }
 
  async listMarketProfiles(){

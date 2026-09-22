@@ -8,6 +8,7 @@ import {virtualFeeCredit} from '../research/virtual-fees.js';
 import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import type {MarketProfile} from './market-profile.js';
 import type {PaperOpenFrame} from './paper-preview.js';
+import type {DeploymentStore} from './store.js';
 
 const Q128=1n<<128n,MAX_EVENTS=20000,MAX_TICKS=50000;
 const hash=/^0x[0-9a-fA-F]{64}$/;
@@ -227,6 +228,19 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
 }
 
 export type CanonicalPaperFeeInterval=Awaited<ReturnType<typeof readCanonicalPaperFeeInterval>>;
+
+/** Advances one missing paper interval using only canonical reads and the
+ * append-only hypothetical evidence table. A closed/unsupported next mark is
+ * surfaced by the state reader rather than silently skipping its fee gap. */
+export async function recordCanonicalPaperFeeEvidence(store:DeploymentStore,
+ client:RobinhoodClient,indexer:Pool,campaignId:string){
+ const state=await store.paperFeeSamplingState(campaignId);
+ if(!state)return null;
+ const proof=await readCanonicalPaperFeeInterval(client,indexer,state.stream,
+  state.targetSetHash,state.profile,state.before,state.after,state.range,state.liquidity);
+ return store.recordTrustedPaperFeeEvidence(campaignId,state.fromMarkId,state.toMarkId,proof);
+}
+
 export interface PaperFeeCarry {
  kind:'paper_fee_carry_v1';pool:string;token0Address:string;token1Address:string;
  fee:number;tickSpacing:number;range:{tickLower:number;tickUpper:number};liquidity:string;
