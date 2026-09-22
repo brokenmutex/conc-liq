@@ -541,6 +541,30 @@ try{
  const savedFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
   valuation.markId,verifiedFeeInterval);
  assert.equal(savedFee.replayed,false);
+ const persistedFee=(await admin.query(`SELECT proof,carry,proof_hash,carry_hash
+  FROM deployment_paper_fee_evidence WHERE id=$1`,[savedFee.evidenceId])).rows[0];
+ // Isolated fault injection: even a self-consistently rehashed row must replay
+ // from its prior carry and match the registered indexer identity.
+ const replaceFeeEvidence=async(proof,carry)=>{
+  await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+   DISABLE TRIGGER deployment_paper_fee_append_only`);
+  try{await admin.query(`UPDATE deployment_paper_fee_evidence
+   SET proof=$2,proof_hash=$3,carry=$4,carry_hash=$5 WHERE id=$1`,
+   [savedFee.evidenceId,JSON.stringify(proof),contentHash(proof),
+    JSON.stringify(carry),contentHash(carry)]);}
+  finally{await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+   ENABLE TRIGGER deployment_paper_fee_append_only`);}
+ };
+ await replaceFeeEvidence(persistedFee.proof,{...persistedFee.carry,intervals:2});
+ await assert.rejects(store.recordNextPaperAccounting(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_accounting_fee_replay_invalid');
+ await replaceFeeEvidence({...persistedFee.proof,coverage:{...persistedFee.proof.coverage,
+  stream:'unregistered-stream'}},persistedFee.carry);
+ await assert.rejects(store.recordNextPaperAccounting(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_accounting_fee_replay_invalid');
+ await replaceFeeEvidence(persistedFee.proof,persistedFee.carry);
+ await store.close();store=new DeploymentStore(url.toString());
+ await store.assertReady();
  const valuedAccounting=await store.recordNextPaperAccounting(paperDraft.id);
  assert.equal(valuedAccounting.kind,'valuation');
  assert.equal(valuedAccounting.markId,valuation.markId);
@@ -565,8 +589,6 @@ try{
   valuation.markId,{...verifiedFeeInterval,token1:{...verifiedFeeInterval.token1,
    lowerRawQ128:'0',lowerAmountRaw:'0'}}),
   error=>error instanceof DeploymentConflict&&error.code==='paper_fee_conflicting_interval');
- const persistedFee=(await admin.query(`SELECT proof,carry,proof_hash,carry_hash
-  FROM deployment_paper_fee_evidence WHERE id=$1`,[savedFee.evidenceId])).rows[0];
  assert.equal(persistedFee.carry.intervals,1);
  assert.equal(persistedFee.carry.token1.lowerRawQ128,verifiedFeeInterval.token1.lowerRawQ128);
  assert.equal(persistedFee.proof.accounting,'modeled_hypothetical_fee_share');
@@ -636,7 +658,16 @@ try{
  const savedClosingFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,
   valuation.markId,closed.markId,verifiedCloseFee);
  assert.equal(savedClosingFee.replayed,false);
- const closedAccounting=await store.recordNextPaperAccounting(paperDraft.id);
+ await replaceFeeEvidence({...persistedFee.proof,events:persistedFee.proof.events+1},
+  persistedFee.carry);
+ await assert.rejects(store.recordNextPaperAccounting(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_accounting_prior_fee_unavailable');
+ await replaceFeeEvidence(persistedFee.proof,persistedFee.carry);
+ const parallelAccounting=await Promise.all([
+  store.recordNextPaperAccounting(paperDraft.id),
+  store.recordNextPaperAccounting(paperDraft.id)]);
+ const closedAccounting=parallelAccounting.find(result=>result!==null);
+ assert.equal(parallelAccounting.filter(result=>result===null).length,1);
  assert.equal(closedAccounting.kind,'close_retain');
  assert.equal(closedAccounting.markId,closed.markId);
  assert.equal(await store.recordNextPaperAccounting(paperDraft.id),null);
@@ -738,7 +769,7 @@ try{
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal resumes after store restart','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();

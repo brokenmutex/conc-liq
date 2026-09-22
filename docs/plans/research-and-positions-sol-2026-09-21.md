@@ -598,6 +598,13 @@ and an explicit distinction between implemented, deployed and live-validated.
   paid-cost record. Execution delay and failures remain unmodeled. No worker
   schedules the journal projection yet, and close-convert and RangeKeeper
   accounting are still unsupported.
+- R2 journal integrity follow-up: projection now replays each saved interval
+  from the prior carry and registered indexer stream/target set before it can
+  add a snapshot. An isolated test injects self-consistently rehashed but
+  semantically invalid fee rows; each fails without a journal write. Pending
+  valuation projection resumes after recreating the store, and two concurrent
+  close projections produce one snapshot. The operation still has no scheduled
+  worker or read-time canonical recheck; those remain gates before operator use.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.
@@ -660,12 +667,13 @@ incomplete.
 Do not mark a usable paper lifecycle complete merely because an internal close
 sets the campaign lifecycle to `closed`.
 
-The first static/manual retain-close journal slice is now implemented as
-described in section 9. Finish the following acceptance gates before declaring
-R2 complete: add explicit conversion-close costs and proceeds, reconcile its
-capital-out flows, support the same accounting contract for RangeKeeper paper,
-and verify journal projection under worker restart, missing/stale evidence and
-all supported exit boundaries. Then run the complete desktop/mobile dashboard
+The first static/manual retain-close journal slice and store-level evidence
+replay/restart checks are implemented as described in section 9. Finish the
+following acceptance gates before declaring R2 complete: add explicit
+conversion-close costs and proceeds, reconcile its capital-out flows, support
+the same accounting contract for RangeKeeper paper, and verify canonical
+rechecks and journal projection under worker restart, stale evidence and all
+supported exit boundaries. Then run the complete desktop/mobile dashboard
 parity matrix against the persisted journal. Keep HTTP paper acceptance gated
 until R3 connects and verifies the durable worker.
 

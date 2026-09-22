@@ -901,9 +901,9 @@ export class DeploymentStore {
  async recordNextPaperAccounting(campaignId:string){
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:string;current_revision:number;allocation:unknown;
-    profile:unknown;profile_hash:string;config_hash:string;open_mark_id:string;
+    profile:unknown;profile_hash:string;evidence:unknown;config_hash:string;open_mark_id:string;
     open_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`
-    SELECT c.mode,c.current_revision,c.allocation,p.profile,p.profile_hash,r.config_hash,
+    SELECT c.mode,c.current_revision,c.allocation,p.profile,p.profile_hash,p.evidence,r.config_hash,
      o.id::text AS open_mark_id,o.provenance AS open_provenance,v.proposal
     FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
@@ -912,9 +912,12 @@ export class DeploymentStore {
     JOIN deployment_previews v ON v.id=(o.provenance->>'previewId')::uuid
     WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
    const profile=marketProfileSchema.safeParse(campaign?.profile),
+    profileEvidence=marketProfileEvidenceSchema.safeParse(campaign?.evidence),
     open=paperOpenModelSchema.safeParse(campaign?.proposal.paperOpenModel);
-   if(!campaign||campaign.mode!=='paper'||!profile.success||!open.success||
+   if(!campaign||campaign.mode!=='paper'||!profile.success||!profileEvidence.success||!open.success||
     contentHash(campaign.profile)!==campaign.profile_hash||
+    referenceProofHash(profileEvidence.data.referenceProof)!==
+     profileEvidence.data.references.proofHash||
     open.data.profileHash!==campaign.profile_hash||
     open.data.configHash!==campaign.config_hash||
     open.data.campaignId!==campaignId||open.data.revision!==campaign.current_revision||
@@ -967,6 +970,30 @@ export class DeploymentStore {
     contentHash(feeRow.proof)!==feeRow.proof_hash||
     contentHash(feeRow.carry)!==feeRow.carry_hash))
     throw new DeploymentConflict('paper_accounting_fee_evidence_unavailable');
+   if(feeRow){
+    const priorFee=priorMark?(await db.query<{id:string;proof:unknown;proof_hash:string;
+     carry:PaperFeeCarry;carry_hash:string}>(`
+     SELECT id::text,proof,proof_hash,carry,carry_hash FROM deployment_paper_fee_evidence
+     WHERE campaign_id=$1 AND to_mark_id=$2`,[campaignId,priorMark.id])).rows[0]:null;
+    if(!parsedPrior.success||
+     (parsedPrior.data.markKind==='open'?priorFee!==undefined:
+      !priorFee||contentHash(priorFee.carry)!==priorFee.carry_hash||
+       contentHash(priorFee.proof)!==priorFee.proof_hash||
+       parsedPrior.data.feeEvidence?.id!==priorFee.id||
+       parsedPrior.data.feeEvidence?.proofHash!==priorFee.proof_hash||
+       parsedPrior.data.feeEvidence?.carryHash!==priorFee.carry_hash))
+     throw new DeploymentConflict('paper_accounting_prior_fee_unavailable');
+    let replayedCarry:PaperFeeCarry;
+    try{
+     const proof=feeRow.proof as CanonicalPaperFeeInterval;
+     if(proof.coverage.stream!==profileEvidence.data.streamKey||
+      proof.coverage.targetSetHash!==profileEvidence.data.indexerTargetSetHash)
+      throw Error('paper_accounting_coverage_changed');
+     replayedCarry=advancePaperFeeCarry(priorFee?.carry??null,proof,open.data.source);
+    }catch{throw new DeploymentConflict('paper_accounting_fee_replay_invalid');}
+    if(contentHash(replayedCarry)!==feeRow.carry_hash)
+     throw new DeploymentConflict('paper_accounting_fee_replay_invalid');
+   }
    let close=null;
    if(kind==='close_retain'){
     const preview=(await db.query<{proposal:Record<string,unknown>}>(`
