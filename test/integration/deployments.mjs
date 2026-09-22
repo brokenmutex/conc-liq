@@ -24,12 +24,13 @@ import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
  from '../../src/dashboard/deployment-position.ts';
 import {readPositionOverview,readPositionDetail} from '../../src/dashboard/positions.ts';
 import {createDashboardServer} from '../../src/dashboard/server.ts';
+import {readIndexedPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
 const admin=await pool.connect();
 const schema=`deployment_test_${randomUUID().replaceAll('-','')}`;
-let store;
+let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
@@ -68,6 +69,49 @@ try{
  assert.equal(registered.created,true);
  assert.deepEqual(await store.registerVerifiedMarketProfile(proof),{id:registered.id,created:false});
  const profile=registered.id;
+ feePool=new pg.Pool({connectionString:url.toString(),max:2});
+ const feePrice=String(sqrtRatioAtTick(-276325)),feeHash='0x'+'4'.repeat(64),
+  targetSetHash='0x'+'f'.repeat(64),Q128=1n<<128n;
+ await admin.query(`INSERT INTO v3_replay_cursors
+  (stream_key,chain_id,target_set_hash,complete_through_block,complete_through_hash)
+  VALUES('test-stream',4663,$1,101,$2)`,[targetSetHash,feeHash]);
+ await admin.query(`INSERT INTO v3_replay_pools
+  (stream_key,pool_address,chain_id,rwa_symbol,fee,initialized,sqrt_price_x96,tick,
+   liquidity,observation_cardinality_next)
+  VALUES('test-stream',$1,4663,'BASE',3000,true,$2,-276325,1000,1)`,
+  [poolAddress,feePrice]);
+ await admin.query(`INSERT INTO v3_replay_ticks
+  (stream_key,pool_address,tick,liquidity_gross,liquidity_net) VALUES
+  ('test-stream',$1,-276420,1000,1000),('test-stream',$1,-276240,1000,-1000)`,
+  [poolAddress]);
+ await admin.query(`INSERT INTO v3_pool_events
+  (stream_key,chain_id,pool_address,block_number,block_hash,transaction_hash,
+   transaction_index,log_index,event_name,event_args,raw_topics,raw_data)
+  VALUES('test-stream',4663,$1,101,$2,$3,0,0,'Flash',$4,'[]','0x')`,
+  [poolAddress,feeHash,'0x'+'3'.repeat(64),JSON.stringify({paid0:'0',paid1:'10000'})]);
+ const feeBefore={source:{block:'100',hash:sourceHash},poolState:{tick:-276325,
+  sqrtPriceX96:feePrice,poolLiquidity:'1000',feeGrowthGlobal0X128:'0',
+  feeGrowthGlobal1X128:'0'}};
+ const feeAfter={source:{block:'101',hash:feeHash},poolState:{...feeBefore.poolState,
+  feeGrowthGlobal1X128:String(10000n*Q128/1000n)}};
+ const feeReplay=await readIndexedPaperFeeInterval(feePool,'test-stream',targetSetHash,
+  market,feeBefore,feeAfter,{tickLower:-276420,tickUpper:-276240},1000n);
+ assert.equal(feeReplay.token1.lowerAmountRaw,'5000');
+ assert.equal(feeReplay.coverage.chainAnchorRecheckRequired,true);
+ await assert.rejects(readIndexedPaperFeeInterval(feePool,'test-stream','wrong-target',
+  market,feeBefore,feeAfter,{tickLower:-276420,tickUpper:-276240},1000n),
+  /coverage unavailable/);
+ await admin.query(`UPDATE v3_pool_events SET block_hash=$1 WHERE stream_key='test-stream'`,
+  [sourceHash]);
+ await assert.rejects(readIndexedPaperFeeInterval(feePool,'test-stream',targetSetHash,
+  market,feeBefore,feeAfter,{tickLower:-276420,tickUpper:-276240},1000n),
+  /ending block hash mismatch/);
+ await admin.query(`UPDATE v3_replay_cursors SET last_block_number=102,
+  last_block_hash=$1,last_transaction_hash=$2,last_transaction_index=0,
+  last_log_index=0 WHERE stream_key='test-stream'`,[feeHash,'0x'+'5'.repeat(64)]);
+ await assert.rejects(readIndexedPaperFeeInterval(feePool,'test-stream',targetSetHash,
+  market,feeBefore,feeAfter,{tickLower:-276420,tickUpper:-276240},1000n),
+  /incomplete later block/);
  const catalog=await store.listMarketProfiles();
  assert.equal(catalog.length,1);
  assert.equal(catalog[0].id,profile);
@@ -490,8 +534,9 @@ try{
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
 }finally{
+ if(feePool)await feePool.end();
  if(store)await store.close();
  await admin.query('SET search_path=public');
  await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);

@@ -548,6 +548,14 @@ and an explicit distinction between implemented, deployed and live-validated.
   view and HTTP routes are checked against an isolated ledger and a disposable
   desktop/mobile fixture. A sealed release, real runtime history and the full
   deployment parity acceptance matrix remain separate gates.
+  A bounded, asset-neutral fee replay reader now reconstructs indexed pool
+  events using the profile's actual fee tier and tick spacing, verifies the
+  endpoint pool state and fee-growth counters, and models hypothetical LP fee
+  dilution. It reports fixed-path integer allocation bounds for partial virtual segments
+  and fails on coverage, target-set or source-hash mismatches. This is read-only
+  interval evidence: canonical chain-anchor rechecks, continuous fee state,
+  calibrated fee capture and the paper fee ledger/marks remain unfinished.
+  The replay is not booked as earned fees or net P&L.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 672 tests;
