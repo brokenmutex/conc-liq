@@ -20,6 +20,7 @@ interface DeploymentRow {
  closed_at:Date|null;allocation:unknown;profile:unknown;strategy_id:string;config:unknown;
  mark_id:string|null;mark_at:Date|null;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
+ operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
 }
 interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
@@ -73,13 +74,17 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
-   capital.initial_value
+   capital.initial_value,blocked.status AS operation_status,
+   blocked.stage AS operation_stage,blocked.reason AS operation_reason
   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
   LEFT JOIN LATERAL (SELECT id,at,source_block,source_hash,inventory,economics,provenance
    FROM deployment_marks WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
   LEFT JOIN LATERAL (SELECT sum(value_raw)::text AS initial_value FROM deployment_ledger
    WHERE campaign_id=c.id AND kind='capital_in') capital ON TRUE
+  LEFT JOIN LATERAL (SELECT status,stage,reason FROM deployment_operations
+   WHERE campaign_id=c.id AND c.lifecycle='blocked' AND status='blocked'
+   ORDER BY updated_at DESC,id DESC LIMIT 1) blocked ON TRUE
   WHERE c.lifecycle<>'draft' ORDER BY c.created_at DESC,c.id LIMIT 1001`)).rows;
  if(rows.length>1000)throw Error('Deployment position overview exceeds bounded row limit');
  return rows;
@@ -105,13 +110,17 @@ export function deploymentPosition(row:DeploymentRow){
   hasLiquidity=liquidity!==null&&BigInt(liquidity)>0n;
  const tick=typeof state.tick==='number'?state.tick:null,
   sqrt=decimal(state.sqrtPriceX96),sourceAt=sourceTime(provenance);
- const status=row.lifecycle==='closed'?'closed':row.lifecycle==='closing'?'exiting':
-  row.lifecycle==='paused'||row.lifecycle==='blocked'||hasLiquidity&&row.range_state==='outside'?'paused':
-  hasLiquidity?'open':'waiting';
+ const status=row.lifecycle==='closed'?'closed':row.lifecycle==='blocked'?'blocked':
+  row.lifecycle==='closing'?'exiting':row.lifecycle==='changing'?'changing':
+  row.lifecycle==='paused'?'paused':row.lifecycle==='opening'?'waiting':
+  !hasLiquidity?'waiting':row.range_state==='inside'?'open':
+  row.range_state==='outside'?'outside':'unknown';
  const reasons:string[]=[];
  if(!row.mark_id)reasons.push('first_model_mark_unavailable');
- if(hasLiquidity&&row.range_state==='outside')reasons.push('outside_range_manual_hold');
+ if(hasLiquidity&&row.range_state==='outside')reasons.push(
+  row.strategy_id==='static_manual_v1'?'outside_range_manual_hold':'outside_range_observed');
  if(sourceAt&&Date.now()-Date.parse(sourceAt)>180000)reasons.push('source_stale');
+ if(!sourceAt&&!['opening','closed'].includes(row.lifecycle))reasons.push('source_unavailable');
  if(row.lifecycle==='blocked')reasons.push('operation_blocked');
  if(economics.netNav===undefined||economics.netNav===null)reasons.push('net_economics_unavailable');
  const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
@@ -134,6 +143,9 @@ export function deploymentPosition(row:DeploymentRow){
    'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
    lifecycle:row.lifecycle,rangeState:row.range_state,revision:row.current_revision,
+   operation:{status:row.lifecycle==='blocked'?row.operation_status:null,
+    stage:row.lifecycle==='blocked'?row.operation_stage:null,
+    reason:row.lifecycle==='blocked'?row.operation_reason:null},
    sourceBlock:row.source_block,sourceHash:row.source_hash,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),

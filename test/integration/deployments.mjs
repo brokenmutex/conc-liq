@@ -374,7 +374,31 @@ try{
  assert.equal(paperPosition.inventory.tokens[0].amountRaw,paperInput.allocation.token0Raw);
  assert.equal(paperPosition.inventory.tokens[0].decimals,18);
  assert.equal(paperPosition.referencePriceQuoteX18,'1000000000000000000');
- assert.equal(deploymentPosition({...listedPaper,range_state:'outside'}).status,'paused');
+ assert.equal(paperPosition.status,'open');
+ const outside=deploymentPosition({...listedPaper,range_state:'outside'});
+ assert.equal(outside.status,'outside');
+ assert(outside.reasons.includes('outside_range_manual_hold'));
+ assert(!outside.reasons.includes('operation_blocked'));
+ const keeperOutside=deploymentPosition({...listedPaper,strategy_id:'rangekeeper_v1',range_state:'outside'});
+ assert.equal(keeperOutside.status,'outside');
+ assert(keeperOutside.reasons.includes('outside_range_observed'));
+ assert(!keeperOutside.reasons.includes('outside_range_manual_hold'));
+ assert.equal(deploymentPosition({...listedPaper,lifecycle:'paused',range_state:'outside'}).status,'paused');
+ assert.equal(deploymentPosition({...listedPaper,lifecycle:'changing'}).status,'changing');
+ assert.equal(deploymentPosition({...listedPaper,range_state:'unknown'}).status,'unknown');
+ assert(deploymentPosition({...listedPaper,provenance:{}}).reasons.includes('source_unavailable'));
+ assert.equal(deploymentPosition({...listedPaper,lifecycle:'closing'}).status,'exiting');
+ assert.equal(deploymentPosition({...listedPaper,lifecycle:'closed'}).status,'closed');
+ await admin.query(`UPDATE deployment_operations SET status='blocked',stage='recovery',reason='receipt_mismatch'
+  WHERE id=$1`,[paperOperation.id]);
+ await admin.query(`UPDATE deployment_campaigns SET lifecycle='blocked' WHERE id=$1`,[paperDraft.id]);
+ const blocked=deploymentPosition((await readDeploymentRows(admin)).find(row=>row.id===paperDraft.id));
+ assert.equal(blocked.status,'blocked');
+ assert.deepEqual(blocked.deployment.operation,
+  {status:'blocked',stage:'recovery',reason:'receipt_mismatch'});
+ await admin.query(`UPDATE deployment_operations SET status='succeeded',stage='recorded',reason=NULL
+  WHERE id=$1`,[paperOperation.id]);
+ await admin.query(`UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1`,[paperDraft.id]);
  const openingLive=openingRows.find(row=>row.id===draft.id);
  assert(openingLive);
  assert.equal(deploymentPosition(openingLive).status,'waiting');

@@ -3,6 +3,9 @@
 [hidden]{display:none!important}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;max-height:300px;overflow:auto}.activity-list time{min-width:112px}.fact-row strong{overflow-wrap:anywhere}.badge.recentring,.badge.exiting{color:var(--amber);border-color:#6a5130}.sample-clock{font-variant-numeric:tabular-nums}.session-note{flex-wrap:wrap}.invalid-message{overflow-wrap:anywhere}#connection-banner{justify-content:center}.chart path{vector-effect:non-scaling-stroke}
 
 .badge.halted{color:var(--red);border-color:#8d4550;background:#3b2029}
+.badge.blocked{color:var(--red);border-color:#8d4550;background:#3b2029}
+.badge.outside{color:#c2d0e2;background:#243240}
+.badge.unknown,.badge.changing{color:var(--amber);background:#382c1d}
 .rangekeeper-detail .metrics{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 0}
 .rangekeeper-detail .metric{min-width:0;padding:0 16px}
 .rangekeeper-detail .metric:first-child,.rangekeeper-detail .metric:nth-child(4){padding-left:0}
