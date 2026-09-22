@@ -1,13 +1,10 @@
 import assert from "node:assert/strict";
 import { MIN_SQRT_RATIO, MAX_SQRT_RATIO, MIN_TICK, MAX_TICK, sqrtRatioAtTick } from "../backtest/principal.js";
 import { delta, lowerBound, swapStep, tickAtPrice, type SwapSource, type FeeSegment } from "./swap.js";
+import {positionAmounts} from '../v3/position-math.js';
+export {positionAmounts,type TickRange} from '../v3/position-math.js';
+import type {TickRange} from '../v3/position-math.js';
 
-export interface TickRange { tickLower: number; tickUpper: number }
-export function positionAmounts(price: bigint, range: TickRange, liquidity: bigint, roundUp: boolean) {
-  const lower = sqrtRatioAtTick(range.tickLower), upper = sqrtRatioAtTick(range.tickUpper);
-  const bounded = price < lower ? lower : price > upper ? upper : price;
-  return { amount0: delta(bounded, upper, liquidity, 0, roundUp), amount1: delta(lower, bounded, liquidity, 1, roundUp) };
-}
 export const nvdaValueQuote = (amount: bigint, referenceX18: bigint) => amount * referenceX18 / 10n ** 30n;
 
 /** Exact-in quote against historical depth after our hypothetical LP is removed. */

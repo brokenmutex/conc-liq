@@ -1,24 +1,10 @@
 import assert from 'node:assert/strict';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
-import {positionAmounts, type TickRange} from './portfolio-math.js';
+import type {TickRange} from '../v3/position-math.js';
+export {replayPaperMint} from '../v3/position-math.js';
 import type {FeeSegment} from './swap.js';
 
-const Q96=1n<<96n, Q128=1n<<128n;
-
-/** Replay the position manager's LiquidityAmounts rounding, with native gas
- * accounted separately from the token inventory, as the paper fork does. */
-export function replayPaperMint(price:bigint, range:TickRange, cash:bigint, rwa:bigint, reserve:bigint) {
- assert(cash>=reserve&&reserve>=0n&&rwa>=0n);
- const a=sqrtRatioAtTick(range.tickLower), b=sqrtRatioAtTick(range.tickUpper);
- assert(a<b);
- const l0=(lo:bigint,hi:bigint)=>(cash-reserve)*(lo*hi/Q96)/(hi-lo);
- const l1=(lo:bigint,hi:bigint)=>rwa*Q96/(hi-lo);
- const liquidity=price<=a?l0(a,b):price>=b?l1(a,b):(()=>{const x=l0(price,b),y=l1(a,price);return x<y?x:y;})();
- assert(liquidity>=0n&&liquidity<Q128);
- const amounts=positionAmounts(price,range,liquidity,true);
- assert(amounts.amount0<=cash-reserve&&amounts.amount1<=rwa);
- return {liquidity,...amounts,idle0:cash-amounts.amount0,idle1:rwa-amounts.amount1};
-}
+const Q128=1n<<128n;
 
 /** Undiluted observed fee growth, matching the paper boundary-fee convention.
  * The caller must retain the Q128 remainder between segments and observations.

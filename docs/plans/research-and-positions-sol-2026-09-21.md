@@ -480,6 +480,22 @@ and an explicit distinction between implemented, deployed and live-validated.
 ## 9. Progress record
 
 - Planning: accepted scope captured; initial source review complete.
-- W0–W7: not started. No implementation or runtime changes made by this handoff.
+- W0: baseline inventory, dependency/cutover record and calibration validation
+  policy recorded in `research-and-positions-w0-2026-09-22.md`. The active
+  predecessor campaign was confirmed read-only in the ledger; its execution
+  owner remains the sealed RangeKeeper worker.
+- W1: in progress. Checked migration 4 adds the new records, and the isolated
+  command store supports drafts, trusted previews, idempotent acceptance,
+  predecessor wallet exclusion and restart-safe operation claims. Authentication,
+  HTTP command routes, full lifecycle transitions and the worker adapter remain.
+- W2: in progress only at the pure strategy boundary. Static/manual range
+  rounding, exact no-swap sizing, hold semantics and safety precedence are
+  implemented. RangeKeeper mint math is now neutral to the retired research
+  module. Paper execution, calibration inputs and UI flows remain.
+- W3–W7: not started. No production migration, service cutover, funding,
+  signing or new campaign was performed by this implementation work.
+- Verification on the development checkout: `npm run check` passed 670 tests;
+  `npm run test:integration` passed in isolated PostgreSQL schemas using the
+  explicit local test database. These validate the current foundation only.
 - Prior review baseline: 35 focused dashboard tests passed at `b38c839`; these
   establish existing behavior only and do not satisfy the new acceptance matrix.

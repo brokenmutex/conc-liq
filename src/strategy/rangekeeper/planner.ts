@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {MAX_TICK,MIN_TICK,sqrtRatioAtTick} from '../../backtest/principal.js';
-import {replayPaperMint} from '../../research/management-audit.js';
+import {replayPaperMint} from '../../v3/position-math.js';
 import type {RangeKeeperCandidate,RangeKeeperDecision,RangeKeeperLimits,RangeKeeperObservation,RangeKeeperState} from './domain.js';
 
 const PPM=1_000_000n;

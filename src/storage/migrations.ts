@@ -3,6 +3,7 @@ import type { PoolClient } from "pg";
 import { SCHEMA_SQL } from "./schema.js";
 import { LEGACY_BASELINE_CATALOG_SHA256 } from "./legacy-baseline.js";
 import { MIGRATION_CHECKSUMS } from "./migration-checksums.js";
+import { DEPLOYMENTS_SQL } from "./deployments-migration.js";
 
 // v1 is the frozen pre-versioning schema. Existing databases are verified and
 // registered, never subjected to its historical UPDATE/DROP statements again.
@@ -21,7 +22,7 @@ ALTER TABLE paper_execution_runs ADD COLUMN runtime_identity JSONB;
 export const COVERAGE_CURSOR_SQL = `
 ALTER TABLE indexer_cursors ADD COLUMN covered_through_block NUMERIC(78, 0);
 `;
-export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL] as const;
+export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL, DEPLOYMENTS_SQL] as const;
 const identifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const checksum = (sql: string) => createHash("sha256").update(sql).digest("hex");
 
