@@ -20,4 +20,5 @@
 .rangekeeper-receipts li code{color:var(--muted);font-size:11px;overflow-wrap:anywhere;text-align:right}
 @media(max-width:800px){.rangekeeper-detail .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.rangekeeper-detail .metric{padding:0 12px}.rangekeeper-detail .metric:nth-child(odd){padding-left:0}.rangekeeper-detail .metric:nth-child(even){padding-right:0}.rangekeeper-detail .metric-value{font-size:18px}}
 @media(max-width:600px){.masthead{height:auto;flex-wrap:wrap;padding:16px 0;gap:14px}.masthead nav{order:3;width:100%;gap:16px;overflow-x:auto;white-space:nowrap}.rangekeeper-facts{grid-template-columns:1fr}.rangekeeper-receipts li{grid-template-columns:1fr}.rangekeeper-receipts li code{text-align:left}}
+@media(max-width:600px){.positions-table .row-sub,.positions-table .status-sub{overflow-wrap:anywhere}}
 .rangekeeper-extra{border-top:1px solid var(--border);padding-top:16px}
