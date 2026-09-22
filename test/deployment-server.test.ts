@@ -9,12 +9,15 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const origin='http://127.0.0.1:4174';
  const calls:unknown[]=[];
+ const previewCalls:string[]=[];
  const store={
   async createDraft(input:unknown){calls.push(input);return {id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1};},
   async acceptOperation(){throw Error('not expected');},
   async operation(){return null;},
+  async listMarketProfiles(){return [{id:'aef5f51e-18ef-4e9c-952d-8d772970f708',draftAvailable:true,deploymentAvailable:false}];},
  };
- const server=createDeploymentCommandServer(store, {origin,passwordHash:hash});
+ const server=createDeploymentCommandServer(store, {origin,passwordHash:hash,
+  paperPreview:async id=>{previewCalls.push(id);return {status:'indicative',actionAvailable:false,economics:null};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -39,6 +42,12 @@ it('command API requires operator session, exact origin and CSRF before a draft 
    {origin,cookie,'x-csrf-token':csrfToken})).status,400);
   const created=await post('/api/deployments/drafts',draft,{origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(created.status,201);assert.equal(calls.length,1);
+  const previewPath='/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/previews';
+  assert.equal((await post(previewPath,{kind:'close'},{origin,cookie,'x-csrf-token':csrfToken})).status,400);
+  const preview=await post(previewPath,{kind:'open'},{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(preview.status,200);
+  assert.deepEqual(await preview.json(),{status:'indicative',actionAvailable:false,economics:null});
+  assert.deepEqual(previewCalls,['67b2b303-e821-4450-bb7b-27171b12079f']);
   const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
    {origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(accept.status,503);
@@ -48,6 +57,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const body=await catalog.json() as {strategies:{id:string;paper:boolean;live:boolean}[]};
   assert.deepEqual(body.strategies.map(s=>s.id),['static_manual_v1','rangekeeper_v1']);
   assert(body.strategies.every(s=>s.paper===false&&s.live===false));
+  const profiles=await fetch(url+'/api/market-profiles',{headers:{cookie}});
+  assert.equal(profiles.status,200);
+  assert.equal((await profiles.json() as {profiles:{deploymentAvailable:boolean}[]}).profiles[0]?.deploymentAvailable,false);
   const logout=await fetch(url+'/api/session',{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
   assert.equal(logout.status,200);
   assert.equal((await fetch(url+'/api/strategies',{headers:{cookie}})).status,401);

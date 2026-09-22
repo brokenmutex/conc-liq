@@ -15,6 +15,7 @@ const profileSchema=z.object({
  poolCodeHash:hash,token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,quoterCodeHash:hash,
  reference0:z.string().min(1),reference1:z.string().min(1),nativeReference:z.string().min(1),numeraire:z.string().min(1),
 }).strict();
+export const rangeKeeperPoolSchema=profileSchema;
 const limitsSchema=z.object({
  fullWidthSpacings:z.number().int().positive().max(200).refine(n=>n%2===0),
  maxDeploymentValue:positive,minDeploymentPpm:ppm.refine(n=>n>0),
@@ -24,6 +25,13 @@ const limitsSchema=z.object({
  maxExposurePpm:ppm.refine(n=>n>0),maxLossValue:positive,maxDrawdownPpm:ppm.refine(n=>n>0),
  maxRecenters:z.number().int().positive(),maxLiquiditySharePpm:ppm.refine(n=>n>0),
  maxObservationGapSeconds:z.number().int().min(30).max(90),exitReserveWei:positive,
+}).strict();
+export const rangeKeeperReferencePolicySchema=z.object({
+ token0:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),
+  session:z.enum(['verified_24_7','latest_equity_session']),corporateAction:z.literal('reject_pending')}).strict(),
+ token1:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),
+  session:z.enum(['verified_24_7','latest_equity_session']),corporateAction:z.literal('reject_pending')}).strict(),
+ nativeMaxAgeSeconds:z.number().int().positive(),maxPoolDeviationPpm:ppm.refine(n=>n>0),
 }).strict();
 export const rangeKeeperConfigSchema=z.object({
  schemaVersion:z.literal(1),policyId:z.literal('rangekeeper_v1'),strategyVersion:z.literal('1.0.0'),
@@ -37,13 +45,7 @@ export const rangeKeeperConfigSchema=z.object({
  legacyRetiredTokenIds:z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
  campaignScope:z.object({maxDurationSeconds:z.number().int().min(0).max(86400),
   maxEconomicActions:z.number().int().positive().max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
- referencePolicy:z.object({
-  token0:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),
-   session:z.enum(['verified_24_7','latest_equity_session']),corporateAction:z.literal('reject_pending')}).strict(),
-  token1:z.object({kind:z.enum(['stablecoin','stock_token']),maxAgeSeconds:z.number().int().positive(),
-   session:z.enum(['verified_24_7','latest_equity_session']),corporateAction:z.literal('reject_pending')}).strict(),
-  nativeMaxAgeSeconds:z.number().int().positive(),maxPoolDeviationPpm:ppm.refine(n=>n>0),
- }).strict(),
+ referencePolicy:rangeKeeperReferencePolicySchema,
  campaignValue:positive,strategyFundingValue:positive,nativeFundingValue:positive,
 }).strict().superRefine((p,ctx)=>{
  const fail=(message:string)=>ctx.addIssue({code:'custom',message});

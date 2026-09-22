@@ -17,12 +17,12 @@ const commonLimits=z.object({
  maxActionCost:raw,maxRollingCost:raw,maxCampaignCost:raw,
  exitReserveWei:raw,expiryAt:expiry.optional(),
 }).strict();
-const staticParameters=z.object({
+export const staticParameters=z.object({
  tickLower:z.number().int().min(-887272).max(887272),
  tickUpper:z.number().int().min(-887272).max(887272),
  limits:commonLimits.optional(),
 }).strict().refine(value=>value.tickLower<value.tickUpper,{message:'range_order'});
-const rangeKeeperParameters=z.object({
+export const rangeKeeperParameters=z.object({
  fullWidthSpacings:z.number().int().min(2).max(2000).refine(value=>value%2===0),
  limits:commonLimits.extend({
   minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
@@ -30,13 +30,14 @@ const rangeKeeperParameters=z.object({
   maxLiquiditySharePpm:ppm,maxObservationGapSeconds:z.number().int().positive(),
  }).optional(),
 }).strict();
+export const allocationSchema=z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw}).strict();
 
 export const draftInput=z.object({
  mode:z.enum(['paper','live']),chainId:z.literal(4663),wallet:address,
  marketProfileId:z.uuid(),strategyId,
  strategyVersion:z.literal('1.0.0'),
  stateSchemaVersion:z.literal(1),
- allocation:z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw}).strict(),
+ allocation:allocationSchema,
  config:z.unknown(),
 }).strict().superRefine((value,ctx)=>{
  const result=(value.strategyId==='static_manual_v1'?staticParameters:rangeKeeperParameters).safeParse(value.config);

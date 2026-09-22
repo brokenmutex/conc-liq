@@ -10,16 +10,11 @@ import {planRangeKeeper,rawValue} from './planner.js';
 import {rangeKeeperCostEnvelope} from './cost.js';
 import {simulateRangeKeeperCandidate} from './fork-simulator.js';
 import {verifyRangeKeeperWalletCode} from './wallet-code.js';
+import {rangeKeeperConfirmedSource} from './source.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const min=(a:bigint,b:bigint)=>a<b?a:b;
-export async function rangeKeeperConfirmedSource(client:RobinhoodClient,depth=64){
- const latest=await client.getBlock();assert(latest.number>BigInt(depth));
- const block=await client.getBlock({blockNumber:latest.number-BigInt(depth)});
- const age=Math.floor(Date.now()/1000)-Number(block.timestamp);
- assert(age>=0&&age<=180,'Confirmed source is stale or ahead of local clock');
- return {block:block.number,hash:block.hash,timestamp:Number(block.timestamp)};
-}
+export {rangeKeeperConfirmedSource} from './source.js';
 
 /** Read-only launch proof. All old NFT IDs are checked at the same canonical
  * block; a count alone cannot rule out an unknown active NFT. */

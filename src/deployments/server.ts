@@ -6,15 +6,18 @@ import {DeploymentConflict} from './store.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const loginInput=z.object({password:z.string().min(1).max(1024)}).strict();
+const paperOpenInput=z.object({kind:z.literal('open')}).strict();
 const SESSION_SECONDS=4*60*60;
 const BODY_BYTES=16*1024;
 
-export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number}
+export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number;
+ paperPreview?:(campaignId:string)=>Promise<unknown>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
  createDraft(input:DraftInput):Promise<unknown>;
  acceptOperation(campaignId:string,input:AcceptInput,actor:string):Promise<unknown>;
  operation(id:string):Promise<unknown|null>;
+ listMarketProfiles():Promise<unknown>;
 }
 
 function send(response:ServerResponse,status:number,body:unknown){
@@ -112,10 +115,20 @@ export function createDeploymentCommandServer(store:CommandStore,
    if(path==='/api/strategies'&&request.method==='GET'){
     send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',paper:false,live:false}))});return;
    }
+   if(path==='/api/market-profiles'&&request.method==='GET'){
+    send(response,200,{profiles:await store.listMarketProfiles()});return;
+   }
    if(path==='/api/deployments/drafts'&&request.method==='POST'){
     const input=draftInput.parse(await jsonBody(request));
     const result=await store.createDraft(input);
     send(response,201,result);return;
+   }
+   const previewMatch=/^\/api\/deployments\/([^/]+)\/previews$/.exec(path);
+   if(previewMatch&&request.method==='POST'){
+    if(!uuid.test(previewMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    paperOpenInput.parse(await jsonBody(request));
+    if(!options.paperPreview){send(response,503,{error:'paper_preview_unavailable'});return;}
+    send(response,200,await options.paperPreview(previewMatch[1]!));return;
    }
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){

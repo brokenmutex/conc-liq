@@ -1,7 +1,10 @@
 import {once} from 'node:events';
 import {z} from 'zod';
 import {DeploymentStore} from './deployments/store.js';
+import {DeploymentConflict} from './deployments/store.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
+import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame} from './deployments/paper-preview.js';
+import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 
 const envSchema=z.object({
@@ -9,6 +12,8 @@ const envSchema=z.object({
  DEPLOYMENT_OPERATOR_PASSWORD_HASH:z.string().min(1),
  DEPLOYMENT_HOST:z.enum(['127.0.0.1','::1']).default('127.0.0.1'),
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
+ ROBINHOOD_READ_HTTP_URL:z.url(),
+ DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
 });
 
 async function main(){
@@ -18,7 +23,18 @@ async function main(){
  catch(error){await store.close();throw error;}
  const host=env.DEPLOYMENT_HOST,port=env.DEPLOYMENT_PORT;
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
- const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH});
+ const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
+ let previewBusy=false;
+ const paperPreview=async(campaignId:string)=>{
+  if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
+  previewBusy=true;
+  try{
+   const draft=await store.paperDraft(campaignId);
+   const frame=await readCanonicalPaperOpenFrame(client,draft.profile);
+   return buildIndicativePaperOpenPreview(draft,frame);
+  }finally{previewBusy=false;}
+ };
+ const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,paperPreview});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
  let stopping=false;

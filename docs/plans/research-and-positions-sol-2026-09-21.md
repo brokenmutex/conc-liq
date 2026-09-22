@@ -488,15 +488,21 @@ and an explicit distinction between implemented, deployed and live-validated.
   command store supports drafts, trusted previews, idempotent acceptance,
   predecessor wallet exclusion and restart-safe operation claims. A separate
   loopback command service has operator sessions, origin/CSRF checks, bounded
-  JSON, strict draft schemas and initial routes. Both mode capabilities report
-  unavailable; HTTP operation acceptance returns 503 until fresh preflight and
-  an execution adapter exist. Claims are mode-scoped and cannot mark an action
-  successful without a reconciled completion path. Fresh preview generation,
-  full lifecycle transitions and the worker adapter remain.
-- W2: in progress only at the pure strategy boundary. Static/manual range
-  rounding, exact no-swap sizing, hold semantics and safety precedence are
-  implemented. RangeKeeper mint math is now neutral to the retired research
-  module. Paper execution, calibration inputs and UI flows remain.
+  JSON, strict draft schemas and initial routes. Verified market-profile
+  registration now requires canonical contract and independent-reference proof
+  plus an enabled indexer target; the authenticated catalog reports draft
+  availability. Both mode capabilities report unavailable; HTTP operation
+  acceptance returns 503 until fresh cost preflight and an execution adapter
+  exist. Claims are mode-scoped and cannot mark an action successful without a
+  reconciled completion path. Full lifecycle transitions and the worker
+  adapter remain. See `research-and-positions-profile-registration-2026-09-22.md`.
+- W2: in progress. Static/manual range rounding, exact no-swap sizing, hold
+  semantics and safety precedence are implemented. A paper draft can now get a
+  read-only indicative open candidate from a confirmed pool state and eligible
+  independent references. The candidate has no complete costs, net economics
+  or operation identity and cannot be accepted. RangeKeeper mint math is neutral
+  to the retired research module. Paper execution, calibration inputs and UI
+  flows remain.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 671 tests;

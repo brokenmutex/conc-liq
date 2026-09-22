@@ -21,7 +21,8 @@ export interface RangeKeeperReferenceMark {
 
 /** Consume independently collected registry, token-risk, and on-chain feed
  * evidence. A pool mark is never substituted for an unavailable oracle. */
-export function evaluateRangeKeeperReferences(snapshot:RiskSnapshot,native:OracleRiskSnapshot|null,config:RangeKeeperConfig):RangeKeeperReferenceMark {
+export function evaluateRangeKeeperReferences(snapshot:RiskSnapshot,native:OracleRiskSnapshot|null,
+ config:Pick<RangeKeeperConfig,'pool'|'referencePolicy'>):RangeKeeperReferenceMark {
  const source={block:snapshot.blockNumber,hash:snapshot.blockHash,timestamp:snapshot.blockTimestamp};
  const reasons:string[]=[];
  if(snapshot.chainId!==config.pool.chainId||snapshot.schemaVersion!==2)reasons.push('risk_source_identity');
@@ -73,7 +74,8 @@ export function evaluateRangeKeeperReferences(snapshot:RiskSnapshot,native:Oracl
    registry:snapshot.registry,feedDirectory:snapshot.feedDirectory}};
 }
 
-export async function readRangeKeeperReferences(client:RobinhoodClient,source:RangeKeeperSource,config:RangeKeeperConfig){
+export async function readRangeKeeperReferences(client:RobinhoodClient,source:RangeKeeperSource,
+ config:Pick<RangeKeeperConfig,'pool'|'referencePolicy'>){
  const symbols=[config.pool.reference0,config.pool.reference1].filter(identity=>identity!=='USDG/USD').map(identity=>identity.split('/')[0]!);
  const riskConfig={...loadRiskConfig(),symbols};
  const reader=new ViemRiskChainReader(client);
