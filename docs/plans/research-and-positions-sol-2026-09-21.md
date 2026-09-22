@@ -621,6 +621,18 @@ and an explicit distinction between implemented, deployed and live-validated.
   and concurrent close projection. It does not sample missing intervals,
   schedule itself, audit older anchors after projection, or enable HTTP paper
   acceptance; those remain worker and monitor gates.
+- R2 fee-to-journal step follow-up: a one-mark internal step now tries the
+  canonical accounting append, samples exactly the next adjacent fee interval
+  only when that append reports missing fee evidence, and retries the append
+  once. Other integrity and canonicality errors propagate without sampling.
+  Its production adapter uses the existing canonical chain/indexer fee reader;
+  it has no signer or scheduler. The isolated test injects a verified fee proof
+  to exercise persisted sequencing: a missing sample leaves no snapshot,
+  concurrent restarted calls create one interval and one snapshot, and a
+  corrupt prior proof cannot start a sampler. This test does not itself replay
+  RPC for the production adapter. The dashboard now checks four adjacent marks
+  and a three-interval carry in this fixture. Supervision, current-history
+  revocation and both unsupported close/strategy paths remain open.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.
