@@ -6,7 +6,7 @@ import {initialRangeKeeperState,parseRangeKeeperConfig,rangeKeeperConfigHash} fr
 import {nextRangeKeeperStage,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
 import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm,
  assertRangeKeeperCountMigration,assertRangeKeeperStaleRecenterMigration,
- settleRangeKeeperStaleStage} from '../src/strategy/rangekeeper/live-controller.js';
+ settleRangeKeeperStaleStage,settleRangeKeeperMintUnavailable} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -43,11 +43,26 @@ test('stale recenter build migration requires the exact withdrawn campaign and u
   assertRangeKeeperStaleRecenterMigration(state,stored,proposal,old.id,'old-build','new-build');
  assert.doesNotThrow(()=>guard());
  assert.doesNotThrow(()=>guard({...old,candidate:null,last:{...old.last,position:null}}));
+ assert.doesNotThrow(()=>guard({...old,swapDone:true,swapConfirmedAt:1234,
+  last:{...old.last,position:null}}));
  assert.throws(()=>guard({...old,withdrawDone:false}),/reconciled post-withdraw/);
  assert.throws(()=>guard({...old,swapDone:true}),/reconciled post-withdraw/);
  assert.throws(()=>guard({...old,activeTokenId:1271827n}),/reconciled post-withdraw/);
  assert.throws(()=>guard(old,{...config,limits:{...config.limits,maxActionCost:config.limits.maxActionCost+1n}}),/configuration changed/);
  assert.throws(()=>guard(old,config,{...recorded,operator:'0x0000000000000000000000000000000000000000'}),/config changed/);
+});
+test('post-swap mint slippage waits briefly, then exits without retrying the completed swap',()=>{
+ const candidate={kind:'recenter',range:{tickLower:217940,tickUpper:217980}} as RangeKeeperLiveState['candidate'];
+ const state={phase:'recenter',desired:'running',candidate,swapDone:true,swapConfirmedAt:1000,
+  withdrawDone:true,activeTokenId:null,retiredTokenIds:['1271827'],lastReason:'swap_confirmed'} as RangeKeeperLiveState;
+ const snapshot={tick:217953} as RangeKeeperSnapshot;
+ assert.equal(settleRangeKeeperMintUnavailable(state,snapshot,1100,
+  new RangeKeeperMintUnavailableError('Mint price slipped before signing')),'repriced_mint_wait');
+ assert.equal(state.phase,'recenter');assert.equal(state.candidate,candidate);assert.equal(state.swapDone,true);
+ assert.equal(settleRangeKeeperMintUnavailable(state,snapshot,1300,
+  new RangeKeeperMintUnavailableError('Mint price slipped before signing')),'repriced_mint_exit');
+ assert.equal(state.phase,'exit');assert.equal(state.desired,'stopped');assert.equal(state.candidate,null);
+ assert.equal(state.swapDone,true);assert.deepEqual(state.retiredTokenIds,['1271827']);
 });
 test('closed costed campaign may change only 200-tick width to 40 ticks',()=>{
  const previous={...config,limits:{...config.limits,fullWidthSpacings:20}};

@@ -45,6 +45,26 @@ export function settleRangeKeeperStaleStage(s:RangeKeeperLiveState,error:unknown
  return null;
 }
 
+export function settleRangeKeeperMintUnavailable(s:RangeKeeperLiveState,snapshot:RangeKeeperSnapshot,
+ timestamp:number,error:unknown):string|null{
+ if(!(error instanceof RangeKeeperMintUnavailableError)||!s.swapDone||s.swapConfirmedAt===null||!s.candidate)return null;
+ const inRange=snapshot.tick>=s.candidate.range.tickLower&&snapshot.tick<s.candidate.range.tickUpper;
+ if(inRange&&timestamp-s.swapConfirmedAt<300)s.lastReason='repriced_mint_wait';
+ else{s.phase='exit';s.desired='stopped';s.candidate=null;s.lastReason='repriced_mint_exit';}
+ return s.lastReason;
+}
+
+function isMintPriceSlippage(error:unknown){
+ let current:unknown=error;
+ for(let depth=0;depth<6&&current&&typeof current==='object';depth++){
+  const e=current as {shortMessage?:unknown;details?:unknown;message?:unknown;cause?:unknown};
+  if([e.shortMessage,e.details,e.message].some(value=>typeof value==='string'&&
+   value.toLowerCase().includes('price slippage check')))return true;
+  current=e.cause;
+ }
+ return false;
+}
+
 export function assertRangeKeeperStaleRecenterMigration(old:RangeKeeperLiveState,recordedConfig:unknown,
  next:RangeKeeperConfig,expectedCampaignId:string,expectedPreviousBuildId:string,nextBuildId:string){
  assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
@@ -54,7 +74,8 @@ export function assertRangeKeeperStaleRecenterMigration(old:RangeKeeperLiveState
  assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(next)),'Stored campaign config changed');
  assertRangeKeeperState(old.policy,next,old.buildId);
  assert(old.phase==='recenter'&&old.desired==='running'&&old.haltReason===null&&
-  (old.candidate===null||old.candidate.kind==='recenter')&&old.withdrawDone&&!old.swapDone&&
+  (old.candidate===null&&!old.swapDone||old.candidate?.kind==='recenter')&&old.withdrawDone&&
+  (!old.swapDone||old.swapConfirmedAt!==null&&old.candidate!==null&&old.last.position===null)&&
   old.activeTokenId===null&&old.retiredTokenIds.length>0&&
   (old.last.position===null||old.last.position.liquidity===0n&&
    old.retiredTokenIds.includes(String(old.last.position.tokenId)))&&
@@ -402,8 +423,8 @@ export class RangeKeeperLiveController {
    assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
    const latest=(await db.query(`SELECT status,plan FROM ${this.store.schema}.actions
     WHERE campaign_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1`,[old.id])).rows[0];
-   assert(latest?.status==='confirmed'&&latest.plan?.kind==='withdraw',
-    'Last action is not a confirmed withdrawal');
+   assert(latest?.status==='confirmed'&&latest.plan?.kind===(old.swapDone?'swap':'withdraw'),
+    'Last action is not the confirmed completed stage');
    await this.oldPilotClosed(db);
    const source=await this.source();await this.chain.verify(source);
    const snapshot=await this.chain.snapshot(source,old.operator,null);
@@ -571,8 +592,15 @@ export class RangeKeeperLiveController {
   if('deadline' in plan)assert(BigInt(latest.timestamp)<plan.deadline,'Stage deadline expired');
   const market=await this.client.getGasPrice();
   const unitPrice=ceil((market>latest.baseFeePerGas?market:latest.baseFeePerGas)*5n,4n);
-  await this.client.call({account:s.operator,to:tx.to,data:tx.data,blockNumber:snapshot.source.block});
-  const estimated=await this.client.estimateGas({account:s.operator,to:tx.to,data:tx.data,value:0n});
+  let estimated:bigint;
+  try{
+   await this.client.call({account:s.operator,to:tx.to,data:tx.data,blockNumber:snapshot.source.block});
+   estimated=await this.client.estimateGas({account:s.operator,to:tx.to,data:tx.data,value:0n});
+  }catch(error){
+   if(plan.kind==='mint'&&isMintPriceSlippage(error))
+    throw new RangeKeeperMintUnavailableError('Mint price slipped before signing');
+   throw error;
+  }
   const gas=ceil(estimated*6n,5n);
   const kind=plan.kind==='approve'?(plan.amount===0n?'cleanupApproval':'approval'):
    plan.kind==='withdraw'?'withdrawCollect':plan.kind;
@@ -721,16 +749,22 @@ export class RangeKeeperLiveController {
    catch(error){
     const settled=settleRangeKeeperStaleStage(s,error);
     if(settled){await this.store.save(db,s,settled);return {status:settled,state:s};}
-    if(error instanceof RangeKeeperMintUnavailableError&&s.swapDone&&s.swapConfirmedAt!==null&&s.candidate){
-     const inRange=snapshot.tick>=s.candidate.range.tickLower&&snapshot.tick<s.candidate.range.tickUpper;
-     if(inRange&&source.timestamp-s.swapConfirmedAt<300)s.lastReason='repriced_mint_wait';
-     else{s.phase='exit';s.desired='stopped';s.candidate=null;s.lastReason='repriced_mint_exit';}
-     await this.store.save(db,s,s.lastReason);return {status:s.lastReason,state:s};
-    }
+    const mint=settleRangeKeeperMintUnavailable(s,snapshot,source.timestamp,error);
+    if(mint){await this.store.save(db,s,mint);return {status:mint,state:s};}
     throw error;
    }
-   if(stage){await this.store.save(db,s,s.lastReason);return {status:'submitted',
-    result:await this.submit(db,s,snapshot,stage,{...prices,nativePrice:refs.nativePrice}),state:s};}
+   if(stage){
+    await this.store.save(db,s,s.lastReason);
+    try{return {status:'submitted',
+     result:await this.submit(db,s,snapshot,stage,{...prices,nativePrice:refs.nativePrice}),state:s};}
+    catch(error){
+     const stale=settleRangeKeeperStaleStage(s,error);
+     if(stale){await this.store.save(db,s,stale);return {status:stale,state:s};}
+     const mint=settleRangeKeeperMintUnavailable(s,snapshot,source.timestamp,error);
+     if(mint){await this.store.save(db,s,mint);return {status:mint,state:s};}
+     throw error;
+    }
+   }
    if(s.phase==='exit'){
     assert(s.activeTokenId===null&&snapshot.position===null,'Active position remains at exit');
     await this.proveRetiredCustody(s,source);
