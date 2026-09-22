@@ -35,7 +35,7 @@ let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -349,7 +349,7 @@ try{
  assert.equal(await store.paperFeeSamplingState(paperDraft.id),null);
  assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,'paper-worker'),
   {markId:opened.markId,replayed:true});
- const paperRows=(await admin.query(`SELECT kind,entry_key,source FROM deployment_ledger
+ const paperRows=(await admin.query(`SELECT kind,entry_key,value_raw,source FROM deployment_ledger
   WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
  assert.equal(paperRows.length,3);
  assert(paperRows.every(row=>row.kind==='capital_in'&&
@@ -361,6 +361,24 @@ try{
  assert.equal(paperMarks[0].inventory.position.liquidity,paperModel.candidate.liquidity);
  assert.equal(paperMarks[0].calibration_profile_ids.length,6);
  assert.equal(paperMarks[0].provenance.paidCostsAvailable,false);
+ const openAccounting=await store.recordNextPaperAccounting(paperDraft.id);
+ assert.equal(openAccounting.kind,'open');
+ assert.equal(openAccounting.markId,opened.markId);
+ assert.equal(await store.recordNextPaperAccounting(paperDraft.id),null);
+ const openSnapshot=(await admin.query(`SELECT snapshot,snapshot_hash FROM deployment_paper_accounting
+  WHERE id=$1`,[openAccounting.snapshotId])).rows[0];
+ assert.equal(openSnapshot.snapshot.classification,'provisional_paper_scenario');
+ assert.equal(openSnapshot.snapshot.inventory.nativeWei,
+  String(BigInt(paperInput.allocation.nativeWei)-BigInt(paperModel.costs.open.expectedWei)));
+ assert.equal(openSnapshot.snapshot.flows.length,1);
+ assert.equal(openSnapshot.snapshot.flows[0].kind,'modeled_gas');
+ assert.equal(openSnapshot.snapshot.economics.alphaQuote,
+  String(-BigInt(paperModel.costs.open.expectedValue)));
+ assert.equal(openSnapshot.snapshot_hash,contentHash(openSnapshot.snapshot));
+ assert.equal(openSnapshot.snapshot.economics.initialCapitalQuote,
+  String(paperRows.reduce((sum,row)=>sum+BigInt(row.value_raw),0n)));
+ await assert.rejects(admin.query('UPDATE deployment_paper_accounting SET snapshot=$2 WHERE id=$1',
+  [openAccounting.snapshotId,'{}']),/append-only/);
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'active');
  const openingRows=await readDeploymentRows(admin);
@@ -368,7 +386,11 @@ try{
  assert(listedPaper);
  const paperPosition=deploymentPosition(listedPaper);
  assert.equal(paperPosition.id,`paper-dep-${paperDraft.id}`);
- assert.equal(paperPosition.navQuote,null);
+ assert.equal(paperPosition.accounting,'provisional');
+ assert.equal(paperPosition.navQuote,String(BigInt(openSnapshot.snapshot.economics.netNavQuote)/10n**12n));
+ assert.equal(paperPosition.gasQuote,String(BigInt(openSnapshot.snapshot.economics.cumulativeGasExpenseQuote)/10n**12n));
+ assert.equal(paperPosition.inventory.nativeWei,openSnapshot.snapshot.inventory.nativeWei);
+ assert.equal(deploymentPosition({...listedPaper,accounting_hash:'invalid'}).navQuote,null);
  assert.equal(paperPosition.initialQuote,'251010000');
  assert.equal(paperPosition.inventory.tokens.length,2);
  assert.equal(paperPosition.inventory.tokens[0].amountRaw,paperInput.allocation.token0Raw);
@@ -405,11 +427,11 @@ try{
  assert.equal(deploymentPosition(openingLive).navQuote,null);
  const openingDetail=await readDeploymentDetail(admin,listedPaper,1);
  assert.equal(openingDetail.performance.markCount,1);
- assert.equal(openingDetail.performance.timeline[0].economicNavQuote,null);
+ assert.equal(openingDetail.performance.timeline[0].economicNavQuote,paperPosition.navQuote);
  assert.equal(openingDetail.performance.timeline[0].action,'enter');
  assert.equal(openingDetail.performance.timeline[0].tickLower,paperModel.candidate.range.tickLower);
  assert.equal(openingDetail.performance.timeline[0].referencePriceQuoteX18,'1000000000000000000');
- assert.equal(openingDetail.performance.rows[0].netPnlQuote,null);
+ assert.equal(openingDetail.position.navQuote,paperPosition.navQuote);
  const overview=await readPositionOverview(admin,'test-stream');
  assert(overview.positions.some(position=>position.id===paperPosition.id));
  const apiDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,1);
@@ -475,6 +497,9 @@ try{
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,2);
  assert.equal((await store.paperValuationState(paperDraft.id)).previous.markId,valuation.markId);
+ await assert.rejects(store.recordNextPaperAccounting(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&
+   error.code==='paper_accounting_fee_evidence_unavailable');
  const feeState=await store.paperFeeSamplingState(paperDraft.id);
  assert.equal(feeState.fromMarkId,opened.markId);
  assert.equal(feeState.toMarkId,valuation.markId);
@@ -516,6 +541,20 @@ try{
  const savedFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
   valuation.markId,verifiedFeeInterval);
  assert.equal(savedFee.replayed,false);
+ const valuedAccounting=await store.recordNextPaperAccounting(paperDraft.id);
+ assert.equal(valuedAccounting.kind,'valuation');
+ assert.equal(valuedAccounting.markId,valuation.markId);
+ assert.equal(await store.recordNextPaperAccounting(paperDraft.id),null);
+ const valuedSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
+  WHERE id=$1`,[valuedAccounting.snapshotId])).rows[0].snapshot;
+ assert.equal(valuedSnapshot.feeEvidence.id,savedFee.evidenceId);
+ assert.equal(valuedSnapshot.inventory.fee1Raw,
+  String(BigInt(verifiedFeeInterval.token1.lowerRawQ128)/(1n<<128n)));
+ assert.equal(valuedSnapshot.flows.filter(flow=>flow.kind==='modeled_fee').length,2);
+ assert.equal(valuedSnapshot.economics.netNavQuote,
+  String(BigInt(valuedSnapshot.economics.passiveQuote)+
+   BigInt(valuedSnapshot.economics.alphaQuote)));
+ assert.equal(valuationMark.economics.netNav,null);
  assert.equal(await store.paperFeeSamplingState(paperDraft.id),null);
  assert.deepEqual(await store.recordTrustedPaperFeeEvidence(paperDraft.id,opened.markId,
   valuation.markId,verifiedFeeInterval),{evidenceId:savedFee.evidenceId,replayed:true});
@@ -563,6 +602,9 @@ try{
   error=>error instanceof DeploymentConflict&&error.code==='paper_close_claim_lost');
  const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker');
  assert.equal(closed.replayed,false);
+ await assert.rejects(store.recordNextPaperAccounting(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&
+   error.code==='paper_accounting_fee_evidence_unavailable');
  const closingFeeState=await store.paperFeeSamplingState(paperDraft.id);
  assert.equal(closingFeeState.fromMarkId,valuation.markId);
  assert.equal(closingFeeState.toMarkId,closed.markId);
@@ -594,6 +636,28 @@ try{
  const savedClosingFee=await store.recordTrustedPaperFeeEvidence(paperDraft.id,
   valuation.markId,closed.markId,verifiedCloseFee);
  assert.equal(savedClosingFee.replayed,false);
+ const closedAccounting=await store.recordNextPaperAccounting(paperDraft.id);
+ assert.equal(closedAccounting.kind,'close_retain');
+ assert.equal(closedAccounting.markId,closed.markId);
+ assert.equal(await store.recordNextPaperAccounting(paperDraft.id),null);
+ const closedSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
+  WHERE id=$1`,[closedAccounting.snapshotId])).rows[0].snapshot;
+ assert.equal(closedSnapshot.inventory.hasLiquidity,false);
+ assert.equal(closedSnapshot.inventory.token0Raw,
+  String(BigInt(closeModel.retainedLowerBound.token0Raw)+BigInt(closedSnapshot.inventory.fee0Raw)));
+ assert.equal(closedSnapshot.inventory.token1Raw,
+  String(BigInt(closeModel.retainedLowerBound.token1Raw)+BigInt(closedSnapshot.inventory.fee1Raw)));
+ assert.equal(closedSnapshot.inventory.nativeWei,
+  String(BigInt(paperInput.allocation.nativeWei)-BigInt(paperModel.costs.open.expectedWei)-
+   BigInt(closeModel.costs.closeRetain.expectedWei)));
+ assert.equal(closedSnapshot.flows.filter(flow=>flow.kind==='modeled_capital_out').length,3);
+ assert.equal(closedSnapshot.flows.filter(flow=>flow.kind==='modeled_gas').length,1);
+ assert.equal(closedSnapshot.economics.netNavQuote,
+  String(BigInt(closedSnapshot.economics.passiveQuote)+
+   BigInt(closedSnapshot.economics.alphaQuote)));
+ assert.equal(closedSnapshot.flows.filter(flow=>flow.kind==='modeled_capital_out')
+  .reduce((sum,flow)=>sum+BigInt(flow.valueQuote),0n),
+  BigInt(closedSnapshot.economics.netNavQuote));
  assert.deepEqual(await store.recordTrustedPaperFeeEvidence(paperDraft.id,
   valuation.markId,closed.markId,verifiedCloseFee),
   {evidenceId:savedClosingFee.evidenceId,replayed:true});
@@ -628,7 +692,14 @@ try{
  const closedPosition=deploymentPosition((await readDeploymentRows(admin))
   .find(row=>row.id===paperDraft.id));
  assert.equal(closedPosition.history,true);
- assert.equal(closedPosition.inventory.tokens[0].amountRaw,null);
+ assert.equal(closedPosition.accounting,'provisional');
+ assert.equal(closedPosition.navQuote,String(BigInt(closedSnapshot.economics.netNavQuote)/10n**12n));
+ assert.equal(closedPosition.holdQuote,String(BigInt(closedSnapshot.economics.passiveQuote)/10n**12n));
+ assert.equal(closedPosition.feesQuote,String(BigInt(closedSnapshot.economics.cumulativeFeeValueQuote)/10n**12n));
+ assert.equal(closedPosition.gasQuote,String(BigInt(closedSnapshot.economics.cumulativeGasExpenseQuote)/10n**12n));
+ assert.equal(closedPosition.inventory.tokens[0].amountRaw,closedSnapshot.inventory.token0Raw);
+ assert.equal(closedPosition.inventory.tokens[1].amountRaw,closedSnapshot.inventory.token1Raw);
+ assert.equal(closedPosition.inventory.nativeWei,closedSnapshot.inventory.nativeWei);
  assert.equal(closedPosition.inventory.tokens[0].lowerBoundRaw,
   closeModel.retainedLowerBound.token0Raw);
  const retainedValue=BigInt(closeModel.retainedLowerBound.token0Raw)*BigInt(closeModel.reference.price0)/10n**18n+
@@ -638,7 +709,8 @@ try{
  const closedDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,168);
  assert.equal(closedDetail.performance.markCount,3);
  assert.equal(closedDetail.performance.timeline.at(-1).action,'exit');
- assert.equal(closedDetail.performance.timeline.at(-1).economicNavQuote,null);
+ assert.equal(closedDetail.performance.timeline.at(-1).economicNavQuote,closedPosition.navQuote);
+ assert.equal(closedDetail.performance.timeline.at(-1).holdQuote,closedPosition.holdQuote);
  assert.equal(closedDetail.performance.timeline.at(-1).principalOnlyValue,
   closedPosition.deployment.lowerBoundValue);
  assert(closedDetail.events.some(event=>event.action==='close_retain'));
@@ -653,19 +725,20 @@ try{
   assert.equal(overviewResponse.status,200);
   const servedOverview=await overviewResponse.json();
   assert(servedOverview.positions.some(position=>position.id===paperPosition.id&&
-   position.history===true&&position.navQuote===null));
+   position.history===true&&position.navQuote===closedPosition.navQuote&&
+   position.accounting==='provisional'));
   const detailResponse=await fetch(`${base}/api/positions/${paperPosition.id}?hours=168`);
   assert.equal(detailResponse.status,200);
   const servedDetail=await detailResponse.json();
   assert.equal(servedDetail.performance.markCount,3);
-  assert.equal(servedDetail.performance.timeline.at(-1).economicNavQuote,null);
+  assert.equal(servedDetail.performance.timeline.at(-1).economicNavQuote,closedPosition.navQuote);
   assert(servedDetail.events.some(event=>event.action==='close_retain'));
  }finally{await new Promise((resolve,reject)=>dashboard.close(error=>error?reject(error):resolve()));}
  assert.deepEqual(await store.recordTrustedPaperPrincipalValuation(valuationModel),
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();

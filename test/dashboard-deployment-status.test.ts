@@ -55,3 +55,18 @@ test('attention filter excludes normal manual hold and includes recovery and sta
  const closed=position('closed','closed');Object.assign(context,{closed});
  assert.match(run('condition(closed)'),/Campaign closed/);
 });
+
+test('provisional paper economics are labeled as modeled throughout the row and detail metrics',()=>{
+ const modeled=position('closed','closed',{accounting:'provisional',initial:250,capital:251,
+  benchmark:252,fees:2,gas:1,deployment:{lifecycle:'closed',strategyId:'static_manual_v1',
+   rangeState:'no_liquidity',operation:{stage:null,reason:null}}});
+ Object.assign(context,{modeled});
+ assert.match(run('condition(modeled)'),/provisional modeled outcome/);
+ assert.match(run('row(modeled,null)'),/Provisional modeled value/);
+ const metrics=run('deploymentMetrics(modeled)');
+ assert.match(metrics,/Modeled net value/);
+ assert.match(metrics,/Vs passive inventory/);
+ assert.match(metrics,/Lower integer fixed-flow allocation/);
+ assert.match(metrics,/Scoped fork estimate · not paid gas/);
+ assert.doesNotMatch(metrics,/Paid execution costs/);
+});

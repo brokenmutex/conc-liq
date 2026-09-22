@@ -1,5 +1,7 @@
 import type {PoolClient} from 'pg';
 import {allocationSchema} from '../deployments/contracts.js';
+import {contentHash} from '../deployments/contracts.js';
+import {paperAccountingSchema,PAPER_ACCOUNTING_POLICY,type PaperAccounting} from '../deployments/paper-accounting.js';
 import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
@@ -21,10 +23,12 @@ interface DeploymentRow {
  mark_id:string|null;mark_at:Date|null;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
  operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
+ accounting_snapshot:unknown;accounting_hash:string|null;
 }
 interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;
+ accounting_snapshot:unknown;accounting_hash:string|null;
 }
 const key=(mode:string,id:string)=>`${mode}-dep-${id}`;
 const parseKey=(id:string)=>{
@@ -64,17 +68,35 @@ const principalValue=(inventory:Record<string,unknown>,economics:Record<string,u
  return tokenReferenceValue(decimal(lower.token0Raw)??decimal(retained.token0Raw),
   decimal(lower.token1Raw)??decimal(retained.token1Raw),provenance,p);
 };
+const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccounting|null=>{
+ const parsed=paperAccountingSchema.safeParse(row.accounting_snapshot);
+ return parsed.success&&row.accounting_hash===contentHash(parsed.data)&&
+  parsed.data.campaignId===campaignId&&parsed.data.sourceMarkId===
+   ('mark_id' in row?row.mark_id:row.id)&&
+  parsed.data.source.block===row.source_block&&
+  parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
+};
+const modeledExposure=(model:PaperAccounting,p:MarketProfile['pool'])=>{
+ const risk=p.quoteToken===0?1:0,r=model.reference;
+ const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
+  value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
+ return value0+value1>0n?String((risk===0?value0:value1)*1_000_000n/(value0+value1)):null;
+};
 
 /** Older dashboard databases may not have the new ledger migration. */
 export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>{
  const present=(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_campaigns')::text AS present")).rows[0]?.present;
  if(!present)return [];
+ const hasAccounting=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
  const rows=(await db.query<DeploymentRow>(`
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
-   capital.initial_value,blocked.status AS operation_status,
+   capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,':
+    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'}
+   blocked.status AS operation_status,
    blocked.stage AS operation_stage,blocked.reason AS operation_reason
   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
@@ -85,6 +107,8 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   LEFT JOIN LATERAL (SELECT status,stage,reason FROM deployment_operations
    WHERE campaign_id=c.id AND c.lifecycle='blocked' AND status='blocked'
    ORDER BY updated_at DESC,id DESC LIMIT 1) blocked ON TRUE
+  ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
+   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
   WHERE c.lifecycle<>'draft' ORDER BY c.created_at DESC,c.id LIMIT 1001`)).rows;
  if(rows.length>1000)throw Error('Deployment position overview exceeds bounded row limit');
  return rows;
@@ -93,15 +117,16 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
 export function deploymentPosition(row:DeploymentRow){
  const profile=marketProfileSchema.parse(row.profile),p=profile.pool;
  const allocation=allocationSchema.parse(row.allocation),inventory=record(row.inventory),
-  provenance=record(row.provenance),economics=record(row.economics),state=markPoolState(provenance);
+  provenance=record(row.provenance),economics=record(row.economics),state=markPoolState(provenance),
+  model=row.mode==='paper'?accounting(row,row.id):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
  const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
-  allocatedRaw:allocation.token0Raw,amountRaw:decimal(inventory.token0Raw),
+  allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??decimal(inventory.token0Raw),
   lowerBoundRaw:decimal(record(inventory.knownLowerBound).token0Raw)??
    decimal(record(inventory.retainedPrincipalLowerBound).token0Raw)},
   {address:p.token1,symbol:symbol(p.reference1),decimals:p.decimals1,
-   allocatedRaw:allocation.token1Raw,amountRaw:decimal(inventory.token1Raw),
+  allocatedRaw:allocation.token1Raw,amountRaw:model?.inventory.token1Raw??decimal(inventory.token1Raw),
    lowerBoundRaw:decimal(record(inventory.knownLowerBound).token1Raw)??
     decimal(record(inventory.retainedPrincipalLowerBound).token1Raw)}];
  const position=record(inventory.position),liquidity=decimal(position.liquidity),
@@ -122,25 +147,32 @@ export function deploymentPosition(row:DeploymentRow){
  if(sourceAt&&Date.now()-Date.parse(sourceAt)>180000)reasons.push('source_stale');
  if(!sourceAt&&!['opening','closed'].includes(row.lifecycle))reasons.push('source_unavailable');
  if(row.lifecycle==='blocked')reasons.push('operation_blocked');
- if(economics.netNav===undefined||economics.netNav===null)reasons.push('net_economics_unavailable');
+ if(!model&&(economics.netNav===undefined||economics.netNav===null))
+  reasons.push('net_economics_unavailable');
+ if(row.accounting_snapshot&&!model)reasons.push('paper_accounting_integrity');
  const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
  const lowerBoundValue=principalValue(inventory,economics,provenance,p),
   passiveTokenValue=tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
  return {id:key(row.mode,row.id),label:`${row.strategy_id==='rangekeeper_v1'?'RK':'Manual'}-${row.id.slice(0,8)}`,
   mode:row.mode,asset:symbol(reference),quote:symbol(quoteRef),fee:p.fee,
   quoteIsToken0:p.quoteToken===0,hasLiquidity,status,history:row.lifecycle==='closed',
-  initialQuote:micro(row.initial_value),navQuote:null,holdQuote:null,feesQuote:null,gasQuote:null,
-  swapQuote:null,exitEstimateQuote:micro(decimal(close.boundValue)),drawdownPpm:null,
+  initialQuote:micro(row.initial_value),navQuote:micro(model?.economics.netNavQuote??null),
+  holdQuote:micro(model?.economics.passiveQuote??null),
+  feesQuote:micro(model?.economics.cumulativeFeeValueQuote??null),
+  gasQuote:micro(model?.economics.cumulativeGasExpenseQuote??null),
+  swapQuote:model?'0':null,exitEstimateQuote:micro(decimal(close.boundValue)),drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
   sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,invalidatedAt:null,
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),p):null,
   referencePriceQuoteX18:referencePrice(provenance,p),
-  inventory:{tokens,exposurePpm:null,nativeWei:decimal(inventory.nativeWei),
+  inventory:{tokens,exposurePpm:model?modeledExposure(model,p):null,
+   nativeWei:model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
-  tokenId:null,accounting:'unavailable',nextAction:row.lifecycle==='closed'?null:
-   'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
+  tokenId:null,accounting:model?'provisional':'unavailable',nextAction:row.lifecycle==='closed'?null:
+   model?'Provisional modeled scenario; earned fees and paid costs remain unobserved':
+    'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
    lifecycle:row.lifecycle,rangeState:row.range_state,revision:row.current_revision,
    operation:{status:row.lifecycle==='blocked'?row.operation_status:null,
@@ -149,12 +181,16 @@ export function deploymentPosition(row:DeploymentRow){
    sourceBlock:row.source_block,sourceHash:row.source_hash,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
-   unavailable:['fee_capture','paid_gas','net_nav','alpha']}};
+   accounting:model?{policyVersion:model.policyVersion,classification:model.classification,
+    feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations}:null,
+   unavailable:model?model.limitations:['fee_capture','paid_gas','net_nav','alpha']}};
 }
 
-const point=(mark:DeploymentMark,profile:MarketProfile,allocation:{token0Raw:string;token1Raw:string}):PositionPoint=>{
+const point=(mark:DeploymentMark,profile:MarketProfile,
+ allocation:{token0Raw:string;token1Raw:string},campaignId:string):PositionPoint=>{
  const inv=record(mark.inventory),prov=record(mark.provenance),economics=record(mark.economics),
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
+  model=accounting(mark,campaignId),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
@@ -164,38 +200,55 @@ const point=(mark:DeploymentMark,profile:MarketProfile,allocation:{token0Raw:str
  if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close'].includes(String(kind)))
   throw Error('Deployment mark classification unavailable');
  return {id:mark.id,sourceAt,observedAt:mark.at.toISOString(),block:mark.source_block,
-  action,status:action==='exit'?'closed':'open',economicNavQuote:null,holdQuote:null,
+  action,status:action==='exit'?'closed':'open',
+  economicNavQuote:micro(model?.economics.netNavQuote??null),
+  holdQuote:micro(model?.economics.passiveQuote??null),
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),profile.pool):null,
   referencePriceQuoteX18:referencePrice(prov,profile.pool),
-  exposurePpm:null,inRange:tick!==null&&lower!==null&&upper!==null&&tick>=lower&&tick<upper,
+  exposurePpm:model?modeledExposure(model,profile.pool):null,
+  inRange:tick!==null&&lower!==null&&upper!==null&&tick>=lower&&tick<upper,
   tickLower:lower,tickUpper:upper,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
-  tokenBalances:[{address:profile.pool.token0,amountRaw:decimal(inv.token0Raw),
+  tokenBalances:[{address:profile.pool.token0,
+   amountRaw:model?.inventory.token0Raw??decimal(inv.token0Raw),
    lowerBoundRaw:decimal(record(inv.knownLowerBound).token0Raw)??
     decimal(record(inv.retainedPrincipalLowerBound).token0Raw)},
-   {address:profile.pool.token1,amountRaw:decimal(inv.token1Raw),
+   {address:profile.pool.token1,
+    amountRaw:model?.inventory.token1Raw??decimal(inv.token1Raw),
     lowerBoundRaw:decimal(record(inv.knownLowerBound).token1Raw)??
      decimal(record(inv.retainedPrincipalLowerBound).token1Raw)}],
   principalOnlyValue:micro(principalValue(inv,economics,prov,profile.pool)),
   passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
-  feesThisIntervalQuote:null,gasThisMarkQuote:null,swapThisMarkQuote:null,
+  feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
+  gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
+  swapThisMarkQuote:model?'0':null,
   swapsThisMark:0,drawdownPpm:null};
 };
 
 export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours:number){
  const position=deploymentPosition(row),cutoff=Math.floor((Date.now()-hours*3600000)/1000),
   profile=marketProfileSchema.parse(row.profile),allocation=allocationSchema.parse(row.allocation);
+ const hasAccounting=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
  const marks=(await db.query<DeploymentMark>(`
-  SELECT id::text,at,source_block::text,source_hash,inventory,economics,provenance
-  FROM deployment_marks WHERE campaign_id=$1 AND
-   (provenance->'source'->>'timestamp')::bigint >= $2
-  ORDER BY id LIMIT 30001`,[row.id,cutoff])).rows;
+  SELECT m.id::text,m.at,m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
+   ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash':
+    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash'}
+  FROM deployment_marks m
+  ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
+   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
+  WHERE m.campaign_id=$1 AND (m.provenance->'source'->>'timestamp')::bigint >= $2
+  ORDER BY m.id LIMIT 30001`,[row.id,cutoff])).rows;
  if(marks.length>30000)throw Error('Deployment mark history exceeds bounded window limit');
- const points=marks.map(mark=>point(mark,profile,allocation));
+ const points=marks.map(mark=>point(mark,profile,allocation,row.id));
  const baseline=position.initialQuote??'0';
- const window=positionWindow(points,hours,Date.now(),baseline,position.createdAt);
- const performance={...window,rows:window.rows.map(row=>({...row,netPnlQuote:null,alphaQuote:null,
-  feeIncomeQuote:null,gasQuote:null,swapCostQuote:null,returnBpsPerHour:null}))};
+ // A window beginning after entry has no opening capital flow in its selected
+ // marks. Let the first visible mark establish the interval baseline.
+ const window=positionWindow(points,hours,Date.now(),baseline,
+  points[0]?.action==='enter'?position.createdAt:new Date(0).toISOString());
+ const performance=points.some(point=>point.economicNavQuote!==null)?window:
+  {...window,rows:window.rows.map(row=>({...row,netPnlQuote:null,alphaQuote:null,
+   feeIncomeQuote:null,gasQuote:null,swapCostQuote:null,returnBpsPerHour:null}))};
  const events=(await db.query<{id:string;at:Date;kind:string;status:string;stage:string;reason:string|null;
   source_block:string|null}>(`
   SELECT o.id::text,o.created_at AS at,o.kind,o.status,o.stage,o.reason,
@@ -215,9 +268,12 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
    scope:'deployment_paper_model'}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  return {position,performance,events:activity,
   counts:{recenters:0,recenterAttempts:0,swaps:0},
-  limitations:['Principal and idle tokens use recorded independent references. Earned fees, paid gas, native balance, net NAV and alpha are unavailable.',
-   'Value and inventory charts leave incomplete series blank. Source gaps are not interpolated.',
-   'Provisional fork gas is an estimate, not an expense that was paid.']};
+  limitations:position.accounting==='provisional'?
+   ['Provisional fixed-flow paper scenario: lower integer fee allocation and scoped fork gas estimates. These are not earned fees or paid costs.',
+    'Execution delay, failures and counterfactual flow changes remain unmodeled. Incomplete marks stay blank.']:
+   ['Principal and idle tokens use recorded independent references. Earned fees, paid gas, native balance, net NAV and alpha are unavailable.',
+    'Value and inventory charts leave incomplete series blank. Source gaps are not interpolated.',
+    'Provisional fork gas is an estimate, not an expense that was paid.']};
 }
 
 export async function readDeploymentByKey(db:PoolClient,keyValue:string):Promise<DeploymentRow|null>{

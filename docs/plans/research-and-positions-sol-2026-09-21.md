@@ -583,6 +583,21 @@ and an explicit distinction between implemented, deployed and live-validated.
   Chromium fixtures showed badges, reason and attention count at 1280px and
   390px without horizontal overflow. No sealed release or production deployment
   was checked.
+- R2 first slice, development checkout: a v6 append-only journal now projects
+  the static/manual no-swap paper open, adjacent valuations and retain-close
+  into one versioned **provisional fixed-flow scenario**. It uses the lower
+  integer fee allocation from each verified carry, scoped fork gas estimates
+  and independent references. Each snapshot pins its source mark, model and
+  profile IDs, fee evidence, token and native balances, modeled flows, NAV,
+  fixed-inventory passive value and alpha. The original marks and paid-cost
+  ledger stay unchanged. The Positions API and dashboard display modeled
+  values with provisional labels; an absent or invalid journal leaves economics
+  unavailable. Isolated-DB lifecycle and migration tests, dashboard label
+  tests, and the repository check passed. No production schema was migrated.
+  This is a scenario under observed fixed flow, not earned fee evidence or a
+  paid-cost record. Execution delay and failures remain unmodeled. No worker
+  schedules the journal projection yet, and close-convert and RangeKeeper
+  accounting are still unsupported.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.
@@ -638,11 +653,21 @@ condition. The secondary explanation does not correct the misleading badge.
 
 ### R2 — Finish provisional paper accounting end to end
 
-Current open/valuation/retain-close models and hypothetical fee intervals are
-internal evidence primitives. Fee credits are not yet booked as modeled income;
-native spending, net NAV and final retained token balances remain incomplete.
+At the review baseline, open/valuation/retain-close models and hypothetical fee
+intervals were internal evidence primitives. Fee credits were not yet booked as
+modeled income; native spending, net NAV and final retained token balances were
+incomplete.
 Do not mark a usable paper lifecycle complete merely because an internal close
 sets the campaign lifecycle to `closed`.
+
+The first static/manual retain-close journal slice is now implemented as
+described in section 9. Finish the following acceptance gates before declaring
+R2 complete: add explicit conversion-close costs and proceeds, reconcile its
+capital-out flows, support the same accounting contract for RangeKeeper paper,
+and verify journal projection under worker restart, missing/stale evidence and
+all supported exit boundaries. Then run the complete desktop/mobile dashboard
+parity matrix against the persisted journal. Keep HTTP paper acceptance gated
+until R3 connects and verifies the durable worker.
 
 - Define and implement a versioned, explicitly provisional accounting policy
   for converting eligible fee-interval evidence into modeled paper accrual.
