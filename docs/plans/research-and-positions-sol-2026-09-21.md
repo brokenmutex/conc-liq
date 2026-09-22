@@ -195,6 +195,107 @@ Unsupported or missing valuation/cost evidence stays unavailable. Define one
 documented passive baseline convention for new campaigns; preserve provenance
 and existing conventions when adopting an old RangeKeeper campaign.
 
+### Required paper calibration loop
+
+Amendment, 2026-09-22: provenance labels and shared strategy decisions alone do
+not establish realistic paper execution. Implement a maintained calibration
+pipeline for static/manual and RangeKeeper. It consumes canonical chain data,
+exact-call simulations and reconciled live observations; it does not depend on
+the retired adaptive/evaluation engines or require placing calibration trades.
+
+Keep three outputs distinct: expected modeled expense, a conservative admission
+bound, and actual paid expense. In particular, the stage allowances in
+`src/strategy/rangekeeper/cost.ts` are AAPL fork-derived safety envelopes. They
+must not become paper gas usage or generic evidence for every pool.
+
+| Quantity | Paper input and real-world calibration target |
+| --- | --- |
+| Gas units | Estimate/rehearse exact stage calldata and allowance/storage state, then compare with canonical receipt `gasUsed` for that execution path |
+| Gas price and total gas expense | Apply time-appropriate observed gas prices to modeled units; compare with receipt effective price and reconciled native cost, including any chain-specific fee component without double counting |
+| LP fee income | Reconstruct fee growth or swap-step allocation for the actual range/liquidity and interval; compare token-by-token with reconciled earned fees, separate from withdrawn principal |
+| Swap output and shortfall | Freeze the source quote and minimum output; compare receipt token deltas at inclusion, separating embedded swap fee/impact from quote-to-fill movement |
+| Mint/withdraw amounts | Compare exact planned liquidity and token amounts with actual minted/burned liquidity, returned tokens, residual balances and rounding |
+| Execution delay and failure expense | Observe decision, submission, inclusion and reconciliation times; model ordered stages, reverted transactions, recovery and stranded inventory instead of instantaneous atomic success |
+| Reporting value | Value costs/inventory at the relevant accepted independent references; validate raw-token quantities first so valuation error is not mistaken for execution error |
+
+**Collection and comparison:**
+
+1. Persist a prediction record before each live stage is submitted: campaign,
+   operation, strategy/build/config/model versions, pool/route, size, allowance
+   state, source block/hash/time, estimates, bounds, quote and reference IDs.
+   Attach eventual receipts, actual balances and timestamps to that record.
+   Record rejected/reverted/blocked outcomes as well as successes.
+2. Produce a matched execution comparison using the same starting inventory,
+   range, liquidity and actual holding interval as the live position. Separately
+   compare the forecast made before submission to realized execution, including
+   delay. Never use the eventual receipt as an input to its earlier prediction.
+3. For LP fees, handle self-inclusion correctly. A real position already exists
+   in observed active liquidity; a newly added hypothetical position does not.
+   Use the appropriate denominator, or remove the observed position before
+   adding its matched replica. Do not dilute a real position twice. Track changes
+   in protocol cut, liquidity, fee growth and tick crossings at event boundaries.
+4. Reconcile earned fees with canonical core Collect, manager events and token
+   transfers, net of released principal and opening fee balances. Include
+   interim collections and closing uncollected amounts when comparing accrual.
+   Unresolved collection/coverage discrepancies reject the calibration sample;
+   do not “fix” them with a fee haircut. Independent increments from one campaign
+   are not automatically independent observations.
+5. For unmatched paper positions, use added-liquidity dilution and documented
+   counterfactual limits. Historical flow does not prove that the same volume
+   would occur after a materially larger LP or swap. Flag extrapolated sizes and
+   liquidity shares, and restrict accuracy claims to observed/validated scope.
+
+**Versioned profiles and validation:**
+
+- Store profiles scoped by chain, pool/fee tier, execution path/version, stage,
+  allowance state and relevant size/liquidity-share band. Include sample count,
+  distinct campaigns, observation period, cost source, calibration method,
+  error/bias statistics, validation results and validity/invalidation rules.
+  Reuse across pools only as an explicitly borrowed sensitivity assumption.
+- Validate candidate profiles on later observations or held-out campaigns. Freeze
+  sample sufficiency, freshness and error tolerances in a versioned validation
+  policy before scoring; choose concrete defaults in W0 and justify them from
+  the available evidence. Include absolute errors for near-zero fees/costs,
+  relative errors where meaningful, and interval coverage/tail errors when the
+  sample supports them. Small samples remain provisional; do not invent a p95
+  or a confidence claim from a handful of correlated events.
+- Parameter corrections may address demonstrated execution bias, not optimize
+  strategy P&L. Exact accounting mismatches are defects to resolve first. Keep
+  failure-rate/delay sensitivity scenarios explicit when measured data is sparse.
+- Pin the selected profile version to every paper fill/mark and research result.
+  Updating calibration creates a new version and a prospective adoption boundary;
+  it never rewrites previously reported paper profits. Any rescored history is a
+  separately labeled result. Historical replay uses only calibration information
+  available then, or explicitly declares retrospective calibration.
+- Bootstrap a new pool/path with fresh exact-call estimates and owned-fork
+  lifecycle probes, labeled `fork_estimated`, plus stress scenarios. If even
+  these inputs are unavailable, keep economic results incomplete. Do not borrow
+  an unrelated pool's expense and label the result calibrated. Paper can run as
+  an explicitly provisional scenario while live observations accumulate.
+- Expose component-level status: `validated`, `provisional`, `stale`, `rejected`
+  or `unavailable`, and retain evidence class separately. A valid gas model does
+  not imply validated fee capture, swap execution or profitability.
+
+**Refresh and drift:** ingest comparisons after canonical receipts and completed
+fee intervals; evaluate drift daily and after contract/route/stage/build changes.
+Trigger invalidation on relevant execution or allowance-policy changes, stale
+evidence, out-of-scope size/share, or failed validation tolerances. Keep short-term
+gas-price refresh separate from gas-unit model updates. Bound collectors under
+the research/provider budget so calibration cannot starve live operations.
+
+The dashboard must show the active profile, last validation, sample scope and
+modeled-versus-real errors, with a short reason for provisional/stale status.
+Surface base/stress paper economics and all uncalibrated components. Invalid
+calibration blocks a “validated paper” claim; it does not silently alter live
+policy, force a live trade or replace the live controller's fresh safety checks.
+
+Reuse receipt parsers and neutral fee math. The existing
+`scripts/research/live-fee-calibration.mjs` is a useful historical method/reference
+and regression source, but its old release/campaign dependencies must not become
+dependencies of the new calibration service. Existing historical samples may
+be imported with provenance and explicit applicability checks, without restoring
+legacy strategy support.
+
 ## 5. Research implementation
 
 Use `indexer_pools`/verified profiles for identity, left-joining latest state;
@@ -288,13 +389,13 @@ Use targeted tests during development and the required full gates before release
 
 | Package | Work | Required evidence before marking complete |
 | --- | --- | --- |
-| W0 — baseline | Inventory source/runtime boundaries, active campaigns and dirty prerequisites; freeze current RangeKeeper fixtures; finalize typed contracts and migration design | Written dependency/cutover inventory; no live-state mutation; supported strategy IDs fixed |
+| W0 — baseline | Inventory source/runtime boundaries, active campaigns and dirty prerequisites; freeze current RangeKeeper fixtures; finalize typed contracts, calibration validation policy and migration design | Written dependency/cutover inventory; calibration sample/freshness/error criteria frozen; no live-state mutation; supported strategy IDs fixed |
 | W1 — persistence and commands | Checked schema migrations, campaign revisions, previews, operations, reservations, idempotency, auth and worker claims | Isolated-DB migration/restart/concurrency tests; unauthorized/stale/duplicate requests tested; schema startup is read-only |
-| W2 — two-strategy paper flow | Static decision kernel, RangeKeeper adapter, neutral math extraction, paper inventory/execution ledger; create/open/pause/resume/close UI | Both strategies complete paper lifecycles without config edits/restarts; no signer/broadcast path; legacy state absent |
-| W3 — research | Persistent pool universe, five windows, canonical aggregates, variable capital/range, scoped costs, bounded two-strategy replay, saved draft | Boundary/reorg/gap tests; independent valuation and correct capital dilution; job concurrency does not block Positions |
-| W4 — live open/close | Adapter to proven transaction stages, static and RangeKeeper live workers, wallet reservations and sequential campaigns | Owned-fork open/exit for both strategies and both exit modes; failed mint after swap and restart after signing; no duplicate economic action |
+| W2 — two-strategy paper flow | Static decision kernel, RangeKeeper adapter, neutral math extraction, paper ledger, versioned provisional/calibrated execution inputs; create/open/pause/resume/close UI | Both strategies complete paper lifecycles without config edits/restarts; profile IDs and evidence per modeled fill; no signer/broadcast path; legacy state absent |
+| W3 — research | Persistent pool universe, five windows, canonical aggregates, variable capital/range, scoped costs, bounded two-strategy replay, calibration reports, saved draft | Boundary/reorg/gap and fee self-inclusion tests; independent valuation and correct capital dilution; held-out calibration checks; job concurrency does not block Positions |
+| W4 — live open/close | Adapter to proven transaction stages, static and RangeKeeper live workers, wallet reservations, sequential campaigns, pre-submission predictions and receipt comparison collector | Owned-fork open/exit for both strategies and both exit modes; failed mint after swap and restart after signing; paired prediction/actual records; no duplicate economic action |
 | W5 — active management | Range/strategy transitions, pause/close precedence, revision attribution, retained-token accounting, safe recovery UI | Both switch directions and width replacement tested, including failure after withdrawal/swap; costs/baseline preserved |
-| W6 — product and retirement | Common charts/history, portfolio capital/exposure, alerts, bounded history queries; remove legacy/adaptive UI/runtime dependencies | Browser checks for both modes/families, empty/stale/blocked states; predecessor custody still visible; clean-start without legacy snapshots |
+| W6 — product and retirement | Common charts/history, portfolio capital/exposure, calibration status/error reports and drift alerts, bounded history queries; remove legacy/adaptive UI/runtime dependencies | Browser checks for both modes/families, provisional/stale/blocked states; predecessor custody still visible; clean-start without legacy snapshots |
 | W7 — release and cutover | Sealed build, persistent worker supervision, migration/adoption tools, runbooks and concrete cutover record | Build verification, integration gates, restore/restart rehearsal, explicit production authorization status and outstanding gates |
 
 Suggested time budget remains 6–10 focused engineering weeks for the complete
@@ -302,6 +403,12 @@ workflow. Removing adaptive/legacy support reduces scope, but safe transitions
 and execution recovery dominate uncertainty. First paper milestone is W0–W2
 with a basic Research draft link, approximately 2–3 weeks. Do not treat that
 intermediate milestone as completion of the entire plan.
+
+The explicit calibration amendment adds a provisional 3–5 engineering days if
+receipt collection and neutral fee primitives are reusable; revise after W0.
+Collecting sufficiently varied live validation observations takes additional
+elapsed time and cannot be promised by that engineering estimate. The calibration
+pipeline can be complete while individual profiles remain provisional.
 
 ### Source map
 
@@ -341,6 +448,14 @@ intermediate milestone as completion of the entire plan.
     down operational views or consume reserved live/ingestion provider capacity.
 12. Ordinary operations use persisted configuration on a sealed release. No
     production worker starts from the dirty checkout or reads secrets from HTTP.
+13. Calibration compares frozen predictions with canonical actuals by component;
+    gas limits/reserves are never booked as paid expense. Include reverts, staged
+    latency, approvals/cleanup and correct LP self-inclusion. All comparisons
+    have reproducible source and model identities.
+14. Held-out validation, insufficient samples, drift, profile expiry and execution
+    path changes produce the declared status. New profiles cannot retroactively
+    improve old paper P&L or use future receipts in earlier decisions. Legacy
+    evaluation services are unnecessary to collect or validate the new profiles.
 
 Run `npm run check` with the repository's pinned Node, relevant PostgreSQL
 integration tests, owned-fork lifecycle/recovery tests and desktop/mobile browser
