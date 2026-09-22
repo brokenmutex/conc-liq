@@ -7,6 +7,7 @@ import {acceptInput,allocationSchema,contentHash,draftInput,parseStrategyParamet
  strategyId,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verifiedMarketProfileSchema,
  type VerifiedMarketProfile} from './market-profile.js';
+import {PAPER_STATIC_GAS_PATH,type PaperGasProfileRow} from './paper-cost.js';
 
 export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
@@ -184,6 +185,20 @@ export class DeploymentStore {
     reason:!valid?'profile_integrity':row.retired_at?'retired':!row.indexed?'indexer_identity_changed':
      'fresh_preflight_and_execution_unavailable'};
   });
+ }
+
+ /** Bounded, read-only calibration lookup. The resolver validates each model,
+  * source identity, freshness and complete stage set before exposing costs. */
+ async paperGasProfiles(poolAddress:string):Promise<PaperGasProfileRow[]>{
+  return (await this.readPool.query<PaperGasProfileRow>(`
+   SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+    allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+    evidence_class AS "evidenceClass",model,source_hash AS "sourceHash",
+    observed_until AS "observedUntil"
+   FROM deployment_calibration_profiles
+   WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
+    AND component='gas_units' AND allowance_state='zero'
+   ORDER BY size_band,stage,version DESC LIMIT 201`,[poolAddress,PAPER_STATIC_GAS_PATH])).rows;
  }
 
  /** Only a trusted preflight service may create a preview. HTTP never supplies

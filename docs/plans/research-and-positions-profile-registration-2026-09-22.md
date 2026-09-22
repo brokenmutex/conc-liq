@@ -45,8 +45,21 @@ in `DEPLOYMENT_OPERATOR_PASSWORD_HASH`. Its authenticated
 a read-only indicative static/manual candidate from a fresh confirmed block.
 It exposes explicit unavailable reasons when the source, independent references
 or strategy confirmation are missing, or the pool price is outside the
-independent-reference band. The candidate has no execution cost or
-net economics, no persisted preview ID, and `actionAvailable: false`.
+independent-reference band. Its static/manual no-swap path can show provisional
+open and retain-close gas when the database has a complete, fresh six-stage
+`paper_static_manual_no_swap_v1` exact-call profile for this pool, size and
+liquidity share. The profile requires zero-allowance stage evidence, an owned
+fork Nitro estimate, a source hash and an observation no older than 24 hours.
+The bound combines scoped gas-unit bounds with a 25% current gas-price margin;
+it expires with the indicative source and must be refreshed before any future
+execution path. It is a modeled expense and bound, not a paid cost or a
+validated calibration claim. Missing, stale, rejected, ambiguous or cross-pool
+profiles leave the cost unavailable. Swap, fee capture, delay and failure
+expenses remain missing;
+net economics remain null. No profile is automatically inserted by this
+command, and no live wallet is used for paper estimation.
+
+The candidate has no persisted preview ID and `actionAvailable: false`.
 
 `POST /api/deployments/:id/operations` returns 503 until fresh cost preflight,
 the paper execution adapter and reconciliation are complete. Live execution is

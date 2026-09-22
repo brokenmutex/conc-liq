@@ -8,6 +8,8 @@ import {marketProfileSchema,referenceProofHash} from '../../src/deployments/mark
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
+import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
+ from '../../src/deployments/paper-cost.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
@@ -96,6 +98,41 @@ try{
  const noReference=buildIndicativePaperOpenPreview(paperInput,{...frame,price0:null,referenceEligible:false,
   referenceReasons:['token0_oracle_missing']});
  assert.equal(noReference.status,'unavailable');assert.match(noReference.reason,/independent_reference_unavailable/);
+ const noCosts=costIndicativePaperOpenPreview(indicative,[],poolAddress,10n**18n,1_000_000_000n);
+ assert.equal(noCosts.costs.status,'unavailable');
+ assert.equal(noCosts.costs.reason,'complete_fresh_stage_costs_unavailable');
+ const gasSource={block:'100',hash:sourceHash,estimatedAt:new Date().toISOString(),
+  callHash:'0x'+'4'.repeat(64),method:'owned_fork_nitro_exact_call_v1'};
+ for(const stage of PAPER_STATIC_GAS_STAGES){
+  const model={schemaVersion:1,source:gasSource,gasUnitsExpected:'100000',gasUnitsBound:'150000',
+   sizeMinValue:'1',sizeMaxValue:String(500n*10n**18n),shareMinPpm:'0',shareMaxPpm:'1000000'};
+  await admin.query(`INSERT INTO deployment_calibration_profiles
+   (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
+    component,status,evidence_class,model,validation,source_hash,observed_until)
+   VALUES($1,1,4663,$2,$3,$4,'zero','one_to_500_usd','gas_units','provisional',
+    'fork_estimated',$5,'{}',$6,$7)`,[randomUUID(),poolAddress,PAPER_STATIC_GAS_PATH,stage,
+    JSON.stringify(model),contentHash(gasSource),gasSource.estimatedAt]);
+ }
+ const gasRows=await store.paperGasProfiles(poolAddress);
+ assert.equal(gasRows.length,6);
+ const costed=costIndicativePaperOpenPreview(indicative,gasRows,poolAddress,10n**18n,1_000_000_000n);
+ assert.equal(costed.costs.status,'provisional');
+ assert.equal(costed.costs.open.expectedGasUnits,'300000');
+ assert.equal(costed.costs.closeRetain.boundWei,'562500000000000');
+ assert.equal(costed.actionAvailable,false);assert.equal(costed.economics,null);
+ const incomplete=costIndicativePaperOpenPreview(indicative,gasRows.slice(1),poolAddress,10n**18n,1_000_000_000n);
+ assert.equal(incomplete.costs.status,'unavailable');
+ const expired=gasRows.map(row=>({...row,observedUntil:new Date(Date.now()-86_500_000)}));
+ assert.equal(costIndicativePaperOpenPreview(indicative,expired,poolAddress,10n**18n,1_000_000_000n)
+  .costs.status,'unavailable');
+ const borrowed=gasRows.map(row=>({...row,poolAddress:'0x'+'d'.repeat(40)}));
+ assert.equal(costIndicativePaperOpenPreview(indicative,borrowed,poolAddress,10n**18n,1_000_000_000n)
+  .costs.status,'unavailable');
+ assert.equal(costIndicativePaperOpenPreview(indicative,gasRows,poolAddress,10n**18n,0n)
+  .costs.reason,'gas_price_or_native_reference_unavailable');
+ const rejectedNewer=gasRows.map(row=>row.stage==='mint'?{...row,version:2,status:'rejected'}:row);
+ assert.equal(costIndicativePaperOpenPreview(indicative,[...gasRows,...rejectedNewer],poolAddress,
+  10n**18n,1_000_000_000n).costs.status,'unavailable');
  const draft=await store.createDraft(draftInput);
  await assert.rejects(store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{sourceBlock:'1'},evidence:{blockHash:'0x'+'2'.repeat(64)},
@@ -153,7 +190,7 @@ try{
  assert.equal(rows.length,1);assert.equal(rows[0].id,first.id);
  const reservations=(await admin.query('SELECT campaign_id FROM deployment_wallet_reservations WHERE released_at IS NULL')).rows;
  assert.deepEqual(reservations.map(row=>row.campaign_id),[draft.id]);
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure']}));
 }finally{
  if(store)await store.close();
  await admin.query('SET search_path=public');

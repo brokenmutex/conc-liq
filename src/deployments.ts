@@ -4,6 +4,7 @@ import {DeploymentStore} from './deployments/store.js';
 import {DeploymentConflict} from './deployments/store.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame} from './deployments/paper-preview.js';
+import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 
@@ -31,7 +32,13 @@ async function main(){
   try{
    const draft=await store.paperDraft(campaignId);
    const frame=await readCanonicalPaperOpenFrame(client,draft.profile);
-   return buildIndicativePaperOpenPreview(draft,frame);
+   const preview=buildIndicativePaperOpenPreview(draft,frame);
+   if(preview.status!=='indicative')return preview;
+   const rows=await store.paperGasProfiles(draft.profile.pool.pool);
+   let gasPriceWei=0n;
+   if(rows.length)try{gasPriceWei=await client.getGasPrice();}catch{/* explicit unavailable cost below */}
+   return costIndicativePaperOpenPreview(preview,rows,draft.profile.pool.pool,
+    frame.nativePrice??0n,gasPriceWei);
   }finally{previewBusy=false;}
  };
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,paperPreview});

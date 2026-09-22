@@ -500,9 +500,13 @@ and an explicit distinction between implemented, deployed and live-validated.
   semantics and safety precedence are implemented. A paper draft can now get a
   read-only indicative open candidate from a confirmed pool state and eligible
   independent references. The candidate has no complete costs, net economics
-  or operation identity and cannot be accepted. RangeKeeper mint math is neutral
-  to the retired research module. Paper execution, calibration inputs and UI
-  flows remain.
+  or operation identity and cannot be accepted. A bounded selector now reads
+  six fresh pool/path/size/share-specific exact-call gas profiles for a
+  provisional static/manual open and retain-close expense and bound. It cannot
+  fall back to older versions or unrelated AAPL allowances. There are no new
+  populated or validated profiles yet; absent evidence leaves costs unavailable.
+  RangeKeeper mint math is neutral to the retired research module. Paper
+  execution, calibration collection/validation and UI flows remain.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 671 tests;
