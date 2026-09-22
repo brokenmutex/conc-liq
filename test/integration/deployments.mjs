@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {readFileSync} from 'node:fs';
+import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,DeploymentConflict} from '../../src/deployments/store.ts';
@@ -7,6 +9,8 @@ import {contentHash} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
+import {guardedCanaryPositionManagerAbi} from '../../src/canary-plan/abi.ts';
+import {canaryExitAbi} from '../../src/canary-plan/exit.ts';
 import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
  from '../../src/deployments/paper-cost.ts';
@@ -105,7 +109,8 @@ try{
   callHash:'0x'+'4'.repeat(64),method:'owned_fork_nitro_exact_call_v1'};
  for(const stage of PAPER_STATIC_GAS_STAGES){
   const model={schemaVersion:1,source:gasSource,gasUnitsExpected:'100000',gasUnitsBound:'150000',
-   sizeMinValue:'1',sizeMaxValue:String(500n*10n**18n),shareMinPpm:'0',shareMaxPpm:'1000000'};
+   sizeMinValue:'1',sizeMaxValue:String(500n*10n**18n),shareMinPpm:'0',shareMaxPpm:'1000000',
+   tickLower:indicative.candidate.range.tickLower,tickUpper:indicative.candidate.range.tickUpper};
   await admin.query(`INSERT INTO deployment_calibration_profiles
    (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
     component,status,evidence_class,model,validation,source_hash,observed_until)
@@ -133,6 +138,84 @@ try{
  const rejectedNewer=gasRows.map(row=>row.stage==='mint'?{...row,version:2,status:'rejected'}:row);
  assert.equal(costIndicativePaperOpenPreview(indicative,[...gasRows,...rejectedNewer],poolAddress,
   10n**18n,1_000_000_000n).costs.status,'unavailable');
+ // Direct store registration tests atomicity/idempotence in an isolated schema.
+ // The real CLI obtains this attestation by replaying the canonical source.
+ const artifact=JSON.parse(readFileSync(new URL('../../research/calibration/static-manual-aapl-usdg-fork-2026-09-22.json',
+  import.meta.url),'utf8'));
+ const calibrationPool=marketProfileSchema.parse(artifact.profile).pool;
+ await admin.query(`INSERT INTO indexer_pools(stream_key,pool_address,chain_id,rwa_symbol,rwa_address,fee,
+  created_block,target_set_hash,enabled) VALUES($1,$2,4663,'AAPL',$3,$4,1,$5,true)`,
+  ['calibration-stream',calibrationPool.pool,
+   calibrationPool.quoteToken===0?calibrationPool.token1:calibrationPool.token0,
+   calibrationPool.fee,'0x'+'e'.repeat(64)]);
+ const calibrationCode={poolCodeHash:calibrationPool.poolCodeHash,
+  token0CodeHash:calibrationPool.token0CodeHash,token1CodeHash:calibrationPool.token1CodeHash,
+  managerCodeHash:calibrationPool.managerCodeHash,quoterCodeHash:calibrationPool.quoterCodeHash};
+ const calibrationProof={profile:artifact.profile,profileHash:artifact.profileHash,streamKey:'calibration-stream',
+  source:{block:'100',hash:sourceHash,timestamp:Math.floor(Date.now()/1000)},
+  contractHashes:calibrationCode,
+  references:{price0:'1000000000000000000',price1:'1000000000000000000',
+   nativePrice:'1000000000000000000',proofHash:referenceProofHash({fixture:true})},
+  referenceProof:{fixture:true},verifiedAt:new Date().toISOString()};
+ await store.registerVerifiedMarketProfile(calibrationProof);
+ const fresh=structuredClone(artifact),stamp=new Date().toISOString();
+ fresh.sampledAt=stamp;fresh.source.timestamp=Math.floor(Date.now()/1000);
+ for(const stage of fresh.stageProfiles){
+  if(stage.stage==='mint'){
+   const decoded=decodeFunctionData({abi:guardedCanaryPositionManagerAbi,data:stage.evidence.calldata});
+   stage.evidence.calldata=encodeFunctionData({abi:guardedCanaryPositionManagerAbi,
+    functionName:'mint',args:[{...decoded.args[0],deadline:BigInt(fresh.source.timestamp+300)}]});
+  }else if(stage.stage==='withdraw_collect'){
+   const outer=decodeFunctionData({abi:canaryExitAbi,data:stage.evidence.calldata});
+   const decrease=decodeFunctionData({abi:canaryExitAbi,data:outer.args[0][0]});
+   const newDecrease=encodeFunctionData({abi:canaryExitAbi,functionName:'decreaseLiquidity',
+    args:[{...decrease.args[0],deadline:BigInt(fresh.source.timestamp+300)}]});
+   stage.evidence.calldata=encodeFunctionData({abi:canaryExitAbi,functionName:'multicall',
+    args:[[newDecrease,outer.args[0][1]]]});
+  }
+  stage.model.source.callHash=keccak256(stage.evidence.calldata);
+  stage.model.source.estimatedAt=stamp;
+  stage.sourceHash=contentHash(stage.model.source);
+ }
+ fresh.candidateHash=contentHash({campaignId:fresh.campaignId,revision:fresh.revision,
+  profileHash:fresh.profileHash,configHash:fresh.configHash,source:fresh.source,
+  referenceProofHash:fresh.reference.proofHash,candidate:fresh.candidate});
+ const {reportHash:_old,...freshBody}=fresh;fresh.reportHash=contentHash(freshBody);
+ const attestation={verificationClass:'canonical_candidate_replay_v1',reportHash:fresh.reportHash,
+  sourceHash:fresh.source.hash,profileHash:fresh.profileHash,verifiedAt:new Date().toISOString()};
+ const registration=await store.registerPaperGasEvidence(fresh,attestation);
+ assert.equal(registration.created,true);assert.equal(registration.version,1);
+ assert.equal(registration.profileIds.length,6);
+ const repeated=await store.registerPaperGasEvidence(fresh,attestation);
+ assert.equal(repeated.created,false);assert.deepEqual(repeated.profileIds.sort(),registration.profileIds.sort());
+ const imported=await store.paperGasProfiles(calibrationPool.pool);
+ assert.equal(imported.length,6);
+ const importedCost=costIndicativePaperOpenPreview({status:'indicative',candidate:fresh.candidate,
+  actionAvailable:false,economics:null},imported,calibrationPool.pool,10n**18n,1_000_000_000n);
+ assert.equal(importedCost.costs.status,'provisional');
+ const shiftedRange={...fresh.candidate,range:{...fresh.candidate.range,
+  tickLower:fresh.candidate.range.tickLower-calibrationPool.tickSpacing}};
+ assert.equal(costIndicativePaperOpenPreview({status:'indicative',candidate:shiftedRange,
+  actionAvailable:false,economics:null},imported,calibrationPool.pool,10n**18n,1_000_000_000n)
+  .costs.status,'unavailable');
+ const tampered=structuredClone(fresh);tampered.stageProfiles[0].model.gasUnitsExpected='1';
+ await assert.rejects(store.registerPaperGasEvidence(tampered,attestation));
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_calibration_profiles
+  WHERE lower(pool_address)=lower($1)`,[calibrationPool.pool])).rows[0].n,6);
+ await new Promise(resolve=>setTimeout(resolve,10));
+ const newer=structuredClone(fresh),newStamp=new Date().toISOString();
+ newer.sampledAt=newStamp;
+ for(const stage of newer.stageProfiles){
+  stage.model.source.estimatedAt=newStamp;
+  stage.sourceHash=contentHash(stage.model.source);
+ }
+ const {reportHash:_prior,...newerBody}=newer;newer.reportHash=contentHash(newerBody);
+ const newerAttestation={...attestation,reportHash:newer.reportHash,verifiedAt:new Date().toISOString()};
+ const secondVersion=await store.registerPaperGasEvidence(newer,newerAttestation);
+ assert.equal(secondVersion.version,2);assert.equal(secondVersion.created,true);
+ await assert.rejects(store.registerPaperGasEvidence(fresh,attestation),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_gas_report_superseded');
+ assert((await store.paperGasProfiles(calibrationPool.pool)).every(row=>row.version===2||row.version===1));
  const draft=await store.createDraft(draftInput);
  await assert.rejects(store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{sourceBlock:'1'},evidence:{blockHash:'0x'+'2'.repeat(64)},
@@ -190,7 +273,7 @@ try{
  assert.equal(rows.length,1);assert.equal(rows[0].id,first.id);
  const reservations=(await admin.query('SELECT campaign_id FROM deployment_wallet_reservations WHERE released_at IS NULL')).rows;
  assert.deepEqual(reservations.map(row=>row.campaign_id),[draft.id]);
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure']}));
 }finally{
  if(store)await store.close();
  await admin.query('SET search_path=public');

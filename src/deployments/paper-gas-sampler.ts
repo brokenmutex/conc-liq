@@ -57,6 +57,7 @@ export async function sampleStaticPaperGas(input:{rpcUrl:string;draft:PaperDraft
  beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number}){
  const {draft,frame}=input,preview=buildIndicativePaperOpenPreview(draft,frame);
  assert(preview.status==='indicative'&&preview.candidate,'Static paper candidate unavailable');
+ assert(frame.referenceProof,'Paper gas reference proof unavailable');
  assert(draft.strategyId==='static_manual_v1','Only static/manual no-swap calibration is supported');
  const limits=staticParameters.parse(draft.parameters).limits;
  assert(limits,'Static/manual limits are required');
@@ -124,7 +125,8 @@ export async function sampleStaticPaperGas(input:{rpcUrl:string;draft:PaperDraft
    return {stage:tx.action,sourceHash:contentHash(stageSource),model:{schemaVersion:1 as const,
     source:stageSource,gasUnitsExpected:String(expected),gasUnitsBound:String(ceil(expected*13n,10n)),
     sizeMinValue:preview.candidate!.deployedValue,sizeMaxValue:preview.candidate!.deployedValue,
-    shareMinPpm:preview.candidate!.dilutedSharePpm,shareMaxPpm:preview.candidate!.dilutedSharePpm},
+    shareMinPpm:preview.candidate!.dilutedSharePpm,shareMaxPpm:preview.candidate!.dilutedSharePpm,
+    tickLower:preview.candidate!.range.tickLower,tickUpper:preview.candidate!.range.tickUpper},
     evidence:{to:tx.to,calldata:tx.calldata,returnData:tx.returnData,localHash:tx.localHash,
      localGasUsed:tx.localGasUsed,localEffectiveGasPriceWei:tx.localEffectiveGasPriceWei,
      estimate:tx.estimate,stateOverrideHash:tx.stateOverrideHash,stateOverrides:tx.stateOverrides}};
@@ -133,9 +135,12 @@ export async function sampleStaticPaperGas(input:{rpcUrl:string;draft:PaperDraft
    profile:draft.profile,profileHash:draft.profileHash,parameters:draft.parameters,
    strategyId:draft.strategyId,strategyVersion:draft.strategyVersion,
    stateSchemaVersion:draft.stateSchemaVersion,allocation:draft.allocation,
-   configHash:draft.configHash,campaignId:draft.id,candidateHash:preview.candidateHash,
+   configHash:draft.configHash,campaignId:draft.id,revision:draft.revision,
+   candidateHash:preview.candidateHash,
+   candidate:preview.candidate,
    source:frame.source,reference:{price0:String(frame.price0),price1:String(frame.price1),
-    nativePrice:String(frame.nativePrice),proofHash:frame.referenceProofHash},sampledAt,
+    nativePrice:String(frame.nativePrice),proofHash:frame.referenceProofHash},
+   referenceProof:frame.referenceProof,sampledAt,
    funding,tokenId:String(tokenId),liquidity:String(liquidity),minted0:String(minted0),minted1:String(minted1),
    stageProfiles,readBudget:fork.budget,
    limitations:['Owned-fork calibration probe, not a paper fill or live receipt',

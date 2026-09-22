@@ -501,20 +501,22 @@ and an explicit distinction between implemented, deployed and live-validated.
   read-only indicative open candidate from a confirmed pool state and eligible
   independent references. The candidate has no complete costs, net economics
   or operation identity and cannot be accepted. A bounded selector now reads
-  six fresh pool/path/size/share-specific exact-call gas profiles for a
+  six fresh pool/path/size/share/range-specific exact-call gas profiles for a
   provisional static/manual open and retain-close expense and bound. It cannot
   fall back to older versions or unrelated AAPL allowances. There are no new
   populated or validated profiles yet; absent evidence leaves costs unavailable.
   RangeKeeper mint math is neutral to the retired research module. Paper
-  execution, calibration validation/ingestion and UI flows remain. An owned-fork
+  execution, calibration validation and UI flows remain. An owned-fork
   static/manual no-swap collector now records exact-call Nitro estimates for
   six stages without a signer or upstream write. The first AAPL/USDG synthetic
   probe is retained in `research/calibration/` and described in
   `docs/research/paper-static-gas-calibration-2026-09-22.md`; it is one
-  provisional point, not a populated profile, a paper fill or validation.
+  provisional point, not a paper fill or validation. A separate importer
+  canonically replays a candidate and atomically versions all six provisional
+  profiles in an isolated database; no persistent profile was registered.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
-- Verification on the development checkout: `npm run check` passed 671 tests;
+- Verification on the development checkout: `npm run check` passed 672 tests;
   `npm run test:integration` passed in isolated PostgreSQL schemas using the
   explicit local test database. These validate the current foundation only.
 - Prior review baseline: 35 focused dashboard tests passed at `b38c839`; these

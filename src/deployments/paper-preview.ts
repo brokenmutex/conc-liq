@@ -13,8 +13,11 @@ export interface PaperOpenFrame {
  tick:number;sqrtPriceX96:bigint;poolLiquidity:bigint;
  price0:bigint|null;price1:bigint|null;nativePrice:bigint|null;
  referenceEligible:boolean;referenceReasons:string[];referenceProofHash:string;
+ referenceProof?:Record<string,unknown>;
 }
 export type PaperDraft=Awaited<ReturnType<DeploymentStore['paperDraft']>>;
+export type PaperPreviewDraft=Pick<PaperDraft,'id'|'revision'|'profile'|'profileHash'|
+ 'configHash'|'strategyId'|'parameters'|'allocation'>;
 
 /** Reads a confirmed pool state and independent references at one source.
  * The chain adapter has no signer or broadcast method. */
@@ -33,12 +36,13 @@ export async function readCanonicalPaperOpenFrame(client:RobinhoodClient,profile
  return {source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
   tick:slot[1],sqrtPriceX96:slot[0],poolLiquidity,
   price0:references.price0,price1:references.price1,nativePrice:references.nativePrice,
-  referenceEligible:references.eligible,referenceReasons:references.reasons,referenceProofHash:referenceProofHash(proof)};
+  referenceEligible:references.eligible,referenceReasons:references.reasons,
+  referenceProofHash:referenceProofHash(proof),referenceProof:proof};
 }
 
 /** A read-only paper candidate. It deliberately has no preview ID or operation
  * digest until a scoped execution-cost profile and paper fill adapter exist. */
-export function buildIndicativePaperOpenPreview(draft:PaperDraft,frame:PaperOpenFrame,now=Date.now()){
+export function buildIndicativePaperOpenPreview(draft:PaperPreviewDraft,frame:PaperOpenFrame,now=Date.now()){
  const p=draft.profile.pool;
  const base={kind:'open' as const,mode:'paper' as const,campaignId:draft.id,revision:draft.revision,
   strategyId:draft.strategyId,profileHash:draft.profileHash,configHash:draft.configHash,

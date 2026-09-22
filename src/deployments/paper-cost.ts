@@ -12,7 +12,9 @@ const sourceSchema=z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:t
  callHash:hash,method:z.literal('owned_fork_nitro_exact_call_v1')}).strict();
 export const paperGasModelSchema=z.object({schemaVersion:z.literal(1),source:sourceSchema,
  gasUnitsExpected:raw,gasUnitsBound:raw,sizeMinValue:raw,sizeMaxValue:raw,
- shareMinPpm:raw,shareMaxPpm:raw}).strict();
+ shareMinPpm:raw,shareMaxPpm:raw,
+ tickLower:z.number().int().min(-887272).max(887272),
+ tickUpper:z.number().int().min(-887272).max(887272)}).strict();
 export interface PaperGasProfileRow {
  id:string;version:number;poolAddress:string;pathVersion:string;stage:string;
  allowanceState:string;sizeBand:string;component:string;status:string;evidenceClass:string;
@@ -47,7 +49,8 @@ export function costIndicativePaperOpenPreview(preview:Preview,rows:readonly Pap
   const m=parsed.data,min=BigInt(m.sizeMinValue),max=BigInt(m.sizeMaxValue),
    shareMin=BigInt(m.shareMinPpm),shareMax=BigInt(m.shareMaxPpm);
   if(min>size||size>max||min>max||shareMin>share||share>shareMax||shareMin>shareMax||
-   shareMax>1_000_000n||BigInt(m.gasUnitsExpected)<=0n||
+   shareMax>1_000_000n||m.tickLower!==preview.candidate!.range.tickLower||
+   m.tickUpper!==preview.candidate!.range.tickUpper||BigInt(m.gasUnitsExpected)<=0n||
    BigInt(m.gasUnitsBound)<BigInt(m.gasUnitsExpected))return false;
   const measured=Date.parse(m.source.estimatedAt),observed=row.observedUntil.getTime();
   return Math.abs(observed-measured)<=1000&&now-measured>=0&&now-measured<=86_400_000&&

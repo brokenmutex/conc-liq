@@ -47,8 +47,8 @@ It exposes explicit unavailable reasons when the source, independent references
 or strategy confirmation are missing, or the pool price is outside the
 independent-reference band. Its static/manual no-swap path can show provisional
 open and retain-close gas when the database has a complete, fresh six-stage
-`paper_static_manual_no_swap_v1` exact-call profile for this pool, size and
-liquidity share. The profile requires zero-allowance stage evidence, an owned
+`paper_static_manual_no_swap_v1` exact-call profile for this pool, size,
+liquidity share and range. The profile requires zero-allowance stage evidence, an owned
 fork Nitro estimate, a source hash and an observation no older than 24 hours.
 The bound combines scoped gas-unit bounds with a 25% current gas-price margin;
 it expires with the indicative source and must be refreshed before any future
@@ -62,9 +62,19 @@ For a verified paper draft in an isolated development database,
 `src/deployments-paper-gas-sample.ts` can produce a new owned-fork exact-call
 report. Set `ANVIL_BIN` to the local Anvil binary and provide the same read-only
 RPC URL used for profile verification. Its arguments are the paper draft UUID
-and a new output JSON path. It records evidence only; profile ingestion and
-validation remain separate work. The first synthetic probe and its limits are
-in `docs/research/paper-static-gas-calibration-2026-09-22.md`.
+and a new output JSON path. The separate
+`src/deployments-paper-gas-register.ts` command accepts that report and a
+read-only RPC URL. It replays the source block, contract identity, independent
+references and candidate, then atomically registers six provisional fork stage
+models in the isolated database. The matching verified market profile and
+indexer target must already exist. Retrying the same report returns the same
+profile IDs; a changed report gets a new version. Models are scoped to the
+exact pool, path, allowance state, candidate size, diluted share and ticks.
+An older report cannot become the latest version again after a newer import.
+The gas estimate itself is retained fork evidence; ingestion does not
+independently rerun the fork. One probe cannot establish validation status.
+The first synthetic probe and its limits are in
+`docs/research/paper-static-gas-calibration-2026-09-22.md`.
 
 The candidate has no persisted preview ID and `actionAvailable: false`.
 

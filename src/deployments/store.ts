@@ -8,6 +8,17 @@ import {acceptInput,allocationSchema,contentHash,draftInput,parseStrategyParamet
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verifiedMarketProfileSchema,
  type VerifiedMarketProfile} from './market-profile.js';
 import {PAPER_STATIC_GAS_PATH,type PaperGasProfileRow} from './paper-cost.js';
+import {PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
+import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
+import {z} from 'zod';
+
+const paperGasAttestationSchema=z.object({
+ verificationClass:z.literal('canonical_candidate_replay_v1'),
+ reportHash:z.string().regex(/^[0-9a-f]{64}$/),
+ sourceHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+ profileHash:z.string().regex(/^[0-9a-f]{64}$/),
+ verifiedAt:z.iso.datetime({offset:true}),
+}).strict();
 
 export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
@@ -199,6 +210,87 @@ export class DeploymentStore {
    WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
     AND component='gas_units' AND allowance_state='zero'
    ORDER BY size_band,stage,version DESC LIMIT 201`,[poolAddress,PAPER_STATIC_GAS_PATH])).rows;
+ }
+
+ /** Trusted ingestion after verifyPaperGasSource has replayed the candidate
+  * on canonical chain data. Gas estimates remain provisional fork evidence. */
+ async registerPaperGasEvidence(raw:unknown,rawAttestation:unknown){
+  const report=verifyPaperGasEvidence(raw),attestation=paperGasAttestationSchema.parse(rawAttestation);
+  const source=report.source as {block:string;hash:string;timestamp:number};
+  const profile=marketProfileSchema.parse(report.profile),sampledAt=Date.parse(report.sampledAt as string);
+  const now=Date.now(),verifiedAt=Date.parse(attestation.verifiedAt);
+  if(attestation.reportHash!==report.reportHash||attestation.sourceHash.toLowerCase()!==source.hash.toLowerCase()||
+   attestation.profileHash!==report.profileHash)throw new DeploymentConflict('paper_gas_attestation_mismatch');
+  if(now-sampledAt<0||now-sampledAt>86_400_000||verifiedAt<sampledAt||
+   now-verifiedAt<0||now-verifiedAt>300_000||sampledAt-source.timestamp*1000<0||
+   sampledAt-source.timestamp*1000>180_000)
+   throw new DeploymentConflict('paper_gas_evidence_stale');
+  const candidate=report.candidate as {deployedValue:string;dilutedSharePpm:string;
+   range:{tickLower:number;tickUpper:number}};
+  const sizeBand=`exact_${contentHash({pool:profile.pool.pool.toLowerCase(),
+   value:candidate.deployedValue,share:candidate.dilutedSharePpm,
+   lower:candidate.range.tickLower,upper:candidate.range.tickUpper}).slice(0,32)}`;
+  return this.transaction(async db=>{
+   await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+    [`deployment-paper-gas:${profile.pool.pool.toLowerCase()}:${sizeBand}`]);
+   const known=(await db.query<{id:string;profile:unknown;evidence:unknown;retired_at:Date|null}>(`
+    SELECT id,profile,evidence,retired_at FROM deployment_market_profiles
+    WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND profile_hash=$2 FOR SHARE`,
+    [profile.pool.pool,report.profileHash])).rows[0];
+   if(!known||known.retired_at||contentHash(known.profile)!==report.profileHash)
+    throw new DeploymentConflict('paper_gas_market_profile_unavailable');
+   const evidence=marketProfileEvidenceSchema.safeParse(known.evidence);
+   if(!evidence.success)throw new DeploymentConflict('paper_gas_market_profile_unavailable');
+   for(const key of ['poolCodeHash','token0CodeHash','token1CodeHash','managerCodeHash','quoterCodeHash'] as const)
+    if(profile.pool[key].toLowerCase()!==evidence.data.contractHashes[key].toLowerCase())
+     throw new DeploymentConflict('paper_gas_market_profile_integrity');
+   const indexed=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM indexer_pools
+    WHERE stream_key=$1 AND lower(pool_address)=lower($2) AND chain_id=4663 AND fee=$3
+     AND enabled=true AND target_set_hash=$4 AND lower(rwa_address)=lower($5)
+     AND created_block<=$6::numeric) AS found`,
+    [evidence.data.streamKey,profile.pool.pool,profile.pool.fee,evidence.data.indexerTargetSetHash,
+     profile.pool.quoteToken===0?profile.pool.token1:profile.pool.token0,source.block])).rows[0]?.found;
+   if(!indexed)throw new DeploymentConflict('paper_gas_indexer_changed');
+   const previous=(await db.query<{id:string;stage:string;version:number;validation:Record<string,unknown>;
+    observed_until:Date|null}>(`
+    SELECT DISTINCT ON (stage) id,stage,version,validation,observed_until
+    FROM deployment_calibration_profiles WHERE chain_id=4663 AND lower(pool_address)=lower($1)
+     AND path_version=$2 AND allowance_state='zero' AND size_band=$3 AND component='gas_units'
+    ORDER BY stage,version DESC`,[profile.pool.pool,PAPER_STATIC_GAS_PATH,sizeBand])).rows;
+   const matching=previous.filter(row=>row.validation?.reportHash===report.reportHash);
+   if(matching.length){
+    if(matching.length!==PAPER_STATIC_GAS_STAGES.length||previous.length!==PAPER_STATIC_GAS_STAGES.length||
+     matching.some(row=>row.version!==matching[0]!.version))
+     throw new DeploymentConflict('paper_gas_partial_previous_import');
+    return {created:false,version:matching[0]!.version,profileIds:matching.map(row=>row.id),
+     reportHash:report.reportHash,sizeBand};
+   }
+   const older=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1
+    FROM deployment_calibration_profiles WHERE chain_id=4663 AND lower(pool_address)=lower($1)
+     AND path_version=$2 AND allowance_state='zero' AND size_band=$3 AND component='gas_units'
+     AND validation->>'reportHash'=$4) AS found`,
+    [profile.pool.pool,PAPER_STATIC_GAS_PATH,sizeBand,report.reportHash])).rows[0]?.found;
+   if(older)throw new DeploymentConflict('paper_gas_report_superseded');
+   if(previous.some(row=>row.observed_until&&sampledAt<=row.observed_until.getTime()))
+    throw new DeploymentConflict('paper_gas_sample_not_newer');
+   const version=previous.reduce((max,row)=>Math.max(max,row.version),0)+1;
+   const profileIds:string[]=[];
+   for(const rawStage of report.stageProfiles as Record<string,unknown>[]){
+    const id=randomUUID(),stage=rawStage.stage as string;
+    const validation={validationPolicy:'calibration_v1',statusReason:'one_owned_fork_sample',
+     sampleCount:1,distinctCampaigns:0,reportHash:report.reportHash,
+     canonicalAttestation:attestation,localEvidence:rawStage.evidence};
+    await db.query(`INSERT INTO deployment_calibration_profiles
+     (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
+      component,status,evidence_class,model,validation,source_hash,observed_until)
+     VALUES($1,$2,4663,$3,$4,$5,'zero',$6,'gas_units','provisional','fork_estimated',
+      $7,$8,$9,$10)`,[id,version,profile.pool.pool.toLowerCase(),PAPER_STATIC_GAS_PATH,
+      stage,sizeBand,JSON.stringify(rawStage.model),JSON.stringify(validation),rawStage.sourceHash,
+      report.sampledAt]);
+    profileIds.push(id);
+   }
+   return {created:true,version,profileIds,reportHash:report.reportHash,sizeBand};
+  });
  }
 
  /** Only a trusted preflight service may create a preview. HTTP never supplies
