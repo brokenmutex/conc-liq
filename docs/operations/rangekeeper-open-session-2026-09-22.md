@@ -99,3 +99,18 @@ after the database migration: its pinned config and build identity will fail.
 If a pending transaction, custody change, exhausted budget, missing reference,
 due safety exit, or native shortfall is observed, the migration stops without
 changing the database. Resume the old worker and investigate the failed gate.
+
+The count-policy migration was applied on 22 September after the stopped-worker
+preflight. Source commit `b13362b` produced verified sealed build
+`0a081349e04869ec7337bbf666fa3ad3621b6608299b0cbd48cda32c274a9949`.
+The proof used confirmed block 69,714,216 with hash
+`0xb0528777561a9811ec7becdfbd74c6c6ecd15a185dc097ee2dad1675d07f162c`;
+references were eligible and the strategy wallet covered 1,106,024,275,000,000
+wei for the estimated next action plus complete exit. Recorded receipt-valued
+cost was 0.736660041421343468 USD-equivalent. The migration retained campaign
+`31802d63-9ec8-423c-bc1b-f781f8b44f92`, NFT `1271827`, two economic
+actions, one recenter, and the prior cost and valuation history. The replacement
+unit started at 14:08:30 UTC with zero restarts. Its first tick returned
+`inside_range`; the persisted state was `holding/running`, with no pending action
+or monitor reason. The live dashboard API still returned the open position and
+17 activity events. No transaction was signed by the migration itself.
