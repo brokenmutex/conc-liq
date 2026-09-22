@@ -3,10 +3,10 @@ import {sessionSegments,marketSession} from '../paper/session-performance.js';
 /** Display contract: raw amounts remain integer strings until browser formatting. */
 export interface PositionPoint {
  sourceAt:string;observedAt:string;block:string;action:string;status:string;
- economicNavQuote:string|null;holdQuote:string|null;priceQuoteX18:string;
- usdg:string;nvda:string;exposurePpm:string;inRange:boolean;tickLower:number|null;tickUpper:number|null;
+ economicNavQuote:string|null;holdQuote:string|null;priceQuoteX18:string|null;
+ usdg?:string;nvda?:string;exposurePpm:string|null;inRange:boolean;tickLower:number|null;tickUpper:number|null;
  feesThisIntervalQuote:string|null;gasThisMarkQuote:string|null;swapThisMarkQuote:string|null;swapsThisMark:number;
- drawdownPpm:string;[key:string]:unknown;
+ drawdownPpm:string|null;[key:string]:unknown;
 }
 const sum=(a:bigint|null,b:string|null)=>a===null||b===null?null:a+BigInt(b);
 const delta=(a:string|null,b:string|null)=>a===null||b===null?null:String(BigInt(a)-BigInt(b));

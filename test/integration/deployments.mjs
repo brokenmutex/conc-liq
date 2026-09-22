@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {once} from 'node:events';
 import {readFileSync} from 'node:fs';
 import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
@@ -19,6 +20,10 @@ import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
+import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
+ from '../../src/dashboard/deployment-position.ts';
+import {readPositionOverview,readPositionDetail} from '../../src/dashboard/positions.ts';
+import {createDashboardServer} from '../../src/dashboard/server.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
@@ -312,6 +317,33 @@ try{
  assert.equal(paperMarks[0].provenance.paidCostsAvailable,false);
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'active');
+ const openingRows=await readDeploymentRows(admin);
+ const listedPaper=openingRows.find(row=>row.id===paperDraft.id);
+ assert(listedPaper);
+ const paperPosition=deploymentPosition(listedPaper);
+ assert.equal(paperPosition.id,`paper-dep-${paperDraft.id}`);
+ assert.equal(paperPosition.navQuote,null);
+ assert.equal(paperPosition.initialQuote,'251010000');
+ assert.equal(paperPosition.inventory.tokens.length,2);
+ assert.equal(paperPosition.inventory.tokens[0].amountRaw,paperInput.allocation.token0Raw);
+ assert.equal(paperPosition.inventory.tokens[0].decimals,18);
+ assert.equal(paperPosition.referencePriceQuoteX18,'1000000000000000000');
+ assert.equal(deploymentPosition({...listedPaper,range_state:'outside'}).status,'paused');
+ const openingLive=openingRows.find(row=>row.id===draft.id);
+ assert(openingLive);
+ assert.equal(deploymentPosition(openingLive).status,'waiting');
+ assert.equal(deploymentPosition(openingLive).navQuote,null);
+ const openingDetail=await readDeploymentDetail(admin,listedPaper,1);
+ assert.equal(openingDetail.performance.markCount,1);
+ assert.equal(openingDetail.performance.timeline[0].economicNavQuote,null);
+ assert.equal(openingDetail.performance.timeline[0].action,'enter');
+ assert.equal(openingDetail.performance.timeline[0].tickLower,paperModel.candidate.range.tickLower);
+ assert.equal(openingDetail.performance.timeline[0].referencePriceQuoteX18,'1000000000000000000');
+ assert.equal(openingDetail.performance.rows[0].netPnlQuote,null);
+ const overview=await readPositionOverview(admin,'test-stream');
+ assert(overview.positions.some(position=>position.id===paperPosition.id));
+ const apiDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,1);
+ assert.equal(apiDetail.performance.markCount,1);
  await assert.rejects(admin.query('UPDATE deployment_marks SET economics=$2 WHERE id=$1',
   [opened.markId,'{}']),/append-only/);
  const invalidPaperDraft=await store.createDraft({...draftInput,mode:'paper',
@@ -362,6 +394,13 @@ try{
  assert.equal(valuationMark.economics.alpha,null);
  assert.equal(valuationMark.economics.principalOnlyValue,
   valuationModel.lowerBound.principalOnlyValue);
+ const valuedDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,1);
+ assert.equal(valuedDetail.performance.markCount,2);
+ assert.equal(valuedDetail.performance.timeline[1].principalOnlyValue,
+  String(BigInt(valuationModel.lowerBound.principalOnlyValue)/10n**12n));
+ assert.equal(valuedDetail.performance.timeline[1].passiveTokenValue,
+  String(BigInt(valuationMark.economics.passiveTokenValue)/10n**12n));
+ assert.equal(valuedDetail.performance.timeline[1].economicNavQuote,null);
  assert.equal(valuationMark.calibration_profile_ids.length,0);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,2);
@@ -411,6 +450,42 @@ try{
  assert.equal(finalCampaign.lifecycle,'closed');
  assert.equal(finalCampaign.range_state,'no_liquidity');
  assert(finalCampaign.closed_at instanceof Date);
+ const closedPosition=deploymentPosition((await readDeploymentRows(admin))
+  .find(row=>row.id===paperDraft.id));
+ assert.equal(closedPosition.history,true);
+ assert.equal(closedPosition.inventory.tokens[0].amountRaw,null);
+ assert.equal(closedPosition.inventory.tokens[0].lowerBoundRaw,
+  closeModel.retainedLowerBound.token0Raw);
+ const retainedValue=BigInt(closeModel.retainedLowerBound.token0Raw)*BigInt(closeModel.reference.price0)/10n**18n+
+  BigInt(closeModel.retainedLowerBound.token1Raw)*BigInt(closeModel.reference.price1)/10n**6n;
+ assert.equal(closedPosition.deployment.lowerBoundValue,String(retainedValue/10n**12n));
+ assert.notEqual(closedPosition.deployment.passiveTokenValue,null);
+ const closedDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,168);
+ assert.equal(closedDetail.performance.markCount,3);
+ assert.equal(closedDetail.performance.timeline.at(-1).action,'exit');
+ assert.equal(closedDetail.performance.timeline.at(-1).economicNavQuote,null);
+ assert.equal(closedDetail.performance.timeline.at(-1).principalOnlyValue,
+  closedPosition.deployment.lowerBoundValue);
+ assert(closedDetail.events.some(event=>event.action==='close_retain'));
+ assert(closedDetail.events.some(event=>event.action==='valuation'&&event.stage==='principal_only'));
+ const dashboard=createDashboardServer({snapshot:async()=>({}),
+  positions:(id,hours)=>id?readPositionDetail(admin,'test-stream',id,hours):
+   readPositionOverview(admin,'test-stream')},{host:'127.0.0.1',port:0});
+ try{
+  if(!dashboard.listening)await once(dashboard,'listening');
+  const base=`http://127.0.0.1:${dashboard.address().port}`;
+  const overviewResponse=await fetch(`${base}/api/positions`);
+  assert.equal(overviewResponse.status,200);
+  const servedOverview=await overviewResponse.json();
+  assert(servedOverview.positions.some(position=>position.id===paperPosition.id&&
+   position.history===true&&position.navQuote===null));
+  const detailResponse=await fetch(`${base}/api/positions/${paperPosition.id}?hours=168`);
+  assert.equal(detailResponse.status,200);
+  const servedDetail=await detailResponse.json();
+  assert.equal(servedDetail.performance.markCount,3);
+  assert.equal(servedDetail.performance.timeline.at(-1).economicNavQuote,null);
+  assert(servedDetail.events.some(event=>event.action==='close_retain'));
+ }finally{await new Promise((resolve,reject)=>dashboard.close(error=>error?reject(error):resolve()));}
  assert.deepEqual(await store.recordTrustedPaperPrincipalValuation(valuationModel),
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),

@@ -22,3 +22,5 @@
 @media(max-width:600px){.masthead{height:auto;flex-wrap:wrap;padding:16px 0;gap:14px}.masthead nav{order:3;width:100%;gap:16px;overflow-x:auto;white-space:nowrap}.rangekeeper-facts{grid-template-columns:1fr}.rangekeeper-receipts li{grid-template-columns:1fr}.rangekeeper-receipts li code{text-align:left}}
 @media(max-width:600px){.positions-table .row-sub,.positions-table .status-sub{overflow-wrap:anywhere}.positions-table td:nth-child(3) .row-sub{display:none}}
 .rangekeeper-extra{border-top:1px solid var(--border);padding-top:16px}
+.activity-list li{grid-template-columns:112px 10px minmax(0,1fr) auto}.activity-list time{min-width:0}
+@media(max-width:800px){.activity-list li{grid-template-columns:60px 10px minmax(0,1fr) auto;gap:8px}}

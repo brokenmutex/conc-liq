@@ -539,10 +539,22 @@ and an explicit distinction between implemented, deployed and live-validated.
   preview. A read-only state adapter now loads the persisted open and latest
   anchor for a canonical sampler; the commit rechecks the anchor under a row
   lock. These paths remain internal and exercised only in isolated schemas.
+  The read-only Positions adapter now exposes new paper and live deployment
+  campaigns from the first recorded action through closure, using the same
+  chart periods, range view, session table and activity controls. It reads
+  recorded pool and independent-reference prices, token inventory and
+  principal-only marks. Missing fee capture, paid gas, native balance, net NAV
+  and alpha remain unavailable. No source gap is filled. The current browser
+  view and HTTP routes are checked against an isolated ledger and a disposable
+  desktop/mobile fixture. A sealed release, real runtime history and the full
+  deployment parity acceptance matrix remain separate gates.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 672 tests;
   `npm run test:integration` passed in isolated PostgreSQL schemas using the
-  explicit local test database. These validate the current foundation only.
+  explicit local test database. The HTTP Positions route was also exercised
+  against that isolated ledger; a disposable Chromium check covered current
+  and closed deployment cards, chart controls, activity and desktop/mobile
+  width without browser exceptions. These validate the current foundation only.
 - Prior review baseline: 35 focused dashboard tests passed at `b38c839`; these
   establish existing behavior only and do not satisfy the new acceptance matrix.

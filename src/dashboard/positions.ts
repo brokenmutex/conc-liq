@@ -12,6 +12,7 @@ import {readFile} from 'node:fs/promises';
 import {adaptiveHistoryPoint,readAdaptivePaperMarks} from '../adaptive-paper-history.js';
 import {valueAdaptivePassiveBenchmark} from '../paper/adaptive-benchmark.js';
 import {readRangeKeeperRows,rangeKeeperPosition,rangeKeeperDetail} from './rangekeeper-position.js';
+import {readDeploymentRows,deploymentPosition,readDeploymentByKey,readDeploymentDetail} from './deployment-position.js';
 
 const value=(a:string|bigint,b:string|bigint,sqrt:string)=>BigInt(a)+(BigInt(b)<0n?-1n:1n)*quoteValue({amount0:0n,amount1:BigInt(b)<0n?-BigInt(b):BigInt(b),token0:USDG,token1:PAPER_NVDA,quoteToken:USDG,sqrtPriceX96:BigInt(sqrt)});
 const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
@@ -97,11 +98,16 @@ export function liveSummary(r:any){
   tokenId:s.tokenId,accounting:m?'recorded':'unavailable',nextAction:s.phase==='halted'?'Reconciliation required before trading can resume':s.phase==='closed'&&s.desired==='running'?'Re-entry after cooldown and healthy price / chain checks':null};
 }
 export async function readPositionOverview(db:PoolClient,stream:string,adaptivePath?:string){
- const paper=await paperRows(db,stream),live=await liveRows(db),rangekeeper=await readRangeKeeperRows(db),adaptive=await adaptivePositions(adaptivePath);
- return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...rangekeeper.map(rangeKeeperPosition),...live.map(liveSummary),...adaptive,...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
+ const paper=await paperRows(db,stream),live=await liveRows(db),rangekeeper=await readRangeKeeperRows(db),
+  deployments=await readDeploymentRows(db),adaptive=await adaptivePositions(adaptivePath);
+ return {serverTime:new Date().toISOString(),refreshMs:10000,positions:[...deployments.map(deploymentPosition),...rangekeeper.map(rangeKeeperPosition),...live.map(liveSummary),...adaptive,...paperGroups(paper).map(g=>paperSummary(g.latest,g.chain,paper.find(r=>r.stream_key===g.latest.stream_key)?.id??''))]};
 }
 export async function readPositionDetail(db:PoolClient,stream:string,id:string,hours:number,adaptivePath?:string){
  const now=Date.now();
+ if(id.startsWith('paper-dep-')||id.startsWith('live-dep-')){
+  const row=await readDeploymentByKey(db,id);
+  return row?readDeploymentDetail(db,row,hours):null;
+ }
  if(id.startsWith('live-rk-')){
   const row=(await readRangeKeeperRows(db)).find(r=>`live-rk-${r.id}`===id);
   return row?rangeKeeperDetail(db,row,hours):null;
@@ -130,7 +136,7 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
    position.navQuote=report.economicNavQuote;position.holdQuote=report.holdPnlQuote===null?null:String(BigInt(report.initialBudgetQuote)+BigInt(report.holdPnlQuote));
    position.gasQuote=report.gasQuote;position.feesQuote=String(report.grouped.reduce((n,b)=>n+BigInt(b.feeIncomeQuote),0n));
    position.swapQuote=String(report.grouped.reduce((n,b)=>n+BigInt(b.swapCostVsSpotQuote),0n)) as any;
-   position.drawdownPpm=String(points.reduce((n,p)=>BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n));
+   position.drawdownPpm=String(points.reduce((n,p)=>p.drawdownPpm!==null&&BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n));
    const performance=positionWindow(points,hours,now,report.initialBudgetQuote,position.createdAt);
    const runIds=chain.flatMap(s=>[s.state.execution?.entryRunId,...(s.state.execution?.recenterRunIds??[]),s.state.execution?.exitRunId].filter(Boolean));
    const events=runIds.length?(await db.query(`SELECT id::text,action,source_block::text AS block,observed_at AS at,
@@ -190,7 +196,7 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
   previousGas=v.gasValuationQuote??null;points.push(point);previous=point;
  }
  position.swapQuote=String(totalSwap) as any;position.feesQuote=feesValid?String(feeIncome):null;
- position.drawdownPpm=points.length?String(points.reduce((n,p)=>BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n)) as any:null;
+ position.drawdownPpm=points.length?String(points.reduce((n,p)=>p.drawdownPpm!==null&&BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n)) as any:null;
  const events=actions.filter(a=>Date.parse(a.source_time?new Date(Number(a.source_time)*1000).toISOString():a.at)>=now-hours*3600000)
   .map(a=>({id:a.id,at:a.source_time?new Date(Number(a.source_time)*1000).toISOString():iso(a.at),action:a.action,status:a.status,hash:a.hash,
    block:a.facts?.block??null,gasQuote:a.gas??null,walletDeltas:a.facts?.walletDeltas??null,plan:a.plan})).reverse();

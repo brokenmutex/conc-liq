@@ -103,7 +103,11 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=168')).status,200);assert.deepEqual(requests[0],{id:'paper-60',hours:168});
   assert.equal((await fetch(base+'/api/positions/paper-adaptive-nvda?hours=24')).status,200);assert.deepEqual(requests[1],{id:'paper-adaptive-nvda',hours:24});
   assert.equal((await fetch(base+'/api/positions/live-rk-470e5f84-ab82-4735-92f9-57e96c05b344')).status,200);
+  assert.equal((await fetch(base+'/api/positions/paper-dep-470e5f84-ab82-4735-92f9-57e96c05b344?hours=168')).status,200);
+  assert.deepEqual(requests[3],{id:'paper-dep-470e5f84-ab82-4735-92f9-57e96c05b344',hours:168});
+  assert.equal((await fetch(base+'/api/positions/live-dep-470e5f84-ab82-4735-92f9-57e96c05b344')).status,200);
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=169')).status,400);assert.equal((await fetch(base+'/api/positions/nope')).status,400);
+  assert.equal((await fetch(base+'/api/positions/paper-dep-not-a-uuid')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-999')).status,404);assert.equal((await fetch(base+'/api/positions',{method:'POST'})).status,405);
   const page=await fetch(base+'/');assert.match(await page.text(),/Positions/);assert.match(page.headers.get('Content-Security-Policy')??'',/script-src 'self'/);
   assert.equal((await fetch(base+'/legacy')).status,200);assert.equal((await fetch(base+'/preview')).status,200);

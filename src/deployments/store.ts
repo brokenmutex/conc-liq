@@ -558,7 +558,7 @@ export class DeploymentStore {
     String(BigInt(amount)*BigInt(price)/10n**BigInt(decimals));
    const source={classification:'paper_model_provisional',previewId:row.preview_id,
     modelHash:contentHash(model),referenceProofHash:model.referenceProofHash,
-    source:model.source};
+    source:model.source,poolState:model.poolState,reference:model.reference};
    for(const [asset,token,amount,price,decimals] of [
     ['token0',p.token0,allocation.token0Raw,model.reference.price0,p.decimals0],
     ['token1',p.token1,allocation.token1Raw,model.reference.price1,p.decimals1],
@@ -680,6 +680,7 @@ export class DeploymentStore {
    const provenance={classification:'paper_model_principal_valuation',modelHash,
     openMarkId:openMark.id,previousMarkId:previous.id,openModelHash:model.openModelHash,
     referenceProofHash:model.referenceProofHash,source:model.source,
+    poolState:model.poolState,reference:model.reference,
     unavailable:model.unavailable};
    const mark=(await db.query<{id:string}>(`INSERT INTO deployment_marks
     (campaign_id,revision,source_block,source_hash,inventory,economics,provenance)
@@ -808,6 +809,7 @@ export class DeploymentStore {
    const source={classification:'paper_model_partial_close',operationId,previewId:row.preview_id,
     openMarkId:openMark.id,openModelHash:model.openModelHash,
     referenceProofHash:model.referenceProofHash,source:model.source,
+    poolState:model.poolState,reference:model.reference,
     unavailable:['fee_capture','paid_gas','net_economics']};
    const p=profile.data.pool;
    for(const [asset,token,lowerBound] of [
