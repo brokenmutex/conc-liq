@@ -5,6 +5,8 @@ import type {MarketProfile} from './market-profile.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {PaperCloseRetainModel} from './paper-close-model.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
+import type {RobinhoodClient} from '../client.js';
+import type {DeploymentStore} from './store.js';
 
 export const PAPER_ACCOUNTING_POLICY='paper_fixed_flow_lower_v1';
 const Q128=1n<<128n;
@@ -163,4 +165,36 @@ export function buildPaperAccounting(open:PaperOpenModel,profile:MarketProfile,
    markGasExpenseQuote:String(markGas)},flows,
   limitations:['fixed_observed_flow_counterfactual','lower_integer_allocation_point',
    'execution_delay_unmodeled','failure_expense_unmodeled','close_convert_unavailable']});
+}
+
+/** Projects one saved mark only while its source anchors still resolve on the
+ * configured chain. The store performs these reads inside the append
+ * transaction, after replaying persisted evidence and before inserting. */
+export async function recordCanonicalNextPaperAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.recordNextPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper accounting chain changed');
+  const checked=new Map<string,string>();
+  for(const source of sources){
+   const prior=checked.get(source.block);
+   if(prior!==undefined){
+    assert.equal(prior,`${source.hash.toLowerCase()}:${source.timestamp}`,
+     'Paper accounting same-block source conflict');
+    continue;
+   }
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),
+    'Paper accounting source reorged');
+   assert.equal(Number(block.timestamp),source.timestamp,
+    'Paper accounting source timestamp changed');
+   checked.set(source.block,`${source.hash.toLowerCase()}:${source.timestamp}`);
+  }
+  // Bracket the full set of reads; a reorg while checking later marks also
+  // invalidates the earlier anchor before the transaction can commit.
+  for(const [number,identity] of checked){
+   const block=await client.getBlock({blockNumber:BigInt(number)});
+   assert.equal(`${block.hash.toLowerCase()}:${Number(block.timestamp)}`,identity,
+    'Paper accounting source changed during verification');
+  }
+ });
 }

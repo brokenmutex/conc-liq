@@ -897,8 +897,10 @@ export class DeploymentStore {
 
  /** Materializes one source mark into a separate provisional accounting
   * journal. Fee intervals must already be verified and adjacent; no historical
-  * mark or actual-paid ledger row is rewritten. */
- async recordNextPaperAccounting(campaignId:string){
+  * mark or actual-paid ledger row is rewritten. Call through
+  * recordCanonicalNextPaperAccounting outside isolated fixtures. */
+ async recordNextPaperAccounting(campaignId:string,
+  verifyAnchors:(chainId:number,sources:readonly {block:string;hash:string;timestamp:number}[])=>Promise<void>){
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:string;current_revision:number;allocation:unknown;
     profile:unknown;profile_hash:string;evidence:unknown;config_hash:string;open_mark_id:string;
@@ -1034,6 +1036,10 @@ export class DeploymentStore {
     parsedPrior.success?parsedPrior.data:null,
     feeRow?{id:feeRow.id,proofHash:feeRow.proof_hash,carryHash:feeRow.carry_hash,
      carry:feeRow.carry}:null,close);
+   // Keep the row lock until the saved source anchors have been checked. A
+   // reorg or unavailable chain read must leave this append-only journal empty.
+   await verifyAnchors(profile.data.pool.chainId,[open.data.source,
+    ...(parsedPrior.success?[parsedPrior.data.source]:[]),source.data]);
    const saved=(await db.query<{id:string}>(`INSERT INTO deployment_paper_accounting
     (campaign_id,source_mark_id,policy_version,fee_evidence_id,snapshot,snapshot_hash)
     VALUES($1,$2,$3,$4,$5,$6) RETURNING id::text`,

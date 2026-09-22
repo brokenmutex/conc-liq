@@ -605,6 +605,14 @@ and an explicit distinction between implemented, deployed and live-validated.
   valuation projection resumes after recreating the store, and two concurrent
   close projections produce one snapshot. The operation still has no scheduled
   worker or read-time canonical recheck; those remain gates before operator use.
+- R2 canonical append follow-up: the accounting append now requires a chain
+  verifier. The read-only wrapper checks chain ID and the saved open, prior and
+  current mark block hashes and timestamps inside the append transaction, then
+  rechecks those anchors before commit. An isolated PostgreSQL test rejects a
+  changed current hash and a reorg during verification without inserting a
+  snapshot; restart and concurrent close projection still pass. This covers
+  canonicality when a snapshot is written. A durable worker and read-time
+  revocation of already written scenarios are still outstanding.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.
