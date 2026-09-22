@@ -14,6 +14,7 @@ import {canaryExitAbi} from '../../src/canary-plan/exit.ts';
 import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
  from '../../src/deployments/paper-cost.ts';
+import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
@@ -91,7 +92,8 @@ try{
  const frame={source:{block:'100',hash:sourceHash,timestamp:Math.floor(Date.now()/1000)},
   tick:-276325,sqrtPriceX96:sqrtRatioAtTick(-276325),poolLiquidity:10n**24n,
   price0:10n**18n,price1:10n**18n,nativePrice:10n**18n,
-  referenceEligible:true,referenceReasons:[],referenceProofHash:referenceProofHash({fixture:true})};
+  referenceEligible:true,referenceReasons:[],referenceProofHash:referenceProofHash({fixture:true}),
+  referenceProof:{fixture:true}};
  const indicative=buildIndicativePaperOpenPreview(paperInput,frame);
  assert.equal(indicative.status,'indicative');assert.equal(indicative.actionAvailable,false);
  assert.equal(indicative.economics,null);assert.equal(indicative.candidate.range.fullWidthTicks,180);
@@ -273,7 +275,62 @@ try{
  assert.equal(rows.length,1);assert.equal(rows[0].id,first.id);
  const reservations=(await admin.query('SELECT campaign_id FROM deployment_wallet_reservations WHERE released_at IS NULL')).rows;
  assert.deepEqual(reservations.map(row=>row.campaign_id),[draft.id]);
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure']}));
+ const paperModel=buildPaperOpenModel(paperInput,frame,costed);
+ assert.equal(paperModel.kind,'paper_open_model');
+ assert.throws(()=>buildPaperOpenModel(paperInput,{...frame,referenceProof:{fixture:false}},costed),
+  /paper_open_source_mismatch/);
+ const paperPreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'open',
+  request:{kind:'open'},proposal:{paperOpenModel:paperModel},
+  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60000)});
+ const paperOperation=await store.acceptOperation(paperDraft.id,{previewId:paperPreview.id,
+  contentDigest:paperPreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-open-model-unique-1'},'operator');
+ const paperClaim=await store.claimNext('paper-worker',30,'paper');
+ assert.equal(paperClaim.id,paperOperation.id);
+ await assert.rejects(store.completeTrustedPaperOpen(paperOperation.id,'wrong-worker'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_open_claim_lost');
+ await store.advanceClaim(paperOperation.id,'paper-worker','model_checked','executing',null);
+ await store.advanceClaim(paperOperation.id,'paper-worker','ready_to_record','reconciling',null);
+ const opened=await store.completeTrustedPaperOpen(paperOperation.id,'paper-worker');
+ assert.equal(opened.replayed,false);
+ assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,'paper-worker'),
+  {markId:opened.markId,replayed:true});
+ const paperRows=(await admin.query(`SELECT kind,entry_key,source FROM deployment_ledger
+  WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
+ assert.equal(paperRows.length,3);
+ assert(paperRows.every(row=>row.kind==='capital_in'&&
+  row.source.classification==='paper_model_provisional'));
+ const paperMarks=(await admin.query(`SELECT id::text,inventory,economics,calibration_profile_ids,provenance
+  FROM deployment_marks WHERE campaign_id=$1`,[paperDraft.id])).rows;
+ assert.equal(paperMarks.length,1);assert.equal(paperMarks[0].id,opened.markId);
+ assert.equal(paperMarks[0].economics,null);
+ assert.equal(paperMarks[0].inventory.position.liquidity,paperModel.candidate.liquidity);
+ assert.equal(paperMarks[0].calibration_profile_ids.length,6);
+ assert.equal(paperMarks[0].provenance.paidCostsAvailable,false);
+ assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+  [paperDraft.id])).rows[0].lifecycle,'active');
+ await assert.rejects(admin.query('UPDATE deployment_marks SET economics=$2 WHERE id=$1',
+  [opened.markId,'{}']),/append-only/);
+ const invalidPaperDraft=await store.createDraft({...draftInput,mode:'paper',
+  allocation:paperInput.allocation,config:paperInput.parameters});
+ const invalidModel={...paperModel,campaignId:invalidPaperDraft.id,
+  candidate:{...paperModel.candidate,liquidity:'1'}};
+ const invalidPreview=await store.recordPreview({campaignId:invalidPaperDraft.id,expectedRevision:1,
+  kind:'open',request:{kind:'open'},proposal:{paperOpenModel:invalidModel},
+  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60000)});
+ const invalidOperation=await store.acceptOperation(invalidPaperDraft.id,{previewId:invalidPreview.id,
+  contentDigest:invalidPreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-open-invalid-unique-1'},'operator');
+ await store.claimNext('paper-worker',30,'paper');
+ await store.advanceClaim(invalidOperation.id,'paper-worker','model_checked','executing',null);
+ await store.advanceClaim(invalidOperation.id,'paper-worker','ready_to_record','reconciling',null);
+ await assert.rejects(store.completeTrustedPaperOpen(invalidOperation.id,'paper-worker'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_open_candidate_mismatch');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1',
+  [invalidPaperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
+  [invalidPaperDraft.id])).rows[0].n,0);
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing']}));
 }finally{
  if(store)await store.close();
  await admin.query('SET search_path=public');

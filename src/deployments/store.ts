@@ -7,8 +7,10 @@ import {acceptInput,allocationSchema,contentHash,draftInput,parseStrategyParamet
  strategyId,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verifiedMarketProfileSchema,
  type VerifiedMarketProfile} from './market-profile.js';
-import {PAPER_STATIC_GAS_PATH,type PaperGasProfileRow} from './paper-cost.js';
+import {PAPER_STATIC_GAS_PATH,costIndicativePaperOpenPreview,type PaperGasProfileRow} from './paper-cost.js';
 import {PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
+import {buildIndicativePaperOpenPreview} from './paper-preview.js';
+import {buildPaperOpenModel,paperOpenModelSchema} from './paper-open-model.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
 import {z} from 'zod';
 
@@ -417,6 +419,138 @@ export class DeploymentStore {
     status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
    [id,workerId,leaseSeconds]);
   if(result.rowCount!==1)throw new DeploymentConflict('claim_lost');
+ }
+
+ /** Commits one modeled paper open under the operation claim. It writes no
+  * transaction intent, paid gas, or net economics. Retrying a committed open
+  * returns its existing mark without appending capital twice. */
+ async completeTrustedPaperOpen(operationId:string,workerId:string){
+  if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
+  return this.transaction(async db=>{
+   const row=(await db.query<{id:string;campaign_id:string;preview_id:string;kind:string;status:string;
+    claimed_by:string|null;claim_until:Date|null;mode:string;lifecycle:string;current_revision:number;
+    allocation:unknown;profile:unknown;profile_hash:string;config:unknown;config_hash:string;
+    strategy_id:string;strategy_version:string;state_schema_version:number;
+    proposal:Record<string,unknown>;request:Record<string,unknown>;evidence:Record<string,unknown>;
+    content_digest:string;expected_revision:number;expires_at:Date}>(`
+    SELECT o.id,o.campaign_id,o.preview_id,o.kind,o.status,o.claimed_by,o.claim_until,
+     c.mode,c.lifecycle,c.current_revision,c.allocation,p.profile,p.profile_hash,
+     r.config,r.config_hash,r.strategy_id,r.strategy_version,r.state_schema_version,
+     v.proposal,v.request,v.evidence,v.content_digest,v.expected_revision,v.expires_at
+    FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_previews v ON v.id=o.preview_id
+    WHERE o.id=$1 FOR UPDATE OF o,c`,[operationId])).rows[0];
+   if(!row||row.mode!=='paper'||row.kind!=='open')throw new DeploymentConflict('paper_open_operation_unavailable');
+   if(row.status==='succeeded'){
+    const existing=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
+     WHERE campaign_id=$1 AND provenance->>'operationId'=$2 LIMIT 2`,
+     [row.campaign_id,operationId])).rows;
+    if(existing.length!==1)throw new DeploymentConflict('paper_open_replay_integrity');
+    return {markId:existing[0]!.id,replayed:true};
+   }
+   if(row.lifecycle!=='opening'||row.status!=='reconciling'||row.claimed_by!==workerId||
+    !row.claim_until||row.claim_until.getTime()<Date.now())throw new DeploymentConflict('paper_open_claim_lost');
+   if(row.current_revision!==row.expected_revision||row.expires_at.getTime()<=Date.now())
+    throw new DeploymentConflict('paper_open_preview_stale');
+   if(previewDigest({campaignId:row.campaign_id,expectedRevision:row.expected_revision,kind:'open',
+    request:row.request,proposal:row.proposal,evidence:row.evidence,expiresAt:row.expires_at})!==row.content_digest)
+    throw new DeploymentConflict('paper_open_preview_integrity');
+   const parsed=paperOpenModelSchema.safeParse(row.proposal.paperOpenModel);
+   if(!parsed.success)throw new DeploymentConflict('paper_open_model_unavailable');
+   const model=parsed.data,profile=marketProfileSchema.safeParse(row.profile);
+   if(!profile.success||model.campaignId!==row.campaign_id||model.revision!==row.current_revision||
+    model.profileHash!==row.profile_hash||contentHash(row.profile)!==row.profile_hash||
+    !row.config||typeof row.config!=='object'||contentHash(row.config)!==row.config_hash||
+    model.configHash!==row.config_hash||row.strategy_id!=='static_manual_v1'||
+    row.strategy_version!=='1.0.0'||row.state_schema_version!==1||
+    model.strategyId!==row.strategy_id||referenceProofHash(model.referenceProof)!==model.referenceProofHash)
+    throw new DeploymentConflict('paper_open_model_integrity');
+   const config=row.config as Record<string,unknown>;
+   const {strategyId:_id,strategyVersion:_version,stateSchemaVersion:_schema,...parameters}=config;
+   if(_id!==row.strategy_id||_version!==row.strategy_version||_schema!==row.state_schema_version)
+    throw new DeploymentConflict('paper_open_config_integrity');
+   const allocation=allocationSchema.parse(row.allocation);
+   const draft={id:row.campaign_id,revision:row.current_revision,allocation,profile:profile.data,
+    profileHash:row.profile_hash,configHash:row.config_hash,strategyId:'static_manual_v1' as const,
+    strategyVersion:row.strategy_version,stateSchemaVersion:row.state_schema_version,
+    parameters:parseStrategyParameters('static_manual_v1',parameters)};
+   const now=Date.now();
+   if(model.source.timestamp*1000>now||now-model.source.timestamp*1000>180_000||
+    now-Date.parse(model.costs.gasPriceObservedAt)>120_000||
+    Date.parse(model.costs.gasPriceObservedAt)>now)
+    throw new DeploymentConflict('paper_open_source_stale');
+   const frame={source:model.source,tick:model.poolState.tick,
+    sqrtPriceX96:BigInt(model.poolState.sqrtPriceX96),
+    poolLiquidity:BigInt(model.poolState.poolLiquidity),
+    price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
+    nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,referenceReasons:[],
+    referenceProofHash:model.referenceProofHash,referenceProof:model.referenceProof};
+   const indicative=buildIndicativePaperOpenPreview(draft,frame,now);
+   if(indicative.status!=='indicative'||indicative.candidateHash!==model.candidateHash||
+    contentHash(indicative.candidate)!==contentHash(model.candidate)||
+    contentHash(allocation)!==contentHash(model.allocation))
+    throw new DeploymentConflict('paper_open_candidate_mismatch');
+   const gasRows=(await db.query<PaperGasProfileRow>(`
+    SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+     allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+     evidence_class AS "evidenceClass",model,source_hash AS "sourceHash",
+     observed_until AS "observedUntil" FROM deployment_calibration_profiles
+    WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
+     AND component='gas_units' AND allowance_state='zero'
+    ORDER BY size_band,stage,version DESC LIMIT 201`,
+    [profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+   const costed=costIndicativePaperOpenPreview(indicative,gasRows,profile.data.pool.pool,
+    frame.nativePrice,BigInt(model.costs.gasPriceWei),Date.parse(model.costs.gasPriceObservedAt));
+   if(costed.costs.status!=='provisional'||contentHash(costed.costs)!==contentHash(model.costs))
+    throw new DeploymentConflict('paper_open_cost_profile_changed');
+   let replayed;
+   try{replayed=buildPaperOpenModel(draft,frame,costed);}
+   catch{throw new DeploymentConflict('paper_open_limits_or_model_changed');}
+   if(contentHash(replayed)!==contentHash(model))throw new DeploymentConflict('paper_open_model_changed');
+   const previous=(await db.query<{n:number}>(`SELECT count(*)::int AS n FROM deployment_marks
+    WHERE campaign_id=$1`,[row.campaign_id])).rows[0]?.n;
+   if(previous!==0)throw new DeploymentConflict('paper_open_previous_mark');
+   const p=profile.data.pool;
+   const value=(amount:string,price:string,decimals:number)=>
+    String(BigInt(amount)*BigInt(price)/10n**BigInt(decimals));
+   const source={classification:'paper_model_provisional',previewId:row.preview_id,
+    modelHash:contentHash(model),referenceProofHash:model.referenceProofHash,
+    source:model.source};
+   for(const [asset,token,amount,price,decimals] of [
+    ['token0',p.token0,allocation.token0Raw,model.reference.price0,p.decimals0],
+    ['token1',p.token1,allocation.token1Raw,model.reference.price1,p.decimals1],
+    ['native',null,allocation.nativeWei,model.reference.nativePrice,18],
+   ] as const){
+    await db.query(`INSERT INTO deployment_ledger
+     (campaign_id,operation_id,entry_key,kind,token_address,amount_raw,value_raw,source)
+     VALUES($1,$2,$3,'capital_in',$4,$5,$6,$7)`,
+     [row.campaign_id,operationId,`paper_open:${operationId}:${asset}`,token,amount,
+      value(amount,price,decimals),JSON.stringify({...source,asset})]);
+   }
+   const inventory={classification:'paper_model_provisional',token0Raw:allocation.token0Raw,
+    token1Raw:allocation.token1Raw,nativeWei:allocation.nativeWei,
+    position:{liquidity:model.candidate.liquidity,tickLower:model.candidate.range.tickLower,
+     tickUpper:model.candidate.range.tickUpper,amount0Minted:model.candidate.amount0Minted,
+     amount1Minted:model.candidate.amount1Minted},
+    idle0:String(BigInt(allocation.token0Raw)-BigInt(model.candidate.amount0Minted)),
+    idle1:String(BigInt(allocation.token1Raw)-BigInt(model.candidate.amount1Minted))};
+   const provenance={...source,operationId,candidateHash:model.candidateHash,
+    modeledCosts:model.costs,paidCostsAvailable:false};
+   const mark=(await db.query<{id:string}>(`INSERT INTO deployment_marks
+    (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
+    VALUES($1,$2,$3,$4,$5,NULL,$6,$7) RETURNING id::text`,
+    [row.campaign_id,row.current_revision,model.source.block,model.source.hash,
+     JSON.stringify(inventory),model.costs.stages.map(stage=>stage.profileId),
+     JSON.stringify(provenance)])).rows[0]!;
+   await db.query(`UPDATE deployment_campaigns SET lifecycle='active',
+    range_state=$2,updated_at=clock_timestamp() WHERE id=$1`,
+    [row.campaign_id,model.candidate.feeEarningAtEntry?'inside':'outside']);
+   await db.query(`UPDATE deployment_operations SET status='succeeded',stage='paper_open_recorded',
+    claimed_by=NULL,claim_until=NULL,updated_at=clock_timestamp() WHERE id=$1`,[operationId]);
+   return {markId:mark.id,replayed:false};
+  });
  }
 
  private async reserveLiveWallet(db:PoolClient,campaignId:string,chainId:number,wallet:string){

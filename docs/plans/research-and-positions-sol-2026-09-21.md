@@ -499,12 +499,12 @@ and an explicit distinction between implemented, deployed and live-validated.
 - W2: in progress. Static/manual range rounding, exact no-swap sizing, hold
   semantics and safety precedence are implemented. A paper draft can now get a
   read-only indicative open candidate from a confirmed pool state and eligible
-  independent references. The candidate has no complete costs, net economics
-  or operation identity and cannot be accepted. A bounded selector now reads
+  independent references. The HTTP candidate has no net economics or operation
+  identity and cannot be accepted. A bounded selector now reads
   six fresh pool/path/size/share/range-specific exact-call gas profiles for a
   provisional static/manual open and retain-close expense and bound. It cannot
-  fall back to older versions or unrelated AAPL allowances. There are no new
-  populated or validated profiles yet; absent evidence leaves costs unavailable.
+  fall back to older versions or unrelated AAPL allowances. No profile is
+  validated; absent scoped evidence leaves costs unavailable.
   RangeKeeper mint math is neutral to the retired research module. Paper
   execution, calibration validation and UI flows remain. An owned-fork
   static/manual no-swap collector now records exact-call Nitro estimates for
@@ -513,7 +513,15 @@ and an explicit distinction between implemented, deployed and live-validated.
   `docs/research/paper-static-gas-calibration-2026-09-22.md`; it is one
   provisional point, not a paper fill or validation. A separate importer
   canonically replays a candidate and atomically versions all six provisional
-  profiles in an isolated database; no persistent profile was registered.
+  gas profiles in an isolated database; no persistent profile was registered.
+  An internal paper-open model now freezes the confirmed source,
+  independent reference proof, exact mint candidate and scoped provisional
+  gas estimate. A claimed operation can recheck that model and atomically write
+  initial capital entries plus one inventory mark; retries return the same
+  mark. The mark leaves paid costs and net economics unavailable. This path is
+  exercised only in an isolated schema: HTTP acceptance and continuous paper
+  operation remain disabled until close/recovery, valuation and dashboard
+  parity are implemented and tested.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 672 tests;
