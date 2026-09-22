@@ -1,7 +1,9 @@
 # Research and Positions — Sol implementation plan
 
-Prepared: 2026-09-21. Status: accepted product scope; ready for implementation.
-Source reviewed: `b38c839`. Recheck HEAD and working-tree changes before starting.
+Prepared: 2026-09-21. Status: implementation in progress; W1/W2 incomplete.
+Initial source review: `b38c839`. Progress review: 2026-09-22 at `af4724d`.
+Recheck HEAD and working-tree changes before starting. Sol should resume with
+[the review follow-up and next actions](#10-review-follow-up-and-sol-next-actions).
 
 This is the authoritative implementation handoff for the accepted
 [workflow proposal](research-and-position-workflow-2026-09-21.md). The user's
@@ -571,8 +573,27 @@ and an explicit distinction between implemented, deployed and live-validated.
   returns no work when caught up, and no service schedules it yet. Calibrated
   fee capture and the earned paper fee ledger/marks remain unfinished. The
   modeled credit is not booked as earned fees or net P&L.
-- W3–W7: not started. No production migration, service cutover, funding,
-  signing or new campaign was performed by this implementation work.
+- R1 status follow-up, `5319e92`: deployment positions now distinguish active
+  outside range, actual management pause, blocked recovery and unknown range
+  state. The dashboard shows the persisted blocked-operation reason and retains
+  stale-source context; normal static/manual outside hold no longer counts as
+  needing attention. The repository check passed 678 tests during this change.
+  After the final query refinement, focused dashboard tests, typechecking and
+  the isolated-PostgreSQL deployment integration test passed. Disposable
+  Chromium fixtures showed badges, reason and attention count at 1280px and
+  390px without horizontal overflow. No sealed release or production deployment
+  was checked.
+- W3: planned Research work remains outstanding. The existing page still has
+  four windows and checkpoint-based pool membership; profile registration does
+  not yet provide the registry-backed Research universe or saved-candidate UI.
+- W4/W5: new deployment live adapters and active-management integration remain
+  outstanding. Existing predecessor RangeKeeper execution is reusable evidence,
+  not completion of these new workflow packages.
+- W6: partial groundwork. The common deployment Positions projection described
+  above is implemented; full accounting, portfolio exposure, calibration
+  reporting, legacy dependency removal and complete parity acceptance remain.
+- W7: outstanding. No production migration, service cutover, funding, signing
+  or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 676 tests;
   `npm run test:integration` passed in isolated PostgreSQL schemas using the
   explicit local test database. The HTTP Positions route was also exercised
@@ -581,3 +602,101 @@ and an explicit distinction between implemented, deployed and live-validated.
   width without browser exceptions. These validate the current foundation only.
 - Prior review baseline: 35 focused dashboard tests passed at `b38c839`; these
   establish existing behavior only and do not satisfy the new acceptance matrix.
+
+## 10. Review follow-up and Sol next actions
+
+Review date: 2026-09-22. Source: `af4724d`. This is the next implementation
+sequence within the accepted scope, not a replacement for the W0–W7 gates.
+The persistence and internal static/manual paper foundations are substantial,
+but the first usable paper workflow is incomplete. Prioritize connecting and
+finishing that workflow before expanding unrelated Research features.
+
+The initial review reran `npm run check` with the pinned Node: repository checks,
+typechecking and all 676 tests passed. Integration and browser results in
+section 9 are prior implementation evidence; that review did not rerun them
+(`TEST_DATABASE_URL` was unset), inspect the deployed release, or perform a
+fresh production/custody audit. Rerun the relevant acceptance checks against
+the implementation being handed off; do not present earlier results as fresh.
+
+### R1 — Correct misleading deployment status labels (implemented in `5319e92`; release check pending)
+
+At review source `af4724d`, `deploymentPosition()` mapped an
+active outside-range position and a blocked campaign to `status: 'paused'`.
+`dashboard/app.js` then labels both “Management paused.” Static/manual holding
+outside its range is normal strategy behavior; blocked recovery is a separate
+condition. The secondary explanation does not correct the misleading badge.
+
+- Keep lifecycle, range state and operation state distinct in the projection,
+  badges, filters and attention counts. Reserve “Management paused” for actual
+  paused management; show outside/manual-hold and blocked/recovery explicitly.
+- Preserve the existing predecessor position views and keep stale-source
+  information visible alongside the underlying state.
+- Acceptance: adapter and browser checks cover active-inside, active-outside
+  static/manual, genuinely paused, blocked, opening, closing and closed cases.
+  Active-outside must not imply a pause or pending recenter; blocked must show
+  the recovery reason. Check desktop and mobile rendering.
+
+### R2 — Finish provisional paper accounting end to end
+
+Current open/valuation/retain-close models and hypothetical fee intervals are
+internal evidence primitives. Fee credits are not yet booked as modeled income;
+native spending, net NAV and final retained token balances remain incomplete.
+Do not mark a usable paper lifecycle complete merely because an internal close
+sets the campaign lifecycle to `closed`.
+
+- Define and implement a versioned, explicitly provisional accounting policy
+  for converting eligible fee-interval evidence into modeled paper accrual.
+  Preserve the original interval proof, dilution and rounding bounds, continuous
+  carry, source anchors and counterfactual limitations. Document how any point
+  estimate or scenario is selected; missing coverage stays unavailable.
+- Book modeled fees and modeled execution expenses exactly once, reconcile
+  native balance and final retained inventory, and derive reference-valued NAV,
+  absolute P&L and matched fixed-inventory passive performance. Include opening,
+  closing, approvals/cleanup and supported conversion costs. Keep reserves and
+  admission bounds separate from expenses, and keep paper estimates distinct
+  from canonical paid live expenses.
+- Pin model/profile versions and evidence to fills and marks. Preserve earlier
+  incomplete marks; any retrospective recalculation is a separately labeled
+  result. Unmodeled delay/failure components and stress assumptions stay explicit.
+- Acceptance: isolated-DB lifecycle tests reconcile token and native balances,
+  capital flows, modeled fees/costs and both exit modes; duplicate/restarted
+  writes cannot double book. Test gaps, stale profiles, interval repeats and
+  close-boundary carry. Dashboard values must match the persisted ledger.
+
+Calibration sample sufficiency is a gate on a **validated** claim, not a
+requirement to finish or run an explicitly provisional paper scenario. Preserve
+the frozen validation thresholds and build the comparison pipeline without
+waiting for 30 observations or creating live trades to obtain samples. Where
+even provisional inputs are absent, leave the relevant economics incomplete.
+
+### R3 — Connect durable execution and the operator paper flow
+
+- Wire fresh previews, command acceptance, the paper execution adapter and
+  bounded valuation/fee samplers into a supervised worker. Complete lifecycle
+  transitions, claim recovery and blocked-operation handling. A browser
+  disconnect must not stop an accepted operation or its reconciliation.
+- Keep the current HTTP operation gate and capability flags truthful until
+  each exposed path has fresh admission, execution, reconciliation and dashboard
+  evidence. Enable supported paths deliberately; unavailable paths must reject.
+- Deliver the basic Research candidate/draft link and Positions controls for
+  open, monitoring, pause/resume and close without config edits or restarts.
+  Preserve safety monitoring during pause and close precedence over new work.
+- Complete the RangeKeeper paper adapter using the shared frozen strategy
+  kernel. Static/manual success alone does not complete W2. Support both close
+  modes and preserve each strategy's semantics and modeled execution evidence.
+- Acceptance: both strategies complete the paper flow through the real HTTP
+  boundary and desktop/mobile UI, including stale/duplicate requests, concurrent
+  claims, worker restart, browser disconnect and blocked recovery. Verify no
+  signer/broadcast path and no legacy snapshots required. Common Positions
+  list, charts, costs and history must cover first action through closure.
+
+After R1–R3, finish the remaining W3 Research scope (registry-backed pool list,
+all five exact windows, variable capital/range, bounded replay and calibration
+reports), then continue W4–W7 with their existing gates. Basic draft creation
+and dashboard parity are part of the first paper milestone and cannot be
+deferred until the broader Research or product packages are complete.
+
+For each follow-up, record scoped commits, evidence and remaining limitations
+in section 9. Preserve unrelated dirty hybrid/adaptive work. Implementation
+readiness, sealed-release deployment and live validation remain distinct;
+this review adds no production migration, service activation or funding authority.
