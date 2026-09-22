@@ -9,7 +9,7 @@ import {RangeKeeperChain} from './chain.js';
 import {rangeKeeperConfirmedSource,inspectRangeKeeperLaunch} from './live-preflight.js';
 import {RangeKeeperLiveStore} from './live-store.js';
 import {loadRangeKeeperSigner} from './live-signer.js';
-import {rangeKeeperJson,parseRangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
+import {rangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
 import {readRangeKeeperReferences} from './reference.js';
 import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
@@ -82,18 +82,15 @@ export function assertRangeKeeperCountMigration(old:RangeKeeperLiveState,recorde
  assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
  assert.notEqual(old.buildId,nextBuildId,'Migration requires a new sealed build');
  assert(next.operator&&same(old.operator,next.operator),'Campaign operator changed');
- const prior=parseRangeKeeperJson<RangeKeeperConfig>(recordedConfig);
- assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(prior)),'Stored campaign config is not canonical');
+ assert.equal(next.campaignScope.maxEconomicActions,0,'Next campaign must remove the action count cap');
+ assert.equal(next.limits.maxRecenters,0,'Next campaign must remove the recenter count cap');
+ const prior={...next,limits:{...next.limits,maxRecenters:4},
+  campaignScope:{...next.campaignScope,maxEconomicActions:2}};
+ assert.equal(prior.campaignScope.maxDurationSeconds,0,'Only an open-ended campaign may remove count limits');
+ assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(prior)),
+  'Campaign changed beyond the reviewed count limits');
  assert.equal(old.configHash,rangeKeeperConfigHash(prior),'Stored campaign hash does not match active policy');
  assertRangeKeeperState(old.policy,prior,old.buildId);
- assert.equal(prior.campaignScope.maxDurationSeconds,0,'Only an open-ended campaign may remove count limits');
- assert.equal(prior.campaignScope.maxEconomicActions,2,'Expected the two-action cap');
- assert.equal(next.campaignScope.maxEconomicActions,0,'Next campaign must remove the action count cap');
- assert.equal(prior.limits.maxRecenters,4,'Expected the four-recenter cap');
- assert.equal(next.limits.maxRecenters,0,'Next campaign must remove the recenter count cap');
- const expected={...prior,limits:{...prior.limits,maxRecenters:next.limits.maxRecenters},
-  campaignScope:{...prior.campaignScope,maxEconomicActions:0}};
- assert.deepEqual(next,expected,'Campaign changed beyond the reviewed count limits');
  assert(old.phase==='holding'&&old.desired==='running'&&old.activeTokenId!==null&&
   old.last.position?.tokenId===old.activeTokenId&&old.candidate===null&&
   !old.swapDone&&!old.withdrawDone&&old.closedAt===null&&old.haltReason===null,

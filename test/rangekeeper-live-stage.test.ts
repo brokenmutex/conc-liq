@@ -46,7 +46,7 @@ test('active count migration changes only both stops and retains the held NFT an
  assert.throws(()=>guard({...old,candidate:{} as RangeKeeperLiveState['candidate']}),/settled/);
  assert.throws(()=>guard({...old,activeTokenId:null}),/settled/);
  assert.throws(()=>guard({...old,configHash:`0x${'11'.repeat(32)}`}),/hash/);
- assert.throws(()=>guard(old,next,{...stored,limits:{...stored.limits,maxRecenters:3}}),/hash/);
+ assert.throws(()=>guard(old,next,{...stored,limits:{...stored.limits,maxRecenters:3}}),/reviewed count limits/);
  assert.throws(()=>assertRangeKeeperCountMigration(old,stored,next,id,'old-build','old-build'),/new sealed build/);
 });
 test('rearm accepts only the exact closed no-transaction campaign and new build',()=>{
