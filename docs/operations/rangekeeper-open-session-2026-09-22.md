@@ -49,3 +49,22 @@ campaign has no expiry, and its current detail contains valuation/chart data.
 Chromium desktop and mobile captures are in
 `data/rangekeeper-open-units-2026-09-22/` and
 `data/rangekeeper-open-dashboard-final-2026-09-22/`.
+
+The new entry confirmed router and manager approvals at nonces 339–341,
+the entry swap at nonce 342, mint at nonce 343, and three allowance
+revocations at nonces 344–346. The first approval's candidate went stale
+before a swap, so the controller obtained fresh confirmations. At confirmed
+block 69,452,654 (`0x64a2fae4cbed859f728a33cb5ac185b40203efac33b2a2336dce8d267c070e19`),
+the campaign was `holding/running` and `inside_range` with NFT `1269524`,
+40-tick range `[218030,218070)`, 45 owned NFTs, 17166847 raw USDG,
+26469193340952316 raw AAPL, 8194691294266364 wei native, nonce 347,
+zero monitored allowances, and no pending action. Eight receipt-valued cost
+events were recorded, including 51825503358000 wei gas; the dashboard
+displayed about $0.29 in total execution costs at this source. This is
+neither final campaign P&L nor passive alpha.
+
+The live dashboard displayed the open NFT, current independent-reference
+valuation, 12 chart points, and the closed prior campaign in history. Its
+desktop and mobile captures show the live summary, charts and position
+facts without overlapping summary columns. The dashboard `/healthz` returned
+200. Both services were active with zero restarts after allowance cleanup.
