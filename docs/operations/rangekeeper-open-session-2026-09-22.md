@@ -68,3 +68,34 @@ valuation, 12 chart points, and the closed prior campaign in history. Its
 desktop and mobile captures show the live summary, charts and position
 facts without overlapping summary columns. The dashboard `/healthz` returned
 200. Both services were active with zero restarts after allowance cleanup.
+
+## Continuous count-policy migration
+
+The initial open session retained `maxEconomicActions: 2` and
+`maxRecenters: 4`. Once the second action confirmed, the worker could still
+value the held NFT and take a safety exit, but it could not plan another
+recenter. The reviewed continuous policy sets both counts to `0`, meaning no
+count stop. It retains the campaign's absolute action, rolling and campaign
+cost limits, native exit reserve, loss and drawdown limits, independent price
+band, custody checks, five-minute outside-range observation, two distinct
+candidate confirmations, fork simulation, and operator stop.
+
+To migrate the active campaign, prepare a new private config copied from the
+active config with **only** `campaignScope.maxEconomicActions` and
+`limits.maxRecenters` changed to zero. Use a newly sealed build. Run
+`rangekeeper-live count-preflight CONFIG CAMPAIGN_ID PREVIOUS_BUILD_ID` under
+the sealed launcher. It checks the exact old config hash, current NFT custody,
+canonical source, fresh independent references, available cost budget, and
+gas for one next action plus a complete exit. It performs no signing. Stop
+the old worker without requesting an exit. Re-run the preflight, then run
+`rangekeeper-live migrate-counts CONFIG CAMPAIGN_ID PREVIOUS_BUILD_ID` while
+the worker is inactive. The migration appends a proof and transition,
+atomically changes the stored config and build identity, and preserves the
+campaign ID, active NFT, receipt costs, counters, inventory baseline, and
+dashboard history. Repoint and start the systemd unit on the new sealed
+build. Verify the first tick and position dashboard. Do not run the old build
+after the database migration: its pinned config and build identity will fail.
+
+If a pending transaction, custody change, exhausted budget, missing reference,
+due safety exit, or native shortfall is observed, the migration stops without
+changing the database. Resume the old worker and investigate the failed gate.

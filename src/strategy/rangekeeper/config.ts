@@ -23,7 +23,7 @@ const limitsSchema=z.object({
  maxSlippageBps:z.number().int().positive().max(50),
  maxActionCost:positive,maxRollingCost:positive,maxCampaignCost:positive,
  maxExposurePpm:ppm.refine(n=>n>0),maxLossValue:positive,maxDrawdownPpm:ppm.refine(n=>n>0),
- maxRecenters:z.number().int().positive(),maxLiquiditySharePpm:ppm.refine(n=>n>0),
+ maxRecenters:z.number().int().min(0),maxLiquiditySharePpm:ppm.refine(n=>n>0),
  maxObservationGapSeconds:z.number().int().min(30).max(90),exitReserveWei:positive,
 }).strict();
 export const rangeKeeperReferencePolicySchema=z.object({
@@ -44,7 +44,7 @@ export const rangeKeeperConfigSchema=z.object({
  zeroAllowances:z.array(z.object({token:address,spender:address}).strict()).default([]),
  legacyRetiredTokenIds:z.array(z.string().regex(/^[1-9][0-9]*$/)).default([]),
  campaignScope:z.object({maxDurationSeconds:z.number().int().min(0).max(86400),
-  maxEconomicActions:z.number().int().positive().max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
+  maxEconomicActions:z.number().int().min(0).max(10)}).default({maxDurationSeconds:43200,maxEconomicActions:2}),
  referencePolicy:rangeKeeperReferencePolicySchema,
  campaignValue:positive,strategyFundingValue:positive,nativeFundingValue:positive,
 }).strict().superRefine((p,ctx)=>{

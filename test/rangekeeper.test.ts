@@ -49,6 +49,25 @@ test('zero campaign duration explicitly permits an open-ended guarded session',(
  const open=parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:0,maxEconomicActions:2}});
  assert.equal(open.campaignScope.maxDurationSeconds,0);
  assert.throws(()=>parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:-1,maxEconomicActions:2}}));
+ const continuous=parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:0,maxEconomicActions:0},
+  limits:{...raw.limits,maxRecenters:0}});
+ assert.equal(continuous.campaignScope.maxEconomicActions,0);
+ assert.equal(continuous.limits.maxRecenters,0);
+ assert.throws(()=>parseRangeKeeperConfig({...raw,campaignScope:{maxDurationSeconds:0,maxEconomicActions:-1}}));
+ assert.throws(()=>parseRangeKeeperConfig({...raw,limits:{...raw.limits,maxRecenters:-1}}));
+});
+test('unlimited recenter count permits planning after four recenterings',async()=>{
+ const position={tokenId:'1',tickLower:10,tickUpper:20,liquidity:1n};
+ let first=await planRangeKeeper(input(observation({position,recenters:4})));
+ assert.equal(first.reason,'exit_persistence');
+ for(let step=1;step<=4;step++)first=await planRangeKeeper({...input(observation({
+  block:BigInt(step+1),timestamp:1000+step*60,position,recenters:4})),state:first.state});
+ const second=observation({block:6n,timestamp:1300,position,recenters:4});
+ const limited=await planRangeKeeper({...input(second),state:first.state});
+ assert.equal(limited.reason,'recenter_count_limit');
+ const continuous=await planRangeKeeper({...input(second),state:first.state,
+  limits:{...config.limits,maxRecenters:0}});
+ assert.notEqual(continuous.reason,'recenter_count_limit');
 });
 test('two chain profiles parse with explicit addresses, decimals, costs, and a shared total cap',()=>{
  for(const name of ['nvda','aapl']){

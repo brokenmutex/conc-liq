@@ -9,7 +9,7 @@ import {RangeKeeperChain} from './chain.js';
 import {rangeKeeperConfirmedSource,inspectRangeKeeperLaunch} from './live-preflight.js';
 import {RangeKeeperLiveStore} from './live-store.js';
 import {loadRangeKeeperSigner} from './live-signer.js';
-import {rangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
+import {rangeKeeperJson,parseRangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperLiveAction,type RangeKeeperSnapshot} from './live-domain.js';
 import {readRangeKeeperReferences} from './reference.js';
 import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
@@ -72,6 +72,36 @@ export function assertRangeKeeperWidthMigration(oldHash:Hex,recordedConfig:unkno
  assert.equal(rangeKeeperConfigHash(prior),oldHash,'Stored campaign hash does not match prior policy');
  assert(width===next.limits.fullWidthSpacings||(width===20&&next.limits.fullWidthSpacings===4),
   'Only the reviewed 200-to-40-tick migration is allowed');
+}
+
+/** Only remove the two count stops on an open, active campaign. Every other
+ * strategy, custody and loss setting stays byte-for-byte equivalent. */
+export function assertRangeKeeperCountMigration(old:RangeKeeperLiveState,recordedConfig:unknown,
+ next:RangeKeeperConfig,expectedCampaignId:string,expectedPreviousBuildId:string,nextBuildId:string){
+ assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
+ assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
+ assert.notEqual(old.buildId,nextBuildId,'Migration requires a new sealed build');
+ assert(next.operator&&same(old.operator,next.operator),'Campaign operator changed');
+ const prior=parseRangeKeeperJson<RangeKeeperConfig>(recordedConfig);
+ assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(prior)),'Stored campaign config is not canonical');
+ assert.equal(old.configHash,rangeKeeperConfigHash(prior),'Stored campaign hash does not match active policy');
+ assertRangeKeeperState(old.policy,prior,old.buildId);
+ assert.equal(prior.campaignScope.maxDurationSeconds,0,'Only an open-ended campaign may remove count limits');
+ assert.equal(prior.campaignScope.maxEconomicActions,2,'Expected the two-action cap');
+ assert.equal(next.campaignScope.maxEconomicActions,0,'Next campaign must remove the action count cap');
+ assert.equal(prior.limits.maxRecenters,4,'Expected the four-recenter cap');
+ assert.equal(next.limits.maxRecenters,0,'Next campaign must remove the recenter count cap');
+ const expected={...prior,limits:{...prior.limits,maxRecenters:next.limits.maxRecenters},
+  campaignScope:{...prior.campaignScope,maxEconomicActions:0}};
+ assert.deepEqual(next,expected,'Campaign changed beyond the reviewed count limits');
+ assert(old.phase==='holding'&&old.desired==='running'&&old.activeTokenId!==null&&
+  old.last.position?.tokenId===old.activeTokenId&&old.candidate===null&&
+  !old.swapDone&&!old.withdrawDone&&old.closedAt===null&&old.haltReason===null,
+  'Only a settled, actively held position may migrate');
+ assert(old.economicActions>=2&&old.recenters>=1,'Campaign has not reached the action cap');
+ const spent=sumCost(old.costEvents);
+ assert(spent!==null&&spent<next.limits.maxRollingCost&&spent<next.limits.maxCampaignCost,
+  'Existing costs exhaust the campaign budget');
 }
 
 export class RangeKeeperLiveController {
@@ -262,6 +292,71 @@ export class RangeKeeperLiveController {
     await db.query('COMMIT');
    }catch(error){await db.query('ROLLBACK');throw error;}
    return next;
+  });
+ }
+ /** Adopt an unlimited count policy without moving inventory or resetting any
+  * receipt, cost, valuation or passive baseline. Signing remains a later tick. */
+ async migrateCounts(expectedCampaignId:string,expectedPreviousBuildId:string,apply:boolean){
+  this.serviceGate();
+  assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to migrate');
+   const old=row.state;
+   assertRangeKeeperCountMigration(old,row.config,this.config,expectedCampaignId,expectedPreviousBuildId,this.buildId);
+   assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
+   const unresolved=(await db.query(`SELECT count(*)::int AS n FROM ${this.store.schema}.actions
+    WHERE campaign_id=$1 AND status IN('prepared','signed')`,[old.id])).rows[0]?.n;
+   assert.equal(unresolved,0,'Unresolved RangeKeeper action exists');
+   await this.oldPilotClosed(db);
+   const source=await this.source();
+   await this.chain.verify(source);
+   const snapshot=await this.chain.snapshot(source,old.operator,old.activeTokenId);
+   await this.exactCustody(old.last,snapshot,old.activeTokenId);
+   assert(snapshot.unlocked,'Pool is locked');
+   assert.equal(snapshot.nftCount,old.legacyNftCount+BigInt(old.retiredTokenIds.length)+1n,
+    'Unexpected NFT ownership count');
+   const refs=await readRangeKeeperReferences(this.client,source,this.config);
+   assert(refs.eligible&&refs.price0&&refs.price1&&refs.nativePrice,
+    `Independent reference unavailable: ${refs.reasons.join(',')}`);
+   const mark=await markRangeKeeper(old,snapshot,this.chain,this.config,{price0:refs.price0,price1:refs.price1});
+   assert(mark.netPnl!==null&&-mark.netPnl<=this.config.limits.maxLossValue,
+    'Loss exit is due');
+   assert(old.highWaterValue<=mark.nav||
+    (old.highWaterValue-mark.nav)*1_000_000n<=old.highWaterValue*BigInt(this.config.limits.maxDrawdownPpm),
+    'Drawdown exit is due');
+   const poolPrice1=((1n<<192n)*10n**BigInt(this.config.pool.decimals1)*refs.price0)/
+    (snapshot.sqrtPriceX96*snapshot.sqrtPriceX96*10n**BigInt(this.config.pool.decimals0));
+   const deviation=poolPrice1>refs.price1?poolPrice1-refs.price1:refs.price1-poolPrice1;
+   assert(deviation*1_000_000n<=refs.price1*BigInt(this.config.referencePolicy.maxPoolDeviationPpm),
+    'Independent price band exit is due');
+   const latest=await this.client.getBlock();assert(latest.baseFeePerGas&&latest.baseFeePerGas>0n);
+   const gasPrice=await this.client.getGasPrice();assert(gasPrice>0n);
+   const fee=ceil((gasPrice>latest.baseFeePerGas?gasPrice:latest.baseFeePerGas)*5n,4n);
+   const u=rangeKeeperForkGasUnits;
+   const actionUnits=u.withdrawCollect+u.approval*3n+u.swap+u.mint+u.cleanupApproval*4n;
+   const exitUnits=u.withdrawCollect+u.approval+u.swap+u.cleanupApproval*4n;
+   const exitReserve=exitUnits*fee>this.config.limits.exitReserveWei?
+    exitUnits*fee:this.config.limits.exitReserveWei;
+   const nativeRequiredWei=actionUnits*fee+exitReserve;
+   assert(strategyBalances(snapshot,old).nativeWei>=nativeRequiredWei,
+    'Strategy native balance cannot fund a next action and complete exit');
+   const next={...old,buildId:this.buildId,configHash:rangeKeeperConfigHash(this.config),
+    policy:{...old.policy,buildId:this.buildId,configHash:rangeKeeperConfigHash(this.config),
+     exit:null,confirmation:null},last:snapshot,lastReason:'count_limits_removed'};
+   const proof={previousBuildId:old.buildId,previousConfigHash:old.configHash,
+    nextConfigHash:next.configHash,source,activeTokenId:String(old.activeTokenId),
+    economicActions:old.economicActions,recenters:old.recenters,spent:sumCost(old.costEvents),
+    nativeRequiredWei,reference:refs,valuation:mark};
+   if(!apply)return {state:next,proof};
+   await db.query('BEGIN');try{
+    await this.store.mark(db,old.id,source.block,'count_migration_preflight',proof);
+    await this.store.save(db,next,'count_limits_removed');
+    const updated=await db.query(`UPDATE ${this.store.schema}.campaigns SET config=$2 WHERE id=$1`,
+     [old.id,rangeKeeperJson(this.config)]);
+    assert.equal(updated.rowCount,1,'Campaign config migration lost its row');
+    await db.query('COMMIT');
+   }catch(error){await db.query('ROLLBACK');throw error;}
+   return {state:next,proof};
   });
  }
  async requestStop(){return this.store.locked(this.signer.address,async db=>{
@@ -491,7 +586,9 @@ export class RangeKeeperLiveController {
    s.lastReason=loss?'loss_limit':drawdown?'drawdown_limit':detached?'independent_price_band':
     !snapshot.unlocked?'pool_locked':source.timestamp>=s.expiresAt?'scope_expired':'operator_stop';
   }
-  if((s.phase==='holding'||(s.phase==='entry'&&s.candidate===null))&&s.economicActions<this.config.campaignScope.maxEconomicActions&&s.recenters<this.config.limits.maxRecenters&&
+  if((s.phase==='holding'||(s.phase==='entry'&&s.candidate===null))&&
+   (this.config.campaignScope.maxEconomicActions===0||s.economicActions<this.config.campaignScope.maxEconomicActions)&&
+   (this.config.limits.maxRecenters===0||s.recenters<this.config.limits.maxRecenters)&&
    source.timestamp<s.expiresAt){
    const observation={block:source.block,hash:source.hash,timestamp:source.timestamp,tick:snapshot.tick,
     sqrtPriceX96:snapshot.sqrtPriceX96,continuity:'canonical' as const,wallet0:funds.amount0,wallet1:funds.amount1,

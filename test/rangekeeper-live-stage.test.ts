@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {keccak256} from 'viem';
-import {parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
+import {initialRangeKeeperState,parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
 import {nextRangeKeeperStage,RangeKeeperMintUnavailableError} from '../src/strategy/rangekeeper/live-stage.js';
-import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm} from '../src/strategy/rangekeeper/live-controller.js';
+import {assertCostedRangeKeeperResume,assertRangeKeeperWidthMigration,assertUntradedRangeKeeperRearm,
+ assertRangeKeeperCountMigration} from '../src/strategy/rangekeeper/live-controller.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../src/strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {verifyRangeKeeperWalletCode} from '../src/strategy/rangekeeper/wallet-code.js';
@@ -24,6 +25,29 @@ test('closed costed campaign may change only 200-tick width to 40 ticks',()=>{
  assert.throws(()=>assertRangeKeeperWidthMigration(rangeKeeperConfigHash(previous),stored,
   {...config,limits:{...config.limits,fullWidthSpacings:2}}),
   /reviewed 200-to-40-tick/);
+});
+test('active count migration changes only both stops and retains the held NFT and policy ledger',()=>{
+ const prior={...config,campaignScope:{maxDurationSeconds:0,maxEconomicActions:2}};
+ const next={...prior,campaignScope:{...prior.campaignScope,maxEconomicActions:0},
+  limits:{...prior.limits,maxRecenters:0}};
+ const id='31802d63-9ec8-423c-bc1b-f781f8b44f92';
+ const old={id,operator:prior.operator!,buildId:'old-build',configHash:rangeKeeperConfigHash(prior),
+  policy:initialRangeKeeperState(prior,'old-build'),phase:'holding',desired:'running',activeTokenId:1271827n,
+  last:{position:{tokenId:1271827n}},candidate:null,swapDone:false,withdrawDone:false,
+  closedAt:null,haltReason:null,economicActions:2,recenters:1,
+  costEvents:[{gasValue:1n,swapFeeValue:0n,swapShortfallValue:0n}]} as unknown as RangeKeeperLiveState;
+ const stored=JSON.parse(rangeKeeperJson(prior));
+ const guard=(state:RangeKeeperLiveState=old,proposal=next,recorded:unknown=stored)=>
+  assertRangeKeeperCountMigration(state,recorded,proposal,id,'old-build','new-build');
+ assert.doesNotThrow(()=>guard());
+ assert.throws(()=>guard(old,{...next,limits:{...next.limits,maxRecenters:4}}),/recenter count cap/);
+ assert.throws(()=>guard(old,{...next,limits:{...next.limits,maxCampaignCost:next.limits.maxCampaignCost+1n}}),
+  /beyond the reviewed count limits/);
+ assert.throws(()=>guard({...old,candidate:{} as RangeKeeperLiveState['candidate']}),/settled/);
+ assert.throws(()=>guard({...old,activeTokenId:null}),/settled/);
+ assert.throws(()=>guard({...old,configHash:`0x${'11'.repeat(32)}`}),/hash/);
+ assert.throws(()=>guard(old,next,{...stored,limits:{...stored.limits,maxRecenters:3}}),/hash/);
+ assert.throws(()=>assertRangeKeeperCountMigration(old,stored,next,id,'old-build','old-build'),/new sealed build/);
 });
 test('rearm accepts only the exact closed no-transaction campaign and new build',()=>{
  const old={id:'470e5f84-ab82-4735-92f9-57e96c05b344',buildId:'old-build',

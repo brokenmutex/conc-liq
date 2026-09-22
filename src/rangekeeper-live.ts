@@ -13,7 +13,7 @@ import {rangeKeeperJson} from './strategy/rangekeeper/live-domain.js';
 const [command,configPath,...args]=process.argv.slice(2);
 assert(command&&configPath,'Usage: rangekeeper-live COMMAND CONFIG [ARG]');
 const mutation=new Set(['init','rearm-preflight','rearm-untraded','resume-preflight','resume-costed',
- 'tick','run','stop','recover-exit','recover-mint']);
+ 'count-preflight','migrate-counts','tick','run','stop','recover-exit','recover-mint']);
 assert(command==='preflight'||command==='status'||mutation.has(command),'Unknown RangeKeeper command');
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(resolve(configPath),'utf8')),{allowBroadcast:true});
 const archive=process.env.RH_ARCHIVE_RPC_URL;
@@ -70,6 +70,16 @@ if(command==='preflight'){
     assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
      'Resume requires exact closed campaign ID and previous build ID');
     output(await controller.resumeCosted(args[0]!,args[1]!,command==='resume-costed'));
+   }
+   else if(command==='count-preflight'||command==='migrate-counts'){
+    assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
+     'Count migration requires exact active campaign ID and previous build ID');
+    if(command==='migrate-counts'){
+     const worker=spawnSync('systemctl',['is-active','conc-liq-rangekeeper.service'],{encoding:'utf8',timeout:5000});
+     assert(worker.status!==null&&!worker.error&&worker.stdout.trim()==='inactive',
+      'Stop the existing RangeKeeper worker before applying a count migration');
+    }
+    output(await controller.migrateCounts(args[0]!,args[1]!,command==='migrate-counts'));
    }
    else if(command==='stop')output(await controller.requestStop());
    else if(command==='recover-exit')output(await controller.recoverExit());

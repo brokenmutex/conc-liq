@@ -218,7 +218,7 @@ export async function planRangeKeeper(input:RangeKeeperPlannerInput):Promise<Ran
  if(o.liquiditySharePpm===null||o.liquiditySharePpm>l.maxLiquiditySharePpm)return result('wait','liquidity_share_limit');
  const equity=rawValue(o.wallet0+o.released0,o.price0,input.decimals0)+rawValue(o.wallet1+o.released1,o.price1,input.decimals1);
  if(equity===0n)return result('wait','no_strategy_inventory');
- if(o.position&&o.recenters>=l.maxRecenters)return result('wait','recenter_count_limit');
+ if(o.position&&l.maxRecenters>0&&o.recenters>=l.maxRecenters)return result('wait','recenter_count_limit');
  if(o.actionCost>budgets.action||o.actionCost>budgets.rolling||o.actionCost>budgets.campaign)return result('wait','cost_limit');
  if(o.nativeWei<o.actionGasWei+exitReserve)return result('wait','native_exit_reserve');
  let candidate:RangeKeeperCandidate|null;
