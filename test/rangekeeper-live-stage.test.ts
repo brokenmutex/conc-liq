@@ -42,6 +42,7 @@ test('stale recenter build migration requires the exact withdrawn campaign and u
  const guard=(state:RangeKeeperLiveState=old,proposal=config,stored:unknown=recorded)=>
   assertRangeKeeperStaleRecenterMigration(state,stored,proposal,old.id,'old-build','new-build');
  assert.doesNotThrow(()=>guard());
+ assert.doesNotThrow(()=>guard({...old,candidate:null,last:{...old.last,position:null}}));
  assert.throws(()=>guard({...old,withdrawDone:false}),/reconciled post-withdraw/);
  assert.throws(()=>guard({...old,swapDone:true}),/reconciled post-withdraw/);
  assert.throws(()=>guard({...old,activeTokenId:1271827n}),/reconciled post-withdraw/);

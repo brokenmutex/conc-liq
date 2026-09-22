@@ -54,8 +54,10 @@ export function assertRangeKeeperStaleRecenterMigration(old:RangeKeeperLiveState
  assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(next)),'Stored campaign config changed');
  assertRangeKeeperState(old.policy,next,old.buildId);
  assert(old.phase==='recenter'&&old.desired==='running'&&old.haltReason===null&&
-  old.candidate?.kind==='recenter'&&old.withdrawDone&&!old.swapDone&&old.activeTokenId===null&&
-  old.last.position?.liquidity===0n&&old.retiredTokenIds.includes(String(old.last.position.tokenId))&&
+  (old.candidate===null||old.candidate.kind==='recenter')&&old.withdrawDone&&!old.swapDone&&
+  old.activeTokenId===null&&old.retiredTokenIds.length>0&&
+  (old.last.position===null||old.last.position.liquidity===0n&&
+   old.retiredTokenIds.includes(String(old.last.position.tokenId)))&&
   old.closedAt===null,'Only a reconciled post-withdraw recenter may migrate');
 }
 
@@ -412,7 +414,7 @@ export class RangeKeeperLiveController {
    const next={...old,buildId:this.buildId,policy:{...old.policy,buildId:this.buildId},
     last:snapshot,lastReason:'stale_recenter_build_migrated'};
    const proof={previousBuildId:old.buildId,nextBuildId:this.buildId,source,
-    withdrawnTokenId:String(old.last.position!.tokenId),retiredTokenIds:old.retiredTokenIds,
+    withdrawnTokenId:old.retiredTokenIds.at(-1),retiredTokenIds:old.retiredTokenIds,
     candidate:old.candidate,actionStartCostIndex:old.actionStartCostIndex,
     costEvents:old.costEvents.length,swapDone:old.swapDone,withdrawDone:old.withdrawDone};
    if(!apply)return {state:next,proof};
@@ -676,7 +678,8 @@ export class RangeKeeperLiveController {
    const actionLimit=replanAfterWithdrawal?
     this.config.limits.maxActionCost>actionSpent?this.config.limits.maxActionCost-actionSpent:0n:
     this.config.limits.maxActionCost;
-   const input={state:s.policy,observation,limits:{...this.config.limits,maxActionCost:actionLimit},
+   const input={state:s.policy,observation:{...observation,actionCost:actionLimit},
+    limits:{...this.config.limits,maxActionCost:actionLimit},
     spacing:this.config.pool.tickSpacing,
     decimals0:this.config.pool.decimals0,decimals1:this.config.pool.decimals1,quoteToken:this.config.pool.quoteToken,
     maxPoolDeviationPpm:this.config.referencePolicy.maxPoolDeviationPpm,
