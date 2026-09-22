@@ -552,13 +552,17 @@ and an explicit distinction between implemented, deployed and live-validated.
   events using the profile's actual fee tier and tick spacing, verifies the
   endpoint pool state and fee-growth counters, and models hypothetical LP fee
   dilution. It reports fixed-path integer allocation bounds for partial virtual segments
-  and fails on coverage, target-set or source-hash mismatches. This is read-only
-  interval evidence: canonical chain-anchor rechecks, continuous fee state,
-  calibrated fee capture and the paper fee ledger/marks remain unfinished.
-  The replay is not booked as earned fees or net P&L.
+  and fails on coverage, target-set or source-hash mismatches. The canonical
+  reader verifies the pool profile at both endpoints, pins fee-growth and pool
+  state reads to each source block, matches the saved paper snapshots, and
+  rechecks both hashes after indexed replay. A read-only Q128 carry requires
+  verified adjacent intervals with the same pool, range, liquidity, stream and
+  target set; it preserves fractional credits and rejects gaps and repeats.
+  Calibrated fee capture, persistence and the paper fee ledger/marks remain
+  unfinished. The modeled credit is not booked as earned fees or net P&L.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
-- Verification on the development checkout: `npm run check` passed 672 tests;
+- Verification on the development checkout: `npm run check` passed 676 tests;
   `npm run test:integration` passed in isolated PostgreSQL schemas using the
   explicit local test database. The HTTP Positions route was also exercised
   against that isolated ledger; a disposable Chromium check covered current

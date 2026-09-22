@@ -1,19 +1,54 @@
 import assert from 'node:assert/strict';
 import type {Pool} from 'pg';
+import {parseAbi,type Hex} from 'viem';
+import {poolAbi} from '../abi.js';
+import type {RobinhoodClient} from '../client.js';
 import {ExperimentMarket,type ExperimentEvent,type MarketSeed} from '../experiment/market.js';
 import {virtualFeeCredit} from '../research/virtual-fees.js';
+import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import type {MarketProfile} from './market-profile.js';
+import type {PaperOpenFrame} from './paper-preview.js';
 
 const Q128=1n<<128n,MAX_EVENTS=20000,MAX_TICKS=50000;
 const hash=/^0x[0-9a-fA-F]{64}$/;
 const address=/^0x[0-9a-fA-F]{40}$/;
 const allowedEvents=new Set(['Swap','Flash','Mint','Burn','SetFeeProtocol','Collect',
  'CollectProtocol','IncreaseObservationCardinalityNext']);
+const feeGrowthAbi=parseAbi(['function feeGrowthGlobal0X128() view returns (uint256)',
+ 'function feeGrowthGlobal1X128() view returns (uint256)']);
 
 export interface PaperFeeFrame {
  source:{block:string;hash:string};
  poolState:{tick:number;sqrtPriceX96:string;poolLiquidity:string;
   feeGrowthGlobal0X128:string;feeGrowthGlobal1X128:string};
+}
+
+type PaperFeeSource=PaperOpenFrame['source'];
+type PaperFeeSnapshot=Pick<PaperOpenFrame,'source'|'tick'|'sqrtPriceX96'|'poolLiquidity'>;
+
+/** The block hash brackets all pool reads; every contract call is pinned to
+ * the source block. Profile identity is verified by the canonical wrapper. */
+export async function readAnchoredPaperFeeFrame(client:RobinhoodClient,profile:MarketProfile,
+ source:PaperFeeSource):Promise<PaperFeeFrame>{
+ assert(hash.test(source.hash)&&BigInt(source.block)>=0n,'Paper fee source anchor invalid');
+ const blockNumber=BigInt(source.block),pool=profile.pool.pool;
+ const check=async()=>{
+  const block=await client.getBlock({blockNumber});
+  assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),'Paper fee source reorged');
+  assert.equal(Number(block.timestamp),source.timestamp,'Paper fee source timestamp changed');
+ };
+ await check();
+ const [slot,liquidity,fee0,fee1]=await Promise.all([
+  client.readContract({address:pool,abi:poolAbi,functionName:'slot0',blockNumber}),
+  client.readContract({address:pool,abi:poolAbi,functionName:'liquidity',blockNumber}),
+  client.readContract({address:pool,abi:feeGrowthAbi,functionName:'feeGrowthGlobal0X128',blockNumber}),
+  client.readContract({address:pool,abi:feeGrowthAbi,functionName:'feeGrowthGlobal1X128',blockNumber}),
+ ]);
+ await check();
+ assert(slot[6]&&slot[0]>0n&&liquidity>=0n,'Paper fee pool state unavailable');
+ return {source:{block:source.block,hash:source.hash},poolState:{
+  tick:slot[1],sqrtPriceX96:String(slot[0]),poolLiquidity:String(liquidity),
+  feeGrowthGlobal0X128:String(fee0),feeGrowthGlobal1X128:String(fee1)}};
 }
 
 /** Replays an observed pool path with a hypothetical position included in fee
@@ -160,4 +195,99 @@ export async function readIndexedPaperFeeInterval(pool:Pool,stream:string,target
     chainAnchorRecheckRequired:true as const}};
   }catch(error){await db.query('ROLLBACK');throw error;}
  }finally{db.release();}
+}
+
+/** Rechecks profile identity and both chain anchors around the indexed replay.
+ * The returned proof is read-only and is still hypothetical fee evidence. */
+export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Pool,
+ stream:string,targetSetHash:string,profile:MarketProfile,before:PaperFeeSnapshot,
+ after:PaperFeeSnapshot,range:{tickLower:number;tickUpper:number},liquidity:bigint){
+ assert(BigInt(after.source.block)>BigInt(before.source.block),'Paper fee interval is not later');
+ const chain=new RangeKeeperChain(client,profile.pool);
+ for(const source of [before.source,after.source])
+  await chain.verify({block:BigInt(source.block),hash:source.hash as Hex,timestamp:source.timestamp});
+ const [start,end]=await Promise.all([
+  readAnchoredPaperFeeFrame(client,profile,before.source),
+  readAnchoredPaperFeeFrame(client,profile,after.source),
+ ]);
+ for(const [observed,saved] of [[start,before],[end,after]] as const){
+  assert.equal(observed.poolState.tick,saved.tick,'Paper fee snapshot tick mismatch');
+  assert.equal(observed.poolState.sqrtPriceX96,String(saved.sqrtPriceX96),
+   'Paper fee snapshot price mismatch');
+  assert.equal(observed.poolState.poolLiquidity,String(saved.poolLiquidity),
+   'Paper fee snapshot liquidity mismatch');
+ }
+ const proof=await readIndexedPaperFeeInterval(db,stream,targetSetHash,profile,start,end,range,liquidity);
+ for(const source of [before.source,after.source]){
+  const block=await client.getBlock({blockNumber:BigInt(source.block)});
+  assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),'Paper fee source reorged');
+  assert.equal(Number(block.timestamp),source.timestamp,'Paper fee source timestamp changed');
+ }
+ return {...proof,coverage:{...proof.coverage,chainAnchorRecheckRequired:false as const}};
+}
+
+export type CanonicalPaperFeeInterval=Awaited<ReturnType<typeof readCanonicalPaperFeeInterval>>;
+export interface PaperFeeCarry {
+ kind:'paper_fee_carry_v1';pool:string;token0Address:string;token1Address:string;
+ fee:number;tickSpacing:number;range:{tickLower:number;tickUpper:number};liquidity:string;
+ stream:string;targetSetHash:string;from:{block:string;hash:string};through:{block:string;hash:string};
+ token0:{lowerRawQ128:string;upperRawQ128:string;lowerAmountRaw:string;upperAmountRaw:string};
+ token1:{lowerRawQ128:string;upperRawQ128:string;lowerAmountRaw:string;upperAmountRaw:string};
+ intervals:number;events:number;segments:number;partialSegments:number;
+ accounting:'modeled_hypothetical_fee_share';
+}
+
+/** Carries Q128 fractions across adjacent verified intervals without booking
+ * an earned fee or using the result as net NAV. */
+export function advancePaperFeeCarry(previous:PaperFeeCarry|null,
+ interval:CanonicalPaperFeeInterval,opening:{block:string;hash:string}):PaperFeeCarry{
+ assert.equal(interval.kind,'paper_observed_flow_fee_interval_v1','Paper fee proof kind changed');
+ assert.equal(interval.accounting,'modeled_hypothetical_fee_share',
+  'Paper fee accounting basis changed');
+ assert.equal(interval.coverage.chainAnchorRecheckRequired,false,
+  'Paper fee chain anchors were not rechecked');
+ assert(hash.test(opening.hash)&&hash.test(interval.from.hash)&&hash.test(interval.to.hash)&&
+  BigInt(interval.to.block)>BigInt(interval.from.block),'Paper fee interval anchors invalid');
+ assert(BigInt(interval.coverage.completeThroughBlock)>=BigInt(interval.to.block)&&
+  (BigInt(interval.coverage.completeThroughBlock)!==BigInt(interval.to.block)||
+   interval.coverage.completeThroughHash?.toLowerCase()===interval.to.hash.toLowerCase()),
+  'Paper fee interval coverage invalid');
+ assert(Number.isSafeInteger(interval.events)&&interval.events>=0&&
+  Number.isSafeInteger(interval.segments)&&interval.segments>=0&&
+  Number.isSafeInteger(interval.partialSegments)&&interval.partialSegments>=0&&
+  interval.partialSegments<=interval.segments,'Paper fee interval counts invalid');
+ const same=(a:{block:string;hash:string},b:{block:string;hash:string})=>
+  a.block===b.block&&a.hash.toLowerCase()===b.hash.toLowerCase();
+ assert(same(previous?.through??opening,interval.from),'Paper fee interval gap or replay');
+ if(previous){
+  assert(same(previous.from,opening),'Paper fee opening anchor changed');
+  for(const key of ['pool','token0Address','token1Address','fee','tickSpacing',
+   'liquidity','stream','targetSetHash'] as const)
+   assert.equal(previous[key],key==='stream'||key==='targetSetHash'?interval.coverage[key]:interval[key],
+    `Paper fee ${key} changed`);
+  assert.deepEqual(previous.range,interval.range,'Paper fee range changed');
+ }
+ const sum=(i:0|1)=>{
+  const now=i===0?interval.token0:interval.token1;
+  const old=previous?(i===0?previous.token0:previous.token1):null;
+  const currentLower=BigInt(now.lowerRawQ128),currentUpper=BigInt(now.upperRawQ128);
+  assert(currentLower>=0n&&currentUpper>=currentLower&&
+   now.lowerAmountRaw===String(currentLower/Q128)&&
+   now.upperAmountRaw===String(currentUpper/Q128),'Paper fee interval credit invalid');
+  const lower=currentLower+(old?BigInt(old.lowerRawQ128):0n);
+  const upper=currentUpper+(old?BigInt(old.upperRawQ128):0n);
+  assert(lower>=0n&&upper>=lower,'Paper fee credit bounds invalid');
+  return {lowerRawQ128:String(lower),upperRawQ128:String(upper),
+   lowerAmountRaw:String(lower/Q128),upperAmountRaw:String(upper/Q128)};
+ };
+ return {kind:'paper_fee_carry_v1',pool:interval.pool,
+  token0Address:interval.token0Address,token1Address:interval.token1Address,
+  fee:interval.fee,tickSpacing:interval.tickSpacing,range:interval.range,
+  liquidity:interval.liquidity,stream:interval.coverage.stream,
+  targetSetHash:interval.coverage.targetSetHash,from:previous?.from??interval.from,
+  through:interval.to,token0:sum(0),token1:sum(1),
+  intervals:(previous?.intervals??0)+1,events:(previous?.events??0)+interval.events,
+  segments:(previous?.segments??0)+interval.segments,
+  partialSegments:(previous?.partialSegments??0)+interval.partialSegments,
+  accounting:'modeled_hypothetical_fee_share'};
 }
