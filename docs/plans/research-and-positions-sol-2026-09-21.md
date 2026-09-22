@@ -527,8 +527,18 @@ and an explicit distinction between implemented, deployed and live-validated.
   modeled principal lower bound, closes the campaign and appends capital-out
   entries with null amounts because earned fees and paid gas are unobserved.
   Retrying the close reuses its mark. This is an accounting-incomplete paper
-  lifecycle rehearsal; ongoing fee marks, a conversion close and dashboard
+  lifecycle rehearsal; fee-capture marks, a conversion close and dashboard
   parity still gate operator use.
+  A later confirmed-source paper mark now records exact modeled principal and
+  idle tokens at eligible independent references, plus a fixed-token passive
+  value. Native balance, fee capture, paid gas, net NAV and alpha stay null.
+  The canonical frame reader rechecks the previous chain anchor, and the
+  store requires increasing source blocks. Identical retries reuse the prior
+  mark, while conflicting same-block evidence fails.
+  Retain-close follows the latest valuation mark and rejects a stale close
+  preview. A read-only state adapter now loads the persisted open and latest
+  anchor for a canonical sampler; the commit rechecks the anchor under a row
+  lock. These paths remain internal and exercised only in isolated schemas.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 672 tests;

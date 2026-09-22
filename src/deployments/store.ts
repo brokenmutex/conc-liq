@@ -12,6 +12,7 @@ import {PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {buildIndicativePaperOpenPreview} from './paper-preview.js';
 import {buildPaperOpenModel,paperOpenModelSchema} from './paper-open-model.js';
 import {buildPaperCloseRetainModel,paperCloseRetainModelSchema} from './paper-close-model.js';
+import {buildPaperPrincipalValuation,paperPrincipalValuationSchema} from './paper-valuation.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
 import {z} from 'zod';
 
@@ -169,6 +170,45 @@ export class DeploymentStore {
    profile:profile.data,profileHash:row.profile_hash,evidence:evidence.data,
    strategyId:idParsed.data,strategyVersion:row.strategy_version,stateSchemaVersion:row.state_schema_version,
    parameters,configHash:row.config_hash};
+ }
+
+ /** Read-only input for the next principal mark. The subsequent write checks
+  * the latest mark again under lock, so this snapshot cannot authorize a
+  * stale or concurrent append. */
+ async paperValuationState(id:string){
+  const row=(await this.readPool.query<{current_revision:number;profile:unknown;
+   profile_hash:string;config_hash:string;open_mark_id:string;
+   open_provenance:Record<string,unknown>;latest_mark_id:string;
+   latest_source_block:string|null;latest_source_hash:string|null;
+   latest_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`
+   SELECT c.current_revision,p.profile,p.profile_hash,r.config_hash,
+    o.id::text AS open_mark_id,o.provenance AS open_provenance,
+    m.id::text AS latest_mark_id,m.source_block::text AS latest_source_block,
+    m.source_hash AS latest_source_hash,m.provenance AS latest_provenance,v.proposal
+   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+   JOIN LATERAL (SELECT id,provenance FROM deployment_marks
+    WHERE campaign_id=c.id AND provenance->>'classification'='paper_model_provisional'
+    ORDER BY id LIMIT 1) o ON TRUE
+   JOIN LATERAL (SELECT id,source_block,source_hash,provenance FROM deployment_marks
+    WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
+   JOIN deployment_previews v ON v.id=(o.provenance->>'previewId')::uuid
+   WHERE c.id=$1 AND c.mode='paper' AND c.lifecycle IN ('active','paused','closing')`,
+   [id])).rows[0];
+  if(!row||row.latest_source_block===null||row.latest_source_hash===null||
+   !['paper_model_provisional','paper_model_principal_valuation'].includes(
+    String(row.latest_provenance.classification)))
+   throw new DeploymentConflict('paper_valuation_state_unavailable');
+  const profile=marketProfileSchema.safeParse(row.profile),
+   open=paperOpenModelSchema.safeParse(row.proposal.paperOpenModel);
+  if(!profile.success||!open.success||contentHash(row.profile)!==row.profile_hash||
+   open.data.campaignId!==id||open.data.revision!==row.current_revision||
+   open.data.profileHash!==row.profile_hash||open.data.configHash!==row.config_hash||
+   contentHash(open.data)!==row.open_provenance.modelHash)
+   throw new DeploymentConflict('paper_valuation_state_integrity');
+  return {openModel:open.data,openMarkId:row.open_mark_id,
+   previous:{markId:row.latest_mark_id,sourceBlock:row.latest_source_block,
+    sourceHash:row.latest_source_hash},profile:profile.data};
  }
 
  async listMarketProfiles(){
@@ -554,6 +594,105 @@ export class DeploymentStore {
   });
  }
 
+ /** Append one later principal-only observation under the campaign lock.
+  * The caller supplies a confirmed canonical frame and independent proof;
+  * stored open math is replayed before this mark becomes visible. */
+ async recordTrustedPaperPrincipalValuation(raw:unknown){
+  const model=paperPrincipalValuationSchema.parse(raw),modelHash=contentHash(model);
+  return this.transaction(async db=>{
+   const row=(await db.query<{mode:string;lifecycle:string;current_revision:number;
+    profile:unknown;profile_hash:string;config_hash:string}>(`
+    SELECT c.mode,c.lifecycle,c.current_revision,p.profile,p.profile_hash,r.config_hash
+    FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    WHERE c.id=$1 FOR UPDATE OF c`,[model.campaignId])).rows[0];
+   if(!row||row.mode!=='paper'||row.current_revision!==model.revision)
+    throw new DeploymentConflict('paper_valuation_campaign_unavailable');
+   const sameBlock=(await db.query<{id:string;source_hash:string;provenance:Record<string,unknown>}>(`
+    SELECT id::text,source_hash,provenance FROM deployment_marks
+    WHERE campaign_id=$1 AND source_block=$2 AND
+     provenance->>'classification'='paper_model_principal_valuation' LIMIT 2`,
+    [model.campaignId,model.source.block])).rows;
+   if(sameBlock.length>1)throw new DeploymentConflict('paper_valuation_duplicate_source');
+   if(sameBlock.length===1){
+    const existing=sameBlock[0]!;
+    if(existing.source_hash.toLowerCase()===model.source.hash.toLowerCase()&&
+     existing.provenance.modelHash===modelHash)return {markId:existing.id,replayed:true};
+    throw new DeploymentConflict('paper_valuation_conflicting_source');
+   }
+   const profile=marketProfileSchema.safeParse(row.profile);
+   if(!profile.success||contentHash(row.profile)!==row.profile_hash)
+    throw new DeploymentConflict('paper_valuation_profile_integrity');
+   const openMark=(await db.query<{id:string;revision:number;provenance:Record<string,unknown>}>(`
+    SELECT id::text,revision,provenance FROM deployment_marks
+    WHERE id=$1 AND campaign_id=$2`,[model.openMarkId,model.campaignId])).rows[0];
+   if(!openMark||openMark.revision!==model.revision||
+    openMark.provenance.classification!=='paper_model_provisional'||
+    !openMark.provenance.previewId)throw new DeploymentConflict('paper_valuation_open_mark_unavailable');
+   const preview=(await db.query<{proposal:Record<string,unknown>}>(`
+    SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2`,
+    [openMark.provenance.previewId,model.campaignId])).rows[0];
+   const parsed=paperOpenModelSchema.safeParse(preview?.proposal.paperOpenModel);
+   if(!parsed.success||parsed.data.campaignId!==model.campaignId||
+    parsed.data.profileHash!==row.profile_hash||parsed.data.configHash!==row.config_hash||
+    contentHash(parsed.data)!==openMark.provenance.modelHash||
+    contentHash(parsed.data)!==model.openModelHash)
+    throw new DeploymentConflict('paper_valuation_open_model_integrity');
+   const previous=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+    provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[model.campaignId])).rows[0];
+   if(!previous||previous.source_block===null||previous.source_hash===null)
+    throw new DeploymentConflict('paper_valuation_prior_mark_unavailable');
+   if(BigInt(model.source.block)===BigInt(previous.source_block))
+    throw new DeploymentConflict('paper_valuation_conflicting_source');
+   if(!['active','paused','closing'].includes(row.lifecycle))
+    throw new DeploymentConflict('paper_valuation_campaign_unavailable');
+   const priorTimestamp=(previous.provenance.source as {timestamp?:unknown}|undefined)?.timestamp;
+   if(!Number.isSafeInteger(priorTimestamp)||model.source.timestamp<(priorTimestamp as number))
+    throw new DeploymentConflict('paper_valuation_source_time_regressed');
+   if(previous.id!==model.previousMarkId||
+    !['paper_model_provisional','paper_model_principal_valuation'].includes(
+     String(previous.provenance.classification)))
+    throw new DeploymentConflict('paper_valuation_prior_mark_changed');
+   const now=Date.now();
+   const frame={source:model.source,tick:model.poolState.tick,
+    sqrtPriceX96:BigInt(model.poolState.sqrtPriceX96),
+    poolLiquidity:BigInt(model.poolState.poolLiquidity),
+    price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
+    nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,referenceReasons:[],
+    referenceProofHash:model.referenceProofHash,referenceProof:model.referenceProof};
+   let replayed;
+   try{replayed=buildPaperPrincipalValuation(parsed.data,openMark.id,
+    {markId:previous.id,sourceBlock:previous.source_block,sourceHash:previous.source_hash},
+    frame,profile.data,now);}
+   catch{throw new DeploymentConflict('paper_valuation_model_rejected');}
+   if(contentHash(replayed)!==modelHash)throw new DeploymentConflict('paper_valuation_model_changed');
+   const inventory={classification:'paper_model_principal_valuation',position:{
+    liquidity:parsed.data.candidate.liquidity,tickLower:parsed.data.candidate.range.tickLower,
+    tickUpper:parsed.data.candidate.range.tickUpper},
+    token0Raw:null,token1Raw:null,nativeWei:null,
+    idle0:model.idle.amount0Raw,idle1:model.idle.amount1Raw,
+    principal:model.principal,knownLowerBound:model.lowerBound,
+    fee0Raw:null,fee1Raw:null};
+   const economics={principalOnlyValue:model.lowerBound.principalOnlyValue,
+    passiveTokenValue:model.passiveTokenValue,feeIncome:null,paidCosts:null,
+    nativeBalance:null,netNav:null,alpha:null};
+   const provenance={classification:'paper_model_principal_valuation',modelHash,
+    openMarkId:openMark.id,previousMarkId:previous.id,openModelHash:model.openModelHash,
+    referenceProofHash:model.referenceProofHash,source:model.source,
+    unavailable:model.unavailable};
+   const mark=(await db.query<{id:string}>(`INSERT INTO deployment_marks
+    (campaign_id,revision,source_block,source_hash,inventory,economics,provenance)
+    VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id::text`,
+    [model.campaignId,model.revision,model.source.block,model.source.hash,
+     JSON.stringify(inventory),JSON.stringify(economics),JSON.stringify(provenance)])).rows[0]!;
+   await db.query(`UPDATE deployment_campaigns SET range_state=$2,updated_at=clock_timestamp()
+    WHERE id=$1`,[model.campaignId,model.poolState.tick>=parsed.data.candidate.range.tickLower&&
+     model.poolState.tick<parsed.data.candidate.range.tickUpper?'inside':'outside']);
+   return {markId:mark.id,replayed:false};
+  });
+ }
+
  /** A retain-close records a modeled principal lower bound and an explicit
   * unknown capital release. It never turns missing fee or paid-gas evidence
   * into a zero or an exact final balance. */
@@ -621,9 +760,19 @@ export class DeploymentStore {
     contentHash(openParsed.data)!==openMark.provenance.modelHash||
     contentHash(openParsed.data)!==model.openModelHash)
     throw new DeploymentConflict('paper_close_open_model_integrity');
-   const marks=(await db.query<{n:number}>(`SELECT count(*)::int AS n FROM deployment_marks
-    WHERE campaign_id=$1`,[row.campaign_id])).rows[0]?.n;
-   if(marks!==1)throw new DeploymentConflict('paper_close_unreconciled_marks');
+   const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+    provenance:Record<string,unknown>}>(`
+    SELECT id::text,source_block::text,source_hash,provenance FROM deployment_marks
+    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[row.campaign_id])).rows[0];
+   if(!latest||latest.id!==model.previousMarkId||latest.source_block===null||
+    latest.source_hash===null||
+    BigInt(model.source.block)<=BigInt(latest.source_block)||
+    !['paper_model_provisional','paper_model_principal_valuation'].includes(
+     String(latest.provenance.classification)))
+    throw new DeploymentConflict('paper_close_prior_mark_changed');
+   const priorTimestamp=(latest.provenance.source as {timestamp?:unknown}|undefined)?.timestamp;
+   if(!Number.isSafeInteger(priorTimestamp)||model.source.timestamp<(priorTimestamp as number))
+    throw new DeploymentConflict('paper_close_source_time_regressed');
    const now=Date.now();
    if(model.source.timestamp*1000>now||now-model.source.timestamp*1000>180_000||
     Date.parse(model.costs.gasPriceObservedAt)>now||
@@ -650,7 +799,9 @@ export class DeploymentStore {
    if(costed.costs.status!=='provisional'||contentHash(costed.costs)!==contentHash(model.costs))
     throw new DeploymentConflict('paper_close_cost_profile_changed');
    let replayed;
-   try{replayed=buildPaperCloseRetainModel(openParsed.data,openMark.id,frame,profile.data,
+   try{replayed=buildPaperCloseRetainModel(openParsed.data,openMark.id,
+    {markId:latest.id,sourceBlock:latest.source_block,sourceHash:latest.source_hash},
+    frame,profile.data,
     parameters,costed,now);}
    catch{throw new DeploymentConflict('paper_close_model_rejected');}
    if(contentHash(replayed)!==contentHash(model))throw new DeploymentConflict('paper_close_model_changed');

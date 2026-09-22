@@ -40,6 +40,21 @@ export async function readCanonicalPaperOpenFrame(client:RobinhoodClient,profile
   referenceProofHash:referenceProofHash(proof),referenceProof:proof};
 }
 
+/** A later paper mark must still descend from the stored canonical anchor.
+ * Check the previous hash both before and after reading the new source. */
+export async function readCanonicalPaperNextFrame(client:RobinhoodClient,profile:MarketProfile,
+ previous:{sourceBlock:string;sourceHash:string}):Promise<PaperOpenFrame>{
+ const check=async()=>{
+  const block=await client.getBlock({blockNumber:BigInt(previous.sourceBlock)});
+  if(block.hash.toLowerCase()!==previous.sourceHash.toLowerCase())throw Error('paper_prior_source_reorged');
+ };
+ await check();
+ const frame=await readCanonicalPaperOpenFrame(client,profile);
+ if(BigInt(frame.source.block)<=BigInt(previous.sourceBlock))throw Error('paper_next_source_not_later');
+ await check();
+ return frame;
+}
+
 /** A read-only paper candidate. It deliberately has no preview ID or operation
  * digest until a scoped execution-cost profile and paper fill adapter exist. */
 export function buildIndicativePaperOpenPreview(draft:PaperPreviewDraft,frame:PaperOpenFrame,now=Date.now()){

@@ -10,7 +10,9 @@ const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 export const paperCloseRetainModelSchema=z.object({
  schemaVersion:z.literal(1),kind:z.literal('paper_close_retain_model'),campaignId:z.uuid(),
- revision:z.number().int().positive(),openMarkId:raw,openModelHash:z.string().regex(/^[0-9a-f]{64}$/),
+ revision:z.number().int().positive(),openMarkId:raw,previousMarkId:raw,
+ previousSource:z.object({block:raw,hash}).strict(),
+ openModelHash:z.string().regex(/^[0-9a-f]{64}$/),
  source:z.object({block:raw,hash,timestamp:z.number().int().nonnegative()}).strict(),
  poolState:z.object({tick:z.number().int(),sqrtPriceX96:raw,poolLiquidity:raw}).strict(),
  referenceProof:z.record(z.string(),z.unknown()),referenceProofHash:z.string().regex(/^[0-9a-f]{64}$/),
@@ -25,13 +27,15 @@ export type PaperCloseRetainModel=z.infer<typeof paperCloseRetainModelSchema>;
 /** Computes only provable principal and idle tokens. Fee income and paid gas
  * remain unknown, so retained balances are lower bounds, not final custody. */
 export function buildPaperCloseRetainModel(open:PaperOpenModel,openMarkId:string,
+ previous:{markId:string;sourceBlock:string;sourceHash:string},
  frame:PaperOpenFrame,profile:MarketProfile,parameters:Record<string,unknown>,
  costed:ReturnType<typeof costIndicativePaperOpenPreview>,now=Date.now()):PaperCloseRetainModel{
  if(costed.status!=='indicative'||costed.costs.status!=='provisional'||
   !frame.referenceEligible||!frame.referenceProof||!frame.price0||!frame.price1||!frame.nativePrice||
   frame.sqrtPriceX96<=0n||frame.poolLiquidity<=0n)throw Error('paper_close_model_unavailable');
  if(referenceProofHash(frame.referenceProof)!==frame.referenceProofHash||
-  BigInt(frame.source.block)<=BigInt(open.source.block)||
+  BigInt(frame.source.block)<=BigInt(previous.sourceBlock)||
+  BigInt(previous.sourceBlock)<BigInt(open.source.block)||
   frame.source.timestamp<open.source.timestamp||
   now-frame.source.timestamp*1000<0||now-frame.source.timestamp*1000>180_000||
   contentHash(costed.candidate)!==contentHash(open.candidate))
@@ -60,6 +64,8 @@ export function buildPaperCloseRetainModel(open:PaperOpenModel,openMarkId:string
  if(retained0<0n||retained1<0n)throw Error('paper_close_inventory_invalid');
  return paperCloseRetainModelSchema.parse({schemaVersion:1,kind:'paper_close_retain_model',
   campaignId:open.campaignId,revision:open.revision,openMarkId,
+  previousMarkId:previous.markId,
+  previousSource:{block:previous.sourceBlock,hash:previous.sourceHash},
   openModelHash:contentHash(open),source:frame.source,
   poolState:{tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),
    poolLiquidity:String(frame.poolLiquidity)},

@@ -11,11 +11,13 @@ import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constan
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {guardedCanaryPositionManagerAbi} from '../../src/canary-plan/abi.ts';
 import {canaryExitAbi} from '../../src/canary-plan/exit.ts';
-import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
+import {buildIndicativePaperOpenPreview,readCanonicalPaperNextFrame}
+ from '../../src/deployments/paper-preview.ts';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
  from '../../src/deployments/paper-cost.ts';
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
+import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
@@ -331,14 +333,48 @@ try{
   [invalidPaperDraft.id])).rows[0].n,0);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [invalidPaperDraft.id])).rows[0].n,0);
- const closeFrame={...frame,source:{...frame.source,block:'101'}};
+ const initialValuationState=await store.paperValuationState(paperDraft.id);
+ assert.equal(initialValuationState.openMarkId,opened.markId);
+ assert.equal(initialValuationState.previous.markId,opened.markId);
+ assert.equal(initialValuationState.openModel.candidateHash,paperModel.candidateHash);
+ await assert.rejects(readCanonicalPaperNextFrame({getBlock:async()=>({hash:'0x'+'f'.repeat(64)})},
+  paperInput.profile,initialValuationState.previous),/paper_prior_source_reorged/);
+ const valuationFrame={...frame,source:{...frame.source,block:'101',hash:'0x'+'3'.repeat(64)}};
+ const valuationModel=buildPaperPrincipalValuation(paperModel,opened.markId,
+  {markId:opened.markId,sourceBlock:'100',sourceHash},valuationFrame,paperInput.profile);
+ const valuationResults=await Promise.all([
+  store.recordTrustedPaperPrincipalValuation(valuationModel),
+  store.recordTrustedPaperPrincipalValuation(valuationModel)]);
+ assert.deepEqual(valuationResults.map(result=>result.replayed).sort(),[false,true]);
+ assert.equal(valuationResults[0].markId,valuationResults[1].markId);
+ const valuation=valuationResults[0];
+ await assert.rejects(store.recordTrustedPaperPrincipalValuation({...valuationModel,
+  source:{...valuationModel.source,hash:'0x'+'4'.repeat(64)}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_conflicting_source');
+ await assert.rejects(store.recordTrustedPaperPrincipalValuation({...valuationModel,
+  previousMarkId:valuation.markId,previousSource:{block:'101',hash:valuationFrame.source.hash},
+  source:{...valuationModel.source,block:'102',timestamp:frame.source.timestamp-1}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_source_time_regressed');
+ const valuationMark=(await admin.query(`SELECT inventory,economics,calibration_profile_ids
+  FROM deployment_marks WHERE id=$1`,[valuation.markId])).rows[0];
+ assert.equal(valuationMark.inventory.token0Raw,null);
+ assert.equal(valuationMark.economics.netNav,null);
+ assert.equal(valuationMark.economics.alpha,null);
+ assert.equal(valuationMark.economics.principalOnlyValue,
+  valuationModel.lowerBound.principalOnlyValue);
+ assert.equal(valuationMark.calibration_profile_ids.length,0);
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n,2);
+ assert.equal((await store.paperValuationState(paperDraft.id)).previous.markId,valuation.markId);
+ const closeFrame={...frame,source:{...frame.source,block:'102',hash:'0x'+'5'.repeat(64)}};
  const closeCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:paperModel.candidate},
   gasRows,poolAddress,10n**18n,1_000_000_000n);
  assert.equal(closeCosts.costs.status,'provisional');
- const closeModel=buildPaperCloseRetainModel(paperModel,opened.markId,closeFrame,
+ const priorClose={markId:valuation.markId,sourceBlock:'101',sourceHash:valuationFrame.source.hash};
+ const closeModel=buildPaperCloseRetainModel(paperModel,opened.markId,priorClose,closeFrame,
   paperInput.profile,paperInput.parameters,closeCosts);
  assert.equal(closeModel.unobserved[0],'fee_capture');
- assert.throws(()=>buildPaperCloseRetainModel(paperModel,opened.markId,
+ assert.throws(()=>buildPaperCloseRetainModel(paperModel,opened.markId,priorClose,
   {...closeFrame,source:{...closeFrame.source,block:'100'}},paperInput.profile,
   paperInput.parameters,closeCosts),/paper_close_source_or_position_mismatch/);
  const closePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
@@ -375,7 +411,11 @@ try{
  assert.equal(finalCampaign.lifecycle,'closed');
  assert.equal(finalCampaign.range_state,'no_liquidity');
  assert(finalCampaign.closed_at instanceof Date);
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','partial retain-close leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
+ assert.deepEqual(await store.recordTrustedPaperPrincipalValuation(valuationModel),
+  {markId:valuation.markId,replayed:true});
+ await assert.rejects(store.paperValuationState(paperDraft.id),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','partial retain-close after valuation leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
 }finally{
  if(store)await store.close();
  await admin.query('SET search_path=public');
