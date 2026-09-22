@@ -1,6 +1,5 @@
 import {z} from 'zod';
 import {contentHash} from './contracts.js';
-import type {buildIndicativePaperOpenPreview} from './paper-preview.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -20,12 +19,12 @@ export interface PaperGasProfileRow {
  allowanceState:string;sizeBand:string;component:string;status:string;evidenceClass:string;
  model:unknown;sourceHash:string;observedUntil:Date|null;
 }
-type Preview=ReturnType<typeof buildIndicativePaperOpenPreview>;
+type CostCandidate={range:{tickLower:number;tickUpper:number};deployedValue:string;dilutedSharePpm:string};
 const ceil=(a:bigint,b:bigint)=>(a+b-1n)/b;
 
 /** Resolves complete, fresh exact-call stage evidence. No AAPL fork safety
  * allowance can be reclassified as modeled paid gas for another pool. */
-export function costIndicativePaperOpenPreview(preview:Preview,rows:readonly PaperGasProfileRow[],
+export function costIndicativePaperOpenPreview<T extends {status:string;candidate:CostCandidate|null}>(preview:T,rows:readonly PaperGasProfileRow[],
  poolAddress:string,nativePrice:bigint,gasPriceWei:bigint,now=Date.now()){
  const missing=(reason:string)=>({...preview,costs:{status:'unavailable' as const,reason}});
  if(preview.status!=='indicative'||!preview.candidate)return missing('candidate_unavailable');

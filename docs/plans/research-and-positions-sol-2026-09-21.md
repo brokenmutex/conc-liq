@@ -522,6 +522,13 @@ and an explicit distinction between implemented, deployed and live-validated.
   exercised only in an isolated schema: HTTP acceptance and continuous paper
   operation remain disabled until close/recovery, valuation and dashboard
   parity are implemented and tested.
+  An isolated retain-close can now replay the later confirmed pool state,
+  independent reference and current provisional gas profile. It records a
+  modeled principal lower bound, closes the campaign and appends capital-out
+  entries with null amounts because earned fees and paid gas are unobserved.
+  Retrying the close reuses its mark. This is an accounting-incomplete paper
+  lifecycle rehearsal; ongoing fee marks, a conversion close and dashboard
+  parity still gate operator use.
 - W3–W7: not started. No production migration, service cutover, funding,
   signing or new campaign was performed by this implementation work.
 - Verification on the development checkout: `npm run check` passed 672 tests;

@@ -1,8 +1,10 @@
 import {z} from 'zod';
 import {contentHash,staticParameters} from './contracts.js';
 import {referenceProofHash} from './market-profile.js';
-import type {PaperPreviewDraft,PaperOpenFrame} from './paper-preview.js';
+import type {PaperPreviewDraft,PaperOpenFrame,buildIndicativePaperOpenPreview} from './paper-preview.js';
 import type {costIndicativePaperOpenPreview} from './paper-cost.js';
+type CostedOpenPreview=ReturnType<typeof costIndicativePaperOpenPreview<
+ ReturnType<typeof buildIndicativePaperOpenPreview>>>;
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
@@ -41,7 +43,7 @@ export type PaperOpenModel=z.infer<typeof paperOpenModelSchema>;
 /** This is a hypothetical no-swap fill. The fork gas is an estimate and no
  * chain transaction or paid-cost entry is implied by this record. */
 export function buildPaperOpenModel(draft:PaperPreviewDraft,frame:PaperOpenFrame,
- preview:ReturnType<typeof costIndicativePaperOpenPreview>):PaperOpenModel{
+ preview:CostedOpenPreview):PaperOpenModel{
  if(draft.strategyId!=='static_manual_v1'||preview.status!=='indicative'||
   preview.costs.status!=='provisional'||!preview.candidate||!frame.referenceProof||
   !frame.referenceEligible||frame.price0===null||frame.price1===null||frame.nativePrice===null)

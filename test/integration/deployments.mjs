@@ -15,6 +15,7 @@ import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-previ
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
  from '../../src/deployments/paper-cost.ts';
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
+import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
@@ -330,7 +331,51 @@ try{
   [invalidPaperDraft.id])).rows[0].n,0);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
   [invalidPaperDraft.id])).rows[0].n,0);
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing']}));
+ const closeFrame={...frame,source:{...frame.source,block:'101'}};
+ const closeCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:paperModel.candidate},
+  gasRows,poolAddress,10n**18n,1_000_000_000n);
+ assert.equal(closeCosts.costs.status,'provisional');
+ const closeModel=buildPaperCloseRetainModel(paperModel,opened.markId,closeFrame,
+  paperInput.profile,paperInput.parameters,closeCosts);
+ assert.equal(closeModel.unobserved[0],'fee_capture');
+ assert.throws(()=>buildPaperCloseRetainModel(paperModel,opened.markId,
+  {...closeFrame,source:{...closeFrame.source,block:'100'}},paperInput.profile,
+  paperInput.parameters,closeCosts),/paper_close_source_or_position_mismatch/);
+ const closePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
+  kind:'close_retain',request:{kind:'close_retain'},proposal:{paperCloseRetainModel:closeModel},
+  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60000)});
+ const closeOperation=await store.acceptOperation(paperDraft.id,{previewId:closePreview.id,
+  contentDigest:closePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-close-retain-unique-1'},'operator');
+ const closeClaim=await store.claimNext('paper-worker',30,'paper');
+ assert.equal(closeClaim.id,closeOperation.id);
+ await store.advanceClaim(closeOperation.id,'paper-worker','model_checked','executing',null);
+ await store.advanceClaim(closeOperation.id,'paper-worker','ready_to_record','reconciling',null);
+ await assert.rejects(store.completeTrustedPaperCloseRetain(closeOperation.id,'wrong-worker'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_close_claim_lost');
+ const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker');
+ assert.equal(closed.replayed,false);
+ assert.deepEqual(await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker'),
+  {markId:closed.markId,replayed:true});
+ const finalLedger=(await admin.query(`SELECT kind,amount_raw,value_raw,source
+  FROM deployment_ledger WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
+ assert.equal(finalLedger.length,6);
+ assert(finalLedger.slice(3).every(row=>row.kind==='capital_out'&&
+  row.amount_raw===null&&row.value_raw===null&&
+  row.source.classification==='paper_model_partial_close'));
+ assert.equal(finalLedger[3].source.principalLowerBoundRaw,
+  closeModel.retainedLowerBound.token0Raw);
+ const finalMark=(await admin.query(`SELECT inventory,economics FROM deployment_marks
+  WHERE id=$1`,[closed.markId])).rows[0];
+ assert.equal(finalMark.inventory.position,null);
+ assert.equal(finalMark.inventory.token0Raw,null);
+ assert.equal(finalMark.economics,null);
+ const finalCampaign=(await admin.query(`SELECT lifecycle,range_state,closed_at FROM deployment_campaigns
+  WHERE id=$1`,[paperDraft.id])).rows[0];
+ assert.equal(finalCampaign.lifecycle,'closed');
+ assert.equal(finalCampaign.range_state,'no_liquidity');
+ assert(finalCampaign.closed_at instanceof Date);
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','immutable evidence','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','partial retain-close leaves unknown fees and paid costs unavailable','idempotent close mark replay']}));
 }finally{
  if(store)await store.close();
  await admin.query('SET search_path=public');
