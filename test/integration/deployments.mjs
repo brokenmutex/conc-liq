@@ -19,7 +19,7 @@ import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_ST
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
-import {recordCanonicalNextPaperAccounting,projectCanonicalPaperAccounting}
+import {auditCanonicalPaperAccounting,recordCanonicalNextPaperAccounting,projectCanonicalPaperAccounting}
  from '../../src/deployments/paper-accounting.ts';
 import {advancePaperScenarioWithFeeSampler} from '../../src/deployments/paper-projection.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
@@ -38,7 +38,7 @@ let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -836,11 +836,54 @@ try{
   assert.equal(servedDetail.performance.timeline.at(-1).economicNavQuote,closedPosition.navQuote);
   assert(servedDetail.events.some(event=>event.action==='close_retain'));
  }finally{await new Promise((resolve,reject)=>dashboard.close(error=>error?reject(error):resolve()));}
+ const validAudit=await auditCanonicalPaperAccounting(store,accountingClient,paperDraft.id);
+ assert.deepEqual(validAudit,{checked:4,invalidated:[],alreadyInvalidated:false,
+  detectedAccountingId:null});
+ accountingOpenReads=0;accountingReorgDuringRead=true;
+ await assert.rejects(auditCanonicalPaperAccounting(store,accountingClient,paperDraft.id),
+  /Paper accounting source changed during audit/);
+ accountingReorgDuringRead=false;
+ assert.equal((await admin.query(`SELECT count(*)::int AS n
+  FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1`,
+  [paperDraft.id])).rows[0].n,0);
+ accountingHashes.set('101','0x'+'9'.repeat(64));
+ const revoked=await auditCanonicalPaperAccounting(store,accountingClient,paperDraft.id);
+ assert.equal(revoked.checked,4);assert.equal(revoked.invalidated.length,3);
+ assert(revoked.detectedAccountingId);
+ const revocations=(await admin.query(`SELECT i.accounting_id::text,i.detected_accounting_id::text,
+  i.reason,i.evidence,a.source_mark_id::text FROM deployment_paper_accounting_invalidations i
+  JOIN deployment_paper_accounting a ON a.id=i.accounting_id
+  WHERE i.campaign_id=$1 ORDER BY a.source_mark_id`,[paperDraft.id])).rows;
+ assert.deepEqual(revocations.map(row=>row.source_mark_id),
+  [valuation.markId,secondValuation.markId,closed.markId]);
+ assert(revocations.every(row=>row.detected_accounting_id===revoked.detectedAccountingId&&
+  row.reason==='canonical_anchor_changed'&&
+  row.evidence.savedSource.hash===valuationFrame.source.hash&&
+  row.evidence.actualSource.hash==='0x'+'9'.repeat(64)));
+ assert.deepEqual(await auditCanonicalPaperAccounting(store,accountingClient,paperDraft.id),
+  {checked:0,invalidated:[],alreadyInvalidated:true,
+   detectedAccountingId:revoked.detectedAccountingId});
+ await assert.rejects(recordAccounting(),error=>error instanceof DeploymentConflict&&
+  error.code==='paper_accounting_history_invalidated');
+ await assert.rejects(admin.query(`UPDATE deployment_paper_accounting_invalidations
+  SET reason='canonical_anchor_changed' WHERE campaign_id=$1`,[paperDraft.id]),/append-only/);
+ const revokedPosition=deploymentPosition((await readDeploymentRows(admin))
+  .find(row=>row.id===paperDraft.id));
+ assert.equal(revokedPosition.accounting,'invalid');assert.equal(revokedPosition.navQuote,null);
+ assert.equal(revokedPosition.holdQuote,null);assert.equal(revokedPosition.feesQuote,null);
+ assert.equal(revokedPosition.gasQuote,null);assert(revokedPosition.invalidatedAt);
+ assert(revokedPosition.reasons.includes('paper_accounting_canonical_anchor_changed'));
+ assert.equal(revokedPosition.deployment.accountingInvalidation.reason,
+  'canonical_anchor_changed');
+ const revokedDetail=await readPositionDetail(admin,'test-stream',paperPosition.id,168);
+ assert.equal(revokedDetail.position.accounting,'invalid');
+ assert.equal(revokedDetail.performance.timeline.at(-1).economicNavQuote,null);
+ assert.match(revokedDetail.limitations[0],/revoked/);
  assert.deepEqual(await store.recordTrustedPaperPrincipalValuation(valuationModel),
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();

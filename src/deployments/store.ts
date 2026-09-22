@@ -40,6 +40,13 @@ export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
 }
 
+export interface PaperAccountingAnchor {
+ accountingId:string;markId:string;block:string;hash:string;timestamp:number;
+}
+export interface PaperAccountingAnchorMismatch {
+ accountingId:string;actual:{hash:string;timestamp:number};
+}
+
 /** The new command ledger. It owns no signer and performs no startup DDL. */
 export class DeploymentStore {
  private readonly pool:pg.Pool;
@@ -925,6 +932,10 @@ export class DeploymentStore {
     open.data.campaignId!==campaignId||open.data.revision!==campaign.current_revision||
     contentHash(open.data)!==campaign.open_provenance.modelHash)
     throw new DeploymentConflict('paper_accounting_campaign_unavailable');
+   const invalidated=(await db.query<{found:boolean}>(`SELECT EXISTS(
+    SELECT 1 FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1) AS found`,
+    [campaignId])).rows[0]?.found;
+   if(invalidated)throw new DeploymentConflict('paper_accounting_history_invalidated');
    const allocation=allocationSchema.parse(campaign.allocation);
    if(contentHash(allocation)!==contentHash(open.data.allocation))
     throw new DeploymentConflict('paper_accounting_allocation_changed');
@@ -1046,6 +1057,67 @@ export class DeploymentStore {
     [campaignId,mark.id,PAPER_ACCOUNTING_POLICY,feeRow?.id??null,
      JSON.stringify(accounting),contentHash(accounting)])).rows[0]!;
    return {snapshotId:saved.id,markId:mark.id,kind};
+  });
+ }
+
+ /** Rechecks every saved paper-accounting source and permanently revokes the
+  * detected snapshot plus its dependent descendants after a canonical hash or
+  * timestamp change. RPC/read failures throw and never create a revocation. */
+ async auditPaperAccounting(campaignId:string,
+  verifyAnchors:(chainId:number,sources:readonly PaperAccountingAnchor[])=>Promise<PaperAccountingAnchorMismatch|null>){
+  return this.transaction(async db=>{
+   const campaign=(await db.query<{mode:string;chain_id:number}>(`
+    SELECT mode,chain_id FROM deployment_campaigns WHERE id=$1 FOR UPDATE`,
+    [campaignId])).rows[0];
+   if(!campaign||campaign.mode!=='paper')
+    throw new DeploymentConflict('paper_accounting_campaign_unavailable');
+   const existing=(await db.query<{accounting_id:string;detected_accounting_id:string}>(`
+    SELECT accounting_id::text,detected_accounting_id::text
+    FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1
+    ORDER BY accounting_id LIMIT 1`,[campaignId])).rows[0];
+   if(existing)return {checked:0,invalidated:[] as string[],
+    alreadyInvalidated:true,detectedAccountingId:existing.detected_accounting_id};
+   const rows=(await db.query<{id:string;source_mark_id:string;snapshot:unknown;snapshot_hash:string}>(`
+    SELECT id::text,source_mark_id::text,snapshot,snapshot_hash
+    FROM deployment_paper_accounting WHERE campaign_id=$1 AND policy_version=$2
+    ORDER BY source_mark_id LIMIT 10001`,[campaignId,PAPER_ACCOUNTING_POLICY])).rows;
+   if(rows.length>10000)throw new DeploymentConflict('paper_accounting_audit_bound');
+   const sources:PaperAccountingAnchor[]=rows.map(row=>{
+    const parsed=paperAccountingSchema.safeParse(row.snapshot);
+    if(!parsed.success||contentHash(parsed.data)!==row.snapshot_hash||
+     parsed.data.campaignId!==campaignId||parsed.data.sourceMarkId!==row.source_mark_id)
+     throw new DeploymentConflict('paper_accounting_audit_integrity');
+    return {accountingId:row.id,markId:row.source_mark_id,...parsed.data.source};
+   });
+   if(!sources.length)return {checked:0,invalidated:[] as string[],
+    alreadyInvalidated:false,detectedAccountingId:null};
+   const mismatch=await verifyAnchors(campaign.chain_id,sources);
+   if(!mismatch)return {checked:sources.length,invalidated:[] as string[],
+    alreadyInvalidated:false,detectedAccountingId:null};
+   const detected=sources.find(source=>source.accountingId===mismatch.accountingId);
+   if(!detected||!/^0x[0-9a-fA-F]{64}$/.test(mismatch.actual.hash)||
+    !Number.isSafeInteger(mismatch.actual.timestamp)||mismatch.actual.timestamp<0||
+    (mismatch.actual.hash.toLowerCase()===detected.hash.toLowerCase()&&
+     mismatch.actual.timestamp===detected.timestamp))
+    throw new DeploymentConflict('paper_accounting_audit_result_invalid');
+   const evidence={verificationClass:'canonical_anchor_recheck_v1',
+    detectedAt:new Date().toISOString(),savedSource:{block:detected.block,
+     hash:detected.hash,timestamp:detected.timestamp},
+    actualSource:{block:detected.block,hash:mismatch.actual.hash,
+     timestamp:mismatch.actual.timestamp}};
+   const invalidated=(await db.query<{accounting_id:string}>(`
+    INSERT INTO deployment_paper_accounting_invalidations
+     (campaign_id,accounting_id,detected_accounting_id,reason,evidence)
+    SELECT $1,a.id,$2,'canonical_anchor_changed',$3
+    FROM deployment_paper_accounting a
+    WHERE a.campaign_id=$1 AND a.policy_version=$4 AND a.source_mark_id >= $5
+    ORDER BY a.source_mark_id
+    ON CONFLICT(accounting_id) DO NOTHING RETURNING accounting_id::text`,
+    [campaignId,detected.accountingId,JSON.stringify(evidence),PAPER_ACCOUNTING_POLICY,
+     detected.markId])).rows.map(row=>row.accounting_id);
+   if(!invalidated.length)throw new DeploymentConflict('paper_accounting_invalidation_failed');
+   return {checked:sources.length,invalidated,alreadyInvalidated:false,
+    detectedAccountingId:detected.accountingId};
   });
  }
 

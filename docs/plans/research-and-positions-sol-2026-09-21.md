@@ -633,6 +633,17 @@ and an explicit distinction between implemented, deployed and live-validated.
   RPC for the production adapter. The dashboard now checks four adjacent marks
   and a three-interval carry in this fixture. Supervision, current-history
   revocation and both unsupported close/strategy paths remain open.
+- R2 current-history revocation follow-up: append-only v7 invalidations now
+  fail closed when a stable two-pass canonical audit finds that a projected
+  source hash or timestamp changed. The first changed snapshot and every
+  dependent later snapshot retain their original journal bytes but no longer
+  supply dashboard NAV, fees, gas or passive comparison. Further projection
+  rejects after a revocation. RPC failures and a chain change during the audit
+  leave history untouched. The isolated v3/v4/v6-to-v7 migrations, stable audit,
+  transient-reorg rejection, descendant revocation, restart idempotency and
+  dashboard fail-close passed. No audit worker schedules this check yet, no
+  production schema was migrated, and close-convert plus RangeKeeper paper
+  accounting remain open.
 - W3: planned Research work remains outstanding. The existing page still has
   four windows and checkpoint-based pool membership; profile registration does
   not yet provide the registry-backed Research universe or saved-candidate UI.

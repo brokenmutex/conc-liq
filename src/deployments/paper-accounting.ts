@@ -6,7 +6,7 @@ import type {PaperOpenModel} from './paper-open-model.js';
 import type {PaperCloseRetainModel} from './paper-close-model.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
 import type {RobinhoodClient} from '../client.js';
-import type {DeploymentStore} from './store.js';
+import type {DeploymentStore,PaperAccountingAnchor} from './store.js';
 
 export const PAPER_ACCOUNTING_POLICY='paper_fixed_flow_lower_v1';
 const Q128=1n<<128n;
@@ -196,6 +196,34 @@ export async function recordCanonicalNextPaperAccounting(store:DeploymentStore,
    assert.equal(`${block.hash.toLowerCase()}:${Number(block.timestamp)}`,identity,
     'Paper accounting source changed during verification');
   }
+ });
+}
+
+/** Audits already-projected history against a stable pair of canonical reads.
+ * A provider failure or a chain change during the audit rejects the run and
+ * cannot create a permanent revocation. */
+export async function auditCanonicalPaperAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.auditPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper accounting audit chain changed');
+  const read=async(source:PaperAccountingAnchor)=>{
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   return {hash:block.hash.toLowerCase(),timestamp:Number(block.timestamp)};
+  };
+  const first=new Map<string,{hash:string;timestamp:number}>();
+  for(const source of sources)first.set(source.accountingId,await read(source));
+  const second=new Map<string,{hash:string;timestamp:number}>();
+  for(const source of sources){
+   const actual=await read(source),prior=first.get(source.accountingId)!;
+   assert.deepEqual(actual,prior,'Paper accounting source changed during audit');
+   second.set(source.accountingId,actual);
+  }
+  for(const source of sources){
+   const actual=second.get(source.accountingId)!;
+   if(actual.hash!==source.hash.toLowerCase()||actual.timestamp!==source.timestamp)
+    return {accountingId:source.accountingId,actual};
+  }
+  return null;
  });
 }
 

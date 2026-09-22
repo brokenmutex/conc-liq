@@ -24,11 +24,13 @@ interface DeploymentRow {
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
  operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
 interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
 const key=(mode:string,id:string)=>`${mode}-dep-${id}`;
 const parseKey=(id:string)=>{
@@ -69,6 +71,7 @@ const principalValue=(inventory:Record<string,unknown>,economics:Record<string,u
   decimal(lower.token1Raw)??decimal(retained.token1Raw),provenance,p);
 };
 const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccounting|null=>{
+ if(row.accounting_invalidated_at)return null;
  const parsed=paperAccountingSchema.safeParse(row.accounting_snapshot);
  return parsed.success&&row.accounting_hash===contentHash(parsed.data)&&
   parsed.data.campaignId===campaignId&&parsed.data.sourceMarkId===
@@ -90,12 +93,16 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
  if(!present)return [];
  const hasAccounting=(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
+ const hasInvalidations=hasAccounting&&(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
  const rows=(await db.query<DeploymentRow>(`
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'}
+   ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
+    'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
    blocked.status AS operation_status,
    blocked.stage AS operation_stage,blocked.reason AS operation_reason
   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
@@ -109,6 +116,11 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    ORDER BY updated_at DESC,id DESC LIMIT 1) blocked ON TRUE
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
+  ${hasInvalidations?`LEFT JOIN LATERAL (
+   SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
+   JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+   WHERE i.campaign_id=c.id AND bad.source_mark_id<=m.id
+   ORDER BY bad.source_mark_id LIMIT 1) invalidated ON TRUE`:''}
   WHERE c.lifecycle<>'draft' ORDER BY c.created_at DESC,c.id LIMIT 1001`)).rows;
  if(rows.length>1000)throw Error('Deployment position overview exceeds bounded row limit');
  return rows;
@@ -149,7 +161,9 @@ export function deploymentPosition(row:DeploymentRow){
  if(row.lifecycle==='blocked')reasons.push('operation_blocked');
  if(!model&&(economics.netNav===undefined||economics.netNav===null))
   reasons.push('net_economics_unavailable');
- if(row.accounting_snapshot&&!model)reasons.push('paper_accounting_integrity');
+ if(row.accounting_invalidated_at)reasons.push('paper_accounting_canonical_anchor_changed');
+ if(row.accounting_snapshot&&!model&&!row.accounting_invalidated_at)
+  reasons.push('paper_accounting_integrity');
  const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
  const lowerBoundValue=principalValue(inventory,economics,provenance,p),
   passiveTokenValue=tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
@@ -162,7 +176,8 @@ export function deploymentPosition(row:DeploymentRow){
   gasQuote:micro(model?.economics.cumulativeGasExpenseQuote??null),
   swapQuote:model?'0':null,exitEstimateQuote:micro(decimal(close.boundValue)),drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
-  sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,invalidatedAt:null,
+  sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,
+  invalidatedAt:row.accounting_invalidated_at?.toISOString()??null,
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),p):null,
@@ -170,7 +185,8 @@ export function deploymentPosition(row:DeploymentRow){
   inventory:{tokens,exposurePpm:model?modeledExposure(model,p):null,
    nativeWei:model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
-  tokenId:null,accounting:model?'provisional':'unavailable',nextAction:row.lifecycle==='closed'?null:
+  tokenId:null,accounting:model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
+  nextAction:row.lifecycle==='closed'?null:
    model?'Provisional modeled scenario; earned fees and paid costs remain unobserved':
     'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
@@ -183,6 +199,8 @@ export function deploymentPosition(row:DeploymentRow){
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
    accounting:model?{policyVersion:model.policyVersion,classification:model.classification,
     feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations}:null,
+   accountingInvalidation:row.accounting_invalidated_at?{
+    reason:row.accounting_invalidation_reason,at:row.accounting_invalidated_at.toISOString()}:null,
    unavailable:model?model.limitations:['fee_capture','paid_gas','net_nav','alpha']}};
 }
 
@@ -230,13 +248,22 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   profile=marketProfileSchema.parse(row.profile),allocation=allocationSchema.parse(row.allocation);
  const hasAccounting=(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
+ const hasInvalidations=hasAccounting&&(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
  const marks=(await db.query<DeploymentMark>(`
   SELECT m.id::text,m.at,m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash':
-    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash'}
+    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash'},
+   ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason':
+    'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason'}
   FROM deployment_marks m
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
+  ${hasInvalidations?`LEFT JOIN LATERAL (
+   SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
+   JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+   WHERE i.campaign_id=m.campaign_id AND bad.source_mark_id<=m.id
+   ORDER BY bad.source_mark_id LIMIT 1) invalidated ON TRUE`:''}
   WHERE m.campaign_id=$1 AND (m.provenance->'source'->>'timestamp')::bigint >= $2
   ORDER BY m.id LIMIT 30001`,[row.id,cutoff])).rows;
  if(marks.length>30000)throw Error('Deployment mark history exceeds bounded window limit');
@@ -271,6 +298,9 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   limitations:position.accounting==='provisional'?
    ['Provisional fixed-flow paper scenario: lower integer fee allocation and scoped fork gas estimates. These are not earned fees or paid costs.',
     'Execution delay, failures and counterfactual flow changes remain unmodeled. Incomplete marks stay blank.']:
+   position.accounting==='invalid'?
+   ['Modeled paper history was revoked after a saved source anchor changed. Original marks and accounting snapshots remain append-only.',
+    'Economics from the revoked snapshot and every dependent later snapshot are unavailable.']:
    ['Principal and idle tokens use recorded independent references. Earned fees, paid gas, native balance, net NAV and alpha are unavailable.',
     'Value and inventory charts leave incomplete series blank. Source gaps are not interpolated.',
     'Provisional fork gas is an estimate, not an expense that was paid.']};
