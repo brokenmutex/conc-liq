@@ -356,7 +356,7 @@ export class DeploymentStore {
    JOIN LATERAL (SELECT id,source_block,source_hash,provenance FROM deployment_marks
     WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
    JOIN deployment_previews v ON v.id=(o.provenance->>'previewId')::uuid
-   WHERE c.id=$1 AND c.mode='paper' AND c.lifecycle IN ('active','paused','closing')`,
+   WHERE c.id=$1 AND c.mode='paper' AND c.lifecycle IN ('active','paused')`,
    [id])).rows[0];
   if(!row||row.latest_source_block===null||row.latest_source_hash===null||
    !['paper_model_provisional','paper_model_principal_valuation'].includes(
@@ -1593,7 +1593,7 @@ export class DeploymentStore {
     throw new DeploymentConflict('paper_valuation_prior_mark_unavailable');
    if(BigInt(model.source.block)===BigInt(previous.source_block))
     throw new DeploymentConflict('paper_valuation_conflicting_source');
-   if(!['active','paused','closing'].includes(row.lifecycle))
+   if(!['active','paused'].includes(row.lifecycle))
     throw new DeploymentConflict('paper_valuation_campaign_unavailable');
    const priorTimestamp=(previous.provenance.source as {timestamp?:unknown}|undefined)?.timestamp;
    if(!Number.isSafeInteger(priorTimestamp)||model.source.timestamp<(priorTimestamp as number))

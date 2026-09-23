@@ -90,7 +90,7 @@ export async function processOnePaperOperation(store:DeploymentStore,
   else{
    await store.prepareTrustedPaperCloseConvert(claim.id,workerId,verify);
    const projection=await maintainCanonicalPaperScenario(store,chain,indexer,
-    claim.campaign_id,100);
+    claim.campaign_id,100,{sampleValuation:false});
    if(projection.status==='invalidated')
     return await block('paper_operation_canonical_history_invalidated');
    if(!projection.caughtUp)return {status:'retry' as const,operationId:claim.id,

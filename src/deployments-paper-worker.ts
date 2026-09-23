@@ -19,9 +19,17 @@ const envSchema=z.object({
 });
 
 const lockKey=[4663,18727];
-type CampaignRow={id:string};
+export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked'};
 const failureCode=(error:unknown)=>error instanceof DeploymentConflict?error.code:
  error instanceof Error?error.name:'unknown';
+
+// Keep the cursor outside a pass so a large closed history cannot pin every
+// pass to the same oldest campaigns. The database still returns only one
+// bounded page; the cursor is advanced even when an individual audit fails.
+let campaignCursor:string|null=null;
+export function advancePaperCampaignCursor(page:readonly PaperCampaignRow[],cursor:string|null){
+ return page.length?page[page.length-1]!.id:cursor;
+}
 
 /** A single bounded, signer-free audit/projection pass. Its session lock
  * prevents two copies of this worker from scanning the same campaign set. */
@@ -36,18 +44,20 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    'SELECT pg_try_advisory_lock($1::int,$2::int) AS acquired',lockKey)).rows[0]?.acquired;
   if(!acquired)return {status:'busy' as const,processed:0,invalidated:0,failed:0};
   try{
-   const campaigns=(await lock.query<CampaignRow>(`
-    SELECT c.id::text FROM deployment_campaigns c
+   const campaigns=(await lock.query<PaperCampaignRow>(`
+    SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
     WHERE c.mode='paper' AND r.strategy_id='static_manual_v1'
       AND c.lifecycle IN ('active','paused','closing','closed','blocked')
-    ORDER BY c.created_at,c.id LIMIT $1`,[maxCampaigns+1])).rows;
-   if(campaigns.length>maxCampaigns)throw Error('Paper worker campaign bound exceeded');
+    ORDER BY CASE WHEN $1::uuid IS NULL OR c.id>$1::uuid THEN 0 ELSE 1 END,c.id
+    LIMIT $2`,[campaignCursor,maxCampaigns])).rows;
+   campaignCursor=advancePaperCampaignCursor(campaigns,campaignCursor);
    let invalidated=0,failed=0;
    for(const campaign of campaigns){
     try{
      const result=await maintainCanonicalPaperScenario(store,chain,indexer,
-      campaign.id,maxSteps);
+      campaign.id,maxSteps,{sampleValuation:campaign.lifecycle==='active'||
+       campaign.lifecycle==='paused'});
      if(result.status==='invalidated')invalidated++;
     }catch(error){
      failed++;
