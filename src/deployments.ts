@@ -5,6 +5,8 @@ import {DeploymentConflict} from './deployments/store.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame} from './deployments/paper-preview.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
+import {readCanonicalRangeKeeperPaperOpenModel,
+ type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 
@@ -31,6 +33,19 @@ async function main(){
   previewBusy=true;
   try{
    const draft=await store.paperDraft(campaignId);
+   if(draft.strategyId==='rangekeeper_v1'){
+    let buildId='';
+    try{
+     const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null') as unknown;
+     if(identity&&typeof identity==='object'&&
+      typeof (identity as {buildId?:unknown}).buildId==='string')
+      buildId=(identity as {buildId:string}).buildId;
+    }catch{/* Missing or malformed release identity leaves the preview unavailable. */}
+    return readCanonicalRangeKeeperPaperOpenModel({client,
+     draft:draft as RangeKeeperPaperDraft,buildId,
+     readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,
+      query.pathVersion,query.sizeBand)});
+   }
    const frame=await readCanonicalPaperOpenFrame(client,draft.profile);
    const preview=buildIndicativePaperOpenPreview(draft,frame);
    if(preview.status!=='indicative')return preview;

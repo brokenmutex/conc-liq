@@ -29,7 +29,7 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   if(!conversionTerminal){
    try{
     const next=await advanceCanonicalPaperScenario(store,client,indexer,campaignId);
-    if(next.caughtUp)return {status:'current' as const,standardAudit,conversionAudit,
+    if(next.caughtUp)return {status:'projection_current' as const,standardAudit,conversionAudit,
      steps,caughtUp:true};
     continue;
    }catch(error){
@@ -42,7 +42,7 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   }
   try{
    const next=await recordCanonicalNextPaperConversionAccounting(store,client,campaignId);
-   if(next===null)return {status:'current' as const,standardAudit,conversionAudit,
+   if(next===null)return {status:'projection_current' as const,standardAudit,conversionAudit,
     steps,caughtUp:true};
   }catch(error){
    if(!(error instanceof DeploymentConflict&&
