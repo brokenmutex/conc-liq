@@ -5,6 +5,7 @@ import {DeploymentConflict} from './deployments/store.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonicalPaperNextFrame,
  type PaperOpenFrame} from './deployments/paper-preview.js';
+import {buildStaticPaperSetupPreflight} from './deployments/paper-setup-preflight.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
@@ -33,7 +34,17 @@ async function main(){
  const host=env.DEPLOYMENT_HOST,port=env.DEPLOYMENT_PORT;
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
- let previewBusy=false;
+ let previewBusy=false,paperSetupBusy=false;
+ const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0])=>{
+  if(paperSetupBusy)throw new DeploymentConflict('paper_setup_preflight_busy');
+  paperSetupBusy=true;
+  try{return await buildStaticPaperSetupPreflight(input,{
+   loadProfile:id=>store.paperSetupProfile(id),
+   readFrame:profile=>readCanonicalPaperOpenFrame(client,profile),
+   verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(client,chainId,[source]),
+   readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
+  });}finally{paperSetupBusy=false;}
+ };
  const paperPreview=async(campaignId:string,kind:'open'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
   previewBusy=true;
@@ -141,7 +152,8 @@ async function main(){
     operationAcceptanceAvailable:false,actionAvailable:false,economics:null};
   }finally{previewBusy=false;}
  };
- const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,paperPreview});
+ const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
+  paperPreview,paperSetupPreflight});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
  let stopping=false;

@@ -509,6 +509,35 @@ export class DeploymentStore {
   });
  }
 
+ /** Read-only, registered profile lookup for parameterized paper setup sizing.
+  * It applies the same stored proof, contract identity, and live indexer
+  * identity checks as draft creation without creating a draft. */
+ async paperSetupProfile(id:string){
+  const row=(await this.readPool.query<{id:string;chain_id:number;profile:unknown;evidence:unknown;
+   profile_hash:string;pool_address:string;token0_address:string;token1_address:string;fee:number;retired_at:Date|null}>(`
+   SELECT p.id,p.chain_id,p.profile,p.evidence,p.profile_hash,p.pool_address,p.token0_address,
+    p.token1_address,p.fee,p.retired_at
+   FROM deployment_market_profiles p WHERE p.id=$1`,[id])).rows[0];
+  if(!row||row.retired_at)return null;
+  const profile=marketProfileSchema.safeParse(row.profile),evidence=marketProfileEvidenceSchema.safeParse(row.evidence);
+  if(!profile.success||!evidence.success||profile.data.pool.chainId!==row.chain_id||
+   contentHash(profile.data)!==row.profile_hash||profile.data.pool.pool.toLowerCase()!==row.pool_address.toLowerCase()||
+   profile.data.pool.token0.toLowerCase()!==row.token0_address.toLowerCase()||
+   profile.data.pool.token1.toLowerCase()!==row.token1_address.toLowerCase()||profile.data.pool.fee!==row.fee||
+   referenceProofHash(evidence.data.referenceProof)!==evidence.data.references.proofHash)
+   throw new DeploymentConflict('market_profile_integrity');
+  for(const key of ['poolCodeHash','token0CodeHash','token1CodeHash','managerCodeHash','quoterCodeHash'] as const)
+   if(profile.data.pool[key].toLowerCase()!==evidence.data.contractHashes[key].toLowerCase())
+    throw new DeploymentConflict('market_profile_integrity');
+  const known=(await this.readPool.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM indexer_pools
+   WHERE stream_key=$1 AND lower(pool_address)=lower($2) AND chain_id=$3 AND fee=$4 AND enabled=true
+    AND target_set_hash=$5 AND lower(rwa_address)=lower($6)) AS found`,[evidence.data.streamKey,
+    row.pool_address,row.chain_id,row.fee,evidence.data.indexerTargetSetHash,
+    profile.data.pool.quoteToken===0?profile.data.pool.token1:profile.data.pool.token0])).rows[0]?.found;
+  if(!known)throw new DeploymentConflict('market_profile_indexer_changed');
+  return {id:row.id,profile:profile.data,profileHash:row.profile_hash};
+ }
+
  /** Bounded, read-only calibration lookup. The resolver validates each model,
   * source identity, freshness and complete stage set before exposing costs. */
  async paperGasProfiles(poolAddress:string):Promise<PaperGasProfileRow[]>{

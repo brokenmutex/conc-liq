@@ -86,6 +86,7 @@ try{
  assert.equal(registered.created,true);
  assert.deepEqual(await store.registerVerifiedMarketProfile(proof),{id:registered.id,created:false});
  const profile=registered.id;
+ assert.deepEqual(await store.paperSetupProfile(profile),{id:profile,profile:market,profileHash:proof.profileHash});
  feePool=new pg.Pool({connectionString:url.toString(),max:2});
  const feePrice=String(sqrtRatioAtTick(-276325)),feeHash='0x'+'4'.repeat(64),
   targetSetHash='0x'+'f'.repeat(64),Q128=1n<<128n;
@@ -142,6 +143,8 @@ try{
  await admin.query("UPDATE indexer_pools SET enabled=false WHERE stream_key='test-stream'");
  assert.equal((await store.listMarketProfiles())[0].draftAvailable,false);
  assert.equal((await store.listMarketProfiles())[0].reason,'indexer_identity_changed');
+ await assert.rejects(store.paperSetupProfile(profile),
+  error=>error instanceof DeploymentConflict&&error.code==='market_profile_indexer_changed');
  await assert.rejects(store.createDraft(draftInput),
   error=>error instanceof DeploymentConflict&&error.code==='market_profile_indexer_changed');
  await admin.query("UPDATE indexer_pools SET enabled=true WHERE stream_key='test-stream'");

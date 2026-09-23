@@ -10,6 +10,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const origin='http://127.0.0.1:4174';
  const calls:unknown[]=[];
  const previewCalls:Array<{id:string;kind:string}>=[];
+ const setupCalls:unknown[]=[];
  let acceptCalls=0;
  const store={
   async createDraft(input:unknown){calls.push(input);return {id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1};},
@@ -18,12 +19,14 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   async listMarketProfiles(){return [{id:'aef5f51e-18ef-4e9c-952d-8d772970f708',draftAvailable:true,deploymentAvailable:false}];},
  };
  const server=createDeploymentCommandServer(store, {origin,passwordHash:hash,
-  paperPreview:async(id,kind)=>{previewCalls.push({id,kind});
+ paperPreview:async(id,kind)=>{previewCalls.push({id,kind});
    // Preview producers cannot expose an actionable result until the separate
    // acceptance and worker admission path is ready.
    return {status:'indicative',actionAvailable:true,economics:null,...(kind==='open'?{
     previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'a'.repeat(64),
-    expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};}});
+    expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};},
+  paperSetupPreflight:async(input)=>{setupCalls.push(input);return {kind:'paper_setup_preflight',
+   status:'unavailable',actionAvailable:false,draftCreated:false,operationCreated:false};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -36,6 +39,19 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
+  const setupPath='/api/deployments/setup-preflight',setupInput={
+   profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',capitalQuoteRaw:'100000000',halfWidthTicks:60};
+  assert.equal((await post(setupPath,setupInput,{origin})).status,401);
+  assert.equal((await post(setupPath,setupInput,{origin,cookie})).status,403);
+  assert.equal((await post(setupPath,{...setupInput,capitalQuoteRaw:'1.5'},
+   {origin,cookie,'x-csrf-token':csrfToken})).status,400);
+  const setup=await post(setupPath,setupInput,{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(setup.status,200);
+  assert.deepEqual(await setup.json(),{kind:'paper_setup_preflight',status:'unavailable',
+   actionAvailable:false,draftCreated:false,operationCreated:false});
+  assert.deepEqual(setupCalls,[setupInput]);
+  assert.equal(calls.length,0);
+  assert.equal(acceptCalls,0);
   const draft={mode:'paper',chainId:4663,wallet:'0x1111111111111111111111111111111111111111',
    marketProfileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',strategyId:'static_manual_v1',
    strategyVersion:'1.0.0',stateSchemaVersion:1,
