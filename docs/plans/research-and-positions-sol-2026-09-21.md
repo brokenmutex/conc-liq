@@ -1254,7 +1254,11 @@ foundation; the final added successful-cost assertion passed in focused tests.
 existing journal and worker. The claim-bound transition is revision and
 lifecycle checked, survives lease expiry, and writes no economic mark or
 ledger entry. Isolated integration and typecheck passed. No HTTP operation
-acceptance or dashboard action was enabled.
+acceptance or dashboard action was enabled. `097c3c8` adds the matching
+authenticated pause/resume preview producer: it locks and checks the current
+paper campaign state, revision and pending operation before saving a 60-second
+no-economics proposal. Invalid state writes no preview. Focused server and
+isolated integration tests passed; acceptance remains 503.
 
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
