@@ -1,13 +1,7 @@
-# Research → Positions feedback prototype
+# Dashboard feedback prototype
 
-Open `index.html` in a browser, or serve the `dashboard` directory locally:
+Open `https://dear-foxhound.tail106f9e.ts.net/prototype/` on the existing Tailscale Funnel. The prototype needs the dashboard on the same origin because it loads the current Research and Positions pages and their read-only APIs. The dashboard's normal information, charts, filters and history remain in those views.
 
-```sh
-python3 -m http.server 8765 --bind 127.0.0.1 --directory dashboard
-```
+The only additions are browser-only controls under the live and paper sections and a new-position setup form at the bottom of Positions. The controls start with one sample position in each mode because the current dashboard records may have no active positions; creating a demo position from the setup form adds another sample to its mode. Pause, resume, and both close choices update only browser memory. Refresh resets them. No signing, chain transaction, paper booking or deployment API call occurs.
 
-Then visit `http://127.0.0.1:8765/prototype/`. The page has no API calls, database, wallet, signer, or persistence. It resets on refresh and is separate from the deployed dashboard server.
-
-Walk one static/manual and one RangeKeeper paper demo from Research through preview, open, pause/resume, both close choices, and position history. Switch to Live preview to assess the planned screen with execution disabled. Values marked unavailable are intentionally absent; pool identities and lifecycle actions are fixture content, not chain observations or booked paper activity.
-
-Feedback to collect: missing information at each decision, confusing labels or controls, whether the position history answers operational questions, and what should change before wiring real paper commands.
+The pool list comes from `/api/research`; each choice shows its fee tier. Half-width choices are multiples of the pool's tick spacing. The percentage in brackets is an approximate one-sided change implied by that tick distance, not a quote, range validation, or expected return. The setup preview shows unavailable economics as unavailable.

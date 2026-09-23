@@ -1,156 +1,244 @@
-// This page is an in-memory UX fixture. It never calls a deployment API.
+'use strict';
+// Reuse the deployed read-only dashboard. All controls below are browser-only UX demos.
 const $ = (selector) => document.querySelector(selector);
-const state = {
-  step: 'research', pool: 'NVDA', window: '1h', strategy: 'static', mode: 'paper',
-  capital: 250, lower: 80, upper: 120, previewReady: false, position: null,
+const frames = {research: $('#research-frame'), positions: $('#positions-frame')};
+const loaded = {research: false, positions: false};
+const demoPositions = {
+  live: [{id: 'sample-live', label: 'Sample live position', status: 'active', events: []}],
+  paper: [{id: 'sample-paper', label: 'Sample paper position', status: 'active', events: []}],
 };
-const strategyText = {
-  static: 'Static / manual holds the chosen range until you request a change or close.',
-  rangekeeper: 'RangeKeeper monitors the configured range and can propose a guarded recenter after a sustained exit.',
-};
-const money = (value) => `${new Intl.NumberFormat('en-US', {maximumFractionDigits: 0}).format(value)} USDG`;
+const selected = {live: 'sample-live', paper: 'sample-paper'};
+let pools = [];
+let reviewed = null;
+let nextDemoId = 1;
 
-function show(step) {
-  if (state.position && step !== 'position') step = 'position';
-  if (step === 'preview' && !state.previewReady) step = 'setup';
-  if (step === 'position' && !state.position) step = 'research';
-  state.step = step;
-  for (const section of document.querySelectorAll('.screen')) section.hidden = section.id !== step;
-  for (const button of document.querySelectorAll('[data-step]')) {
-    button.setAttribute('aria-current', button.dataset.step === step ? 'step' : 'false');
-    button.disabled = state.position ? button.dataset.step !== 'position' : button.dataset.step === 'position';
+function showTab(tab) {
+  for (const name of ['research', 'positions']) {
+    $(`#${name}-panel`).hidden = name !== tab;
+    $(`#${name}-tab`).setAttribute('aria-selected', String(name === tab));
   }
-  if (step === 'research') renderResearch();
-  if (step === 'setup') renderSetup();
-  if (step === 'preview') renderPreview();
-  if (step === 'position') renderPosition();
+  if (!loaded[tab]) loadDashboard(tab);
+  else resizeFrame(frames[tab]);
 }
 
-function renderResearch() {
-  for (const button of document.querySelectorAll('[data-pool]'))
-    button.setAttribute('aria-pressed', String(button.dataset.pool === state.pool));
-  for (const button of document.querySelectorAll('[data-window]'))
-    button.setAttribute('aria-pressed', String(button.dataset.window === state.window));
-  $('#research-selection').textContent = `Selected ${state.pool} / USDG · ${state.window} window. All pool metrics are demo placeholders.`;
+function resizeFrame(frame) {
+  if (frame.hidden) return;
+  try {
+    const doc = frame.contentDocument;
+    const height = doc.body?.scrollHeight ?? 0;
+    if (height > 0) frame.style.height = `${Math.max(450, height + 4)}px`;
+  } catch { /* The visible fallback link handles an unavailable dashboard. */ }
 }
 
-function renderSetup() {
-  $('#pool').value = state.pool;
-  $('#capital').value = String(state.capital);
-  $('#lower').value = String(state.lower);
-  $('#upper').value = String(state.upper);
-  $('#strategy').value = state.strategy;
-  $('#mode').value = state.mode;
-  $('#strategy-description').textContent = strategyText[state.strategy];
-  $('#form-error').hidden = true;
-}
-
-function fact(label, value) {
-  const item = document.createElement('div');
-  item.className = 'preview-fact';
-  const name = document.createElement('span'); name.textContent = label;
-  const body = document.createElement('strong'); body.textContent = value;
-  item.append(name, body);
-  return item;
-}
-
-function renderPreview() {
-  $('#preview-facts').replaceChildren(
-    fact('Pool', `${state.pool} / USDG`),
-    fact('Research window', `${state.window} · demo`),
-    fact('Capital requested', money(state.capital)),
-    fact('Range requested', `${state.lower}–${state.upper} USDG`),
-    fact('Strategy', state.strategy === 'static' ? 'Static / manual' : 'RangeKeeper'),
-    fact('Mode', state.mode === 'paper' ? 'Paper demo' : 'Live preview only'),
-  );
-  $('#preview-open').hidden = state.mode === 'live';
-  $('#live-note').hidden = state.mode !== 'live';
-}
-
-function addEvent(label, kind) {
-  state.position.events.push({label, kind, at: new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})});
-}
-
-function renderPosition() {
-  const position = state.position;
-  if (!position) return;
-  $('#position-title').textContent = `${state.pool} / USDG`;
-  $('#position-subtitle').textContent = `${state.strategy === 'static' ? 'Static / manual' : 'RangeKeeper'} · paper demo · browser memory only`;
-  $('#position-status').textContent = position.phase === 'closed' ? 'Closed · demo' :
-    position.phase === 'paused' ? 'Management paused · demo' : 'Active · demo';
-  $('#position-capital').textContent = money(state.capital);
-  $('#position-range').textContent = `${state.lower}–${state.upper} USDG`;
-  $('#pause-button').disabled = position.phase === 'closed';
-  $('#pause-button').textContent = position.phase === 'paused' ? 'Resume management' : 'Pause management';
-  $('#close-retain').disabled = position.phase === 'closed';
-  $('#close-convert').disabled = position.phase === 'closed';
-  $('#control-note').textContent = position.phase === 'closed' ?
-    `Demo closure: ${position.ending}. Token balances and proceeds are unavailable.` :
-    'Controls change only this browser-memory walkthrough. No paper or live operation is submitted.';
-  const chart = $('#lifecycle-chart');
-  const activity = $('#activity');
-  chart.replaceChildren(); activity.replaceChildren();
-  for (const event of position.events) {
-    const column = document.createElement('div'); column.className = 'event-column';
-    const bar = document.createElement('i'); bar.className = event.kind;
-    const label = document.createElement('small'); label.textContent = event.label;
-    column.append(bar, label); chart.append(column);
-    const row = document.createElement('li');
-    const description = document.createElement('span'); description.textContent = `${event.label} · demo`;
-    const time = document.createElement('time'); time.textContent = event.at;
-    row.append(description, time); activity.append(row);
+async function loadDashboard(tab) {
+  loaded[tab] = true;
+  const frame = frames[tab];
+  const status = $(`#${tab}-status`);
+  try {
+    const response = await fetch(tab === 'research' ? '/research' : '/', {cache: 'no-store'});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = await response.text();
+    if (!html.includes('<!doctype html>')) throw new Error('Dashboard HTML unavailable');
+    frame.addEventListener('load', () => {
+      const doc = frame.contentDocument;
+      if (!doc?.body) return;
+      frame.hidden = false;
+      status.hidden = true;
+      resizeFrame(frame);
+      new frame.contentWindow.ResizeObserver(() => resizeFrame(frame)).observe(doc.body);
+      if (tab === 'positions') attachPositionControls(frame);
+    }, {once: true});
+    // srcdoc keeps the two existing dashboard scripts and styles in separate
+    // documents while allowing them to use their normal same-origin APIs.
+    // The dashboard's frame-ancestors policy blocks a direct iframe URL.
+    frame.srcdoc = html.replace('</head>', '<style>html,body{overflow:hidden!important}.masthead,footer{display:none!important}</style></head>');
+  } catch (error) {
+    loaded[tab] = false;
+    status.replaceChildren(document.createTextNode(`Could not load the dashboard (${error.message}). `));
+    const link = document.createElement('a');
+    link.href = tab === 'research' ? '/research' : '/';
+    link.textContent = `Open ${tab} directly`;
+    status.append(link);
   }
 }
 
-for (const button of document.querySelectorAll('[data-step]'))
-  button.addEventListener('click', () => show(button.dataset.step));
-for (const button of document.querySelectorAll('[data-window]'))
-  button.addEventListener('click', () => {state.window = button.dataset.window; state.previewReady = false; renderResearch();});
-for (const button of document.querySelectorAll('[data-pool]'))
-  button.addEventListener('click', () => {state.pool = button.dataset.pool; state.previewReady = false; renderResearch();});
-$('#research-next').addEventListener('click', () => show('setup'));
-$('#setup-back').addEventListener('click', () => show('research'));
-$('#preview-back').addEventListener('click', () => show('setup'));
-$('#strategy').addEventListener('change', () => {
-  $('#strategy-description').textContent = strategyText[$('#strategy').value];
-});
-$('#setup-form').addEventListener('input', () => {state.previewReady = false;});
+function node(doc, tag, className, text) {
+  const result = doc.createElement(tag);
+  if (className) result.className = className;
+  if (text !== undefined) result.textContent = text;
+  return result;
+}
+
+function attachPositionControls(frame) {
+  const doc = frame.contentDocument;
+  const style = node(doc, 'style');
+  style.textContent = `
+    .prototype-action-card{margin:18px 0 30px;padding:18px;background:#19212b;border:1px solid #3d4d5d;border-radius:9px}
+    .prototype-action-card h3{margin:0 0 5px;font-size:15px}.prototype-action-card p{margin:5px 0 12px;color:#a9b7c5;font-size:12px;line-height:1.5}
+    .prototype-action-card label{display:grid;gap:6px;max-width:390px;color:#a9b7c5;font-size:12px}
+    .prototype-action-card select{padding:9px 11px;color:#e5ecf4;background:#1e2833;border:1px solid #3d4d5d;border-radius:7px}
+    .prototype-action-buttons{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0}.prototype-action-buttons button{padding:9px 12px}
+    .prototype-action-card button:disabled{opacity:.45;cursor:not-allowed}.prototype-demo-state{font-weight:650;color:#e5ecf4!important}
+  `;
+  doc.head.append(style);
+  for (const mode of ['live', 'paper']) {
+    const section = doc.querySelector(`#${mode}`);
+    if (!section) continue;
+    const ensure = () => {
+      if (section.querySelector('.prototype-action-card')) return;
+      const card = node(doc, 'div', 'prototype-action-card');
+      section.append(card);
+      renderActions(frame, mode);
+      resizeFrame(frame);
+    };
+    new frame.contentWindow.MutationObserver(ensure).observe(section, {childList: true});
+    ensure();
+  }
+}
+
+function renderActions(frame, mode) {
+  const doc = frame.contentDocument;
+  if (!doc) return;
+  const card = doc.querySelector(`#${mode} .prototype-action-card`);
+  if (!card) return;
+  const entries = demoPositions[mode];
+  const position = entries.find((entry) => entry.id === selected[mode]) ?? entries[0];
+  selected[mode] = position.id;
+  card.replaceChildren();
+  card.append(node(doc, 'h3', '', `${mode === 'live' ? 'Live' : 'Paper'} position actions`));
+  card.append(node(doc, 'p', '', 'Demo controls only. Dashboard records above stay unchanged; no operation is submitted.'));
+  const label = node(doc, 'label', '', 'Try actions on a demo position');
+  const picker = node(doc, 'select');
+  for (const entry of entries) {
+    const option = node(doc, 'option', '', entry.label);
+    option.value = entry.id;
+    picker.append(option);
+  }
+  picker.value = position.id;
+  picker.addEventListener('change', () => {selected[mode] = picker.value; renderActions(frame, mode);});
+  label.append(picker);
+  card.append(label);
+  const state = position.status === 'closed-retain' ? 'Closed · tokens retained' :
+    position.status === 'closed-convert' ? 'Closed · converted to USDG' :
+    position.status === 'paused' ? 'Management paused' : 'Active';
+  card.append(node(doc, 'p', 'prototype-demo-state', `${state} · demo`));
+  const buttons = node(doc, 'div', 'prototype-action-buttons');
+  const closed = position.status.startsWith('closed');
+  for (const [action, caption] of [
+    ['pause', position.status === 'paused' ? 'Resume management' : 'Pause management'],
+    ['retain', 'Close · retain tokens'],
+    ['convert', 'Close · convert to USDG'],
+  ]) {
+    const button = node(doc, 'button', '', caption);
+    button.type = 'button';
+    button.disabled = closed;
+    button.addEventListener('click', () => {
+      if (action === 'pause') position.status = position.status === 'paused' ? 'active' : 'paused';
+      else position.status = action === 'retain' ? 'closed-retain' : 'closed-convert';
+      position.events.push(caption);
+      renderActions(frame, mode);
+    });
+    buttons.append(button);
+  }
+  card.append(buttons);
+  if (position.events.length) card.append(node(doc, 'p', '', `Demo activity: ${position.events.join(' → ')}`));
+}
+
+const tier = (fee) => `${(fee / 10000).toFixed(2)}% tier`;
+const widthPercent = (ticks) => {
+  const value = Math.expm1(ticks * Math.log(1.0001)) * 100;
+  return `~${value.toFixed(value < 1 ? 2 : 1)}%`;
+};
+const poolName = (pool) => `${pool.rwaSymbol} / USDG · ${tier(pool.fee)}`;
+
+async function loadPools() {
+  const picker = $('#pool');
+  try {
+    const response = await fetch('/api/research', {cache: 'no-store'});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const snapshot = await response.json();
+    pools = (snapshot.pools ?? []).filter((pool) =>
+      pool.poolAddress && pool.rwaSymbol && Number.isInteger(pool.fee) && Number.isInteger(pool.tickSpacing) && pool.tickSpacing > 0);
+    if (!pools.length) throw new Error('No pools available');
+    picker.replaceChildren(...pools.map((pool) => {
+      const option = document.createElement('option');
+      option.value = pool.poolAddress;
+      option.textContent = poolName(pool);
+      return option;
+    }));
+    picker.disabled = false;
+    updateWidths();
+  } catch (error) {
+    picker.replaceChildren(new Option('Pools unavailable', ''));
+    $('#form-error').textContent = `Pool list unavailable (${error.message}). Reload to retry.`;
+    $('#form-error').hidden = false;
+  }
+}
+
+function updateWidths() {
+  const pool = pools.find((item) => item.poolAddress === $('#pool').value);
+  const picker = $('#half-width');
+  if (!pool) {picker.disabled = true; return;}
+  picker.replaceChildren(...[1, 2, 4, 8, 16].map((multiple) => {
+    const ticks = pool.tickSpacing * multiple;
+    return new Option(`${ticks} ticks (${widthPercent(ticks)})`, String(ticks));
+  }));
+  picker.value = String(pool.tickSpacing * 4);
+  picker.disabled = false;
+  $('#setup-review').hidden = true;
+}
+
+function reviewFact(label, value) {
+  const row = document.createElement('div');
+  const name = document.createElement('dt'); name.textContent = label;
+  const detail = document.createElement('dd'); detail.textContent = value;
+  row.append(name, detail);
+  return row;
+}
+
 $('#setup-form').addEventListener('submit', (event) => {
   event.preventDefault();
-  const capital = Number($('#capital').value), lower = Number($('#lower').value), upper = Number($('#upper').value);
+  const pool = pools.find((item) => item.poolAddress === $('#pool').value);
+  const capital = Number($('#capital').value);
+  const ticks = Number($('#half-width').value);
   const error = $('#form-error');
-  if (!Number.isFinite(capital) || capital < 1 || capital > 10000 ||
-      !Number.isFinite(lower) || !Number.isFinite(upper) || lower <= 0 || lower >= upper) {
-    error.textContent = 'Enter capital from 1 to 10,000 USDG and an upper price above a positive lower price.';
+  if (!pool || !Number.isFinite(capital) || capital < 1 || capital > 10000 ||
+      !Number.isInteger(ticks) || ticks < pool.tickSpacing || ticks % pool.tickSpacing !== 0) {
+    error.textContent = 'Choose an available pool, valid tick width and capital from 1 to 10,000 USDG.';
     error.hidden = false;
     return;
   }
-  state.pool = $('#pool').value;
-  state.capital = capital; state.lower = lower; state.upper = upper;
-  state.strategy = $('#strategy').value; state.mode = $('#mode').value;
-  state.previewReady = true; error.hidden = true;
-  show('preview');
+  reviewed = {pool, capital, ticks, strategy: $('#strategy').value, mode: $('#mode').value};
+  error.hidden = true;
+  $('#review-facts').replaceChildren(
+    reviewFact('Pool', poolName(pool)),
+    reviewFact('Capital', `${capital.toLocaleString('en-US')} USDG`),
+    reviewFact('Half-width around center', `${ticks} ticks (${widthPercent(ticks)})`),
+    reviewFact('Strategy', reviewed.strategy === 'static' ? 'Static / manual' : 'RangeKeeper'),
+    reviewFact('Mode', reviewed.mode === 'live' ? 'Live demo' : 'Paper demo'),
+  );
+  $('#setup-review').hidden = false;
+  $('#setup-review').scrollIntoView({block: 'nearest', behavior: 'smooth'});
 });
-$('#preview-open').addEventListener('click', () => {
-  if (state.mode !== 'paper' || !state.previewReady) return;
-  state.position = {phase: 'active', ending: null, events: []};
-  addEvent('Opened', 'open'); show('position');
+
+$('#create-demo').addEventListener('click', () => {
+  if (!reviewed) return;
+  const {pool, mode, strategy} = reviewed;
+  const position = {
+    id: `new-demo-${nextDemoId++}`,
+    label: `${pool.rwaSymbol} ${tier(pool.fee)} · ${strategy === 'static' ? 'Static' : 'RangeKeeper'} (demo)`,
+    status: 'active', events: ['Created demo position'],
+  };
+  demoPositions[mode].push(position);
+  selected[mode] = position.id;
+  renderActions(frames.positions, mode);
+  $('#setup-review').hidden = true;
+  frames.positions.contentDocument?.querySelector(`#${mode} .prototype-action-card`)?.scrollIntoView({block: 'center', behavior: 'smooth'});
 });
-$('#pause-button').addEventListener('click', () => {
-  if (!state.position || state.position.phase === 'closed') return;
-  state.position.phase = state.position.phase === 'paused' ? 'active' : 'paused';
-  addEvent(state.position.phase === 'paused' ? 'Paused' : 'Resumed', state.position.phase === 'paused' ? 'pause' : 'open');
-  renderPosition();
-});
-function close(ending) {
-  if (!state.position || state.position.phase === 'closed') return;
-  state.position.phase = 'closed'; state.position.ending = ending;
-  addEvent(ending === 'retain tokens' ? 'Closed · retain' : 'Closed · convert', 'close');
-  renderPosition();
-}
-$('#close-retain').addEventListener('click', () => close('retain tokens'));
-$('#close-convert').addEventListener('click', () => close('convert to USDG'));
-$('#start-over').addEventListener('click', () => {
-  state.position = null; state.previewReady = false; show('research');
-});
-show('research');
+
+for (const tab of ['research', 'positions'])
+  $(`#${tab}-tab`).addEventListener('click', () => showTab(tab));
+$('#pool').addEventListener('change', updateWidths);
+$('#setup-form').addEventListener('input', () => {reviewed = null; $('#setup-review').hidden = true;});
+showTab(new URLSearchParams(location.search).get('tab') === 'positions' ? 'positions' : 'research');
+loadPools();
