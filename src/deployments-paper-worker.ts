@@ -1,7 +1,9 @@
 import pg from 'pg';
+import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
+import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
 import {DeploymentConflict,DeploymentStore} from './deployments/store.js';
 import {log} from './logger.js';
 
@@ -12,6 +14,8 @@ const envSchema=z.object({
  DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:z.coerce.number().int().min(10000).max(300000).default(60000),
  DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:z.coerce.number().int().min(1).max(100).default(20),
  DEPLOYMENT_PAPER_WORKER_MAX_STEPS:z.coerce.number().int().min(1).max(100).default(8),
+ DEPLOYMENT_PAPER_OPERATION_WORKER:z.enum(['0','1']).default('0'),
+ DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:z.coerce.number().int().min(1).max(20).default(4),
 });
 
 const lockKey=[4663,18727];
@@ -75,9 +79,9 @@ async function main(){
  const store=new DeploymentStore(env.DATABASE_URL);
  const indexer=new pg.Pool({connectionString:env.DATABASE_URL,max:3});
  try{
-  await store.assertReady();
+ await store.assertReady();
   const chain=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,
-   env.DEPLOYMENT_RPC_TIMEOUT_MS);
+   env.DEPLOYMENT_RPC_TIMEOUT_MS),workerId=`paper-model:${randomUUID()}`;
   while(!stop.signal.aborted){
    try{
     const result=await runPaperMaintenancePass(store,chain,indexer,
@@ -88,6 +92,18 @@ async function main(){
     log('error','paper_worker_pass_failed',{
      reason:failureCode(error),
     });
+   }
+   if(env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1'){
+    for(let n=0;n<env.DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS&&!stop.signal.aborted;n++){
+     try{
+      const result=await processOnePaperOperation(store,chain,indexer,workerId);
+      if(result.status==='idle')break;
+      log(result.status==='blocked'?'error':'info','paper_operation_worker_pass',result);
+     }catch(error){
+      log('error','paper_operation_worker_failed',{reason:failureCode(error)});
+      break;
+     }
+    }
    }
    await pause(env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS,stop.signal);
   }
