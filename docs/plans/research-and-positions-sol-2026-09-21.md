@@ -1111,6 +1111,11 @@ terminal accounting and PR5 operator acceptance; retain the W4-W7 release gates.
   is not stored in the deployment revision; historical fees, costs, passive
   comparison, HTTP binding and action availability remain absent.
 
+Final pinned `npm run check` passed **725/725 tests**, and the isolated
+PostgreSQL `npm run test:integration` gate passed after these second-wave
+changes. These checks do not replace a campaign-owned fork rehearsal or a
+sealed-release/browser parity run.
+
 Next, make the RangeKeeper confirmation durable in a non-position record with
 independently verifiable source-exact simulation, then book the open only after
 an operation is accepted and its execution inventory is reconciled. Rehearse
