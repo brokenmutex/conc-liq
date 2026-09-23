@@ -16,7 +16,7 @@ async function schema(){const name=`migration_test_${randomUUID().replaceAll('-'
 try {
  const fresh=await schema();
  await assert.rejects(assertSchemaReady(client),/schema incompatible/);
- assert.deepEqual(await migrateDatabase(client),[1,2,3,4,5,6,7]);
+ assert.deepEqual(await migrateDatabase(client),[1,2,3,4,5,6,7,8]);
  await assertSchemaReady(client);
  assert.deepEqual(await migrateDatabase(client),[]);
  await schema();
@@ -30,7 +30,7 @@ try {
  await assertSchemaReady(client);
  await assert.rejects(assertDeploymentSchemaReady(client),/schema incompatible/);
  await client.query("INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status) VALUES('upgrade','same','{}','{}','closed')");
- assert.deepEqual(await migrateDatabase(client),[4,5,6,7]);
+ assert.deepEqual(await migrateDatabase(client),[4,5,6,7,8]);
  await assertSchemaReady(client);
  await assertDeploymentSchemaReady(client);
  assert.equal((await client.query("SELECT policy_hash FROM paper_sessions WHERE stream_key='upgrade'")).rows[0].policy_hash,'same');
@@ -44,7 +44,7 @@ try {
  }
  await assertSchemaReady(client);
  await assert.rejects(assertDeploymentSchemaReady(client),/schema incompatible/);
- assert.deepEqual(await migrateDatabase(client),[5,6,7]);
+ assert.deepEqual(await migrateDatabase(client),[5,6,7,8]);
  await assertDeploymentSchemaReady(client);
  assert.equal((await client.query("SELECT to_regclass('deployment_paper_fee_evidence') AS name")).rows[0].name,
   'deployment_paper_fee_evidence');
@@ -62,7 +62,7 @@ try {
  }
  await assertSchemaReady(client);
  await assert.rejects(assertDeploymentSchemaReady(client),/schema incompatible/);
- assert.deepEqual(await migrateDatabase(client),[7]);
+ assert.deepEqual(await migrateDatabase(client),[7,8]);
  await assertDeploymentSchemaReady(client);
  assert.equal((await client.query("SELECT to_regclass('deployment_paper_accounting_invalidations') AS name")).rows[0].name,
   'deployment_paper_accounting_invalidations');
@@ -101,7 +101,7 @@ try {
  const existing=await schema();await client.query(SCHEMA_SQL);
  await client.query(`INSERT INTO paper_sessions(stream_key,policy_hash,policy,state,status) VALUES('old','unchanged','{}','{}','closed')`);
  await assert.rejects(migrateDatabase(client),/Unversioned existing database/);
- assert.deepEqual(await migrateDatabase(client,{baseline:true}),[1,2,3,4,5,6,7]);
+ assert.deepEqual(await migrateDatabase(client,{baseline:true}),[1,2,3,4,5,6,7,8]);
  const old=(await client.query("SELECT policy_hash,state,runtime_identity FROM paper_sessions")).rows[0];
  assert.deepEqual(old,{policy_hash:'unchanged',state:{},runtime_identity:null});
  assert.equal((await client.query('SELECT method FROM schema_migrations WHERE version=1')).rows[0].method,'verified_baseline');
@@ -117,14 +117,14 @@ try {
  const current=(await client.query('SELECT c.relname,k.conname FROM pg_constraint k JOIN pg_class c ON c.oid=k.conrelid JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[])',[fixture.tables])).rows;
  for(const row of current)await client.query(`ALTER TABLE ${row.relname} DROP CONSTRAINT "${row.conname}"`);
  for(const row of fixture.constraints)await client.query(`ALTER TABLE ${row.table_name} ADD CONSTRAINT "${row.name}" ${row.definition}`);
- assert.deepEqual(await migrateDatabase(client,{baseline:true}),[1,2,3,4,5,6,7]);
+ assert.deepEqual(await migrateDatabase(client,{baseline:true}),[1,2,3,4,5,6,7,8]);
  const broken=await schema();await client.query(SCHEMA_SQL);await client.query('ALTER TABLE paper_sessions DROP COLUMN policy_hash');
  await assert.rejects(migrateDatabase(client,{baseline:true}),/differs from the frozen baseline/);
  assert.equal((await client.query("SELECT to_regclass('schema_migrations') AS name")).rows[0].name,null);
  // search_path fallback must not let a different schema satisfy readiness.
  await schema();await client.query(`SET search_path=${schemas.at(-1)},${existing}`);
  await assert.rejects(assertSchemaReady(client),/schema incompatible/);
- console.log(JSON.stringify({passed:['fresh migration','v3-to-v7 isolated upgrade','v4-to-v7 isolated upgrade','v6-to-v7 isolated upgrade','idempotency','read-only readiness','checksum rejection','verified existing baseline','exact production legacy constraints accepted','legacy rows unchanged','worker starts without DDL','application locks do not block readiness','schema drift rejected atomically','search-path isolation','monotone coverage cursor']}));
+ console.log(JSON.stringify({passed:['fresh migration','v3-to-v8 isolated upgrade','v4-to-v8 isolated upgrade','v6-to-v8 isolated upgrade','idempotency','read-only readiness','checksum rejection','verified existing baseline','exact production legacy constraints accepted','legacy rows unchanged','worker starts without DDL','application locks do not block readiness','schema drift rejected atomically','search-path isolation','monotone coverage cursor']}));
 }finally{
  await client.query('ROLLBACK');await client.query('SET search_path=public');
  for(const name of schemas)await client.query(`DROP SCHEMA IF EXISTS ${name} CASCADE`);

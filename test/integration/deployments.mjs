@@ -18,9 +18,17 @@ import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_ST
  from '../../src/deployments/paper-cost.ts';
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
+import {buildPaperCloseConvertModel,costPaperCloseConvert,
+ PAPER_STATIC_CONVERT_GAS_PATH,PAPER_STATIC_CONVERT_GAS_STAGES,
+ PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
+ paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
+ paperCloseConvertGasAllowanceStatesV2,verifyCanonicalPaperCloseConvertQuote}
+ from '../../src/deployments/paper-close-convert-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
-import {auditCanonicalPaperAccounting,recordCanonicalNextPaperAccounting,projectCanonicalPaperAccounting}
+import {auditCanonicalPaperAccounting,recordCanonicalNextPaperAccounting,
+ buildPaperAccounting,recordCanonicalNextPaperConversionAccountingV2,projectCanonicalPaperAccounting}
  from '../../src/deployments/paper-accounting.ts';
+import {verifyCanonicalPaperAnchors} from '../../src/deployments/paper-canonical-anchors.ts';
 import {advancePaperScenarioWithFeeSampler} from '../../src/deployments/paper-projection.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
@@ -38,7 +46,7 @@ let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -152,14 +160,15 @@ try{
   referenceProof:{fixture:true}};
  const accountingHashes=new Map([['100',sourceHash],['101','0x'+'3'.repeat(64)],
   ['102','0x'+'5'.repeat(64)],['103','0x'+'8'.repeat(64)]]);
- let accountingReorgDuringRead=false,accountingOpenReads=0;
+ let accountingReorgDuringRead=false,accountingReorgBlock='100',accountingOpenReads=0;
  const accountingClient={getChainId:async()=>4663,getBlock:async({blockNumber})=>{
   const number=String(blockNumber);
-  if(number==='100')accountingOpenReads++;
-  return {hash:accountingReorgDuringRead&&number==='100'&&accountingOpenReads>1?
+  if(number===accountingReorgBlock)accountingOpenReads++;
+  return {hash:accountingReorgDuringRead&&number===accountingReorgBlock&&accountingOpenReads>1?
    '0x'+'7'.repeat(64):accountingHashes.get(number),
    timestamp:BigInt(frame.source.timestamp)};
  }};
+ const verifyPaperAnchors=(chainId,sources)=>verifyCanonicalPaperAnchors(accountingClient,chainId,sources);
  const recordAccounting=()=>recordCanonicalNextPaperAccounting(store,accountingClient,paperDraft.id);
  const projectAccounting=()=>projectCanonicalPaperAccounting(store,accountingClient,paperDraft.id);
  const indicative=buildIndicativePaperOpenPreview(paperInput,frame);
@@ -349,7 +358,7 @@ try{
   /paper_open_source_mismatch/);
  const paperPreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{paperOpenModel:paperModel},
-  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60000)});
+  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+1500)});
  const paperOperation=await store.acceptOperation(paperDraft.id,{previewId:paperPreview.id,
   contentDigest:paperPreview.contentDigest,expectedRevision:1,
   idempotencyKey:'paper-open-model-unique-1'},'operator');
@@ -359,10 +368,26 @@ try{
   error=>error instanceof DeploymentConflict&&error.code==='paper_open_claim_lost');
  await store.advanceClaim(paperOperation.id,'paper-worker','model_checked','executing',null);
  await store.advanceClaim(paperOperation.id,'paper-worker','ready_to_record','reconciling',null);
- const opened=await store.completeTrustedPaperOpen(paperOperation.id,'paper-worker');
+ await admin.query("UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second' WHERE id=$1",
+  [paperOperation.id]);
+ await store.close();store=new DeploymentStore(url.toString());await store.assertReady();
+ const restartedPaperClaim=await store.claimNext('paper-restart',30,'paper');
+ assert.equal(restartedPaperClaim.id,paperOperation.id);assert.equal(restartedPaperClaim.stage,'ready_to_record');
+ await new Promise(resolve=>setTimeout(resolve,1700));
+ accountingReorgDuringRead=true;accountingOpenReads=0;
+ await assert.rejects(store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_open_source_not_canonical');
+ accountingReorgDuringRead=false;accountingOpenReads=0;
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query("SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1 AND kind='capital_in'",
+  [paperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+  [paperDraft.id])).rows[0].lifecycle,'opening');
+ const opened=await store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors);
  assert.equal(opened.replayed,false);
  assert.equal(await store.paperFeeSamplingState(paperDraft.id),null);
- assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,'paper-worker'),
+ assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors),
   {markId:opened.markId,replayed:true});
  const paperRows=(await admin.query(`SELECT kind,entry_key,value_raw,source FROM deployment_ledger
   WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
@@ -466,7 +491,7 @@ try{
  await store.claimNext('paper-worker',30,'paper');
  await store.advanceClaim(invalidOperation.id,'paper-worker','model_checked','executing',null);
  await store.advanceClaim(invalidOperation.id,'paper-worker','ready_to_record','reconciling',null);
- await assert.rejects(store.completeTrustedPaperOpen(invalidOperation.id,'paper-worker'),
+ await assert.rejects(store.completeTrustedPaperOpen(invalidOperation.id,'paper-worker',verifyPaperAnchors),
   error=>error instanceof DeploymentConflict&&error.code==='paper_open_candidate_mismatch');
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1',
   [invalidPaperDraft.id])).rows[0].n,0);
@@ -683,7 +708,7 @@ try{
   paperInput.parameters,closeCosts),/paper_close_source_or_position_mismatch/);
  const closePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
   kind:'close_retain',request:{kind:'close_retain'},proposal:{paperCloseRetainModel:closeModel},
-  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60000)});
+  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+1500)});
  const closeOperation=await store.acceptOperation(paperDraft.id,{previewId:closePreview.id,
   contentDigest:closePreview.contentDigest,expectedRevision:1,
   idempotencyKey:'paper-close-retain-unique-1'},'operator');
@@ -691,9 +716,25 @@ try{
  assert.equal(closeClaim.id,closeOperation.id);
  await store.advanceClaim(closeOperation.id,'paper-worker','model_checked','executing',null);
  await store.advanceClaim(closeOperation.id,'paper-worker','ready_to_record','reconciling',null);
- await assert.rejects(store.completeTrustedPaperCloseRetain(closeOperation.id,'wrong-worker'),
+ await assert.rejects(store.completeTrustedPaperCloseRetain(closeOperation.id,'wrong-worker',verifyPaperAnchors),
   error=>error instanceof DeploymentConflict&&error.code==='paper_close_claim_lost');
- const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker');
+ await admin.query("UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second' WHERE id=$1",
+  [closeOperation.id]);
+ await store.close();store=new DeploymentStore(url.toString());await store.assertReady();
+ const restartedCloseClaim=await store.claimNext('paper-restart-close',30,'paper');
+ assert.equal(restartedCloseClaim.id,closeOperation.id);assert.equal(restartedCloseClaim.stage,'ready_to_record');
+ await new Promise(resolve=>setTimeout(resolve,1700));
+ accountingReorgDuringRead=true;accountingOpenReads=0;
+ await assert.rejects(store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-restart-close',verifyPaperAnchors),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_close_source_not_canonical');
+ accountingReorgDuringRead=false;accountingOpenReads=0;
+ assert.equal((await admin.query("SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1 AND provenance->>'classification'='paper_model_partial_close'",
+  [paperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query("SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1 AND kind='capital_out'",
+  [paperDraft.id])).rows[0].n,0);
+ assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+  [paperDraft.id])).rows[0].lifecycle,'closing');
+ const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-restart-close',verifyPaperAnchors);
  assert.equal(closed.replayed,false);
  await assert.rejects(recordAccounting(),
   error=>error instanceof DeploymentConflict&&
@@ -771,7 +812,7 @@ try{
   String(BigInt(verifiedFeeInterval.token1.lowerRawQ128)+
    BigInt(verifiedSecondFee.token1.lowerRawQ128)+
    BigInt(verifiedCloseFee.token1.lowerRawQ128)));
- assert.deepEqual(await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-worker'),
+ assert.deepEqual(await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-restart-close',verifyPaperAnchors),
   {markId:closed.markId,replayed:true});
  const finalLedger=(await admin.query(`SELECT kind,amount_raw,value_raw,source
   FROM deployment_ledger WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
@@ -883,7 +924,233 @@ try{
   {markId:valuation.markId,replayed:true});
  await assert.rejects(store.paperValuationState(paperDraft.id),
   error=>error instanceof DeploymentConflict&&error.code==='paper_valuation_state_unavailable');
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close']}));
+ // Synthetic calibration rows below exercise the V2 persisted selector only;
+ // they are not owned-fork sampler evidence or production fallback profiles.
+ const priorRuntimeIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
+ const conversionRuntime={buildId:'a'.repeat(64),configHash:'b'.repeat(64),nodeVersion:process.version};
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(conversionRuntime);
+ try{
+  accountingHashes.set('101','0x'+'3'.repeat(64));
+  await admin.query(`UPDATE deployment_operations SET status='blocked',claimed_by=NULL,claim_until=NULL
+   WHERE id=$1`,[invalidOperation.id]);
+  const convertDraft=await store.createDraft({...draftInput,mode:'paper',
+   allocation:paperInput.allocation,config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}});
+  const convertInput=await store.paperDraft(convertDraft.id),convertIndicative=
+   buildIndicativePaperOpenPreview(convertInput,frame),convertCosted=
+   costIndicativePaperOpenPreview(convertIndicative,gasRows,poolAddress,10n**18n,1_000_000_000n),
+   convertOpenModel=buildPaperOpenModel(convertInput,frame,convertCosted);
+  const convertOpenPreview=await store.recordPreview({campaignId:convertDraft.id,expectedRevision:1,
+   kind:'open',request:{kind:'open'},proposal:{paperOpenModel:convertOpenModel},
+   evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+60_000)});
+  const convertOpenOperation=await store.acceptOperation(convertDraft.id,{previewId:convertOpenPreview.id,
+   contentDigest:convertOpenPreview.contentDigest,expectedRevision:1,
+   idempotencyKey:'paper-open-convert-v2-unique-1'},'operator');
+  const convertOpenClaim=await store.claimNext('paper-convert-open',30,'paper','static_manual_v1');
+  assert.equal(convertOpenClaim.id,convertOpenOperation.id);
+  await store.advanceClaim(convertOpenOperation.id,'paper-convert-open','model_checked','executing',null);
+  await store.advanceClaim(convertOpenOperation.id,'paper-convert-open','ready_to_record','reconciling',null);
+  const convertOpened=await store.completeTrustedPaperOpen(convertOpenOperation.id,
+   'paper-convert-open',verifyPaperAnchors);
+  const v2OpenSnapshot=await recordCanonicalNextPaperConversionAccountingV2(store,
+   accountingClient,convertDraft.id);
+  assert.equal(v2OpenSnapshot.kind,'open');assert.equal(v2OpenSnapshot.markId,convertOpened.markId);
+
+  const convertGasSampledAt=new Date().toISOString(),convertGasSource={block:'100',hash:sourceHash,
+   estimatedAt:convertGasSampledAt,callHash:'0x'+'6'.repeat(64),method:'owned_fork_nitro_exact_call_v1'};
+  for(const stage of PAPER_STATIC_CONVERT_GAS_STAGES){
+   const model={schemaVersion:1,source:convertGasSource,gasUnitsExpected:'100000',gasUnitsBound:'150000',
+    sizeMinValue:'1',sizeMaxValue:String(500n*10n**18n),shareMinPpm:'0',shareMaxPpm:'1000000',
+    tickLower:convertOpenModel.candidate.range.tickLower,
+    tickUpper:convertOpenModel.candidate.range.tickUpper};
+   await admin.query(`INSERT INTO deployment_calibration_profiles
+    (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
+     component,status,evidence_class,model,validation,source_hash,observed_until)
+    VALUES($1,1,4663,$2,$3,$4,'zero','one_to_500_usd','gas_units','provisional',
+     'fork_estimated',$5,'{}',$6,$7)`,[randomUUID(),poolAddress,PAPER_STATIC_CONVERT_GAS_PATH,
+     stage,JSON.stringify(model),contentHash(convertGasSource),convertGasSampledAt]);
+  }
+  const convertGasRows=(await admin.query(`SELECT id::text AS id,version,
+   pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+   allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+   evidence_class AS "evidenceClass",model,source_hash AS "sourceHash",
+   observed_until AS "observedUntil" FROM deployment_calibration_profiles
+   WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2`,
+   [poolAddress,PAPER_STATIC_CONVERT_GAS_PATH])).rows,convertV1Costs=
+   costPaperCloseConvert(convertGasRows,poolAddress,convertOpenModel.candidate,
+    10n**18n,1_000_000_000n);
+  const routeContent={router:PAPER_ROUTER,quoter:PAPER_QUOTER,path:[token0,token1],fee:3000,
+   inputAsset:'token0',slippageBps:50,pathVersion:PAPER_STATIC_CONVERT_GAS_PATH};
+  const convertRoute={...routeContent,routeHash:contentHash(routeContent)},
+   convertFrame={...frame,source:{...frame.source,block:'101',hash:'0x'+'3'.repeat(64)}};
+  const convertModel=buildPaperCloseConvertModel(convertOpenModel,convertOpened.markId,
+   {markId:convertOpened.markId,sourceBlock:'100',sourceHash},convertFrame,
+   convertInput.profile,convertInput.parameters,convertRoute,convertV1Costs);
+  const convertClosePreview=await store.recordPreview({campaignId:convertDraft.id,expectedRevision:1,
+   kind:'close_convert',request:{kind:'close_convert'},proposal:{paperCloseConvertModel:convertModel},
+   evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+8_000)});
+  const convertOperation=await store.acceptOperation(convertDraft.id,{previewId:convertClosePreview.id,
+   contentDigest:convertClosePreview.contentDigest,expectedRevision:1,
+   idempotencyKey:'paper-close-convert-v2-unique-1'},'operator');
+  const convertClaim=await store.claimNext('paper-convert-close',30,'paper','static_manual_v1');
+  assert.equal(convertClaim.id,convertOperation.id);
+  await store.advanceClaim(convertOperation.id,'paper-convert-close','model_checked','executing',null);
+  await store.advanceClaim(convertOperation.id,'paper-convert-close','ready_to_record','reconciling',null);
+  accountingReorgBlock='101';accountingOpenReads=0;accountingReorgDuringRead=true;
+  await assert.rejects(store.prepareTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-close',verifyPaperAnchors));
+  accountingReorgDuringRead=false;accountingOpenReads=0;
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
+   WHERE campaign_id=$1 AND provenance->>'classification'='paper_model_converted_close'`,
+   [convertDraft.id])).rows[0].n,0);
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+   WHERE campaign_id=$1 AND kind='capital_out'`,[convertDraft.id])).rows[0].n,0);
+  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+   [convertDraft.id])).rows[0].lifecycle,'closing');
+  const convertPrepared=await store.prepareTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-close',verifyPaperAnchors);
+  assert.equal(convertPrepared.replayed,false);assert.equal(convertPrepared.pending,true);
+  const convertFee=await store.recordTrustedPaperFeeEvidence(convertDraft.id,
+   convertOpened.markId,convertPrepared.markId,verifiedFeeInterval);
+  assert.equal(convertFee.replayed,false);
+  const convertFeeRow=(await admin.query(`SELECT id::text,proof_hash,carry,carry_hash
+   FROM deployment_paper_fee_evidence WHERE id=$1`,[convertFee.evidenceId])).rows[0];
+  const carry=convertFeeRow.carry,
+   convertFeeEvidence={id:convertFeeRow.id,proofHash:convertFeeRow.proof_hash,
+    carryHash:convertFeeRow.carry_hash,carry},
+   convertPreviousAccounting=buildPaperAccounting(convertOpenModel,convertInput.profile,
+    {id:convertOpened.markId,kind:'open',source:convertOpenModel.source,
+     reference:convertOpenModel.reference,principal0Raw:convertOpenModel.allocation.token0Raw,
+     principal1Raw:convertOpenModel.allocation.token1Raw},null,null,null),
+   convertBaseAccounting=buildPaperAccounting(convertOpenModel,convertInput.profile,
+    {id:convertPrepared.markId,kind:'valuation',source:convertModel.source,
+     reference:convertModel.reference,
+     principal0Raw:String(BigInt(convertModel.principal.amount0Raw)+BigInt(convertModel.idle.amount0Raw)),
+     principal1Raw:String(BigInt(convertModel.principal.amount1Raw)+BigInt(convertModel.idle.amount1Raw))},
+    convertPreviousAccounting,convertFeeEvidence,null),
+   convertInventory={token0Raw:convertBaseAccounting.inventory.token0Raw,
+    token1Raw:convertBaseAccounting.inventory.token1Raw},
+   convertScope={poolAddress:convertInput.profile.pool.pool,profileHash:convertOpenModel.profileHash,
+    openModelHash:contentHash(convertOpenModel),candidate:{
+     deployedValue:convertOpenModel.candidate.deployedValue,
+     sharePpm:convertOpenModel.candidate.dilutedSharePpm,
+     tickLower:convertOpenModel.candidate.range.tickLower,
+     tickUpper:convertOpenModel.candidate.range.tickUpper,
+     liquidity:convertOpenModel.candidate.liquidity},routeHash:convertModel.conversionRoute.routeHash,
+    inputAsset:'token0',inputAmountRaw:convertInventory.token0Raw,inventory:convertInventory,
+    initialAllowances:{manager0:String(BigInt(convertOpenModel.candidate.amount0Desired)-
+      BigInt(convertOpenModel.candidate.amount0Minted)),
+     manager1:String(BigInt(convertOpenModel.candidate.amount1Desired)-
+      BigInt(convertOpenModel.candidate.amount1Minted)),router0:'0',router1:'0'}};
+  const convertScopeHash=paperCloseConvertGasScopeHashV2(convertScope),
+   convertSizeBand=paperCloseConvertGasSizeBandV2(convertScope),
+   convertAllowances=paperCloseConvertGasAllowanceStatesV2(convertScope),
+   convertSequenceHash=contentHash({kind:'synthetic_isolated_v2_sequence',
+    campaignId:convertDraft.id,scopeHash:convertScopeHash}),
+   convertReportHash=contentHash({kind:'synthetic_isolated_v2_report',
+    campaignId:convertDraft.id,scopeHash:convertScopeHash}),
+   sourceReplayHash=contentHash({kind:'synthetic_source_replay',campaignId:convertDraft.id}),
+   postWithdrawReplayHash=contentHash({kind:'synthetic_post_withdraw_replay',campaignId:convertDraft.id}),
+   v2SampledAt=convertModel.costs.gasPriceObservedAt,v2GasSource={block:'101',hash:convertFrame.source.hash,
+    estimatedAt:v2SampledAt,callHash:'0x'+'7'.repeat(64),method:'owned_fork_nitro_exact_call_v1'},
+   v2Attestation={verificationClass:'canonical_close_convert_gas_replay_v2',
+    evidenceClass:'fork_estimated',status:'provisional',reportHash:convertReportHash,
+    sourceHash:convertFrame.source.hash,profileHash:convertInput.profileHash,
+    scopeHash:convertScopeHash,sequenceHash:convertSequenceHash,
+    postWithdrawReplayHash,sourceReplayHash,
+    ownedForkReplayBudget:{requests:1,rejected:0,maxRequests:10},
+    runtimeIdentity:conversionRuntime,verifiedAt:v2SampledAt};
+  for(const [stageIndex,stage] of PAPER_STATIC_CONVERT_GAS_STAGES_V2.entries()){
+   const model={schemaVersion:1,source:v2GasSource,gasUnitsExpected:'100000',gasUnitsBound:'150000',
+    sizeMinValue:'1',sizeMaxValue:String(500n*10n**18n),shareMinPpm:'0',shareMaxPpm:'1000000',
+    tickLower:convertOpenModel.candidate.range.tickLower,
+    tickUpper:convertOpenModel.candidate.range.tickUpper,scopeHash:convertScopeHash,
+    sequenceHash:convertSequenceHash,stageIndex,stageCount:PAPER_STATIC_CONVERT_GAS_STAGES_V2.length};
+   const validation={validationPolicy:'paper_close_convert_gas_v2',
+    statusReason:'one_owned_fork_post_withdraw_replay',sampleCount:1,distinctCampaigns:1,
+    reportHash:convertReportHash,canonicalAttestation:v2Attestation,
+    runtimeIdentity:conversionRuntime,campaignId:convertDraft.id,revision:1,
+    terminalMarkId:convertPrepared.markId,previousMarkId:convertOpened.markId,
+    profileHash:convertInput.profileHash,openModelHash:contentHash(convertOpenModel),
+    feeEvidence:{id:convertFeeRow.id,proofHash:convertFeeRow.proof_hash,carryHash:convertFeeRow.carry_hash},
+    scope:convertScope,scopeHash:convertScopeHash,sequenceHash:convertSequenceHash,
+    sizeBand:convertSizeBand,postWithdrawReplayHash,sourceReplayHash,localEvidence:{}};
+   await admin.query(`INSERT INTO deployment_calibration_profiles
+    (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
+     component,status,evidence_class,model,validation,source_hash,observed_until)
+    VALUES($1,1,4663,$2,$3,$4,$5,$6,'gas_units','provisional','fork_estimated',
+     $7,$8,$9,$10)`,[randomUUID(),poolAddress,PAPER_STATIC_CONVERT_GAS_PATH_V2,
+     stage,convertAllowances[stage],convertSizeBand,JSON.stringify(model),
+     JSON.stringify(validation),contentHash(v2GasSource),v2SampledAt]);
+  }
+  await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second'
+   WHERE id=$1`,[convertOperation.id]);
+  await store.close();store=new DeploymentStore(url.toString());await store.assertReady();
+  const restartedConvertClaim=await store.claimNext('paper-convert-restart',30,'paper','static_manual_v1');
+  assert.equal(restartedConvertClaim.id,convertOperation.id);
+  assert.equal(restartedConvertClaim.stage,'paper_close_convert_mark_pending');
+  const remainingPreviewMs=Math.max(0,convertClosePreview.expiresAt.getTime()-Date.now()+100);
+  if(remainingPreviewMs)await new Promise(resolve=>setTimeout(resolve,remainingPreviewMs));
+  assert.deepEqual(await store.prepareTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-restart',verifyPaperAnchors),
+   {markId:convertPrepared.markId,replayed:true,pending:true});
+
+  const conversionClient={...accountingClient,
+   simulateContract:async({args})=>({result:[BigInt(args[0].amountIn)/1000n||1n]})},
+   verifyConvertQuote=(chainId,model,inputAmountRaw)=>
+    verifyCanonicalPaperCloseConvertQuote(conversionClient,model,inputAmountRaw),
+   recordConvertAccounting=()=>recordCanonicalNextPaperConversionAccountingV2(store,
+    conversionClient,convertDraft.id);
+  accountingReorgBlock='101';accountingOpenReads=0;accountingReorgDuringRead=true;
+  await assert.rejects(recordConvertAccounting(),/Paper conversion V2 source changed during verification/);
+  accountingReorgDuringRead=false;accountingOpenReads=0;
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_paper_accounting
+   WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version='paper_fixed_flow_convert_v2'`,
+   [convertDraft.id,convertPrepared.markId])).rows[0].n,0);
+  const convertAccounting=await recordConvertAccounting();
+  assert.equal(convertAccounting.kind,'close_convert');assert.equal(convertAccounting.markId,convertPrepared.markId);
+  assert.equal(await recordConvertAccounting(),null);
+  const convertSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
+   WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version='paper_fixed_flow_convert_v2'`,
+   [convertDraft.id,convertPrepared.markId])).rows[0].snapshot;
+  assert.equal(convertSnapshot.markKind,'close_convert');
+  assert.equal(convertSnapshot.conversion.gasEvidence.pathVersion,PAPER_STATIC_CONVERT_GAS_PATH_V2);
+  assert.equal(convertSnapshot.flows.filter(flow=>flow.kind==='modeled_capital_out').length,3);
+  const changedQuote=async(chainId,model,inputAmountRaw)=>{
+   const quote=await verifyConvertQuote(chainId,model,inputAmountRaw);
+   return {...quote,expectedOutputRaw:String(BigInt(quote.expectedOutputRaw)+1n)};
+  };
+  await assert.rejects(store.completeTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-restart',verifyPaperAnchors,changedQuote),
+   error=>error instanceof DeploymentConflict&&error.code==='paper_close_convert_canonical_quote_changed');
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+   WHERE campaign_id=$1 AND kind='capital_out'`,[convertDraft.id])).rows[0].n,0);
+  accountingReorgBlock='101';accountingOpenReads=0;accountingReorgDuringRead=true;
+  await assert.rejects(store.completeTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-restart',verifyPaperAnchors,verifyConvertQuote));
+  accountingReorgDuringRead=false;accountingOpenReads=0;
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+   WHERE campaign_id=$1 AND kind='capital_out'`,[convertDraft.id])).rows[0].n,0);
+  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+   [convertDraft.id])).rows[0].lifecycle,'closing');
+  const converted=await store.completeTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-restart',verifyPaperAnchors,verifyConvertQuote);
+  assert.equal(converted.replayed,false);assert.equal(converted.markId,convertPrepared.markId);
+  assert.deepEqual(await store.completeTrustedPaperCloseConvert(convertOperation.id,
+   'paper-convert-restart',verifyPaperAnchors,verifyConvertQuote),
+   {markId:convertPrepared.markId,accountingId:convertAccounting.snapshotId,replayed:true});
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+   WHERE campaign_id=$1 AND operation_id=$2 AND kind='capital_out'`,
+   [convertDraft.id,convertOperation.id])).rows[0].n,3);
+  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
+   WHERE campaign_id=$1 AND provenance->>'classification'='paper_model_converted_close'`,
+   [convertDraft.id])).rows[0].n,1);
+  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
+   [convertDraft.id])).rows[0].lifecycle,'closed');
+ }finally{
+  if(priorRuntimeIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
+  else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorRuntimeIdentity;
+ }
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close','static/manual strategy-filtered claim','V2 close-convert reorg and zero-write checks','V2 seven-stage conversion accounting','pending close resumes after preview expiry','canonical quote mutation rejected without capital out','idempotent V2 close completion']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();
