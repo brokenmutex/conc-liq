@@ -16,15 +16,24 @@ import {buildPaperOpenModel,paperOpenModelSchema} from './paper-open-model.js';
 import {buildPaperCloseRetainModel,paperCloseRetainModelSchema} from './paper-close-model.js';
 import {buildPaperCloseConvertModel,costPaperCloseConvert,paperCloseConvertModelSchema,
  PAPER_STATIC_CONVERT_GAS_PATH,paperCloseConvertQuoteSchema,
- type PaperCloseConvertModel,type PaperCloseConvertQuote} from './paper-close-convert-model.js';
+ costPaperCloseConvertGasV2,paperCloseConvertGasScopeV2Schema,
+ paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
+ paperCloseConvertGasAllowanceStatesV2,PAPER_STATIC_CONVERT_GAS_PATH_V2,
+ PAPER_STATIC_CONVERT_GAS_STAGES_V2,
+ type PaperCloseConvertModel,type PaperCloseConvertQuote,
+ type PaperCloseConvertCostsV2,type PaperCloseConvertGasScopeV2} from './paper-close-convert-model.js';
 import {buildPaperPrincipalValuation,paperPrincipalValuationSchema} from './paper-valuation.js';
-import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
+import {verifyPaperGasEvidence,verifyPaperCloseConvertGasEvidence} from './paper-gas-evidence.js';
 import {advancePaperFeeCarry,type CanonicalPaperFeeInterval,type PaperFeeCarry} from './paper-fee-replay.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {MarketProfile} from './market-profile.js';
 import {buildPaperAccounting,paperAccountingSchema,buildPaperConversionAccounting,
  paperConversionAccountingSchema,paperAccountingFromConversionSnapshot,PAPER_ACCOUNTING_POLICY,
- PAPER_CONVERSION_ACCOUNTING_POLICY} from './paper-accounting.js';
+ PAPER_CONVERSION_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,
+ paperConversionAccountingV2Schema,buildPaperConversionAccountingV2,
+ paperAccountingFromConversionV2Snapshot} from './paper-accounting.js';
+import {loadRuntimeIdentity,type RuntimeIdentity} from '../runtime/identity.js';
+import type {PaperCloseConvertGasPersistedEvidence} from './paper-gas-source.js';
 import {z} from 'zod';
 
 const paperGasAttestationSchema=z.object({
@@ -34,6 +43,23 @@ const paperGasAttestationSchema=z.object({
  profileHash:z.string().regex(/^[0-9a-f]{64}$/),
  verifiedAt:z.iso.datetime({offset:true}),
 }).strict();
+const paperCloseConvertGasAttestationSchema=z.object({
+ verificationClass:z.literal('canonical_close_convert_gas_replay_v2'),
+ evidenceClass:z.literal('fork_estimated'),status:z.literal('provisional'),
+ reportHash:z.string().regex(/^[0-9a-f]{64}$/),
+ sourceHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+ profileHash:z.string().regex(/^[0-9a-f]{64}$/),
+ scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+ postWithdrawReplayHash:z.string().regex(/^[0-9a-f]{64}$/),
+ sourceReplayHash:z.string().regex(/^[0-9a-f]{64}$/),
+ ownedForkReplayBudget:z.object({requests:z.number().int().nonnegative(),
+  rejected:z.number().int().nonnegative(),maxRequests:z.number().int().positive()}).strict(),
+ runtimeIdentity:z.object({buildId:z.string().regex(/^[a-f0-9]{64}$/),
+  configHash:z.string().regex(/^[a-f0-9]{64}$/),nodeVersion:z.string().min(1)}).strict(),
+ verifiedAt:z.iso.datetime({offset:true}),
+}).strict();
+const sealedRuntimeIdentitySchema=z.object({buildId:z.string().regex(/^[a-f0-9]{64}$/),
+ configHash:z.string().regex(/^[a-f0-9]{64}$/),nodeVersion:z.string().min(1)}).strict();
 const paperFeeMarkSourceSchema=z.object({
  block:z.string().regex(/^(0|[1-9][0-9]*)$/),
  hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
@@ -75,6 +101,22 @@ async function replayPaperCloseConvert(db:PoolClient,model:PaperCloseConvertMode
  if(contentHash(costs)!==contentHash(model.costs)||contentHash(rebuilt)!==contentHash(model))
   throw new DeploymentConflict('paper_close_convert_model_changed');
  return {profileIds,costs,rebuilt};
+}
+
+function closeConvertGasScopeV2(profile:MarketProfile,open:PaperOpenModel,
+ model:PaperCloseConvertModel,inventory:{token0Raw:string;token1Raw:string}):PaperCloseConvertGasScopeV2{
+ const residual0=BigInt(open.candidate.amount0Desired)-BigInt(open.candidate.amount0Minted),
+  residual1=BigInt(open.candidate.amount1Desired)-BigInt(open.candidate.amount1Minted);
+ if(residual0<0n||residual1<0n)throw new DeploymentConflict('paper_close_convert_open_allowance_invalid');
+ const inputAmountRaw=model.conversionRoute.inputAsset==='token0'?inventory.token0Raw:inventory.token1Raw;
+ return paperCloseConvertGasScopeV2Schema.parse({poolAddress:profile.pool.pool,
+  profileHash:open.profileHash,openModelHash:contentHash(open),candidate:{
+   deployedValue:open.candidate.deployedValue,sharePpm:open.candidate.dilutedSharePpm,
+   tickLower:open.candidate.range.tickLower,tickUpper:open.candidate.range.tickUpper,
+   liquidity:open.candidate.liquidity},routeHash:model.conversionRoute.routeHash,
+  inputAsset:model.conversionRoute.inputAsset,inputAmountRaw,
+  inventory:{token0Raw:inventory.token0Raw,token1Raw:inventory.token1Raw},
+  initialAllowances:{manager0:String(residual0),manager1:String(residual1),router0:'0',router1:'0'}});
 }
 
 export class DeploymentConflict extends Error {
@@ -154,7 +196,8 @@ export class DeploymentStore {
  }
 
  async createDraft(raw:DraftInput){
-  const input=draftInput.parse(raw),id=randomUUID(),wallet=input.wallet.toLowerCase();
+ const input=draftInput.parse(raw),id=randomUUID(),wallet=input.wallet.toLowerCase();
+  const runtimeIdentity=loadRuntimeIdentity()??null;
   const config={...parseStrategyParameters(input.strategyId,input.config),strategyId:input.strategyId,strategyVersion:input.strategyVersion,
    stateSchemaVersion:input.stateSchemaVersion};
   const configHash=contentHash(config);
@@ -182,9 +225,10 @@ export class DeploymentStore {
      parsed.data.pool.quoteToken===0?parsed.data.pool.token1:parsed.data.pool.token0])).rows[0]?.found;
    if(!known)throw new DeploymentConflict('market_profile_indexer_changed');
    await db.query(`INSERT INTO deployment_campaigns
-    (id,mode,chain_id,wallet,market_profile_id,allocation,lifecycle,current_revision)
-    VALUES($1,$2,$3,$4,$5,$6,'draft',1)`,
-    [id,input.mode,input.chainId,wallet,input.marketProfileId,JSON.stringify(input.allocation)]);
+    (id,mode,chain_id,wallet,market_profile_id,allocation,lifecycle,current_revision,runtime_identity)
+    VALUES($1,$2,$3,$4,$5,$6,'draft',1,$7)`,
+    [id,input.mode,input.chainId,wallet,input.marketProfileId,JSON.stringify(input.allocation),
+     runtimeIdentity?JSON.stringify(runtimeIdentity):null]);
    await db.query(`INSERT INTO deployment_revisions
     (campaign_id,revision,parent_revision,strategy_id,strategy_version,state_schema_version,config,config_hash)
     VALUES($1,1,NULL,$2,$3,$4,$5,$6)`,
@@ -436,6 +480,363 @@ export class DeploymentStore {
     AND size_band=$3 AND component='gas_units'
    ORDER BY stage,allowance_state,version DESC LIMIT 201`,
    [poolAddress,pathVersion,sizeBand])).rows;
+ }
+
+ private async assertPersistedPaperCloseConvertGasEvidence(db:PoolClient,
+  input:PaperCloseConvertGasPersistedEvidence,lockCampaign=false){
+  const campaign=(await db.query<{mode:string;lifecycle:string;current_revision:number;
+   runtime_identity:unknown;open_mark_id:string;chain_id:number;profile:unknown;
+   profile_evidence:unknown;profile_hash:string;config:unknown;config_hash:string;
+   strategy_id:string;strategy_version:string;state_schema_version:number}>(`
+   SELECT c.mode,c.lifecycle,c.current_revision,c.runtime_identity,c.open_mark_id,c.chain_id,
+    p.profile,p.evidence AS profile_evidence,p.profile_hash,r.config,r.config_hash,
+    r.strategy_id,r.strategy_version,r.state_schema_version
+   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+   WHERE c.id=$1${lockCampaign?' FOR SHARE OF c':''}`,[input.campaignId])).rows[0];
+  const runtime=sealedRuntimeIdentitySchema.safeParse(campaign?.runtime_identity),
+   profile=marketProfileSchema.safeParse(campaign?.profile),
+   profileEvidence=marketProfileEvidenceSchema.safeParse(campaign?.profile_evidence),
+   open=paperOpenModelSchema.safeParse(input.openModel),
+   scope=paperCloseConvertGasScopeV2Schema.safeParse(input.scope);
+  if(!campaign||campaign.mode!=='paper'||!['closing','closed'].includes(campaign.lifecycle)||
+   campaign.current_revision!==input.revision||!runtime.success||
+   contentHash(runtime.data)!==contentHash(input.runtimeIdentity)||
+   !profile.success||!profileEvidence.success||!open.success||!scope.success||
+   contentHash(campaign.profile)!==campaign.profile_hash||campaign.profile_hash!==input.profileHash||
+   contentHash(profile.data)!==input.profileHash||contentHash(open.data)!==input.openModelHash||
+   contentHash(input.profile)!==input.profileHash||contentHash(input.openModel)!==input.openModelHash||
+   open.data.campaignId!==input.campaignId||
+   open.data.revision!==input.revision||open.data.profileHash!==input.profileHash||
+   open.data.configHash!==campaign.config_hash||
+   referenceProofHash(profileEvidence.data.referenceProof)!==profileEvidence.data.references.proofHash||
+   campaign.strategy_id!=='static_manual_v1'||campaign.strategy_version!=='1.0.0'||
+   campaign.state_schema_version!==1||!campaign.config||
+   contentHash(campaign.config)!==campaign.config_hash)
+   throw new DeploymentConflict('paper_close_convert_gas_campaign_binding_invalid');
+  for(const key of ['poolCodeHash','token0CodeHash','token1CodeHash','managerCodeHash','quoterCodeHash'] as const)
+   if(profile.data.pool[key].toLowerCase()!==profileEvidence.data.contractHashes[key].toLowerCase())
+    throw new DeploymentConflict('paper_close_convert_gas_profile_integrity');
+  const indexed=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM indexer_pools
+   WHERE stream_key=$1 AND lower(pool_address)=lower($2) AND chain_id=$3 AND fee=$4
+    AND enabled=true AND target_set_hash=$5 AND lower(rwa_address)=lower($6)
+    AND created_block<=$7::numeric) AS found`,[profileEvidence.data.streamKey,
+    profile.data.pool.pool,campaign.chain_id,profile.data.pool.fee,
+    profileEvidence.data.indexerTargetSetHash,
+    profile.data.pool.quoteToken===0?profile.data.pool.token1:profile.data.pool.token0,
+    input.closeSource.block])).rows[0]?.found;
+  if(!indexed)throw new DeploymentConflict('paper_close_convert_gas_indexer_changed');
+
+  const openMark=(await db.query<{revision:number;source_block:string|null;source_hash:string|null;
+   provenance:Record<string,unknown>}>(`SELECT revision,source_block::text,source_hash,provenance
+   FROM deployment_marks WHERE id=$1 AND campaign_id=$2`,[campaign.open_mark_id,input.campaignId])).rows[0];
+  if(!openMark||openMark.revision!==input.revision||openMark.source_block!==open.data.source.block||
+   openMark.source_hash?.toLowerCase()!==open.data.source.hash.toLowerCase()||
+   openMark.provenance.classification!=='paper_model_provisional'||
+   openMark.provenance.modelHash!==input.openModelHash||
+   openMark.provenance.source===undefined||contentHash(openMark.provenance.source)!==contentHash(open.data.source))
+   throw new DeploymentConflict('paper_close_convert_gas_open_mark_invalid');
+  if(contentHash(open.data.source)!==contentHash(input.openSource))
+   throw new DeploymentConflict('paper_close_convert_gas_open_source_mismatch');
+
+  const terminal=(await db.query<{revision:number;source_block:string|null;source_hash:string|null;
+   inventory:Record<string,unknown>;calibration_profile_ids:string[];
+   provenance:Record<string,unknown>}>(`SELECT revision,source_block::text,source_hash,inventory,
+    calibration_profile_ids,provenance FROM deployment_marks
+    WHERE id=$1 AND campaign_id=$2`,[input.terminalMarkId,input.campaignId])).rows[0];
+  if(!terminal||terminal.revision!==input.revision||terminal.source_block!==input.closeSource.block||
+   terminal.source_hash?.toLowerCase()!==input.closeSource.hash.toLowerCase()||
+   terminal.provenance.classification!=='paper_model_converted_close'||
+   terminal.inventory.position!==null||terminal.provenance.openMarkId!==campaign.open_mark_id||
+   terminal.provenance.openModelHash!==input.openModelHash)
+   throw new DeploymentConflict('paper_close_convert_gas_terminal_mark_invalid');
+  const laterMark=(await db.query<{found:boolean}>(`SELECT EXISTS(
+   SELECT 1 FROM deployment_marks WHERE campaign_id=$1 AND id>$2) AS found`,
+   [input.campaignId,input.terminalMarkId])).rows[0]?.found;
+  if(laterMark)throw new DeploymentConflict('paper_close_convert_gas_terminal_not_latest');
+  const previousMark=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+   provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
+   FROM deployment_marks WHERE campaign_id=$1 AND id<$2 ORDER BY id DESC LIMIT 1`,
+   [input.campaignId,input.terminalMarkId])).rows[0];
+  if(!previousMark||previousMark.id!==input.previousMarkId)
+   throw new DeploymentConflict('paper_close_convert_gas_previous_mark_invalid');
+  const terminalPreviewId=terminal.provenance.previewId;
+  const terminalPreview=(await db.query<{proposal:Record<string,unknown>}>(`
+   SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2`,
+   [terminalPreviewId,input.campaignId])).rows[0];
+  const closeModel=paperCloseConvertModelSchema.safeParse(terminalPreview?.proposal.paperCloseConvertModel);
+  if(!closeModel.success||closeModel.data.campaignId!==input.campaignId||
+   closeModel.data.revision!==input.revision||closeModel.data.openMarkId!==campaign.open_mark_id||
+   closeModel.data.previousMarkId!==input.previousMarkId||
+   closeModel.data.openModelHash!==input.openModelHash||
+   closeModel.data.source.block!==input.closeSource.block||
+   closeModel.data.source.hash.toLowerCase()!==input.closeSource.hash.toLowerCase()||
+   closeModel.data.source.timestamp!==input.closeSource.timestamp||
+   closeModel.data.poolState.tick!==input.frame.tick||
+   closeModel.data.poolState.sqrtPriceX96!==input.frame.sqrtPriceX96||
+   closeModel.data.poolState.poolLiquidity!==input.frame.poolLiquidity||
+   closeModel.data.reference.price0!==input.frame.price0||
+   closeModel.data.reference.price1!==input.frame.price1||
+   closeModel.data.reference.nativePrice!==input.frame.nativePrice||
+   closeModel.data.referenceProofHash!==input.frame.referenceProofHash||
+   contentHash(closeModel.data.referenceProof)!==contentHash(input.frame.referenceProof)||
+   referenceProofHash(input.frame.referenceProof)!==input.frame.referenceProofHash||
+   contentHash(terminal.provenance.source)!==contentHash(closeModel.data.source)||
+   contentHash(terminal.provenance.reference)!==contentHash(closeModel.data.reference)||
+   contentHash(closeModel.data.conversionRoute)!==contentHash(input.route)||
+   terminal.provenance.closeConvertModelHash!==contentHash(closeModel.data)||
+   contentHash(terminal.provenance.modeledCosts)!==contentHash(closeModel.data.costs)||
+   contentHash(terminal.provenance.conversionRoute)!==contentHash(closeModel.data.conversionRoute)||
+   contentHash(terminal.inventory.retainedPrincipalLowerBound)!==contentHash(closeModel.data.principal)||
+   contentHash(terminal.inventory.idleLowerBound)!==contentHash(closeModel.data.idle)||
+   contentHash(terminal.calibration_profile_ids)!==contentHash(
+    closeModel.data.costs.stages.map(stage=>stage.profileId)))
+   throw new DeploymentConflict('paper_close_convert_gas_saved_model_invalid');
+  if(previousMark.source_block!==closeModel.data.previousSource.block||
+   previousMark.source_hash?.toLowerCase()!==closeModel.data.previousSource.hash.toLowerCase())
+   throw new DeploymentConflict('paper_close_convert_gas_previous_source_invalid');
+
+  const feeRow=(await db.query<{id:string;from_mark_id:string;proof:unknown;proof_hash:string;
+   carry:PaperFeeCarry;carry_hash:string}>(`SELECT id::text,from_mark_id::text,proof,proof_hash,carry,carry_hash
+   FROM deployment_paper_fee_evidence WHERE campaign_id=$1 AND to_mark_id=$2`,
+   [input.campaignId,input.terminalMarkId])).rows[0];
+  if(!feeRow||feeRow.from_mark_id!==input.previousMarkId||
+   contentHash(feeRow.proof)!==feeRow.proof_hash||contentHash(feeRow.carry)!==feeRow.carry_hash||
+   feeRow.id!==input.feeEvidence.id||feeRow.proof_hash!==input.feeEvidence.proofHash||
+   feeRow.carry_hash!==input.feeEvidence.carryHash||contentHash(feeRow.carry)!==contentHash(input.feeCarry))
+   throw new DeploymentConflict('paper_close_convert_gas_fee_evidence_invalid');
+  const proof=feeRow.proof as CanonicalPaperFeeInterval;
+  if(proof.coverage.stream!==profileEvidence.data.streamKey||
+   proof.coverage.targetSetHash!==profileEvidence.data.indexerTargetSetHash)
+   throw new DeploymentConflict('paper_close_convert_gas_fee_coverage_invalid');
+  const priorFee=(await db.query<{id:string;proof:unknown;proof_hash:string;
+   carry:PaperFeeCarry;carry_hash:string}>(`SELECT id::text,proof,proof_hash,carry,carry_hash
+   FROM deployment_paper_fee_evidence WHERE campaign_id=$1 AND to_mark_id=$2`,
+   [input.campaignId,input.previousMarkId])).rows[0];
+  if(previousMark.provenance.classification==='paper_model_provisional'&&priorFee||
+   previousMark.provenance.classification!=='paper_model_provisional'&&(!priorFee||
+    contentHash(priorFee.proof)!==priorFee.proof_hash||contentHash(priorFee.carry)!==priorFee.carry_hash))
+   throw new DeploymentConflict('paper_close_convert_gas_prior_fee_invalid');
+  let carry:PaperFeeCarry;
+  try{carry=advancePaperFeeCarry(priorFee?.carry??null,proof,open.data.source);}
+  catch{throw new DeploymentConflict('paper_close_convert_gas_fee_replay_invalid');}
+  if(contentHash(carry)!==feeRow.carry_hash||contentHash(carry)!==contentHash(input.feeCarry))
+   throw new DeploymentConflict('paper_close_convert_gas_fee_replay_invalid');
+
+  const expectedInventory={token0Raw:String(BigInt(closeModel.data.principal.amount0Raw)+
+    BigInt(closeModel.data.idle.amount0Raw)+BigInt(carry.token0.lowerAmountRaw)),
+   token1Raw:String(BigInt(closeModel.data.principal.amount1Raw)+
+    BigInt(closeModel.data.idle.amount1Raw)+BigInt(carry.token1.lowerAmountRaw))};
+  const expectedScope=closeConvertGasScopeV2(profile.data,open.data,closeModel.data,expectedInventory);
+  if(contentHash(scope.data)!==contentHash(expectedScope)||input.scopeHash!==paperCloseConvertGasScopeHashV2(expectedScope)||
+   contentHash(input.route)!==contentHash(closeModel.data.conversionRoute)||
+   contentHash(input.quote.path)!==contentHash(input.route.path)||
+   input.quote.router.toLowerCase()!==input.route.router.toLowerCase()||
+   input.quote.quoter.toLowerCase()!==input.route.quoter.toLowerCase()||
+   input.quote.fee!==input.route.fee||input.quote.pathVersion!==input.route.pathVersion||
+   input.quote.inputAsset!==input.route.inputAsset||
+   input.quote.inputAmountRaw!==expectedScope.inputAmountRaw||
+   input.quote.source.block!==input.closeSource.block||
+   input.quote.source.hash.toLowerCase()!==input.closeSource.hash.toLowerCase()||
+   input.quote.source.timestamp!==input.closeSource.timestamp)
+   throw new DeploymentConflict('paper_close_convert_gas_scope_mismatch');
+  return {campaign,profile:profile.data,openModel:open.data,closeModel:closeModel.data,
+   terminal,feeEvidence:{id:feeRow.id,proofHash:feeRow.proof_hash,carryHash:feeRow.carry_hash,
+    carry},scope:expectedScope};
+ }
+
+ /** Read-only persisted-input check used after canonical and owned-fork source
+  * verification. Registration repeats it under its atomic insert lock. */
+ async verifyPersistedPaperCloseConvertGasEvidence(input:PaperCloseConvertGasPersistedEvidence){
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   await this.assertPersistedPaperCloseConvertGasEvidence(db,input);
+   await db.query('COMMIT');
+  }catch(error){
+   await db.query('ROLLBACK');throw error;
+  }finally{db.release();}
+ }
+
+ /** Atomically registers one complete seven-stage conversion-gas report. The
+  * quote route remains v1; only gas path/version and scoped stage set are v2. */
+ async registerPaperCloseConvertGasEvidence(raw:unknown,rawAttestation:unknown){
+  const report=verifyPaperCloseConvertGasEvidence(raw),attestation=
+   paperCloseConvertGasAttestationSchema.parse(rawAttestation),
+   runtimeIdentity=loadRuntimeIdentity();
+  if(!runtimeIdentity)throw new DeploymentConflict('paper_close_convert_gas_runtime_unavailable');
+  if(contentHash(runtimeIdentity)!==contentHash(report.runtimeIdentity)||
+   contentHash(runtimeIdentity)!==contentHash(attestation.runtimeIdentity)||
+   attestation.reportHash!==report.reportHash||
+   attestation.sourceHash.toLowerCase()!==report.source.hash.toLowerCase()||
+   attestation.profileHash!==report.profileHash||attestation.scopeHash!==report.scopeHash||
+   attestation.sequenceHash!==report.sequenceHash)
+   throw new DeploymentConflict('paper_close_convert_gas_attestation_mismatch');
+  const sampledAt=Date.parse(report.sampledAt),verifiedAt=Date.parse(attestation.verifiedAt),now=Date.now();
+  if(now-sampledAt<0||now-sampledAt>86_400_000||verifiedAt<sampledAt||
+   now-verifiedAt<0||now-verifiedAt>300_000||sampledAt-report.source.timestamp*1000<0||
+   sampledAt-report.source.timestamp*1000>180_000||
+   attestation.ownedForkReplayBudget.requests>attestation.ownedForkReplayBudget.maxRequests||
+   attestation.ownedForkReplayBudget.requests<1||attestation.ownedForkReplayBudget.rejected!==0||
+   attestation.ownedForkReplayBudget.maxRequests>2000)
+   throw new DeploymentConflict('paper_close_convert_gas_evidence_stale');
+  const input:PaperCloseConvertGasPersistedEvidence={campaignId:report.campaignId,
+   revision:report.revision,terminalMarkId:report.terminalMarkId,previousMarkId:report.previousMarkId,
+   runtimeIdentity:report.runtimeIdentity as RuntimeIdentity,
+   profile:report.profile as MarketProfile,profileHash:report.profileHash as string,
+   openModel:report.openModel as PaperOpenModel,openModelHash:report.openModelHash as string,
+   openSource:report.openModel.source,closeSource:report.source as PaperCloseConvertGasPersistedEvidence['closeSource'],
+   frame:report.frame as PaperCloseConvertGasPersistedEvidence['frame'],
+   route:report.route as PaperCloseConvertGasPersistedEvidence['route'],
+   quote:report.quote as PaperCloseConvertGasPersistedEvidence['quote'],
+   scope:report.scope as PaperCloseConvertGasPersistedEvidence['scope'],
+   scopeHash:report.scopeHash as string,sequenceHash:report.sequenceHash as string,
+   reportHash:report.reportHash as string,postWithdrawReplayHash:attestation.postWithdrawReplayHash,
+   sourceReplayHash:attestation.sourceReplayHash,
+   feeEvidence:report.feeEvidence as PaperCloseConvertGasPersistedEvidence['feeEvidence'],
+   feeCarry:report.feeCarry as PaperCloseConvertGasPersistedEvidence['feeCarry']};
+  const profile=marketProfileSchema.parse(report.profile),scope=paperCloseConvertGasScopeV2Schema.parse(report.scope),
+   sizeBand=paperCloseConvertGasSizeBandV2(scope),allowanceStates=paperCloseConvertGasAllowanceStatesV2(scope);
+  if(report.sizeBand!==sizeBand||report.scopeHash!==paperCloseConvertGasScopeHashV2(scope))
+   throw new DeploymentConflict('paper_close_convert_gas_scope_invalid');
+  return this.transaction(async db=>{
+   await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+    [`deployment-close-convert-gas:${profile.pool.pool.toLowerCase()}:${PAPER_STATIC_CONVERT_GAS_PATH_V2}:${sizeBand}`]);
+   const persisted=await this.assertPersistedPaperCloseConvertGasEvidence(db,input,true);
+   const previous=(await db.query<{id:string;stage:string;allowanceState:string;version:number;
+    validation:Record<string,unknown>;observedUntil:Date|null;model:unknown;sourceHash:string}>(`
+    SELECT id::text,stage,allowance_state AS "allowanceState",version,validation,
+     observed_until AS "observedUntil",model,source_hash AS "sourceHash"
+    FROM deployment_calibration_profiles WHERE chain_id=$1 AND lower(pool_address)=lower($2)
+     AND path_version=$3 AND size_band=$4 AND component='gas_units'
+    ORDER BY stage,allowance_state,version DESC`,
+    [persisted.profile.pool.chainId,persisted.profile.pool.pool,
+     PAPER_STATIC_CONVERT_GAS_PATH_V2,sizeBand])).rows;
+   const matching=previous.filter(row=>row.validation?.reportHash===report.reportHash);
+   if(matching.length){
+    if(matching.length!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.length||
+     matching.some(row=>row.version!==matching[0]!.version)||
+     previous.some(row=>row.version>matching[0]!.version)||
+     PAPER_STATIC_CONVERT_GAS_STAGES_V2.some((stage,index)=>{
+      const evidenceStage=report.stageProfiles[index] as Record<string,unknown>;
+      const row=matching.find(item=>item.stage===stage&&
+       item.allowanceState===allowanceStates[stage]);
+      return !row||row.validation.campaignId!==report.campaignId||
+       row.validation.revision!==report.revision||
+       row.validation.terminalMarkId!==report.terminalMarkId||
+       row.validation.previousMarkId!==report.previousMarkId||
+       contentHash(row.validation.runtimeIdentity)!==contentHash(runtimeIdentity)||
+       row.validation.scopeHash!==report.scopeHash||
+       row.validation.sequenceHash!==report.sequenceHash||
+       row.validation.postWithdrawReplayHash!==attestation.postWithdrawReplayHash||
+       row.validation.sourceReplayHash!==attestation.sourceReplayHash||
+       contentHash(row.model)!==contentHash(evidenceStage.model)||
+       contentHash(row.validation.localEvidence)!==contentHash(evidenceStage.evidence)||
+       row.sourceHash!==evidenceStage.sourceHash;
+     }))throw new DeploymentConflict('paper_close_convert_gas_partial_previous_import');
+    const orderedIds=PAPER_STATIC_CONVERT_GAS_STAGES_V2.map(stage=>matching.find(row=>row.stage===stage&&
+     row.allowanceState===allowanceStates[stage])!.id);
+    return {created:false,version:matching[0]!.version,profileIds:orderedIds,
+     reportHash:report.reportHash,sizeBand};
+   }
+   if(persisted.campaign.lifecycle==='closed')
+    throw new DeploymentConflict('paper_close_convert_gas_campaign_closed');
+   if(previous.some(row=>row.validation?.reportHash===report.reportHash))
+    throw new DeploymentConflict('paper_close_convert_gas_report_superseded');
+   if(previous.some(row=>row.observedUntil&&sampledAt<=row.observedUntil.getTime()))
+    throw new DeploymentConflict('paper_close_convert_gas_sample_not_newer');
+   const version=previous.reduce((max,row)=>Math.max(max,row.version),0)+1,profileIds:string[]=[];
+   for(const rawStage of report.stageProfiles as Record<string,unknown>[]){
+    const stage=rawStage.stage as typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number],
+     allowanceState=rawStage.allowanceState as string;
+    if(allowanceState!==allowanceStates[stage])
+     throw new DeploymentConflict('paper_close_convert_gas_allowance_scope_invalid');
+    const id=randomUUID(),validation={validationPolicy:'paper_close_convert_gas_v2',
+     statusReason:'one_owned_fork_post_withdraw_replay',sampleCount:1,distinctCampaigns:1,
+     reportHash:report.reportHash,canonicalAttestation:attestation,
+     runtimeIdentity,campaignId:report.campaignId,revision:report.revision,
+     terminalMarkId:report.terminalMarkId,previousMarkId:report.previousMarkId,
+     profileHash:report.profileHash,openModelHash:report.openModelHash,
+     feeEvidence:report.feeEvidence,scope,scopeHash:report.scopeHash,
+     sequenceHash:report.sequenceHash,sizeBand,postWithdrawReplayHash:attestation.postWithdrawReplayHash,
+     sourceReplayHash:attestation.sourceReplayHash,localEvidence:rawStage.evidence};
+    await db.query(`INSERT INTO deployment_calibration_profiles
+     (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
+      component,status,evidence_class,model,validation,source_hash,observed_until)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,'gas_units','provisional','fork_estimated',
+      $9,$10,$11,$12)`,[id,version,persisted.profile.pool.chainId,
+       persisted.profile.pool.pool.toLowerCase(),PAPER_STATIC_CONVERT_GAS_PATH_V2,
+       stage,allowanceState,sizeBand,JSON.stringify(rawStage.model),JSON.stringify(validation),
+       rawStage.sourceHash,report.sampledAt]);
+    profileIds.push(id);
+   }
+   return {created:true,version,profileIds,reportHash:report.reportHash,sizeBand};
+  });
+ }
+
+ private async selectRegisteredPaperCloseConvertGasV2(db:PoolClient,input:{
+  campaignId:string;revision:number;terminalMarkId:string;previousMarkId:string;
+  runtimeIdentity:RuntimeIdentity;profile:MarketProfile;open:PaperOpenModel;
+  model:PaperCloseConvertModel;inventory:{token0Raw:string;token1Raw:string};
+  feeEvidence:{id:string;proofHash:string;carryHash:string};now?:number;
+ }):Promise<{costs:PaperCloseConvertCostsV2;binding:{reportHash:string;scopeHash:string;
+  sequenceHash:string;sizeBand:string;profileIds:string[]}}>{
+  const scope=closeConvertGasScopeV2(input.profile,input.open,input.model,input.inventory),
+   scopeHash=paperCloseConvertGasScopeHashV2(scope),sizeBand=paperCloseConvertGasSizeBandV2(scope),
+   allowances=paperCloseConvertGasAllowanceStatesV2(scope),now=input.now??Date.now();
+  const rows=(await db.query<PaperGasProfileRow&{validation:Record<string,unknown>}>(`
+   SELECT id::text,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+    allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+    evidence_class AS "evidenceClass",model,validation,source_hash AS "sourceHash",
+    observed_until AS "observedUntil"
+   FROM deployment_calibration_profiles WHERE chain_id=$1 AND lower(pool_address)=lower($2)
+    AND path_version=$3 AND size_band=$4 AND component='gas_units'
+    AND stage=ANY($5::text[]) AND allowance_state=ANY($6::text[])
+   ORDER BY stage,version DESC LIMIT 201`,[input.profile.pool.chainId,input.profile.pool.pool,
+    PAPER_STATIC_CONVERT_GAS_PATH_V2,sizeBand,[...PAPER_STATIC_CONVERT_GAS_STAGES_V2],
+    [...new Set(Object.values(allowances))]])).rows;
+  if(rows.length>200)throw new DeploymentConflict('paper_close_convert_gas_profile_query_bound');
+  const groups=new Map<string,typeof rows>();
+  for(const row of rows){
+   const validation=row.validation,reportHash=validation?.reportHash;
+   if(typeof reportHash!=='string'||!(/^[0-9a-f]{64}$/.test(reportHash)))continue;
+   const attestation=paperCloseConvertGasAttestationSchema.safeParse(validation.canonicalAttestation);
+   if(!attestation.success)continue;
+   const exact=validation.campaignId===input.campaignId&&validation.revision===input.revision&&
+    validation.terminalMarkId===input.terminalMarkId&&validation.previousMarkId===input.previousMarkId&&
+    validation.profileHash===input.open.profileHash&&validation.openModelHash===contentHash(input.open)&&
+    validation.scopeHash===scopeHash&&validation.sizeBand===sizeBand&&
+    contentHash(validation.scope)===contentHash(scope)&&
+    contentHash(validation.runtimeIdentity)===contentHash(input.runtimeIdentity)&&
+    contentHash(validation.feeEvidence)===contentHash(input.feeEvidence)&&
+    validation.sequenceHash===attestation.data.sequenceHash&&
+    validation.scopeHash===attestation.data.scopeHash&&
+    reportHash===attestation.data.reportHash&&
+    validation.postWithdrawReplayHash===attestation.data.postWithdrawReplayHash&&
+    validation.sourceReplayHash===attestation.data.sourceReplayHash&&
+    contentHash(attestation.data.runtimeIdentity)===contentHash(input.runtimeIdentity);
+   if(!exact||row.pathVersion!==PAPER_STATIC_CONVERT_GAS_PATH_V2||
+    row.sizeBand!==sizeBand||row.allowanceState!==allowances[row.stage as keyof typeof allowances])continue;
+   const group=groups.get(reportHash)??[];group.push(row);groups.set(reportHash,group);
+  }
+  const candidates=[...groups].filter(([,group])=>group.length===PAPER_STATIC_CONVERT_GAS_STAGES_V2.length&&
+   new Set(group.map(row=>row.version)).size===1&&PAPER_STATIC_CONVERT_GAS_STAGES_V2.every(stage=>
+    group.filter(row=>row.stage===stage&&row.allowanceState===allowances[stage]).length===1));
+  if(candidates.length===0)throw new DeploymentConflict('paper_close_convert_gas_v2_profiles_unavailable');
+  candidates.sort((a,b)=>Math.max(...b[1].map(row=>row.version))-Math.max(...a[1].map(row=>row.version)));
+  const [reportHash,selected]=candidates[0]!,sequenceHash=String(selected[0]!.validation.sequenceHash);
+  if(candidates.length>1&&Math.max(...candidates[0]![1].map(row=>row.version))===
+   Math.max(...candidates[1]![1].map(row=>row.version)))
+   throw new DeploymentConflict('paper_close_convert_gas_v2_profiles_ambiguous');
+  const ordered=PAPER_STATIC_CONVERT_GAS_STAGES_V2.map(stage=>selected.find(row=>row.stage===stage)!);
+  const costs=(()=>{try{return costPaperCloseConvertGasV2(ordered,scope,
+   BigInt(input.model.reference.nativePrice),BigInt(input.model.costs.gasPriceWei),now,
+   input.model.costs.gasPriceObservedAt);}catch{throw new DeploymentConflict('paper_close_convert_gas_v2_profiles_invalid');}})();
+  if(costs.scopeHash!==scopeHash||costs.sequenceHash!==sequenceHash||
+   costs.stages.some((stage,index)=>stage.profileId!==ordered[index]!.id))
+   throw new DeploymentConflict('paper_close_convert_gas_v2_selection_changed');
+  return {costs,binding:{reportHash,scopeHash,sequenceHash,sizeBand,
+   profileIds:ordered.map(row=>row.id)}};
  }
 
  /** Trusted ingestion after verifyPaperGasSource has replayed the candidate
@@ -1001,14 +1402,20 @@ export class DeploymentStore {
   policyVersion:string=PAPER_ACCOUNTING_POLICY,
   verifyCloseConvert?:(chainId:number,model:PaperCloseConvertModel,
    inputAmountRaw:string)=>Promise<PaperCloseConvertQuote>){
-  if(![PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY].includes(policyVersion))
+  if(![PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY,
+   PAPER_CONVERSION_ACCOUNTING_POLICY_V2].includes(policyVersion))
    throw new DeploymentConflict('paper_accounting_policy_unsupported');
   const conversionPolicy=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY;
+  const conversionPolicyV2=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2;
+  const conversionEnabled=conversionPolicy||conversionPolicyV2;
+  const currentRuntime=conversionPolicyV2?loadRuntimeIdentity():undefined;
+  if(conversionPolicyV2&&!currentRuntime)
+   throw new DeploymentConflict('paper_accounting_runtime_unavailable');
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:string;current_revision:number;allocation:unknown;
     profile:unknown;profile_hash:string;evidence:unknown;config_hash:string;config:unknown;open_mark_id:string;
-    open_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`
-    SELECT c.mode,c.current_revision,c.allocation,p.profile,p.profile_hash,p.evidence,r.config_hash,r.config,
+    runtime_identity:unknown;open_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`
+    SELECT c.mode,c.current_revision,c.allocation,c.runtime_identity,p.profile,p.profile_hash,p.evidence,r.config_hash,r.config,
      o.id::text AS open_mark_id,o.provenance AS open_provenance,v.proposal
     FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
@@ -1028,6 +1435,11 @@ export class DeploymentStore {
     open.data.campaignId!==campaignId||open.data.revision!==campaign.current_revision||
     contentHash(open.data)!==campaign.open_provenance.modelHash)
     throw new DeploymentConflict('paper_accounting_campaign_unavailable');
+   if(conversionPolicyV2){
+    const storedRuntime=sealedRuntimeIdentitySchema.safeParse(campaign.runtime_identity);
+    if(!storedRuntime.success||contentHash(storedRuntime.data)!==contentHash(currentRuntime))
+     throw new DeploymentConflict('paper_accounting_runtime_mismatch');
+   }
    const invalidated=(await db.query<{found:boolean}>(`SELECT EXISTS(
     SELECT 1 FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1) AS found`,
     [campaignId])).rows[0]?.found;
@@ -1061,7 +1473,7 @@ export class DeploymentStore {
     classification==='paper_model_partial_close'?'close_retain':
     classification==='paper_model_converted_close'?'close_convert':null;
    if(!kind)throw new DeploymentConflict('paper_accounting_mark_unsupported');
-   if(kind==='close_convert'&&!conversionPolicy)
+   if(kind==='close_convert'&&!conversionEnabled)
     throw new DeploymentConflict('paper_accounting_mark_unsupported');
    const priorMark=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
     WHERE campaign_id=$1 AND id<$2 ORDER BY id DESC LIMIT 1`,[campaignId,mark.id])).rows[0];
@@ -1069,11 +1481,17 @@ export class DeploymentStore {
     SELECT snapshot,snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
     [campaignId,priorMark.id,policyVersion])).rows[0]:null;
-   const parsedPriorV1=conversionPolicy?null:paperAccountingSchema.safeParse(prior?.snapshot);
-   const parsedPriorV2=conversionPolicy?paperConversionAccountingSchema.safeParse(prior?.snapshot):null;
-   const priorData=parsedPriorV2?.success?parsedPriorV2.data:
+   const parsedPriorV1=conversionEnabled?null:paperAccountingSchema.safeParse(prior?.snapshot);
+   const parsedPriorConversionV1=conversionPolicy?paperConversionAccountingSchema.safeParse(prior?.snapshot):null;
+   const parsedPriorConversionV2=conversionPolicyV2?
+    paperConversionAccountingV2Schema.safeParse(prior?.snapshot):null;
+   const priorData=parsedPriorConversionV2?.success?parsedPriorConversionV2.data:
+    parsedPriorConversionV1?.success?parsedPriorConversionV1.data:
     parsedPriorV1?.success?parsedPriorV1.data:null;
    const priorValid=priorData!==null&&contentHash(priorData)===prior?.snapshot_hash;
+   if(conversionPolicyV2&&parsedPriorConversionV2?.success&&
+    contentHash(parsedPriorConversionV2.data.runtimeIdentity)!==contentHash(currentRuntime))
+    throw new DeploymentConflict('paper_accounting_prior_runtime_mismatch');
    if(kind==='open'?mark.id!==campaign.open_mark_id||priorMark!==undefined:
     !priorMark||!priorValid)
     throw new DeploymentConflict('paper_accounting_prior_snapshot_unavailable');
@@ -1132,7 +1550,7 @@ export class DeploymentStore {
      SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2`,
      [mark.provenance.previewId,campaignId])).rows[0];
     const parsed=paperCloseConvertModelSchema.safeParse(preview?.proposal.paperCloseConvertModel);
-    if(!conversionPolicy||!parsed.success||parsed.data.previousMarkId!==priorMark?.id||
+    if(!conversionEnabled||!parsed.success||parsed.data.previousMarkId!==priorMark?.id||
      parsed.data.openMarkId!==campaign.open_mark_id||
      parsed.data.openModelHash!==contentHash(open.data)||
      contentHash(parsed.data.source)!==contentHash(source.data)||
@@ -1184,10 +1602,16 @@ export class DeploymentStore {
    await verifyAnchors(profile.data.pool.chainId,[open.data.source,
     ...(priorData?[priorData.source]:[]),source.data]);
    let closeQuote:PaperCloseConvertQuote|null=null;
+   let closeGasV2:PaperCloseConvertCostsV2|null=null,
+    closeGasBindingV2:{reportHash:string;scopeHash:string;sequenceHash:string;
+     sizeBand:string;profileIds:string[]}|null=null;
    if(closeConvert){
     if(!verifyCloseConvert)throw new DeploymentConflict('paper_accounting_convert_quote_verifier_unavailable');
-    const priorConversion=parsedPriorV2?.success?parsedPriorV2.data:null,
-     priorStandard=paperAccountingFromConversionSnapshot(priorConversion),
+    const priorStandard=conversionPolicyV2?
+     paperAccountingFromConversionV2Snapshot(parsedPriorConversionV2?.success?
+      parsedPriorConversionV2.data:null):
+     paperAccountingFromConversionSnapshot(parsedPriorConversionV1?.success?
+      parsedPriorConversionV1.data:null),
      baseMark={...accountingMark,kind:'valuation' as const};
     let beforeConversion:ReturnType<typeof buildPaperAccounting>;
     try{beforeConversion=buildPaperAccounting(open.data,profile.data,baseMark,
@@ -1200,13 +1624,27 @@ export class DeploymentStore {
      beforeConversion.inventory.token1Raw;
     try{closeQuote=await verifyCloseConvert(profile.data.pool.chainId,closeConvert,inputAmountRaw);}
     catch{throw new DeploymentConflict('paper_accounting_convert_quote_invalid');}
+    if(conversionPolicyV2){
+     const selected=await this.selectRegisteredPaperCloseConvertGasV2(db,{campaignId,
+      revision:campaign.current_revision,terminalMarkId:mark.id,previousMarkId:priorMark!.id,
+      runtimeIdentity:currentRuntime!,profile:profile.data,open:open.data,model:closeConvert,
+      inventory:beforeConversion.inventory,feeEvidence:{id:feeEvidence!.id,
+       proofHash:feeEvidence!.proofHash,carryHash:feeEvidence!.carryHash}});
+     closeGasV2=selected.costs;closeGasBindingV2=selected.binding;
+    }
    }
    let accounting:unknown;
    if(conversionPolicy){
-    const priorConversion=parsedPriorV2?.success?parsedPriorV2.data:null;
+    const priorConversion=parsedPriorConversionV1?.success?parsedPriorConversionV1.data:null;
     try{accounting=buildPaperConversionAccounting(open.data,profile.data,accountingMark,
      priorConversion,feeEvidence,close,closeConvert,closeQuote);}
     catch{throw new DeploymentConflict('paper_accounting_convert_projection_invalid');}
+   }else if(conversionPolicyV2){
+    const priorConversion=parsedPriorConversionV2?.success?parsedPriorConversionV2.data:null;
+    try{accounting=buildPaperConversionAccountingV2(open.data,profile.data,accountingMark,
+     priorConversion,feeEvidence,close,closeConvert,closeQuote,closeGasV2,closeGasBindingV2,
+     currentRuntime!);}
+    catch{throw new DeploymentConflict('paper_accounting_convert_v2_projection_invalid');}
    }else{
     if(kind==='close_convert')throw new DeploymentConflict('paper_accounting_mark_unsupported');
     const priorStandard=parsedPriorV1?.success?parsedPriorV1.data:null;
@@ -1234,9 +1672,11 @@ export class DeploymentStore {
  async auditPaperAccounting(campaignId:string,
   verifyAnchors:(chainId:number,sources:readonly PaperAccountingAnchor[])=>Promise<PaperAccountingAnchorMismatch|null>,
   policyVersion:string=PAPER_ACCOUNTING_POLICY){
-  if(![PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY].includes(policyVersion))
+  if(![PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY,
+   PAPER_CONVERSION_ACCOUNTING_POLICY_V2].includes(policyVersion))
    throw new DeploymentConflict('paper_accounting_policy_unsupported');
   const conversionPolicy=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY;
+  const conversionPolicyV2=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2;
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:string;chain_id:number}>(`
     SELECT mode,chain_id FROM deployment_campaigns WHERE id=$1 FOR UPDATE`,
@@ -1256,6 +1696,7 @@ export class DeploymentStore {
    if(rows.length>10000)throw new DeploymentConflict('paper_accounting_audit_bound');
    const sources:PaperAccountingAnchor[]=rows.map(row=>{
     const parsed=conversionPolicy?paperConversionAccountingSchema.safeParse(row.snapshot):
+     conversionPolicyV2?paperConversionAccountingV2Schema.safeParse(row.snapshot):
      paperAccountingSchema.safeParse(row.snapshot);
     if(!parsed.success||contentHash(parsed.data)!==row.snapshot_hash||
      parsed.data.campaignId!==campaignId||parsed.data.sourceMarkId!==row.source_mark_id)
@@ -1283,10 +1724,10 @@ export class DeploymentStore {
      (campaign_id,accounting_id,detected_accounting_id,reason,evidence)
     SELECT $1,a.id,$2,'canonical_anchor_changed',$3
     FROM deployment_paper_accounting a
-     WHERE a.campaign_id=$1 AND a.policy_version=$4 AND a.source_mark_id >= $5
+     WHERE a.campaign_id=$1 AND a.source_mark_id >= $4
     ORDER BY a.source_mark_id
     ON CONFLICT(accounting_id) DO NOTHING RETURNING accounting_id::text`,
-    [campaignId,detected.accountingId,JSON.stringify(evidence),policyVersion,
+    [campaignId,detected.accountingId,JSON.stringify(evidence),
      detected.markId])).rows.map(row=>row.accounting_id);
    if(!invalidated.length)throw new DeploymentConflict('paper_accounting_invalidation_failed');
    return {checked:sources.length,invalidated,alreadyInvalidated:false,
@@ -1447,16 +1888,18 @@ export class DeploymentStore {
   verifyCloseConvert:(chainId:number,model:PaperCloseConvertModel,
    inputAmountRaw:string)=>Promise<PaperCloseConvertQuote>){
   if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
+  const currentRuntime=loadRuntimeIdentity();
+  if(!currentRuntime)throw new DeploymentConflict('paper_close_convert_runtime_unavailable');
   return this.transaction(async db=>{
    const row=(await db.query<{campaign_id:string;preview_id:string;kind:string;status:string;
     claimed_by:string|null;claim_until:Date|null;mode:string;lifecycle:string;current_revision:number;
-    open_mark_id:string;chain_id:number;profile:unknown;profile_hash:string;
+    open_mark_id:string;runtime_identity:unknown;chain_id:number;profile:unknown;profile_hash:string;
     profile_evidence:unknown;config:unknown;
     config_hash:string;strategy_id:string;proposal:Record<string,unknown>;
     request:Record<string,unknown>;evidence:Record<string,unknown>;content_digest:string;
     expected_revision:number;expires_at:Date}>(`
     SELECT o.campaign_id,o.preview_id,o.kind,o.status,o.claimed_by,o.claim_until,
-     c.mode,c.lifecycle,c.current_revision,c.open_mark_id,c.chain_id,p.profile,p.profile_hash,
+     c.mode,c.lifecycle,c.current_revision,c.open_mark_id,c.runtime_identity,c.chain_id,p.profile,p.profile_hash,
      p.evidence AS profile_evidence,
      r.config,r.config_hash,r.strategy_id,v.proposal,v.request,v.evidence,v.content_digest,
      v.expected_revision,v.expires_at
@@ -1467,6 +1910,9 @@ export class DeploymentStore {
     [operationId])).rows[0];
    if(!row||row.mode!=='paper'||row.kind!=='close_convert')
     throw new DeploymentConflict('paper_close_convert_operation_unavailable');
+   const persistedRuntime=sealedRuntimeIdentitySchema.safeParse(row.runtime_identity);
+   if(!persistedRuntime.success||contentHash(persistedRuntime.data)!==contentHash(currentRuntime))
+    throw new DeploymentConflict('paper_close_convert_runtime_mismatch');
    const replayed=row.status==='succeeded',now=Date.now();
    if(replayed){
     if(row.lifecycle!=='closed')throw new DeploymentConflict('paper_close_convert_replay_integrity');
@@ -1580,27 +2026,30 @@ export class DeploymentStore {
    const snapshotRow=(await db.query<{id:string;snapshot:unknown;snapshot_hash:string;
     fee_evidence_id:string|null}>(`SELECT id::text,snapshot,snapshot_hash,fee_evidence_id::text
     FROM deployment_paper_accounting WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
-    [row.campaign_id,mark.id,PAPER_CONVERSION_ACCOUNTING_POLICY])).rows;
+    [row.campaign_id,mark.id,PAPER_CONVERSION_ACCOUNTING_POLICY_V2])).rows;
    if(snapshotRow.length!==1||snapshotRow[0]!.fee_evidence_id!==feeRow.id)
     throw new DeploymentConflict('paper_close_convert_accounting_unavailable');
-   const saved=snapshotRow[0]!,snapshot=paperConversionAccountingSchema.safeParse(saved.snapshot);
+   const saved=snapshotRow[0]!,snapshot=paperConversionAccountingV2Schema.safeParse(saved.snapshot);
    if(!snapshot.success||contentHash(snapshot.data)!==saved.snapshot_hash||
-    snapshot.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY||
+    snapshot.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
     snapshot.data.campaignId!==row.campaign_id||snapshot.data.sourceMarkId!==mark.id||
     snapshot.data.markKind!=='close_convert'||snapshot.data.closeModelHash!==contentHash(model)||
     snapshot.data.feeEvidence?.id!==feeRow.id||snapshot.data.feeEvidence.proofHash!==feeRow.proof_hash||
     snapshot.data.feeEvidence.carryHash!==feeRow.carry_hash||snapshot.data.conversion===null||
-    snapshot.data.inventory.hasLiquidity!==false)
+    snapshot.data.inventory.hasLiquidity!==false||
+    contentHash(snapshot.data.runtimeIdentity)!==contentHash(currentRuntime)||
+    snapshot.data.conversion.gasEvidence.pathVersion!==PAPER_STATIC_CONVERT_GAS_PATH_V2)
     throw new DeploymentConflict('paper_close_convert_accounting_integrity');
    const previousSnapshotRow=(await db.query<{snapshot:unknown;snapshot_hash:string}>(`
     SELECT snapshot,snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
-    [row.campaign_id,model.previousMarkId,PAPER_CONVERSION_ACCOUNTING_POLICY])).rows[0];
+    [row.campaign_id,model.previousMarkId,PAPER_CONVERSION_ACCOUNTING_POLICY_V2])).rows[0];
    const previousSnapshot=previousSnapshotRow?
-    paperConversionAccountingSchema.safeParse(previousSnapshotRow.snapshot):null;
+    paperConversionAccountingV2Schema.safeParse(previousSnapshotRow.snapshot):null;
    if(!previousSnapshot?.success||contentHash(previousSnapshot.data)!==previousSnapshotRow!.snapshot_hash||
     previousSnapshot.data.sourceMarkId!==model.previousMarkId||
-    previousSnapshot.data.markKind==='close_convert')
+    previousSnapshot.data.markKind==='close_convert'||
+    contentHash(previousSnapshot.data.runtimeIdentity)!==contentHash(currentRuntime))
     throw new DeploymentConflict('paper_close_convert_prior_accounting_unavailable');
    const invalidated=(await db.query<{found:boolean}>(`SELECT EXISTS(
     SELECT 1 FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1) AS found`,
@@ -1612,7 +2061,7 @@ export class DeploymentStore {
    const accountingMark={id:mark.id,kind:'close_convert' as const,source:model.source,
     reference:model.reference,principal0Raw:principalAndIdle.token0Raw,
     principal1Raw:principalAndIdle.token1Raw};
-   const priorStandard=paperAccountingFromConversionSnapshot(previousSnapshot.data),
+   const priorStandard=paperAccountingFromConversionV2Snapshot(previousSnapshot.data),
     baseMark={...accountingMark,kind:'valuation' as const};
    let base;
    try{base=buildPaperAccounting(open.data,profile.data,baseMark,priorStandard,feeEvidence,null);}
@@ -1627,9 +2076,15 @@ export class DeploymentStore {
    if(savedQuote.inputAmountRaw!==(savedQuote.inputAsset==='token0'?
     base.inventory.token0Raw:base.inventory.token1Raw))
     throw new DeploymentConflict('paper_close_convert_input_mismatch');
+   const selectedGas=await this.selectRegisteredPaperCloseConvertGasV2(db,{campaignId:row.campaign_id,
+    revision:row.current_revision,terminalMarkId:mark.id,previousMarkId:model.previousMarkId,
+    runtimeIdentity:currentRuntime,profile:profile.data,open:open.data,model,
+    inventory:base.inventory,feeEvidence:{id:feeRow.id,proofHash:feeRow.proof_hash,
+     carryHash:feeRow.carry_hash}});
    let rebuilt;
-   try{rebuilt=buildPaperConversionAccounting(open.data,profile.data,accountingMark,
-    previousSnapshot.data,feeEvidence,null,model,savedQuote);}
+   try{rebuilt=buildPaperConversionAccountingV2(open.data,profile.data,accountingMark,
+    previousSnapshot.data,feeEvidence,null,model,savedQuote,selectedGas.costs,
+    selectedGas.binding,currentRuntime);}
    catch{throw new DeploymentConflict('paper_close_convert_accounting_replay_invalid');}
    if(contentHash(rebuilt)!==saved.snapshot_hash)
     throw new DeploymentConflict('paper_close_convert_accounting_replay_changed');
@@ -1673,7 +2128,7 @@ export class DeploymentStore {
      VALUES($1,$2,$3,'capital_out',$4,NULL,NULL,$5)`,
      [row.campaign_id,operationId,`paper_close_convert:${operationId}:${asset}`,token,
       JSON.stringify({classification:'paper_modeled_conversion_capital_out',operationId,
-       previewId:row.preview_id,accountingId:saved.id,policyVersion:PAPER_CONVERSION_ACCOUNTING_POLICY,
+       previewId:row.preview_id,accountingId:saved.id,policyVersion:PAPER_CONVERSION_ACCOUNTING_POLICY_V2,
        snapshotHash:saved.snapshot_hash,asset,modeledAmountRaw:flow.amountRaw,
        modeledValueQuote:flow.valueQuote,quoteHash:conversion.quoteHash,
        paidCostsAvailable:false,actualCustodyAvailable:false})]);

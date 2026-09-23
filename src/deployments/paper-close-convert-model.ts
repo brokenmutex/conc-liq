@@ -254,7 +254,8 @@ export function costPaperCloseConvert(rows:readonly PaperGasProfileRow[],
  * recorded stage-specific allowance states. It never consumes v1 profiles. */
 export function costPaperCloseConvertGasV2(rows:readonly PaperGasProfileRow[],
  scopeInput:PaperCloseConvertGasScopeV2,
- nativePrice:bigint,gasPriceWei:bigint,now=Date.now()):PaperCloseConvertCostsV2{
+ nativePrice:bigint,gasPriceWei:bigint,now=Date.now(),
+ gasPriceObservedAt=new Date(now).toISOString()):PaperCloseConvertCostsV2{
  if(rows.length>200)throw Error('paper_close_convert_gas_v2_query_bound');
  const scope=paperCloseConvertGasScopeV2Schema.parse(scopeInput),
   scopeHash=paperCloseConvertGasScopeHashV2(scope),sizeBand=paperCloseConvertGasSizeBandV2(scope),
@@ -313,7 +314,7 @@ export function costPaperCloseConvertGasV2(rows:readonly PaperGasProfileRow[],
  return paperCloseConvertCostsV2Schema.parse({status:'provisional',scope:'convert_close_gas_only',
   pathVersion:PAPER_STATIC_CONVERT_GAS_PATH_V2,sizeBand,scopeHash,
   sequenceHash:stages[0]!.sequenceHash,gasPriceWei:String(gasPriceWei),
-  boundGasPriceWei:String(boundPrice),gasPriceObservedAt:new Date(now).toISOString(),
+  boundGasPriceWei:String(boundPrice),gasPriceObservedAt,
   nativeReferencePrice:String(nativePrice),stages,expectedGasUnits:String(expected),
   boundGasUnits:String(bound),expectedWei:String(expectedWei),boundWei:String(boundWei),
   expectedValue:String(expectedValue),boundValue:String(boundValue)});

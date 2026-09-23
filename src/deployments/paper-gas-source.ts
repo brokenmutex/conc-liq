@@ -17,12 +17,13 @@ import {openPaperFork} from '../paper/fork.js';
 import {restorePaperPosition,type PaperExitInventory} from '../paper/execution-exit.js';
 import {simulatePaperTransaction} from '../paper/execution-gas.js';
 import {paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
- paperCloseConvertGasScopeV2Schema} from './paper-close-convert-model.js';
+ paperCloseConvertGasScopeV2Schema,type PaperCloseConvertGasScopeV2} from './paper-close-convert-model.js';
 import type {PaperCloseConvertRoute,PaperCloseConvertQuote} from './paper-close-convert-model.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {MarketProfile} from './market-profile.js';
 import {contentHash} from './contracts.js';
+import {loadRuntimeIdentity,type RuntimeIdentity} from '../runtime/identity.js';
 
 /** Replays the report's candidate from its canonical block and independent
  * references before an isolated database may ingest the fork gas sample. */
@@ -78,10 +79,14 @@ export async function verifyPaperGasSource(client:RobinhoodClient,raw:unknown){
 
 export interface PaperCloseConvertGasPersistedEvidence {
  campaignId:string;revision:number;terminalMarkId:string;previousMarkId:string;
+ runtimeIdentity:RuntimeIdentity;
  profile:MarketProfile;profileHash:string;openModel:PaperOpenModel;openModelHash:string;
  openSource:{block:string;hash:string;timestamp:number};
  closeSource:{block:string;hash:string;timestamp:number};
- route:PaperCloseConvertRoute;quote:PaperCloseConvertQuote;scopeHash:string;sequenceHash:string;
+ frame:{tick:number;sqrtPriceX96:string;poolLiquidity:string;price0:string;price1:string;
+  nativePrice:string;referenceProof:Record<string,unknown>;referenceProofHash:string};
+ route:PaperCloseConvertRoute;quote:PaperCloseConvertQuote;scope:PaperCloseConvertGasScopeV2;
+ scopeHash:string;sequenceHash:string;
  reportHash:string;postWithdrawReplayHash:string;sourceReplayHash:string;
  feeEvidence:{id:string;proofHash:string;carryHash:string};feeCarry:PaperFeeCarry;
 }
@@ -210,6 +215,10 @@ export async function verifyPaperCloseConvertGasSource(client:RobinhoodClient,ra
   open=report.openModel as {source:{block:string;hash:`0x${string}`;timestamp:number}},
   source=report.source as {block:string;hash:`0x${string}`;timestamp:number},
   sampledAt=Date.parse(report.sampledAt),age=Date.now()-sampledAt,blockNumber=BigInt(source.block);
+ const runtimeIdentity=loadRuntimeIdentity();
+ assert(runtimeIdentity,'Paper close-convert gas verification requires a sealed runtime identity');
+ assert.deepEqual(report.runtimeIdentity,runtimeIdentity,
+  'Paper close-convert gas report belongs to a different sealed runtime');
  assert(Number.isFinite(sampledAt)&&age>=0&&age<=86_400_000,
   'Paper close-convert gas sample is stale or future');
  assert.equal(await client.getChainId(),ROBINHOOD_CHAIN_ID);
@@ -255,11 +264,13 @@ export async function verifyPaperCloseConvertGasSource(client:RobinhoodClient,ra
   'Paper close-convert gas source reorged during owned-fork replay');
  await verifyPersistedEvidence({campaignId:report.campaignId as string,
   revision:report.revision as number,terminalMarkId:report.terminalMarkId as string,
-  previousMarkId:report.previousMarkId as string,profile,
+  previousMarkId:report.previousMarkId as string,runtimeIdentity,profile,
   profileHash:report.profileHash as string,openModel:report.openModel as PaperOpenModel,
   openModelHash:report.openModelHash as string,
   openSource:open.source,closeSource:source,
+  frame:report.frame as PaperCloseConvertGasPersistedEvidence['frame'],
   route:report.route as PaperCloseConvertRoute,quote:report.quote as PaperCloseConvertQuote,
+  scope:report.scope as PaperCloseConvertGasScopeV2,
   scopeHash:report.scopeHash as string,sequenceHash:report.sequenceHash as string,
   reportHash:report.reportHash as string,postWithdrawReplayHash:ownedReplay.postWithdrawReplayHash,
   sourceReplayHash:ownedReplay.sourceReplayHash,
@@ -270,6 +281,7 @@ export async function verifyPaperCloseConvertGasSource(client:RobinhoodClient,ra
  return {verificationClass:'canonical_close_convert_gas_replay_v2' as const,
   evidenceClass:'fork_estimated' as const,status:'provisional' as const,
   reportHash:report.reportHash as string,sourceHash:source.hash,profileHash:report.profileHash as string,
+  runtimeIdentity,
   scopeHash:report.scopeHash as string,sequenceHash:report.sequenceHash as string,
   postWithdrawReplayHash:ownedReplay.postWithdrawReplayHash,
   sourceReplayHash:ownedReplay.sourceReplayHash,ownedForkReplayBudget:{requests:ownedReplay.requests,

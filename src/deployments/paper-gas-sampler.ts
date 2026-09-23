@@ -24,6 +24,7 @@ import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
 import type {PaperDraft,PaperOpenFrame} from './paper-preview.js';
 import {buildIndicativePaperOpenPreview} from './paper-preview.js';
+import {loadRuntimeIdentity} from '../runtime/identity.js';
 
 const donor='0x00000000000000000000000000000000f17E0001' as Address;
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
@@ -170,6 +171,8 @@ export async function sampleStaticPaperCloseConvertGas(input:{rpcUrl:string;
  feeEvidence:{id:string;proofHash:string;carryHash:string};terminalMarkId:string;previousMarkId:string;
  beforeRead:()=>Promise<void>;
  maxRequests?:number;timeoutMs?:number}){
+ const runtimeIdentity=loadRuntimeIdentity();
+ assert(runtimeIdentity,'Close-convert gas sampling requires a sealed runtime identity');
  const open=input.openModel,profile=marketProfileSchema.parse(input.profile),p=profile.pool,
   route=paperCloseConvertRouteSchema.parse(input.route),frame=input.frame,carry=input.feeCarry;
  assert.equal(contentHash(profile),open.profileHash,'Close gas market profile changed');
@@ -357,9 +360,10 @@ export async function sampleStaticPaperCloseConvertGas(input:{rpcUrl:string;
    balances:afterCollect,withdrawCallHash:stageProfiles[0]!.model.source.callHash,
    quoterCallHash:keccak256(quoteCalldata),quotedOutputRaw:String(expectedOutput)};
   const postWithdrawReplay={...postWithdrawReplayContent,replayHash:contentHash(postWithdrawReplayContent)};
-  const report={schemaVersion:1 as const,kind:'paper_close_convert_gas_report_v2' as const,
+  const report={schemaVersion:2 as const,kind:'paper_close_convert_gas_report_v2' as const,
    pathVersion:PAPER_STATIC_CONVERT_GAS_PATH_V2,classification:'fork_estimated' as const,
    campaignId:open.campaignId,revision:open.revision,profile,profileHash:open.profileHash,
+   runtimeIdentity,
    terminalMarkId:input.terminalMarkId,previousMarkId:input.previousMarkId,
    openModel:open,openModelHash:contentHash(open),source:frame.source,
    frame:{tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity),

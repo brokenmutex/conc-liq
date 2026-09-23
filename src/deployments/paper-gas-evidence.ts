@@ -141,6 +141,8 @@ const feeCarrySchema=z.object({kind:z.literal('paper_fee_carry_v1'),pool:z.strin
  accounting:z.literal('modeled_hypothetical_fee_share')}).strict();
 const allowanceState=z.object({manager0:rawText,manager1:rawText,router0:rawText,router1:rawText}).strict();
 const tokenBalances=z.object({token0:rawText,token1:rawText}).strict();
+const sealedRuntimeIdentitySchema=z.object({buildId:z.string().regex(/^[a-f0-9]{64}$/),
+ configHash:z.string().regex(/^[a-f0-9]{64}$/),nodeVersion:z.string().min(1)}).strict();
 const closeStageEvidence=z.object({stage:z.enum(PAPER_STATIC_CONVERT_GAS_STAGES_V2),
  allowanceState:z.string().min(1).max(160),sourceHash:z.string().regex(/^[0-9a-f]{64}$/),
  model:paperCloseConvertGasStageModelV2Schema,evidence:z.object({to:z.string().regex(/^0x[0-9a-fA-F]{40}$/),
@@ -151,10 +153,11 @@ const closeStageEvidence=z.object({stage:z.enum(PAPER_STATIC_CONVERT_GAS_STAGES_
   stateOverrides:z.record(z.string(),z.unknown()),
   balancesBefore:tokenBalances,balancesAfter:tokenBalances,
   allowancesBefore:allowanceState,allowancesAfter:allowanceState}).strict()}).strict();
-const closeConvertGasReportSchema=z.object({schemaVersion:z.literal(1),
+const closeConvertGasReportSchema=z.object({schemaVersion:z.literal(2),
  kind:z.literal('paper_close_convert_gas_report_v2'),
  pathVersion:z.literal(PAPER_STATIC_CONVERT_GAS_PATH_V2),classification:z.literal('fork_estimated'),
  campaignId:z.uuid(),revision:z.number().int().positive(),terminalMarkId:rawText,previousMarkId:rawText,
+ runtimeIdentity:sealedRuntimeIdentitySchema,
  profile:z.record(z.string(),z.unknown()),
  profileHash:z.string().regex(/^[0-9a-f]{64}$/),openModel:paperOpenModelSchema,
  openModelHash:z.string().regex(/^[0-9a-f]{64}$/),source:anchoredBlock,
@@ -198,6 +201,8 @@ export function verifyPaperCloseConvertGasEvidence(raw:unknown){
   route=paperCloseConvertRouteSchema.parse(report.route),carry=feeCarrySchema.parse(report.feeCarry),
   quote=paperCloseConvertQuoteSchema.parse(report.quote),p=profile.pool;
  assert.equal(report.profileHash,contentHash(profile));
+ assert(sealedRuntimeIdentitySchema.safeParse(report.runtimeIdentity).success,
+  'Paper close-convert gas report has no sealed runtime identity');
  assert.equal(open.profileHash,report.profileHash);assert.equal(report.openModelHash,contentHash(open));
  assert.equal(open.campaignId,report.campaignId);assert.equal(open.revision,report.revision);
  assert.equal(report.profileHash,open.profileHash);
