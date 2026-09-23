@@ -12,12 +12,18 @@ import {nextRangeKeeperStage} from '../strategy/rangekeeper/live-stage.js';
 import type {RangeKeeperCandidate,RangeKeeperLimits} from '../strategy/rangekeeper/domain.js';
 import type {RangeKeeperConfig} from '../strategy/rangekeeper/config.js';
 import type {RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js';
+import type {RangeKeeperPaperLoadedExitContext} from './rangekeeper-paper-context.js';
 import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
 import {openPaperFork} from '../paper/fork.js';
 import {localReceipt,prestateOverrides,simulatePaperTransaction,type PaperTransaction} from '../paper/execution-gas.js';
-import {PAPER_ACCOUNT,paperTokenAbi} from '../paper/execution-abi.js';
-import {referenceProofHash} from './market-profile.js';
+import {PAPER_ACCOUNT,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
+import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';
+import {restorePaperPosition,type PaperExitInventory} from '../paper/execution-exit.js';
+import {replayPaperMint} from '../v3/position-math.js';
+import {contentHash} from './contracts.js';
+import {referenceProofHash,type MarketProfile} from './market-profile.js';
+import type {PaperOpenFrame} from './paper-preview.js';
 
 const donor='0x00000000000000000000000000000000f17E0001' as Address;
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
@@ -38,6 +44,95 @@ export function rangeKeeperPaperCandidateFunding(candidate:RangeKeeperCandidate,
  assert(candidate.amount0Desired<=after[0]&&candidate.amount1Desired<=after[1],
   'Trusted draft allocation cannot fund frozen mint candidate');
  return [after[0],after[1]] as const;
+}
+
+function serializeCandidate(c:RangeKeeperCandidate){return {kind:c.kind,range:c.range,
+ swap:c.swap?{token:c.swap.token,amountIn:String(c.swap.amountIn),quotedOut:String(c.swap.quotedOut),
+  minOut:String(c.swap.minOut),priceAfter:String(c.swap.priceAfter),feeValue:String(c.swap.feeValue),
+  shortfallValue:String(c.swap.shortfallValue)}:null,amount0Desired:String(c.amount0Desired),
+ amount1Desired:String(c.amount1Desired),amount0Min:String(c.amount0Min),amount1Min:String(c.amount1Min),
+ liquidity:String(c.liquidity),deployedValue:String(c.deployedValue),sourceBlock:String(c.sourceBlock),
+ sourceHash:c.sourceHash,expiresAt:c.expiresAt};}
+const rawValue=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
+
+/** Reconstructs the exact post-mint idle balances and retained approvals from
+ * the trusted draft allocation and saved open model. */
+export function rangeKeeperPaperTerminalAllowances(input:{candidate:RangeKeeperCandidate;
+ allocation:{token0Raw:string;token1Raw:string};openSqrtPriceX96:bigint;openPrice0:bigint;openPrice1:bigint;
+ decimals0:number;decimals1:number;maxDeploymentValue:bigint}){
+ const allocated=[BigInt(input.allocation.token0Raw),BigInt(input.allocation.token1Raw)] as const,
+  available=[allocated[0],allocated[1]] as [bigint,bigint],manager=[allocated[0],allocated[1]] as [bigint,bigint],
+  router=[0n,0n] as [bigint,bigint],c=input.candidate;
+ if(c.swap){
+  const token=c.swap.token,acquired=(1-token) as 0|1;
+  assert(available[token]>=c.swap.amountIn,'Persisted draft cannot fund saved entry swap');
+  const acquiredPrice=acquired===0?input.openPrice0:input.openPrice1,
+   acquiredDecimals=acquired===0?input.decimals0:input.decimals1;
+  assert(acquiredPrice>0n);
+  const acquiredCap=input.maxDeploymentValue*10n**BigInt(acquiredDecimals)/acquiredPrice;
+  manager[acquired]=allocated[acquired]>acquiredCap?allocated[acquired]:acquiredCap;
+  router[token]=allocated[token];available[token]-=c.swap.amountIn;available[acquired]+=c.swap.quotedOut;
+ }
+ const mint=replayPaperMint(input.openSqrtPriceX96,c.range,c.amount0Desired,c.amount1Desired,0n);
+ assert(mint.liquidity===c.liquidity,'Saved open candidate no longer replays to its recorded liquidity');
+ assert(available[0]>=mint.amount0&&available[1]>=mint.amount1,
+  'Persisted draft cannot fund the saved open mint');
+ const idle0=available[0]-mint.amount0,idle1=available[1]-mint.amount1;
+ assert(manager[0]>=mint.amount0&&manager[1]>=mint.amount1,'Saved entry approvals cannot cover the mint');
+ if(c.swap)router[c.swap.token]-=c.swap.amountIn;
+ return {idle0,idle1,manager0:manager[0]-mint.amount0,manager1:manager[1]-mint.amount1,
+  router0:router[0],router1:router[1],minted0:mint.amount0,minted1:mint.amount1};
+}
+
+export function assertRangeKeeperPaperTerminalInventory(context:RangeKeeperPaperLoadedExitContext,
+ candidate:RangeKeeperCandidate,frame:PaperOpenFrame,idle:{idle0:bigint;idle1:bigint}){
+ const principal=principalAmounts({liquidity:candidate.liquidity,tickLower:candidate.range.tickLower,
+  tickUpper:candidate.range.tickUpper,sqrtPriceX96:frame.sqrtPriceX96});
+ assert.equal(idle.idle0,BigInt(context.previous.idle.token0),'Replayed terminal idle token0 differs from saved mark');
+ assert.equal(idle.idle1,BigInt(context.previous.idle.token1),'Replayed terminal idle token1 differs from saved mark');
+ assert.equal(context.kernel.wallet0,idle.idle0,'Kernel wallet token0 differs from saved mark');
+ assert.equal(context.kernel.wallet1,idle.idle1,'Kernel wallet token1 differs from saved mark');
+ assert.equal(context.kernel.released0,principal.amount0,'Kernel release token0 differs from current principal');
+ assert.equal(context.kernel.released1,principal.amount1,'Kernel release token1 differs from current principal');
+}
+
+export function terminalInventoryHash(context:RangeKeeperPaperLoadedExitContext,
+ candidate:RangeKeeperCandidate,frame:PaperOpenFrame){
+ const k=context.kernel;
+ const principal=principalAmounts({liquidity:candidate.liquidity,tickLower:candidate.range.tickLower,
+  tickUpper:candidate.range.tickUpper,sqrtPriceX96:frame.sqrtPriceX96});
+ return contentHash({kind:'range_keeper_paper_terminal_inventory_v1',candidateHash:context.openModel.candidateHash,
+  source:frame.source,inventoryProofHash:k.inventoryProofHash,wallet0:String(k.wallet0),wallet1:String(k.wallet1),
+  released0:String(k.released0),released1:String(k.released1),nativeWei:String(k.nativeWei),
+  position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
+   liquidity:String(candidate.liquidity)},principal0:String(principal.amount0),principal1:String(principal.amount1),
+  idle0:context.previous.idle.token0,idle1:context.previous.idle.token1,
+  terminal0:String(k.wallet0+k.released0),terminal1:String(k.wallet1+k.released1)});
+}
+
+function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
+ context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
+ assert(request.kind==='retain_exit','Convert-exit sampling requires a persisted conversion quote contract');
+ const p=context.draft.profile.pool,k=context.kernel,c=request.candidate,open=context.openModel;
+ assert.equal(request.openMarkId,context.openMarkId);assert.equal(request.openModelHash,contentHash(open));
+ assert.equal(request.candidateHash,open.candidateHash);assert.equal(contentHash(serializeCandidate(c)),contentHash(open.candidate));
+ assert.equal(contentHash(request.profile),contentHash(context.draft.profile));
+ assert.equal(contentHash(request.candidateSource),contentHash(open.source));
+ assert.equal(request.candidateReferenceProofHash,open.reference.proofHash);
+ assert.equal(k.source.block,request.frame.source.block);assert(same(k.source.hash,request.frame.source.hash));
+ assert.equal(request.scope.inventoryHash,terminalInventoryHash(context,c,request.frame));
+ const principal=principalAmounts({liquidity:c.liquidity,tickLower:c.range.tickLower,
+  tickUpper:c.range.tickUpper,sqrtPriceX96:request.frame.sqrtPriceX96});
+ assertRangeKeeperPaperTerminalInventory(context,c,request.frame,
+  {idle0:BigInt(context.previous.idle.token0),idle1:BigInt(context.previous.idle.token1)});
+ assert.equal(request.scope.deployedValue,rawValue(principal.amount0,request.frame.price0!,p.decimals0)+
+  rawValue(principal.amount1,request.frame.price1!,p.decimals1));
+ assert.equal(request.scope.sharePpm,c.liquidity*1_000_000n/(request.frame.poolLiquidity+c.liquidity));
+ assert.equal(request.scope.range.tickLower,c.range.tickLower);assert.equal(request.scope.range.tickUpper,c.range.tickUpper);
+ assert.equal(request.scope.swapKind,c.swap?'direct_pool_exact_input':'none');
+ assert.equal(request.scope.profileHash,context.draft.profileHash);assert.equal(request.scope.candidateHash,open.candidateHash);
+ assert.equal(request.scope.poolAddress,p.pool);assert(Number.isInteger(limits.maxSlippageBps)&&
+  limits.maxSlippageBps>0&&limits.maxSlippageBps<=50);
 }
 
 async function fundFixture(fork:Awaited<ReturnType<typeof openPaperFork>>,client:RobinhoodClient,
@@ -70,9 +165,17 @@ async function fundFixture(fork:Awaited<ReturnType<typeof openPaperFork>>,client
  * owned local Anvil endpoint created by openPaperFork. */
 export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGasProbeRequest,input:{
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
- limits:RangeKeeperLimits;initialBalances:readonly [bigint,bigint];
+ limits:RangeKeeperLimits;initialBalances?:readonly [bigint,bigint];
+ terminalContext?:RangeKeeperPaperLoadedExitContext;
 }):Promise<readonly RangeKeeperPaperGasStageSample[]>{
- assert(request.kind==='open','Terminal RangeKeeper gas probes require trusted persisted inventory context');
+ if(request.kind==='convert_exit')throw new Error('Convert-exit sampling requires a persisted conversion quote contract');
+ if(request.kind==='retain_exit'){
+  assert(input.terminalContext,'Retain-exit sampling requires trusted persisted mark and kernel context');
+  validateTerminalProbe(request,input.terminalContext,input.limits);
+  return sampleRangeKeeperPaperRetainExit(request,input.terminalContext,input);
+ }
+ assert(request.kind==='open');
+ assert(input.initialBalances,'Open sampling requires persisted draft allocation');
  assert(input.rpcUrl.length>0&&Number.isSafeInteger(input.maxRequests??1600)&&
   (input.maxRequests??1600)>0&&(input.maxRequests??1600)<=2000&&
   Number.isSafeInteger(input.timeoutMs??300_000)&&(input.timeoutMs??300_000)>0&&
@@ -190,6 +293,89 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
   assert(same(pinned.hash,source.hash),'RangeKeeper owned-fork source block changed');
   const stageNames=rows.map(row=>row.action);
   assert.deepEqual(stageNames,request.stages);
+  return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
+ }finally{await fork.close();}
+}
+
+async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbeRequest,
+ context:RangeKeeperPaperLoadedExitContext,input:{rpcUrl:string;beforeRead:()=>Promise<void>;
+ maxRequests?:number;timeoutMs?:number;limits:RangeKeeperLimits}):Promise<readonly RangeKeeperPaperGasStageSample[]>{
+ const {profile,frame,candidate}=request,p=profile.pool,k=context.kernel;
+ assert(input.rpcUrl.length>0&&Number.isSafeInteger(input.maxRequests??1600)&&(input.maxRequests??1600)>0&&
+  (input.maxRequests??1600)<=2000&&Number.isSafeInteger(input.timeoutMs??300_000)&&
+  (input.timeoutMs??300_000)>0&&(input.timeoutMs??300_000)<=300_000,'Owned-fork request/time budget invalid');
+ assert.equal(p.chainId,4663);assert(same(p.token0,USDG)||same(p.token1,USDG),
+  'Retain-exit fixture supports only USDG paired markets');
+ assert(same(p.router,PAPER_ROUTER)&&same(p.quoter,PAPER_QUOTER)&&same(p.positionManager,NONFUNGIBLE_POSITION_MANAGER),
+  'Persisted market profile differs from audited local paper deployment');
+ assert(frame.referenceEligible&&frame.referenceProof&&referenceProofHash(frame.referenceProof)===frame.referenceProofHash,
+  'Terminal source reference proof unavailable');
+ const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,timestamp:BigInt(frame.source.timestamp)};
+ const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000});
+ try{
+  const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0}),chain=new RangeKeeperChain(local,p);
+  await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});
+  const ref=await readRangeKeeperReferences(local,{block:source.number,hash:source.hash,
+   timestamp:frame.source.timestamp},profile);
+  assert(ref.eligible&&String(ref.price0)===String(frame.price0)&&String(ref.price1)===String(frame.price1)&&
+   referenceProofHash(ref.proof)===frame.referenceProofHash,'Terminal fork reference mismatch');
+  const slot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'}),
+   liq=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'liquidity'});
+  assert.equal(slot[1],frame.tick);assert.equal(slot[0],frame.sqrtPriceX96);assert.equal(liq,frame.poolLiquidity);
+  const empty=await chain.snapshot({block:source.number,hash:source.hash,timestamp:frame.source.timestamp},PAPER_ACCOUNT,null);
+  assert(empty.wallet0===0n&&empty.wallet1===0n&&empty.nftCount===0n&&empty.allowances.every(x=>x.amount===0n),
+   'Paper fixture account is not empty at pinned source');
+  const allowance=rangeKeeperPaperTerminalAllowances({candidate,allocation:context.draft.allocation,
+   openSqrtPriceX96:BigInt(context.openModel.poolState.sqrtPriceX96),openPrice0:BigInt(context.openModel.reference.price0!),
+   openPrice1:BigInt(context.openModel.reference.price1!),decimals0:p.decimals0,decimals1:p.decimals1,
+   maxDeploymentValue:input.limits.maxDeploymentValue});
+  assertRangeKeeperPaperTerminalInventory(context,candidate,frame,allowance);
+  const allowances=[
+   {token:p.token0 as Address,spender:NONFUNGIBLE_POSITION_MANAGER,amount:String(allowance.manager0)},
+   {token:p.token1 as Address,spender:NONFUNGIBLE_POSITION_MANAGER,amount:String(allowance.manager1)},
+   {token:p.token0 as Address,spender:PAPER_ROUTER,amount:String(allowance.router0)},
+   {token:p.token1 as Address,spender:PAPER_ROUTER,amount:String(allowance.router1)},
+  ] as const;
+  const policy={market:{symbol:'RangeKeeper',rwa:(same(p.token0,USDG)?p.token1:p.token0) as Address,
+   pool:p.pool as Address,fee:p.fee,tickSpacing:p.tickSpacing,
+   rwaDecimals:same(p.token0,USDG)?p.decimals1:p.decimals0},
+   budgetQuote:'10000000000',halfWidthSpacings:1,maxLiquiditySharePpm:10_000,
+   maxSlippageBps:input.limits.maxSlippageBps,transactionTtlSeconds:300};
+  const inventory:PaperExitInventory={liquidity:String(candidate.liquidity),tickLower:candidate.range.tickLower,
+   tickUpper:candidate.range.tickUpper,idle0:String(allowance.idle0),idle1:String(allowance.idle1),fee0:'0',fee1:'0',
+   allowances,nativeBalanceWei:String(k.nativeWei)};
+  const restored=await restorePaperPosition(fork,policy,inventory);
+  assert.equal(restored.position.liquidity,candidate.liquidity);
+  assert.equal(restored.before.quote,String(same(p.token0,USDG)?allowance.idle0:allowance.idle1));
+  assert.equal(restored.before.rwa,String(same(p.token0,USDG)?allowance.idle1:allowance.idle0));
+  const rows:PaperTransaction[]=[];
+  const send=async(action:string,to:Address,data:`0x${string}`)=>{
+   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT);
+   assert.equal(tx.sourceBlock,frame.source.block);assert(same(tx.sourceHash,frame.source.hash));rows.push(tx);return tx;
+  };
+  await fork.rpc('anvil_impersonateAccount',[PAPER_ACCOUNT]);
+  const exit=encodeRangeKeeperTx(p,PAPER_ACCOUNT,{kind:'withdraw',tokenId:restored.tokenId,
+   liquidity:candidate.liquidity,min0:restored.principal.amount0*(10_000n-BigInt(input.limits.maxSlippageBps))/10_000n,
+   min1:restored.principal.amount1*(10_000n-BigInt(input.limits.maxSlippageBps))/10_000n,
+   deadline:source.timestamp+300n});
+  await send('exit_withdraw_collect',exit.to,exit.data);
+  for(const [stage,token,spender] of [
+   ['exit_cleanup_router_token0',p.token0,PAPER_ROUTER],['exit_cleanup_router_token1',p.token1,PAPER_ROUTER],
+   ['exit_cleanup_manager_token0',p.token0,NONFUNGIBLE_POSITION_MANAGER],
+   ['exit_cleanup_manager_token1',p.token1,NONFUNGIBLE_POSITION_MANAGER],
+  ] as const){
+   const data=encodeFunctionData({abi:paperTokenAbi,functionName:'approve',args:[spender,0n]});
+   await send(stage,token as Address,data);
+  }
+  assert.deepEqual(rows.map(x=>x.action),request.stages);
+  const latest=await local.getBlockNumber({cacheTime:0}),latestBlock=await local.getBlock({blockNumber:latest});
+  const end=await chain.snapshot({block:latest,hash:latestBlock.hash!,timestamp:Number(latestBlock.timestamp)},PAPER_ACCOUNT,null);
+  assert.equal(end.nftCount,0n);assert(end.allowances.every(x=>x.amount===0n));
+  const terminal=await readCanaryPosition(local,restored.tokenId,latest);
+  assert.equal(terminal.liquidity,0n);assert.equal(terminal.tokensOwed0,0n);assert.equal(terminal.tokensOwed1,0n);
+  const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
+  assert(same(pinned.hash,source.hash),'Owned fork lost its pinned canonical source');
   return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
  }finally{await fork.close();}
 }
