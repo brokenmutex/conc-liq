@@ -1,9 +1,9 @@
 # Research and Positions — Sol implementation plan
 
 Prepared: 2026-09-21. Status: implementation in progress; W1/W2 incomplete.
-Initial source review: `b38c839`. Progress review: 2026-09-22 at `af4724d`.
+Initial source review: `b38c839`. Latest progress review: 2026-09-23 at `576e746`.
 Recheck HEAD and working-tree changes before starting. Sol should resume with
-[the review follow-up and next actions](#10-review-follow-up-and-sol-next-actions).
+[the latest review remarks and ordered follow-up](#september-23-progress-review-at-576e746).
 
 This is the authoritative implementation handoff for the accepted
 [workflow proposal](research-and-position-workflow-2026-09-21.md). The user's
@@ -959,3 +959,86 @@ Positions HTTP, activity/history, metrics/charts and desktop/mobile parity
 from first session through closure, then complete migration 8, bounded
 canonical rescan, release and restore gates under separate authorization.
 W4-W7 remain open.
+
+### September 23 progress review at `576e746`
+
+There is substantial backend progress, but the first usable two-strategy paper
+workflow remains incomplete. Static/manual provisional accounting is furthest
+along; RangeKeeper execution and the operator workflow remain the main blockers.
+This review updates the next-action order above while preserving the R1-R3 and
+W0-W7 completion gates.
+
+| Area | Reviewed status |
+| --- | --- |
+| W0 | Baseline, contracts and calibration policy recorded. Runtime inventory must be refreshed before cutover. |
+| W1 | Migrations, authenticated drafts, idempotency, reservations, claims and store recovery are implemented; operation acceptance remains disabled. |
+| W2 / R2 | Static/manual open, valuation, retain-close and V2 conversion-close have persisted provisional accounting and reorg protection. RangeKeeper lacks an executable paper lifecycle and terminal accounting. |
+| W3 | Registry-backed pool listing and exact swap counts across five windows exist. Principal sizing and static replay helpers exist; trusted candidate loading, saved-draft binding and RangeKeeper replay remain unfinished. Exact swap counts do not establish exact-window volume, fees or candidate economics. |
+| W4-W7 | Live adapters, management transitions, complete product parity and release/cutover gates remain open. Existing predecessor RangeKeeper functionality does not complete these packages. |
+
+**Confirmed review findings:**
+
+1. **Campaign count stops all maintenance.** In
+   `src/deployments-paper-worker.ts`, `runPaperMaintenancePass()` selects active,
+   paused, closing, closed and blocked static/manual campaigns, then throws if
+   the result exceeds `maxCampaigns`. A focused reproduction confirmed that 21
+   selected campaigns abort the default 20-campaign pass before any campaign is
+   processed. Closed history therefore eventually prevents maintenance of
+   current campaigns. Implement bounded, fair pagination while preserving
+   historical reorg audits; raising the limit only postpones the failure.
+2. **Fresh valuation marks are not scheduled.** The maintenance pass in
+   `src/deployments/paper-maintenance.ts` audits and projects existing marks.
+   `recordCanonicalPaperPrincipalValuation()` exists in `paper-valuation.ts`
+   but has no runtime caller. An opened campaign cannot continuously update
+   valuation and adjacent fee intervals through this worker alone. Connect
+   canonical sampling to the lifecycle, including paused monitoring and safe
+   handling of concurrent close operations.
+3. **Store recovery tests do not establish worker recovery.** The deployment
+   integration script exercises persistence and completion methods directly.
+   `test/deployments-paper-operation-worker.test.ts` covers idle, unsupported
+   strategy and expired claim cases, but no successful lifecycle through
+   `processOnePaperOperation()`. Add worker-level success and interruption
+   coverage before enabling commands.
+4. **The full check fails on the new Research window contract.** Two assertions
+   in `test/dashboard-research.test.ts` still expect four windows and at least
+   four buckets in the shortest window. These conflict with the accepted
+   15-minute window. Update the tests to distinguish exact event coverage from
+   bucket-based chart/economic data; retain all five required windows.
+
+The HTTP gate remains appropriate: `src/deployments/server.ts` returns
+`503 operation_preflight_unavailable` for operation acceptance.
+`src/deployments.ts` also reports static/manual terminal previews unavailable.
+Internal accounting completion therefore does not yet deliver dashboard-driven
+open or close. RangeKeeper previews remain action-unavailable, and the operation
+worker claims only static/manual campaigns.
+
+**Fresh validation on the reviewed checkout:**
+
+- Pinned `npm run check`: repository checks and typechecking passed;
+  **694 of 696 tests passed**, with the two Research assertions above failing.
+  The full check is not green. These failures are separate from the preserved
+  unrelated hybrid/adaptive dirty work.
+- Pinned `npm run test:integration`, using
+  `TEST_DATABASE_URL='postgresql://root@localhost/conc_liq?host=/var/run/postgresql'`:
+  passed in isolated schemas, including migration upgrades, conversion-close
+  recovery, exact-once completion and reorg rejection. Synthetic gas fixtures
+  and direct store calls do not establish owned-fork or worker acceptance.
+- `git diff --check` passed. No deployed release, production custody,
+  owned-fork evidence or desktop/mobile browser parity was revalidated.
+- The review changed no repository files or running services. This subsequent
+  addition records its findings only; it does not authorize production changes.
+
+**Ordered continuation for Sol:**
+
+| Task | Required work | Acceptance before completion |
+| --- | --- | --- |
+| PR1 — Restore the check gate | Correct the Research window tests around the accepted five-window contract and coverage semantics. | Pinned `npm run check` passes; 15m/1h/6h/24h/7d remain available, and incomplete coverage cannot become zero activity or exact economics. |
+| PR2 — Make paper maintenance continuous | Add fair bounded campaign pagination and canonical valuation sampling; preserve closed-history auditing and paused monitoring. | More than 20 mixed active/closed campaigns make progress across bounded passes; no campaign starves; new canonical frames produce marks and adjacent fee accounting; duplicate frames, reorgs and concurrent close cannot append invalid or duplicate evidence. |
+| PR3 — Verify the actual operation worker | Exercise open, retain-close and conversion-close through the worker against isolated PostgreSQL, including interruption, renewal and takeover. | Restart after a pending conversion, expired preview recovery, lease loss/renewal, transient RPC failure, canonical mismatch and competing workers preserve exact-once accounting and terminal completion. |
+| PR4 — Finish two-strategy evidence and accounting | Run/register independently verified owned-fork evidence for static conversion and RangeKeeper; persist RangeKeeper marks/kernel state and implement both exits and recovery. | Both strategies satisfy R2 with scoped provisional inputs, reproducible balances/costs and restart-safe accounting. Statistical sample sufficiency gates a validated claim, not a provisional lifecycle. |
+| PR5 — Deliver the operator paper milestone | Connect fresh admission, static terminal previews, supervised claims, basic Research-to-draft binding and Positions lifecycle controls. | Both strategies complete the real HTTP and desktop/mobile flow, including pause/resume, both exits, stale/duplicate requests, browser disconnect and blocked recovery; shared metrics, charts, activity and history match persisted evidence from first action through closure. Enable only paths that pass these gates. |
+| PR6 — Complete remaining Research and release work | Finish trusted candidate loading, replay/calibration controls and remaining W3 scope; continue W4-W7. | Preserve each package's existing tests and release requirements, including migration 8/rescan, sealed build, restore and cutover evidence with explicit production authorization status. |
+
+Keep the first usable paper milestone ahead of broader Research expansion.
+Do not count source implementation, isolated acceptance, sealed deployment and
+live validation as interchangeable evidence. Preserve unrelated dirty work.
