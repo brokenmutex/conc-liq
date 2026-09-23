@@ -29,6 +29,7 @@ import {auditCanonicalPaperAccounting,recordCanonicalNextPaperAccounting,
  buildPaperAccounting,recordCanonicalNextPaperConversionAccountingV2,projectCanonicalPaperAccounting}
  from '../../src/deployments/paper-accounting.ts';
 import {verifyCanonicalPaperAnchors} from '../../src/deployments/paper-canonical-anchors.ts';
+import {processOnePaperOperation} from '../../src/deployments/paper-operation-worker.ts';
 import {advancePaperScenarioWithFeeSampler} from '../../src/deployments/paper-projection.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
@@ -384,10 +385,20 @@ try{
   [paperDraft.id])).rows[0].n,0);
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'opening');
- const opened=await store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors);
- assert.equal(opened.replayed,false);
+ await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second'
+  WHERE id=$1`,[paperOperation.id]);
+ const workerIds=['paper-open-worker-a','paper-open-worker-b'];
+ const workerTakeoverResults=await Promise.all(workerIds.map(workerId=>
+  processOnePaperOperation(store,accountingClient,admin,workerId)));
+ assert.equal(workerTakeoverResults.filter(result=>result.status==='completed').length,1);
+ assert.equal(workerTakeoverResults.filter(result=>result.status==='idle').length,1);
+ const openWorkerId=workerIds[workerTakeoverResults.findIndex(result=>result.status==='completed')];
+ const opened={markId:(await admin.query(`SELECT id::text FROM deployment_marks WHERE campaign_id=$1`,
+  [paperDraft.id])).rows[0].id,replayed:false};
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,
+  [paperDraft.id])).rows[0].n,1);
  assert.equal(await store.paperFeeSamplingState(paperDraft.id),null);
- assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors),
+ assert.deepEqual(await store.completeTrustedPaperOpen(paperOperation.id,openWorkerId,verifyPaperAnchors),
   {markId:opened.markId,replayed:true});
  const paperRows=(await admin.query(`SELECT kind,entry_key,value_raw,source FROM deployment_ledger
   WHERE campaign_id=$1 ORDER BY id`,[paperDraft.id])).rows;
@@ -734,8 +745,12 @@ try{
   [paperDraft.id])).rows[0].n,0);
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'closing');
- const closed=await store.completeTrustedPaperCloseRetain(closeOperation.id,'paper-restart-close',verifyPaperAnchors);
- assert.equal(closed.replayed,false);
+ await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second'
+  WHERE id=$1`,[closeOperation.id]);
+ const retainWorker=await processOnePaperOperation(store,accountingClient,admin,'paper-retain-worker');
+ assert.deepEqual(retainWorker,{status:'completed',operationId:closeOperation.id,kind:'close_retain'});
+ const closed={markId:(await admin.query(`SELECT id::text FROM deployment_marks WHERE campaign_id=$1
+  AND provenance->>'classification'='paper_model_partial_close'`,[paperDraft.id])).rows[0].id,replayed:false};
  await assert.rejects(recordAccounting(),
   error=>error instanceof DeploymentConflict&&
    error.code==='paper_accounting_fee_evidence_unavailable');
@@ -1132,11 +1147,15 @@ try{
    WHERE campaign_id=$1 AND kind='capital_out'`,[convertDraft.id])).rows[0].n,0);
   assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
    [convertDraft.id])).rows[0].lifecycle,'closing');
-  const converted=await store.completeTrustedPaperCloseConvert(convertOperation.id,
-   'paper-convert-restart',verifyPaperAnchors,verifyConvertQuote);
-  assert.equal(converted.replayed,false);assert.equal(converted.markId,convertPrepared.markId);
+  await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second'
+   WHERE id=$1`,[convertOperation.id]);
+  const conversionWorker=await processOnePaperOperation(store,conversionClient,feePool,
+   'paper-convert-worker');
+  assert.deepEqual(conversionWorker,{status:'completed',operationId:convertOperation.id,
+   kind:'close_convert'});
+  const converted={markId:convertPrepared.markId,replayed:false};
   assert.deepEqual(await store.completeTrustedPaperCloseConvert(convertOperation.id,
-   'paper-convert-restart',verifyPaperAnchors,verifyConvertQuote),
+   'paper-convert-worker',verifyPaperAnchors,verifyConvertQuote),
    {markId:convertPrepared.markId,accountingId:convertAccounting.snapshotId,replayed:true});
   assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
    WHERE campaign_id=$1 AND operation_id=$2 AND kind='capital_out'`,
@@ -1150,7 +1169,7 @@ try{
   if(priorRuntimeIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
   else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorRuntimeIdentity;
  }
- console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close','static/manual strategy-filtered claim','V2 close-convert reorg and zero-write checks','V2 seven-stage conversion accounting','pending close resumes after preview expiry','canonical quote mutation rejected without capital out','idempotent V2 close completion']}));
+ console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','paper operation worker open success after competing lease takeover','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','paper operation worker retain-close success','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close','static/manual strategy-filtered claim','V2 close-convert reorg and zero-write checks','V2 seven-stage conversion accounting','pending close resumes after preview expiry','canonical quote mutation rejected without capital out','paper operation worker resumes pending conversion close','idempotent V2 close completion']}));
 }finally{
  if(feePool)await feePool.end();
  if(store)await store.close();
