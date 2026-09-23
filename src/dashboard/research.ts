@@ -10,10 +10,12 @@
 // Nothing here authorizes execution. The reference-position columns are a
 // modeled no-rebalance entry over recorded flow, not realized LP performance.
 import type { PoolClient } from "pg";
+import { MAX_TICK, MIN_TICK } from "../backtest/principal.js";
 import { USDG } from "../constants.js";
 import {
   sizeLiquidityForQuoteBudget,
   tickSpacingForFee,
+  validateTickAndSqrtPrice,
 } from "../simulator/math.js";
 
 /** Trailing windows the page offers, in hours. */
@@ -65,6 +67,7 @@ export const RESEARCH_RETAINED_BUCKETS = RESEARCH_RETAINED_HOURS *
 export const RESEARCH_BUDGET_QUOTE = 1_000_000_000n;
 
 const QUOTE_DECIMALS = 6;
+const MAX_RESEARCH_CAPITAL_QUOTE = 100_000n * 10n ** BigInt(QUOTE_DECIMALS);
 const BUCKET_MS = RESEARCH_BUCKET_MINUTES * 60_000;
 const TICK_LOG = Math.log(1.0001);
 /** Ticks either side of spot kept in the depth curve; about +/-16% in price. */
@@ -119,22 +122,6 @@ export interface ResearchWindowSummary {
   readonly limitation: string | null;
 }
 
-export interface ResearchDraftPreparation {
-  /** This read-only view currently prepares evidence only, never a draft. */
-  readonly availability: "unavailable";
-  /** The only strategies the future candidate flow may expose. */
-  readonly supportedStrategyIds: readonly ["static_manual_v1", "rangekeeper_v1"];
-  /** Exact event counts are useful coverage evidence, not candidate economics. */
-  readonly exactSwapCoverage: readonly {
-    readonly hours: number;
-    readonly windowSeconds: number | null;
-    readonly asOf: string | null;
-    readonly availability: string;
-    readonly swaps: number | null;
-  }[];
-  readonly missingRequirements: readonly string[];
-}
-
 interface ExactCheckpointWindow {
   readonly count: number;
   readonly valid: number;
@@ -173,6 +160,102 @@ export interface ResearchDepthReference {
   readonly liquidity: string;
 }
 
+export interface ResearchCapitalSizingInput {
+  /** USDG raw units; capped to keep each sizing call bounded. */
+  readonly capitalQuoteRaw: bigint;
+  readonly token0: string;
+  readonly token1: string;
+  readonly decimals0: number;
+  readonly decimals1: number;
+  readonly quoteToken: string;
+  readonly quoteDecimals: number;
+  readonly fee: number;
+  readonly currentTick: number;
+  readonly sqrtPriceX96: bigint;
+  readonly tickLower: number;
+  readonly tickUpper: number;
+}
+
+export interface ResearchCapitalSizing {
+  readonly scope: "principal_only";
+  readonly capitalQuoteRaw: string;
+  readonly token0Raw: string;
+  readonly token1Raw: string;
+  readonly unusedQuoteRaw: string;
+  readonly liquidity: string;
+  readonly token0Decimals: number;
+  readonly token1Decimals: number;
+  readonly quoteToken: string;
+  readonly quoteDecimals: number;
+  readonly tickLower: number;
+  readonly tickUpper: number;
+}
+
+/**
+ * Exact V3 principal sizing for an explicit, caller-selected tick range.
+ * Returns token amounts and liquidity only; this is not a replay, valuation,
+ * fee estimate, cost estimate, or deployment draft.
+ */
+export function sizeResearchCapitalForRange(
+  input: ResearchCapitalSizingInput,
+): ResearchCapitalSizing {
+  if (input.capitalQuoteRaw <= 0n || input.capitalQuoteRaw > MAX_RESEARCH_CAPITAL_QUOTE) {
+    throw new Error("research_capital_out_of_bounds");
+  }
+  const quoteIsToken0 = input.quoteToken.toLowerCase() === input.token0.toLowerCase();
+  const quoteIsToken1 = input.quoteToken.toLowerCase() === input.token1.toLowerCase();
+  if (input.quoteToken.toLowerCase() !== USDG.toLowerCase() ||
+      input.quoteDecimals !== QUOTE_DECIMALS || quoteIsToken0 === quoteIsToken1) {
+    throw new Error("research_quote_unit_unsupported");
+  }
+  for (const decimals of [input.decimals0, input.decimals1]) {
+    if (!Number.isSafeInteger(decimals) || decimals < 0 || decimals > 36) {
+      throw new Error("research_token_decimals_invalid");
+    }
+  }
+  const tickSpacing = tickSpacingForFee(input.fee);
+  if (!Number.isSafeInteger(input.tickLower) || !Number.isSafeInteger(input.tickUpper) ||
+      input.tickLower < MIN_TICK || input.tickUpper > MAX_TICK ||
+      input.tickLower >= input.tickUpper ||
+      input.tickLower % tickSpacing !== 0 ||
+      input.tickUpper % tickSpacing !== 0) {
+    throw new Error("research_range_not_tick_aligned");
+  }
+  if (input.token0.toLowerCase() === input.token1.toLowerCase()) {
+    throw new Error("research_pool_tokens_not_distinct");
+  }
+  if ((quoteIsToken0 ? input.decimals0 : input.decimals1) !== input.quoteDecimals) {
+    throw new Error("research_quote_decimals_mismatch");
+  }
+  validateTickAndSqrtPrice({
+    tick: input.currentTick,
+    sqrtPriceX96: input.sqrtPriceX96,
+  });
+  const sized = sizeLiquidityForQuoteBudget({
+    budgetQuote: input.capitalQuoteRaw,
+    quoteToken: input.quoteToken,
+    sqrtPriceX96: input.sqrtPriceX96,
+    tickLower: input.tickLower,
+    tickUpper: input.tickUpper,
+    token0: input.token0,
+    token1: input.token1,
+  });
+  return {
+    scope: "principal_only",
+    capitalQuoteRaw: input.capitalQuoteRaw.toString(),
+    token0Raw: sized.amount0.toString(),
+    token1Raw: sized.amount1.toString(),
+    unusedQuoteRaw: sized.idleQuote.toString(),
+    liquidity: sized.liquidity.toString(),
+    token0Decimals: input.decimals0,
+    token1Decimals: input.decimals1,
+    quoteToken: input.quoteToken,
+    quoteDecimals: input.quoteDecimals,
+    tickLower: input.tickLower,
+    tickUpper: input.tickUpper,
+  };
+}
+
 export interface ResearchPool {
   readonly poolAddress: string;
   readonly rwaSymbol: string;
@@ -191,30 +274,8 @@ export interface ResearchPool {
   readonly stateStatus: "current" | "stale" | "unverified" | "unavailable";
   readonly series: readonly ResearchBucket[];
   readonly windows: readonly ResearchWindowSummary[];
-  readonly draftPreparation: ResearchDraftPreparation;
   readonly depth: readonly ResearchDepthPoint[];
   readonly depthReferences: readonly ResearchDepthReference[];
-}
-
-function draftPreparation(windows: readonly ResearchWindowSummary[]): ResearchDraftPreparation {
-  return {
-    availability: "unavailable",
-    supportedStrategyIds: ["static_manual_v1", "rangekeeper_v1"],
-    exactSwapCoverage: windows.map((window) => ({
-      hours: window.hours,
-      windowSeconds: window.swapWindowSeconds,
-      asOf: window.swapAsOf,
-      availability: window.swapAvailability ?? "unavailable",
-      swaps: window.swapAvailability === "available" ? window.swaps : null,
-    })),
-    missingRequirements: [
-      "bounded_historical_candidate_replay_unavailable",
-      "verified_market_profile_selection_required",
-      "deployment_wallet_and_allocation_required",
-      "strategy_parameters_and_risk_limits_required",
-      "candidate_scoped_cost_and_independent_reference_evidence_unavailable",
-    ],
-  };
 }
 
 export interface ResearchCosts {
@@ -1025,22 +1086,20 @@ export async function readResearch(
     if (pool.token0 === null || pool.token1 === null || pool.tick === null ||
         pool.sqrtPriceX96 === null || pool.priceX18 === null || pool.liquidity === null ||
         pool.observedAt === null) {
-      const windows = RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
-        ? exactWindow
-        : withExactSwapCount({
-          hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
-          maxGapSeconds: null, asOf: null, swapWindowSeconds: null, swapAsOf: null,
-          swapAvailability: null, observedBuckets: 0, swaps: null, volumeQuote: null,
-          feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
-          references: [], limitation: null,
-        }, pool.poolAddress, exactWindows.get(hours)!));
       return {
         poolAddress: pool.poolAddress, rwaSymbol: pool.rwaSymbol, fee: pool.fee,
         feeProtocol0: protocol.fee0, feeProtocol1: protocol.fee1, tickSpacing,
         quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, priceX18: null,
         liquidity: null, observedAt: null, registryEnabled: pool.registryEnabled,
-        stateStatus: pool.stateStatus, series: [], windows,
-        draftPreparation: draftPreparation(windows),
+        stateStatus: pool.stateStatus, series: [], windows: RESEARCH_WINDOW_HOURS.map((hours) =>
+          hours === 0.25 ? exactWindow : withExactSwapCount({
+            hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
+            maxGapSeconds: null, asOf: null, swapWindowSeconds: null, swapAsOf: null,
+            swapAvailability: null, observedBuckets: 0, swaps: null, volumeQuote: null,
+            feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
+            references: [], limitation: null,
+          }, pool.poolAddress, exactWindows.get(hours)!)
+        ),
         depth: [], depthReferences: [],
       };
     }
@@ -1078,9 +1137,6 @@ export async function readResearch(
         deviationPpm: entry.deviationPpm?.toString() ?? null,
       };
     });
-    const windows = RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
-      ? exactWindow
-      : summarizeExactWindow(hours));
     const curve = depthCurve(ticksByPool.get(pool.poolAddress) ?? []);
     return {
       poolAddress: pool.poolAddress,
@@ -1098,8 +1154,9 @@ export async function readResearch(
       registryEnabled: pool.registryEnabled,
       stateStatus: pool.stateStatus,
       series: view,
-      windows,
-      draftPreparation: draftPreparation(windows),
+      windows: RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
+        ? exactWindow
+        : summarizeExactWindow(hours)),
       depth: curve.filter((point) =>
         Math.abs(point.tick - pool.tick!) <= DEPTH_TICK_RADIUS
       ),
