@@ -644,9 +644,24 @@ and an explicit distinction between implemented, deployed and live-validated.
   dashboard fail-close passed. No audit worker schedules this check yet, no
   production schema was migrated, and close-convert plus RangeKeeper paper
   accounting remain open.
+- 2026-09-23 parallel foundation slice: a separate `paper_fixed_flow_convert_v1`
+  scenario model and canonical projection path now specify a fee-aware terminal
+  input, block-pinned Quoter output, scoped conversion gas, slippage floor and
+  modeled capital-out balances. The original v1 journal policy remains the
+  dashboard selection. No trusted close-convert mark producer or operator
+  acceptance path exists, and the v2 scenario has not passed lifecycle or
+  dashboard parity gates. A read-only RangeKeeper paper-open adapter now
+  requires the full frozen kernel policy and reports missing scoped paper cost
+  evidence as unavailable; it records no fill. These are internal foundations,
+  not completion of R2 or W2.
 - W3: planned Research work remains outstanding. The existing page still has
-  four windows and checkpoint-based pool membership; profile registration does
-  not yet provide the registry-backed Research universe or saved-candidate UI.
+  no deployable candidate flow or saved-candidate UI. The page now lists pools
+  from the indexer registry and shows stale, inactive, unverified and missing
+  checkpoint state. It offers a 15-minute slot with exact checkpoint coverage,
+  freshness and gap diagnostics, while swaps, volume, fees, price change and
+  candidate economics stay unavailable: persisted swap events lack their own
+  canonical block timestamps, and chunk-end timestamps cannot establish an
+  exact 900-second flow interval. The 1h–7d windows remain bucket-based.
 - W4/W5: new deployment live adapters and active-management integration remain
   outstanding. Existing predecessor RangeKeeper execution is reusable evidence,
   not completion of these new workflow packages.
@@ -661,6 +676,11 @@ and an explicit distinction between implemented, deployed and live-validated.
   against that isolated ledger; a disposable Chromium check covered current
   and closed deployment cards, chart controls, activity and desktop/mobile
   width without browser exceptions. These validate the current foundation only.
+- 2026-09-23 parallel slice verification: the shared checkout passed
+  `npm run typecheck`, `git diff --check` and the Research UI JavaScript syntax
+  check after integration review. No tests, database migrations, owned-fork
+  rehearsals, browser acceptance checks or sealed-release checks were run for
+  this slice; its new paths remain gated.
 - Prior review baseline: 35 focused dashboard tests passed at `b38c839`; these
   establish existing behavior only and do not satisfy the new acceptance matrix.
 

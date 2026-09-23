@@ -34,7 +34,7 @@ const stride = (count) => Math.max(1, Math.ceil(count / MAX_BARS));
 const barGrain = (source, count) => minutesLabel(source.bucketMinutes * stride(count));
 const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
 
-const WINDOWS = [[1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
+const WINDOWS = [[0.25, '15m'], [1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
 const COLUMNS = [
   ['pool', 'Pool', false], ['swaps', 'Swaps', true], ['volume', 'Volume · USDG', true],
   ['fees', 'LP fees', true], ['share', 'Your share', true], ['inRange', 'In range', true],
@@ -99,9 +99,9 @@ function leagueRows(source, hours, widthIndex) {
       window,
       reference,
       key: `${pool.rwaSymbol}-${pool.fee}`,
-      swaps: window?.swaps ?? 0,
-      volume: usdg(window?.volumeQuote) ?? 0,
-      fees: usdg(window?.feesQuote) ?? 0,
+      swaps: window?.swaps > 0 || window?.observedBuckets > 0 ? window.swaps : null,
+      volume: usdg(window?.volumeQuote),
+      fees: usdg(window?.feesQuote),
       share: reference?.sharePpm == null ? null : reference.sharePpm / 1e6,
       inRange: reference == null || window == null ? null : reference.inRangeBuckets / Math.min(hours * perHour(source), source.buckets.length),
       gross: usdg(reference?.modeledFeesQuote),
@@ -129,7 +129,7 @@ function sortRows(rows, column, descending) {
 function renderControls() {
   $('#window-select').innerHTML = WINDOWS.map(([hours, label]) =>
     `<button data-action="window" data-value="${hours}" aria-pressed="${state.hours === hours}">${label}</button>`).join('');
-  const widths = snapshot.pools[0]?.windows[0]?.references ?? [];
+  const widths = state.hours === 0.25 ? [] : snapshot.pools.find((pool) => pool.windows.some((window) => window.references.length > 0))?.windows.find((window) => window.references.length > 0)?.references ?? [];
   $('#width-select').innerHTML = widths.map((reference, index) =>
     `<button data-action="width" data-value="${index}" aria-pressed="${state.width === index}">±${reference.halfWidthPercent.toFixed(2)}%</button>`).join('');
 }
@@ -139,7 +139,8 @@ function renderTable(rows) {
   $('#window-label').textContent = `trailing ${label}`;
   const budget = usdg(snapshot.budgetQuote);
   const roundTrip = usdg(snapshot.costs.roundTripQuote);
-  $('#assumptions').textContent =
+  $('#assumptions').textContent = state.hours === 0.25
+    ? 'Trailing 15m checkpoint coverage is available. Swaps, fees, volume, and candidate economics need canonical timestamps for each event block.' :
     `Reference position: ${money(budget, 0)} USDG entered at the window's opening price and never rebalanced. ` +
     `Fees are the LP side only: the protocol's cut of each pool's fee is already removed. ` +
     `Modeled fees credit the position's liquidity share of recorded flow for the ${grain(snapshot)} buckets price stayed inside the range. ` +
@@ -152,8 +153,9 @@ function renderTable(rows) {
 
   $('#league tbody').innerHTML = rows.map((row) => {
     const selected = row.pool.poolAddress === state.pool;
+    const status = !row.pool.registryEnabled ? 'Inactive' : row.pool.stateStatus === 'stale' ? 'Stale' : row.pool.stateStatus === 'unverified' ? 'Unverified' : row.pool.stateStatus === 'unavailable' ? 'No checkpoint' : '';
     return `<tr data-action="pool" data-value="${row.pool.poolAddress}" aria-selected="${selected}" tabindex="0">
-      <td><span class="pool-cell">${esc(row.pool.rwaSymbol)}<span class="tier">${(row.pool.fee / 10000).toFixed(2)}%</span></span></td>
+      <td><span class="pool-cell">${esc(row.pool.rwaSymbol)}<span class="tier">${(row.pool.fee / 10000).toFixed(2)}%</span>${status ? `<span class="tier">${status}</span>` : ''}</span></td>
       <td class="num">${compact(row.swaps)}</td>
       <td class="num">${compact(row.volume)}</td>
       <td class="num">${money(row.fees)}</td>
@@ -216,9 +218,10 @@ function condense(series) {
   for (let index = 0; index < series.length; index += step) {
     const chunk = series.slice(index, index + step);
     const priced = chunk.filter((bucket) => bucket.priceX18 != null);
+    const covered = chunk.every((bucket) => bucket.feesQuote != null);
     folded.push({
       bucket: chunk[0].bucket,
-      feesQuote: chunk.reduce((total, bucket) => total + BigInt(bucket.feesQuote), 0n).toString(),
+      feesQuote: covered ? chunk.reduce((total, bucket) => total + BigInt(bucket.feesQuote), 0n).toString() : null,
       priceX18: priced.length === 0 ? null : priced[priced.length - 1].priceX18,
     });
   }
@@ -246,7 +249,7 @@ function flowChart(pool, buckets) {
   const plot = height - padding.top - padding.bottom;
   const yFee = (value) => height - padding.bottom - value / peak * plot;
   const yPrice = (value) => height - padding.bottom - (value - priceLow) / (priceHigh - priceLow || 1) * plot;
-  const bars = series.map((bucket, index) =>
+  const bars = series.map((bucket, index) => fees[index] == null ? '' :
     `<rect x="${x(index)}" y="${yFee(fees[index])}" width="${barWidth}" height="${Math.max(0, height - padding.bottom - yFee(fees[index]))}" fill="#69debd" opacity=".55"/>`).join('');
   let line = '', open = false;
   for (const [index, price] of prices.entries()) {
@@ -270,6 +273,13 @@ function renderDetail(rows) {
   const row = rows.find((entry) => entry.pool.poolAddress === state.pool) ?? rows[0];
   if (row === undefined) { $('#detail').innerHTML = ''; return; }
   const pool = row.pool, reference = row.reference;
+  if (pool.tick == null || pool.priceX18 == null) {
+    const exact = pool.windows.find((window) => window.hours === 0.25);
+    $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(pool.stateStatus)}</span></div>
+      <p>Registered pool identity is available; checkpoint state is unavailable, so price, depth, and modeled candidate economics are unavailable.</p>
+      ${exact ? `<p>Trailing 15m fee and volume are unavailable because stored event timestamps identify chunk ends, not each swap. Checkpoint span: ${exact.coveredSeconds ?? 0}s of 900s; latest checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`}; largest checkpoint gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}.</p>` : ''}`;
+    return;
+  }
   const depthReference = pool.depthReferences?.[state.width] ?? null;
   const peakLiquidity = Math.max(...pool.depth.map((point) => Number(point.liquidity)), 0);
   $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2>
@@ -284,9 +294,11 @@ function renderDetail(rows) {
         <div class="legend"><span><i class="sw-depth"></i>Depth · USDG at ±${depthReference ? depthReference.halfWidthPercent.toFixed(2) : '—'}% (left)</span><span><i class="sw-spot"></i>Spot</span><span><i class="sw-range"></i>Reference range</span></div>
       </div>
       <div class="chart-card"><h3>Fees and price</h3>
-        <p>Fees the whole pool charged in each ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} bucket, against the pool price. Selected window.</p>
+        ${state.hours === 0.25
+          ? '<p>15m flow and price-change figures are unavailable until each event block has a canonical timestamp.</p>'
+          : `<p>The flow chart shows retained ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} time buckets.</p>
         ${flowChart(pool, state.hours * perHour(snapshot))}
-        <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>
+        <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>`}
       </div>
     </div>`;
 }
@@ -298,7 +310,11 @@ function render() {
   renderControls();
   renderTable(rows);
   renderDetail(rows);
+  const active = snapshot.pools.find((pool) => pool.poolAddress === state.pool);
+  const exact = active?.windows.find((window) => window.hours === 0.25);
+  const coverage = exact ? ` · 15m observed span ${exact.coveredSeconds ?? 0}/900s · checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`} · max gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}` : '';
   $('#status').textContent = `Built ${clock(snapshot.generatedAt)} ET`;
+  $('#window-label').textContent = `${WINDOWS.find(([hours]) => hours === state.hours)[1]}${state.hours === 0.25 ? coverage : ''}`;
   $('#footnote').textContent = `${snapshot.pools.length} pools · ${snapshot.buckets.length / perHour(snapshot)}h retained in ${grain(snapshot)} buckets · stream ${snapshot.streamKey}`;
 }
 

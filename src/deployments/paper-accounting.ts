@@ -4,11 +4,15 @@ import {contentHash} from './contracts.js';
 import type {MarketProfile} from './market-profile.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {PaperCloseRetainModel} from './paper-close-model.js';
+import {paperCloseConvertQuoteSchema,verifyCanonicalPaperCloseConvertQuote,
+ type PaperCloseConvertQuote,
+ type PaperCloseConvertModel} from './paper-close-convert-model.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
 import type {RobinhoodClient} from '../client.js';
 import type {DeploymentStore,PaperAccountingAnchor} from './store.js';
 
 export const PAPER_ACCOUNTING_POLICY='paper_fixed_flow_lower_v1';
+export const PAPER_CONVERSION_ACCOUNTING_POLICY='paper_fixed_flow_convert_v1';
 const Q128=1n<<128n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const signed=z.string().regex(/^(0|-?[1-9][0-9]*)$/);
@@ -17,6 +21,11 @@ const source=z.object({block:raw,hash,timestamp:z.number().int().nonnegative()})
 const reference=z.object({price0:raw,price1:raw,nativePrice:raw}).strict();
 const flow=z.object({kind:z.enum(['modeled_fee','modeled_gas','modeled_capital_out']),
  asset:z.enum(['token0','token1','native']),amountRaw:raw,valueQuote:raw}).strict();
+const conversionFlow=z.object({kind:z.literal('modeled_conversion'),
+ fromAsset:z.enum(['token0','token1']),fromAmountRaw:raw,
+ toAsset:z.enum(['token0','token1']),expectedToAmountRaw:raw,minimumToAmountRaw:raw,
+ expectedValueQuote:raw,minimumValueQuote:raw,quoteHash:z.string().regex(/^[0-9a-f]{64}$/),
+ pathVersion:z.string()}).strict();
 export const paperAccountingSchema=z.object({
  policyVersion:z.literal(PAPER_ACCOUNTING_POLICY),classification:z.literal('provisional_paper_scenario'),
  campaignId:z.uuid(),sourceMarkId:raw,markKind:z.enum(['open','valuation','close_retain']),
@@ -40,7 +49,43 @@ export const paperAccountingSchema=z.object({
 }).strict();
 export type PaperAccounting=z.infer<typeof paperAccountingSchema>;
 
-interface AccountingMark {
+/** A separately versioned replay policy for campaigns closed through an
+ * explicitly quoted token conversion. The v1 schema and policy remain frozen. */
+export const paperConversionAccountingSchema=z.object({
+ policyVersion:z.literal(PAPER_CONVERSION_ACCOUNTING_POLICY),
+ classification:z.literal('provisional_paper_scenario'),campaignId:z.uuid(),
+ sourceMarkId:raw,markKind:z.enum(['open','valuation','close_retain','close_convert']),
+ source,reference,profileHash:z.string().regex(/^[0-9a-f]{64}$/),
+ openModelHash:z.string().regex(/^[0-9a-f]{64}$/),closeModelHash:z.string().regex(/^[0-9a-f]{64}$/).nullable(),
+ feeEvidence:z.object({id:raw,proofHash:z.string().regex(/^[0-9a-f]{64}$/),
+  carryHash:z.string().regex(/^[0-9a-f]{64}$/),upper0Raw:raw,upper1Raw:raw}).strict().nullable(),
+ gasProfiles:z.array(z.object({stage:z.string(),id:z.uuid(),version:z.number().int().positive(),
+  sourceHash:hash}).strict()),
+ inventory:z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw,
+  principal0Raw:raw,principal1Raw:raw,fee0Raw:raw,fee1Raw:raw,
+  cumulativeGasWei:raw,hasLiquidity:z.boolean()}).strict(),
+ economics:z.object({initialCapitalQuote:raw,netNavQuote:raw,passiveQuote:raw,
+  absolutePnlQuote:signed,alphaQuote:signed,cumulativeFeeValueQuote:raw,
+  cumulativeGasExpenseQuote:raw,intervalFeeAccrualQuote:raw,markGasExpenseQuote:raw,
+  cumulativeConversionCostQuote:raw,cumulativeSwapCostQuote:signed,
+  modeledSwapExpectedProceedsQuote:raw,modeledSwapProceedsQuote:raw,
+  modeledSwapCostQuote:signed}).strict(),
+ conversion:z.object({quoteHash:z.string().regex(/^[0-9a-f]{64}$/),
+  pathVersion:z.string(),source,fromAsset:z.enum(['token0','token1']),
+  toAsset:z.enum(['token0','token1']),inputAmountRaw:raw,
+  expectedOutputRaw:raw,minimumOutputRaw:raw,slippageBps:z.number().int().positive().max(500),
+  expectedProceedsQuote:raw,minimumProceedsQuote:raw,
+  modeledSwapCostQuote:signed,
+  expectedGasWei:raw,boundGasWei:raw,expectedGasCostQuote:raw,boundGasCostQuote:raw}).strict().nullable(),
+ flows:z.array(z.union([flow,conversionFlow])),
+ limitations:z.tuple([z.literal('fixed_observed_flow_counterfactual'),
+  z.literal('lower_integer_allocation_point'),z.literal('execution_delay_unmodeled'),
+  z.literal('failure_expense_unmodeled'),z.literal('quote_to_execution_deviation_unmodeled'),
+  z.literal('final_custody_unobserved')]),
+}).strict();
+export type PaperConversionAccounting=z.infer<typeof paperConversionAccountingSchema>;
+
+export interface AccountingMark {
  id:string;kind:'open'|'valuation'|'close_retain';
  source:z.infer<typeof source>;reference:z.infer<typeof reference>;
  principal0Raw:string;principal1Raw:string;
@@ -167,6 +212,142 @@ export function buildPaperAccounting(open:PaperOpenModel,profile:MarketProfile,
    'execution_delay_unmodeled','failure_expense_unmodeled','close_convert_unavailable']});
 }
 
+export type ConversionAccountingMark={id:string;kind:'open'|'valuation'|'close_retain'|'close_convert';
+ source:z.infer<typeof source>;reference:z.infer<typeof reference>;
+ principal0Raw:string;principal1Raw:string};
+const v1Limitations:PaperAccounting['limitations']=[
+ 'fixed_observed_flow_counterfactual','lower_integer_allocation_point',
+ 'execution_delay_unmodeled','failure_expense_unmodeled','close_convert_unavailable'];
+const v2Limitations:PaperConversionAccounting['limitations']=[
+ 'fixed_observed_flow_counterfactual','lower_integer_allocation_point',
+ 'execution_delay_unmodeled','failure_expense_unmodeled',
+ 'quote_to_execution_deviation_unmodeled','final_custody_unobserved'];
+const v1Economics=(economics:PaperConversionAccounting['economics'])=>({
+ initialCapitalQuote:economics.initialCapitalQuote,netNavQuote:economics.netNavQuote,
+ passiveQuote:economics.passiveQuote,absolutePnlQuote:economics.absolutePnlQuote,
+ alphaQuote:economics.alphaQuote,cumulativeFeeValueQuote:economics.cumulativeFeeValueQuote,
+ cumulativeGasExpenseQuote:economics.cumulativeGasExpenseQuote,
+ intervalFeeAccrualQuote:economics.intervalFeeAccrualQuote,
+ markGasExpenseQuote:economics.markGasExpenseQuote,
+});
+export const paperAccountingFromConversionSnapshot=(snapshot:PaperConversionAccounting|null):PaperAccounting|null=>{
+ if(!snapshot)return null;
+ assert(snapshot.markKind!=='close_convert','Paper conversion already terminal');
+ const base={...snapshot};
+ delete (base as Partial<PaperConversionAccounting>).conversion;
+ return paperAccountingSchema.parse({...base,policyVersion:PAPER_ACCOUNTING_POLICY,
+  economics:v1Economics(snapshot.economics),
+  flows:snapshot.flows.filter((item)=>item.kind!=='modeled_conversion'),
+  limitations:v1Limitations});
+};
+
+/** Replays the frozen fixed-flow calculation under a distinct policy key. Its
+ * terminal conversion uses an exact block-pinned quote and the quote's
+ * explicit slippage floor. No output is treated as an executed fill. */
+export function buildPaperConversionAccounting(open:PaperOpenModel,profile:MarketProfile,
+ mark:ConversionAccountingMark,previous:PaperConversionAccounting|null,fee:FeeEvidence|null,
+ closeRetain:PaperCloseRetainModel|null,closeConvert:PaperCloseConvertModel|null,
+ closeQuoteInput:PaperCloseConvertQuote|null):PaperConversionAccounting{
+ assert(mark.id.match(/^[1-9][0-9]*$/),'Paper conversion accounting mark ID invalid');
+ if(mark.kind==='close_convert')assert(closeConvert&&closeQuoteInput&&
+  closeConvert.openModelHash===contentHash(open)&&
+  closeConvert.campaignId===open.campaignId&&same(closeConvert.source,mark.source)&&
+  contentHash(closeConvert.reference)===contentHash(mark.reference),
+  'Paper conversion close model unavailable');
+ else assert(!closeConvert&&!closeQuoteInput,'Paper conversion close model unexpected');
+ assert(mark.kind!=='close_retain'||closeRetain,'Paper conversion retain model unavailable');
+ assert(mark.kind==='close_retain'||!closeRetain,'Paper conversion retain model unexpected');
+ const baseKind=mark.kind==='close_convert'?'valuation':mark.kind;
+ const baseMark:AccountingMark={...mark,kind:baseKind as AccountingMark['kind']};
+ const base=buildPaperAccounting(open,profile,baseMark,paperAccountingFromConversionSnapshot(previous),fee,
+  mark.kind==='close_retain'?closeRetain:null);
+ const initialEconomics={...base.economics,cumulativeConversionCostQuote:'0',
+  cumulativeSwapCostQuote:'0',modeledSwapExpectedProceedsQuote:'0',
+  modeledSwapProceedsQuote:'0',modeledSwapCostQuote:'0'};
+ if(mark.kind!=='close_convert')return paperConversionAccountingSchema.parse({
+  ...base,policyVersion:PAPER_CONVERSION_ACCOUNTING_POLICY,
+  economics:initialEconomics,conversion:null,limitations:v2Limitations});
+
+ const model=closeConvert!,q=paperCloseConvertQuoteSchema.parse(closeQuoteInput),
+  route=model.conversionRoute,p=profile.pool;
+ assert(model.principal.amount0Raw===mark.principal0Raw&&
+  model.principal.amount1Raw===mark.principal1Raw,
+  'Paper conversion principal changed');
+ const fromAsset=q.inputAsset,toAsset=fromAsset==='token0'?'token1':'token0',
+  input=BigInt(q.inputAmountRaw),expected=BigInt(q.expectedOutputRaw),
+  minimum=BigInt(q.minimumOutputRaw),
+  token0Before=BigInt(base.inventory.token0Raw),token1Before=BigInt(base.inventory.token1Raw);
+ const quoteAsset=p.quoteToken===0?'token0':'token1';
+ assert(route.router.toLowerCase()===q.router.toLowerCase()&&
+  route.quoter.toLowerCase()===q.quoter.toLowerCase()&&route.fee===q.fee&&
+  route.pathVersion===q.pathVersion&&route.slippageBps===q.slippageBps&&
+  contentHash(route.path)===contentHash(q.path)&&fromAsset===route.inputAsset&&
+  fromAsset!==quoteAsset&&same(q.source,model.source)&&
+  q.minimumOutputRaw===String(expected*BigInt(10_000-q.slippageBps)/10_000n),
+  'Paper conversion quote differs from pinned route');
+ assert(input===(fromAsset==='token0'?token0Before:token1Before),
+  'Paper conversion quote does not cover full input inventory');
+ const token0=fromAsset==='token0'?0n:token0Before+minimum,
+  token1=fromAsset==='token1'?0n:token1Before+minimum,
+  nativePrice=BigInt(mark.reference.nativePrice),price0=BigInt(mark.reference.price0),
+  price1=BigInt(mark.reference.price1),
+  nativeGas=BigInt(model.costs.expectedWei),gasQuote=BigInt(model.costs.expectedValue),
+  cumulativeGas=BigInt(base.inventory.cumulativeGasWei)+nativeGas;
+ assert(cumulativeGas<=BigInt(open.allocation.nativeWei),
+  'Paper conversion native reserve insufficient');
+ const native=BigInt(open.allocation.nativeWei)-cumulativeGas;
+ const valueRaw=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
+ const proceedsExpected=valueRaw(expected,toAsset==='token0'?price0:price1,
+  toAsset==='token0'?p.decimals0:p.decimals1),
+  proceedsMinimum=valueRaw(minimum,toAsset==='token0'?price0:price1,
+   toAsset==='token0'?p.decimals0:p.decimals1),
+  inputValue=valueRaw(input,fromAsset==='token0'?price0:price1,
+   fromAsset==='token0'?p.decimals0:p.decimals1),
+  modeledSwapCost=inputValue-proceedsMinimum,
+  nav=valueRaw(token0,price0,p.decimals0)+valueRaw(token1,price1,p.decimals1)+
+   valueRaw(native,nativePrice,18),
+  markGas=gasQuote,
+  conversionFlows:PaperConversionAccounting['flows'][number][]=[
+   {kind:'modeled_gas',asset:'native',amountRaw:String(nativeGas),valueQuote:String(gasQuote)},
+   {kind:'modeled_conversion',fromAsset,fromAmountRaw:String(input),toAsset,
+    expectedToAmountRaw:String(expected),minimumToAmountRaw:String(minimum),
+    expectedValueQuote:String(proceedsExpected),minimumValueQuote:String(proceedsMinimum),
+    quoteHash:q.quoteHash,pathVersion:q.pathVersion},
+  ];
+ const addCapitalOut=(asset:'token0'|'token1'|'native',amount:bigint,price:bigint,decimals:number)=>
+  conversionFlows.push({kind:'modeled_capital_out',asset,amountRaw:String(amount),
+   valueQuote:String(valueRaw(amount,price,decimals))});
+ addCapitalOut('token0',token0,price0,p.decimals0);
+ addCapitalOut('token1',token1,price1,p.decimals1);
+ addCapitalOut('native',native,nativePrice,18);
+ const gasProfiles=[...base.gasProfiles,...model.costs.stages.map(stage=>({stage:stage.stage,
+  id:stage.profileId,version:stage.version,
+  sourceHash:stage.source.hash}))];
+ const closeConvertHash=contentHash(model);
+ const economics={...base.economics,netNavQuote:String(nav),
+  absolutePnlQuote:String(nav-BigInt(base.economics.initialCapitalQuote)),
+  alphaQuote:String(nav-BigInt(base.economics.passiveQuote)),
+  cumulativeGasExpenseQuote:String(BigInt(base.economics.cumulativeGasExpenseQuote)+gasQuote),
+  markGasExpenseQuote:String(markGas),cumulativeConversionCostQuote:String(gasQuote),
+  cumulativeSwapCostQuote:signedText(modeledSwapCost),
+  modeledSwapExpectedProceedsQuote:String(proceedsExpected),
+  modeledSwapProceedsQuote:String(proceedsMinimum),
+  modeledSwapCostQuote:signedText(modeledSwapCost)};
+ return paperConversionAccountingSchema.parse({...base,
+  policyVersion:PAPER_CONVERSION_ACCOUNTING_POLICY,markKind:'close_convert',
+  closeModelHash:closeConvertHash,gasProfiles,
+  inventory:{...base.inventory,token0Raw:String(token0),token1Raw:String(token1),
+   nativeWei:String(native),cumulativeGasWei:String(cumulativeGas),hasLiquidity:false},
+  economics,conversion:{quoteHash:q.quoteHash,pathVersion:q.pathVersion,source:q.source,
+   fromAsset,toAsset,inputAmountRaw:String(input),expectedOutputRaw:String(expected),
+   minimumOutputRaw:String(minimum),slippageBps:q.slippageBps,
+   expectedProceedsQuote:String(proceedsExpected),minimumProceedsQuote:String(proceedsMinimum),
+   modeledSwapCostQuote:signedText(modeledSwapCost),expectedGasWei:model.costs.expectedWei,
+   boundGasWei:model.costs.boundWei,expectedGasCostQuote:model.costs.expectedValue,
+   boundGasCostQuote:model.costs.boundValue},
+  flows:[...base.flows,...conversionFlows],limitations:v2Limitations});
+}
+
 /** Projects one saved mark only while its source anchors still resolve on the
  * configured chain. The store performs these reads inside the append
  * transaction, after replaying persisted evidence and before inserting. */
@@ -199,6 +380,41 @@ export async function recordCanonicalNextPaperAccounting(store:DeploymentStore,
  });
 }
 
+/** V2 is intentionally opt-in. Its terminal close quote is derived from the
+ * persisted lower-fee carry inside the store transaction, then replayed at
+ * the exact saved block before the versioned scenario can be appended. */
+export async function recordCanonicalNextPaperConversionAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.recordNextPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper conversion accounting chain changed');
+  const checked=new Map<string,string>();
+  for(const source of sources){
+   const prior=checked.get(source.block);
+   if(prior!==undefined){
+    assert.equal(prior,`${source.hash.toLowerCase()}:${source.timestamp}`,
+     'Paper conversion accounting same-block conflict');
+    continue;
+   }
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),
+    'Paper conversion accounting source reorged');
+   assert.equal(Number(block.timestamp),source.timestamp,
+    'Paper conversion accounting timestamp changed');
+   checked.set(source.block,`${source.hash.toLowerCase()}:${source.timestamp}`);
+  }
+  for(const [number,identity] of checked){
+   const block=await client.getBlock({blockNumber:BigInt(number)});
+   assert.equal(`${block.hash.toLowerCase()}:${Number(block.timestamp)}`,identity,
+    'Paper conversion accounting source changed during verification');
+  }
+ },PAPER_CONVERSION_ACCOUNTING_POLICY,async(chainId,model,inputAmountRaw)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper conversion quote chain changed');
+  const quote=await verifyCanonicalPaperCloseConvertQuote(client,model,inputAmountRaw);
+  assert.deepEqual(quote.source,model.source,'Paper conversion quote anchor changed');
+  return quote;
+ });
+}
+
 /** Audits already-projected history against a stable pair of canonical reads.
  * A provider failure or a chain change during the audit rejects the run and
  * cannot create a permanent revocation. */
@@ -227,6 +443,28 @@ export async function auditCanonicalPaperAccounting(store:DeploymentStore,
  });
 }
 
+/** Audits the independent v2 projection. Its append-only invalidation is
+ * campaign-wide, so either policy's detected reorg fails both views closed. */
+export async function auditCanonicalPaperConversionAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.auditPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper conversion audit chain changed');
+  const read=async(source:PaperAccountingAnchor)=>{
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   return {hash:block.hash.toLowerCase(),timestamp:Number(block.timestamp)};
+  };
+  const first=new Map<string,{hash:string;timestamp:number}>();
+  for(const source of sources)first.set(source.accountingId,await read(source));
+  for(const source of sources){
+   const actual=await read(source),prior=first.get(source.accountingId)!;
+   assert.deepEqual(actual,prior,'Paper conversion audit source changed during verification');
+   if(actual.hash!==source.hash.toLowerCase()||actual.timestamp!==source.timestamp)
+    return {accountingId:source.accountingId,actual};
+  }
+  return null;
+ },PAPER_CONVERSION_ACCOUNTING_POLICY);
+}
+
 /** Bounded, restart-safe journal pass for one campaign. A later run picks up
  * the first unprojected mark; missing fee evidence or revoked sources stop
  * the pass without changing prior snapshots. */
@@ -237,6 +475,21 @@ export async function projectCanonicalPaperAccounting(store:DeploymentStore,
  const projected:string[]=[];
  for(let n=0;n<maxMarks;n++){
   const next=await recordCanonicalNextPaperAccounting(store,client,campaignId);
+  if(!next)return {projected,caughtUp:true};
+  projected.push(next.markId);
+ }
+ return {projected,caughtUp:false};
+}
+
+/** Bounded v2 replay; unlike v1, the close-convert terminal requires its exact
+ * fee-aware quote and scoped conversion gas profiles before it can catch up. */
+export async function projectCanonicalPaperConversionAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string,maxMarks=100){
+ assert(Number.isSafeInteger(maxMarks)&&maxMarks>=1&&maxMarks<=100,
+  'Paper conversion accounting projection budget invalid');
+ const projected:string[]=[];
+ for(let n=0;n<maxMarks;n++){
+  const next=await recordCanonicalNextPaperConversionAccounting(store,client,campaignId);
   if(!next)return {projected,caughtUp:true};
   projected.push(next.markId);
  }

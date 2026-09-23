@@ -17,7 +17,7 @@ import {
 } from "../simulator/math.js";
 
 /** Trailing windows the page offers, in hours. */
-export const RESEARCH_WINDOW_HOURS = [1, 6, 24, 168] as const;
+export const RESEARCH_WINDOW_HOURS = [0.25, 1, 6, 24, 168] as const;
 
 /**
  * Reference half-widths, as price fractions rounded out to the pool grid. The
@@ -73,8 +73,8 @@ const DEPTH_TICK_RADIUS = 1_500;
 export interface ResearchBucket {
   readonly bucket: string;
   readonly swaps: number;
-  readonly volumeQuote: string;
-  readonly feesQuote: string;
+  readonly volumeQuote: string | null;
+  readonly feesQuote: string | null;
   readonly meanLiquidity: string;
   readonly priceX18: string | null;
   readonly tickLast: number | null;
@@ -98,14 +98,29 @@ export interface ResearchReference {
 export interface ResearchWindowSummary {
   /** Window length in hours; the series under it is sliced in buckets. */
   readonly hours: number;
+  /** Exact trailing-window diagnostics. Null for bucket-aligned legacy windows. */
+  readonly windowSeconds: number | null;
+  readonly coveredSeconds: number | null;
+  readonly freshnessSeconds: number | null;
+  readonly maxGapSeconds: number | null;
   readonly observedBuckets: number;
-  readonly swaps: number;
-  readonly volumeQuote: string;
-  readonly feesQuote: string;
+  readonly swaps: number | null;
+  readonly volumeQuote: string | null;
+  readonly feesQuote: string | null;
   readonly meanLiquidity: string;
   readonly priceChangePpm: number | null;
   readonly validShare: number | null;
   readonly references: readonly ResearchReference[];
+  readonly limitation: string | null;
+}
+
+interface ExactCheckpointWindow {
+  readonly count: number;
+  readonly valid: number;
+  readonly meanLiquidity: bigint;
+  readonly firstAt: Date | null;
+  readonly lastAt: Date | null;
+  readonly maxGapSeconds: number | null;
 }
 
 export interface ResearchDepthPoint {
@@ -134,10 +149,12 @@ export interface ResearchPool {
   readonly tickSpacing: number;
   readonly quoteIsToken0: boolean;
   readonly rwaDecimals: number;
-  readonly tick: number;
-  readonly priceX18: string;
-  readonly liquidity: string;
-  readonly observedAt: string;
+  readonly tick: number | null;
+  readonly priceX18: string | null;
+  readonly liquidity: string | null;
+  readonly observedAt: string | null;
+  readonly registryEnabled: boolean;
+  readonly stateStatus: "current" | "stale" | "unverified" | "unavailable";
   readonly series: readonly ResearchBucket[];
   readonly windows: readonly ResearchWindowSummary[];
   readonly depth: readonly ResearchDepthPoint[];
@@ -237,14 +254,16 @@ interface PoolIdentity {
   readonly poolAddress: string;
   readonly rwaSymbol: string;
   readonly fee: number;
-  readonly token0: string;
-  readonly token1: string;
+  readonly token0: string | null;
+  readonly token1: string | null;
   readonly rwaDecimals: number;
-  readonly tick: number;
-  readonly sqrtPriceX96: bigint;
-  readonly priceX18: bigint;
-  readonly liquidity: bigint;
-  readonly observedAt: Date;
+  readonly tick: number | null;
+  readonly sqrtPriceX96: bigint | null;
+  readonly priceX18: bigint | null;
+  readonly liquidity: bigint | null;
+  readonly observedAt: Date | null;
+  readonly registryEnabled: boolean;
+  readonly stateStatus: "current" | "stale" | "unverified" | "unavailable";
 }
 
 interface BucketAccumulator {
@@ -310,40 +329,58 @@ async function readIdentities(
     pool_address: string;
     rwa_symbol: string;
     fee: number;
-    token0: string;
-    token1: string;
+    token0: string | null;
+    token1: string | null;
     token_decimals: number | null;
-    tick: number;
-    sqrt_price_x96: string;
-    pool_price_x18: string;
-    liquidity: string;
-    block_timestamp: Date;
+    tick: number | null;
+    sqrt_price_x96: string | null;
+    pool_price_x18: string | null;
+    liquidity: string | null;
+    block_timestamp: Date | null;
+    registry_enabled: boolean;
+    checkpoint_status: string | null;
   }>(
-    `SELECT DISTINCT ON (p.pool_address)
-            p.pool_address, p.rwa_symbol, p.fee, p.token0, p.token1,
-            p.token_decimals, p.tick, p.sqrt_price_x96::text, p.liquidity::text,
-            p.pool_price_x18::text, c.block_timestamp
-       FROM v3_strategy_checkpoint_runs c
-       JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id = c.id
-      WHERE c.stream_key = $1
-        AND c.block_timestamp >= now() - interval '6 hours'
-      ORDER BY p.pool_address, c.block_number DESC`,
+    `SELECT lower(i.pool_address) AS pool_address, i.rwa_symbol, i.fee,
+            p.token0, p.token1, p.token_decimals, p.tick,
+            p.sqrt_price_x96::text, p.liquidity::text,
+            p.pool_price_x18::text, p.block_timestamp, i.enabled AS registry_enabled,
+            p.status AS checkpoint_status
+       FROM indexer_pools i
+       LEFT JOIN LATERAL (
+         SELECT p.token0, p.token1, p.token_decimals, p.tick, p.sqrt_price_x96,
+                p.liquidity, p.pool_price_x18, p.status, c.block_timestamp
+           FROM v3_strategy_checkpoint_runs c
+           JOIN v3_strategy_pool_checkpoints p ON p.checkpoint_run_id = c.id
+          WHERE c.stream_key = i.stream_key
+            AND lower(p.pool_address) = lower(i.pool_address)
+          ORDER BY c.block_number DESC LIMIT 1
+       ) p ON TRUE
+      WHERE i.stream_key = $1
+      ORDER BY lower(i.pool_address)`,
     [streamKey],
   );
+  const now = Date.now();
   return rows.map((row) => ({
     poolAddress: row.pool_address,
     rwaSymbol: row.rwa_symbol,
     fee: row.fee,
     token0: row.token0,
     token1: row.token1,
-    // Checkpoints only carry decimals on a gate-valid row; the indexed universe
-    // is uniformly 18-decimal RWA against 6-decimal USDG.
+    // The registry supplies identity even before its first checkpoint.
     rwaDecimals: row.token_decimals ?? 18,
     tick: row.tick,
-    sqrtPriceX96: BigInt(row.sqrt_price_x96),
-    priceX18: BigInt(row.pool_price_x18),
-    liquidity: BigInt(row.liquidity),
+    sqrtPriceX96: row.sqrt_price_x96 === null ? null : BigInt(row.sqrt_price_x96),
+    priceX18: row.pool_price_x18 === null ? null : BigInt(row.pool_price_x18),
+    liquidity: row.liquidity === null ? null : BigInt(row.liquidity),
     observedAt: row.block_timestamp,
+    registryEnabled: row.registry_enabled,
+    stateStatus: row.block_timestamp === null
+      ? "unavailable"
+      : row.checkpoint_status !== "valid"
+      ? "unverified"
+      : now - row.block_timestamp.getTime() > 6 * 60 * 60_000
+      ? "stale"
+      : "current",
   }));
 }
 
@@ -445,12 +482,12 @@ function summarizeWindow(
   let validCheckpoints = 0;
   for (const [index, bucket] of slice.entries()) {
     swaps += bucket.swaps;
-    volumeQuote += BigInt(bucket.volumeQuote);
-    feesQuote += BigInt(bucket.feesQuote);
     const accumulator = sliceAccumulators[index]!;
     checkpoints += accumulator.checkpoints;
     validCheckpoints += accumulator.validCheckpoints;
     if (accumulator.checkpoints > 0) {
+      if (bucket.volumeQuote !== null) volumeQuote += BigInt(bucket.volumeQuote);
+      if (bucket.feesQuote !== null) feesQuote += BigInt(bucket.feesQuote);
       liquiditySum += accumulator.meanLiquidity;
       observedBuckets += 1;
     }
@@ -478,7 +515,7 @@ function summarizeWindow(
     const base = Math.floor(entry.tickLast / tickSpacing) * tickSpacing;
     for (const fraction of RESEARCH_HALF_WIDTH_FRACTIONS) {
       const sized = referenceSizing(
-        pool,
+        { token0: pool.token0!, token1: pool.token1! },
         tickSpacing,
         entry.tickLast,
         entry.sqrtPriceX96,
@@ -501,7 +538,7 @@ function summarizeWindow(
         inRangeBuckets += 1;
         const shared = size.liquidity +
           sliceAccumulators[index]!.meanLiquidity;
-        if (shared > 0n) {
+        if (shared > 0n && bucket.feesQuote !== null) {
           modeledFeesQuote += BigInt(bucket.feesQuote) * size.liquidity /
             shared;
         }
@@ -533,15 +570,91 @@ function summarizeWindow(
 
   return {
     hours,
+    windowSeconds: null,
+    coveredSeconds: null,
+    freshnessSeconds: null,
+    maxGapSeconds: null,
     observedBuckets,
     swaps,
-    volumeQuote: volumeQuote.toString(),
-    feesQuote: feesQuote.toString(),
+    volumeQuote: observedBuckets > 0 ? volumeQuote.toString() : null,
+    feesQuote: observedBuckets > 0 ? feesQuote.toString() : null,
     meanLiquidity: meanLiquidity.toString(),
     priceChangePpm,
     validShare: checkpoints > 0 ? validCheckpoints / checkpoints : null,
     references,
+    limitation: null,
   };
+}
+
+function exactWindowSummary(
+  checkpoints: ExactCheckpointWindow,
+  asOf: Date,
+): ResearchWindowSummary {
+  const coveredSeconds = checkpoints.firstAt === null || checkpoints.lastAt === null
+    ? 0
+    : Math.max(0, Math.floor((checkpoints.lastAt.getTime() - checkpoints.firstAt.getTime()) / 1000));
+  const freshnessSeconds = checkpoints.lastAt === null
+    ? null
+    : Math.max(0, Math.floor((asOf.getTime() - checkpoints.lastAt.getTime()) / 1000));
+  return {
+    hours: 0.25,
+    windowSeconds: 900,
+    coveredSeconds,
+    freshnessSeconds,
+    maxGapSeconds: checkpoints.maxGapSeconds,
+    observedBuckets: checkpoints.count > 0 ? 1 : 0,
+    swaps: null,
+    volumeQuote: null,
+    feesQuote: null,
+    meanLiquidity: checkpoints.meanLiquidity.toString(),
+    priceChangePpm: null,
+    validShare: checkpoints.count > 0 ? checkpoints.valid / checkpoints.count : null,
+    references: [],
+    limitation: "event_block_timestamps_unavailable",
+  };
+}
+
+async function readExactCheckpointWindow(
+  client: PoolClient,
+  streamKey: string,
+  since: Date,
+  asOf: Date,
+): Promise<ReadonlyMap<string, ExactCheckpointWindow>> {
+  const { rows } = await client.query<{
+    pool_address: string; at: Date; status: string; liquidity: string;
+  }>(
+    `SELECT lower(p.pool_address) AS pool_address, c.block_timestamp AS at,
+            p.status, p.liquidity::text
+       FROM v3_strategy_pool_checkpoints p
+       JOIN v3_strategy_checkpoint_runs c ON c.id = p.checkpoint_run_id
+      WHERE c.stream_key = $1 AND c.block_timestamp >= $2 AND c.block_timestamp <= $3`,
+    [streamKey, since, asOf],
+  );
+  const grouped = new Map<string, typeof rows>();
+  for (const row of rows) grouped.set(row.pool_address, [...(grouped.get(row.pool_address) ?? []), row]);
+  const result = new Map<string, ExactCheckpointWindow>();
+  for (const [address, entries] of grouped) {
+    entries.sort((a, b) => a.at.getTime() - b.at.getTime());
+    const within = entries.filter((row) => row.at >= since && row.at <= asOf);
+    const first = within[0], last = within.at(-1);
+    let maxGapSeconds: number | null = null;
+    const times = [since, ...within.map((row) => row.at), asOf];
+    if (within.length > 0) {
+      maxGapSeconds = 0;
+      for (let i = 1; i < times.length; i++) {
+        maxGapSeconds = Math.max(maxGapSeconds, Math.floor((times[i]!.getTime() - times[i - 1]!.getTime()) / 1000));
+      }
+    }
+    result.set(address, {
+      count: within.length,
+      valid: within.filter((row) => row.status === "valid").length,
+      meanLiquidity: within.length === 0 ? 0n : within.reduce((sum, row) => sum + BigInt(row.liquidity), 0n) / BigInt(within.length),
+      firstAt: first?.at ?? null,
+      lastAt: last?.at ?? null,
+      maxGapSeconds,
+    });
+  }
+  return result;
 }
 
 export async function readResearch(
@@ -551,9 +664,11 @@ export async function readResearch(
   const now = new Date();
   const axis = bucketAxis(now);
   const since = axis[0]!.toISOString();
+  const exactSince = new Date(now.getTime() - 900_000);
   const identities = await readIdentities(client, streamKey);
   const costs = await readCosts(client);
   const protocolFees = await readProtocolFees(client, streamKey);
+  const exactCheckpoints = await readExactCheckpointWindow(client, streamKey, exactSince, now);
   const roundTripQuote = costs.roundTripQuote === null
     ? null
     : BigInt(costs.roundTripQuote);
@@ -561,7 +676,7 @@ export async function readResearch(
   const bucketed = await client.query<BucketCheckpointRow>(
     // `date_bin` is anchored on the Unix epoch so the bins line up with the
     // axis above, which floors the same way.
-    `SELECT p.pool_address,
+    `SELECT lower(p.pool_address) AS pool_address,
             date_bin($3::interval, c.block_timestamp, TIMESTAMPTZ 'epoch') AS bkt,
             count(*)::text AS checkpoints,
             count(*) FILTER (WHERE p.status = 'valid')::text AS valid_checkpoints,
@@ -682,12 +797,35 @@ export async function readResearch(
 
   const pools = identities.map((pool): ResearchPool => {
     const tickSpacing = tickSpacingForFee(pool.fee);
-    const quoteIsToken0 = pool.token0.toLowerCase() === USDG.toLowerCase();
+    const quoteIsToken0 = pool.token0?.toLowerCase() === USDG.toLowerCase();
+    const protocol = protocolFees.get(pool.poolAddress) ?? { fee0: 0, fee1: 0 };
+    const exactCheckpoint = exactCheckpoints.get(pool.poolAddress) ?? {
+      count: 0, valid: 0, meanLiquidity: 0n, firstAt: null, lastAt: null,
+      maxGapSeconds: null,
+    };
+    const exactWindow = exactWindowSummary(exactCheckpoint, now);
+    if (pool.token0 === null || pool.token1 === null || pool.tick === null ||
+        pool.sqrtPriceX96 === null || pool.priceX18 === null || pool.liquidity === null ||
+        pool.observedAt === null) {
+      return {
+        poolAddress: pool.poolAddress, rwaSymbol: pool.rwaSymbol, fee: pool.fee,
+        feeProtocol0: protocol.fee0, feeProtocol1: protocol.fee1, tickSpacing,
+        quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, priceX18: null,
+        liquidity: null, observedAt: null, registryEnabled: pool.registryEnabled,
+        stateStatus: pool.stateStatus, series: [], windows: [exactWindow,
+          ...RESEARCH_WINDOW_HOURS.filter((hours) => hours !== 0.25).map((hours) => ({
+            hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
+            maxGapSeconds: null, observedBuckets: 0, swaps: 0, volumeQuote: null,
+            feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
+            references: [], limitation: null,
+          }))],
+        depth: [], depthReferences: [],
+      };
+    }
     const series = accumulators.get(pool.poolAddress) ??
       Array.from({ length: axis.length }, emptyBucket);
-    const protocol = protocolFees.get(pool.poolAddress) ?? { fee0: 0, fee1: 0 };
     const view = series.map((entry, index): ResearchBucket => {
-      const priceX18 = entry.priceX18 ?? pool.priceX18;
+      const priceX18 = entry.priceX18 ?? pool.priceX18!;
       // Only the LP side is reported: the protocol's cut never reaches a
       // position, so crediting it would overstate every fee column downstream.
       const fee0 = lpFeeOfGross(
@@ -705,8 +843,8 @@ export async function readResearch(
       return {
         bucket: axis[index]!.toISOString(),
         swaps: entry.swaps,
-        volumeQuote: value(entry.in0, entry.in1).toString(),
-        feesQuote: value(fee0, fee1).toString(),
+        volumeQuote: entry.checkpoints > 0 ? value(entry.in0, entry.in1).toString() : null,
+        feesQuote: entry.checkpoints > 0 ? value(fee0, fee1).toString() : null,
         meanLiquidity: entry.meanLiquidity.toString(),
         priceX18: entry.priceX18?.toString() ?? null,
         tickLast: entry.tickLast,
@@ -732,9 +870,12 @@ export async function readResearch(
       priceX18: pool.priceX18.toString(),
       liquidity: pool.liquidity.toString(),
       observedAt: pool.observedAt.toISOString(),
+      registryEnabled: pool.registryEnabled,
+      stateStatus: pool.stateStatus,
       series: view,
-      windows: RESEARCH_WINDOW_HOURS.map((hours) =>
-        summarizeWindow(
+      windows: RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
+        ? exactWindow
+        : summarizeWindow(
           pool,
           tickSpacing,
           quoteIsToken0,
@@ -742,17 +883,16 @@ export async function readResearch(
           series,
           hours,
           roundTripQuote,
-        )
-      ),
+        )),
       depth: curve.filter((point) =>
-        Math.abs(point.tick - pool.tick) <= DEPTH_TICK_RADIUS
+        Math.abs(point.tick - pool.tick!) <= DEPTH_TICK_RADIUS
       ),
       depthReferences: RESEARCH_HALF_WIDTH_FRACTIONS.map((fraction) => {
         const sized = referenceSizing(
-          pool,
+          { token0: pool.token0!, token1: pool.token1! },
           tickSpacing,
-          pool.tick,
-          pool.sqrtPriceX96,
+          pool.tick!,
+          pool.sqrtPriceX96!,
           fraction,
         );
         return {
