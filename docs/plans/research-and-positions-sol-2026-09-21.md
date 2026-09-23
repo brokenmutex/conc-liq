@@ -907,3 +907,55 @@ restart acceptance; a trusted RangeKeeper store/runner/adapter; fresh command
 preflight and durable claims; full HTTP and desktop/mobile Positions parity;
 and migration 8 plus canonical rescan before exact Research counts are shown
 as available on a production database. W4-W7 retain their separate gates.
+
+### September 23 parallel integration and verification
+
+- R2 static/manual has an opt-in, signer-free paper operation claim pass for
+  open, retain-close and converted-close. It filters claims by strategy,
+  advances bounded stages, renews leases, rechecks canonical anchors at the
+  append boundary, and resumes a pending converted-close mark after restart.
+  PostgreSQL determines lease validity; a lost claim is left for recovery.
+  Proven anchor mismatches block the operation, while RPC transport failures
+  remain retryable. The operation loop defaults off, and HTTP operation
+  acceptance still returns `503 operation_preflight_unavailable`.
+- Isolated local PostgreSQL migration and deployment integration scripts now
+  pass. They cover fresh and v3/v4/v6-to-v8 migrations, open/retain reorg
+  zero-write and restart behavior, strategy-filtered claims, V2 seven-stage
+  converted-close accounting, preview-expiry recovery, quote mutation
+  rejection, and exact-once terminal completion. The V2 profiles in this
+  test are synthetic selector fixtures; they do not establish owned-fork gas
+  evidence or authorize operator acceptance. The run also found and fixed
+  conversion queries that referenced a nonexistent campaign `open_mark_id`;
+  those paths now derive the opening mark from persisted marks.
+- R3 has a trusted persisted-context snapshot reader, an internal atomic
+  RangeKeeper gas-profile registration path with canonical source and
+  persisted-candidate replay checks, and a read-only retain/convert exit
+  preview route. Missing saved marks or kernel context return explicit
+  unavailable results; the preview remains action-unavailable. No trusted
+  RangeKeeper mark/kernel producer, owned-fork stage runner, accepting command,
+  terminal accounting adapter or supervised operation path is connected.
+- W3 has a bounded exact-bigint static/manual candidate replay helper. It
+  labels all caller-supplied inputs `unverified_scenario`, cannot save a
+  draft or authorize an action, and leaves RangeKeeper recenter replay
+  unavailable. A trusted profile/source reader, canonical fee and gas-row
+  loading, wallet/limit pinning, and saved-draft binding remain necessary.
+
+Scoped commits: `aa48f7f`, `1b2561c`, `9adc508`, `2b6d82c` (paper worker and
+claim recovery); `431df51` (isolated DB lifecycle checks); `0e135fc`
+(Research replay); `82b4c70` (RangeKeeper store and previews). Focused worker,
+server, anchor and Research tests, pinned typecheck, and diff checks passed.
+No production migration, historical rescan, owned-fork replay, browser parity
+run, sealed-release build, service activation, funding, signing or broadcast
+was performed.
+
+Next ordered gates: (1) run and register independently verified owned-fork
+gas evidence for both static conversion and RangeKeeper paths; (2) persist
+RangeKeeper paper marks/kernel state and implement its retain/convert
+accounting and restart recovery; (3) complete fresh admission and supervised
+operator claims for each supported command before enabling HTTP acceptance;
+(4) connect trusted Research candidate loading to pinned saved drafts and
+finish the remaining W3 replay/calibration controls; (5) verify shared
+Positions HTTP, activity/history, metrics/charts and desktop/mobile parity
+from first session through closure, then complete migration 8, bounded
+canonical rescan, release and restore gates under separate authorization.
+W4-W7 remain open.
