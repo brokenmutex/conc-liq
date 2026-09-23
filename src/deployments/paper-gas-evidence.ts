@@ -6,7 +6,7 @@ import {guardedCanaryPositionManagerAbi} from '../canary-plan/abi.js';
 import {canaryExitAbi} from '../canary-plan/exit.js';
 import {PAPER_ACCOUNT,PAPER_ROUTER,paperQuoterAbi,paperRouterAbi,paperTokenAbi} from '../paper/execution-abi.js';
 import {principalAmounts} from '../backtest/principal.js';
-import {allocationSchema,contentHash,staticParameters} from './contracts.js';
+import {allocationSchema,contentHash,staticManualParameters} from './contracts.js';
 import {marketProfileSchema,referenceProofHash} from './market-profile.js';
 import {paperGasModelSchema,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {paperOpenModelSchema} from './paper-open-model.js';
@@ -34,7 +34,7 @@ export function verifyPaperGasEvidence(raw:unknown){
  const profile=marketProfileSchema.parse(report.profile);
  assert.equal(report.profileHash,contentHash(profile));
  assert.equal(String(report.pool).toLowerCase(),profile.pool.pool.toLowerCase());
- const parameters=staticParameters.parse(report.parameters);
+ const parameters=staticManualParameters.parse(report.parameters);
  allocationSchema.parse(report.allocation);
  const config={...(report.parameters as Record<string,unknown>),strategyId:report.strategyId,
   strategyVersion:report.strategyVersion,stateSchemaVersion:report.stateSchemaVersion};

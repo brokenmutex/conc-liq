@@ -6,6 +6,7 @@ import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonicalPaperNextFrame,
  type PaperOpenFrame} from './deployments/paper-preview.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
+import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
@@ -131,8 +132,13 @@ async function main(){
    const rows=await store.paperGasProfiles(draft.profile.pool.pool);
    let gasPriceWei=0n;
    if(rows.length)try{gasPriceWei=await client.getGasPrice();}catch{/* explicit unavailable cost below */}
-   return costIndicativePaperOpenPreview(preview,rows,draft.profile.pool.pool,
+   const costed=costIndicativePaperOpenPreview(preview,rows,draft.profile.pool.pool,
     frame.nativePrice??0n,gasPriceWei);
+   if(costed.costs.status!=='provisional')return costed;
+   const persisted=await persistTrustedPaperOpenPreview({store,draft,frame,preview:costed,
+    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
+   return {...costed,...persisted,trustedPreviewSaved:true,
+    operationAcceptanceAvailable:false,actionAvailable:false,economics:null};
   }finally{previewBusy=false;}
  };
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,paperPreview});

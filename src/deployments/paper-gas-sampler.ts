@@ -19,7 +19,7 @@ import {paperCloseConvertRouteSchema,type PaperCloseConvertRoute,
  PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2} from './paper-close-convert-model.js';
 import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {USDG} from '../constants.js';
-import {contentHash,staticParameters} from './contracts.js';
+import {contentHash,staticManualParameters} from './contracts.js';
 import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
 import type {PaperDraft,PaperOpenFrame} from './paper-preview.js';
@@ -68,7 +68,7 @@ export async function sampleStaticPaperGas(input:{rpcUrl:string;draft:PaperDraft
  assert(preview.status==='indicative'&&preview.candidate,'Static paper candidate unavailable');
  assert(frame.referenceProof,'Paper gas reference proof unavailable');
  assert(draft.strategyId==='static_manual_v1','Only static/manual no-swap calibration is supported');
- const limits=staticParameters.parse(draft.parameters).limits;
+ const limits=staticManualParameters.parse(draft.parameters).limits;
  assert(limits,'Static/manual limits are required');
  const pool=draft.profile.pool,source={number:BigInt(frame.source.block),
   hash:frame.source.hash as Hash,timestamp:BigInt(frame.source.timestamp)};

@@ -17,6 +17,7 @@ import {buildIndicativePaperOpenPreview,readCanonicalPaperNextFrame}
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES}
  from '../../src/deployments/paper-cost.ts';
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
+import {persistTrustedPaperOpenPreview} from '../../src/deployments/paper-open-preflight.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
 import {buildPaperCloseConvertModel,costPaperCloseConvert,
  PAPER_STATIC_CONVERT_GAS_PATH,PAPER_STATIC_CONVERT_GAS_STAGES,
@@ -438,9 +439,16 @@ try{
  assert.equal(paperModel.kind,'paper_open_model');
  assert.throws(()=>buildPaperOpenModel(paperInput,{...frame,referenceProof:{fixture:false}},costed),
   /paper_open_source_mismatch/);
- const paperPreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'open',
-  request:{kind:'open'},proposal:{paperOpenModel:paperModel},
-  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+1500)});
+ const previewCountBeforeReorg=(await admin.query('SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n;
+ await assert.rejects(persistTrustedPaperOpenPreview({store,draft:paperInput,frame,preview:costed,
+  verifyAnchors:async()=>{throw Error('simulated canonical source change');}}),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_open_source_not_canonical');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n,previewCountBeforeReorg);
+ const paperPreview=await persistTrustedPaperOpenPreview({store,draft:paperInput,frame,
+  preview:{...costed,expiresAt:new Date(Date.now()+1500).toISOString()},verifyAnchors:verifyPaperAnchors});
+ assert.equal(paperPreview.expectedRevision,1);assert.equal(paperPreview.modelHash,contentHash(paperModel));
  const paperOperation=await store.acceptOperation(paperDraft.id,{previewId:paperPreview.id,
   contentDigest:paperPreview.contentDigest,expectedRevision:1,
   idempotencyKey:'paper-open-model-unique-1'},'operator');

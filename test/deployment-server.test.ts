@@ -21,7 +21,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   paperPreview:async(id,kind)=>{previewCalls.push({id,kind});
    // Preview producers cannot expose an actionable result until the separate
    // acceptance and worker admission path is ready.
-   return {status:'indicative',actionAvailable:true,economics:null};}});
+   return {status:'indicative',actionAvailable:true,economics:null,...(kind==='open'?{
+    previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'a'.repeat(64),
+    expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -51,7 +53,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const preview=await post(previewPath,{kind:'open'},{origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(preview.status,200);
   assert.deepEqual(await preview.json(),{status:'indicative',actionAvailable:false,
-   operationAcceptanceAvailable:false,economics:null});
+   operationAcceptanceAvailable:false,economics:null,
+   previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'a'.repeat(64),
+   expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true});
   const closePreview=await post(previewPath,{kind:'close_retain'},
    {origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(closePreview.status,200);
