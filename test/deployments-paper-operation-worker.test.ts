@@ -30,8 +30,8 @@ const openModel={schemaVersion:1,kind:'paper_open_model',campaignId,revision:1,
   missing:[]}};
 
 function workerFixture({status='preflighting',kind='open',claimValid=true,
- verifyError=false,completeError=false}:{status?:string;kind?:string;claimValid?:boolean;
- verifyError?:boolean;completeError?:boolean}={}){
+ verifyError=false,completeError=false,renewError=false}:{status?:string;kind?:string;claimValid?:boolean;
+ verifyError?:boolean;completeError?:boolean;renewError?:boolean}={}){
  const calls:unknown[][]=[];
  let currentStatus=status;
  const context={id:operationId,campaign_id:campaignId,kind,status,
@@ -42,7 +42,8 @@ function workerFixture({status='preflighting',kind='open',claimValid=true,
  const store={claimNext:async()=>({id:operationId,campaign_id:campaignId,
    status:currentStatus,stage:'accepted',attempts:1}),
   advanceClaim:async(...args:unknown[])=>{calls.push(['advance',...args]);currentStatus=args[3] as string;},
-  renewClaim:async(...args:unknown[])=>{calls.push(['renew',...args]);},
+  renewClaim:async(...args:unknown[])=>{calls.push(['renew',...args]);
+   if(renewError)throw Error('lease renewal failed');},
   completeTrustedPaperOpen:async(...args:unknown[])=>{calls.push(['complete',...args.slice(0,2)]);
    if(completeError)throw Error('temporary database outage');return {markId:'1',replayed:false};},
   completeTrustedPaperCloseRetain:async(...args:unknown[])=>{calls.push(['retain',...args.slice(0,2)]);},
@@ -164,4 +165,54 @@ test('paper operation worker completes retain-close from its saved model',async(
   chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1');
  assert.deepEqual(result,{status:'completed',operationId,kind:'close_retain'});
  assert.deepEqual(calls.map(call=>call[0]),['retain']);
+});
+
+test('paper operation worker renews the lease during a long canonical check',async()=>{
+ const originalSetInterval=globalThis.setInterval,originalClearInterval=globalThis.clearInterval;
+ let runRenewal:(()=>void)|undefined;
+ globalThis.setInterval=((callback:()=>void)=>{
+  runRenewal=callback;return 1 as unknown as ReturnType<typeof setInterval>;
+ }) as typeof setInterval;
+ globalThis.clearInterval=(()=>{}) as typeof clearInterval;
+ try{
+  const {store,chain,indexer,calls}=workerFixture();
+  chain.getBlock=async({blockNumber}:{blockNumber:bigint})=>{
+   const fire=runRenewal;runRenewal=undefined;fire?.();
+   await new Promise(resolve=>setImmediate(resolve));
+   const source=String(blockNumber)==='101'?retainModel.source:anchor;
+   return {hash:source.hash,timestamp:BigInt(source.timestamp)};
+  };
+  assert.deepEqual(await processOnePaperOperation(store as unknown as DeploymentStore,
+   chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1'),
+   {status:'completed',operationId,kind:'open'});
+  assert.equal(calls.filter(call=>call[0]==='renew').length,1);
+  assert.equal(calls.filter(call=>call[0]==='complete').length,1);
+ }finally{
+  globalThis.setInterval=originalSetInterval;globalThis.clearInterval=originalClearInterval;
+ }
+});
+
+test('paper operation worker stops before completion when lease renewal fails',async()=>{
+ const originalSetInterval=globalThis.setInterval,originalClearInterval=globalThis.clearInterval;
+ let runRenewal:(()=>void)|undefined;
+ globalThis.setInterval=((callback:()=>void)=>{
+  runRenewal=callback;return 1 as unknown as ReturnType<typeof setInterval>;
+ }) as typeof setInterval;
+ globalThis.clearInterval=(()=>{}) as typeof clearInterval;
+ try{
+  const {store,chain,indexer,calls}=workerFixture({renewError:true});
+  chain.getBlock=async({blockNumber}:{blockNumber:bigint})=>{
+   const fire=runRenewal;runRenewal=undefined;fire?.();
+   await new Promise(resolve=>setImmediate(resolve));
+   const source=String(blockNumber)==='101'?retainModel.source:anchor;
+   return {hash:source.hash,timestamp:BigInt(source.timestamp)};
+  };
+  assert.deepEqual(await processOnePaperOperation(store as unknown as DeploymentStore,
+   chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1'),
+   {status:'claim_lost',operationId});
+  assert.equal(calls.filter(call=>call[0]==='renew').length,1);
+  assert.equal(calls.some(call=>call[0]==='complete'),false);
+ }finally{
+  globalThis.setInterval=originalSetInterval;globalThis.clearInterval=originalClearInterval;
+ }
 });
