@@ -42,6 +42,8 @@ import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {verifyCanonicalPaperAnchors} from './paper-canonical-anchors.js';
 import {loadRangeKeeperPaperExitContext} from './rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperMarkPayload} from './rangekeeper-paper-persistence.js';
+import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation}
+ from './rangekeeper-paper-confirmation.js';
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
  verifyRangeKeeperPaperGasEvidenceSource,
  type RangeKeeperPaperGasSourceReplayVerifier} from './rangekeeper-paper-gas-evidence.js';
@@ -540,6 +542,81 @@ export class DeploymentStore {
     AND size_band=$3 AND component='gas_units'
    ORDER BY stage,allowance_state,version DESC LIMIT 201`,
    [poolAddress,pathVersion,sizeBand])).rows;
+ }
+
+ /** Builds a read-only second-observation confirmation envelope while the
+  * campaign is still a draft. It never writes a mark, books capital, or opens a position. */
+ async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
+  client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
+  simulate:(candidate:import('../strategy/rangekeeper/domain.js').RangeKeeperCandidate)=>
+   Promise<RangeKeeperPaperConfirmationSimulation>;
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;now?:number}){
+  const now=input.now??Date.now(),runtime=loadRuntimeIdentity();
+  if(!runtime)throw new DeploymentConflict('rangekeeper_runtime_identity_unavailable');
+  {
+   const row=(await this.readPool.query<{mode:string;lifecycle:string;revision:number;chain_id:number;
+    allocation:unknown;profile:unknown;profile_hash:string;config:unknown;config_hash:string;
+    strategy_id:string;strategy_version:string;state_schema_version:number;runtime_identity:unknown;
+    open_preview_id:string;request:Record<string,unknown>;proposal:Record<string,unknown>;
+    evidence:Record<string,unknown>;content_digest:string;expected_revision:number;expires_at:Date;
+    pending:boolean}>(`
+    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.allocation,p.profile,p.profile_hash,
+     r.config,r.config_hash,r.strategy_id,r.strategy_version,r.state_schema_version,c.runtime_identity,
+     v.id::text AS open_preview_id,v.request,v.proposal,v.evidence,v.content_digest,
+     v.expected_revision,v.expires_at,
+     EXISTS(SELECT 1 FROM deployment_operations op WHERE op.campaign_id=c.id AND op.status IN
+      ('queued','preflighting','executing','confirming','reconciling','blocked')) AS pending
+    FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN LATERAL (SELECT preview.id,preview.request,preview.proposal,preview.evidence,
+     preview.content_digest,preview.expected_revision,preview.expires_at
+     FROM deployment_previews preview WHERE preview.campaign_id=c.id AND preview.kind='open'
+     ORDER BY preview.created_at DESC,preview.id DESC LIMIT 1) v ON true
+     WHERE c.id=$1`,[input.campaignId])).rows[0];
+   const profile=marketProfileSchema.safeParse(row?.profile),storedRuntime=sealedRuntimeIdentitySchema.safeParse(row?.runtime_identity);
+   if(!row||row.mode!=='paper'||row.lifecycle!=='draft'||row.pending||row.chain_id!==4663||
+    row.strategy_id!=='rangekeeper_v1'||row.strategy_version!=='1.0.0'||row.state_schema_version!==1||
+    row.expected_revision!==row.revision||row.expires_at.getTime()<now||
+    !profile.success||!storedRuntime.success||contentHash(storedRuntime.data)!==contentHash(runtime)||
+    contentHash(profile.data)!==row.profile_hash||!row.config||typeof row.config!=='object'||
+    Array.isArray(row.config)||contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_campaign_unavailable');
+   if(previewDigest({campaignId:input.campaignId,expectedRevision:row.expected_revision,kind:'open',
+    request:row.request,proposal:row.proposal,evidence:row.evidence,expiresAt:row.expires_at})!==row.content_digest)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_preview_integrity');
+   const config=row.config as Record<string,unknown>;
+   if(config.strategyId!=='rangekeeper_v1'||config.strategyVersion!=='1.0.0'||config.stateSchemaVersion!==1)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_config_invalid');
+   const {strategyId:_id,strategyVersion:_version,stateSchemaVersion:_schema,...parameters}=config;
+   parseStrategyParameters('rangekeeper_v1',parameters);
+   const draft={id:input.campaignId,revision:row.revision,
+    allocation:allocationSchema.parse(row.allocation),profile:profile.data,profileHash:row.profile_hash,
+    configHash:row.config_hash,strategyId:'rangekeeper_v1' as const,parameters},
+    openModel=row.proposal.rangekeeperPaperOpenModel;
+   if(!openModel||typeof openModel!=='object'||Array.isArray(openModel)||
+    contentHash(openModel)!==row.proposal.rangekeeperPaperOpenModelHash&&
+     row.proposal.rangekeeperPaperOpenModelHash!==undefined)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_open_model_invalid');
+   try{
+    const result=await buildRangeKeeperPaperConfirmation({draft,firstModel:openModel as never,
+     frame:input.frame,buildId:runtime.buildId,client:input.client,
+     readGasProfiles:query=>this.rangeKeeperPaperGasProfiles(query.poolAddress,query.pathVersion,query.sizeBand),
+     marketGasPriceWei:input.marketGasPriceWei,marketGasPriceObservedAt:input.marketGasPriceObservedAt,
+     simulate:input.simulate,now});
+    if(result.status==='unavailable')throw new DeploymentConflict(result.reason);
+    {
+     const sources=result.status==='confirmed'?[result.firstObservation.source,
+      result.confirmationObservation.source]:[(openModel as {source:PaperCanonicalAnchor}).source,result.source];
+     try{await input.verifyAnchors(row.chain_id,sources);}
+     catch(error){if(error instanceof AssertionError)
+       throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+    }
+    return {...result,actionAvailable:false as const};
+   }catch(error){
+    if(error instanceof DeploymentConflict)throw error;
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_replay_unavailable');
+   }
+  }
  }
 
  /** Appends one source-pinned RangeKeeper paper mark and its kernel snapshot.
