@@ -1510,6 +1510,52 @@ export class DeploymentStore {
   });
  }
 
+ /** Persists a no-economics pause/resume preview only for the exact current
+  * PAPER static/manual lifecycle. The campaign row lock binds lifecycle and
+  * revision together before the immutable proposal is written. */
+ async recordPaperLifecyclePreview(campaignId:string,kind:'pause'|'resume'){
+  const id=randomUUID();
+  return this.transaction(async db=>{
+   const campaign=(await db.query<{mode:string;current_revision:number;lifecycle:string;
+    strategy_id:string;strategy_version:string;state_schema_version:number;config:unknown;config_hash:string}>(`
+    SELECT c.mode,c.current_revision,c.lifecycle,r.strategy_id,r.strategy_version,
+     r.state_schema_version,r.config,r.config_hash
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
+   const from=kind==='pause'?'active':'paused',to=kind==='pause'?'paused':'active';
+   if(!campaign||campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1'||
+    campaign.lifecycle!==from)
+    throw new DeploymentConflict('paper_lifecycle_state_unavailable');
+   if(!campaign.config||typeof campaign.config!=='object'||Array.isArray(campaign.config)||
+    contentHash(campaign.config)!==campaign.config_hash)
+    throw new DeploymentConflict('campaign_config_integrity');
+   const config=campaign.config as Record<string,unknown>;
+   if(config.strategyId!==campaign.strategy_id||config.strategyVersion!==campaign.strategy_version||
+    config.stateSchemaVersion!==campaign.state_schema_version)
+    throw new DeploymentConflict('campaign_config_integrity');
+   const {strategyId:_id,strategyVersion:_version,stateSchemaVersion:_schema,...parameters}=config;
+   parseStrategyParameters('static_manual_v1',parameters);
+   const pending=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM deployment_operations
+    WHERE campaign_id=$1 AND status IN ('queued','preflighting','executing','confirming',
+     'reconciling','blocked')) AS found`,[campaignId])).rows[0]?.found;
+   if(pending)throw new DeploymentConflict('operation_in_progress');
+   const expiresAt=new Date(Date.now()+60_000),input=previewInput.parse({campaignId,
+    expectedRevision:campaign.current_revision,kind,request:{kind},
+    proposal:{paperLifecycle:{from,to}},evidence:{},expiresAt});
+   const contentDigest=previewDigest(input);
+   await db.query(`INSERT INTO deployment_previews
+    (id,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [id,campaignId,input.expectedRevision,kind,JSON.stringify(input.request),
+     JSON.stringify(input.proposal),JSON.stringify(input.evidence),contentDigest,expiresAt]);
+   return {id,kind,status:'indicative' as const,expectedRevision:input.expectedRevision,
+    contentDigest,expiresAt:expiresAt.toISOString(),source:null,economics:null,
+    proposal:input.proposal.paperLifecycle,actionAvailable:false,draftCreationAvailable:false,
+    operationAcceptanceAvailable:false};
+  });
+ }
+
  async acceptOperation(campaignId:string,raw:AcceptInput,actor:string){
   const input=acceptInput.parse(raw);
   if(!/^[a-z][a-z0-9_-]{0,63}$/.test(actor))throw new DeploymentConflict('invalid_actor');

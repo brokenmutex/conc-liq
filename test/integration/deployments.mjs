@@ -532,9 +532,17 @@ try{
   [openAccounting.snapshotId,'{}']),/append-only/);
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'active');
- const pausePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'pause',
-  request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
-  expiresAt:new Date(Date.now()+60000)});
+ const pausePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'pause');
+ assert.equal(pausePreview.expectedRevision,1);
+ assert.deepEqual(pausePreview.proposal,{from:'active',to:'paused'});
+ assert.equal(pausePreview.actionAvailable,false);
+ assert.equal(pausePreview.economics,null);
+ const pauseRow=(await admin.query('SELECT kind,expected_revision,request,proposal,evidence FROM deployment_previews WHERE id=$1',
+  [pausePreview.id])).rows[0];
+ assert.equal(pauseRow.kind,'pause');assert.equal(pauseRow.expected_revision,1);
+ assert.deepEqual(pauseRow.request,{kind:'pause'});
+ assert.deepEqual(pauseRow.proposal,{paperLifecycle:{from:'active',to:'paused'}});
+ assert.deepEqual(pauseRow.evidence,{});
  const pauseCommand={previewId:pausePreview.id,contentDigest:pausePreview.contentDigest,
   expectedRevision:1,idempotencyKey:'paper-pause-unique-1'};
  const pauseOperation=await store.acceptOperation(paperDraft.id,pauseCommand,'operator');
@@ -562,27 +570,33 @@ try{
   [paperDraft.id])).rows[0].n,ledgerCountBeforePause);
  assert.deepEqual(await store.acceptOperation(paperDraft.id,pauseCommand,'operator'),
   {id:pauseOperation.id,status:'succeeded',replayed:true});
- const duplicatePause=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'pause',
-  request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
-  expiresAt:new Date(Date.now()+60000)});
- await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:duplicatePause.id,
-  contentDigest:duplicatePause.contentDigest,expectedRevision:1,idempotencyKey:'paper-pause-unique-2'},'operator'),
-  error=>error instanceof DeploymentConflict&&error.code==='invalid_lifecycle');
- const resumePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'resume',
-  request:{kind:'resume'},proposal:{paperLifecycle:{from:'paused',to:'active'}},evidence:{},
-  expiresAt:new Date(Date.now()+60000)});
+ const previewCountBeforeInvalidPause=(await admin.query(
+  'SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',[paperDraft.id])).rows[0].n;
+ await assert.rejects(store.recordPaperLifecyclePreview(paperDraft.id,'pause'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_state_unavailable');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n,previewCountBeforeInvalidPause);
+ const resumePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'resume');
+ const duplicateResumePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'resume');
+ await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:resumePreview.id,
+  contentDigest:resumePreview.contentDigest,expectedRevision:2,idempotencyKey:'paper-resume-stale-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='stale_revision');
  const resumeOperation=await store.acceptOperation(paperDraft.id,{previewId:resumePreview.id,
   contentDigest:resumePreview.contentDigest,expectedRevision:1,idempotencyKey:'paper-resume-unique-1'},'operator');
  assert.deepEqual(await processOnePaperOperation(store,lifecycleNoRpc,admin,'paper-resume-worker'),
   {status:'completed',operationId:resumeOperation.id,kind:'resume'});
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'active');
- const staleResume=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,kind:'resume',
-  request:{kind:'resume'},proposal:{paperLifecycle:{from:'paused',to:'active'}},evidence:{},
-  expiresAt:new Date(Date.now()+60000)});
- await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:staleResume.id,
-  contentDigest:staleResume.contentDigest,expectedRevision:2,idempotencyKey:'paper-resume-stale-1'},'operator'),
-  error=>error instanceof DeploymentConflict&&error.code==='stale_revision');
+ await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:duplicateResumePreview.id,
+  contentDigest:duplicateResumePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-resume-stale-lifecycle-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='invalid_lifecycle');
+ const previewCountBeforeInvalidResume=(await admin.query(
+  'SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',[paperDraft.id])).rows[0].n;
+ await assert.rejects(store.recordPaperLifecyclePreview(paperDraft.id,'resume'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_state_unavailable');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',
+  [paperDraft.id])).rows[0].n,previewCountBeforeInvalidResume);
  const openingRows=await readDeploymentRows(admin);
  const listedPaper=openingRows.find(row=>row.id===paperDraft.id);
  assert(listedPaper);

@@ -45,10 +45,16 @@ async function main(){
    readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
   });}finally{paperSetupBusy=false;}
  };
- const paperPreview=async(campaignId:string,kind:'open'|'close_retain'|'close_convert')=>{
+ const paperPreview=async(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
   previewBusy=true;
   try{
+   if(kind==='pause'||kind==='resume'){
+    try{return await store.recordPaperLifecyclePreview(campaignId,kind);}
+    catch(error){return {kind,status:'unavailable',campaignId,
+     reason:error instanceof DeploymentConflict?error.code:'paper_lifecycle_preview_unavailable',
+     source:null,economics:null,actionAvailable:false,operationAcceptanceAvailable:false};}
+   }
    if(kind!=='open'){
    const strategyId=await store.paperStrategyId(campaignId);
     if(strategyId==='static_manual_v1'){

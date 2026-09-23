@@ -82,10 +82,22 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(convertPreview.status,200);
   assert.deepEqual(await convertPreview.json(),{status:'indicative',actionAvailable:false,
    operationAcceptanceAvailable:false,economics:null});
+  const pausePreview=await post(previewPath,{kind:'pause'},
+   {origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(pausePreview.status,200);
+  assert.deepEqual(await pausePreview.json(),{status:'indicative',actionAvailable:false,
+   operationAcceptanceAvailable:false,economics:null});
+  const resumePreview=await post(previewPath,{kind:'resume'},
+   {origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(resumePreview.status,200);
+  assert.deepEqual(await resumePreview.json(),{status:'indicative',actionAvailable:false,
+   operationAcceptanceAvailable:false,economics:null});
   assert.deepEqual(previewCalls,[
    {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'open'},
    {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'close_retain'},
    {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'close_convert'},
+   {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'pause'},
+   {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'resume'},
   ]);
   const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
    {origin,cookie,'x-csrf-token':csrfToken});
