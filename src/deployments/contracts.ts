@@ -22,6 +22,13 @@ export const staticParameters=z.object({
  tickUpper:z.number().int().min(-887272).max(887272),
  limits:commonLimits.optional(),
 }).strict().refine(value=>value.tickLower<value.tickUpper,{message:'range_order'});
+/** New setup contract: the requested range is a half-width around the fresh
+ * canonical pool tick. Exact bounds are resolved during preflight. */
+export const staticCenteredParameters=z.object({
+ halfWidthTicks:z.number().int().min(1).max(887272),
+ limits:commonLimits.optional(),
+}).strict();
+export const staticManualParameters=z.union([staticParameters,staticCenteredParameters]);
 export const rangeKeeperParameters=z.object({
  fullWidthSpacings:z.number().int().min(2).max(2000).refine(value=>value%2===0),
  limits:commonLimits.extend({
@@ -40,12 +47,12 @@ export const draftInput=z.object({
  allocation:allocationSchema,
  config:z.unknown(),
 }).strict().superRefine((value,ctx)=>{
- const result=(value.strategyId==='static_manual_v1'?staticParameters:rangeKeeperParameters).safeParse(value.config);
+ const result=(value.strategyId==='static_manual_v1'?staticManualParameters:rangeKeeperParameters).safeParse(value.config);
  if(!result.success)ctx.addIssue({code:'custom',message:'invalid_strategy_parameters',path:['config']});
 });
 export type DraftInput=z.infer<typeof draftInput>;
 export function parseStrategyParameters(id:z.infer<typeof strategyId>,value:unknown):Record<string,unknown>{
- return (id==='static_manual_v1'?staticParameters:rangeKeeperParameters).parse(value);
+ return (id==='static_manual_v1'?staticManualParameters:rangeKeeperParameters).parse(value);
 }
 
 export const operationKind=z.enum([

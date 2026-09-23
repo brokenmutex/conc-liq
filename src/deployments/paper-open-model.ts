@@ -1,5 +1,5 @@
 import {z} from 'zod';
-import {contentHash,staticParameters} from './contracts.js';
+import {contentHash,staticManualParameters} from './contracts.js';
 import {referenceProofHash} from './market-profile.js';
 import type {PaperPreviewDraft,PaperOpenFrame,buildIndicativePaperOpenPreview} from './paper-preview.js';
 import type {costIndicativePaperOpenPreview} from './paper-cost.js';
@@ -54,7 +54,7 @@ export function buildPaperOpenModel(draft:PaperPreviewDraft,frame:PaperOpenFrame
   preview.profileHash!==draft.profileHash||preview.configHash!==draft.configHash||
   preview.source.block!==frame.source.block||preview.source.hash.toLowerCase()!==frame.source.hash.toLowerCase())
   throw Error('paper_open_source_mismatch');
- const limits=staticParameters.parse(draft.parameters).limits;
+ const limits=staticManualParameters.parse(draft.parameters).limits;
  if(!limits)throw Error('paper_open_limits_unavailable');
  const c=preview.candidate,costs=preview.costs;
  if(BigInt(c.amount0Minted)+BigInt(c.idle0)!==BigInt(c.amount0Desired)||

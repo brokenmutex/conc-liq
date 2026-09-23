@@ -247,6 +247,15 @@ try{
  const indicative=buildIndicativePaperOpenPreview(paperInput,frame);
  assert.equal(indicative.status,'indicative');assert.equal(indicative.actionAvailable,false);
  assert.equal(indicative.economics,null);assert.equal(indicative.candidate.range.fullWidthTicks,180);
+ const centeredDraft=await store.createDraft({...draftInput,mode:'paper',
+  allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
+  config:{halfWidthTicks:180,limits:paperLimits}});
+ const centeredInput=await store.paperDraft(centeredDraft.id),centeredPreview=
+  buildIndicativePaperOpenPreview(centeredInput,frame);
+ assert.equal(centeredPreview.status,'indicative');
+ assert.deepEqual([centeredPreview.candidate.range.tickLower,centeredPreview.candidate.range.tickUpper],
+  [-276480,-276120]);
+ assert.equal(centeredPreview.candidate.range.fullWidthTicks,360);
  const detached=buildIndicativePaperOpenPreview(paperInput,{...frame,sqrtPriceX96:sqrtRatioAtTick(0)});
  assert.equal(detached.status,'unavailable');assert.equal(detached.reason,'independent_price_band');
  const stale=buildIndicativePaperOpenPreview(paperInput,{...frame,source:{...frame.source,timestamp:frame.source.timestamp-181}});

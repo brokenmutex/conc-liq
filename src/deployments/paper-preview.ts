@@ -3,8 +3,9 @@ import type {RobinhoodClient} from '../client.js';
 import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import {rangeKeeperConfirmedSource} from '../strategy/rangekeeper/source.js';
-import {alignManualRange,decideStaticManual} from '../strategy/static-manual/planner.js';
-import {contentHash,staticParameters} from './contracts.js';
+import {decideStaticManual} from '../strategy/static-manual/planner.js';
+import {contentHash,staticManualParameters} from './contracts.js';
+import {resolveStaticManualRange} from './centered-manual-range.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import type {DeploymentStore} from './store.js';
 
@@ -77,10 +78,10 @@ export function buildIndicativePaperOpenPreview(draft:PaperPreviewDraft,frame:Pa
  if(deviation*1_000_000n>frame.price1*BigInt(draft.profile.referencePolicy.maxPoolDeviationPpm))
   return unavailable('independent_price_band');
  if(draft.strategyId==='rangekeeper_v1')return unavailable('rangekeeper_paper_confirmation_and_cost_unavailable');
- const config=staticParameters.parse(draft.parameters);
+ const config=staticManualParameters.parse(draft.parameters);
  if(!config.limits)return unavailable('manual_limits_missing');
  let range;
- try{range=alignManualRange(config.tickLower,config.tickUpper,p.tickSpacing);}
+ try{range=resolveStaticManualRange(config,frame.tick,p.tickSpacing);}
  catch{return unavailable('manual_range_invalid_on_pool_grid');}
  const decision=decideStaticManual({continuity:'canonical',tick:frame.tick,sqrtPriceX96:frame.sqrtPriceX96,
   amount0:BigInt(draft.allocation.token0Raw),amount1:BigInt(draft.allocation.token1Raw),
