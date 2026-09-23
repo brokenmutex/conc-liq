@@ -1250,6 +1250,11 @@ worker, full paper lifecycle and browser acceptance matrix remain gates. HTTP
 acceptance stays 503, and no operator action is enabled. Typecheck, 730 unit
 tests, isolated deployment integration and repository checks passed for this
 foundation; the final added successful-cost assertion passed in focused tests.
+`282138b` adds internal static/manual paper pause and resume through the
+existing journal and worker. The claim-bound transition is revision and
+lifecycle checked, survives lease expiry, and writes no economic mark or
+ledger entry. Isolated integration and typecheck passed. No HTTP operation
+acceptance or dashboard action was enabled.
 
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
