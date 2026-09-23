@@ -1085,3 +1085,36 @@ run, funding, signing, broadcast or service activation was performed. Continue
 PR4 by defining and persisting a second-observation execution envelope and
 source-exact gas evidence before any RangeKeeper open booking. Then finish
 terminal accounting and PR5 operator acceptance; retain the W4-W7 release gates.
+
+### September 23 second-wave implementation through `fe916bf`
+
+- PR2 maintenance pagination now uses bounded keyset reads and a bounded wrap
+  query (`a6ea95f`), avoiding a sort of all eligible history each pass. Its
+  cursor is still process-local; restart-safe fairness remains open.
+- PR4 has a guarded static/manual conversion gas-sampling command (`98d29b6`)
+  that binds a supplied context to a persisted converted-close endpoint and
+  runs the existing seven-stage owned-fork sampler plus read-only source and
+  store replay verification. It writes an unregistered report. There was no
+  eligible persisted endpoint for a campaign-owned rehearsal.
+- PR4 also has a read-only RangeKeeper second-observation probe/envelope
+  (`fe916bf`). It replays the saved first candidate, checks both canonical
+  anchors, selects second-source candidate-scoped gas profiles and requires a
+  caller-supplied simulation attestation. That attestation is **not** an
+  independently verified execution proof. The envelope is ephemeral and
+  explicitly has `openingBooked: false` and `actionAvailable: false`; it writes
+  no deployment mark, ledger entry, operation or position. Persisting it as a
+  mark would make the current dashboard's latest-mark reader see an unsupported
+  classification, so a durable dashboard-safe envelope store is still needed.
+- PR5/PR6 can now save a static/manual paper draft from a caller-supplied range
+  and allocation bound to a fresh, hash-checked registered profile (`cd392f8`).
+  This is not a historically derived Research candidate. The requested window
+  is not stored in the deployment revision; historical fees, costs, passive
+  comparison, HTTP binding and action availability remain absent.
+
+Next, make the RangeKeeper confirmation durable in a non-position record with
+independently verifiable source-exact simulation, then book the open only after
+an operation is accepted and its execution inventory is reconciled. Rehearse
+the static conversion sampler against an eligible persisted campaign before
+registering evidence. Complete restart-safe maintenance fairness, exact-source
+operator previews/claims and the shared Positions view before the W4-W7
+release gates. No production change or activation is implied by these commits.
