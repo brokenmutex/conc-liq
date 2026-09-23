@@ -69,7 +69,7 @@ describe("research read model", () => {
   });
 
   it("offers the windows the position API already accepts", () => {
-    assert.deepEqual([...RESEARCH_WINDOW_HOURS], [1, 6, 24, 168]);
+    assert.deepEqual([...RESEARCH_WINDOW_HOURS], [0.25, 1, 6, 24, 168]);
   });
 
   it("keeps a grain every window tiles in whole buckets", () => {
@@ -83,9 +83,13 @@ describe("research read model", () => {
         `the ${hours}h window does not tile the grain`,
       );
     }
-    // The shortest window has to carry more than the single point it held at
-    // the hourly grain, which is the reason for the finer series.
-    assert.ok(RESEARCH_WINDOW_HOURS[0]! * RESEARCH_BUCKETS_PER_HOUR >= 4);
+    // The 15-minute window is one chart bucket; its exact event count and
+    // checkpoint coverage remain separate from bucket-based economics.
+    assert.equal(RESEARCH_WINDOW_HOURS[0]! * RESEARCH_BUCKETS_PER_HOUR, 1);
+    assert.deepEqual(
+      [...RESEARCH_WINDOW_HOURS].map((hours) => hours * RESEARCH_BUCKETS_PER_HOUR),
+      [1, 4, 24, 96, 672],
+    );
   });
 
   it("retains the same span at the finer grain", () => {
@@ -114,9 +118,10 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS, protocolCut });"
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS, protocolCut, WINDOWS });"
   ) as {
     MAX_BARS: number;
+    WINDOWS: readonly (readonly [number, string])[];
     protocolCut(pool: { feeProtocol0: number; feeProtocol1: number }): string;
     condense(
       series: readonly {
@@ -141,6 +146,9 @@ describe("research view semantics", () => {
     ): string;
     leagueRows(source: unknown, hours: number, width: number): {
       key: string;
+      swaps: number | null;
+      volume: number | null;
+      fees: number | null;
       net: number | null;
       inRange: number | null;
       gate: number | null;
@@ -170,7 +178,8 @@ describe("research view semantics", () => {
     priceX18: (10n ** 18n).toString(),
     windows: [{
       hours: 24,
-      swaps: 10,
+      swaps: 10 as number | null,
+      swapAvailability: "available",
       volumeQuote: "1000000",
       feesQuote: "500000",
       validShare: 0.5,
@@ -201,6 +210,23 @@ describe("research view semantics", () => {
     assert.equal(rows[0]!.net, null);
     // 48 of the 24-hour window's 96 quarter-hour buckets held the range.
     assert.equal(rows[0]!.inRange, 0.5);
+  });
+
+  it("keeps exact swap availability separate from bucket economics", () => {
+    const rowPool = pool("AAA", "3000000", 48);
+    rowPool.windows[0]!.swapAvailability = "incomplete";
+    rowPool.windows[0]!.swaps = null;
+    const rows = ui.leagueRows({
+      pools: [rowPool],
+      bucketMinutes: 15,
+      buckets: new Array(672),
+    }, 24, 0);
+    assert.equal(rows[0]!.swaps, null);
+    assert.equal(rows[0]!.net, 3);
+    assert.deepEqual(
+      Array.from(ui.WINDOWS, ([hours, label]) => [hours, label]),
+      [[0.25, "15m"], [1, "1h"], [6, "6h"], [24, "24h"], [168, "7d"]],
+    );
   });
 
   it("sorts unavailable values last in both directions", () => {
