@@ -1239,11 +1239,17 @@ checkout evidence, not a sealed release or the public prototype deployment.
 `27ef89d` resolves a static/manual centered tick range from a fresh preview
 tick. `e575750` persists a costed static/manual paper-open model only after a
 canonical source recheck and binds it to the draft revision and short expiry.
-The dashboard form still needs a fresh, reference-bound USDG capital resolver
-and a parameterized setup preflight; it cannot supply the raw allocation needed
-by the existing draft endpoint. The supervised worker, full paper lifecycle and
-browser acceptance matrix remain gates. HTTP acceptance stays 503, and no
-operator action is enabled.
+`1beb214` adds an authenticated, read-only loopback setup preflight for a
+registered profile, USDG budget and centered half-width. It uses a fresh
+confirmed frame, independent references and round-up mint amounts; a complete
+exact-range gas profile is required for an available result. It creates no
+draft or operation. The dashboard still cannot submit this call through its
+public read-only origin, and the result does not prove wallet funding or
+admission limits. Draft creation from the reviewed setup, the supervised
+worker, full paper lifecycle and browser acceptance matrix remain gates. HTTP
+acceptance stays 503, and no operator action is enabled. Typecheck, 730 unit
+tests, isolated deployment integration and repository checks passed for this
+foundation; the final added successful-cost assertion passed in focused tests.
 
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
