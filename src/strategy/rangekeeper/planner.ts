@@ -126,37 +126,33 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  // Minted value rises as the missing leg is acquired, then falls when the
  // swap overshoots the range's inventory ratio. Exponential feasibility
  // probing can jump across a narrow valid window (e.g. 98% of a $250 cap).
- // Find the value peak first, then search the increasing side for the first
- // feasible raw input. Any unproven shape or quote budget fails closed.
+ // Find the value peak first, then search its increasing side for the first
+ // feasible raw input. Parallel brackets reduce quote rounds; exact minimum
+ // and predecessor checks remain mandatory. Any unproven shape fails closed.
  let lo=1n,hi=bound;
- while(hi-lo>4n&&evaluated.size<320){
-  const span=hi-lo,points=[lo,lo+span/4n,lo+span/2n,hi-span/4n,hi];
-  const values=await Promise.all(points.map(quoted));
-  // Keep the two intervals adjoining the leftmost maximum. Quoting the five
-  // probes concurrently halves the search span in one provider round trip.
+ while(hi-lo>8n&&evaluated.size<320){
+  const span=hi-lo,points=Array.from({length:9},(_,i)=>lo+span*BigInt(i)/8n);
+  const values=await Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
+  // Eight parallel intervals reduce the peak search to one quarter of its
+  // prior span per provider round while retaining the neighboring maximum.
   let best=0;for(let i=1;i<values.length;i++)if(values[i]!.deployed>values[best]!.deployed)best=i;
-  lo=points[Math.max(0,best-1)]!;hi=points[Math.min(4,best+1)]!;
+  lo=points[Math.max(0,best-1)]!;hi=points[Math.min(8,best+1)]!;
  }
- if(hi-lo>4n)return null;
+ if(hi-lo>8n)return null;
+ const peakPoints=Array.from({length:Number(hi-lo+1n)},(_,i)=>lo+BigInt(i));
+ const peakResults=await Promise.all(peakPoints.map(quoted));
  let peak=lo,peakValue=0n;
- for(let amount=lo;amount<=hi;amount++){
-  const result=await quoted(amount);
-  if(result.deployed>peakValue){peak=amount;peakValue=result.deployed;}
+ for(let i=0;i<peakResults.length;i++)if(peakResults[i]!.deployed>peakValue){
+  peak=peakPoints[i]!;peakValue=peakResults[i]!.deployed;
  }
  if(peakValue<sizingFloor)return null;
  lo=0n;hi=peak;
  while(hi-lo>1n&&evaluated.size<400){
-  const span=hi-lo;
-  if(span<4n){
-   const middle=(lo+hi)/2n,result=await quoted(middle);
-   if(result.deployed>=sizingFloor)hi=middle;else lo=middle;
-  }else{
-   const points=[lo+span/4n,lo+span/2n,hi-span/4n];
-   const values=await Promise.all(points.map(quoted));
-   const first=values.findIndex(value=>value.deployed>=sizingFloor);
-   if(first<0)lo=points[2]!;
-   else{hi=points[first]!;if(first>0)lo=points[first-1]!;}
-  }
+  const span=hi-lo,points=Array.from({length:9},(_,i)=>lo+span*BigInt(i)/8n);
+  const values=await Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
+  const first=values.findIndex(value=>value.deployed>=sizingFloor);
+  if(first<=0)return null;
+  lo=points[first-1]!;hi=points[first]!;
  }
  if(hi-lo>1n)return null;
  const found=(await quoted(hi)).candidate;
