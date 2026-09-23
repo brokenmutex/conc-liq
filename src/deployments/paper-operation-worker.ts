@@ -13,7 +13,8 @@ type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
  attempts:number};
 type OperationContext={id:string;campaign_id:string;kind:string;status:string;claimed_by:string|null;
  claim_valid:boolean;created_at:Date;mode:string;lifecycle:string;strategy_id:string;
- expires_at:Date;proposal:Record<string,unknown>};
+ expires_at:Date;proposal:Record<string,unknown>;request:Record<string,unknown>;
+ current_revision:number;expected_revision:number;preview_kind:string};
 const MAX_ATTEMPTS=5;
 const LEASE_SECONDS=120;
 
@@ -33,7 +34,8 @@ async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:str
  const row=(await indexer.query<OperationContext>(`
   SELECT o.id::text,o.campaign_id::text,o.kind,o.status,o.claimed_by,
    (o.claim_until>=clock_timestamp()) AS claim_valid,
-   o.created_at,c.mode,c.lifecycle,r.strategy_id,v.expires_at,v.proposal
+   o.created_at,c.mode,c.lifecycle,c.current_revision,r.strategy_id,
+   v.expires_at,v.proposal,v.request,v.expected_revision,v.kind AS preview_kind
   FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
   JOIN deployment_previews v ON v.id=o.preview_id
@@ -69,13 +71,20 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(claim.attempts>MAX_ATTEMPTS)return await block('paper_operation_attempt_bound');
   const context=await readClaimContext(indexer,claim,workerId);
   if(context.mode!=='paper'||context.strategy_id!=='static_manual_v1'||
-   !['open','close_retain','close_convert'].includes(context.kind))
+   !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
+  if((context.kind==='pause'||context.kind==='resume')&&
+   (context.preview_kind!==context.kind||context.expected_revision!==context.current_revision))
+   return await block('paper_lifecycle_revision_or_preview_mismatch');
   if(context.created_at.getTime()>context.expires_at.getTime())
    return await block('paper_operation_stale_admission');
-  const source=sourceFor(context),verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
+  const lifecycleOperation=context.kind==='pause'||context.kind==='resume';
+  const verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
    verifyCanonicalPaperAnchors(chain,chainId,sources);
-  await verifyCanonicalPaperAnchors(chain,4663,[source]);
+  if(!lifecycleOperation){
+   const source=sourceFor(context);
+   await verifyCanonicalPaperAnchors(chain,4663,[source]);
+  }
   if(lost)return {status:'claim_lost' as const,operationId:claim.id};
   if(claim.status==='preflighting'){
    await store.advanceClaim(claim.id,workerId,'paper_model_preflight_checked','executing',null);
@@ -84,7 +93,9 @@ export async function processOnePaperOperation(store:DeploymentStore,
    await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
   else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
   if(lost)return {status:'claim_lost' as const,operationId:claim.id};
-  if(context.kind==='open')await store.completeTrustedPaperOpen(claim.id,workerId,verify);
+  if(context.kind==='pause'||context.kind==='resume')
+   await store.completeTrustedPaperLifecycleOperation(claim.id,workerId);
+  else if(context.kind==='open')await store.completeTrustedPaperOpen(claim.id,workerId,verify);
   else if(context.kind==='close_retain')
    await store.completeTrustedPaperCloseRetain(claim.id,workerId,verify);
   else{

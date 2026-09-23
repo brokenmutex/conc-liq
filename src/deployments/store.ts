@@ -1516,8 +1516,10 @@ export class DeploymentStore {
   const requestDigest=contentHash({campaignId,previewId:input.previewId,
    contentDigest:input.contentDigest,expectedRevision:input.expectedRevision});
   return this.transaction(async db=>{
-   const campaign=(await db.query<{mode:'paper'|'live';chain_id:number;wallet:string;current_revision:number;lifecycle:string}>(
-    'SELECT mode,chain_id,wallet,current_revision,lifecycle FROM deployment_campaigns WHERE id=$1 FOR UPDATE',[campaignId])).rows[0];
+   const campaign=(await db.query<{mode:'paper'|'live';chain_id:number;wallet:string;current_revision:number;
+    lifecycle:string;strategy_id:string}>(`SELECT c.mode,c.chain_id,c.wallet,c.current_revision,c.lifecycle,r.strategy_id
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
    if(!campaign)throw new DeploymentConflict('campaign_not_found');
    const existing=(await db.query<{id:string;request_digest:string;status:string}>(
     'SELECT id,request_digest,status FROM deployment_operations WHERE campaign_id=$1 AND idempotency_key=$2',
@@ -1527,17 +1529,33 @@ export class DeploymentStore {
     return {id:existing.id,status:existing.status,replayed:true};
    }
    if(campaign.current_revision!==input.expectedRevision)throw new DeploymentConflict('stale_revision');
-   const preview=(await db.query<{kind:string;expected_revision:number;content_digest:string;expires_at:Date}>(
-    `SELECT kind,expected_revision,content_digest,expires_at FROM deployment_previews
+   const preview=(await db.query<{kind:string;expected_revision:number;content_digest:string;expires_at:Date;
+    request:Record<string,unknown>;proposal:Record<string,unknown>;evidence:Record<string,unknown>}>(
+    `SELECT kind,expected_revision,content_digest,expires_at,request,proposal,evidence FROM deployment_previews
      WHERE id=$1 AND campaign_id=$2 FOR UPDATE`,[input.previewId,campaignId])).rows[0];
    if(!preview||preview.expected_revision!==campaign.current_revision||preview.content_digest!==input.contentDigest)
     throw new DeploymentConflict('stale_preview');
    if(preview.expires_at.getTime()<=Date.now())throw new DeploymentConflict('preview_expired');
+   if(preview.kind==='pause'||preview.kind==='resume'){
+    const expectedLifecycle=preview.kind==='pause'?'active':'paused',targetLifecycle=preview.kind==='pause'?'paused':'active';
+    const lifecycle=preview.proposal?.paperLifecycle;
+    if(campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1')
+     throw new DeploymentConflict('paper_lifecycle_operation_unavailable');
+    if(campaign.lifecycle!==expectedLifecycle)throw new DeploymentConflict('invalid_lifecycle');
+    if(preview.request?.kind!==preview.kind||!lifecycle||typeof lifecycle!=='object'||
+     Array.isArray(lifecycle)||Object.keys(lifecycle).length!==2||
+     (lifecycle as Record<string,unknown>).from!==expectedLifecycle||
+     (lifecycle as Record<string,unknown>).to!==targetLifecycle||
+     !preview.evidence||typeof preview.evidence!=='object'||Array.isArray(preview.evidence)||
+     Object.keys(preview.evidence).length!==0)
+     throw new DeploymentConflict('paper_lifecycle_preview_invalid');
+   }
    const pending=(await db.query<{id:string}>(`SELECT id FROM deployment_operations WHERE campaign_id=$1 AND status IN
     ('queued','preflighting','executing','confirming','reconciling','blocked') LIMIT 1`,[campaignId])).rows[0];
    if(pending)throw new DeploymentConflict('operation_in_progress');
    if(preview.kind==='open'&&campaign.lifecycle!=='draft')throw new DeploymentConflict('invalid_lifecycle');
-   if(preview.kind!=='open'&&campaign.lifecycle==='draft')throw new DeploymentConflict('invalid_lifecycle');
+   if(!['open','pause','resume'].includes(preview.kind)&&campaign.lifecycle==='draft')
+    throw new DeploymentConflict('invalid_lifecycle');
    if(campaign.lifecycle==='closed')throw new DeploymentConflict('campaign_closed');
    if(campaign.mode==='live'&&preview.kind==='open')await this.reserveLiveWallet(db,campaignId,campaign.chain_id,campaign.wallet);
    const id=randomUUID();
@@ -1619,6 +1637,47 @@ export class DeploymentStore {
     status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
    [id,workerId,leaseSeconds]);
   if(result.rowCount!==1)throw new DeploymentConflict('claim_lost');
+ }
+
+ /** Completes a paper pause/resume without writing an economic mark. The
+  * journal preview binds the direction and revision; lifecycle and operation
+  * completion commit atomically under the live worker claim. */
+ async completeTrustedPaperLifecycleOperation(operationId:string,workerId:string){
+  if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
+  return this.transaction(async db=>{
+   const row=(await db.query<{id:string;campaign_id:string;kind:string;status:string;stage:string;
+    claimed_by:string|null;claim_valid:boolean|null;mode:string;lifecycle:string;current_revision:number;
+    strategy_id:string;expected_revision:number;preview_kind:string;request:Record<string,unknown>;
+    proposal:Record<string,unknown>;evidence:Record<string,unknown>}>(`
+    SELECT o.id,o.campaign_id,o.kind,o.status,o.stage,o.claimed_by,
+     (o.claim_until>=clock_timestamp()) AS claim_valid,c.mode,c.lifecycle,c.current_revision,
+     r.strategy_id,v.expected_revision,v.kind AS preview_kind,v.request,v.proposal,v.evidence
+    FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_previews v ON v.id=o.preview_id
+    WHERE o.id=$1 FOR UPDATE OF o,c`,[operationId])).rows[0];
+   if(!row||row.claimed_by!==workerId||!row.claim_valid||
+    !['preflighting','executing','confirming','reconciling'].includes(row.status))
+    throw new DeploymentConflict('paper_lifecycle_claim_lost');
+   if(row.mode!=='paper'||row.strategy_id!=='static_manual_v1'||
+    !['pause','resume'].includes(row.kind)||row.preview_kind!==row.kind||
+    row.expected_revision!==row.current_revision)
+    throw new DeploymentConflict('paper_lifecycle_operation_unavailable');
+   const from=row.kind==='pause'?'active':'paused',to=row.kind==='pause'?'paused':'active',
+    lifecycle=row.proposal?.paperLifecycle;
+   if(row.lifecycle!==from||row.request?.kind!==row.kind||!lifecycle||
+    typeof lifecycle!=='object'||Array.isArray(lifecycle)||Object.keys(lifecycle).length!==2||
+    (lifecycle as Record<string,unknown>).from!==from||
+    (lifecycle as Record<string,unknown>).to!==to||!row.evidence||
+    typeof row.evidence!=='object'||Array.isArray(row.evidence)||Object.keys(row.evidence).length!==0)
+    throw new DeploymentConflict('paper_lifecycle_state_changed');
+   await db.query(`UPDATE deployment_campaigns SET lifecycle=$2,updated_at=clock_timestamp() WHERE id=$1`,
+    [row.campaign_id,to]);
+   await db.query(`UPDATE deployment_operations SET status='succeeded',stage=$2,reason=NULL,
+    claimed_by=NULL,claim_until=NULL,updated_at=clock_timestamp() WHERE id=$1`,
+    [operationId,row.kind==='pause'?'paper_paused':'paper_resumed']);
+   return {id:operationId,status:'succeeded',lifecycle:to};
+  });
  }
 
  /** Commits one modeled paper open under the operation claim. It writes no
