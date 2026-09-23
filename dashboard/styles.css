@@ -27,3 +27,24 @@
 .rangekeeper-extra{border-top:1px solid var(--border);padding-top:16px}
 .activity-list li{grid-template-columns:112px 10px minmax(0,1fr) auto}.activity-list time{min-width:0}
 @media(max-width:800px){.activity-list li{grid-template-columns:60px 10px minmax(0,1fr) auto;gap:8px}}
+
+.top-tabs{height:auto;margin:0;display:flex;align-items:center;gap:8px;color:var(--muted)}
+.top-tabs [role=tab]{border:0;background:transparent;color:var(--muted);padding:10px 13px;border-radius:7px;font-size:13px}
+.top-tabs [role=tab][aria-selected=true]{background:#232d3a;color:var(--text);font-weight:600}
+.top-tabs .text-button{padding:0 4px}
+#research-panel{padding-bottom:1px}
+#positions-panel .setup-panel{margin:40px 0 35px;border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:24px}
+.setup-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;margin-bottom:20px}
+.setup-heading h2{margin-top:4px}.setup-heading p,.inline-note{color:var(--muted);font-size:12px;margin-top:7px}
+.eyebrow{font-size:10px;letter-spacing:1.2px;color:var(--live);font-weight:700}
+.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.form-grid label{display:grid;gap:7px;color:var(--muted);font-size:12px}
+.form-grid select,.form-grid input{width:100%;min-width:0;padding:10px;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:7px;font:inherit}
+.setup-panel form>button{margin-top:15px;padding:10px 15px;color:var(--muted)}
+.setup-panel button:disabled{cursor:not-allowed;opacity:.65}
+.form-error{margin-top:12px;color:var(--amber);font-size:12px}
+.lifecycle-controls{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.lifecycle-controls button{padding:5px 7px;font-size:10px;color:var(--muted);cursor:not-allowed;opacity:.68}
+.detail-actions{flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:800px){.top-tabs{gap:2px}.top-tabs [role=tab]{padding:8px}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#positions-panel .setup-panel{padding:18px 14px}}
+@media(max-width:520px){.masthead{height:auto;flex-wrap:wrap;padding:15px 0;gap:12px}.top-tabs{order:3;width:100%;overflow-x:auto;white-space:nowrap}.top-tabs .text-button{margin-left:auto}.form-grid{grid-template-columns:1fr}.setup-heading{flex-wrap:wrap}.lifecycle-controls{width:100%;justify-content:flex-start}}
