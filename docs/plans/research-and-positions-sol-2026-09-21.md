@@ -1042,3 +1042,46 @@ worker claims only static/manual campaigns.
 Keep the first usable paper milestone ahead of broader Research expansion.
 Do not count source implementation, isolated acceptance, sealed deployment and
 live validation as interchangeable evidence. Preserve unrelated dirty work.
+
+### September 23 implementation follow-through through `c5837b5`
+
+- PR1 is implemented: the accepted five Research windows and incomplete swap
+  coverage have matching tests. Pinned `npm run check` passed **719/719 tests**
+  through `c5837b5`.
+- PR2 now rotates bounded maintenance pages, samples canonical principal marks
+  for active and paused static/manual campaigns, and excludes closing campaigns
+  at the locked append boundary. A worker test reaches 40 active and five closed
+  campaigns in three 20-row passes. The cursor is process-local, so frequent
+  restarts can revisit the first page; durable cross-restart fairness remains
+  open. No service rollout or production mark generation was verified.
+- PR3 now exercises worker-level open, retain-close and pending conversion-close
+  against isolated PostgreSQL, including competing claims, restart, expired
+  preview recovery, transient RPC retry and canonical mismatch with zero writes.
+  Lease renewal success/failure is covered by deterministic worker tests; a
+  real timed database renewal test remains open.
+- PR4 has a guarded RangeKeeper observation-mark store method and owned-fork
+  open and terminal retain-exit sampler CLIs. The mark writer has isolated
+  PostgreSQL replay coverage; the samplers have focused inventory tests but no
+  campaign-owned fork rehearsal or registered profile. Terminal sampling loads
+  persisted mark/kernel context and refuses missing or mismatched inventory;
+  conversion sampling remains unavailable. The first-observation open model cannot yet
+  be booked as capital-in: confirmation may resize at the second source, while
+  pending-operation gas-profile registration and persisted execution proof are
+  missing. Retain/convert terminal accounting and recovery remain open.
+- PR5 now exposes a read-only static/manual retain estimate from the persisted
+  opening candidate and a later canonical frame; retained balances are
+  principal-only lower bounds. Static conversion, action-bound terminal
+  previews, accepting HTTP commands, RangeKeeper paper execution and complete
+  Positions desktop/mobile parity remain open.
+- PR6 now has a hash-checked PostgreSQL reader for current registry-backed
+  market profiles. Historical canonical frames, independent references, fee
+  intervals, scoped costs, wallet/limit pinning and atomic saved-draft binding
+  are absent, so candidate economics remain unavailable.
+
+The isolated PostgreSQL `npm run test:integration` gate passed through `c5837b5`,
+including the new Research registry reader and paper-worker paths. No production
+migration or rescan, owned-fork rehearsal, sealed-release build, browser parity
+run, funding, signing, broadcast or service activation was performed. Continue
+PR4 by defining and persisting a second-observation execution envelope and
+source-exact gas evidence before any RangeKeeper open booking. Then finish
+terminal accounting and PR5 operator acceptance; retain the W4-W7 release gates.
