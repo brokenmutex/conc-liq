@@ -32,6 +32,9 @@ import {verifyCanonicalPaperAnchors} from '../../src/deployments/paper-canonical
 import {processOnePaperOperation} from '../../src/deployments/paper-operation-worker.ts';
 import {advancePaperScenarioWithFeeSampler} from '../../src/deployments/paper-projection.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
+import {replayPaperMint} from '../../src/v3/position-math.ts';
+import {serializeRangeKeeperPaperKernelSnapshot}
+ from '../../src/deployments/rangekeeper-paper-persistence.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
  from '../../src/dashboard/deployment-position.ts';
@@ -150,6 +153,75 @@ try{
  const paperDraft=await store.createDraft({...draftInput,mode:'paper',
   allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
   config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}});
+ const rkLimits={...paperLimits,minDeploymentPpm:0,maxSwapInputValue:'1',maxSwapInputPpm:0,
+  maxSwapShortfallValue:'1',maxRecenters:2,maxLiquiditySharePpm:100000,
+  maxObservationGapSeconds:300};
+ const rkDraft=await store.createDraft({...draftInput,mode:'paper',strategyId:'rangekeeper_v1',
+  allocation:{token0Raw:'10000000000000000000000',token1Raw:'10000000000000000000000',nativeWei:'10000000000000000'},
+  config:{fullWidthSpacings:2,limits:rkLimits}});
+ const rkOpenSource={block:'200',hash:'0x'+'6'.repeat(64),timestamp:Math.floor(Date.now()/1000)},
+  rkMarkSource={block:'201',hash:'0x'+'7'.repeat(64),timestamp:rkOpenSource.timestamp+1},
+  rkRange={tickLower:-60,tickUpper:60},rkSqrt=sqrtRatioAtTick(0),
+  rkMint=replayPaperMint(rkSqrt,rkRange,10n**18n,10n**18n,0n),
+  rkCandidateHash='c'.repeat(64),rkPolicyHash='a'.repeat(64),rkBuildId='b'.repeat(64),
+  rkOpenModel={kind:'rangekeeper_paper_open_model',status:'indicative',actionAvailable:false,
+   campaignId:rkDraft.id,revision:1,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
+   kernelPolicyHash:rkPolicyHash,kernelBuildId:rkBuildId,candidateHash:rkCandidateHash,
+   source:rkOpenSource,poolState:{sqrtPriceX96:String(rkSqrt)},candidate:{kind:'entry',range:rkRange,
+    swap:null,amount0Desired:'1000000000000000000',amount1Desired:'1000000000000000000',
+    amount0Min:'0',amount1Min:'0',liquidity:String(rkMint.liquidity),deployedValue:'1',
+    sourceBlock:rkOpenSource.block,sourceHash:rkOpenSource.hash,expiresAt:rkOpenSource.timestamp+90}},
+  rkPreviewId=randomUUID();
+ await admin.query(`INSERT INTO deployment_previews
+  (id,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at)
+  VALUES($1,$2,1,'open','{}',$3,'{}',$4,clock_timestamp()+interval '1 hour')`,
+  [rkPreviewId,rkDraft.id,JSON.stringify({rangekeeperPaperOpenModel:rkOpenModel}),'d'.repeat(64)]);
+ await admin.query(`INSERT INTO deployment_marks
+  (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
+  VALUES($1,1,$2,$3,'{}',NULL,'{}'::uuid[],$4)`,
+  [rkDraft.id,rkOpenSource.block,rkOpenSource.hash,JSON.stringify({
+   classification:'rangekeeper_paper_open_v1',previewId:rkPreviewId,source:rkOpenSource,
+   modelHash:contentHash(rkOpenModel),candidateHash:rkCandidateHash})]);
+ await admin.query(`UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1`,[rkDraft.id]);
+ const rkIdle0=10n**22n-rkMint.amount0,rkIdle1=10n**22n-rkMint.amount1,
+  rkKernel=serializeRangeKeeperPaperKernelSnapshot({source:rkMarkSource,
+   state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
+    configHash:`0x${rkPolicyHash}`,buildId:rkBuildId,lastEligible:{block:201n,
+     hash:rkMarkSource.hash,timestamp:rkMarkSource.timestamp},confirmation:null,exit:null},
+   wallet0:rkIdle0,wallet1:rkIdle1,released0:0n,released1:0n,nativeWei:0n,
+   campaignStartValue:1n,highWaterValue:1n,rollingSpentCost:0n,campaignSpentCost:0n,
+   reservedCost:0n,recenters:0,pending:false,entryAllowed:true,safeExitRequired:false,executionReady:false}),
+  verifyRkAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
+   sources.map(source=>source.block),['200','201']);};
+ const rkMark=await store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
+  kernelSnapshot:rkKernel,verifyAnchors:verifyRkAnchors});
+ assert.equal(rkMark.replayed,false);assert.equal(rkMark.actionAvailable,false);
+ const rkRestartStore=new DeploymentStore(url.toString());
+ const rkReplay=await rkRestartStore.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
+  kernelSnapshot:rkKernel,verifyAnchors:verifyRkAnchors});
+ await rkRestartStore.close();
+ assert.deepEqual(rkReplay,{...rkMark,replayed:true});
+ const savedRkMark=(await admin.query(`SELECT inventory,provenance FROM deployment_marks
+  WHERE id=$1`,[rkMark.markId])).rows[0];
+ assert.equal(savedRkMark.inventory.idle.token0,String(rkIdle0));
+ assert.deepEqual(savedRkMark.provenance.kernelSnapshot,rkKernel);
+ assert.equal(savedRkMark.provenance.actionAvailable,false);
+ const rkNextSource={block:'202',hash:'0x'+'8'.repeat(64),timestamp:rkMarkSource.timestamp+1},
+  rkNextKernel={...rkKernel,source:rkNextSource,state:{...rkKernel.state,
+   lastEligible:{block:rkNextSource.block,hash:rkNextSource.hash,timestamp:rkNextSource.timestamp}}};
+ const verifyRkNextAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
+  sources.map(source=>source.block),['200','201','202']);};
+ const rkNextMark=await store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkNextSource,
+  kernelSnapshot:rkNextKernel,verifyAnchors:verifyRkNextAnchors});
+ assert.equal(rkNextMark.replayed,false);
+ const rkBlockedSource={block:'203',hash:'0x'+'9'.repeat(64),timestamp:rkNextSource.timestamp+1};
+ await assert.rejects(store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkBlockedSource,
+  kernelSnapshot:{...rkNextKernel,source:rkBlockedSource,recenters:1,state:{...rkNextKernel.state,
+   lastEligible:{block:rkBlockedSource.block,hash:rkBlockedSource.hash,timestamp:rkBlockedSource.timestamp}}},
+  verifyAnchors:async()=>{throw Error('must_not_verify');}}),
+  /rangekeeper_paper_mark_recenter_persistence_unavailable/);
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,
+  [rkDraft.id])).rows[0].n,3);
  const paperInput=await store.paperDraft(paperDraft.id);
  assert.equal(paperInput.strategyId,'static_manual_v1');
  assert.equal(paperInput.profile.pool.fee,3000);
