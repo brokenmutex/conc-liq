@@ -1,8 +1,9 @@
 import pg, { type PoolClient } from "pg";
 import type { Hash } from "viem";
-import { assertSchemaReady } from "../storage/compatibility.js";
+import { assertIndexerEventTimestampsSchemaReady } from "../storage/compatibility.js";
 import type {
   BlockCheckpoint,
+  IndexedEventBlock,
   IndexerChunk,
   IndexerCursor,
   IndexedV3Event,
@@ -29,6 +30,15 @@ interface CheckpointRow {
   block_timestamp: Date;
 }
 
+interface EventTimestampCoverageRow {
+  from_block: string;
+  from_hash: Hash;
+  from_timestamp: Date;
+  through_block: string;
+  through_hash: Hash;
+  through_timestamp: Date;
+}
+
 function cursorFromRow(row: CursorRow): IndexerCursor {
   return {
     chainId: Number(row.chain_id),
@@ -52,6 +62,71 @@ function checkpointFromRow(row: CheckpointRow): BlockCheckpoint {
     parentHash: row.parent_hash,
     timestamp: row.block_timestamp,
   };
+}
+
+async function updateEventTimestampCoverage(
+  client: PoolClient,
+  chunk: IndexerChunk,
+): Promise<void> {
+  const selected = await client.query<EventTimestampCoverageRow>(
+    `SELECT from_block, from_hash, from_timestamp, through_block,
+            through_hash, through_timestamp
+       FROM indexer_event_timestamp_coverage
+      WHERE stream_key = $1 FOR UPDATE`,
+    [chunk.streamKey],
+  );
+  const current = selected.rows[0];
+  if (current === undefined) {
+    await client.query(
+      `INSERT INTO indexer_event_timestamp_coverage (
+         stream_key, from_block, from_hash, from_timestamp,
+         through_block, through_hash, through_timestamp
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+      [chunk.streamKey, chunk.fromCheckpoint.number.toString(), chunk.fromCheckpoint.hash,
+        chunk.fromCheckpoint.timestamp, chunk.checkpoint.number.toString(),
+        chunk.checkpoint.hash, chunk.checkpoint.timestamp],
+    );
+    return;
+  }
+
+  const currentFrom = BigInt(current.from_block);
+  const currentThrough = BigInt(current.through_block);
+  let from = current.from_block;
+  let fromHash: Hash = current.from_hash;
+  let fromTimestamp = current.from_timestamp;
+  let through = current.through_block;
+  let throughHash: Hash = current.through_hash;
+  let throughTimestamp = current.through_timestamp;
+  const chunkFrom = chunk.fromCheckpoint.number;
+  const chunkTo = chunk.checkpoint.number;
+  const separate = chunkFrom > currentThrough + 1n || chunkTo + 1n < currentFrom;
+  if (separate) {
+    from = chunkFrom.toString();
+    fromHash = chunk.fromCheckpoint.hash;
+    fromTimestamp = chunk.fromCheckpoint.timestamp;
+    through = chunkTo.toString();
+    throughHash = chunk.checkpoint.hash;
+    throughTimestamp = chunk.checkpoint.timestamp;
+  } else {
+    if (chunkFrom < currentFrom) {
+      from = chunkFrom.toString();
+      fromHash = chunk.fromCheckpoint.hash;
+      fromTimestamp = chunk.fromCheckpoint.timestamp;
+    }
+    if (chunkTo > currentThrough) {
+      through = chunkTo.toString();
+      throughHash = chunk.checkpoint.hash;
+      throughTimestamp = chunk.checkpoint.timestamp;
+    }
+  }
+  await client.query(
+    `UPDATE indexer_event_timestamp_coverage
+        SET from_block = $2, from_hash = $3, from_timestamp = $4,
+            through_block = $5, through_hash = $6, through_timestamp = $7,
+            updated_at = NOW()
+      WHERE stream_key = $1`,
+    [chunk.streamKey, from, fromHash, fromTimestamp, through, throughHash, throughTimestamp],
+  );
 }
 
 async function insertEventBatch(
@@ -103,6 +178,32 @@ async function insertEventBatch(
   }
 }
 
+async function insertEventBlockBatch(
+  client: PoolClient,
+  streamKey: string,
+  blocks: readonly IndexedEventBlock[],
+): Promise<void> {
+  for (let offset = 0; offset < blocks.length; offset += INSERT_BATCH_SIZE) {
+    const batch = blocks.slice(offset, offset + INSERT_BATCH_SIZE);
+    const values: unknown[] = [];
+    const rows = batch.map((block, index) => {
+      const base = index * 4;
+      values.push(streamKey, block.number.toString(), block.hash, block.timestamp);
+      return `(${Array.from({ length: 4 }, (_, parameter) => `$${base + parameter + 1}`).join(",")})`;
+    });
+    await client.query(
+      `INSERT INTO indexer_event_blocks (
+         stream_key, block_number, block_hash, block_timestamp
+       ) VALUES ${rows.join(",")}
+       ON CONFLICT (stream_key, block_number) DO UPDATE SET
+         block_hash = EXCLUDED.block_hash,
+         block_timestamp = EXCLUDED.block_timestamp,
+         created_at = NOW()`,
+      values,
+    );
+  }
+}
+
 export class PostgresEventStore {
   private readonly pool: InstanceType<typeof Pool>;
 
@@ -111,7 +212,7 @@ export class PostgresEventStore {
   }
 
   public async assertReady(): Promise<void> {
-    await assertSchemaReady(this.pool);
+    await assertIndexerEventTimestampsSchemaReady(this.pool);
   }
 
   public async registerManifest(
@@ -121,6 +222,19 @@ export class PostgresEventStore {
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
+      const previous = await client.query<{ target_set_hash: Hash }>(
+        "SELECT target_set_hash FROM indexer_cursors WHERE stream_key = $1",
+        [streamKey],
+      );
+      if (previous.rows[0] !== undefined &&
+          previous.rows[0].target_set_hash.toLowerCase() !== manifest.targetSetHash.toLowerCase()) {
+        // Coverage only proves completeness for the exact pool target set that
+        // was scanned; a manifest change requires a new bounded rescan.
+        await client.query(
+          "DELETE FROM indexer_event_timestamp_coverage WHERE stream_key = $1",
+          [streamKey],
+        );
+      }
       await client.query(
         "UPDATE indexer_pools SET enabled = FALSE, updated_at = NOW() WHERE stream_key = $1",
         [streamKey],
@@ -193,7 +307,12 @@ export class PostgresEventStore {
     chainId: number,
     targetSetHash: Hash,
     fromBlock: bigint,
+    boundary: BlockCheckpoint | null,
   ): Promise<void> {
+    if ((fromBlock === 0n) !== (boundary === null) ||
+        (boundary !== null && boundary.number !== fromBlock - 1n)) {
+      throw new Error("Indexer rewind requires the canonical block immediately before its start");
+    }
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");
@@ -205,6 +324,31 @@ export class PostgresEventStore {
         "DELETE FROM indexer_checkpoints WHERE stream_key = $1 AND block_number >= $2",
         [streamKey, fromBlock.toString()],
       );
+      await client.query(
+        "DELETE FROM indexer_event_blocks WHERE stream_key = $1 AND block_number >= $2",
+        [streamKey, fromBlock.toString()],
+      );
+      if (boundary === null) {
+        await client.query(
+          "DELETE FROM indexer_event_timestamp_coverage WHERE stream_key = $1",
+          [streamKey],
+        );
+      } else {
+        await client.query(
+          `DELETE FROM indexer_event_timestamp_coverage
+            WHERE stream_key = $1 AND from_block >= $2`,
+          [streamKey, fromBlock.toString()],
+        );
+        await client.query(
+          `UPDATE indexer_event_timestamp_coverage
+              SET through_hash = CASE WHEN through_block > $2 THEN $3 ELSE through_hash END,
+                  through_timestamp = CASE WHEN through_block > $2 THEN $4 ELSE through_timestamp END,
+                  through_block = LEAST(through_block, $2),
+                  updated_at = NOW()
+            WHERE stream_key = $1 AND from_block < $2`,
+          [streamKey, boundary.number.toString(), boundary.hash, boundary.timestamp],
+        );
+      }
       const anchor = await client.query<CheckpointRow>(
         `SELECT block_number, block_hash, parent_hash, block_timestamp
          FROM indexer_checkpoints
@@ -255,8 +399,22 @@ export class PostgresEventStore {
   }
 
   public async saveChunk(chunk: IndexerChunk): Promise<void> {
-    if (chunk.checkpoint.number !== chunk.toBlock) {
+    if (chunk.checkpoint.number !== chunk.toBlock ||
+        chunk.fromCheckpoint.number !== chunk.fromBlock ||
+        chunk.fromCheckpoint.timestamp > chunk.checkpoint.timestamp) {
       throw new Error("Chunk checkpoint does not match its ending block");
+    }
+    const headers = new Map(chunk.eventBlocks.map((header) => [header.number, header]));
+    if (headers.size !== chunk.eventBlocks.length || chunk.eventBlocks.some((header) =>
+      header.number < chunk.fromBlock || header.number > chunk.toBlock ||
+      header.timestamp < chunk.fromCheckpoint.timestamp || header.timestamp > chunk.checkpoint.timestamp ||
+      (header.number === chunk.fromCheckpoint.number && header.hash.toLowerCase() !== chunk.fromCheckpoint.hash.toLowerCase()) ||
+      (header.number === chunk.checkpoint.number && header.hash.toLowerCase() !== chunk.checkpoint.hash.toLowerCase())
+    ) || chunk.events.some((event) => {
+      const header = headers.get(event.blockNumber);
+      return header === undefined || header.hash.toLowerCase() !== event.blockHash.toLowerCase();
+    })) {
+      throw new Error("Chunk event blocks are missing or do not match canonical log hashes");
     }
 
     const client = await this.pool.connect();
@@ -267,7 +425,14 @@ export class PostgresEventStore {
          WHERE stream_key = $1 AND block_number BETWEEN $2 AND $3`,
         [chunk.streamKey, chunk.fromBlock.toString(), chunk.toBlock.toString()],
       );
+      await client.query(
+        `DELETE FROM indexer_event_blocks
+         WHERE stream_key = $1 AND block_number BETWEEN $2 AND $3`,
+        [chunk.streamKey, chunk.fromBlock.toString(), chunk.toBlock.toString()],
+      );
+      await insertEventBlockBatch(client, chunk.streamKey, chunk.eventBlocks);
       await insertEventBatch(client, chunk.streamKey, chunk.events);
+      await updateEventTimestampCoverage(client, chunk);
       await client.query(
         `INSERT INTO indexer_checkpoints (
            stream_key, block_number, block_hash, parent_hash, block_timestamp

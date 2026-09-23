@@ -275,11 +275,18 @@ function renderDetail(rows) {
   const pool = row.pool, reference = row.reference;
   if (pool.tick == null || pool.priceX18 == null) {
     const exact = pool.windows.find((window) => window.hours === 0.25);
+    const flowStatus = exact?.limitation === 'event_timestamp_coverage_incomplete'
+      ? 'Canonical event timestamp coverage does not span the full trailing 900 seconds.'
+      : 'Canonical swap counts are available; quote volume, fees, and candidate economics remain unavailable.';
     $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(pool.stateStatus)}</span></div>
       <p>Registered pool identity is available; checkpoint state is unavailable, so price, depth, and modeled candidate economics are unavailable.</p>
-      ${exact ? `<p>Trailing 15m fee and volume are unavailable because stored event timestamps identify chunk ends, not each swap. Checkpoint span: ${exact.coveredSeconds ?? 0}s of 900s; latest checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`}; largest checkpoint gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}.</p>` : ''}`;
+      ${exact ? `<p>Trailing 15m: ${flowStatus} Checkpoint span: ${exact.coveredSeconds ?? 0}s of 900s; latest checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`}; largest checkpoint gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}.</p>` : ''}`;
     return;
   }
+  const exactWindow = pool.windows.find((window) => window.hours === 0.25);
+  const exactFlowStatus = exactWindow?.limitation === 'event_timestamp_coverage_incomplete'
+    ? 'Canonical event timestamp coverage does not span the full trailing 900 seconds.'
+    : 'Swap counts use canonical event block timestamps; quote volume, fees, and candidate economics remain unavailable.';
   const depthReference = pool.depthReferences?.[state.width] ?? null;
   const peakLiquidity = Math.max(...pool.depth.map((point) => Number(point.liquidity)), 0);
   $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2>
@@ -295,7 +302,7 @@ function renderDetail(rows) {
       </div>
       <div class="chart-card"><h3>Fees and price</h3>
         ${state.hours === 0.25
-          ? '<p>15m flow and price-change figures are unavailable until each event block has a canonical timestamp.</p>'
+          ? `<p>${exactFlowStatus} Checkpoint coverage is measured over the exact trailing 900 seconds.</p>`
           : `<p>The flow chart shows retained ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} time buckets.</p>
         ${flowChart(pool, state.hours * perHour(snapshot))}
         <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>`}

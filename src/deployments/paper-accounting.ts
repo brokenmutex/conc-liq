@@ -270,9 +270,11 @@ export function buildPaperConversionAccounting(open:PaperOpenModel,profile:Marke
 
  const model=closeConvert!,q=paperCloseConvertQuoteSchema.parse(closeQuoteInput),
   route=model.conversionRoute,p=profile.pool;
- assert(model.principal.amount0Raw===mark.principal0Raw&&
-  model.principal.amount1Raw===mark.principal1Raw,
-  'Paper conversion principal changed');
+ assert(String(BigInt(model.principal.amount0Raw)+BigInt(model.idle.amount0Raw))===
+   mark.principal0Raw&&
+  String(BigInt(model.principal.amount1Raw)+BigInt(model.idle.amount1Raw))===
+   mark.principal1Raw,
+  'Paper conversion principal and idle inventory changed');
  const fromAsset=q.inputAsset,toAsset=fromAsset==='token0'?'token1':'token0',
   input=BigInt(q.inputAmountRaw),expected=BigInt(q.expectedOutputRaw),
   minimum=BigInt(q.minimumOutputRaw),

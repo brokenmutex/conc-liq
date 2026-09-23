@@ -2,11 +2,13 @@ import type { RobinhoodClient } from "../client.js";
 import { log } from "../logger.js";
 import type {
   BlockCheckpoint,
+  IndexedEventBlock,
   IndexerCursor,
+  IndexedV3Event,
   PoolManifest,
 } from "./domain.js";
 import type { IndexerConfig } from "./config.js";
-import { fetchCheckpoint, fetchV3Events } from "./logs.js";
+import { fetchCheckpoint, fetchEventBlockHeaders, fetchV3Events } from "./logs.js";
 import { PostgresEventStore } from "./store.js";
 import { verifyHistoryBoundary } from "../history/verify.js";
 
@@ -160,11 +162,17 @@ export async function runBackfill(
       reorgOverlap: config.reorgOverlap,
       targetSetChanged,
     });
+    let rewindBoundary: BlockCheckpoint | null = null;
+    if (fromBlock > 0n) {
+      await options.beforeRpc?.();
+      rewindBoundary = await fetchCheckpoint(client, fromBlock - 1n);
+    }
     await store.rewind(
       config.streamKey,
       manifest.chainId,
       manifest.targetSetHash,
       fromBlock,
+      rewindBoundary,
     );
   }
 
@@ -186,10 +194,29 @@ export async function runBackfill(
       nextBlock + BigInt(chunkSize) - 1n,
     );
 
-    let events;
+    let events: IndexedV3Event[];
+    let checkpoint: BlockCheckpoint;
+    let fromCheckpoint: BlockCheckpoint | undefined;
+    let eventBlocks: IndexedEventBlock[] | undefined;
     try {
       await options.beforeRpc?.();
       events = await fetchV3Events(client, manifest, nextBlock, toBlock);
+      await options.beforeRpc?.();
+      checkpoint = await fetchCheckpoint(client, toBlock);
+      if (store !== undefined) {
+        if (nextBlock === toBlock) {
+          fromCheckpoint = checkpoint;
+        } else {
+          await options.beforeRpc?.();
+          fromCheckpoint = await fetchCheckpoint(client, nextBlock);
+        }
+        eventBlocks = await fetchEventBlockHeaders(
+          client,
+          events,
+          [checkpoint, fromCheckpoint!],
+          options.beforeRpc,
+        );
+      }
     } catch (error) {
       if (chunkSize <= config.minChunkSize) {
         throw error;
@@ -205,9 +232,6 @@ export async function runBackfill(
       });
       continue;
     }
-
-    await options.beforeRpc?.();
-    const checkpoint = await fetchCheckpoint(client, toBlock);
     if (options.liveClient !== undefined) {
       await verifyHistoryBoundary(client, options.liveClient, toBlock, checkpoint);
     }
@@ -215,6 +239,8 @@ export async function runBackfill(
       await store.saveChunk({
         chainId: manifest.chainId,
         checkpoint,
+        fromCheckpoint: fromCheckpoint!,
+        eventBlocks: eventBlocks!,
         events,
         fromBlock: nextBlock,
         streamKey: config.streamKey,

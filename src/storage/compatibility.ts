@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 // Exact supported migration history. Change only alongside a reviewed migration.
 // Read-only workers must never repair or bootstrap a database implicitly.
 export const REQUIRED_SCHEMA_VERSION = 3;
-export const DEPLOYMENT_SCHEMA_VERSION = 7;
+export const DEPLOYMENT_SCHEMA_VERSION = 8;
 export const SCHEMA_ERROR = "Database schema incompatible; run the release's explicit db:migrate command before starting workers";
 
 export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): Promise<void> {
@@ -20,6 +20,17 @@ export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): P
     row.version !== index + 1 || row.checksum !== MIGRATION_CHECKSUMS[index])) {
     throw new Error(SCHEMA_ERROR);
   }
+}
+
+/** Indexer writes require canonical timestamps and scan bounds from migration 8. */
+export async function assertIndexerEventTimestampsSchemaReady(
+  db: Pick<Pool | PoolClient, "query">,
+): Promise<void> {
+  await assertSchemaReady(db);
+  const row = (await db.query<{ version: number }>(
+    "SELECT max(version)::int AS version FROM schema_migrations",
+  )).rows[0];
+  if ((row?.version ?? 0) < 8) throw new Error(SCHEMA_ERROR);
 }
 
 /** The paper accounting journal and its append-only invalidations require v7.

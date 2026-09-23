@@ -261,5 +261,30 @@ export async function verifyCanonicalPaperCloseConvertQuote(client:RobinhoodClie
    source:model.source,router:route.router,quoter:route.quoter,path:route.path,fee:route.fee,
    inputAsset:route.inputAsset,inputAmountRaw,expectedOutputRaw,minimumOutputRaw,
    slippageBps,pathVersion:route.pathVersion};
+ if(BigInt(expectedOutputRaw)<=0n||BigInt(minimumOutputRaw)<=0n)
+  throw new Error('paper_convert_quote_output_unavailable');
  return paperCloseConvertQuoteSchema.parse({...content,quoteHash:contentHash(content)});
+}
+
+/** Stable source verification used before committing close marks and again
+ * immediately before finalization. Every saved anchor is checked twice across
+ * the set, catching a mid-check reorg. */
+export async function verifyCanonicalPaperCloseConvertAnchors(client:RobinhoodClient,
+ chainId:number,sources:readonly {block:string;hash:string;timestamp:number}[]):Promise<void>{
+ assert.equal(await client.getChainId(),chainId,'Paper conversion anchor chain changed');
+ const checked=new Map<string,string>();
+ for(const source of sources){
+  const identity=`${source.hash.toLowerCase()}:${source.timestamp}`,
+   prior=checked.get(source.block);
+  if(prior!==undefined){assert.equal(prior,identity,'Paper conversion same-block anchor conflict');continue;}
+  const block=await client.getBlock({blockNumber:BigInt(source.block)});
+  assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),'Paper conversion source reorged');
+  assert.equal(Number(block.timestamp),source.timestamp,'Paper conversion source timestamp changed');
+  checked.set(source.block,identity);
+ }
+ for(const [number,identity] of checked){
+  const block=await client.getBlock({blockNumber:BigInt(number)});
+  assert.equal(`${block.hash.toLowerCase()}:${Number(block.timestamp)}`,identity,
+   'Paper conversion source changed during verification');
+ }
 }

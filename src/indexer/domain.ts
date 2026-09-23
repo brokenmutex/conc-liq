@@ -49,6 +49,13 @@ export interface BlockCheckpoint {
   readonly timestamp: Date;
 }
 
+/** Canonically fetched header for one block containing indexed events. */
+export interface IndexedEventBlock {
+  readonly number: bigint;
+  readonly hash: Hash;
+  readonly timestamp: Date;
+}
+
 export interface IndexerCursor {
   readonly streamKey: string;
   readonly chainId: number;
@@ -69,5 +76,7 @@ export interface IndexerChunk {
   readonly fromBlock: bigint;
   readonly toBlock: bigint;
   readonly checkpoint: BlockCheckpoint;
+  readonly fromCheckpoint: BlockCheckpoint;
+  readonly eventBlocks: readonly IndexedEventBlock[];
   readonly events: readonly IndexedV3Event[];
 }

@@ -2,11 +2,14 @@ import { getAddress, type Hash, type Hex } from "viem";
 import type { RobinhoodClient } from "../client.js";
 import type {
   BlockCheckpoint,
+  IndexedEventBlock,
   IndexedV3Event,
   PoolManifest,
 } from "./domain.js";
 import { v3PoolEventsAbi } from "./abi.js";
 import { toJsonValue } from "./json.js";
+
+const MAX_EVENT_BLOCK_HEADERS_PER_CHUNK = 512;
 
 function requireLogField<T>(value: T | null, name: string): T {
   if (value === null) {
@@ -79,4 +82,66 @@ export async function fetchCheckpoint(
     parentHash: block.parentHash,
     timestamp: new Date(Number(block.timestamp) * 1_000),
   };
+}
+
+/**
+ * Fetch and verify one canonical timestamp/hash per distinct event block.
+ * Concurrency is bounded so a dense chunk cannot fan out unbounded RPC work.
+ */
+export async function fetchEventBlockHeaders(
+  client: RobinhoodClient,
+  events: readonly IndexedV3Event[],
+  knownHeaders: readonly BlockCheckpoint[],
+  beforeRpc?: () => Promise<void>,
+): Promise<IndexedEventBlock[]> {
+  const logHashes = new Map<bigint, Hash>();
+  for (const event of events) {
+    const prior = logHashes.get(event.blockNumber);
+    if (prior !== undefined && prior.toLowerCase() !== event.blockHash.toLowerCase()) {
+      throw new Error(`Conflicting event block hashes at ${event.blockNumber}`);
+    }
+    logHashes.set(event.blockNumber, event.blockHash);
+  }
+  const known = new Map(knownHeaders.map((header) => [header.number, header]));
+  const blocks = [...logHashes.entries()].sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+  if (blocks.length > MAX_EVENT_BLOCK_HEADERS_PER_CHUNK) {
+    throw new Error(`Indexer chunk contains ${blocks.length} event blocks; maximum is ${MAX_EVENT_BLOCK_HEADERS_PER_CHUNK}`);
+  }
+  const result = new Array<IndexedEventBlock>(blocks.length);
+  let next = 0;
+  const worker = async () => {
+    while (true) {
+      const index = next++;
+      if (index >= blocks.length) return;
+      const [number, logHash] = blocks[index]!;
+      const cached = known.get(number);
+      if (cached !== undefined) {
+        if (cached.hash.toLowerCase() !== logHash.toLowerCase()) {
+          throw new Error(`Event block hash does not match canonical checkpoint at ${number}`);
+        }
+        result[index] = { number, hash: cached.hash, timestamp: cached.timestamp };
+        continue;
+      }
+      await beforeRpc?.();
+      const block = await client.getBlock({ blockNumber: number });
+      if (block.number !== number || block.hash.toLowerCase() !== logHash.toLowerCase()) {
+        throw new Error(`Event block header does not match indexed logs at ${number}`);
+      }
+      const timestamp = new Date(Number(block.timestamp) * 1_000);
+      if (!Number.isFinite(timestamp.getTime())) {
+        throw new Error(`Event block timestamp is out of range at ${number}`);
+      }
+      result[index] = {
+        number,
+        hash: block.hash,
+        timestamp,
+      };
+    }
+  };
+  const settled = await Promise.allSettled(
+    Array.from({ length: Math.min(8, blocks.length) }, worker),
+  );
+  const failed = settled.find((entry): entry is PromiseRejectedResult => entry.status === "rejected");
+  if (failed !== undefined) throw failed.reason;
+  return result;
 }

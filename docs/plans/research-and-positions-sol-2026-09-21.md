@@ -792,3 +792,41 @@ For each follow-up, record scoped commits, evidence and remaining limitations
 in section 9. Preserve unrelated dirty hybrid/adaptive work. Implementation
 readiness, sealed-release deployment and live validation remain distinct;
 this review adds no production migration, service activation or funding authority.
+
+### September 23 parallel development slice (R2, R3, W3)
+
+- R2 static/manual conversion close now has an internal pending terminal mark,
+  an adjacent fee-evidence boundary, a separately versioned v2 accounting
+  replay, canonical quote recheck, and a finalizer that records provisional
+  capital-out details before marking the paper campaign closed. The v1 policy
+  remains the retain-close view. An internal bounded maintenance pass audits
+  both policies and advances the appropriate projection. No supervised worker
+  invokes that pass yet. Paid amounts remain unavailable.
+- R3 RangeKeeper has a read-only open preview built from its persisted,
+  hash-checked draft and a selector for exact candidate-scoped provisional
+  fork gas profiles. The store now offers a bounded read by pool, path and
+  size band. There is no trusted producer for those profiles, no accepting
+  command, and no RangeKeeper exit or lifecycle accounting yet.
+- W3 Research has checked migration 8 for canonical event-block timestamps
+  and contiguous scan bounds. The indexer verifies event headers against log
+  hashes and truncates coverage on rewind. The dashboard exposes exact
+  trailing 900-second swap counts only with current, internally consistent
+  coverage. A zero count requires that coverage; volume, fees, and candidate
+  economics remain unavailable. Migration 8 and historical rescan have not
+  been run on a production database.
+- Integration checks on this development tree: pinned `npm run typecheck`,
+  `git diff --check`, and Research JavaScript syntax passed. No tests,
+  database migration, browser checks, fork rehearsal, or sealed-release
+  validation were run for this slice.
+
+Next ordered work: (1) produce and register complete scoped conversion and
+RangeKeeper gas evidence, including any approval and reset stages; (2) wire
+the internal static/manual paper sequence and both accounting audits into a
+durable bounded worker, then expose supported HTTP commands only after their
+acceptance checks; (3) implement RangeKeeper close modes and the shared paper
+accounting contract; (4) add v2 dashboard selection and Research-to-draft
+controls, then run the R2/R3 desktop and mobile parity matrix; (5) apply the
+checked Research migration through an authorized release and perform a bounded
+canonical rescan before treating exact-window counts as available. W4-W7 and
+the remaining W3 windows, variable sizing, replay, and calibration retain
+their existing gates.

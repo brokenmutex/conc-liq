@@ -103,6 +103,7 @@ export interface ResearchWindowSummary {
   readonly coveredSeconds: number | null;
   readonly freshnessSeconds: number | null;
   readonly maxGapSeconds: number | null;
+  readonly asOf: string | null;
   readonly observedBuckets: number;
   readonly swaps: number | null;
   readonly volumeQuote: string | null;
@@ -121,6 +122,11 @@ interface ExactCheckpointWindow {
   readonly firstAt: Date | null;
   readonly lastAt: Date | null;
   readonly maxGapSeconds: number | null;
+}
+
+interface EventTimestampCoverage {
+  readonly fromAt: Date;
+  readonly throughAt: Date;
 }
 
 export interface ResearchDepthPoint {
@@ -574,6 +580,7 @@ function summarizeWindow(
     coveredSeconds: null,
     freshnessSeconds: null,
     maxGapSeconds: null,
+    asOf: null,
     observedBuckets,
     swaps,
     volumeQuote: observedBuckets > 0 ? volumeQuote.toString() : null,
@@ -588,7 +595,9 @@ function summarizeWindow(
 
 function exactWindowSummary(
   checkpoints: ExactCheckpointWindow,
+  swaps: number | null,
   asOf: Date,
+  coverageComplete: boolean,
 ): ResearchWindowSummary {
   const coveredSeconds = checkpoints.firstAt === null || checkpoints.lastAt === null
     ? 0
@@ -602,16 +611,107 @@ function exactWindowSummary(
     coveredSeconds,
     freshnessSeconds,
     maxGapSeconds: checkpoints.maxGapSeconds,
-    observedBuckets: checkpoints.count > 0 ? 1 : 0,
-    swaps: null,
+    asOf: asOf.toISOString(),
+    observedBuckets: checkpoints.count > 0 || swaps !== null ? 1 : 0,
+    swaps,
     volumeQuote: null,
     feesQuote: null,
     meanLiquidity: checkpoints.meanLiquidity.toString(),
     priceChangePpm: null,
     validShare: checkpoints.count > 0 ? checkpoints.valid / checkpoints.count : null,
     references: [],
-    limitation: "event_block_timestamps_unavailable",
+    limitation: coverageComplete ? "flow_valuation_unavailable" : "event_timestamp_coverage_incomplete",
   };
+}
+
+async function readEventTimestampCoverage(
+  client: PoolClient,
+  streamKey: string,
+): Promise<EventTimestampCoverage | null> {
+  const present = await client.query<{ present: boolean }>(
+    "SELECT to_regclass('indexer_event_timestamp_coverage') IS NOT NULL AS present",
+  );
+  if (!present.rows[0]?.present) return null;
+  // Coverage is usable only while its end anchor still agrees with the saved
+  // canonical checkpoint and the active registry target set. The indexer
+  // truncates this row on a detected rewind; these joins fail closed if the
+  // persisted pieces ever disagree.
+  const result = await client.query<{ from_timestamp: Date; through_timestamp: Date }>(
+    `SELECT coverage.from_timestamp, coverage.through_timestamp
+       FROM indexer_event_timestamp_coverage coverage
+       JOIN indexer_checkpoints checkpoint
+         ON checkpoint.stream_key = coverage.stream_key
+        AND checkpoint.block_number = coverage.through_block
+        AND lower(checkpoint.block_hash) = lower(coverage.through_hash)
+       JOIN indexer_cursors scan
+         ON scan.stream_key = coverage.stream_key
+        AND scan.covered_through_block >= coverage.through_block
+      WHERE coverage.stream_key = $1
+        AND EXISTS (
+          SELECT 1 FROM indexer_pools pool
+           WHERE pool.stream_key = coverage.stream_key AND pool.enabled
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM indexer_pools pool
+           WHERE pool.stream_key = coverage.stream_key AND pool.enabled
+             AND lower(pool.target_set_hash) <> lower(scan.target_set_hash)
+        )`,
+    [streamKey],
+  );
+  const row = result.rows[0];
+  return row === undefined ? null : { fromAt: row.from_timestamp, throughAt: row.through_timestamp };
+}
+
+async function readExactSwapCounts(
+  client: PoolClient,
+  streamKey: string,
+  since: Date,
+  asOf: Date,
+): Promise<ReadonlyMap<string, number> | null> {
+  const result = await client.query<{ pool_address: string | null; swaps: string | null }>(
+    `WITH valid_coverage AS (
+       SELECT coverage.stream_key
+         FROM indexer_event_timestamp_coverage coverage
+         JOIN indexer_checkpoints checkpoint
+           ON checkpoint.stream_key = coverage.stream_key
+          AND checkpoint.block_number = coverage.through_block
+          AND lower(checkpoint.block_hash) = lower(coverage.through_hash)
+         JOIN indexer_cursors scan
+           ON scan.stream_key = coverage.stream_key
+          AND scan.covered_through_block >= coverage.through_block
+        WHERE coverage.stream_key = $1
+          AND coverage.from_timestamp <= $2
+          AND coverage.through_timestamp = $3
+          AND coverage.through_timestamp <= statement_timestamp()
+          AND coverage.through_timestamp >= statement_timestamp() - INTERVAL '90 seconds'
+          AND EXISTS (
+            SELECT 1 FROM indexer_pools pool
+             WHERE pool.stream_key = coverage.stream_key AND pool.enabled
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM indexer_pools pool
+             WHERE pool.stream_key = coverage.stream_key AND pool.enabled
+               AND lower(pool.target_set_hash) <> lower(scan.target_set_hash)
+          )
+     ), swap_counts AS (
+       SELECT lower(e.pool_address) AS pool_address, count(*)::text AS swaps
+         FROM v3_pool_events e
+         JOIN indexer_event_blocks b
+           ON b.stream_key = e.stream_key
+          AND b.block_number = e.block_number
+          AND lower(b.block_hash) = lower(e.block_hash)
+        WHERE e.stream_key = $1 AND e.event_name = 'Swap'
+          AND b.block_timestamp >= $2 AND b.block_timestamp <= $3
+          AND EXISTS (SELECT 1 FROM valid_coverage)
+        GROUP BY lower(e.pool_address)
+     )
+     SELECT pool_address, swaps FROM swap_counts
+     UNION ALL
+     SELECT NULL::text, NULL::text WHERE NOT EXISTS (SELECT 1 FROM valid_coverage)`,
+    [streamKey, since, asOf],
+  );
+  if (result.rows.some((row) => row.pool_address === null)) return null;
+  return new Map(result.rows.map((row) => [row.pool_address!, Number(row.swaps)]));
 }
 
 async function readExactCheckpointWindow(
@@ -664,11 +764,20 @@ export async function readResearch(
   const now = new Date();
   const axis = bucketAxis(now);
   const since = axis[0]!.toISOString();
-  const exactSince = new Date(now.getTime() - 900_000);
+  const eventTimestampCoverage = await readEventTimestampCoverage(client, streamKey);
+  const exactAsOf = eventTimestampCoverage?.throughAt ?? now;
+  const exactSince = new Date(exactAsOf.getTime() - 900_000);
+  const coverageAgeMs = now.getTime() - exactAsOf.getTime();
+  const eventTimestampCoverageComplete = eventTimestampCoverage !== null &&
+    eventTimestampCoverage.fromAt <= exactSince &&
+    coverageAgeMs >= 0 && coverageAgeMs <= 90_000;
   const identities = await readIdentities(client, streamKey);
   const costs = await readCosts(client);
   const protocolFees = await readProtocolFees(client, streamKey);
-  const exactCheckpoints = await readExactCheckpointWindow(client, streamKey, exactSince, now);
+  const exactCheckpoints = await readExactCheckpointWindow(client, streamKey, exactSince, exactAsOf);
+  const exactSwapCounts = eventTimestampCoverageComplete
+    ? await readExactSwapCounts(client, streamKey, exactSince, exactAsOf)
+    : null;
   const roundTripQuote = costs.roundTripQuote === null
     ? null
     : BigInt(costs.roundTripQuote);
@@ -803,7 +912,12 @@ export async function readResearch(
       count: 0, valid: 0, meanLiquidity: 0n, firstAt: null, lastAt: null,
       maxGapSeconds: null,
     };
-    const exactWindow = exactWindowSummary(exactCheckpoint, now);
+    const exactSwapCount = eventTimestampCoverageComplete
+      ? exactSwapCounts?.get(pool.poolAddress) ?? 0
+      : null;
+    const exactWindow = exactWindowSummary(
+      exactCheckpoint, exactSwapCount, exactAsOf, eventTimestampCoverageComplete,
+    );
     if (pool.token0 === null || pool.token1 === null || pool.tick === null ||
         pool.sqrtPriceX96 === null || pool.priceX18 === null || pool.liquidity === null ||
         pool.observedAt === null) {
@@ -816,7 +930,7 @@ export async function readResearch(
           ...RESEARCH_WINDOW_HOURS.filter((hours) => hours !== 0.25).map((hours) => ({
             hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
             maxGapSeconds: null, observedBuckets: 0, swaps: 0, volumeQuote: null,
-            feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
+            feesQuote: null, asOf: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
             references: [], limitation: null,
           }))],
         depth: [], depthReferences: [],
