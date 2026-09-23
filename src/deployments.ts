@@ -11,6 +11,7 @@ import {readCanonicalRangeKeeperPaperOpenModel,
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
+import {buildPaperStaticRetainTerminalPreview} from './deployments/paper-static-terminal-preview.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 
@@ -37,10 +38,41 @@ async function main(){
   previewBusy=true;
   try{
    if(kind!=='open'){
-    const strategyId=await store.paperStrategyId(campaignId);
+   const strategyId=await store.paperStrategyId(campaignId);
+    if(strategyId==='static_manual_v1'){
+     if(kind==='close_convert')return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_conversion_terminal_context_unavailable',missing:[
+       'canonical_post_withdraw_inventory_and_quote_unavailable',
+       'candidate_scoped_conversion_gas_profile_reader_unavailable',
+       'atomic_saved_terminal_preview_binding_unavailable']};
+     let state;
+     try{state=await store.paperValuationState(campaignId);}
+     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_saved_open_or_current_mark_unavailable'};}
+     let frame:PaperOpenFrame;
+     // This reader checks the previous mark anchor before and after sampling;
+     // the following explicit batch also rechecks the saved open and new frame.
+     try{frame=await readCanonicalPaperNextFrame(client,state.profile,state.previous);}
+     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_canonical_terminal_source_unavailable'};}
+     try{await verifyCanonicalPaperAnchors(client,state.profile.pool.chainId,
+      [state.openModel.source,frame.source]);}
+     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_saved_source_not_canonical'};}
+     let gasPriceWei=0n;
+     try{gasPriceWei=await client.getGasPrice();}
+     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_terminal_gas_price_unavailable'};}
+     let gasProfiles;
+     try{gasProfiles=await store.paperGasProfiles(state.profile.pool.pool);}
+     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:'static_manual_terminal_cost_profiles_unavailable'};}
+     return buildPaperStaticRetainTerminalPreview({campaignId,openMarkId:state.openMarkId,
+      previous:state.previous,openModel:state.openModel,profile:state.profile,frame,gasProfiles,
+      gasPriceWei,now:Date.now()});
+    }
     if(strategyId!=='rangekeeper_v1')return {status:'unavailable',
-     reason:strategyId==='static_manual_v1'?'static_manual_paper_terminal_preview_unavailable':
-      'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
+     reason:'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
     const snapshot=await store.rangeKeeperPaperExitContextSnapshot(campaignId),
      seed=rangeKeeperPaperExitContextSeed(snapshot,campaignId);
     if(!seed)return {status:'unavailable',reason:'rangekeeper_persisted_context_unavailable',
