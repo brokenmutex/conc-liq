@@ -9,7 +9,8 @@ import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verif
  type VerifiedMarketProfile} from './market-profile.js';
 import {PAPER_STATIC_GAS_PATH,costIndicativePaperOpenPreview,type PaperGasProfileRow} from './paper-cost.js';
 import {PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
-import {RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH} from './rangekeeper-paper-cost.js';
+import {RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH,
+ RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH} from './rangekeeper-paper-cost.js';
 import {buildIndicativePaperOpenPreview} from './paper-preview.js';
 import {buildPaperOpenModel,paperOpenModelSchema} from './paper-open-model.js';
 import {buildPaperCloseRetainModel,paperCloseRetainModelSchema} from './paper-close-model.js';
@@ -421,7 +422,8 @@ export class DeploymentStore {
  async rangeKeeperPaperGasProfiles(poolAddress:string,pathVersion:string,
   sizeBand:string):Promise<PaperGasProfileRow[]>{
   if(!/^0x[0-9a-fA-F]{40}$/.test(poolAddress)||
-   ![RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH].includes(pathVersion)||
+   ![RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH,
+    RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH].includes(pathVersion)||
    !/^rk_[0-9a-f]{32}$/.test(sizeBand))
    throw new DeploymentConflict('rangekeeper_paper_gas_scope_invalid');
   return (await this.readPool.query<PaperGasProfileRow>(`

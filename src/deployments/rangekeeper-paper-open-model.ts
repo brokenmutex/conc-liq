@@ -15,13 +15,13 @@ import type {PaperGasProfileRow} from './paper-cost.js';
 const WAD=10n**18n;
 const PPM=1_000_000n;
 
-type RangeKeeperPaperDraft=PaperPreviewDraft&{
+export type RangeKeeperPaperDraft=PaperPreviewDraft&{
  strategyId:'rangekeeper_v1';
  allocation:{token0Raw:string;token1Raw:string;nativeWei:string};
  profile:MarketProfile;
 };
 
-interface ResolvedRangeKeeperPaperPolicy {
+export interface ResolvedRangeKeeperPaperPolicy {
  limits:RangeKeeperLimits;
  buildId:string;
  policyHash:string;
@@ -29,7 +29,7 @@ interface ResolvedRangeKeeperPaperPolicy {
   expiry:'not_configured'|'unsupported'};
 }
 
-type PolicyResolution={policy:ResolvedRangeKeeperPaperPolicy|null;unavailable:string[]};
+export type RangeKeeperPaperPolicyResolution={policy:ResolvedRangeKeeperPaperPolicy|null;unavailable:string[]};
 
 type SerializableCandidate={
  kind:'entry'|'recenter';range:{tickLower:number;tickUpper:number};
@@ -90,7 +90,7 @@ function serializeCandidate(candidate:RangeKeeperCandidate|null):SerializableCan
   sourceBlock:String(candidate.sourceBlock),sourceHash:candidate.sourceHash,expiresAt:candidate.expiresAt};
 }
 
-function resolvePolicy(draft:RangeKeeperPaperDraft,buildId:string):PolicyResolution{
+export function resolveRangeKeeperPaperPolicy(draft:RangeKeeperPaperDraft,buildId:string):RangeKeeperPaperPolicyResolution{
  const unavailable:string[]=[];
  if(!/^[a-f0-9]{64}$/.test(buildId))unavailable.push('rangekeeper_runtime_build_identity_unavailable');
  const parsed=rangeKeeperParameters.safeParse(draft.parameters);
@@ -142,7 +142,7 @@ function resolvePolicy(draft:RangeKeeperPaperDraft,buildId:string):PolicyResolut
 }
 
 function emptyModel(draft:RangeKeeperPaperDraft,frame:PaperOpenFrame,unavailable:string[],
- resolution:PolicyResolution):RangeKeeperPaperOpenModel{
+ resolution:RangeKeeperPaperPolicyResolution):RangeKeeperPaperOpenModel{
  const p=draft.profile.pool,amount0=BigInt(draft.allocation.token0Raw),amount1=BigInt(draft.allocation.token1Raw),
   native=BigInt(draft.allocation.nativeWei);
  const token0Value=frame.price0===null||frame.price0<=0n?null:rawValue(amount0,frame.price0,p.decimals0);
@@ -223,7 +223,7 @@ export interface BuildRangeKeeperPaperOpenInput {
 export async function buildRangeKeeperPaperOpenModel(input:BuildRangeKeeperPaperOpenInput):Promise<RangeKeeperPaperOpenModel>{
  const {draft,frame}=input,now=input.now??Date.now();
  if(draft.strategyId!=='rangekeeper_v1')throw Error('rangekeeper_paper_strategy_mismatch');
- const policy=resolvePolicy(draft,input.buildId),unavailable=[...policy.unavailable,...invalidFrameReason(frame,now)];
+ const policy=resolveRangeKeeperPaperPolicy(draft,input.buildId),unavailable=[...policy.unavailable,...invalidFrameReason(frame,now)];
  if(unavailable.length)return emptyModel(draft,frame,unavailable,policy);
  if(input.marketGasPriceWei===null||input.marketGasPriceWei<=0n||input.marketGasPriceObservedAt===null||
   now-input.marketGasPriceObservedAt<0||now-input.marketGasPriceObservedAt>30_000)

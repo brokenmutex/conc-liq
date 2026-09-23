@@ -9,6 +9,7 @@ const hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const address=z.string().regex(/^0x[0-9a-fA-F]{40}$/);
 export const RANGEKEEPER_PAPER_NO_SWAP_PATH='paper_rangekeeper_v1_no_swap_v1';
 export const RANGEKEEPER_PAPER_DIRECT_SWAP_PATH='paper_rangekeeper_v1_direct_swap_v1';
+export const RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH='paper_rangekeeper_v1_direct_convert_exit_v1';
 export const RANGEKEEPER_PAPER_ZERO_ALLOWANCES='zero_core_allowances_v1';
 export const RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES='candidate_post_entry_v1';
 
@@ -23,6 +24,11 @@ export const RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES=[
  'exit_withdraw_collect','exit_cleanup_router_token0','exit_cleanup_router_token1',
  'exit_cleanup_manager_token0','exit_cleanup_manager_token1',
 ] as const;
+export const RANGEKEEPER_PAPER_CONVERT_EXIT_STAGES=[
+ 'exit_withdraw_collect','exit_convert_approve_router_input','exit_convert_swap',
+ 'exit_cleanup_router_token0','exit_cleanup_router_token1',
+ 'exit_cleanup_manager_token0','exit_cleanup_manager_token1',
+] as const;
 
 const gasSource=z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:true}),
  callHash:hash,method:z.literal('owned_fork_nitro_exact_call_v1')}).strict();
@@ -33,15 +39,17 @@ const candidateSimulation=z.object({kind:z.literal('owned_fork_full_candidate_v1
  candidateHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:hash}).strict();
 const gasProfileModel=z.object({schemaVersion:z.literal(1),source:gasSource,
  gasUnitsExpected:raw,gasUnitsBound:raw,poolAddress:address,
- pathVersion:z.enum([RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH]),
+ pathVersion:z.enum([RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH,
+  RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH]),
  stage:z.string().min(1),allowanceState:z.enum([RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
   RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES]),profileHash:z.string().regex(/^[0-9a-f]{64}$/),
- candidateHash:z.string().regex(/^[0-9a-f]{64}$/),deployedValue:raw,sharePpm:raw,
+ candidateHash:z.string().regex(/^[0-9a-f]{64}$/),inventoryHash:z.string().regex(/^[0-9a-f]{64}$/).optional(),
+ deployedValue:raw,sharePpm:raw,
  range,swapKind:z.enum(['none','direct_pool_exact_input']),simulation:candidateSimulation}).strict();
 
 export interface RangeKeeperPaperCandidateScope {
  poolAddress:string;profileHash:string;candidateHash:string;deployedValue:bigint;sharePpm:bigint;
- range:{tickLower:number;tickUpper:number};swapKind:'none'|'direct_pool_exact_input';
+ range:{tickLower:number;tickUpper:number};swapKind:'none'|'direct_pool_exact_input';inventoryHash?:string;
 }
 export interface RangeKeeperPaperSelectedStage {
  stage:string;profileId:string;version:number;evidenceClass:'fork_estimated';
@@ -72,9 +80,10 @@ const allowanceState=(stage:string)=>stage.startsWith('open_')?
  RANGEKEEPER_PAPER_ZERO_ALLOWANCES:RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES;
 
 export function rangeKeeperPaperSizeBand(path:string,scope:RangeKeeperPaperCandidateScope){
- return `rk_${contentHash({path,poolAddress:scope.poolAddress.toLowerCase(),profileHash:scope.profileHash,
+ const identity={path,poolAddress:scope.poolAddress.toLowerCase(),profileHash:scope.profileHash,
   candidateHash:scope.candidateHash,deployedValue:String(scope.deployedValue),sharePpm:String(scope.sharePpm),
-  range:scope.range,swapKind:scope.swapKind}).slice(0,32)}`;
+  range:scope.range,swapKind:scope.swapKind,...(scope.inventoryHash?{inventoryHash:scope.inventoryHash}:{})};
+ return `rk_${contentHash(identity).slice(0,32)}`;
 }
 
 /** Exact candidate identity used by gas collection and by the preview gate. */
@@ -120,6 +129,7 @@ export function selectRangeKeeperPaperCostProfiles(input:{candidate:RangeKeeperC
    parsed.data.allowanceState!==allowanceState(stage)||
    parsed.data.poolAddress.toLowerCase()!==scope.poolAddress.toLowerCase()||
    parsed.data.profileHash!==scope.profileHash||parsed.data.candidateHash!==scope.candidateHash||
+   parsed.data.inventoryHash!==scope.inventoryHash||
    parsed.data.deployedValue!==String(scope.deployedValue)||parsed.data.sharePpm!==String(scope.sharePpm)||
    parsed.data.range.tickLower!==scope.range.tickLower||parsed.data.range.tickUpper!==scope.range.tickUpper||
    parsed.data.swapKind!==scope.swapKind||parsed.data.source.block!==source.block||
@@ -160,6 +170,76 @@ export function selectRangeKeeperPaperCostProfiles(input:{candidate:RangeKeeperC
   pathVersion:path,sizeBand:band,scope,source,simulationHash,openStages,retainExitStages};
 }
 
+export interface RangeKeeperPaperExitProfileSet {
+ status:'available';kind:'retain'|'convert';evidenceClass:'fork_estimated';
+ profileStatus:'provisional';pathVersion:string;sizeBand:string;
+ scope:RangeKeeperPaperCandidateScope;source:{block:string;hash:string;timestamp:number};
+ simulationHash:string;stages:RangeKeeperPaperSelectedStage[];
+}
+export type RangeKeeperPaperExitProfileSelection=RangeKeeperPaperExitProfileSet|
+ {status:'unavailable';reason:string;missingStages:string[]};
+
+/** Selects only exact post-entry exit stages for the requested terminal path.
+ * Retain profiles use the frozen entry path; conversion profiles have a
+ * separate direct-pool exit path and cannot borrow retain-only stages. */
+export function selectRangeKeeperPaperExitCostProfiles(input:{kind:'retain'|'convert';
+ candidate:RangeKeeperCandidate;scope:RangeKeeperPaperCandidateScope;
+ source:{block:string;hash:string;timestamp:number};rows:readonly PaperGasProfileRow[];now?:number
+}):RangeKeeperPaperExitProfileSelection{
+ const {kind,candidate,scope,source}=input,now=input.now??Date.now();
+ const path=kind==='retain'?rangeKeeperPaperPathVersion(candidate):RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH;
+ const stages:readonly string[]=kind==='retain'?RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES:
+  RANGEKEEPER_PAPER_CONVERT_EXIT_STAGES;
+ if(!scope.inventoryHash||!/^[0-9a-f]{64}$/.test(scope.inventoryHash))
+  return {status:'unavailable',reason:'rangekeeper_exit_inventory_scope_unavailable',missingStages:[...stages]};
+ const sizeBand=rangeKeeperPaperSizeBand(path,scope);
+ if(input.rows.length>200)return {status:'unavailable',reason:'rangekeeper_exit_calibration_query_bound',missingStages:[...stages]};
+ const group=new Map<string,PaperGasProfileRow>();
+ for(const row of input.rows){
+  if(row.poolAddress.toLowerCase()!==scope.poolAddress.toLowerCase()||row.pathVersion!==path||
+   row.sizeBand!==sizeBand||row.component!=='gas_units'||row.evidenceClass!=='fork_estimated'||
+   row.status!=='provisional'||!stages.includes(row.stage))continue;
+  const prior=group.get(row.stage);
+  if(!prior||row.version>prior.version)group.set(row.stage,row);
+ }
+ const valid=(row:PaperGasProfileRow,stage:string)=>{
+  const parsed=gasProfileModel.safeParse(row.model);
+  if(!parsed.success||row.sourceHash!==contentHash(parsed.data.source)||!row.observedUntil||
+   parsed.data.stage!==stage||parsed.data.pathVersion!==path||
+   parsed.data.allowanceState!==RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES||
+   parsed.data.poolAddress.toLowerCase()!==scope.poolAddress.toLowerCase()||
+   parsed.data.profileHash!==scope.profileHash||parsed.data.candidateHash!==scope.candidateHash||
+   parsed.data.inventoryHash!==scope.inventoryHash||
+   parsed.data.deployedValue!==String(scope.deployedValue)||parsed.data.sharePpm!==String(scope.sharePpm)||
+   parsed.data.range.tickLower!==scope.range.tickLower||parsed.data.range.tickUpper!==scope.range.tickUpper||
+   parsed.data.swapKind!==scope.swapKind||parsed.data.source.block!==source.block||
+   parsed.data.source.hash.toLowerCase()!==source.hash.toLowerCase()||
+   parsed.data.simulation.sourceBlock!==source.block||
+   parsed.data.simulation.sourceHash.toLowerCase()!==source.hash.toLowerCase()||
+   parsed.data.simulation.candidateHash!==scope.candidateHash||
+   BigInt(parsed.data.gasUnitsExpected)<=0n||BigInt(parsed.data.gasUnitsBound)<BigInt(parsed.data.gasUnitsExpected))
+   return false;
+  const sampled=Date.parse(parsed.data.source.estimatedAt),observed=row.observedUntil.getTime();
+  return Number.isFinite(sampled)&&Math.abs(observed-sampled)<=1000&&now>=sampled&&
+   now-sampled<=86_400_000&&now>=observed&&now-observed<=86_400_000&&
+   sampled>=source.timestamp*1000&&sampled-source.timestamp*1000<=180_000;
+ };
+ const missing=stages.filter(stage=>{const row=group.get(stage);return !row||!valid(row,stage);});
+ if(missing.length)return {status:'unavailable',reason:'rangekeeper_exit_profiles_incomplete',missingStages:missing};
+ const rows=stages.map(stage=>group.get(stage)!);
+ if(new Set(rows.map(row=>row.version)).size!==1||new Set(rows.map(row=>
+  gasProfileModel.parse(row.model).simulation.sequenceHash)).size!==1)
+  return {status:'unavailable',reason:'rangekeeper_exit_profile_sequence_mismatch',missingStages:[...stages]};
+ const simulationHash=gasProfileModel.parse(rows[0]!.model).simulation.sequenceHash;
+ const selected=stages.map(stage=>{
+  const row=group.get(stage)!,model=gasProfileModel.parse(row.model);
+  return {stage,profileId:row.id,version:row.version,evidenceClass:'fork_estimated' as const,
+   expectedGasUnits:model.gasUnitsExpected,boundGasUnits:model.gasUnitsBound,source:model.source};
+ });
+ return {status:'available',kind,evidenceClass:'fork_estimated',profileStatus:'provisional',
+  pathVersion:path,sizeBand,scope,source,simulationHash,stages:selected};
+}
+
 const ceil=(a:bigint,b:bigint)=>(a+b-1n)/b;
 const max=(a:bigint,b:bigint)=>a>b?a:b;
 export interface RangeKeeperPaperModeledCosts {
@@ -173,6 +253,17 @@ export interface RangeKeeperPaperModeledCosts {
  retainExit:{expectedGasUnits:string;boundGasUnits:string;expectedWei:string;boundWei:string;
   expectedValue:string;boundValue:string;requiredReserveWei:string};
  unavailable:string[];
+}
+
+export interface RangeKeeperPaperModeledExitCost {
+ status:'provisional';kind:'retain'|'convert';scope:'range_keeper_terminal_exit_gas_only';
+ evidenceClass:'fork_estimated';pathVersion:string;sizeBand:string;
+ profileIds:Array<{stage:string;id:string;version:number}>;
+ marketGasPriceWei:string;boundGasPriceWei:string;gasPriceObservedAt:string;
+ nativeReferencePrice:string;swapFeeAndShortfallValue:string;
+ expectedGasUnits:string;boundGasUnits:string;expectedWei:string;boundWei:string;
+ expectedGasValue:string;boundGasValue:string;expectedValue:string;boundValue:string;
+ requiredReserveWei:string;unavailable:string[];
 }
 
 /** Prices only the exact matched profile set. Safety reserves and bounds are
@@ -211,4 +302,32 @@ export function modelRangeKeeperPaperCosts(input:{profiles:RangeKeeperPaperCostP
    requiredReserveWei:String(max(limits.exitReserveWei,exitBoundWei))},
   unavailable:['fee_capture','paid_gas','native_balance','net_nav','alpha',
    'execution_delay','failure_expense','close_convert_swap']};
+}
+
+/** Prices the exact selected terminal path. Conversion fee and shortfall are
+ * included once; estimated gas remains separate from paid expense. */
+export function modelRangeKeeperPaperExitCost(input:{profiles:RangeKeeperPaperExitProfileSet;
+ limits:RangeKeeperLimits;nativePrice:bigint;marketGasPriceWei:bigint;
+ swapFeeAndShortfallValue:bigint;now?:number}):RangeKeeperPaperModeledExitCost{
+ const {profiles,limits,nativePrice,marketGasPriceWei,swapFeeAndShortfallValue}=input,now=input.now??Date.now();
+ if(nativePrice<=0n||marketGasPriceWei<=0n||swapFeeAndShortfallValue<0n)
+  throw Error('rangekeeper_paper_exit_cost_market_unavailable');
+ const expectedGasUnits=profiles.stages.reduce((sum,row)=>sum+BigInt(row.expectedGasUnits),0n);
+ const boundGasUnits=profiles.stages.reduce((sum,row)=>sum+BigInt(row.boundGasUnits),0n);
+ const boundGasPriceWei=ceil(marketGasPriceWei*5n,4n);
+ const expectedWei=expectedGasUnits*marketGasPriceWei,boundWei=boundGasUnits*boundGasPriceWei;
+ const gasValue=(wei:bigint)=>ceil(wei*nativePrice,WAD);
+ return {status:'provisional',kind:profiles.kind,scope:'range_keeper_terminal_exit_gas_only',
+  evidenceClass:'fork_estimated',pathVersion:profiles.pathVersion,sizeBand:profiles.sizeBand,
+  profileIds:profiles.stages.map(row=>({stage:row.stage,id:row.profileId,version:row.version})),
+  marketGasPriceWei:String(marketGasPriceWei),boundGasPriceWei:String(boundGasPriceWei),
+  gasPriceObservedAt:new Date(now).toISOString(),nativeReferencePrice:String(nativePrice),
+  swapFeeAndShortfallValue:String(swapFeeAndShortfallValue),
+  expectedGasUnits:String(expectedGasUnits),boundGasUnits:String(boundGasUnits),
+  expectedWei:String(expectedWei),boundWei:String(boundWei),
+  expectedGasValue:String(gasValue(expectedWei)),boundGasValue:String(gasValue(boundWei)),
+  expectedValue:String(gasValue(expectedWei)+swapFeeAndShortfallValue),
+  boundValue:String(gasValue(boundWei)+swapFeeAndShortfallValue),
+  requiredReserveWei:String(max(limits.exitReserveWei,boundWei)),
+  unavailable:['fee_capture','paid_gas','execution_delay','failure_expense','final_custody']};
 }
