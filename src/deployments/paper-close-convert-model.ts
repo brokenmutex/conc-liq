@@ -16,6 +16,13 @@ export const PAPER_STATIC_CONVERT_GAS_PATH='paper_static_manual_close_convert_v1
 export const PAPER_STATIC_CONVERT_GAS_STAGES=[
  'withdraw_collect','swap','cleanup_token0','cleanup_token1',
 ] as const;
+/** The v1 path remains frozen. V2 scopes each router/manager approval state and
+ * explicitly samples the input approval and cleanup transactions. */
+export const PAPER_STATIC_CONVERT_GAS_PATH_V2='paper_static_manual_close_convert_v2';
+export const PAPER_STATIC_CONVERT_GAS_STAGES_V2=[
+ 'withdraw_collect','approve_swap_input','swap','cleanup_manager_token0',
+ 'cleanup_manager_token1','cleanup_router_token0','cleanup_router_token1',
+] as const;
 
 const quoteFields=z.object({
  schemaVersion:z.literal(1),kind:z.literal('paper_exact_input_quote_v1'),
@@ -74,6 +81,89 @@ export const paperCloseConvertCostsSchema=z.object({
   BigInt(costs.boundValue)!==boundValue)fail('conversion_gas_totals_invalid');
 });
 export type PaperCloseConvertCosts=z.infer<typeof paperCloseConvertCostsSchema>;
+
+export const paperCloseConvertGasStageModelV2Schema=paperGasModelSchema.extend({
+ scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+ stageIndex:z.number().int().nonnegative(),stageCount:z.number().int().positive(),
+}).strict();
+const costStageV2=z.object({stage:z.enum(PAPER_STATIC_CONVERT_GAS_STAGES_V2),
+ profileId:z.uuid(),version:z.number().int().positive(),evidenceClass:z.literal('fork_estimated'),
+ allowanceState:z.string().min(1).max(160),expectedGasUnits:raw,boundGasUnits:raw,
+ scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+ stageIndex:z.number().int().nonnegative(),stageCount:z.number().int().positive(),
+ source:z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:true}),
+  callHash:hash,method:z.literal('owned_fork_nitro_exact_call_v1')}).strict(),
+}).strict();
+/** New conversion gas contract. It is separate from the four-stage v1 schema. */
+export const paperCloseConvertCostsV2Schema=z.object({
+ status:z.literal('provisional'),scope:z.literal('convert_close_gas_only'),
+ pathVersion:z.literal(PAPER_STATIC_CONVERT_GAS_PATH_V2),sizeBand:z.string().min(1),
+ scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+ gasPriceWei:raw,boundGasPriceWei:raw,gasPriceObservedAt:z.iso.datetime({offset:true}),
+ nativeReferencePrice:raw,stages:z.array(costStageV2).length(PAPER_STATIC_CONVERT_GAS_STAGES_V2.length),
+ expectedGasUnits:raw,boundGasUnits:raw,expectedWei:raw,boundWei:raw,
+ expectedValue:raw,boundValue:raw,
+}).strict().superRefine((costs,ctx)=>{
+ const fail=(message:string)=>ctx.addIssue({code:'custom',message});
+ const stages=new Map(costs.stages.map(stage=>[stage.stage,stage]));
+ if(stages.size!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.length||
+  PAPER_STATIC_CONVERT_GAS_STAGES_V2.some(stage=>!stages.has(stage)))
+  fail('incomplete_conversion_gas_v2_stages');
+ if(new Set(costs.stages.map(stage=>stage.profileId)).size!==costs.stages.length)
+  fail('duplicate_conversion_gas_v2_profile');
+ if(new Set(costs.stages.map(stage=>stage.scopeHash)).size!==1||
+  new Set(costs.stages.map(stage=>stage.sequenceHash)).size!==1||
+  new Set(costs.stages.map(stage=>`${stage.source.block}:${stage.source.hash.toLowerCase()}:${stage.source.estimatedAt}`)).size!==1||
+  costs.stages[0]?.scopeHash!==costs.scopeHash||
+  costs.stages[0]?.sequenceHash!==costs.sequenceHash||
+  PAPER_STATIC_CONVERT_GAS_STAGES_V2.some((stage,index)=>{
+   const item=stages.get(stage);return !item||item.stageIndex!==index||
+    item.stageCount!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.length;
+  }))fail('conversion_gas_v2_sequence_mismatch');
+ const expected=costs.stages.reduce((sum,stage)=>sum+BigInt(stage.expectedGasUnits),0n),
+  bound=costs.stages.reduce((sum,stage)=>sum+BigInt(stage.boundGasUnits),0n),
+  price=BigInt(costs.gasPriceWei),boundPrice=ceil(price*5n,4n),
+  expectedWei=expected*price,boundWei=bound*boundPrice,
+  expectedValue=ceil(expectedWei*BigInt(costs.nativeReferencePrice),10n**18n),
+  boundValue=ceil(boundWei*BigInt(costs.nativeReferencePrice),10n**18n);
+ if(BigInt(costs.boundGasPriceWei)!==boundPrice||BigInt(costs.expectedGasUnits)!==expected||
+  BigInt(costs.boundGasUnits)!==bound||BigInt(costs.expectedWei)!==expectedWei||
+  BigInt(costs.boundWei)!==boundWei||BigInt(costs.expectedValue)!==expectedValue||
+  BigInt(costs.boundValue)!==boundValue)fail('conversion_gas_v2_totals_invalid');
+});
+export type PaperCloseConvertCostsV2=z.infer<typeof paperCloseConvertCostsV2Schema>;
+
+export const paperCloseConvertGasScopeV2Schema=z.object({poolAddress:z.string().regex(/^0x[0-9a-fA-F]{40}$/),
+ profileHash:z.string().regex(/^[0-9a-f]{64}$/),openModelHash:z.string().regex(/^[0-9a-f]{64}$/),
+ candidate:z.object({deployedValue:raw,sharePpm:raw,tickLower:z.number().int(),
+  tickUpper:z.number().int(),liquidity:raw}).strict(),routeHash:z.string().regex(/^[0-9a-f]{64}$/),
+ inputAsset:z.enum(['token0','token1']),inputAmountRaw:z.string().regex(/^[1-9][0-9]*$/),
+ inventory:z.object({token0Raw:raw,token1Raw:raw}).strict(),
+ initialAllowances:z.object({manager0:raw,manager1:raw,router0:raw,router1:raw}).strict()}).strict();
+export type PaperCloseConvertGasScopeV2=z.infer<typeof paperCloseConvertGasScopeV2Schema>;
+export const paperCloseConvertGasScopeHashV2=(input:PaperCloseConvertGasScopeV2)=>
+ contentHash(paperCloseConvertGasScopeV2Schema.parse(input));
+export const paperCloseConvertGasSizeBandV2=(input:PaperCloseConvertGasScopeV2)=>
+ `exact_${paperCloseConvertGasScopeHashV2(input).slice(0,32)}`;
+const allowanceStateV2=(stage:string,state:{manager0:string;manager1:string;router0:string;router1:string})=>
+ `close_convert_v2_${stage}_${contentHash(state).slice(0,24)}`;
+/** Deterministic stage prestate identities derived from the persisted open
+ * allowance remainder, exact input, route input side and explicit cleanup order. */
+export function paperCloseConvertGasAllowanceStatesV2(scopeInput:PaperCloseConvertGasScopeV2){
+ const scope=paperCloseConvertGasScopeV2Schema.parse(scopeInput),
+  state={...scope.initialAllowances},result={} as Record<typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number],string>,
+  inputKey=scope.inputAsset==='token0'?'router0':'router1';
+ for(const stage of PAPER_STATIC_CONVERT_GAS_STAGES_V2){
+  result[stage]=allowanceStateV2(stage,state);
+  if(stage==='approve_swap_input')state[inputKey]=scope.inputAmountRaw;
+  else if(stage==='swap')state[inputKey]='0';
+  else if(stage==='cleanup_manager_token0')state.manager0='0';
+  else if(stage==='cleanup_manager_token1')state.manager1='0';
+  else if(stage==='cleanup_router_token0')state.router0='0';
+  else if(stage==='cleanup_router_token1')state.router1='0';
+ }
+ return result;
+}
 
 export const paperCloseConvertModelSchema=z.object({
  schemaVersion:z.literal(1),kind:z.literal('paper_close_convert_model'),campaignId:z.uuid(),
@@ -157,6 +247,75 @@ export function costPaperCloseConvert(rows:readonly PaperGasProfileRow[],
   boundGasPriceWei:String(boundGasPrice),gasPriceObservedAt:new Date(now).toISOString(),
   nativeReferencePrice:String(nativePrice),stages,expectedGasUnits:String(expectedGas),
   boundGasUnits:String(boundGas),expectedWei:String(expectedWei),boundWei:String(boundWei),
+  expectedValue:String(expectedValue),boundValue:String(boundValue)});
+}
+
+/** Resolves v2 profiles by their exact route/inventory size band and the
+ * recorded stage-specific allowance states. It never consumes v1 profiles. */
+export function costPaperCloseConvertGasV2(rows:readonly PaperGasProfileRow[],
+ scopeInput:PaperCloseConvertGasScopeV2,
+ nativePrice:bigint,gasPriceWei:bigint,now=Date.now()):PaperCloseConvertCostsV2{
+ if(rows.length>200)throw Error('paper_close_convert_gas_v2_query_bound');
+ const scope=paperCloseConvertGasScopeV2Schema.parse(scopeInput),
+  scopeHash=paperCloseConvertGasScopeHashV2(scope),sizeBand=paperCloseConvertGasSizeBandV2(scope),
+  allowanceStates=paperCloseConvertGasAllowanceStatesV2(scope),
+  candidate={deployedValue:scope.candidate.deployedValue,dilutedSharePpm:scope.candidate.sharePpm,
+   range:{tickLower:scope.candidate.tickLower,tickUpper:scope.candidate.tickUpper}};
+ if(nativePrice<=0n||gasPriceWei<=0n)
+  throw Error('paper_close_convert_gas_v2_scope_or_price_unavailable');
+ const group=new Map<string,PaperGasProfileRow>();
+ for(const row of rows){
+  if(row.poolAddress.toLowerCase()!==scope.poolAddress.toLowerCase()||
+   row.pathVersion!==PAPER_STATIC_CONVERT_GAS_PATH_V2||row.sizeBand!==sizeBand||
+   row.component!=='gas_units'||!PAPER_STATIC_CONVERT_GAS_STAGES_V2.some(stage=>stage===row.stage))continue;
+  const prior=group.get(row.stage);
+  if(!prior||row.version>prior.version)group.set(row.stage,row);
+ }
+ const valid=(row:PaperGasProfileRow,stage:typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number])=>{
+  if(row.allowanceState!==allowanceStates[stage]||!['provisional','validated'].includes(row.status)||
+   row.evidenceClass!=='fork_estimated'||!row.observedUntil)return null;
+  const parsed=paperCloseConvertGasStageModelV2Schema.safeParse(row.model);
+  if(!parsed.success||row.sourceHash!==contentHash(parsed.data.source))return null;
+  const model=parsed.data,min=BigInt(model.sizeMinValue),max=BigInt(model.sizeMaxValue),
+   shareMin=BigInt(model.shareMinPpm),shareMax=BigInt(model.shareMaxPpm),
+   size=BigInt(candidate.deployedValue),share=BigInt(candidate.dilutedSharePpm);
+  if(min>size||size>max||min>max||shareMin>share||share>shareMax||shareMin>shareMax||
+   shareMax>1_000_000n||model.tickLower!==candidate.range.tickLower||
+   model.tickUpper!==candidate.range.tickUpper||BigInt(model.gasUnitsExpected)<=0n||
+   BigInt(model.gasUnitsBound)<BigInt(model.gasUnitsExpected)||model.scopeHash!==scopeHash||
+   model.stageIndex!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.indexOf(stage)||
+   model.stageCount!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.length)return null;
+  const sampled=Date.parse(model.source.estimatedAt),observed=row.observedUntil.getTime();
+  if(Math.abs(observed-sampled)>1000||now-sampled<0||now-sampled>86_400_000||
+   now-observed<0||now-observed>86_400_000)return null;
+  return model;
+ };
+ if(PAPER_STATIC_CONVERT_GAS_STAGES_V2.some(stage=>!allowanceStates[stage]))
+  throw Error('paper_close_convert_gas_v2_allowance_scope_missing');
+ const stages=PAPER_STATIC_CONVERT_GAS_STAGES_V2.map(stage=>{
+  const row=group.get(stage),model=row&&valid(row,stage);
+  if(!row||!model)throw Error('paper_close_convert_gas_v2_profiles_unavailable');
+  return {stage,profileId:row.id,version:row.version,evidenceClass:row.evidenceClass,
+   allowanceState:row.allowanceState,expectedGasUnits:model.gasUnitsExpected,
+   boundGasUnits:model.gasUnitsBound,scopeHash:model.scopeHash,
+   sequenceHash:model.sequenceHash,stageIndex:model.stageIndex,stageCount:model.stageCount,
+   source:model.source};
+ });
+ if(new Set(stages.map(stage=>stage.version)).size!==1||
+  new Set(stages.map(stage=>stage.sequenceHash)).size!==1||
+  new Set(stages.map(stage=>`${stage.source.block}:${stage.source.hash.toLowerCase()}:${stage.source.estimatedAt}`)).size!==1)
+  throw Error('paper_close_convert_gas_v2_sequence_mismatch');
+ const expected=stages.reduce((sum,item)=>sum+BigInt(item.expectedGasUnits),0n),
+  bound=stages.reduce((sum,item)=>sum+BigInt(item.boundGasUnits),0n),
+  boundPrice=ceil(gasPriceWei*5n,4n),expectedWei=expected*gasPriceWei,
+  boundWei=bound*boundPrice,expectedValue=ceil(expectedWei*nativePrice,10n**18n),
+  boundValue=ceil(boundWei*nativePrice,10n**18n);
+ return paperCloseConvertCostsV2Schema.parse({status:'provisional',scope:'convert_close_gas_only',
+  pathVersion:PAPER_STATIC_CONVERT_GAS_PATH_V2,sizeBand,scopeHash,
+  sequenceHash:stages[0]!.sequenceHash,gasPriceWei:String(gasPriceWei),
+  boundGasPriceWei:String(boundPrice),gasPriceObservedAt:new Date(now).toISOString(),
+  nativeReferencePrice:String(nativePrice),stages,expectedGasUnits:String(expected),
+  boundGasUnits:String(bound),expectedWei:String(expectedWei),boundWei:String(boundWei),
   expectedValue:String(expectedValue),boundValue:String(boundValue)});
 }
 
