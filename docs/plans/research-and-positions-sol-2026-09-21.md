@@ -830,3 +830,44 @@ checked Research migration through an authorized release and perform a bounded
 canonical rescan before treating exact-window counts as available. W4-W7 and
 the remaining W3 windows, variable sizing, replay, and calibration retain
 their existing gates.
+
+### September 23 follow-on slices and current gates
+
+- W3 Research now reports exact canonical swap counts across 15-minute,
+  1-hour, 6-hour, 24-hour and 7-day trailing windows. Each count has its own
+  as-of time and coverage status; existing bucket-based volume and fee fields
+  keep their separate limitations. Counts remain unavailable until migration 8
+  and a bounded canonical rescan establish complete coverage in the target DB.
+- R3 exposes a read-only RangeKeeper paper open preview through the existing
+  preview path and a one-campaign bounded manual maintenance CLI for paper
+  accounting. Both remain internal development controls. HTTP operation
+  acceptance stays gated; no supervised worker or RangeKeeper command path is
+  connected.
+- R2 has a separate seven-stage static/manual conversion gas replay and
+  verifier, including an independently owned-fork post-withdraw quote check.
+  The v1 four-stage retain-close contract remains frozen. The v2 profile has
+  no atomic store registration or trusted selector yet, so this evidence
+  cannot authorize paper close completion.
+- RangeKeeper has a read-only exit preview foundation requiring later
+  canonical source marks, recomputed inventory/kernel state, wallet principal
+  reconciliation and source-pinned exit profiles. It has no trusted persisted
+  context loader, exit-profile producer, accepting command or lifecycle
+  accounting. Both preview paths report actions unavailable.
+- The shared Positions projection selects hash-checked v2 accounting only for
+  a converted-close mark and v1 for other paper marks. A missing, invalid or
+  revoked v2 snapshot leaves converted-close economics unavailable while
+  retaining the exit point in history. The UI labels conversion output,
+  costs and capital-out as provisional modeled values, never paid values.
+
+Next ordered gates: (1) persist and atomically register verified conversion
+gas evidence, then complete the static/manual conversion-close audit and
+recovery path; (2) produce and persist RangeKeeper open/exit evidence and
+trusted campaign context, implement its retain/convert close accounting and
+recovery; (3) connect bounded operation claims and paper maintenance to a
+supervised worker, then enable each HTTP command only after fresh admission,
+reconciliation and restart evidence; (4) finish Research-to-draft controls,
+variable capital/range and bounded replay/calibration; (5) run the isolated DB,
+HTTP, desktop/mobile and sealed-release acceptance gates for both strategies.
+Migration 8 and a bounded historical rescan are separate release operations.
+No migration, rescan, fork rehearsal, browser check, test suite or release
+validation was run in these follow-on development slices.

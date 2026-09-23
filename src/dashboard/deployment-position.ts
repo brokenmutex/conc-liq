@@ -1,7 +1,9 @@
 import type {PoolClient} from 'pg';
 import {allocationSchema} from '../deployments/contracts.js';
 import {contentHash} from '../deployments/contracts.js';
-import {paperAccountingSchema,PAPER_ACCOUNTING_POLICY,type PaperAccounting} from '../deployments/paper-accounting.js';
+import {paperAccountingSchema,paperConversionAccountingSchema,PAPER_ACCOUNTING_POLICY,
+ PAPER_CONVERSION_ACCOUNTING_POLICY,type PaperAccounting,type PaperConversionAccounting}
+ from '../deployments/paper-accounting.js';
 import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
@@ -24,12 +26,14 @@ interface DeploymentRow {
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
  operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
 interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
 const key=(mode:string,id:string)=>`${mode}-dep-${id}`;
@@ -77,9 +81,35 @@ const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccou
   parsed.data.campaignId===campaignId&&parsed.data.sourceMarkId===
    ('mark_id' in row?row.mark_id:row.id)&&
   parsed.data.source.block===row.source_block&&
-  parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
+   parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
 };
-const modeledExposure=(model:PaperAccounting,p:MarketProfile['pool'])=>{
+const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperConversionAccounting|null=>{
+ if(row.accounting_invalidated_at)return null;
+ const parsed=paperConversionAccountingSchema.safeParse(row.conversion_accounting_snapshot);
+ if(!parsed.success||row.conversion_accounting_hash!==contentHash(parsed.data)||
+  parsed.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY||
+  parsed.data.campaignId!==campaignId||parsed.data.markKind!=='close_convert'||
+  parsed.data.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
+  parsed.data.source.block!==row.source_block||
+  parsed.data.source.hash.toLowerCase()!==row.source_hash?.toLowerCase()||
+  parsed.data.conversion===null)return null;
+ const conversions=parsed.data.flows.filter(flow=>flow.kind==='modeled_conversion'),
+  capitalOut=parsed.data.flows.filter(isCapitalOut),
+  conversion=parsed.data.conversion,flow=conversions[0],assets=new Set(capitalOut.map(item=>item.asset));
+ return conversions.length===1&&capitalOut.length===3&&assets.size===3&&
+  ['token0','token1','native'].every(asset=>assets.has(asset as 'token0'|'token1'|'native'))&&
+  flow?.quoteHash===conversion.quoteHash&&flow.fromAsset===conversion.fromAsset&&
+  flow.toAsset===conversion.toAsset&&flow.fromAmountRaw===conversion.inputAmountRaw&&
+  flow.expectedToAmountRaw===conversion.expectedOutputRaw&&
+  flow.minimumToAmountRaw===conversion.minimumOutputRaw?parsed.data:null;
+};
+const isConvertedClose=(provenance:unknown)=>
+ record(provenance).classification==='paper_model_converted_close';
+type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native';
+ amountRaw:string;valueQuote:string};
+const isCapitalOut=(flow:PaperConversionAccounting['flows'][number]):flow is PaperCapitalOut=>
+ flow.kind==='modeled_capital_out';
+const modeledExposure=(model:PaperAccounting|PaperConversionAccounting,p:MarketProfile['pool'])=>{
  const risk=p.quoteToken===0?1:0,r=model.reference;
  const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
   value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
@@ -99,8 +129,10 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
-   capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,':
-    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'}
+   capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+    'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash,':
+    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash,'}
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
    blocked.status AS operation_status,
@@ -115,7 +147,9 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    WHERE campaign_id=c.id AND c.lifecycle='blocked' AND status='blocked'
    ORDER BY updated_at DESC,id DESC LIMIT 1) blocked ON TRUE
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
-   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
+   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=c.id
+   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY}'`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
@@ -130,7 +164,9 @@ export function deploymentPosition(row:DeploymentRow){
  const profile=marketProfileSchema.parse(row.profile),p=profile.pool;
  const allocation=allocationSchema.parse(row.allocation),inventory=record(row.inventory),
   provenance=record(row.provenance),economics=record(row.economics),state=markPoolState(provenance),
-  model=row.mode==='paper'?accounting(row,row.id):null;
+  conversionClose=isConvertedClose(provenance),
+  conversionModel=row.mode==='paper'&&conversionClose?conversionAccounting(row,row.id):null,
+  model=row.mode==='paper'?(conversionClose?conversionModel:accounting(row,row.id)):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
  const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
@@ -167,6 +203,10 @@ export function deploymentPosition(row:DeploymentRow){
  const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
  const lowerBoundValue=principalValue(inventory,economics,provenance,p),
   passiveTokenValue=tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
+ const conversion=conversionModel?.conversion??null,
+  conversionCapitalOut=conversionModel?.flows.filter(isCapitalOut).map(flow=>({
+   asset:flow.asset,amountRaw:flow.amountRaw,valueQuote:micro(flow.valueQuote),
+  }))??null;
  return {id:key(row.mode,row.id),label:`${row.strategy_id==='rangekeeper_v1'?'RK':'Manual'}-${row.id.slice(0,8)}`,
   mode:row.mode,asset:symbol(reference),quote:symbol(quoteRef),fee:p.fee,
   quoteIsToken0:p.quoteToken===0,hasLiquidity,status,history:row.lifecycle==='closed',
@@ -174,7 +214,9 @@ export function deploymentPosition(row:DeploymentRow){
   holdQuote:micro(model?.economics.passiveQuote??null),
   feesQuote:micro(model?.economics.cumulativeFeeValueQuote??null),
   gasQuote:micro(model?.economics.cumulativeGasExpenseQuote??null),
-  swapQuote:model?'0':null,exitEstimateQuote:micro(decimal(close.boundValue)),drawdownPpm:null,
+  swapQuote:conversionClose?micro(conversion?.modeledSwapCostQuote??null):model?'0':null,
+  exitEstimateQuote:conversionClose?micro(conversion?.boundGasCostQuote??null):micro(decimal(close.boundValue)),
+  drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
   sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,
   invalidatedAt:row.accounting_invalidated_at?.toISOString()??null,
@@ -197,8 +239,18 @@ export function deploymentPosition(row:DeploymentRow){
    sourceBlock:row.source_block,sourceHash:row.source_hash,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
+   conversionAccountingStatus:conversionClose?(conversionModel?'available':'unavailable'):'not_applicable',
    accounting:model?{policyVersion:model.policyVersion,classification:model.classification,
-    feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations}:null,
+    feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations,
+    conversion:conversion?{
+     fromAsset:conversion.fromAsset,toAsset:conversion.toAsset,
+     inputAmountRaw:conversion.inputAmountRaw,expectedOutputRaw:conversion.expectedOutputRaw,
+     minimumOutputRaw:conversion.minimumOutputRaw,expectedProceedsQuote:micro(conversion.expectedProceedsQuote),
+     minimumProceedsQuote:micro(conversion.minimumProceedsQuote),
+     modeledSwapCostQuote:micro(conversion.modeledSwapCostQuote),
+     expectedGasCostQuote:micro(conversion.expectedGasCostQuote),
+     boundGasCostQuote:micro(conversion.boundGasCostQuote),
+    }:null,capitalOut:conversionCapitalOut}:null,
    accountingInvalidation:row.accounting_invalidated_at?{
     reason:row.accounting_invalidation_reason,at:row.accounting_invalidated_at.toISOString()}:null,
    unavailable:model?model.limitations:['fee_capture','paid_gas','net_nav','alpha']}};
@@ -208,14 +260,16 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
  allocation:{token0Raw:string;token1Raw:string},campaignId:string):PositionPoint=>{
  const inv=record(mark.inventory),prov=record(mark.provenance),economics=record(mark.economics),
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
-  model=accounting(mark,campaignId),
+  conversionClose=isConvertedClose(prov),
+  model=conversionClose?conversionAccounting(mark,campaignId):accounting(mark,campaignId),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
  if(!sourceAt||!mark.source_block||!mark.source_hash)throw Error('Deployment mark source unavailable');
  const kind=prov.classification,action=kind==='paper_model_provisional'?'enter':
-  kind==='paper_model_partial_close'?'exit':'mark';
- if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close'].includes(String(kind)))
+  kind==='paper_model_partial_close'||kind==='paper_model_converted_close'?'exit':'mark';
+ if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close',
+  'paper_model_converted_close'].includes(String(kind)))
   throw Error('Deployment mark classification unavailable');
  return {id:mark.id,sourceAt,observedAt:mark.at.toISOString(),block:mark.source_block,
   action,status:action==='exit'?'closed':'open',
@@ -239,8 +293,10 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
   feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
   gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
-  swapThisMarkQuote:model?'0':null,
-  swapsThisMark:0,drawdownPpm:null};
+  swapThisMarkQuote:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY?
+   micro(model.economics.modeledSwapCostQuote):model?'0':null,
+  swapsThisMark:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY?1:0,
+  drawdownPpm:null};
 };
 
 export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours:number){
@@ -252,13 +308,17 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
  const marks=(await db.query<DeploymentMark>(`
   SELECT m.id::text,m.at,m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
-   ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash':
-    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash'},
+   ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+    'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash':
+    'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash'},
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason'}
   FROM deployment_marks m
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
-   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'`:''}
+   AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=m.campaign_id
+   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY}'`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
@@ -294,7 +354,7 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
    stage:'principal_only',reason:null,block:mark.source_block,hash:null,
    scope:'deployment_paper_model'}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
  return {position,performance,events:activity,
-  counts:{recenters:0,recenterAttempts:0,swaps:0},
+  counts:{recenters:0,recenterAttempts:0,swaps:position.deployment.conversionAccountingStatus==='available'?1:0},
   limitations:position.accounting==='provisional'?
    ['Provisional fixed-flow paper scenario: lower integer fee allocation and scoped fork gas estimates. These are not earned fees or paid costs.',
     'Execution delay, failures and counterfactual flow changes remain unmodeled. Incomplete marks stay blank.']:
