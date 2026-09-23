@@ -3,11 +3,47 @@
 Prepared: 2026-09-21. Status: implementation in progress; W1/W2 incomplete.
 Initial source review: `b38c839`. Latest progress review: 2026-09-23 at `576e746`.
 Recheck HEAD and working-tree changes before starting. Sol should resume with
-[the latest review remarks and ordered follow-up](#september-23-progress-review-at-576e746).
+[the prototype-first checkpoint](#prototype-first-feedback-checkpoint) before
+the later evidence and release gates.
 
 This is the authoritative implementation handoff for the accepted
 [workflow proposal](research-and-position-workflow-2026-09-21.md). The user's
 latest decision narrows the product to **static/manual and RangeKeeper**.
+
+### Prototype-first feedback checkpoint
+
+**Immediate priority: deliver one clickable, local Research → Positions
+prototype and get operator feedback on the whole flow.** This checkpoint
+supersedes the implementation order in the later progress notes. It is a UX
+prototype, not completion of W2 paper accounting or authorization for live
+execution. Use the existing dashboard styles in a standalone browser-memory
+page with deterministic fixtures; avoid new persistence, fork-sampling or
+calibration infrastructure for this checkpoint.
+
+The prototype should let the operator choose a pool and one of the five
+Research windows, set capital/range and either static/manual or RangeKeeper,
+inspect a clearly labeled preview, then walk a demo position through open,
+pause/resume and retain/convert close. Show its summary, chart, activity and
+history from first action to closure on desktop and mobile. Include a visible
+live-mode preview so the overall product can be assessed, with execution
+disabled. Existing real read-only data may be used where convenient; fixture
+values must say **demo** and missing economics must say **unavailable**. The
+prototype must not imply paid gas, earned fees, validated alpha or custody.
+
+Accept P0 when one local walkthrough covers both strategies and both close
+choices, a desktop/mobile browser smoke check passes, and the operator can
+give concrete feedback on navigation, information and controls. Record that
+feedback before expanding the implementation. Keep the demo isolated from
+production services, wallets, signers and deployment commands. A small UI
+smoke check is enough for this feedback checkpoint; retain the existing deeper
+tests for later functional/release work.
+
+After feedback, build the first real isolated paper vertical slice using the
+existing static/manual accounting path, then add RangeKeeper paper execution.
+The durable RangeKeeper confirmation store, independently verified simulation,
+campaign-owned gas rehearsals, restart-persistent maintenance fairness,
+historical candidate economics, and W4–W7 release work remain gates for their
+respective real capabilities. They do not delay the first UX walkthrough.
 
 ## 1. Outcome and authority
 
@@ -1116,10 +1152,11 @@ PostgreSQL `npm run test:integration` gate passed after these second-wave
 changes. These checks do not replace a campaign-owned fork rehearsal or a
 sealed-release/browser parity run.
 
-Next, make the RangeKeeper confirmation durable in a non-position record with
-independently verifiable source-exact simulation, then book the open only after
-an operation is accepted and its execution inventory is reconciled. Rehearse
-the static conversion sampler against an eligible persisted campaign before
+The immediate next step is the prototype-first feedback checkpoint above.
+Once its walkthrough is reviewed, make the RangeKeeper confirmation durable in
+a non-position record with independently verifiable source-exact simulation,
+then book the open only after an accepted operation reconciles inventory.
+Rehearse static conversion against an eligible persisted campaign before
 registering evidence. Complete restart-safe maintenance fairness, exact-source
-operator previews/claims and the shared Positions view before the W4-W7
-release gates. No production change or activation is implied by these commits.
+operator claims and the real shared Positions view before W4–W7 release gates.
+No production change or activation is implied by these commits.

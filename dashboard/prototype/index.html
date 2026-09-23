@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark"><title>CONC LIQ · Workflow prototype</title>
+  <link rel="stylesheet" href="../styles.css"><link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="prototype-banner" role="status"><strong>INTERACTIVE PROTOTYPE</strong><span>Local demo only · no account, chain transaction, paper booking, or validated economics</span></div>
+  <div class="shell">
+    <header class="masthead">
+      <a href="index.html" class="wordmark"><span class="brand-icon">≋</span> CONC<span class="light">LIQ</span></a>
+      <nav aria-label="Sections"><span>Research → Positions walkthrough</span></nav>
+      <div class="sample-clock">Demo state resets on refresh</div>
+    </header>
+    <div class="page-heading"><div><h1>Research → Positions</h1><p>Walk the proposed workflow with either strategy, then tell us what is missing or confusing.</p></div><span class="badge paper">Demo fixture</span></div>
+    <nav class="steps" aria-label="Prototype steps">
+      <button type="button" data-step="research">1 · Research</button>
+      <button type="button" data-step="setup">2 · Set up</button>
+      <button type="button" data-step="preview">3 · Preview</button>
+      <button type="button" data-step="position">4 · Position</button>
+    </nav>
+    <main>
+      <section id="research" class="screen" aria-labelledby="research-title">
+        <div class="screen-heading"><div><h2 id="research-title">Choose a pool</h2><p>Fixture pools show the shape of Research. Window statistics and candidate returns are unavailable in this demo.</p></div></div>
+        <div class="window-picker" role="group" aria-label="Research window">
+          <button type="button" data-window="15m">15m</button><button type="button" data-window="1h">1h</button>
+          <button type="button" data-window="6h">6h</button><button type="button" data-window="24h">24h</button>
+          <button type="button" data-window="7d">7d</button>
+        </div>
+        <div class="pool-grid">
+          <button type="button" class="pool-card" data-pool="NVDA"><span class="pool-icon">NV</span><span><strong>NVDA / USDG</strong><small>Uniswap V3 · demo pool</small></span><span class="pool-missing">Fees, volume, depth<br>unavailable</span></button>
+          <button type="button" class="pool-card" data-pool="MSFT"><span class="pool-icon msft">MS</span><span><strong>MSFT / USDG</strong><small>Uniswap V3 · demo pool</small></span><span class="pool-missing">Fees, volume, depth<br>unavailable</span></button>
+        </div>
+        <p class="inline-note" id="research-selection"></p>
+        <button type="button" class="primary" id="research-next">Set up position →</button>
+      </section>
+      <section id="setup" class="screen" hidden aria-labelledby="setup-title">
+        <div class="screen-heading"><div><h2 id="setup-title">Set up deployment</h2><p>Choose capital, range, strategy and mode. These controls collect feedback; no deployment is created.</p></div></div>
+        <form id="setup-form">
+          <div class="form-grid">
+            <label>Pool<select id="pool"><option value="NVDA">NVDA / USDG</option><option value="MSFT">MSFT / USDG</option></select></label>
+            <label>Capital · USDG<input id="capital" type="number" min="1" max="10000" step="1" value="250" required></label>
+            <label>Lower price · USDG<input id="lower" type="number" min="0.01" step="0.01" value="80" required></label>
+            <label>Upper price · USDG<input id="upper" type="number" min="0.01" step="0.01" value="120" required></label>
+            <label>Strategy<select id="strategy"><option value="static">Static / manual</option><option value="rangekeeper">RangeKeeper</option></select></label>
+            <label>Mode<select id="mode"><option value="paper">Paper demo</option><option value="live">Live preview only</option></select></label>
+          </div>
+          <p class="inline-note" id="strategy-description"></p>
+          <p class="form-error" id="form-error" role="alert" hidden></p>
+          <div class="actions"><button type="button" id="setup-back">← Research</button><button type="submit" class="primary">Review preview →</button></div>
+        </form>
+      </section>
+      <section id="preview" class="screen" hidden aria-labelledby="preview-title">
+        <div class="screen-heading"><div><h2 id="preview-title">Review preview</h2><p>Check the proposed settings. This is a product walkthrough, not an executable quote.</p></div><span class="badge paper">Demo only</span></div>
+        <div class="preview-grid" id="preview-facts"></div>
+        <div class="caution"><strong>Economics unavailable</strong><p>Token requirements, LP fees, gas, NAV, P&amp;L, and matched passive comparison need canonical evidence. No value is treated as zero or paid.</p></div>
+        <div class="actions"><button type="button" id="preview-back">← Edit settings</button><button type="button" class="primary" id="preview-open">Open demo paper position →</button></div>
+        <p class="inline-note" id="live-note" hidden>Live execution is disabled in this prototype. Switch to Paper demo to walk through position controls.</p>
+      </section>
+      <section id="position" class="screen" hidden aria-labelledby="position-title">
+        <div class="screen-heading"><div><h2 id="position-title">Demo position</h2><p id="position-subtitle"></p></div><span id="position-status" class="badge paper"></span></div>
+        <div class="position-summary"><div><span>Allocated capital</span><strong id="position-capital"></strong></div><div><span>Range</span><strong id="position-range"></strong></div><div><span>Net P&amp;L</span><strong>Unavailable</strong></div><div><span>Fees / gas</span><strong>Unavailable</strong></div></div>
+        <div class="position-grid"><div class="demo-panel"><h3>Lifecycle chart</h3><p>Events only · no modeled value series</p><div class="lifecycle-chart" id="lifecycle-chart" aria-label="Demo lifecycle event chart"></div></div>
+          <div class="demo-panel"><h3>Controls</h3><p>Choose an action to see how the position and history respond.</p><div class="control-stack"><button type="button" id="pause-button">Pause management</button><button type="button" id="close-retain">Close · retain tokens</button><button type="button" id="close-convert">Close · convert to USDG</button></div><p class="inline-note" id="control-note"></p></div></div>
+        <div class="demo-panel activity-panel"><h3>Activity and history</h3><ol id="activity"></ol></div>
+        <div class="actions"><button type="button" id="start-over">Start another walkthrough</button></div>
+      </section>
+    </main>
+    <footer>CONC LIQ <span>Feedback prototype · all position records are browser memory only</span><span>Nothing is submitted or saved</span></footer>
+  </div>
+</body>
+</html>
