@@ -1225,6 +1225,21 @@ evidence/status note:**
 | F4 — Guarded live paths | Bind static/manual and RangeKeeper live opens, pause/resume and both exits to the proven intent/receipt journal, reservations and custody recovery. Keep command access loopback-only until a separately reviewed authenticated remote boundary exists. | Owned-fork stage/recovery tests and explicit wallet/custody preflight pass; no duplicate signed action after interruption; retain and convert reconcile different final inventories. No funded activation follows from code completion. |
 | F5 — Release and operator review | Run full checks, production-like desktop/mobile browser parity, migration/restore rehearsal and sealed-release review. Record remaining capability gates and show the operator the functional paper flow before any live cutover decision. | Section 8 and W7 evidence is attached to exact commits/builds; prototype, isolated paper success, sealed deployment and live validation are reported separately. |
 
+**F1 status, 2026-09-23:** `ed0c3a5`, `1b0ff8b` and `4b4f9fb` put the
+approved tabs and bottom setup into the source dashboard. Setup reads registered
+pools and fee tiers, offers tick-spacing-aligned centered widths, and shows a
+read-only selection summary. Existing Research and live/paper Positions renderers,
+charts and history remain in place. Lifecycle controls are visibly unavailable;
+the command API still rejects operation acceptance. Focused dashboard tests
+(42), typechecking, and disposable Chromium checks of both live and paper
+history charts, setup review, and 1440px/390px layouts passed. This is source
+checkout evidence, not a sealed release or the public prototype deployment.
+
+**F2 status, 2026-09-23:** `7145bc5` keeps HTTP previews non-actionable, and
+`27ef89d` resolves a static/manual centered tick range from a fresh preview
+tick. The trusted accepted preview, supervised worker, full paper lifecycle and
+browser acceptance matrix remain gates. No operator action is enabled.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
