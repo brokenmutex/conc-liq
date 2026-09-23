@@ -1237,8 +1237,13 @@ checkout evidence, not a sealed release or the public prototype deployment.
 
 **F2 status, 2026-09-23:** `7145bc5` keeps HTTP previews non-actionable, and
 `27ef89d` resolves a static/manual centered tick range from a fresh preview
-tick. The trusted accepted preview, supervised worker, full paper lifecycle and
-browser acceptance matrix remain gates. No operator action is enabled.
+tick. `e575750` persists a costed static/manual paper-open model only after a
+canonical source recheck and binds it to the draft revision and short expiry.
+The dashboard form still needs a fresh, reference-bound USDG capital resolver
+and a parameterized setup preflight; it cannot supply the raw allocation needed
+by the existing draft endpoint. The supervised worker, full paper lifecycle and
+browser acceptance matrix remain gates. HTTP acceptance stays 503, and no
+operator action is enabled.
 
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
