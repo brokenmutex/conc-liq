@@ -14,6 +14,7 @@ const [command,configPath,...args]=process.argv.slice(2);
 assert(command&&configPath,'Usage: rangekeeper-live COMMAND CONFIG [ARG]');
 const mutation=new Set(['init','rearm-preflight','rearm-untraded','resume-preflight','resume-costed',
  'count-preflight','migrate-counts','stale-recenter-preflight','migrate-stale-recenter',
+ 'withdraw-gas-preflight','migrate-withdraw-gas',
  'tick','run','stop','recover-exit','recover-mint']);
 assert(command==='preflight'||command==='status'||mutation.has(command),'Unknown RangeKeeper command');
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync(resolve(configPath),'utf8')),{allowBroadcast:true});
@@ -91,6 +92,16 @@ if(command==='preflight'){
       'Stop the existing RangeKeeper worker before migrating a stale recenter');
     }
     output(await controller.migrateStaleRecenter(args[0]!,args[1]!,command==='migrate-stale-recenter'));
+   }
+   else if(command==='withdraw-gas-preflight'||command==='migrate-withdraw-gas'){
+    assert(args.length===2&&/^[0-9a-f-]{36}$/i.test(args[0]!)&&/^[0-9a-f]{64}$/i.test(args[1]!),
+     'Withdrawal gas migration requires exact campaign ID and previous build ID');
+    if(command==='migrate-withdraw-gas'){
+     const worker=spawnSync('systemctl',['is-active','conc-liq-rangekeeper.service'],{encoding:'utf8',timeout:5000});
+     assert(worker.status!==null&&!worker.error&&worker.stdout.trim()==='inactive',
+      'Stop the existing RangeKeeper worker before migrating withdrawal gas');
+    }
+    output(await controller.migrateWithdrawGas(args[0]!,args[1]!,command==='migrate-withdraw-gas'));
    }
    else if(command==='stop')output(await controller.requestStop());
    else if(command==='recover-exit')output(await controller.recoverExit());

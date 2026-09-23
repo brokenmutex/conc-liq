@@ -15,8 +15,9 @@ import {strategyBalances} from './funding.js';
 import {markRangeKeeper} from './live-mark.js';
 import {nextRangeKeeperStage,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from './live-stage.js';
 import {planRangeKeeper,rawValue} from './planner.js';
-import {rangeKeeperCostEnvelope,assertRangeKeeperStageGas,rangeKeeperForkGasUnits} from './cost.js';
+import {rangeKeeperCostEnvelope,assertRangeKeeperStageGas,rangeKeeperStageGasUnits} from './cost.js';
 import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from './calldata.js';
+import {principalAmounts} from '../../backtest/principal.js';
 import {mintedRangeKeeperTokenId,reconcileRangeKeeperAction} from './live-reconcile.js';
 import {simulateRangeKeeperCandidate} from './fork-simulator.js';
 import {nonfungiblePositionManagerReadAbi} from '../../nft/abi.js';
@@ -80,6 +81,23 @@ export function assertRangeKeeperStaleRecenterMigration(old:RangeKeeperLiveState
   (old.last.position===null||old.last.position.liquidity===0n&&
    old.retiredTokenIds.includes(String(old.last.position.tokenId)))&&
   old.closedAt===null,'Only a reconciled post-withdraw recenter may migrate');
+}
+
+/** Pin a new sealed build to an unchanged, pre-withdraw recenter after its
+ * live estimate exceeded the previous fork-derived stage ceiling. */
+export function assertRangeKeeperWithdrawGasMigration(old:RangeKeeperLiveState,recordedConfig:unknown,
+ next:RangeKeeperConfig,expectedCampaignId:string,expectedPreviousBuildId:string,nextBuildId:string){
+ assert.equal(old.id,expectedCampaignId,'Campaign ID changed');
+ assert.equal(old.buildId,expectedPreviousBuildId,'Previous build ID changed');
+ assert.notEqual(old.buildId,nextBuildId,'Migration requires a new sealed build');
+ assert(next.operator&&same(old.operator,next.operator),'Campaign operator changed');
+ assert.equal(old.configHash,rangeKeeperConfigHash(next),'Campaign configuration changed');
+ assert.deepEqual(recordedConfig,JSON.parse(rangeKeeperJson(next)),'Stored campaign config changed');
+ assertRangeKeeperState(old.policy,next,old.buildId);
+ assert(old.phase==='recenter'&&old.desired==='running'&&old.haltReason===null&&
+  old.candidate?.kind==='recenter'&&!old.withdrawDone&&!old.swapDone&&old.activeTokenId!==null&&
+  old.last.position?.tokenId===old.activeTokenId&&old.last.position.liquidity>0n&&old.closedAt===null,
+  'Only the unchanged pre-withdraw recenter can adopt the withdrawal gas fix');
 }
 
 export function assertUntradedRangeKeeperRearm(old:RangeKeeperLiveState,expectedCampaignId:string,
@@ -383,7 +401,7 @@ export class RangeKeeperLiveController {
    const latest=await this.client.getBlock();assert(latest.baseFeePerGas&&latest.baseFeePerGas>0n);
    const gasPrice=await this.client.getGasPrice();assert(gasPrice>0n);
    const fee=ceil((gasPrice>latest.baseFeePerGas?gasPrice:latest.baseFeePerGas)*5n,4n);
-   const u=rangeKeeperForkGasUnits;
+   const u=rangeKeeperStageGasUnits;
    const actionUnits=u.withdrawCollect+u.approval*3n+u.swap+u.mint+u.cleanupApproval*4n;
    const exitUnits=u.withdrawCollect+u.approval+u.swap+u.cleanupApproval*4n;
    const exitReserve=exitUnits*fee>this.config.limits.exitReserveWei?
@@ -405,6 +423,57 @@ export class RangeKeeperLiveController {
     const updated=await db.query(`UPDATE ${this.store.schema}.campaigns SET config=$2 WHERE id=$1`,
      [old.id,rangeKeeperJson(this.config)]);
     assert.equal(updated.rowCount,1,'Campaign config migration lost its row');
+    await db.query('COMMIT');
+   }catch(error){await db.query('ROLLBACK');throw error;}
+  return {state:next,proof};
+ });
+ }
+ /** Adopt only the withdrawal-bound fix after a fresh exact-call estimate and
+  * canonical custody check. The migration never signs or changes a stage. */
+ async migrateWithdrawGas(expectedCampaignId:string,expectedPreviousBuildId:string,apply:boolean){
+  this.serviceGate();
+  assert(this.config.broadcastEnabled,'Live campaign requires a private broadcast-enabled config');
+  return this.store.locked(this.signer.address,async db=>{
+   const row=await this.store.current(db,this.signer.address);assert(row,'No RangeKeeper campaign to migrate');
+   const old=row.state;
+   assertRangeKeeperWithdrawGasMigration(old,row.config,this.config,expectedCampaignId,
+    expectedPreviousBuildId,this.buildId);
+   assert(!(await this.store.pending(db,old.id)),'Pending RangeKeeper action exists');
+   const unresolved=(await db.query(`SELECT count(*)::int AS n FROM ${this.store.schema}.actions
+    WHERE campaign_id=$1 AND status IN('prepared','signed')`,[old.id])).rows[0]?.n;
+   assert.equal(unresolved,0,'Unresolved RangeKeeper action exists');
+   await this.oldPilotClosed(db);
+   const source=await this.source();await this.chain.verify(source);
+   const snapshot=await this.chain.snapshot(source,old.operator,old.activeTokenId);
+   await this.exactCustody(old.last,snapshot,old.activeTokenId);
+   assert(snapshot.unlocked,'Pool is locked');
+   assert.equal(snapshot.nftCount,old.legacyNftCount+BigInt(old.retiredTokenIds.length)+1n,
+    'Unexpected NFT ownership count');
+   const plan=await nextRangeKeeperStage(old,snapshot,this.config,this.chain,{price0:1n,price1:1n});
+   assert(plan?.kind==='withdraw','The current recovery stage is not the active NFT withdrawal');
+   authorizeRangeKeeperTx(this.config.pool,{...snapshot,position:snapshot.position?{
+    ...snapshot.position,tokenId:snapshot.position.tokenId!}:null,
+    wallet0:strategyBalances(snapshot,old).amount0,wallet1:strategyBalances(snapshot,old).amount1,
+    timestamp:snapshot.source.timestamp},plan,this.config.limits.maxSlippageBps,
+    this.config.limits.fullWidthSpacings);
+   const tx=encodeRangeKeeperTx(this.config.pool,old.operator,plan);
+   const latest=await this.client.getBlock();assert(latest.baseFeePerGas&&latest.baseFeePerGas>0n);
+   assert(Number(latest.timestamp)-source.timestamp<=240,'Confirmed observation too old for withdrawal');
+   assert(BigInt(latest.timestamp)<plan.deadline,'Withdrawal estimate expired');
+   await this.client.call({account:old.operator,to:tx.to,data:tx.data,blockNumber:source.block});
+   const estimatedGas=await this.client.estimateGas({account:old.operator,to:tx.to,data:tx.data,value:0n});
+   const gas=ceil(estimatedGas*6n,5n);
+   assertRangeKeeperStageGas('withdrawCollect',gas);
+   const next={...old,buildId:this.buildId,
+    policy:{...old.policy,buildId:this.buildId},last:snapshot,lastReason:'withdraw_gas_bound_migrated'};
+   const proof={previousBuildId:old.buildId,nextBuildId:this.buildId,source,
+    tokenId:String(snapshot.position!.tokenId),range:[snapshot.position!.tickLower,snapshot.position!.tickUpper],
+    estimatedGas,paddedGas:gas,stageGasLimit:rangeKeeperStageGasUnits.withdrawCollect,
+    withdrawalCall:'success',candidate:old.candidate};
+   if(!apply)return {state:next,proof};
+   await db.query('BEGIN');try{
+    await this.store.mark(db,old.id,source.block,'withdraw_gas_migration_preflight',proof);
+    await this.store.save(db,next,'withdraw_gas_bound_migrated');
     await db.query('COMMIT');
    }catch(error){await db.query('ROLLBACK');throw error;}
    return {state:next,proof};
@@ -606,7 +675,7 @@ export class RangeKeeperLiveController {
    plan.kind==='withdraw'?'withdrawCollect':plan.kind;
   assertRangeKeeperStageGas(kind,gas);
   const remainingExitUnits=()=>{
-   const u=rangeKeeperForkGasUnits;
+   const u=rangeKeeperStageGasUnits;
    if(plan.kind==='withdraw')return u.approval+u.swap+u.cleanupApproval*4n;
    if(plan.kind==='swap')return u.cleanupApproval*4n;
    if(plan.kind==='approve'&&plan.amount>0n)return u.swap+u.cleanupApproval*4n;

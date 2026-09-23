@@ -13,9 +13,11 @@ export const rangeKeeperForkGasUnits={
  approval:80_000n,swap:240_000n,mint:650_000n,
  withdrawCollect:300_000n,cleanupApproval:70_000n,
 } as const;
+/** Fork limits with the incident-scoped live withdrawal allowance. */
+export const rangeKeeperStageGasUnits={...rangeKeeperForkGasUnits,withdrawCollect:330_000n} as const;
 
 export interface RangeKeeperCostEnvelope {
- source:'aapl_usdg_pinned_fork_68644757';
+ source:'aapl_usdg_pinned_fork_68644757_live_withdraw_20260923';
  maxFeePerGasWei:bigint;priorityFeePerGasWei:0n;
  actionGasUnits:bigint;actionGasWei:bigint;actionCostValue:bigint;
  completeExitGasUnits:bigint;requiredExitReserveWei:bigint;
@@ -28,7 +30,7 @@ export function rangeKeeperCostEnvelope(input:{
  candidate:RangeKeeperCandidate;limits:RangeKeeperLimits;baseFeePerGasWei:bigint;marketGasPriceWei:bigint;
  nativePriceValue:bigint;existingPosition:boolean;poolAddress:Address;
 }):RangeKeeperCostEnvelope {
- const {candidate:c,limits:l}=input,u=rangeKeeperForkGasUnits;
+ const {candidate:c,limits:l}=input,u=rangeKeeperStageGasUnits;
  assert.equal(input.poolAddress.toLowerCase(),AAPL_POOL.toLowerCase(),'No fork gas evidence for this pool');
  assert(input.baseFeePerGasWei>0n&&input.marketGasPriceWei>0n&&input.nativePriceValue>0n,
   'Fresh fee and native reference required');
@@ -44,11 +46,11 @@ export function rangeKeeperCostEnvelope(input:{
  const actionCostValue=ceil(actionGasWei*input.nativePriceValue,WAD)+
   (c.swap?c.swap.feeValue+c.swap.shortfallValue:0n);
  const requiredExitReserveWei=exitUnits*fee>l.exitReserveWei?exitUnits*fee:l.exitReserveWei;
- return {source:'aapl_usdg_pinned_fork_68644757',maxFeePerGasWei:fee,priorityFeePerGasWei:0n,
+ return {source:'aapl_usdg_pinned_fork_68644757_live_withdraw_20260923',maxFeePerGasWei:fee,priorityFeePerGasWei:0n,
   actionGasUnits:actionUnits,actionGasWei,actionCostValue,completeExitGasUnits:exitUnits,requiredExitReserveWei};
 }
 
 /** A stage exceeding its fork-derived bound is unproven and may not sign. */
 export function assertRangeKeeperStageGas(kind:'approval'|'swap'|'mint'|'withdrawCollect'|'cleanupApproval',estimatedGas:bigint){
- assert(estimatedGas>0n&&estimatedGas<=rangeKeeperForkGasUnits[kind],`rangekeeper_${kind}_gas_bound`);
+ assert(estimatedGas>0n&&estimatedGas<=rangeKeeperStageGasUnits[kind],`rangekeeper_${kind}_gas_bound`);
 }

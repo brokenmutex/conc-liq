@@ -3,10 +3,12 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {replayPaperMint} from '../src/research/management-audit.js';
-import {assertRangeKeeperState,initialRangeKeeperState,parseRangeKeeperConfig} from '../src/strategy/rangekeeper/config.js';
+import {assertRangeKeeperState,initialRangeKeeperState,parseRangeKeeperConfig,rangeKeeperConfigHash} from '../src/strategy/rangekeeper/config.js';
 import {parseRangeKeeperState,serializeRangeKeeperState} from '../src/strategy/rangekeeper/state.js';
 import {applyRangeKeeperStageReceipt,type RangeKeeperStageLedger} from '../src/strategy/rangekeeper/stages.js';
 import {assertRangeKeeperStageGas,rangeKeeperCostEnvelope} from '../src/strategy/rangekeeper/cost.js';
+import {assertRangeKeeperWithdrawGasMigration} from '../src/strategy/rangekeeper/live-controller.js';
+import {rangeKeeperJson,type RangeKeeperLiveState} from '../src/strategy/rangekeeper/live-domain.js';
 import {allocateRangeKeeperFunding,strategyBalances} from '../src/strategy/rangekeeper/funding.js';
 import {planRangeKeeper,rangeKeeperRange,rawValue,type RangeKeeperPlannerInput} from '../src/strategy/rangekeeper/planner.js';
 import type {RangeKeeperObservation} from '../src/strategy/rangekeeper/domain.js';
@@ -195,7 +197,7 @@ test('first-pool cost envelope prices complete entry and exit at a fresh bounded
   baseFeePerGasWei:1_000_000_000n,marketGasPriceWei:1_000_000_000n,
   nativePriceValue:2_664n*unit,existingPosition:false});
  assert.equal(envelope.actionGasUnits,1_130_000n);
- assert.equal(envelope.completeExitGasUnits,900_000n);
+ assert.equal(envelope.completeExitGasUnits,930_000n);
  assert.equal(envelope.maxFeePerGasWei,1_250_000_000n);
  assert(envelope.requiredExitReserveWei>=1_125_000_000_000_000n);
  assert.throws(()=>rangeKeeperCostEnvelope({candidate:proposal.candidate!,limits:config.limits,
@@ -203,6 +205,22 @@ test('first-pool cost envelope prices complete entry and exit at a fresh bounded
   nativePriceValue:2_664n*unit,existingPosition:false}),/No fork gas evidence/);
  assertRangeKeeperStageGas('mint',470_694n);
  assert.throws(()=>assertRangeKeeperStageGas('mint',650_001n),/gas_bound/);
+ assertRangeKeeperStageGas('withdrawCollect',317_075n);
+ assert.throws(()=>assertRangeKeeperStageGas('withdrawCollect',330_001n),/gas_bound/);
+});
+test('withdrawal gas migration is limited to the same active pre-withdraw recenter',()=>{
+ const operator='0x0000000000000000000000000000000000000011' as NonNullable<RangeKeeperLiveState['operator']>;
+ const liveConfig={...config,operator};
+ const old={id:'31802d63-9ec8-423c-bc1b-f781f8b44f92',operator,buildId:'old-build',
+  configHash:rangeKeeperConfigHash(liveConfig),policy:initialRangeKeeperState(liveConfig,'old-build'),
+  phase:'recenter',desired:'running',haltReason:null,candidate:{kind:'recenter'},withdrawDone:false,
+  swapDone:false,activeTokenId:1274982n,last:{position:{tokenId:1274982n,liquidity:1n}},closedAt:null} as unknown as RangeKeeperLiveState;
+ assert.doesNotThrow(()=>assertRangeKeeperWithdrawGasMigration(old,JSON.parse(rangeKeeperJson(liveConfig)),
+  liveConfig,old.id,'old-build','new-build'));
+ assert.throws(()=>assertRangeKeeperWithdrawGasMigration({...old,withdrawDone:true},
+  JSON.parse(rangeKeeperJson(liveConfig)),liveConfig,old.id,'old-build','new-build'),/pre-withdraw recenter/);
+ assert.throws(()=>assertRangeKeeperWithdrawGasMigration(old,JSON.parse(rangeKeeperJson(liveConfig)),
+  {...liveConfig,limits:{...liveConfig.limits,maxSlippageBps:49}},old.id,'old-build','new-build'),/configuration changed/);
 });
 test('reverted and successful canonical receipts are each charged exactly once',()=>{
  const ledger:RangeKeeperStageLedger={stage:'swap',completedHashes:[],gasSpentWei:0n,costSpentValue:0n,
