@@ -3,10 +3,14 @@ import {z} from 'zod';
 import {DeploymentStore} from './deployments/store.js';
 import {DeploymentConflict} from './deployments/store.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
-import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame} from './deployments/paper-preview.js';
+import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonicalPaperNextFrame,
+ type PaperOpenFrame} from './deployments/paper-preview.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
+import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
+import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
+import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 
@@ -28,10 +32,53 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false;
- const paperPreview=async(campaignId:string)=>{
+ const paperPreview=async(campaignId:string,kind:'open'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
   previewBusy=true;
   try{
+   if(kind!=='open'){
+    const strategyId=await store.paperStrategyId(campaignId);
+    if(strategyId!=='rangekeeper_v1')return {status:'unavailable',
+     reason:strategyId==='static_manual_v1'?'static_manual_paper_terminal_preview_unavailable':
+      'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
+    const snapshot=await store.rangeKeeperPaperExitContextSnapshot(campaignId),
+     seed=rangeKeeperPaperExitContextSeed(snapshot,campaignId);
+    if(!seed)return {status:'unavailable',reason:'rangekeeper_persisted_context_unavailable',
+     campaignId,actionAvailable:false};
+    let buildId='';
+    try{
+     const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null') as unknown;
+     if(identity&&typeof identity==='object'&&typeof (identity as {buildId?:unknown}).buildId==='string')
+      buildId=(identity as {buildId:string}).buildId;
+    }catch{/* Missing or malformed release identity leaves the preview unavailable. */}
+    if(!buildId)return {status:'unavailable',reason:'rangekeeper_runtime_build_identity_unavailable',
+     campaignId,actionAvailable:false};
+    let frame:PaperOpenFrame;
+    try{frame=await readCanonicalPaperNextFrame(client,seed.profile,
+     {sourceBlock:seed.previousSource.block,sourceHash:seed.previousSource.hash});}
+    catch{return {status:'unavailable',reason:'rangekeeper_canonical_exit_source_unavailable',
+     campaignId,actionAvailable:false};}
+    try{await verifyCanonicalPaperAnchors(client,seed.profile.pool.chainId,
+     [seed.openSource,seed.previousSource,frame.source]);}
+    catch{return {status:'unavailable',reason:'rangekeeper_persisted_source_not_canonical',
+     campaignId,actionAvailable:false};}
+    const contextNow=Date.now(),context=await loadRangeKeeperPaperExitContext({campaignId,buildId,frame,
+     now:contextNow,
+     readSnapshot:async()=>snapshot,readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(
+      query.poolAddress,query.pathVersion,query.sizeBand)});
+    if(context.status!=='available')return context;
+    const exitKind=kind==='close_retain'?'retain':'convert';
+    let marketGasPriceWei:bigint|null=null,marketGasPriceObservedAt:number|null=null;
+    try{marketGasPriceWei=await client.getGasPrice();marketGasPriceObservedAt=Date.now();}
+    catch{/* The builder returns a blocked model with explicit gas evidence unavailable. */}
+    const now=Date.now();
+    return buildRangeKeeperPaperExitModel({client,draft:context.draft,
+     openModel:context.openModel,openMarkId:context.openMarkId,previous:context.previous,
+     kernel:context.kernel,readGasProfiles:context.readGasProfiles,buildId,exitKind,frame,now,
+     marketGasPriceWei,marketGasPriceObservedAt,
+     // This preview must stay blocked until the owned-fork stage runner is wired.
+     simulate:async()=>false});
+   }
    const draft=await store.paperDraft(campaignId);
    if(draft.strategyId==='rangekeeper_v1'){
     let buildId='';

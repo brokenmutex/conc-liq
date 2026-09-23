@@ -89,6 +89,24 @@ function rangeKeeperState(s:z.infer<typeof stateSchema>):RangeKeeperState{
 const unavailable=(campaignId:string,reason:string):RangeKeeperPaperPersistedContextUnavailable=>
  ({status:'unavailable',reason,campaignId,actionAvailable:false});
 
+/** Extract only the validated profile and prior source needed to acquire a
+ * current canonical frame. Full lifecycle and kernel checks still run in the
+ * loader after that frame has been read. */
+export function rangeKeeperPaperExitContextSeed(raw:unknown,campaignId:string):{
+ profile:RangeKeeperPaperDraft['profile'];openSource:PaperOpenFrame['source'];
+ previousSource:PaperOpenFrame['source']
+}|null{
+ let parsed:z.infer<typeof contextSnapshotSchema>;
+ try{parsed=contextSnapshotSchema.parse(raw);}catch{return null;}
+ const {snapshotHash,...body}=parsed;
+ if(parsed.campaignId!==campaignId||snapshotHash!==contentHash(body)||
+  contentHash(parsed.draft.profile)!==parsed.draft.profileHash)return null;
+ const openSource=sourceSchema.safeParse(parsed.openMark.model.source);
+ if(!openSource.success)return null;
+ return {profile:parsed.draft.profile,openSource:openSource.data,
+  previousSource:parsed.previousMark.source};
+}
+
 /** Loads only a trusted persisted RangeKeeper context. `readSnapshot` is an
  * internal store callback, never an HTTP-provided object. It must return a
  * hash-checked open model, latest mark and kernel snapshot with no pending

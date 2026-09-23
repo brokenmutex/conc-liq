@@ -9,7 +9,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const origin='http://127.0.0.1:4174';
  const calls:unknown[]=[];
- const previewCalls:string[]=[];
+ const previewCalls:Array<{id:string;kind:string}>=[];
  const store={
   async createDraft(input:unknown){calls.push(input);return {id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1};},
   async acceptOperation(){throw Error('not expected');},
@@ -17,7 +17,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   async listMarketProfiles(){return [{id:'aef5f51e-18ef-4e9c-952d-8d772970f708',draftAvailable:true,deploymentAvailable:false}];},
  };
  const server=createDeploymentCommandServer(store, {origin,passwordHash:hash,
-  paperPreview:async id=>{previewCalls.push(id);return {status:'indicative',actionAvailable:false,economics:null};}});
+  paperPreview:async(id,kind)=>{previewCalls.push({id,kind});
+   return {status:'indicative',actionAvailable:false,economics:null};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -47,7 +48,19 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const preview=await post(previewPath,{kind:'open'},{origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(preview.status,200);
   assert.deepEqual(await preview.json(),{status:'indicative',actionAvailable:false,economics:null});
-  assert.deepEqual(previewCalls,['67b2b303-e821-4450-bb7b-27171b12079f']);
+  const closePreview=await post(previewPath,{kind:'close_retain'},
+   {origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(closePreview.status,200);
+  assert.deepEqual(await closePreview.json(),{status:'indicative',actionAvailable:false,economics:null});
+  const convertPreview=await post(previewPath,{kind:'close_convert'},
+   {origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(convertPreview.status,200);
+  assert.deepEqual(await convertPreview.json(),{status:'indicative',actionAvailable:false,economics:null});
+  assert.deepEqual(previewCalls,[
+   {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'open'},
+   {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'close_retain'},
+   {id:'67b2b303-e821-4450-bb7b-27171b12079f',kind:'close_convert'},
+  ]);
   const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
    {origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(accept.status,503);
