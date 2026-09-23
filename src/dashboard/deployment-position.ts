@@ -1,8 +1,8 @@
 import type {PoolClient} from 'pg';
 import {allocationSchema} from '../deployments/contracts.js';
 import {contentHash} from '../deployments/contracts.js';
-import {paperAccountingSchema,paperConversionAccountingSchema,PAPER_ACCOUNTING_POLICY,
- PAPER_CONVERSION_ACCOUNTING_POLICY,type PaperAccounting,type PaperConversionAccounting}
+import {paperAccountingSchema,paperConversionAccountingV2Schema,PAPER_ACCOUNTING_POLICY,
+ PAPER_CONVERSION_ACCOUNTING_POLICY_V2,type PaperAccounting,type PaperConversionAccountingV2}
  from '../deployments/paper-accounting.js';
 import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
@@ -21,7 +21,7 @@ const symbol=(reference:string)=>reference.split('/')[0]??reference;
 
 interface DeploymentRow {
  id:string;mode:'paper'|'live';lifecycle:string;range_state:string;current_revision:number;created_at:Date;
- closed_at:Date|null;allocation:unknown;profile:unknown;strategy_id:string;config:unknown;
+ closed_at:Date|null;allocation:unknown;runtime_identity:unknown;profile:unknown;strategy_id:string;config:unknown;
  mark_id:string|null;mark_at:Date|null;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
  operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
@@ -83,11 +83,13 @@ const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccou
   parsed.data.source.block===row.source_block&&
    parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
 };
-const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperConversionAccounting|null=>{
+const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
+ runtimeIdentity:unknown):PaperConversionAccountingV2|null=>{
  if(row.accounting_invalidated_at)return null;
- const parsed=paperConversionAccountingSchema.safeParse(row.conversion_accounting_snapshot);
+ const parsed=paperConversionAccountingV2Schema.safeParse(row.conversion_accounting_snapshot);
  if(!parsed.success||row.conversion_accounting_hash!==contentHash(parsed.data)||
-  parsed.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY||
+  runtimeIdentity===null||contentHash(parsed.data.runtimeIdentity)!==contentHash(runtimeIdentity)||
+  parsed.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
   parsed.data.campaignId!==campaignId||parsed.data.markKind!=='close_convert'||
   parsed.data.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
   parsed.data.source.block!==row.source_block||
@@ -107,9 +109,9 @@ const isConvertedClose=(provenance:unknown)=>
  record(provenance).classification==='paper_model_converted_close';
 type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native';
  amountRaw:string;valueQuote:string};
-const isCapitalOut=(flow:PaperConversionAccounting['flows'][number]):flow is PaperCapitalOut=>
+const isCapitalOut=(flow:PaperConversionAccountingV2['flows'][number]):flow is PaperCapitalOut=>
  flow.kind==='modeled_capital_out';
-const modeledExposure=(model:PaperAccounting|PaperConversionAccounting,p:MarketProfile['pool'])=>{
+const modeledExposure=(model:PaperAccounting|PaperConversionAccountingV2,p:MarketProfile['pool'])=>{
  const risk=p.quoteToken===0?1:0,r=model.reference;
  const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
   value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
@@ -127,6 +129,7 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
  const rows=(await db.query<DeploymentRow>(`
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
+   c.runtime_identity,
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
@@ -149,7 +152,7 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
    LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=c.id
-   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY}'`:''}
+   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}'`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
@@ -165,7 +168,8 @@ export function deploymentPosition(row:DeploymentRow){
  const allocation=allocationSchema.parse(row.allocation),inventory=record(row.inventory),
   provenance=record(row.provenance),economics=record(row.economics),state=markPoolState(provenance),
   conversionClose=isConvertedClose(provenance),
-  conversionModel=row.mode==='paper'&&conversionClose?conversionAccounting(row,row.id):null,
+  conversionModel=row.mode==='paper'&&conversionClose?
+   conversionAccounting(row,row.id,row.runtime_identity):null,
   model=row.mode==='paper'?(conversionClose?conversionModel:accounting(row,row.id)):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
@@ -257,11 +261,13 @@ export function deploymentPosition(row:DeploymentRow){
 }
 
 const point=(mark:DeploymentMark,profile:MarketProfile,
- allocation:{token0Raw:string;token1Raw:string},campaignId:string):PositionPoint=>{
+ allocation:{token0Raw:string;token1Raw:string},campaignId:string,
+ runtimeIdentity:unknown):PositionPoint=>{
  const inv=record(mark.inventory),prov=record(mark.provenance),economics=record(mark.economics),
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
   conversionClose=isConvertedClose(prov),
-  model=conversionClose?conversionAccounting(mark,campaignId):accounting(mark,campaignId),
+  model=conversionClose?conversionAccounting(mark,campaignId,runtimeIdentity):
+   accounting(mark,campaignId),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
@@ -293,9 +299,9 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
   feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
   gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
-  swapThisMarkQuote:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY?
+  swapThisMarkQuote:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2?
    micro(model.economics.modeledSwapCostQuote):model?'0':null,
-  swapsThisMark:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY?1:0,
+  swapsThisMark:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2?1:0,
   drawdownPpm:null};
 };
 
@@ -318,7 +324,7 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
    LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=m.campaign_id
-   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY}'`:''}
+   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}'`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
@@ -327,7 +333,7 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   WHERE m.campaign_id=$1 AND (m.provenance->'source'->>'timestamp')::bigint >= $2
   ORDER BY m.id LIMIT 30001`,[row.id,cutoff])).rows;
  if(marks.length>30000)throw Error('Deployment mark history exceeds bounded window limit');
- const points=marks.map(mark=>point(mark,profile,allocation,row.id));
+ const points=marks.map(mark=>point(mark,profile,allocation,row.id,row.runtime_identity));
  const baseline=position.initialQuote??'0';
  // A window beginning after entry has no opening capital flow in its selected
  // marks. Let the first visible mark establish the interval baseline.

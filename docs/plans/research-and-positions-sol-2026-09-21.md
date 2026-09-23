@@ -871,3 +871,39 @@ HTTP, desktop/mobile and sealed-release acceptance gates for both strategies.
 Migration 8 and a bounded historical rescan are separate release operations.
 No migration, rescan, fork rehearsal, browser check, test suite or release
 validation was run in these follow-on development slices.
+
+### September 23 parallel follow-through
+
+- Static/manual conversion gas has an atomic seven-stage V2 registration path,
+  scoped by campaign, sealed runtime identity, canonical source, route,
+  allowance state, size band and complete fork sequence. The separately
+  versioned `paper_fixed_flow_convert_v2` projection requires those registered
+  profiles, and converted-close completion reselects and replays the exact
+  snapshot before writing provisional capital-out references. The prior V1
+  conversion policy remains readable but cannot complete a new converted
+  close. Old campaigns without a sealed runtime identity fail closed.
+- The bounded static/manual paper maintenance loop now audits V1 and both
+  conversion policies, then projects the V2 terminal path. A signer-free
+  worker entry point serializes passes with a DB advisory lock and limits
+  campaigns and steps. It has no operation claims or release supervisor yet;
+  HTTP operation acceptance remains disabled.
+- Positions selects the V2 converted-close snapshot only when its content
+  hash, source and persisted runtime identity match. Missing or invalid V2
+  economics remain unavailable while the exit history point remains visible.
+- RangeKeeper now has separate persisted-context and owned-fork gas-evidence
+  verifier contracts with source rechecks and `actionAvailable:false`. It
+  still needs the trusted store context reader, real owned-fork stage runner,
+  atomic profile writer and paper lifecycle/accounting adapter.
+- Research has an isolated, bounded exact-bigint principal sizing helper for
+  an explicit USDG budget and tick-aligned range. It returns token amounts
+  and liquidity only. Historical candidate replay, candidate-scoped costs,
+  saved draft evidence and Research-to-draft controls remain unavailable.
+
+Development checks: pinned TypeScript typecheck, Research JavaScript syntax
+and scoped diff checks passed after integration. No tests, production migration,
+historical rescan, browser run, fork rehearsal, sealed-release build or service
+activation was performed. Next release gates remain isolated-DB lifecycle and
+restart acceptance; a trusted RangeKeeper store/runner/adapter; fresh command
+preflight and durable claims; full HTTP and desktop/mobile Positions parity;
+and migration 8 plus canonical rescan before exact Research counts are shown
+as available on a production database. W4-W7 retain their separate gates.

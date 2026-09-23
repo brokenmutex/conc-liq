@@ -33,6 +33,7 @@ async function main(){
   log('info','paper_maintenance_complete',{
    campaignId,status:result.status,steps:result.steps,caughtUp:result.caughtUp,
    invalidatedCount:result.standardAudit.invalidated.length+
+    (result.legacyConversionAudit?.invalidated.length??0)+
     (result.conversionAudit?.invalidated.length??0),
   });
   if(result.status==='invalidated')process.exitCode=2;

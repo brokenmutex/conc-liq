@@ -3,7 +3,8 @@ import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../client.js';
 import {auditCanonicalPaperAccounting,
  auditCanonicalPaperConversionAccounting,
- recordCanonicalNextPaperConversionAccounting} from './paper-accounting.js';
+ auditCanonicalPaperConversionAccountingV2,
+ recordCanonicalNextPaperConversionAccountingV2} from './paper-accounting.js';
 import {recordCanonicalPaperFeeEvidence} from './paper-fee-replay.js';
 import {advanceCanonicalPaperScenario} from './paper-projection.js';
 import {DeploymentConflict,type DeploymentStore} from './store.js';
@@ -16,11 +17,16 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   'Paper maintenance budget invalid');
  const standardAudit=await auditCanonicalPaperAccounting(store,client,campaignId);
  if(standardAudit.alreadyInvalidated||standardAudit.invalidated.length)
-  return {status:'invalidated' as const,standardAudit,conversionAudit:null,
+  return {status:'invalidated' as const,standardAudit,legacyConversionAudit:null,
+   conversionAudit:null,
    steps:0,caughtUp:false};
- const conversionAudit=await auditCanonicalPaperConversionAccounting(store,client,campaignId);
+ const legacyConversionAudit=await auditCanonicalPaperConversionAccounting(store,client,campaignId);
+ if(legacyConversionAudit.alreadyInvalidated||legacyConversionAudit.invalidated.length)
+  return {status:'invalidated' as const,standardAudit,legacyConversionAudit,
+   conversionAudit:null,steps:0,caughtUp:false};
+ const conversionAudit=await auditCanonicalPaperConversionAccountingV2(store,client,campaignId);
  if(conversionAudit.alreadyInvalidated||conversionAudit.invalidated.length)
-  return {status:'invalidated' as const,standardAudit,conversionAudit,
+  return {status:'invalidated' as const,standardAudit,legacyConversionAudit,conversionAudit,
    steps:0,caughtUp:false};
 
  let conversionTerminal=false;
@@ -29,20 +35,22 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   if(!conversionTerminal){
    try{
     const next=await advanceCanonicalPaperScenario(store,client,indexer,campaignId);
-    if(next.caughtUp)return {status:'projection_current' as const,standardAudit,conversionAudit,
+    if(next.caughtUp)return {status:'projection_current' as const,standardAudit,
+     legacyConversionAudit,conversionAudit,
      steps,caughtUp:true};
     continue;
    }catch(error){
     if(!(error instanceof DeploymentConflict&&
      error.code==='paper_accounting_mark_unsupported'))throw error;
-    // V1 has no conversion-close mark. V2 replays the whole mark sequence
-    // under its own policy before its fee-aware terminal can be finalized.
+   // V1 has no conversion-close mark. The separately versioned conversion
+   // policy replays the mark sequence before its terminal can be finalized.
     conversionTerminal=true;
    }
   }
   try{
-   const next=await recordCanonicalNextPaperConversionAccounting(store,client,campaignId);
-   if(next===null)return {status:'projection_current' as const,standardAudit,conversionAudit,
+   const next=await recordCanonicalNextPaperConversionAccountingV2(store,client,campaignId);
+   if(next===null)return {status:'projection_current' as const,standardAudit,
+    legacyConversionAudit,conversionAudit,
     steps,caughtUp:true};
   }catch(error){
    if(!(error instanceof DeploymentConflict&&
@@ -51,6 +59,7 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
    // The next pass retries the exact same mark. No later mark can skip it.
   }
  }
- return {status:'budget_exhausted' as const,standardAudit,conversionAudit,
+ return {status:'budget_exhausted' as const,standardAudit,legacyConversionAudit,
+  conversionAudit,
   steps,caughtUp:false};
 }
