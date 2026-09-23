@@ -279,7 +279,8 @@ function renderDetail(rows) {
     const exact = pool.windows.find((window) => window.hours === state.hours);
     $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(pool.stateStatus)}</span></div>
       <p>Registered pool identity is available; checkpoint state is unavailable, so price, depth, and modeled candidate economics are unavailable.</p>
-      ${exact ? `<p>Trailing ${WINDOWS.find(([hours]) => hours === state.hours)[1]}: ${esc(swapCountAvailability(exact))}</p>` : ''}`;
+      ${exact ? `<p>Trailing ${WINDOWS.find(([hours]) => hours === state.hours)[1]}: ${esc(swapCountAvailability(exact))}</p>` : ''}
+      ${draftPreparationPanel(pool)}`;
     return;
   }
   const exactWindow = pool.windows.find((window) => window.hours === state.hours);
@@ -304,7 +305,36 @@ function renderDetail(rows) {
         ${flowChart(pool, state.hours * perHour(snapshot))}
         <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>`}
       </div>
-    </div>`;
+    </div>
+    ${draftPreparationPanel(pool)}`;
+}
+
+function draftPreparationPanel(pool) {
+  const preparation = pool.draftPreparation;
+  if (preparation == null) return '';
+  const coverage = preparation.exactSwapCoverage.map((window) => {
+    const label = WINDOWS.find(([hours]) => hours === window.hours)?.[1] ?? `${window.windowSeconds ?? '?'}s`;
+    const count = window.availability === 'available' ? ` · ${window.swaps} swaps` : '';
+    const asOf = window.asOf == null ? '' : ` as of ${clock(window.asOf)}`;
+    return `<li>${esc(label)}: ${esc(window.availability)}${esc(count)}${esc(asOf)}</li>`;
+  }).join('');
+  const requirements = preparation.missingRequirements.map((reason) => {
+    const labels = {
+      bounded_historical_candidate_replay_unavailable: 'Bounded historical candidate replay is not available.',
+      verified_market_profile_selection_required: 'Select a verified market profile.',
+      deployment_wallet_and_allocation_required: 'Provide the deployment wallet and token allocation.',
+      strategy_parameters_and_risk_limits_required: 'Provide strategy parameters and risk limits.',
+      candidate_scoped_cost_and_independent_reference_evidence_unavailable: 'Candidate scoped costs and independent reference evidence are unavailable.',
+    };
+    return `<li>${esc(labels[reason] ?? reason)}</li>`;
+  }).join('');
+  return `<section class="candidate-preparation" aria-label="Draft preparation status">
+    <h3>Deployment draft preparation · unavailable</h3>
+    <p>This is a read-only coverage envelope, not a strategy candidate or saved draft. Exact swap counts do not establish volume, fees, or candidate economics. Only ${esc(preparation.supportedStrategyIds.join(' and '))} may be exposed by a future candidate flow.</p>
+    <p>Exact canonical swap coverage for this pool:</p><ul>${coverage}</ul>
+    <p>Still required:</p><ul>${requirements}</ul>
+    <p>Draft creation remains behind the authenticated deployment command API. This Research page does not submit drafts.</p>
+  </section>`;
 }
 
 function render() {

@@ -119,6 +119,22 @@ export interface ResearchWindowSummary {
   readonly limitation: string | null;
 }
 
+export interface ResearchDraftPreparation {
+  /** This read-only view currently prepares evidence only, never a draft. */
+  readonly availability: "unavailable";
+  /** The only strategies the future candidate flow may expose. */
+  readonly supportedStrategyIds: readonly ["static_manual_v1", "rangekeeper_v1"];
+  /** Exact event counts are useful coverage evidence, not candidate economics. */
+  readonly exactSwapCoverage: readonly {
+    readonly hours: number;
+    readonly windowSeconds: number | null;
+    readonly asOf: string | null;
+    readonly availability: string;
+    readonly swaps: number | null;
+  }[];
+  readonly missingRequirements: readonly string[];
+}
+
 interface ExactCheckpointWindow {
   readonly count: number;
   readonly valid: number;
@@ -175,8 +191,30 @@ export interface ResearchPool {
   readonly stateStatus: "current" | "stale" | "unverified" | "unavailable";
   readonly series: readonly ResearchBucket[];
   readonly windows: readonly ResearchWindowSummary[];
+  readonly draftPreparation: ResearchDraftPreparation;
   readonly depth: readonly ResearchDepthPoint[];
   readonly depthReferences: readonly ResearchDepthReference[];
+}
+
+function draftPreparation(windows: readonly ResearchWindowSummary[]): ResearchDraftPreparation {
+  return {
+    availability: "unavailable",
+    supportedStrategyIds: ["static_manual_v1", "rangekeeper_v1"],
+    exactSwapCoverage: windows.map((window) => ({
+      hours: window.hours,
+      windowSeconds: window.swapWindowSeconds,
+      asOf: window.swapAsOf,
+      availability: window.swapAvailability ?? "unavailable",
+      swaps: window.swapAvailability === "available" ? window.swaps : null,
+    })),
+    missingRequirements: [
+      "bounded_historical_candidate_replay_unavailable",
+      "verified_market_profile_selection_required",
+      "deployment_wallet_and_allocation_required",
+      "strategy_parameters_and_risk_limits_required",
+      "candidate_scoped_cost_and_independent_reference_evidence_unavailable",
+    ],
+  };
 }
 
 export interface ResearchCosts {
@@ -987,20 +1025,22 @@ export async function readResearch(
     if (pool.token0 === null || pool.token1 === null || pool.tick === null ||
         pool.sqrtPriceX96 === null || pool.priceX18 === null || pool.liquidity === null ||
         pool.observedAt === null) {
+      const windows = RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
+        ? exactWindow
+        : withExactSwapCount({
+          hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
+          maxGapSeconds: null, asOf: null, swapWindowSeconds: null, swapAsOf: null,
+          swapAvailability: null, observedBuckets: 0, swaps: null, volumeQuote: null,
+          feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
+          references: [], limitation: null,
+        }, pool.poolAddress, exactWindows.get(hours)!));
       return {
         poolAddress: pool.poolAddress, rwaSymbol: pool.rwaSymbol, fee: pool.fee,
         feeProtocol0: protocol.fee0, feeProtocol1: protocol.fee1, tickSpacing,
         quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, priceX18: null,
         liquidity: null, observedAt: null, registryEnabled: pool.registryEnabled,
-        stateStatus: pool.stateStatus, series: [], windows: RESEARCH_WINDOW_HOURS.map((hours) =>
-          hours === 0.25 ? exactWindow : withExactSwapCount({
-            hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
-            maxGapSeconds: null, asOf: null, swapWindowSeconds: null, swapAsOf: null,
-            swapAvailability: null, observedBuckets: 0, swaps: null, volumeQuote: null,
-            feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
-            references: [], limitation: null,
-          }, pool.poolAddress, exactWindows.get(hours)!)
-        ),
+        stateStatus: pool.stateStatus, series: [], windows,
+        draftPreparation: draftPreparation(windows),
         depth: [], depthReferences: [],
       };
     }
@@ -1038,6 +1078,9 @@ export async function readResearch(
         deviationPpm: entry.deviationPpm?.toString() ?? null,
       };
     });
+    const windows = RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
+      ? exactWindow
+      : summarizeExactWindow(hours));
     const curve = depthCurve(ticksByPool.get(pool.poolAddress) ?? []);
     return {
       poolAddress: pool.poolAddress,
@@ -1055,9 +1098,8 @@ export async function readResearch(
       registryEnabled: pool.registryEnabled,
       stateStatus: pool.stateStatus,
       series: view,
-      windows: RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
-        ? exactWindow
-        : summarizeExactWindow(hours)),
+      windows,
+      draftPreparation: draftPreparation(windows),
       depth: curve.filter((point) =>
         Math.abs(point.tick - pool.tick!) <= DEPTH_TICK_RADIUS
       ),
