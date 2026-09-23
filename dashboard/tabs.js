@@ -26,6 +26,7 @@ tabs.forEach((tab, index) => { tab.tabIndex = index === 0 ? 0 : -1; });
 
 const poolSelect = document.getElementById('setup-pool');
 const widthSelect = document.getElementById('setup-width');
+const reviewButton = document.getElementById('setup-review-button');
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 let registeredPools = [];
 function renderWidths() {
@@ -53,13 +54,41 @@ fetch('/api/research', { headers: { accept: 'application/json' } }).then((respon
     `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
   poolSelect.disabled = false;
   renderWidths();
+  reviewButton.disabled = false;
 }).catch((error) => {
   poolSelect.innerHTML = `<option value="">${esc(error.message)}</option>`;
 });
 
+document.getElementById('setup-form').addEventListener('input', () => {
+  document.getElementById('setup-review').hidden = true;
+});
 document.getElementById('setup-form').addEventListener('submit', (event) => {
   event.preventDefault();
   const error = document.getElementById('setup-error');
-  error.textContent = 'Fresh preflight and command paths are unavailable. No position was submitted.';
-  error.hidden = false;
+  const pool = registeredPools.find((candidate) => candidate.poolAddress === poolSelect.value);
+  const capital = Number(document.getElementById('setup-capital').value);
+  const ticks = Number(widthSelect.value);
+  if (!pool || !Number.isFinite(capital) || capital < 1 || capital > 10000 ||
+      !Number.isSafeInteger(ticks) || ticks < pool.tickSpacing || ticks % pool.tickSpacing !== 0) {
+    error.textContent = 'Choose a registered pool, valid tick half-width and capital from 1 to 10,000 USDG.';
+    error.hidden = false;
+    return;
+  }
+  error.hidden = true;
+  const facts = [
+    ['Pool', poolSelect.selectedOptions[0].textContent],
+    ['Capital', `${capital.toLocaleString('en-US')} USDG`],
+    ['Half-width around center', widthSelect.selectedOptions[0].textContent],
+    ['Strategy', document.getElementById('setup-strategy').selectedOptions[0].textContent],
+    ['Mode', document.getElementById('setup-mode').selectedOptions[0].textContent],
+  ];
+  const container = document.getElementById('setup-review-facts');
+  container.replaceChildren(...facts.map(([name, value]) => {
+    const row = document.createElement('div');
+    const label = document.createElement('dt'); label.textContent = name;
+    const content = document.createElement('dd'); content.textContent = value;
+    row.append(label, content);
+    return row;
+  }));
+  document.getElementById('setup-review').hidden = false;
 });

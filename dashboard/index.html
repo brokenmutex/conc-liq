@@ -27,7 +27,8 @@
             <label>Centered half-width<select id="setup-width" required disabled><option value="">Choose a pool first</option></select></label>
             <label>Strategy<select id="setup-strategy"><option value="static_manual_v1">Static / manual</option><option value="rangekeeper_v1">RangeKeeper</option></select></label>
             <label>Mode<select id="setup-mode"><option value="paper">Paper</option><option value="live">Live</option></select></label>
-          </div><p class="inline-note" id="setup-note">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" disabled title="Position preview and command paths are not available yet">Review setup · unavailable</button></form>
+          </div><p class="inline-note" id="setup-note">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
+          <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><p>Exact bounds, token requirements, costs and eligibility need a fresh preflight. No position is submitted or booked.</p></div>
         </section>
         <footer class="positions-footer">CONC LIQ <span>Live and paper position history</span><button id="diagnostics-button" class="text-button" type="button">Diagnostics</button></footer>
       </section>
