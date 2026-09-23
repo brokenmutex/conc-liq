@@ -12,7 +12,7 @@ import {DeploymentConflict,type DeploymentStore} from './store.js';
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
  attempts:number};
 type OperationContext={id:string;campaign_id:string;kind:string;status:string;claimed_by:string|null;
- claim_until:Date|null;created_at:Date;mode:string;lifecycle:string;strategy_id:string;
+ claim_valid:boolean;created_at:Date;mode:string;lifecycle:string;strategy_id:string;
  expires_at:Date;proposal:Record<string,unknown>};
 const MAX_ATTEMPTS=5;
 const LEASE_SECONDS=120;
@@ -31,14 +31,15 @@ const sourceFor=(context:OperationContext):PaperCanonicalAnchor=>{
 
 async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:string){
  const row=(await indexer.query<OperationContext>(`
-  SELECT o.id::text,o.campaign_id::text,o.kind,o.status,o.claimed_by,o.claim_until,
+  SELECT o.id::text,o.campaign_id::text,o.kind,o.status,o.claimed_by,
+   (o.claim_until>=clock_timestamp()) AS claim_valid,
    o.created_at,c.mode,c.lifecycle,r.strategy_id,v.expires_at,v.proposal
   FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
   JOIN deployment_previews v ON v.id=o.preview_id
   WHERE o.id=$1`,[claim.id])).rows[0];
  if(!row||row.campaign_id!==claim.campaign_id||row.claimed_by!==workerId||
-  !row.claim_until||row.claim_until.getTime()<Date.now()||
+  !row.claim_valid||
   row.status!==claim.status)
   throw new DeploymentConflict('paper_operation_claim_changed');
  return row;
@@ -103,6 +104,8 @@ export async function processOnePaperOperation(store:DeploymentStore,
   }
   return {status:'completed' as const,operationId:claim.id,kind:context.kind};
  }catch(error){
+  if(error instanceof DeploymentConflict&&error.code==='paper_operation_claim_changed')
+   return {status:'claim_lost' as const,operationId:claim.id};
   if(error instanceof DeploymentConflict)return await block(error.code);
   if(error instanceof AssertionError)
    return await block('paper_operation_canonical_or_evidence_invalid');
