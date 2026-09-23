@@ -16,6 +16,7 @@ const STATIC_FILES = new Map([
   ["/legacy/styles.css", {contentType:"text/css; charset=utf-8",file:"legacy/styles.css"}],
   ["/", { contentType: "text/html; charset=utf-8", file: "index.html" }],
   ["/app.js", { contentType: "text/javascript; charset=utf-8", file: "app.js" }],
+  ["/tabs.js", { contentType: "text/javascript; charset=utf-8", file: "tabs.js" }],
   ["/styles.css", { contentType: "text/css; charset=utf-8", file: "styles.css" }],
   ["/preview", { contentType: "text/html; charset=utf-8", file: "preview/index.html" }],
   ["/preview/", { contentType: "text/html; charset=utf-8", file: "preview/index.html" }],

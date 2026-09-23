@@ -8,6 +8,8 @@ function selectTab(tab) {
     document.getElementById(item.getAttribute('aria-controls')).hidden = !selected;
     item.tabIndex = selected ? 0 : -1;
   }
+  document.getElementById('status').hidden = tab.id !== 'research-tab';
+  document.getElementById('connection-status').hidden = tab.id !== 'positions-tab';
   if (tab.id === 'positions-tab') window.dispatchEvent(new Event('resize'));
 }
 for (const tab of tabs) tab.addEventListener('click', () => selectTab(tab));
@@ -31,11 +33,12 @@ function renderWidths() {
   if (!pool) { widthSelect.disabled = true; widthSelect.innerHTML = '<option value="">Choose a registered pool first</option>'; return; }
   const spacing = Number(pool.tickSpacing);
   if (!Number.isSafeInteger(spacing) || spacing <= 0) { widthSelect.disabled = true; widthSelect.innerHTML = '<option value="">Tick spacing unavailable</option>'; return; }
-  const choices = [1, 5, 10, 20, 50].map((multiple) => spacing * multiple);
+  const choices = [1, 2, 4, 8, 16].map((multiple) => spacing * multiple);
   widthSelect.innerHTML = choices.map((ticks) => {
     const pct = ((Math.pow(1.0001, ticks) - 1) * 100).toFixed(2);
-    return `<option value="${ticks}">±${ticks.toLocaleString()} ticks (about ±${pct}%)</option>`;
+    return `<option value="${ticks}">${ticks.toLocaleString()} ticks (~${pct}%)</option>`;
   }).join('');
+  widthSelect.value = String(spacing * 4);
   widthSelect.disabled = false;
 }
 poolSelect.addEventListener('change', renderWidths);
