@@ -1,3 +1,4 @@
+import {AssertionError} from 'node:assert';
 import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../client.js';
 import {paperOpenModelSchema} from './paper-open-model.js';
@@ -103,6 +104,8 @@ export async function processOnePaperOperation(store:DeploymentStore,
   return {status:'completed' as const,operationId:claim.id,kind:context.kind};
  }catch(error){
   if(error instanceof DeploymentConflict)return await block(error.code);
+  if(error instanceof AssertionError)
+   return await block('paper_operation_canonical_or_evidence_invalid');
   return {status:'retry' as const,operationId:claim.id,reason:'paper_operation_transient_error'};
  }finally{clearInterval(renew);}
 }
