@@ -59,7 +59,7 @@ candidate in `[218020,218060)`. Approvals, swap
 mint `0x6175d673d8ce1ba7a48c6b315f381d3d65ea823c29777f09337eb0829afb4467`
 were receipt-reconciled. The campaign returned to `phase=holding` with active
 NFT `1280640`, liquidity `6785096357770074`, range `[218020,218060)`, tick
-`218036`, and zero tokens owed. Both post-mint allowance revocations were also
-confirmed; the latest canonical observation shows all tracked allowances at
-zero and the pending-action count at zero. At verification the systemd worker
+`218036`, and zero tokens owed. Post-mint allowance cleanup approvals were
+also receipt-reconciled; the latest canonical observation shows all tracked
+allowances at zero and the pending-action count at zero. At verification the systemd worker
 was active on build `17c466…1219` with `NRestarts=0`.
