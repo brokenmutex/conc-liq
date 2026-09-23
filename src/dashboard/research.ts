@@ -104,6 +104,10 @@ export interface ResearchWindowSummary {
   readonly freshnessSeconds: number | null;
   readonly maxGapSeconds: number | null;
   readonly asOf: string | null;
+  /** Canonical event-count window metadata; separate from bucket economics. */
+  readonly swapWindowSeconds: number | null;
+  readonly swapAsOf: string | null;
+  readonly swapAvailability: string | null;
   readonly observedBuckets: number;
   readonly swaps: number | null;
   readonly volumeQuote: string | null;
@@ -127,6 +131,14 @@ interface ExactCheckpointWindow {
 interface EventTimestampCoverage {
   readonly fromAt: Date;
   readonly throughAt: Date;
+}
+
+interface ExactSwapWindow {
+  readonly asOf: Date | null;
+  readonly availability: string;
+  readonly counts: ReadonlyMap<string, number> | null;
+  readonly complete: boolean;
+  readonly seconds: number;
 }
 
 export interface ResearchDepthPoint {
@@ -581,6 +593,9 @@ function summarizeWindow(
     freshnessSeconds: null,
     maxGapSeconds: null,
     asOf: null,
+    swapWindowSeconds: null,
+    swapAsOf: null,
+    swapAvailability: null,
     observedBuckets,
     swaps,
     volumeQuote: observedBuckets > 0 ? volumeQuote.toString() : null,
@@ -596,13 +611,13 @@ function summarizeWindow(
 function exactWindowSummary(
   checkpoints: ExactCheckpointWindow,
   swaps: number | null,
-  asOf: Date,
-  coverageComplete: boolean,
+  asOf: Date | null,
+  swapAvailability: string,
 ): ResearchWindowSummary {
   const coveredSeconds = checkpoints.firstAt === null || checkpoints.lastAt === null
     ? 0
     : Math.max(0, Math.floor((checkpoints.lastAt.getTime() - checkpoints.firstAt.getTime()) / 1000));
-  const freshnessSeconds = checkpoints.lastAt === null
+  const freshnessSeconds = checkpoints.lastAt === null || asOf === null
     ? null
     : Math.max(0, Math.floor((asOf.getTime() - checkpoints.lastAt.getTime()) / 1000));
   return {
@@ -611,7 +626,10 @@ function exactWindowSummary(
     coveredSeconds,
     freshnessSeconds,
     maxGapSeconds: checkpoints.maxGapSeconds,
-    asOf: asOf.toISOString(),
+    asOf: null,
+    swapWindowSeconds: 900,
+    swapAsOf: asOf?.toISOString() ?? null,
+    swapAvailability,
     observedBuckets: checkpoints.count > 0 || swaps !== null ? 1 : 0,
     swaps,
     volumeQuote: null,
@@ -620,7 +638,22 @@ function exactWindowSummary(
     priceChangePpm: null,
     validShare: checkpoints.count > 0 ? checkpoints.valid / checkpoints.count : null,
     references: [],
-    limitation: coverageComplete ? "flow_valuation_unavailable" : "event_timestamp_coverage_incomplete",
+    limitation: "flow_valuation_unavailable",
+  };
+}
+
+function withExactSwapCount(
+  summary: ResearchWindowSummary,
+  poolAddress: string,
+  exact: ExactSwapWindow,
+): ResearchWindowSummary {
+  const swaps = exact.complete ? exact.counts?.get(poolAddress) ?? 0 : null;
+  return {
+    ...summary,
+    swapWindowSeconds: exact.seconds,
+    swapAsOf: exact.asOf?.toISOString() ?? null,
+    swapAvailability: exact.availability,
+    swaps,
   };
 }
 
@@ -765,19 +798,44 @@ export async function readResearch(
   const axis = bucketAxis(now);
   const since = axis[0]!.toISOString();
   const eventTimestampCoverage = await readEventTimestampCoverage(client, streamKey);
-  const exactAsOf = eventTimestampCoverage?.throughAt ?? now;
-  const exactSince = new Date(exactAsOf.getTime() - 900_000);
-  const coverageAgeMs = now.getTime() - exactAsOf.getTime();
-  const eventTimestampCoverageComplete = eventTimestampCoverage !== null &&
-    eventTimestampCoverage.fromAt <= exactSince &&
+  const candidateAsOf = eventTimestampCoverage?.throughAt ?? null;
+  const coverageAgeMs = candidateAsOf === null ? null : now.getTime() - candidateAsOf.getTime();
+  const freshCoverageEnd = eventTimestampCoverage !== null && coverageAgeMs !== null &&
     coverageAgeMs >= 0 && coverageAgeMs <= 90_000;
+  const exactAsOf = candidateAsOf ?? now;
+  const exactWindows = new Map<number, ExactSwapWindow>();
+  await Promise.all(RESEARCH_WINDOW_HOURS.map(async (hours) => {
+    const seconds = Math.round(hours * 3_600);
+    const windowSince = new Date(exactAsOf.getTime() - seconds * 1_000);
+    if (!freshCoverageEnd || eventTimestampCoverage === null) {
+      exactWindows.set(hours, {
+        asOf: null, counts: null, complete: false,
+        availability: "stale", seconds,
+      });
+      return;
+    }
+    if (eventTimestampCoverage.fromAt > windowSince) {
+      exactWindows.set(hours, {
+        asOf: exactAsOf, counts: null, complete: false,
+        availability: "incomplete", seconds,
+      });
+      return;
+    }
+    const counts = await readExactSwapCounts(client, streamKey, windowSince, exactAsOf);
+    exactWindows.set(hours, {
+      asOf: counts === null ? null : exactAsOf,
+      counts,
+      complete: counts !== null,
+      availability: counts === null ? "changed" : "available",
+      seconds,
+    });
+  }));
+  const exactSince = new Date(exactAsOf.getTime() - 900_000);
   const identities = await readIdentities(client, streamKey);
   const costs = await readCosts(client);
   const protocolFees = await readProtocolFees(client, streamKey);
   const exactCheckpoints = await readExactCheckpointWindow(client, streamKey, exactSince, exactAsOf);
-  const exactSwapCounts = eventTimestampCoverageComplete
-    ? await readExactSwapCounts(client, streamKey, exactSince, exactAsOf)
-    : null;
+  const exactSwapWindow = exactWindows.get(0.25)!;
   const roundTripQuote = costs.roundTripQuote === null
     ? null
     : BigInt(costs.roundTripQuote);
@@ -912,12 +970,20 @@ export async function readResearch(
       count: 0, valid: 0, meanLiquidity: 0n, firstAt: null, lastAt: null,
       maxGapSeconds: null,
     };
-    const exactSwapCount = eventTimestampCoverageComplete
-      ? exactSwapCounts?.get(pool.poolAddress) ?? 0
+    const exactSwapCount = exactSwapWindow.complete
+      ? exactSwapWindow.counts?.get(pool.poolAddress) ?? 0
       : null;
     const exactWindow = exactWindowSummary(
-      exactCheckpoint, exactSwapCount, exactAsOf, eventTimestampCoverageComplete,
+      exactCheckpoint, exactSwapCount, exactSwapWindow.asOf, exactSwapWindow.availability,
     );
+    const summarizeExactWindow = (hours: number): ResearchWindowSummary => {
+      const exact = exactWindows.get(hours)!;
+      return withExactSwapCount(
+        summarizeWindow(pool, tickSpacing, quoteIsToken0, view, series, hours, roundTripQuote),
+        pool.poolAddress,
+        exact,
+      );
+    };
     if (pool.token0 === null || pool.token1 === null || pool.tick === null ||
         pool.sqrtPriceX96 === null || pool.priceX18 === null || pool.liquidity === null ||
         pool.observedAt === null) {
@@ -926,13 +992,15 @@ export async function readResearch(
         feeProtocol0: protocol.fee0, feeProtocol1: protocol.fee1, tickSpacing,
         quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, priceX18: null,
         liquidity: null, observedAt: null, registryEnabled: pool.registryEnabled,
-        stateStatus: pool.stateStatus, series: [], windows: [exactWindow,
-          ...RESEARCH_WINDOW_HOURS.filter((hours) => hours !== 0.25).map((hours) => ({
+        stateStatus: pool.stateStatus, series: [], windows: RESEARCH_WINDOW_HOURS.map((hours) =>
+          hours === 0.25 ? exactWindow : withExactSwapCount({
             hours, windowSeconds: null, coveredSeconds: null, freshnessSeconds: null,
-            maxGapSeconds: null, observedBuckets: 0, swaps: 0, volumeQuote: null,
-            feesQuote: null, asOf: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
+            maxGapSeconds: null, asOf: null, swapWindowSeconds: null, swapAsOf: null,
+            swapAvailability: null, observedBuckets: 0, swaps: null, volumeQuote: null,
+            feesQuote: null, meanLiquidity: "0", priceChangePpm: null, validShare: null,
             references: [], limitation: null,
-          }))],
+          }, pool.poolAddress, exactWindows.get(hours)!)
+        ),
         depth: [], depthReferences: [],
       };
     }
@@ -989,15 +1057,7 @@ export async function readResearch(
       series: view,
       windows: RESEARCH_WINDOW_HOURS.map((hours) => hours === 0.25
         ? exactWindow
-        : summarizeWindow(
-          pool,
-          tickSpacing,
-          quoteIsToken0,
-          view,
-          series,
-          hours,
-          roundTripQuote,
-        )),
+        : summarizeExactWindow(hours)),
       depth: curve.filter((point) =>
         Math.abs(point.tick - pool.tick!) <= DEPTH_TICK_RADIUS
       ),

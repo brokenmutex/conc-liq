@@ -36,7 +36,7 @@ const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New
 
 const WINDOWS = [[0.25, '15m'], [1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
 const COLUMNS = [
-  ['pool', 'Pool', false], ['swaps', 'Swaps', true], ['volume', 'Volume · USDG', true],
+  ['pool', 'Pool', false], ['swaps', 'Exact swaps', true], ['volume', 'Volume · USDG', true],
   ['fees', 'LP fees', true], ['share', 'Your share', true], ['inRange', 'In range', true],
   ['gross', 'Modeled fees', true], ['net', 'Net of costs', true], ['apr', 'APR', true],
   ['gate', 'Gate-valid', true],
@@ -99,7 +99,7 @@ function leagueRows(source, hours, widthIndex) {
       window,
       reference,
       key: `${pool.rwaSymbol}-${pool.fee}`,
-      swaps: window?.swaps > 0 || window?.observedBuckets > 0 ? window.swaps : null,
+      swaps: window?.swapAvailability === 'available' ? window.swaps : null,
       volume: usdg(window?.volumeQuote),
       fees: usdg(window?.feesQuote),
       share: reference?.sharePpm == null ? null : reference.sharePpm / 1e6,
@@ -139,12 +139,14 @@ function renderTable(rows) {
   $('#window-label').textContent = `trailing ${label}`;
   const budget = usdg(snapshot.budgetQuote);
   const roundTrip = usdg(snapshot.costs.roundTripQuote);
-  $('#assumptions').textContent = state.hours === 0.25
-    ? 'Trailing 15m checkpoint coverage is available. Swaps, fees, volume, and candidate economics need canonical timestamps for each event block.' :
+  const selectedWindow = rows[0]?.window;
+  $('#assumptions').textContent = `${swapCountAvailability(selectedWindow)} ` +
+    `Volume, LP fees, and candidate economics remain based on retained ${grain(snapshot)} buckets and are not exact-window values. ` +
+    (state.hours === 0.25 ? '' :
     `Reference position: ${money(budget, 0)} USDG entered at the window's opening price and never rebalanced. ` +
     `Fees are the LP side only: the protocol's cut of each pool's fee is already removed. ` +
     `Modeled fees credit the position's liquidity share of recorded flow for the ${grain(snapshot)} buckets price stayed inside the range. ` +
-    (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG mint + exit round trip.`);
+    (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG mint + exit round trip.`));
 
   $('#league thead').innerHTML = `<tr>${COLUMNS.map(([key, title, numeric]) => {
     const sorted = state.sort === key ? (state.descending ? 'descending' : 'ascending') : null;
@@ -274,19 +276,14 @@ function renderDetail(rows) {
   if (row === undefined) { $('#detail').innerHTML = ''; return; }
   const pool = row.pool, reference = row.reference;
   if (pool.tick == null || pool.priceX18 == null) {
-    const exact = pool.windows.find((window) => window.hours === 0.25);
-    const flowStatus = exact?.limitation === 'event_timestamp_coverage_incomplete'
-      ? 'Canonical event timestamp coverage does not span the full trailing 900 seconds.'
-      : 'Canonical swap counts are available; quote volume, fees, and candidate economics remain unavailable.';
+    const exact = pool.windows.find((window) => window.hours === state.hours);
     $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(pool.stateStatus)}</span></div>
       <p>Registered pool identity is available; checkpoint state is unavailable, so price, depth, and modeled candidate economics are unavailable.</p>
-      ${exact ? `<p>Trailing 15m: ${flowStatus} Checkpoint span: ${exact.coveredSeconds ?? 0}s of 900s; latest checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`}; largest checkpoint gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}.</p>` : ''}`;
+      ${exact ? `<p>Trailing ${WINDOWS.find(([hours]) => hours === state.hours)[1]}: ${esc(swapCountAvailability(exact))}</p>` : ''}`;
     return;
   }
-  const exactWindow = pool.windows.find((window) => window.hours === 0.25);
-  const exactFlowStatus = exactWindow?.limitation === 'event_timestamp_coverage_incomplete'
-    ? 'Canonical event timestamp coverage does not span the full trailing 900 seconds.'
-    : 'Swap counts use canonical event block timestamps; quote volume, fees, and candidate economics remain unavailable.';
+  const exactWindow = pool.windows.find((window) => window.hours === state.hours);
+  const exactFlowStatus = swapCountAvailability(exactWindow);
   const depthReference = pool.depthReferences?.[state.width] ?? null;
   const peakLiquidity = Math.max(...pool.depth.map((point) => Number(point.liquidity)), 0);
   $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2>
@@ -302,8 +299,8 @@ function renderDetail(rows) {
       </div>
       <div class="chart-card"><h3>Fees and price</h3>
         ${state.hours === 0.25
-          ? `<p>${exactFlowStatus} Checkpoint coverage is measured over the exact trailing 900 seconds.</p>`
-          : `<p>The flow chart shows retained ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} time buckets.</p>
+          ? `<p>${esc(exactFlowStatus)} Volume, fees, and candidate economics remain unavailable as exact-window values.</p>`
+          : `<p>${esc(exactFlowStatus)} The flow chart shows retained ${barGrain(snapshot, Math.min(state.hours * perHour(snapshot), pool.series.length))} time buckets; its volume and fees are not exact-window values.</p>
         ${flowChart(pool, state.hours * perHour(snapshot))}
         <div class="legend"><span><i class="sw-range"></i>Pool fees · USDG (left)</span><span><i class="sw-spot"></i>Pool price · USDG (right)</span></div>`}
       </div>
@@ -318,11 +315,26 @@ function render() {
   renderTable(rows);
   renderDetail(rows);
   const active = snapshot.pools.find((pool) => pool.poolAddress === state.pool);
-  const exact = active?.windows.find((window) => window.hours === 0.25);
-  const coverage = exact ? ` · 15m observed span ${exact.coveredSeconds ?? 0}/900s · checkpoint age ${exact.freshnessSeconds == null ? 'unknown' : `${exact.freshnessSeconds}s`} · max gap ${exact.maxGapSeconds == null ? 'unknown' : `${exact.maxGapSeconds}s`}` : '';
+  const selectedWindow = active?.windows.find((window) => window.hours === state.hours);
+  const coverage = selectedWindow?.swapAvailability === 'available'
+    ? ` · exact swaps as of ${clock(selectedWindow.swapAsOf)}`
+    : ' · exact swaps unavailable';
   $('#status').textContent = `Built ${clock(snapshot.generatedAt)} ET`;
-  $('#window-label').textContent = `${WINDOWS.find(([hours]) => hours === state.hours)[1]}${state.hours === 0.25 ? coverage : ''}`;
+  $('#window-label').textContent = `${WINDOWS.find(([hours]) => hours === state.hours)[1]}${coverage}`;
   $('#footnote').textContent = `${snapshot.pools.length} pools · ${snapshot.buckets.length / perHour(snapshot)}h retained in ${grain(snapshot)} buckets · stream ${snapshot.streamKey}`;
+}
+
+function swapCountAvailability(window) {
+  if (window?.swapAvailability === 'available') {
+    return `Exact swap count available as of ${clock(window.swapAsOf)}.`;
+  }
+  if (window?.swapAvailability === 'incomplete') {
+    return `Exact swap count unavailable: canonical timestamp coverage does not span the full trailing ${WINDOWS.find(([hours]) => hours === state.hours)?.[1] ?? 'selected'} window through ${window.swapAsOf ? clock(window.swapAsOf) : 'a fresh canonical end'}.`;
+  }
+  if (window?.swapAvailability === 'changed') {
+    return 'Exact swap count unavailable: canonical coverage changed during the read; refresh for a consistent result.';
+  }
+  return 'Exact swap count unavailable: no fresh, matching canonical coverage end is available.';
 }
 
 document.addEventListener('click', (event) => {
