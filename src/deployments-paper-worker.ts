@@ -24,8 +24,8 @@ const failureCode=(error:unknown)=>error instanceof DeploymentConflict?error.cod
  error instanceof Error?error.name:'unknown';
 
 // Keep the cursor outside a pass so a large closed history cannot pin every
-// pass to the same oldest campaigns. The database still returns only one
-// bounded page; the cursor is advanced even when an individual audit fails.
+// pass to the same oldest campaigns. Each query is bounded, including the
+// wrap query; the cursor is advanced even when an individual audit fails.
 let campaignCursor:string|null=null;
 export function advancePaperCampaignCursor(page:readonly PaperCampaignRow[],cursor:string|null){
  return page.length?page[page.length-1]!.id:cursor;
@@ -44,13 +44,26 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    'SELECT pg_try_advisory_lock($1::int,$2::int) AS acquired',lockKey)).rows[0]?.acquired;
   if(!acquired)return {status:'busy' as const,processed:0,invalidated:0,failed:0};
   try{
-   const campaigns=(await lock.query<PaperCampaignRow>(`
+   const after=(await lock.query<PaperCampaignRow>(`
     SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
     WHERE c.mode='paper' AND r.strategy_id='static_manual_v1'
       AND c.lifecycle IN ('active','paused','closing','closed','blocked')
-    ORDER BY CASE WHEN $1::uuid IS NULL OR c.id>$1::uuid THEN 0 ELSE 1 END,c.id
+      AND ($1::uuid IS NULL OR c.id>$1::uuid)
+    ORDER BY c.id
     LIMIT $2`,[campaignCursor,maxCampaigns])).rows;
+   // A keyset scan lets PostgreSQL stop after the page instead of sorting all
+   // eligible history. Wrap once when the tail contains fewer than the budget.
+   const wrapped=campaignCursor!==null&&after.length<maxCampaigns?
+    (await lock.query<PaperCampaignRow>(`
+     SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
+     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+     WHERE c.mode='paper' AND r.strategy_id='static_manual_v1'
+       AND c.lifecycle IN ('active','paused','closing','closed','blocked')
+       AND c.id<=$1::uuid
+     ORDER BY c.id
+     LIMIT $2`,[campaignCursor,maxCampaigns-after.length])).rows:[];
+   const campaigns=after.concat(wrapped);
    campaignCursor=advancePaperCampaignCursor(campaigns,campaignCursor);
    let invalidated=0,failed=0;
    for(const campaign of campaigns){

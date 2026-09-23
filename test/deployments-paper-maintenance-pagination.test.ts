@@ -16,11 +16,12 @@ test('worker rotates its actual bounded query through active and closed history'
  const lock={release(){},async query(sql:string,params:unknown[]=[]){
   if(sql.includes('pg_try_advisory_lock'))return {rows:[{acquired:true}]};
   if(sql.includes('pg_advisory_unlock'))return {rows:[]};
-  assert.match(sql,/ORDER BY CASE WHEN \$1::uuid IS NULL OR c\.id>\$1::uuid THEN 0 ELSE 1 END,c\.id/);
+  assert.match(sql,/ORDER BY c\.id/);
   assert.doesNotMatch(sql,/ORDER BY CASE WHEN c\.lifecycle/);
   const after=params[0] as string|null,limit=params[1] as number;
-  const page=rows.filter(row=>after===null||row.id>after)
-   .concat(rows.filter(row=>after!==null&&row.id<=after)).slice(0,limit);
+  const page=sql.includes('c.id<=$1::uuid')?
+   rows.filter(row=>after!==null&&row.id<=after).slice(0,limit):
+   rows.filter(row=>after===null||row.id>after).slice(0,limit);
   visited.push(...page.map(row=>row.id));
   cursor=page.at(-1)?.id??cursor;
   return {rows:page};
