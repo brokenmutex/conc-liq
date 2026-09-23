@@ -128,7 +128,13 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!uuid.test(previewMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
     const input=paperPreviewInput.parse(await jsonBody(request));
     if(!options.paperPreview){send(response,503,{error:'paper_preview_unavailable'});return;}
-    send(response,200,await options.paperPreview(previewMatch[1]!,input.kind));return;
+    const result=await options.paperPreview(previewMatch[1]!,input.kind);
+    // A read-only preview cannot authorize an operation. Keep the response
+    // contract fail-closed even if a preview producer accidentally marks its
+    // result actionable while acceptance and worker admission remain gated.
+    const body=result&&typeof result==='object'&&!Array.isArray(result)?
+     {...result,actionAvailable:false,operationAcceptanceAvailable:false}:result;
+    send(response,200,body);return;
    }
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){
