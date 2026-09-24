@@ -35,8 +35,8 @@
           </div><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
           <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div>
             <section id="operator-draft-binding" class="operator-draft-binding" aria-labelledby="operator-draft-binding-title" hidden>
-              <h3 id="operator-draft-binding-title">Paper draft inputs · review only</h3>
-              <p>These values form a proposed static/manual paper draft binding. Wallet ownership and funding are unchecked. Limits are not evaluated by this preflight. Saving a draft is unavailable; this review sends no draft request.</p>
+              <h3 id="operator-draft-binding-title">Static/manual paper draft</h3>
+              <p>Saving re-runs canonical source, registered profile, cost, reserve and policy-limit checks on the authenticated loopback command service. Wallet ownership and funding remain unchecked. Values and costs are never treated as paid or funded.</p>
               <label for="setup-wallet-address">Wallet identity address <input id="setup-wallet-address" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="0x…" maxlength="42"></label>
               <div class="setup-allocation-review"><h4>Proposed simulated allocation · exact raw units</h4>
                 <label id="setup-allocation-token0-label" for="setup-allocation-token0">Token 0 allocation · raw <input id="setup-allocation-token0" type="text" readonly></label>
@@ -57,7 +57,14 @@
               </div></fieldset>
               <p id="operator-draft-binding-status" class="inline-note" role="status">Enter the wallet, native allocation and every required static/manual limit to review the proposed binding.</p>
               <dl id="operator-draft-binding-facts"></dl>
-              <p class="form-note">No wallet balances, funding, policy admission or saved draft are inferred from these values.</p>
+              <button id="save-paper-draft" type="button" disabled>Save reviewed paper draft</button>
+              <p id="setup-draft-submit-status" class="inline-note" role="status">Draft admission is available only on the authenticated loopback operator dashboard.</p>
+              <section id="setup-open-review" class="setup-open-review" aria-label="Paper open preview" hidden>
+                <h4>Fresh open preview</h4>
+                <button id="refresh-open-preview" type="button">Request fresh open preview</button>
+                <p id="setup-open-status" role="status">No open preview requested.</p>
+              </section>
+              <p class="form-note">No wallet balances or funding are inferred. Draft saving creates no operation; opening requires a separate fresh preview and explicit guarded acceptance.</p>
             </section>
             <p>Setup preflight is read-only. It creates no draft or operation; its costs are provisional and it does not establish wallet funding or admission limits.</p></div>
         </section>

@@ -32,6 +32,7 @@ export function preflightFacts(result) {
   if (!result || typeof result !== 'object') return [];
   const facts = [];
   if (result.profile) facts.push(['Registered pool / fee tier', `${result.profile.pool ?? 'Unavailable'} · ${result.profile.fee ?? 'Unavailable'}`]);
+  if (result.profileHash) facts.push(['Registered market profile hash', String(result.profileHash)]);
   if (result.source?.block !== undefined) facts.push(['Confirmed source block', String(result.source.block)]);
   if (result.source?.hash) facts.push(['Confirmed source hash', String(result.source.hash)]);
   if (result.range) {
@@ -76,6 +77,7 @@ export function reviewStaticPaperDraftBinding({ walletAddress, preflight, native
   if (!preflight || preflight.kind !== 'paper_setup_preflight' || preflight.status !== 'available' ||
       preflight.mode !== 'paper' || preflight.strategyId !== 'static_manual_v1' ||
       !PROFILE_UUID.test(preflight.profileId ?? '') || !EVM_ADDRESS.test(preflight.profile?.pool ?? '') ||
+      !/^[0-9a-f]{64}$/.test(preflight.profileHash ?? '') ||
       !Number.isSafeInteger(preflight.profile?.fee) || !Number.isSafeInteger(preflight.profile?.tickSpacing) ||
       !RAW_INTEGER.test(preflight.input?.capitalQuoteRaw ?? '') ||
       !Number.isSafeInteger(preflight.input?.halfWidthTicks) ||
@@ -120,6 +122,7 @@ export function reviewStaticPaperDraftBinding({ walletAddress, preflight, native
   return { status: 'reviewable', missing: [], binding: {
     campaignRevision: null,
     profileId: preflight.profileId,
+    profileHash: preflight.profileHash,
     source: preflight.source,
     proposedDraft: {
       mode: 'paper', chainId: 4663, wallet: walletAddress.trim(), marketProfileId: preflight.profileId,
@@ -181,6 +184,13 @@ function bootDashboardTabs() {
   let researchPools = [];
   let currentSetupPreflight = null;
   let csrfToken = null;
+  let pendingDraftRequestId = null;
+  let pendingDraftBody = null;
+  let savedDraftId = null;
+  let openPreview = null;
+  let openIdempotencyKey = null;
+  let openAcceptanceAmbiguous = false;
+  let setupReviewSequence = 0;
   const setSetupStatus = (message, kind = 'unavailable') => {
     setupNote.textContent = message;
     setupNote.dataset.state = kind;
@@ -253,7 +263,13 @@ function bootDashboardTabs() {
   poolSelect.addEventListener('change', () => { renderWidths(); invalidateReview(); });
 
   function invalidateReview() {
+    setupReviewSequence++;
+    if (pendingDraftRequestId) {
+      setSetupStatus('A draft request may still be saving. Complete the same-request retry or reconciliation before changing the reviewed setup.');
+      return;
+    }
     currentSetupPreflight = null;
+    savedDraftId = null; openPreview = null;
     document.getElementById('setup-review').hidden = true;
     document.getElementById('operator-draft-binding').hidden = true;
     setSetupStatus('Selection changed. Review again to request a fresh source and range preflight.');
@@ -262,6 +278,7 @@ function bootDashboardTabs() {
   document.getElementById('setup-form').addEventListener('change', invalidateReview);
   async function runSetupReview(event) {
     event.preventDefault();
+    const reviewSequence=++setupReviewSequence;
     const error = document.getElementById('setup-error');
     const pool = registeredPools.find((candidate) => candidate.poolAddress === poolSelect.value);
     const capital = document.getElementById('setup-capital').value;
@@ -276,6 +293,7 @@ function bootDashboardTabs() {
     }
     error.hidden = true;
     currentSetupPreflight = null;
+    savedDraftId = null; openPreview = null;
     document.getElementById('operator-draft-binding').hidden = true;
     const facts = [
       ['Pool', poolSelect.selectedOptions[0].textContent],
@@ -306,8 +324,10 @@ function bootDashboardTabs() {
     setSetupStatus('Checking fresh source, independent references, registered profile and estimated costs…', 'loading');
     try {
       const result = await authRequest(SETUP_PREFLIGHT_PATH, { method: 'POST', body: request.payload, csrf: true });
+      if(reviewSequence!==setupReviewSequence)return;
       renderPreflight(result);
     } catch (cause) {
+      if(reviewSequence!==setupReviewSequence)return;
       const reason = cause.status === 401 ? 'Operator session expired. Sign in again; no draft or operation was created.' :
         cause.status === 404 ? 'Authenticated setup preflight route is not available on this command service.' :
         cause.data?.error === 'paper_setup_preflight_unavailable' ? 'Setup preflight service is unavailable.' :
@@ -384,10 +404,12 @@ function bootDashboardTabs() {
       'Binding values are structurally complete. Wallet ownership/funding and all policy admission remain unchecked; no draft was saved.':
       `Review incomplete: ${result.missing.join(', ')}.`;
     const facts=document.getElementById('operator-draft-binding-facts');
-    if(result.status!=='reviewable'){facts.replaceChildren();return;}
+    const saveButton=document.getElementById('save-paper-draft');
+    if(result.status!=='reviewable'){facts.replaceChildren();saveButton.disabled=true;return;}
     const binding=result.binding,proposal=binding.proposedDraft,rows=[
       ['Wallet identity · syntax only',proposal.wallet],['Funding status','Unchecked'],
       ['Registered market profile',binding.profileId],['Pool / fee tier',`${currentSetupPreflight.profile.pool} · ${currentSetupPreflight.profile.fee}`],
+      ['Registered profile hash',binding.profileHash],
       ['Preflight source block / hash',`${binding.source.block} · ${binding.source.hash}`],
       ['Campaign revision','None · no draft exists'],['Capital budget · raw USDG',currentSetupPreflight.input.capitalQuoteRaw],
       ['Centered half-width · ticks',String(proposal.config.halfWidthTicks)],
@@ -396,17 +418,141 @@ function bootDashboardTabs() {
       [`${currentSetupPreflight.profile.token1} allocation · raw`,proposal.allocation.token1Raw],
       ['Native gas allocation · wei',proposal.allocation.nativeWei],
       ...Object.entries(proposal.config.limits).map(([key,value])=>[limitLabels[key]??key,String(value)]),
-      ['Policy admission','Not evaluated'],['Draft persistence','Unavailable · no request sent'],
+      ['Policy admission','Not evaluated'],['Draft persistence',savedDraftId?'Saved · '+savedDraftId:'Not saved'],
     ];
     facts.replaceChildren(...rows.map(([name,value])=>{const row=document.createElement('div');
       const label=document.createElement('dt');label.textContent=name;
       const detail=document.createElement('dd');detail.textContent=value;row.append(label,detail);return row;}));
+    const candidate=currentDraftRequest?.();
+    saveButton.disabled=!window.concliqOperatorAuthenticated?.()||Boolean(savedDraftId)||
+      Boolean(pendingDraftRequestId&&candidate&&pendingDraftBody!==JSON.stringify(candidate));
   }
   for(const id of ['setup-wallet-address','setup-allocation-native',...Object.values(limitInputIds)]){
     document.getElementById(id).addEventListener('input',updateDraftBinding);
     document.getElementById(id).addEventListener('change',updateDraftBinding);
   }
   document.getElementById('setup-form').addEventListener('submit', runSetupReview);
+
+  const draftStatus=document.getElementById('setup-draft-submit-status');
+  const openStatus=document.getElementById('setup-open-status');
+  const setDraftStatus=(message,state='unavailable')=>{draftStatus.textContent=message;draftStatus.dataset.state=state;};
+  function freezeDraftInputs(frozen){
+    for(const element of [poolSelect,document.getElementById('setup-capital'),widthSelect,
+      document.getElementById('setup-strategy'),document.getElementById('setup-mode'),
+      document.getElementById('setup-wallet-address'),document.getElementById('setup-allocation-native'),
+      ...Object.values(limitInputIds).map(id=>document.getElementById(id))])element.disabled=frozen;
+    reviewButton.disabled=frozen;
+  }
+  const currentDraftRequest=()=>{
+    if(!currentSetupPreflight)return null;
+    const wallet=document.getElementById('setup-wallet-address').value.trim();
+    const nativeWei=document.getElementById('setup-allocation-native').value;
+    const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+    const reviewed={profileId:currentSetupPreflight.profileId,profileHash:currentSetupPreflight.profileHash,
+      input:currentSetupPreflight.input,source:currentSetupPreflight.source,profile:currentSetupPreflight.profile,
+      range:currentSetupPreflight.range,requirements:currentSetupPreflight.requirements,
+      references:currentSetupPreflight.references,costs:currentSetupPreflight.costs};
+    return {profileId:currentSetupPreflight.profileId,capitalQuoteRaw:currentSetupPreflight.input.capitalQuoteRaw,
+      halfWidthTicks:currentSetupPreflight.input.halfWidthTicks,wallet,
+      allocation:{token0Raw:document.getElementById('setup-allocation-token0').value,
+        token1Raw:document.getElementById('setup-allocation-token1').value,nativeWei},limits,reviewed};
+  };
+  async function requestFreshOpenPreview(campaignId){
+    const refreshButton=document.getElementById('refresh-open-preview');
+    refreshButton.disabled=true;
+    openStatus.textContent='Requesting a fresh saved open preview…';
+    openStatus.dataset.state='unavailable';
+    try{
+      const preview=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
+        {method:'POST',body:{kind:'open'},csrf:true});
+      openPreview=preview;openIdempotencyKey=null;openAcceptanceAmbiguous=false;
+      const usable=preview?.kind==='open'&&preview.status==='indicative'&&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(preview.id??'')&&
+        /^[0-9a-f]{64}$/.test(preview.contentDigest??'')&&Number.isSafeInteger(preview.expectedRevision)&&
+        Number.isFinite(Date.parse(preview.expiresAt))&&Date.parse(preview.expiresAt)>Date.now();
+      const facts=preview?.costs?.open;
+      openStatus.replaceChildren();
+      const text=document.createElement('p');
+      text.textContent=usable?`Saved open preview · campaign ${campaignId} · revision ${preview.expectedRevision}. Cost evidence is provisional, not paid; funding remains unchecked.`:
+        `Open preview unavailable (${preview?.error??preview?.status??'incomplete binding'}). No operation was submitted.`;
+      openStatus.append(text);
+      if(facts){const cost=document.createElement('p');cost.textContent=`Open gas expected / bound: ${facts.expectedGasUnits??'Unavailable'} / ${facts.boundGasUnits??'Unavailable'} units; reference USD X18 ${facts.expectedValue??'Unavailable'} / ${facts.boundValue??'Unavailable'} · provisional, not paid.`;openStatus.append(cost);}
+      const accept=document.createElement('button');accept.type='button';accept.textContent='Accept open operation';
+      const actionAvailable=preview.actionAvailable===true&&preview.operationAcceptanceAvailable===true;
+      accept.disabled=!usable||!actionAvailable||!window.concliqOperatorAuthenticated?.();
+      if(usable&&!actionAvailable){const note=document.createElement('p');note.textContent='Open acceptance unavailable: the command service has not proven current worker readiness.';openStatus.append(note);}
+      openStatus.append(accept);
+      refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+      accept.addEventListener('click',async()=>{
+        if(!openIdempotencyKey)openIdempotencyKey=globalThis.crypto?.randomUUID?.()??null;
+        if(!openIdempotencyKey||!window.concliqOperatorAuthenticated?.()||preview!==openPreview)return;
+        accept.disabled=true;
+        const payload={previewId:preview.id,contentDigest:preview.contentDigest,
+          expectedRevision:preview.expectedRevision,idempotencyKey:openIdempotencyKey};
+        try{
+          const accepted=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/open-operations`,
+            {method:'POST',body:payload,csrf:true});
+          if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(accepted?.id??'')||
+             !['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected'].includes(accepted.status))
+            throw new Error('operation_acceptance_response_invalid');
+          openIdempotencyKey=null;
+          openAcceptanceAmbiguous=false;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+          text.textContent=`Open operation ${accepted.id} accepted · ${accepted.status}. Check Positions for saved stages; paid costs remain unavailable.`;
+          try{window.dispatchEvent(new Event('positions-refresh-requested'));}catch{}
+        }catch(error){
+          const reason=error?.data?.error??error?.message??'command_failed';
+          if(error?.data?.error==='operation_worker_not_ready'){
+            openIdempotencyKey=null;openAcceptanceAmbiguous=false;accept.disabled=true;
+            refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+            text.textContent='Open acceptance unavailable because worker readiness expired. The server did not accept an operation; request a fresh preview when readiness returns.';
+          }else if(error?.status>=400&&error.status<500){openIdempotencyKey=null;accept.disabled=true;
+            openAcceptanceAmbiguous=false;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+            text.textContent=error?.data?.error==='operation_worker_not_ready'?
+              'Open acceptance unavailable because worker readiness expired. No operation was accepted; request a fresh preview when readiness returns.':
+              `Open preview rejected (${reason}). Request a fresh preview before retrying.`;
+          }else{openAcceptanceAmbiguous=true;refreshButton.disabled=true;accept.disabled=false;accept.textContent='Retry same open acceptance / reconcile';
+            text.textContent=`Open acceptance outcome unknown (${reason}). Retry with the same in-page key; do not request a new preview until reconciled.`;}
+        }
+      });
+    }catch(error){refreshButton.disabled=!window.concliqOperatorAuthenticated?.();openStatus.textContent=`Fresh open preview unavailable (${error?.data?.error??error?.message??'command_failed'}). No operation was submitted.`;}
+  }
+  document.getElementById('save-paper-draft').addEventListener('click',async()=>{
+    const button=document.getElementById('save-paper-draft');
+    if(!onOperatorOrigin||!window.concliqOperatorAuthenticated?.()||savedDraftId)return;
+    const candidate=currentDraftRequest();if(!candidate)return;
+    const body=JSON.stringify(candidate);
+    if(pendingDraftRequestId&&pendingDraftBody!==body){setDraftStatus('A prior draft submission has an unknown outcome. Restore the exact reviewed inputs to retry the same request ID.');return;}
+    if(!pendingDraftRequestId){pendingDraftRequestId=globalThis.crypto?.randomUUID?.()??null;pendingDraftBody=body;}
+    if(!pendingDraftRequestId){setDraftStatus('Secure browser UUID generation is unavailable; draft submission is disabled.');return;}
+    button.disabled=true;freezeDraftInputs(true);setDraftStatus('Rechecking canonical source, cost evidence, profile, reserve and limits before saving…');
+    const payload={...candidate,requestId:pendingDraftRequestId};
+    try{
+      const result=await authRequest('/api/deployments/setup-drafts',{method:'POST',body:payload,csrf:true});
+      if(result?.status!=='draft_created'||!/^\d+$/.test(String(result.revision))||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.draftId??''))
+        throw new Error('draft_creation_response_invalid');
+      savedDraftId=result.draftId;pendingDraftRequestId=null;pendingDraftBody=null;
+      freezeDraftInputs(false);
+      setDraftStatus(`${result.replayed?'Reconciled existing':'Saved'} static/manual paper draft ${result.draftId} · revision ${result.revision}. Wallet funding is unchecked; no operation was created.`,'available');
+      const link=document.createElement('a');link.href='#positions-tab';link.textContent='Open Positions';link.addEventListener('click',()=>document.getElementById('positions-tab').click());draftStatus.append(' ',link);
+      document.getElementById('setup-open-review').hidden=false;
+      await requestFreshOpenPreview(result.draftId);
+      updateDraftBinding();
+    }catch(error){
+      const reason=error?.data?.error??error?.message??'command_failed';
+      if(error?.status>=400&&error.status<500){pendingDraftRequestId=null;pendingDraftBody=null;freezeDraftInputs(false);button.disabled=false;
+        setDraftStatus(error.status===409?`Draft admission conflicted or became stale (${reason}). Review fresh source and input values before a new request.`:
+          `Draft admission rejected (${reason}). No draft was reported as created.`);}
+      else{button.disabled=false;setDraftStatus(`Draft creation outcome unknown (${reason}). Retry the exact same reviewed inputs with the retained request ID to reconcile; do not create a new request yet.`);}
+    }
+  });
+  document.getElementById('refresh-open-preview').addEventListener('click',()=>{
+    if(savedDraftId&&!openAcceptanceAmbiguous&&window.concliqOperatorAuthenticated?.())void requestFreshOpenPreview(savedDraftId);
+  });
+  for(const id of ['setup-wallet-address','setup-allocation-native',...Object.values(limitInputIds)]){
+    document.getElementById(id).addEventListener('input',()=>{if(pendingDraftRequestId&&pendingDraftBody!==JSON.stringify(currentDraftRequest()))setDraftStatus('Inputs changed while a draft request may be pending. Restore the exact prior values to retry and reconcile.');});
+  }
+  window.addEventListener('operator-auth-changed',updateDraftBinding);
 
   function setAuthState(signedIn) {
     document.getElementById('operator-login-fields').hidden = signedIn;

@@ -11,7 +11,7 @@ const profileId='67b2b303-e821-4450-bb7b-27171b12079f';
 const pool='0x1111111111111111111111111111111111111111';
 const token0='0x2222222222222222222222222222222222222222';
 const token1='0x3333333333333333333333333333333333333333';
-const counts={setup:[],operations:0,drafts:0,session:0};
+const counts={setup:[],operations:0,drafts:0,draftRequestIds:[],draftReconciliationResponses:0,openPreviews:0,openOperations:0,openOperationKeys:[],openReconciliationResponses:0,session:0};
 const profile={id:profileId,chainId:4663,pool,token0,token1,decimals0:18,decimals1:6,
  quoteToken:1,fee:3000,tickSpacing:60,draftAvailable:true,deploymentAvailable:false};
 const research={generatedAt:'2026-09-24T10:00:00.000Z',streamKey:'mock-stream',bucketMinutes:60,
@@ -21,8 +21,8 @@ const research={generatedAt:'2026-09-24T10:00:00.000Z',streamKey:'mock-stream',b
  stateStatus:'unavailable',series:[],windows:[{hours:24,swaps:null,swapAvailability:'unavailable',
  swapAsOf:null,volumeQuote:null,feesQuote:null,validShare:null,references:[]}],depth:[],depthReferences:[]}]};
 const preview={schemaVersion:1,kind:'paper_setup_preflight',status:'available',mode:'paper',
- strategyId:'static_manual_v1',profileId,input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
- source:{block:100,hash:'0x'+'a'.repeat(64),timestamp:Math.floor(Date.now()/1000)},
+ strategyId:'static_manual_v1',profileId,profileHash:'c'.repeat(64),input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
+ source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:Math.floor(Date.now()/1000)},
  profile:{pool,fee:3000,tickSpacing:60,token0,token1,quoteToken:1},
  range:{centerTick:120,centerAnchorTick:120,halfWidthTicks:240,tickLower:-120,tickUpper:360,
  fullWidthTicks:480,lowerPriceQuotePerBaseX18:'988072305665616000',upperPriceQuotePerBaseX18:'1036610933216553000'},
@@ -30,9 +30,12 @@ const preview={schemaVersion:1,kind:'paper_setup_preflight',status:'available',m
  referenceValueQuoteRaw:'249000000',budgetResidualQuoteRaw:'1000000'},
  references:{price0:'100000000000000000000',price1:'1000000000000000000',
  nativePrice:'2000000000000000000',proofHash:'b'.repeat(64)},
- costs:{status:'provisional',scope:'open_and_close_retain_gas_only',
- open:{expectedGasUnits:'100',boundGasUnits:'120',expectedValue:'3000000000000000000',boundValue:'4000000000000000000'},
- closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'},
+ costs:{status:'provisional',scope:'open_and_close_retain_gas_only',pathVersion:'mock-path-v1',sizeBand:'mock-small',
+ gasPriceWei:'30000000000',boundGasPriceWei:'40000000000',gasPriceObservedAt:new Date().toISOString(),
+ nativeReferencePrice:'2000000000000000000',stages:Array.from({length:6},(_,i)=>({stage:'stage-'+i,
+ profileId,version:1,evidenceClass:'fork_estimated',expectedGasUnits:'10',boundGasUnits:'12',source:{mock:true}})),
+ open:{expectedGasUnits:'100',boundGasUnits:'120',expectedWei:'3000000000000',boundWei:'4800000000000',expectedValue:'3000000000000000000',boundValue:'4000000000000000000'},
+ closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedWei:'2700000000000',boundWei:'4400000000000',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'},
  missing:['fee_capture','close_convert_swap']},
  admissionLimits:{status:'not_evaluated',reason:'static_manual_limits_not_submitted'},
  missing:[],actionAvailable:false,draftCreated:false,operationCreated:false,
@@ -80,6 +83,35 @@ const server=createServer(async(req,res)=>{
    costs:{status:'unavailable'},admissionLimits:{status:'not_evaluated'}});return;}
   json(200,preview);return;
  }
+ if(req.method==='POST'&&path==='/api/deployments/setup-drafts'){
+  if(!session){json(401,{error:'authentication_required'});return;}
+  if(req.headers.origin!=='http://'+req.headers.host||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
+  let body='';for await(const chunk of req)body+=chunk;
+  const draft=JSON.parse(body);counts.drafts++;counts.draftRequestIds.push(draft.requestId);
+  assert.equal(draft.reviewed.profileHash,preview.profileHash);
+  assert.equal(draft.reviewed.source.block,'100');
+  assert.equal(draft.reviewed.costs.stages.length,6);
+  if(counts.drafts===1){counts.draftReconciliationResponses++;json(503,{error:'draft_creation_reconciliation_required',retrySafe:true});return;}
+  json(200,{status:'draft_created',draftId:profileId,revision:1,configHash:'d'.repeat(64),profileId,
+   replayed:true,source:preview.source,range:{tickLower:-120,tickUpper:360},allocationHash:'e'.repeat(64),limitations:['paper_draft_only']});return;
+ }
+ if(req.method==='POST'&&path===`/api/deployments/${profileId}/previews`){
+  if(!session||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
+  let body='';for await(const chunk of req)body+=chunk;
+  assert.equal(JSON.parse(body).kind,'open');counts.openPreviews++;
+  const available=counts.openPreviews>1;
+  json(200,{kind:'open',status:'indicative',actionAvailable:available,operationAcceptanceAvailable:available,
+   id:'a9954e65-38b0-4084-8c0b-75b86136d729',contentDigest:'f'.repeat(64),expectedRevision:1,
+   expiresAt:new Date(Date.now()+30000).toISOString(),costs:{open:{expectedGasUnits:'100',boundGasUnits:'120',expectedValue:'3',boundValue:'4'}}});return;
+ }
+ if(req.method==='POST'&&path===`/api/deployments/${profileId}/open-operations`){
+  if(!session||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
+  let body='';for await(const chunk of req)body+=chunk;
+  const payload=JSON.parse(body);assert.equal(payload.previewId,'a9954e65-38b0-4084-8c0b-75b86136d729');
+  assert.match(payload.idempotencyKey,/^[0-9a-f-]{36}$/i);counts.openOperations++;counts.openOperationKeys.push(payload.idempotencyKey);
+  if(counts.openOperations===1){counts.openReconciliationResponses++;json(503,{error:'acceptance_outcome_unknown'});return;}
+  json(202,{id:'90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',status:'queued',replayed:true});return;
+ }
  if(path==='/api/deployments/drafts'){counts.drafts++;json(503,{error:'draft_not_expected_in_smoke'});return;}
  if(/\/operations(?:\/|$)/.test(path)){counts.operations++;json(503,{error:'operation_acceptance_unavailable'});return;}
  json(404,{error:'not_found'});
@@ -113,12 +145,14 @@ try{
   if(msg.id){const p=pending.get(msg.id);if(!p)return;pending.delete(msg.id);
    msg.error?p.reject(Error(JSON.stringify(msg.error))):p.resolve(msg.result);}
   else if(msg.method==='Runtime.exceptionThrown')errors.push(msg.params.exceptionDetails.text);
-  else if(msg.method==='Log.entryAdded'&&msg.params.entry.level==='error'&&!msg.params.entry.url?.endsWith('favicon.ico'))errors.push(msg.params.entry.text);});
+  else if(msg.method==='Log.entryAdded'&&msg.params.entry.level==='error'&&!msg.params.entry.url?.endsWith('favicon.ico')&&
+   !msg.params.entry.url?.endsWith('/api/deployments/setup-drafts')&&
+   !msg.params.entry.url?.endsWith('/open-operations'))errors.push(`${msg.params.entry.url??''}: ${msg.params.entry.text}`);});
  const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,{resolve,reject});ws.send(JSON.stringify({id,method,params}));});
  const evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
   if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
  const waitFor=async expression=>{for(let i=0;i<120;i++){if(await evaluate(expression))return;await new Promise(r=>setTimeout(r,100));}
-  throw Error('Timed out waiting for '+expression);};
+  throw Error('Timed out waiting for '+expression+'; browser state: '+JSON.stringify(await evaluate(`({status:document.querySelector("#setup-status")?.textContent,title:document.querySelector("#setup-preflight-title")?.textContent,auth:document.querySelector("#operator-auth-status")?.textContent,buttonDisabled:document.querySelector("#setup-review-button")?.disabled,setupRequests:window.__setupRequests})`)));};
  const check=async(name,expression)=>{assert(await evaluate(expression),name);checks.push(name);};
  const click=selector=>evaluate('document.querySelector('+JSON.stringify(selector)+').click()');
  const fill=(selector,value)=>evaluate('(()=>{const e=document.querySelector('+JSON.stringify(selector)+');e.value='+
@@ -167,8 +201,35 @@ try{
   ['#limit-max-campaign-cost','3000000000000000000'],['#limit-exit-reserve','1000000000000000'],
   ['#limit-slippage-bps','50']])await fill(selector,value);
  await check('Draft binding review stays local, marks funding unchecked and explains limits',
-  'document.querySelector("#operator-draft-binding-status").textContent.includes("structurally complete")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Funding statusUnchecked")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Campaign revisionNone · no draft exists")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Native gas allocation · wei1000000000000000")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Policy admissionNot evaluated")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Draft persistenceUnavailable · no request sent")');
+  'document.querySelector("#operator-draft-binding-status").textContent.includes("structurally complete")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Funding statusUnchecked")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Campaign revisionNone · no draft exists")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Native gas allocation · wei1000000000000000")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Policy admissionNot evaluated")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Draft persistenceNot saved")&&document.querySelector("#save-paper-draft").disabled===false');
  assert.equal(counts.drafts,0,'Read-only draft binding attempted persistence');
+ await click('#save-paper-draft');
+ await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("outcome unknown")');
+ await check('Ambiguous draft POST retains same-request retry and freezes reviewed inputs',
+  'document.querySelector("#save-paper-draft").disabled===false&&document.querySelector("#setup-wallet-address").disabled&&document.querySelector("#setup-draft-submit-status").textContent.includes("retained request ID")');
+ assert.equal(counts.drafts,1);
+ await click('#save-paper-draft');
+ await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Reconciled existing")&&document.querySelector("#setup-open-review").hidden===false');
+ assert.equal(counts.drafts,2);
+ assert.equal(counts.draftRequestIds[0],counts.draftRequestIds[1],'Ambiguous retry must reuse its request UUID');
+ await check('Draft replay shows saved campaign revision and authenticated Positions link',
+  'document.querySelector("#setup-draft-submit-status").textContent.includes("revision 1")&&document.querySelector("#setup-draft-submit-status a")?.textContent==="Open Positions"');
+ await check('First fresh open preview remains non-actionable when worker readiness flags are false',
+  'document.querySelector("#setup-open-status").textContent.includes("worker readiness")&&document.querySelector("#setup-open-status button")?.disabled===true');
+ assert.equal(counts.openPreviews,1);assert.equal(counts.openOperations,0);
+ await click('#refresh-open-preview');
+ await waitFor('document.querySelector("#setup-open-status button")?.disabled===false');
+ await check('Fresh open preview enables acceptance only when both action flags are true',
+  'document.querySelector("#setup-open-status").textContent.includes("provisional, not paid")&&document.querySelector("#setup-open-status button")?.disabled===false');
+ await click('#setup-open-status button');
+ await waitFor('document.querySelector("#setup-open-status").textContent.includes("outcome unknown")');
+ await check('Ambiguous open POST retains its key and blocks a fresh preview',
+  'document.querySelector("#setup-open-status button")?.disabled===false&&document.querySelector("#refresh-open-preview").disabled&&document.querySelector("#setup-open-status").textContent.includes("same in-page key")');
+ await click('#setup-open-status button');
+ await waitFor('document.querySelector("#setup-open-status").textContent.includes("Open operation")&&document.querySelector("#setup-open-status").textContent.includes("accepted")');
+ assert.equal(counts.openOperations,2);
+ assert.equal(counts.openOperationKeys[0],counts.openOperationKeys[1],'Ambiguous open retry must reuse its idempotency key');
+ checks.push('Saved draft followed by fresh action-gated open preview and acceptance');
  await check('Password input clears after login','document.querySelector("#operator-password").value===""');
  const actionTest=await evaluate(`(async()=>{const {mountStaticRetainAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);const campaign='${profileId}',operation='90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',previewId='7b2309a4-a301-4869-a385-995ef8d12344';let accepts=0;const preview={kind:'close_retain',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:previewId,contentDigest:'${'a'.repeat(64)}',expectedRevision:2,expiresAt:new Date(Date.now()+30000).toISOString(),retainedLowerBound:{token0Raw:'123',token1Raw:'456'},costs:{closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'}}};mountStaticRetainAction(root,{campaignId:campaign,authenticated:()=>true,request:async(path)=>{if(path.endsWith('/previews'))return preview;if(path.endsWith('/operations')){accepts++;return{id:operation,status:'queued'};}if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_retain_recorded'};throw Error('unexpected_path');},onAccepted:async()=>{},now:Date.now});root.querySelector('.retain-preview-button').click();for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));const enabled=root.querySelector('.retain-confirm-button')?.disabled===false;const facts=root.textContent.includes('123')&&root.textContent.includes('456')&&root.textContent.includes('2.000000 / 3.000000')&&root.textContent.includes('provisional, not paid');root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes('succeeded · paper_close_retain_recorded');i++)await new Promise(r=>setTimeout(r,20));const accepted=root.textContent.includes('succeeded · paper_close_retain_recorded')&&accepts===1;root.remove();return{enabled,facts,accepted};})()`);
  assert.deepEqual(actionTest,{enabled:true,facts:true,accepted:true},'Reviewed retain-close preview should be confirmable only with complete action binding and then show journal stage');
@@ -202,13 +263,17 @@ try{
  assert.equal(counts.setup.length,count,'Live mode sent a preflight');
  await size(390,844,true);await check('Operator mobile layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  const oshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});shots.push(['operator-mobile.png',Buffer.from(oshot.data,'base64')]);
- assert.equal(counts.session,1);assert.equal(counts.setup.length,2);assert.equal(counts.operations,0);assert.equal(counts.drafts,0);
+ assert.equal(counts.session,1);assert.equal(counts.setup.length,2);assert.equal(counts.operations,0);assert.equal(counts.drafts,2);
+ assert.equal(counts.openPreviews,2);assert.equal(counts.openOperations,2);assert.equal(counts.openReconciliationResponses,1);
+ assert.equal(counts.draftReconciliationResponses,1);
  assert.deepEqual(counts.setup,[{profileId,capitalQuoteRaw:'250000000',halfWidthTicks:240},
   {profileId,capitalQuoteRaw:'250000000',halfWidthTicks:480}],'Setup payload must bind the registered profile, USDG budget and selected width');
  assert.deepEqual(errors,[],'Browser errors');
  for(const [name,data] of shots)await writeFile(join(tmp,name),data);
  console.log(JSON.stringify({checks,setupRequests:counts.setup.length,draftSubmissions:counts.drafts,
-  operationSubmissions:counts.operations,browserErrors:errors,screenshots:'captured and removed with temporary profile'},null,2));
+  draftRequestIds:counts.draftRequestIds,openPreviews:counts.openPreviews,openOperationSubmissions:counts.openOperations,
+  openOperationKeys:counts.openOperationKeys,
+  otherOperationSubmissions:counts.operations,browserErrors:errors,screenshots:'captured and removed with temporary profile'},null,2));
 }finally{
  try{ws?.close();}catch{}
  if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise(resolve=>{const timer=setTimeout(resolve,2500);

@@ -208,4 +208,5 @@ $('#detail-dialog').addEventListener('click',e=>{if(e.target===$('#detail-dialog
 $('#diagnostics-button').addEventListener('click',()=>openDialog('Diagnostics',`<p>API last received ${date(connectedAt)}. Source timestamps below describe valuation freshness independently of this connection.</p>${positions.filter(p=>!p.history).map(p=>`<h3>${esc(p.label)} · ${esc(p.asset)}</h3><p>Valuation ${date(p.sourceAt)} · heartbeat ${date(p.heartbeatAt)}<br>${esc(p.reasons.join(' · ')||'No recorded management reasons')}</p>`).join('')}<p><a href="/legacy">Detailed system diagnostics ↗</a></p>`));
 window.addEventListener('resize',()=>{for(const mode of ['live','paper'])if($(`#${mode}-chart`))drawChart(mode);});
 window.addEventListener('operator-auth-changed',renderAll);
+window.addEventListener('positions-refresh-requested',()=>{void refreshPositionsOnly().catch(()=>{});});
 refresh();

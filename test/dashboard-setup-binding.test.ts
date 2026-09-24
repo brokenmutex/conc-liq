@@ -10,7 +10,7 @@ const limits={maxDeploymentValue:'100000000000000000000',minDeploymentValue:'100
  maxActionCost:'1000000000000000000',maxRollingCost:'2000000000000000000',
  maxCampaignCost:'3000000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:'50'};
 const preflight={kind:'paper_setup_preflight',status:'available',mode:'paper',strategyId:'static_manual_v1',
- profileId,input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
+ profileId,profileHash:'c'.repeat(64),input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
  profile:{pool:'0x2222222222222222222222222222222222222222',fee:3000,tickSpacing:60},
  source:{block:'12345',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)},
  range:{tickLower:-120,tickUpper:360},
@@ -21,6 +21,7 @@ test('setup binding preserves exact preview allocation, profile and source witho
  assert.equal(result.status,'reviewable');
  if(result.status!=='reviewable')return;
  assert.equal(result.binding.profileId,profileId);
+ assert.equal(result.binding.profileHash,preflight.profileHash);
  assert.equal(result.binding.source.hash,preflight.source.hash);
  assert.equal(result.binding.campaignRevision,null);
  assert.deepEqual(result.binding.proposedDraft.allocation,{token0Raw:'123456789',token1Raw:'250000000',

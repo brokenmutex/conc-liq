@@ -190,8 +190,8 @@
       "path": "scripts/check-dashboard-setup-browser.mjs",
       "category": "validation",
       "lifecycle": "frozen_reproduction",
-      "sha256": "df127c4c8393daa72fe166fc6db08987deec6bc7d0cd1560cc75d0a0d34c9f06",
-      "bytes": 32199
+      "sha256": "6f86f1f43e4be1dd7878c7610b0f0a424084f5b1ba17ac000cc561b61a761c12",
+      "bytes": 38906
     },
     {
       "path": "scripts/compare-lp-allocation.mjs",
