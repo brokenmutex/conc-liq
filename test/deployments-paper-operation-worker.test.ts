@@ -70,7 +70,7 @@ function workerFixture({status='preflighting',kind='open',claimValid=true,
    return {hash:source.hash,timestamp:BigInt(source.timestamp)};
   }};
  const indexer={query:async()=>({rows:[context]})};
- return {store,chain,indexer,calls};
+ return {store,chain,indexer,calls,context};
 }
 
 const retainModel={schemaVersion:1,kind:'paper_close_retain_model',campaignId,revision:1,
@@ -184,6 +184,16 @@ test('paper operation worker completes retain-close from its saved model',async(
   chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1');
  assert.deepEqual(result,{status:'completed',operationId,kind:'close_retain'});
  assert.deepEqual(calls.map(call=>call[0]),['retain']);
+});
+
+test('V3 close-convert envelopes never fall through to the legacy V2 worker',async()=>{
+ const {store,chain,indexer,calls,context}=workerFixture({kind:'close_convert',status:'reconciling'});
+ (context.proposal as Record<string,unknown>).paperCloseConvertTerminalV3={malformed:true};
+ const result=await processOnePaperOperation(store as unknown as DeploymentStore,
+  chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1');
+ assert.deepEqual(result,{status:'blocked',operationId,
+  reason:'paper_operation_saved_model_unavailable'});
+ assert.equal(calls.some(call=>call[0]==='prepare-convert'||call[0]==='complete-convert'),false);
 });
 
 test('paper operation worker renews the lease during a long canonical check',async()=>{

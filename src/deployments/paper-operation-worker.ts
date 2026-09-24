@@ -1,10 +1,20 @@
 import {AssertionError} from 'node:assert';
 import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../client.js';
+import {contentHash} from './contracts.js';
 import {paperOpenModelSchema} from './paper-open-model.js';
 import {paperCloseRetainModelSchema} from './paper-close-model.js';
 import {paperCloseConvertModelSchema,
  verifyCanonicalPaperCloseConvertQuote} from './paper-close-convert-model.js';
+import {parsePaperStaticCloseConvertTerminalV3} from './paper-close-convert-preflight.js';
+import {readStaticPaperCloseConvertFeeContext} from './paper-close-convert-fee-reader.js';
+import {replayEphemeralStaticPaperCloseConvertFees} from './paper-close-convert-ephemeral-fees.js';
+import {samplePaperCloseConvertPrestate} from './paper-close-convert-prestate-sampler.js';
+import {selectPaperCloseConvertPrestateCostsV1} from './paper-close-convert-prestate-costs.js';
+import {buildProspectivePaperCloseConvertPrestateGasProfiles} from
+ './paper-close-convert-prestate-gas-profiles.js';
+import {verifyPaperStaticCloseConvertTerminalForWorker} from
+ './paper-close-convert-terminal-replay-verifier.js';
 import {verifyCanonicalPaperAnchors,type PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {maintainCanonicalPaperScenario} from './paper-maintenance.js';
 import {DeploymentConflict,type DeploymentStore} from './store.js';
@@ -27,6 +37,11 @@ export interface PaperOperationWorkerOptions {rpcUrl?:string;beforeForkRead?:()=
 const sourceFor=(context:OperationContext):PaperCanonicalAnchor=>{
  if(!context.proposal||typeof context.proposal!=='object'||Array.isArray(context.proposal))
   throw new DeploymentConflict('paper_operation_saved_model_unavailable');
+ if(context.kind==='close_convert'&&context.proposal.paperCloseConvertTerminalV3!==undefined){
+  try{return parsePaperStaticCloseConvertTerminalV3(
+   context.proposal.paperCloseConvertTerminalV3).source;}
+  catch{throw new DeploymentConflict('paper_operation_saved_model_unavailable');}
+ }
  const parsed=context.kind==='open'?
   paperOpenModelSchema.safeParse(context.proposal.paperOpenModel):
   context.kind==='close_retain'?
@@ -51,6 +66,40 @@ async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:str
   row.status!==claim.status)
   throw new DeploymentConflict('paper_operation_claim_changed');
  return row;
+}
+
+async function replayStaticCloseConvertV3Gas(input:{store:DeploymentStore;client:RobinhoodClient;
+ indexer:Pool;model:ReturnType<typeof parsePaperStaticCloseConvertTerminalV3>;
+ frame:import('./paper-preview.js').PaperOpenFrame;rpcUrl:string;
+ beforeRead:()=>Promise<void>;verifyAnchors:(chainId:number,
+  sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+ const {store,client,indexer,model,frame,rpcUrl,beforeRead,verifyAnchors}=input,
+  context=await readStaticPaperCloseConvertFeeContext({store,campaignId:model.campaignId,
+   revision:model.revision,verifyAnchors}),
+  feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
+  sampled=await samplePaperCloseConvertPrestate({rpcUrl,openModel:context.state.openModel,
+   openMarkId:context.state.openMarkId,profile:context.state.profile,frame,
+   previous:{markId:context.state.previous.markId,source:context.state.previous.source},
+   route:model.conversionRoute,feeCarry:feeReplay.feeCarry,feeReplay,
+   verifyPersistedContext:()=>context.verifyPersistedContext({state:context.state,
+    feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
+   verifyAnchors,beforeRead,deterministicClock:true,
+   sampledAt:model.prestateReport.gasStages[0]!.source.estimatedAt});
+ if(sampled.reportHash!==model.prestateReport.reportHash)
+  throw new DeploymentConflict('paper_close_convert_terminal_prestate_replay_changed');
+ const sizeBand=buildProspectivePaperCloseConvertPrestateGasProfiles(sampled).sizeBand,
+  rows=await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
+   poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:sampled.reportHash}),
+  costs=selectPaperCloseConvertPrestateCostsV1({report:sampled,rows,
+   gasPriceWei:BigInt(model.costs.gasPriceWei),gasPriceObservedAt:model.costs.gasPriceObservedAt});
+ if(contentHash(costs)!==contentHash(model.costs))
+  throw new DeploymentConflict('paper_close_convert_terminal_prestate_cost_replay_changed');
+ return {reportHash:sampled.reportHash,scopeHash:costs.scopeHash,sequenceHash:costs.sequenceHash,
+  source:frame.source,costs,stages:costs.stages.map((stage,stageIndex)=>({stage:stage.stage,
+   profileId:stage.profileId,version:stage.version,callHash:stage.source.callHash,
+   sourceHash:stage.sourceHash,expectedGasUnits:stage.expectedGasUnits,
+   boundGasUnits:stage.boundGasUnits,scopeHash:stage.scopeHash,sequenceHash:stage.sequenceHash,
+   stageIndex,stageCount:stage.stageCount,source:stage.source}))};
 }
 
 /** One restart-safe claim pass. No signer or transaction broadcaster is loaded.
@@ -153,6 +202,25 @@ export async function processOnePaperOperation(store:DeploymentStore,
   else if(context.kind==='close_retain')
    await store.completeTrustedPaperCloseRetain(claim.id,workerId,verify);
   else{
+   if(context.proposal.paperCloseConvertTerminalV3!==undefined){
+    if(!options.rpcUrl)return await block('paper_close_convert_v3_fork_rpc_unavailable');
+    let terminal;
+    try{terminal=parsePaperStaticCloseConvertTerminalV3(
+     context.proposal.paperCloseConvertTerminalV3);}
+    catch{return await block('paper_close_convert_v3_terminal_envelope_invalid');}
+    try{
+     await verifyPaperStaticCloseConvertTerminalForWorker({store,campaignId:claim.campaign_id,
+      revision:context.current_revision,rawModel:terminal,client:chain,indexer,verifyAnchors:verify,
+      replayGasStages:({model,frame})=>replayStaticCloseConvertV3Gas({store,client:chain,indexer,
+       model,frame,rpcUrl:options.rpcUrl!,beforeRead:options.beforeForkRead??(async()=>{}),
+       verifyAnchors:verify})});
+    }catch(error){return await block(error instanceof DeploymentConflict?error.code:
+     'paper_close_convert_v3_terminal_replay_invalid');}
+    // V3 replay is now source-exact, but the single-transaction V3 mark/fee/
+    // accounting/ledger completion has not landed. Never fall through to the
+    // legacy V2 worker or imply a successful close.
+    return await block('paper_close_convert_v3_atomic_completion_unavailable');
+   }
    await store.prepareTrustedPaperCloseConvert(claim.id,workerId,verify);
    const projection=await maintainCanonicalPaperScenario(store,chain,indexer,
     claim.campaign_id,100,{sampleValuation:false});
