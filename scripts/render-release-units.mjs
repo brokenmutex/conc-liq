@@ -5,6 +5,8 @@ const [release,envFile,output]=process.argv.slice(2);
 if(!release || !envFile || !output || process.argv.length!==5 || ![release,envFile,output].every(p=>/^\/[A-Za-z0-9_./-]+$/.test(p)))throw Error('Usage: render-release-units.mjs /release /private/runtime.env /output (paths without spaces or systemd specifiers)');
 verifyRelease(release);
 const commands={
+ 'conc-liq-deployment-command.service':['deployments'],
+ 'conc-liq-paper-operation-worker.service':['deployments-paper-worker'],
  'conc-liq-paper.service':['paper tick'],
  'conc-liq-dashboard.service':['dashboard'],
  'conc-liq-tail.service':['tail'],
@@ -42,6 +44,11 @@ for(const file of units){
   let index=0;
   text=text.replace(/^ExecStart=.*$/gm,()=>{const command=commands[file][index++];if(!command)throw Error(`Unexpected command count: ${file}`);return `ExecStart=${resolve(release)}/bin/node ${resolve(release)}/launch.mjs ${resolve(envFile)} ${command}`;});
   if(index!==commands[file].length)throw Error(`Missing commands: ${file}`);
+  // The supervised operation worker acquires the shared readiness lease only
+  // when this service is explicitly started. Keep the opt-in in the rendered
+  // unit, not in the operator's shared environment file.
+  if(file==='conc-liq-paper-operation-worker.service')
+   text=text.replace('[Service]\n','[Service]\nEnvironment=DEPLOYMENT_PAPER_OPERATION_WORKER=1\n');
  }
  writeFileSync(join(output,file),text);
  rendered.push(file);
