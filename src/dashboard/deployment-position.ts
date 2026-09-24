@@ -54,7 +54,29 @@ const poolPrice=(sqrt:bigint,p:MarketProfile['pool'])=>{
 const rangePrices=(lower:number,upper:number,p:MarketProfile['pool'])=>
  [poolPrice(sqrtRatioAtTick(lower),p),poolPrice(sqrtRatioAtTick(upper),p)]
   .filter((v):v is string=>v!==null).sort((a,b)=>BigInt(a)<BigInt(b)?-1:1);
-const markPoolState=(provenance:unknown)=>record(record(provenance).poolState);
+const rkOpenModel=(provenance:unknown)=>{
+ const p=record(provenance),booked=record(p.confirmedOpen),model=record(booked.model);
+ return p.classification==='rangekeeper_paper_open_v1'&&
+  booked.kind==='rangekeeper_paper_confirmed_open_v1'&&booked.status==='booked'&&
+  booked.openingBooked===true&&booked.bookingClass==='provisional_mark_and_capital_ledger'&&
+  typeof p.modelHash==='string'&&/^[0-9a-f]{64}$/.test(p.modelHash)&&
+  booked.modelHash===p.modelHash&&contentHash(model)===p.modelHash&&
+  contentHash(record(model.source))===contentHash(record(p.source))&&
+  record(model.reference).proofHash===p.referenceProofHash?model:null;
+};
+const markPoolState=(provenance:unknown)=>record(record(provenance).poolState??rkOpenModel(provenance)?.poolState);
+const rkOpenBalances=(inventory:unknown,provenance:unknown)=>{
+ const model=rkOpenModel(provenance),inv=record(inventory),position=record(inv.position),
+  idle=record(inv.idle),candidate=record(model?.candidate),range=record(candidate.range),
+  amount0=decimal(position.amount0Minted),amount1=decimal(position.amount1Minted),
+  idle0=decimal(idle.token0),idle1=decimal(idle.token1);
+ if(!model||inv.classification!=='rangekeeper_paper_open_v1'||
+  position.liquidity!==candidate.liquidity||position.tickLower!==range.tickLower||
+  position.tickUpper!==range.tickUpper||amount0===null||amount1===null||
+  idle0===null||idle1===null)return null;
+ return {token0Raw:String(BigInt(amount0)+BigInt(idle0)),
+  token1Raw:String(BigInt(amount1)+BigInt(idle1))};
+};
 const referencePrice=(provenance:unknown,p:MarketProfile['pool'])=>{
  const reference=record(record(provenance).reference),risk=decimal(p.quoteToken===0?reference.price1:reference.price0),
   quote=decimal(p.quoteToken===0?reference.price0:reference.price1);
@@ -183,6 +205,7 @@ export function deploymentPosition(row:DeploymentRow){
  const profile=marketProfileSchema.parse(row.profile),p=profile.pool;
  const allocation=allocationSchema.parse(row.allocation),inventory=record(row.inventory),
   provenance=record(row.provenance),economics=record(row.economics),state=markPoolState(provenance),
+  rkBalances=rkOpenBalances(inventory,provenance),
   conversionClose=isConvertedClose(provenance),
   conversionModel=row.mode==='paper'&&conversionClose?
    conversionAccounting(row,row.id,row.runtime_identity):null,
@@ -190,11 +213,13 @@ export function deploymentPosition(row:DeploymentRow){
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
  const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
-  allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??decimal(inventory.token0Raw),
+  allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??
+   (provenance.classification==='rangekeeper_paper_open_v1'?rkBalances?.token0Raw??null:decimal(inventory.token0Raw)),
   lowerBoundRaw:decimal(record(inventory.knownLowerBound).token0Raw)??
    decimal(record(inventory.retainedPrincipalLowerBound).token0Raw)},
   {address:p.token1,symbol:symbol(p.reference1),decimals:p.decimals1,
-  allocatedRaw:allocation.token1Raw,amountRaw:model?.inventory.token1Raw??decimal(inventory.token1Raw),
+  allocatedRaw:allocation.token1Raw,amountRaw:model?.inventory.token1Raw??
+   (provenance.classification==='rangekeeper_paper_open_v1'?rkBalances?.token1Raw??null:decimal(inventory.token1Raw)),
    lowerBoundRaw:decimal(record(inventory.knownLowerBound).token1Raw)??
     decimal(record(inventory.retainedPrincipalLowerBound).token1Raw)}];
  const position=record(inventory.position),liquidity=decimal(position.liquidity),
@@ -282,15 +307,17 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
  const inv=record(mark.inventory),prov=record(mark.provenance),economics=record(mark.economics),
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
   conversionClose=isConvertedClose(prov),
+  rkBalances=rkOpenBalances(inv,prov),
   model=conversionClose?conversionAccounting(mark,campaignId,runtimeIdentity):
    accounting(mark,campaignId),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
  if(!sourceAt||!mark.source_block||!mark.source_hash)throw Error('Deployment mark source unavailable');
- const kind=prov.classification,action=kind==='paper_model_provisional'?'enter':
+ const kind=prov.classification,action=kind==='paper_model_provisional'||kind==='rangekeeper_paper_open_v1'?'enter':
   kind==='paper_model_partial_close'||kind==='paper_model_converted_close'?'exit':'mark';
  if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close',
+  'rangekeeper_paper_open_v1',
   'paper_model_converted_close'].includes(String(kind)))
   throw Error('Deployment mark classification unavailable');
  return {id:mark.id,sourceAt,observedAt:mark.at.toISOString(),block:mark.source_block,
@@ -304,11 +331,13 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   tickLower:lower,tickUpper:upper,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
   tokenBalances:[{address:profile.pool.token0,
-   amountRaw:model?.inventory.token0Raw??decimal(inv.token0Raw),
+   amountRaw:model?.inventory.token0Raw??
+    (kind==='rangekeeper_paper_open_v1'?rkBalances?.token0Raw??null:decimal(inv.token0Raw)),
    lowerBoundRaw:decimal(record(inv.knownLowerBound).token0Raw)??
     decimal(record(inv.retainedPrincipalLowerBound).token0Raw)},
    {address:profile.pool.token1,
-    amountRaw:model?.inventory.token1Raw??decimal(inv.token1Raw),
+    amountRaw:model?.inventory.token1Raw??
+     (kind==='rangekeeper_paper_open_v1'?rkBalances?.token1Raw??null:decimal(inv.token1Raw)),
     lowerBoundRaw:decimal(record(inv.knownLowerBound).token1Raw)??
      decimal(record(inv.retainedPrincipalLowerBound).token1Raw)}],
   principalOnlyValue:micro(principalValue(inv,economics,prov,profile.pool)),
