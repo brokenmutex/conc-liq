@@ -82,6 +82,8 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(context.mode!=='paper'||
    !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
+  const verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
+   verifyCanonicalPaperAnchors(chain,chainId,sources);
    if(context.strategy_id==='rangekeeper_v1'){
     if(context.kind!=='open')return await block('rangekeeper_paper_operation_path_unavailable');
    if(!options.rpcUrl)return await block('rangekeeper_paper_confirmation_fork_rpc_unavailable');
@@ -122,7 +124,9 @@ export async function processOnePaperOperation(store:DeploymentStore,
     return await block('rangekeeper_paper_confirmation_replay_provenance_unavailable');
    // Completion must atomically append the confirmed open mark and capital
    // ledger entries. Until that transaction exists, this worker stays blocked.
-   return await block('rangekeeper_paper_confirmed_open_completion_unavailable');
+   const completed=await store.completeRangeKeeperPaperConfirmedOpen({operationId:claim.id,workerId,
+    snapshot,adapter,replay,verifyAnchors:verify});
+   return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
   }
   if(context.strategy_id!=='static_manual_v1')return await block('paper_operation_path_unavailable');
   if((context.kind==='pause'||context.kind==='resume')&&
@@ -131,8 +135,6 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(context.created_at.getTime()>context.expires_at.getTime())
    return await block('paper_operation_stale_admission');
   const lifecycleOperation=context.kind==='pause'||context.kind==='resume';
-  const verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
-   verifyCanonicalPaperAnchors(chain,chainId,sources);
   if(!lifecycleOperation){
    const source=sourceFor(context);
    await verifyCanonicalPaperAnchors(chain,4663,[source]);

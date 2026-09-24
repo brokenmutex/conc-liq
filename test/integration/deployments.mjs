@@ -392,6 +392,22 @@ try{
   'source_bound_caller_simulation_evidence_unverified');
  assert.equal(operationSnapshot.bookingAvailable,false);
  assert.equal(operationSnapshot.actionAvailable,false);
+ const callerForgedReplay={status:'matched',campaignId:rkDraft.id,revision:1,
+  operationId:rkOperationId,openPreviewId:rkPreviewId,
+  operationSnapshotHash:operationSnapshot.snapshotHash,envelopeHash:rkConfirmation.envelopeHash,
+  candidateHash:rkConfirmationCandidateHash,
+  simulationHash:rkConfirmation.decision.simulation.simulationHash,replayHash:'d'.repeat(64),
+  bookingAvailable:false,actionAvailable:false};
+ await assert.rejects(store.completeRangeKeeperPaperConfirmedOpen({operationId:rkOperationId,
+  workerId:'rangekeeper-worker',snapshot:operationSnapshot,adapter:{},replay:callerForgedReplay,
+  verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_replay_provenance_unavailable/);
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[rkDraft.id,rkOperationId])).rows[0].n,0,
+  'caller-shaped replay data cannot create a confirmed-open mark');
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+  WHERE campaign_id=$1 AND operation_id=$2`,[rkDraft.id,rkOperationId])).rows[0].n,0,
+  'caller-shaped replay data cannot create capital-in ledger rows');
  const mismatchPreviewId=randomUUID();
  await admin.query(`INSERT INTO deployment_previews
   (id,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at)
