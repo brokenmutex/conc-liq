@@ -167,4 +167,11 @@ test('cost caps, deployment bounds, gas reserve, stale evidence and store errors
  }));
  assert.equal(malformed.status,'reconciliation_required');
  if(malformed.status==='reconciliation_required')assert.equal(malformed.reason,'deployment_draft_creation_result_invalid');
+ for(const invalid of [undefined,{status:'unexpected',id:'00000000-0000-4000-8000-000000000099',
+  revision:1,configHash:'d'.repeat(64)}]){
+  const result=await createStaticPaperDraftFromSetup(input(),deps({
+   createDraftWithRequestId:async()=>invalid,
+  }));
+  assert.equal(result.status,'reconciliation_required');
+ }
 });

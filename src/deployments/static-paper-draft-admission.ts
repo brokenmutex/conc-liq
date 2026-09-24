@@ -189,10 +189,11 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
   profileId:input.profileId,reason:'deployment_draft_creation_outcome_unknown',retrySafe:true,
   limitations:['draft_store_call_failed_with_outcome_unknown',
    'do_not_retry_until_saved_campaign_state_is_reconciled']};}
- if(created.status==='conflict')return {status:'request_conflict',requestId:input.requestId,
+ if(created?.status==='conflict')return {status:'request_conflict',requestId:input.requestId,
   profileId:input.profileId,missing:['draft_request_id_conflict'],
   limitations:['request_id_is_already_bound_to_different_saved_draft','no_new_draft_created']};
- if(!created||!z.uuid().safeParse(created.id).success||!Number.isSafeInteger(created.revision)||
+ if(!created||!['created','replayed'].includes(created.status)||
+  !z.uuid().safeParse(created.id).success||!Number.isSafeInteger(created.revision)||
   created.revision<=0||!/^[0-9a-f]{64}$/.test(created.configHash))
   return {status:'reconciliation_required',draftId:null,revision:null,configHash:null,
    profileId:input.profileId,reason:'deployment_draft_creation_result_invalid',retrySafe:true,
