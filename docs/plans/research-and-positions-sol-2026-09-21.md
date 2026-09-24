@@ -1388,6 +1388,35 @@ operation completion, restart proof, both exits and UI parity still gate F3.
 from one sealed release. No unit was installed or started and no release was
 built from this combined source, so F5 supervision and cutover remain open.
 
+**September 24 real-boundary continuation:** `1140c65` corrects the setup
+quote-token index and adds a browser run against authenticated command HTTP
+and isolated PostgreSQL: seven assertions passed for profile load, reviewed
+draft admission, saved-list reload, fresh persisted open preview and same-key
+retry after worker-readiness 503. Canonical chain observation was mocked; no
+worker or signer ran and no operation was accepted. `2513ef1` and `eb8f318`
+exercise real command and paper-worker child processes through pause/resume,
+one SIGTERM/restart and worker lease loss/reacquisition. The actual Positions
+API/browser showed both succeeded stages and unavailable economics at desktop
+and mobile widths, with no marks or ledger writes. Open and retain completion
+still require source-exact RPC evidence beyond this process harness.
+
+`99159b8` proves the distinct close-convert prestate profile import in an
+isolated PostgreSQL schema: seven provisional inserts, exact same-report
+idempotency and rollback on a forced partial insert. `24d7cc4` binds an
+adjacent candidate-source fee interval and advanced modeled carry into the
+terminal preview. `eddbfd7` selects only those exact provisional prestate gas
+rows and adds a specialized same-key-reconciling HTTP route, which stays 503
+without V3 accounting/acceptance. Existing V2 terminal cost/history semantics
+are not reinterpreted. `5e59427` and `1244e84` require operation-bound
+RangeKeeper owned-fork replay before an atomic provisional open mark and three
+capital-in entries; the isolated database test proves forged replay writes
+nothing. A positive two-fork replay and successful booking/restart run remain
+F3 gates, so RangeKeeper paper action stays unavailable. `de98c87` adds a
+read-only legacy intent/receipt journal diagnostic for the two supported live
+strategies; it always reports current live readiness unavailable. No live
+signing, custody mutation, broadcast, unit activation or production migration
+was performed.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
