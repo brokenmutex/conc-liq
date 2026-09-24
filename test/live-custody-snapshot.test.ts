@@ -53,9 +53,8 @@ test('reads bounded custody fields at one pinned confirmed source and rechecks i
  assert.equal(result.nftCount.status,'available');
  assert.equal(result.knownNftOwnership[0]?.owner.status,'available');
  assert.equal(result.nftEnumeration.status,'unavailable');
- if(result.nftEnumeration.status==='unavailable')
-  assert.equal(result.nftEnumeration.reason,'standard_erc721_does_not_enumerate_owned_token_ids');
- assert(result.unavailableReasons.includes('standard_erc721_does_not_enumerate_owned_token_ids'));
+ assert(result.nftEnumeration.missing.includes('balance_of_count_and_sampled_owner_reads_do_not_prove_complete_token_id_set'));
+ assert(result.unavailableReasons.includes('position_manager_transfer_history_not_indexed'));
  const pinned=calls.filter(c=>c.method==='getBlock'&&c.args.length>0);
  assert.equal(pinned.length,2);assert(pinned.every(c=>(c.args[0] as {blockNumber:bigint}).blockNumber===source.block));
  for(const call of calls.filter(c=>['balanceOf','allowance','ownerOf','nonce','balance'].includes(c.method))){

@@ -3,6 +3,7 @@ import type {RobinhoodClient} from '../client.js';
 import {paperTokenAbi} from '../paper/execution-abi.js';
 import {nonfungiblePositionManagerReadAbi} from '../nft/abi.js';
 import {ROBINHOOD_CHAIN_ID} from '../constants.js';
+import {resolveCompleteNftCustodyFromRepository} from './complete-nft-custody-resolver.js';
 
 export type LiveCustodyStrategy='static_manual_v1'|'rangekeeper_v1';
 export type PinnedCustodySource={block:bigint;hash:Hex;timestamp:number};
@@ -42,7 +43,8 @@ export async function readLiveCustodySnapshot(input:{client:Client;targetStrateg
   tokenBalances:[] as {symbol:string;token:string;raw:Field<string>}[],
   allowances:[] as {token:string;spender:string;label:string;raw:Field<string>}[],
   nftCount:unavailable<string>('not_checked'),knownNftOwnership:[] as {tokenId:string;owner:Field<string>}[],
-  nftEnumeration:unavailable<never>('standard_erc721_does_not_enumerate_owned_token_ids'),
+  nftEnumeration:resolveCompleteNftCustodyFromRepository({targetStrategyId:target,operator:null,
+   positionManager:input.positionManager,source:null,balanceOf:null}),
   unavailableReasons:[] as string[],actionAvailable:false as const,executionEligible:false as const});
  const result=empty(),reasons:string[]=[];
  if(!target)reasons.push('target_strategy_unsupported');
@@ -108,7 +110,9 @@ export async function readLiveCustodySnapshot(input:{client:Client;targetStrateg
  const fieldReasons=[nonce,nativeBalanceWei,nftCount,...tokenBalances.map(x=>x.raw),...allowances.map(x=>x.raw),
   ...knownNftOwnership.map(x=>x.owner)].filter((field)=>field.status==='unavailable').map(field=>
    field.status==='unavailable'?field.reason:'');
- result.unavailableReasons=[...new Set([...fieldReasons,'standard_erc721_does_not_enumerate_owned_token_ids'])];
+ result.nftEnumeration=resolveCompleteNftCustodyFromRepository({targetStrategyId:target,operator,
+  positionManager:manager,source:result.source,balanceOf:nftCount,knownOwners:knownNftOwnership});
+ result.unavailableReasons=[...new Set([...fieldReasons,...result.nftEnumeration.missing])];
  result.status='snapshot_partial';
  return result;
 }
