@@ -83,7 +83,10 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
   const status = document.createElement('p'); status.className = 'retain-action-status';
   status.setAttribute('role', 'status');
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
-  root.append(button, status, review);
+  const retry = document.createElement('button'); retry.type = 'button';
+  retry.textContent = 'Retry same request / reconcile'; retry.hidden = true;
+  retry.disabled = !authenticated?.();
+  root.append(button, status, review, retry);
   let pending = null;
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
@@ -92,7 +95,8 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
       Number.isSafeInteger(saved?.payload?.expectedRevision) &&
       uuid.test(saved?.payload?.idempotencyKey ?? '')) pending = saved;
   } catch { /* A fresh preview remains reviewable, but acceptance needs storage. */ }
-  const clear = () => {pending = null; try { localStorage.removeItem(storageKey); } catch { /* fail closed below */ }};
+  const clear = () => {pending = null; retry.hidden = true;
+    try { localStorage.removeItem(storageKey); } catch { /* fail closed below */ }};
   const setStatus = value => {status.textContent = value;};
   const submit = async () => {
     if (!pending || !authenticated?.()) return;
@@ -110,19 +114,22 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
       await pollOperation(accepted.id, request, setStatus, onAccepted, 'Convert-close');
     } catch (error) {
       const reason = error?.data?.error ?? error?.message ?? 'command_failed';
-      if (error?.status >= 400 && error.status < 500 && error?.status !== 429) {
+      if (error?.status === 503 && ['operation_worker_not_ready',
+        'paper_close_convert_acceptance_unavailable'].includes(error?.data?.error)) {
+        clear(); setStatus(`Convert-close was not accepted (${reason}). Review a fresh preview when the worker is ready.`);
+      } else if (error?.status >= 400 && error.status < 500 && error?.status !== 429) {
         clear(); setStatus(`Convert-close request rejected (${reason}). Review a fresh preview.`);
       } else {
+        retry.hidden = false; retry.disabled = !authenticated?.();
         setStatus(`Acceptance outcome unknown (${reason}). Retry the same saved request to reconcile; do not create a new preview.`);
       }
     } finally {button.disabled = Boolean(pending) || !authenticated?.();}
   };
+  retry.addEventListener('click', submit);
   if (pending) {
     button.disabled = true;
     setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
-    const retry = document.createElement('button'); retry.type = 'button';
-    retry.textContent = 'Retry same request / reconcile'; retry.disabled = !authenticated?.();
-    retry.addEventListener('click', submit); root.append(retry);
+    retry.hidden = false;
     return;
   }
   setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
