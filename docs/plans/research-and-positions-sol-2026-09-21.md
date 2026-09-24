@@ -1417,6 +1417,32 @@ strategies; it always reports current live readiness unavailable. No live
 signing, custody mutation, broadcast, unit activation or production migration
 was performed.
 
+**September 24 parallel implementation checkpoint:** `65a7d13` adds the
+dedicated migration 11 Position Manager Transfer index with bounded canonical
+scan, persisted cursors/checkpoints and reorg rewind. `63f7b04` binds the
+read-only replay to persisted canonical source/event checkpoints, then checks
+the operator's reconstructed NFT set against pinned-source `balanceOf` and
+`ownerOf`. The isolated migration, PostgreSQL rewind and owner-reconciliation
+fixtures passed after the final cursor-consistency guard; the live preflight
+composer still reports `actionAvailable:false` and `executionEligible:false`.
+Complete custody/recovery and owned-fork live operations remain F4 gates.
+
+`17648d3` and `7c87fd4` add the static/manual convert-close review control
+with a persisted same-key retry after an unknown acceptance outcome. It only
+accepts a saved, actionable V3 provisional preview; the server still withholds
+that action while V3 acceptance/completion are under test. `42aed58` reads
+verified V3 converted-close accounting in the shared Positions projection,
+and `bf72f97` admits a booked RangeKeeper paper open mark into range/activity
+history while leaving unvalidated economics unavailable. `24b5de2` advances
+the deployment integration to migration 11; its existing 44 gates passed,
+including static paper lifecycle, V2 convert, reorg and restart cases. A
+positive V3 booking-to-dashboard fixture and a positive RangeKeeper
+producer-to-worker booking/restart fixture still gate F2/F3. The owned-fork
+RangeKeeper confirmation replay matched all ten stages; `3f2b04a` and
+`dc00bd8` narrowly reconcile external proof fetch timestamps while preserving
+the exact saved URL, raw response hash, oracle rounds, model and full booked
+proof hash. These are source/replay checks, not HTTP action enablement.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
