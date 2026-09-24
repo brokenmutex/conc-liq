@@ -9,6 +9,11 @@ import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPap
  from '../../src/deployments/rangekeeper-paper-cost.js';
 import {simulateRangeKeeperPaperConfirmationOnOwnedFork}
  from '../../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {isRangeKeeperPaperConfirmationReplayCapability,replayRangeKeeperPaperConfirmationOnOwnedFork}
+ from '../../src/deployments/rangekeeper-paper-confirmation-replay-verifier.js';
+import {validateRangeKeeperPaperConfirmationEnvelope}
+ from '../../src/deployments/rangekeeper-paper-persistence.js';
+import {replayPaperMint} from '../../src/v3/position-math.js';
 import {rangeKeeperConfirmedSource} from '../../src/strategy/rangekeeper/source.js';
 import {RangeKeeperChain} from '../../src/strategy/rangekeeper/chain.js';
 import {planRangeKeeper} from '../../src/strategy/rangekeeper/planner.js';
@@ -159,8 +164,55 @@ try{
   'Fresh owned forks produced different exact source-bound stage evidence');
  assert.equal(firstReplay.simulationHash,secondReplay.simulationHash);
  assert.equal(firstReplay.candidateHash,candidateHash);
+ assert(confirmed&&secondFrame&&second?.candidate,'Replay capability requires two actual observations');
+ const firstCandidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
+  profileHash:draft.profileHash,configHash:draft.configHash,source:firstFrame.source,
+  referenceProofHash:firstFrame.referenceProofHash,candidate:first.candidate});
+ const serialCandidate=c=>({kind:c.kind,range:c.range,swap:c.swap?{token:c.swap.token,
+  amountIn:String(c.swap.amountIn),quotedOut:String(c.swap.quotedOut),minOut:String(c.swap.minOut),
+  priceAfter:String(c.swap.priceAfter),feeValue:String(c.swap.feeValue),
+  shortfallValue:String(c.swap.shortfallValue)}:null,amount0Desired:String(c.amount0Desired),
+  amount1Desired:String(c.amount1Desired),amount0Min:String(c.amount0Min),amount1Min:String(c.amount1Min),
+  liquidity:String(c.liquidity),deployedValue:String(c.deployedValue),sourceBlock:String(c.sourceBlock),
+  sourceHash:c.sourceHash,expiresAt:c.expiresAt});
+ const mint=replayPaperMint(secondFrame.sqrtPriceX96,second.candidate.range,
+  second.candidate.amount0Desired,second.candidate.amount1Desired,0n);
+ let idle0=BigInt(draft.allocation.token0Raw),idle1=BigInt(draft.allocation.token1Raw);
+ if(second.candidate.swap){if(second.candidate.swap.token===0){idle0-=second.candidate.swap.amountIn;
+  idle1+=second.candidate.swap.quotedOut;}else{idle1-=second.candidate.swap.amountIn;
+  idle0+=second.candidate.swap.quotedOut;}}
+ idle0-=mint.amount0;idle1-=mint.amount1;assert(idle0>=0n&&idle1>=0n);
+ const replayState=JSON.parse(JSON.stringify(second.state,(_key,value)=>
+  typeof value==='bigint'?String(value):value));
+ const envelopeBody={schemaVersion:1,kind:'rangekeeper_paper_open_confirmation_v1',status:'confirmed',
+  campaignId:draft.id,revision:draft.revision,draftConfigHash:draft.configHash,profileHash:draft.profileHash,
+  firstObservation:{source:firstFrame.source,modelHash:'d'.repeat(64),candidateHash:firstCandidateHash},
+  confirmationObservation:{source:secondFrame.source,candidateHash,
+   candidate:serialCandidate(second.candidate),poolState:{tick:secondFrame.tick,
+    sqrtPriceX96:String(secondFrame.sqrtPriceX96),poolLiquidity:String(secondFrame.poolLiquidity)},
+   reference:{price0:String(secondFrame.price0),price1:String(secondFrame.price1),
+    nativePrice:String(secondFrame.nativePrice),proofHash:secondFrame.referenceProofHash,
+    proof:secondFrame.referenceProof}},
+  decision:{action:'execute',reason:'two_confirmations',gasSequenceHash:firstReplay.simulationHash,
+   simulation:{status:'success',sourceBlock:source.block,sourceHash:source.hash,candidateHash,
+    simulationHash:firstReplay.simulationHash}},
+  simulationEvidence:firstReplay.ownedForkEvidence,
+  costs:{status:'provisional',profileIds:[]},strategyState:replayState,
+  inventory:{position:{tickLower:second.candidate.range.tickLower,tickUpper:second.candidate.range.tickUpper,
+   liquidity:String(second.candidate.liquidity)},idle:{token0:String(idle0),token1:String(idle1)}},
+  selectedGasProfileIds:[],executionEvidence:'source_bound_caller_simulation_evidence_unverified',
+  openingBooked:false,actionAvailable:false};
+ const envelope=validateRangeKeeperPaperConfirmationEnvelope({...envelopeBody,
+  envelopeHash:contentHash(envelopeBody)},{campaignId:draft.id,revision:draft.revision});
+ const operationId='a00df4b1-b778-4cae-8274-4b437098c52e',openPreviewId='8e9b81e8-407c-4b4b-858a-8847b902d8de',
+  operationSnapshotHash='c'.repeat(64);
+ const replay=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope,frame:secondFrame,
+  operationId,openPreviewId,operationSnapshotHash,rpcUrl:archive,beforeRead:async()=>{},timeoutMs:180_000});
+ assert(isRangeKeeperPaperConfirmationReplayCapability(replay,{operationId,openPreviewId,operationSnapshotHash,
+  campaignId:draft.id,revision:draft.revision,envelopeHash:envelope.envelopeHash,candidateHash,
+  simulationHash:firstReplay.simulationHash}));
  process.stdout.write(JSON.stringify({status:'matched',stageCount:firstReplay.ownedForkEvidence.stages.length,
-  candidateHash,replayHash:contentHash(firstReplay.ownedForkEvidence),freshForks:2,
+  candidateHash,replayHash:contentHash(firstReplay.ownedForkEvidence),freshForks:3,
   twoObservationConfirmation:confirmed,testOnlyPinnedSource:Boolean(pinnedBlock||secondPinnedBlock),
-  bookingAvailable:false,actionAvailable:false})+'\n');
+  operationBoundReplayCapability:true,bookingAvailable:false,actionAvailable:false})+'\n');
 }catch(error){failSafe(error);}
