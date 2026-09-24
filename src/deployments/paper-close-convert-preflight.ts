@@ -56,7 +56,7 @@ export interface PaperCloseConvertTerminalGasReport {
 }
 
 export type PaperStaticCloseConvertTerminalModel={
- schemaVersion:1;kind:'paper_static_manual_close_convert_terminal_v2';campaignId:string;revision:number;
+ schemaVersion:1;kind:'paper_static_manual_close_convert_terminal_v3';campaignId:string;revision:number;
  openMarkId:string;previousMarkId:string;openModelHash:string;source:PaperOpenFrame['source'];
  poolState:PaperCloseConvertPostWithdrawEvidence['poolState'];
  reference:{price0:string;price1:string;nativePrice:string};referenceProof:Record<string,unknown>;
@@ -70,7 +70,7 @@ export type PaperStaticCloseConvertTerminalModel={
 };
 
 const terminalHashBody=(model:Omit<PaperStaticCloseConvertTerminalModel,'modelHash'>)=>model;
-const terminalBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('paper_static_manual_close_convert_terminal_v2'),
+const terminalBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('paper_static_manual_close_convert_terminal_v3'),
  campaignId:z.uuid(),revision:z.number().int().positive(),openMarkId:raw,previousMarkId:raw,
  openModelHash:z.string().regex(/^[0-9a-f]{64}$/),
  source:z.object({block:raw,hash,timestamp:z.number().int().nonnegative()}).strict(),
@@ -94,7 +94,7 @@ const terminalBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('pa
  costs:paperCloseConvertPrestateCostsV1Schema,}).strict();
 const terminalSchema=terminalBodySchema.extend({modelHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
 
-export function parsePaperStaticCloseConvertTerminalV2(rawInput:unknown):PaperStaticCloseConvertTerminalModel{
+export function parsePaperStaticCloseConvertTerminalV3(rawInput:unknown):PaperStaticCloseConvertTerminalModel{
  const model=terminalSchema.parse(rawInput),{modelHash,...body}=model;
  if(contentHash(body)!==modelHash)throw Error('paper_close_convert_terminal_model_hash_invalid');
  const {replayHash,...replayBody}=model.feeReplay;
@@ -302,7 +302,7 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
    contentHash(selected.source)!==contentHash(stage.source))
    throw Error('paper_close_convert_terminal_cost_not_exact_prestate_report');
  }
- const body={schemaVersion:1 as const,kind:'paper_static_manual_close_convert_terminal_v2' as const,
+ const body={schemaVersion:1 as const,kind:'paper_static_manual_close_convert_terminal_v3' as const,
   campaignId:open.campaignId,revision:open.revision,openMarkId:state.openMarkId,
   previousMarkId:state.previous.markId,openModelHash:contentHash(open),source:frame.source,
   poolState:post.poolState,reference:{price0:String(frame.price0),price1:String(frame.price1),
@@ -316,8 +316,8 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   expectedRevision:open.revision,kind:'close_convert',request:{kind:'close_convert',
    strategyId:'static_manual_v1',profileHash:state.profileHash,openMarkId:state.openMarkId,
    previousMarkId:state.previous.markId,modelHash,scopeHash:paperCloseConvertGasScopeHashV2(scope)},
-  proposal:{paperCloseConvertTerminalV2:model},evidence:{
-   verificationClass:'canonical_static_paper_close_convert_terminal_v2',
+  proposal:{paperCloseConvertTerminalV3:model},evidence:{
+   verificationClass:'canonical_static_paper_close_convert_terminal_v3',
    classification:'paper_model_provisional',profileHash:state.profileHash,modelHash,
    openModelHash:model.openModelHash,referenceProofHash:model.referenceProofHash,
    source:model.source,costEvidenceClass:'fork_estimated',
@@ -333,6 +333,7 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
    paidCostsAvailable:false,feeAccrualAvailable:false,
    quoteHash:quote.quoteHash},expiresAt});
  return {id:saved.id,kind:'close_convert' as const,status:'indicative' as const,
+  terminalModelVersion:3 as const,
   expectedRevision:open.revision,contentDigest:saved.contentDigest,
   expiresAt:expiresAt.toISOString(),source:model.source,modelHash,
   inventory:model.inventory,conversionRoute:model.conversionRoute,

@@ -286,7 +286,7 @@ export function createDeploymentCommandServer(store:CommandStore,
      openSourceFresh&&
      typeof openModelHash==='string'&&/^[0-9a-f]{64}$/.test(openModelHash);
     const convertModelRecord=result&&typeof result==='object'&&!Array.isArray(result)?
-     result as {modelHash?:unknown;source?:unknown;costs?:unknown}:null;
+     result as {terminalModelVersion?:unknown;modelHash?:unknown;source?:unknown;costs?:unknown}:null;
     const convertSource=convertModelRecord?.source&&typeof convertModelRecord.source==='object'&&
      !Array.isArray(convertModelRecord.source)?convertModelRecord.source as
       {block?:unknown;hash?:unknown;timestamp?:unknown}:null;
@@ -294,6 +294,7 @@ export function createDeploymentCommandServer(store:CommandStore,
      (result as {status?:unknown;kind?:unknown;trustedPreviewSaved?:unknown}).status==='indicative'&&
      (result as {kind?:unknown}).kind==='close_convert'&&
      (result as {trustedPreviewSaved?:unknown}).trustedPreviewSaved===true&&
+     convertModelRecord?.terminalModelVersion===3&&
      typeof (result as {id?:unknown}).id==='string'&&uuid.test(String((result as {id?:unknown}).id))&&
      typeof (result as {contentDigest?:unknown}).contentDigest==='string'&&
      /^[0-9a-f]{64}$/.test(String((result as {contentDigest?:unknown}).contentDigest))&&

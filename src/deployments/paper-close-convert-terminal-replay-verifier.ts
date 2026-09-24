@@ -6,7 +6,7 @@ import {contentHash} from './contracts.js';
 import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {readStaticPaperCloseConvertFeeContext} from './paper-close-convert-fee-reader.js';
 import {replayEphemeralStaticPaperCloseConvertFees} from './paper-close-convert-ephemeral-fees.js';
-import {parsePaperStaticCloseConvertTerminalV2,type PaperStaticCloseConvertTerminalModel,
+import {parsePaperStaticCloseConvertTerminalV3,type PaperStaticCloseConvertTerminalModel,
  quotePaperCloseConvertAtSource} from './paper-close-convert-preflight.js';
 import type {DeploymentStore} from './store.js';
 import type {PaperOpenFrame} from './paper-preview.js';
@@ -66,7 +66,7 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  replayGasStages:(input:{model:PaperStaticCloseConvertTerminalModel;frame:PaperOpenFrame})=>
   Promise<PaperCloseConvertTerminalGasReplay>;now?:number;
 }){
- const model=parsePaperStaticCloseConvertTerminalV2(input.rawModel),now=input.now??Date.now();
+ const model=parsePaperStaticCloseConvertTerminalV3(input.rawModel),now=input.now??Date.now();
  if(model.campaignId!==input.campaignId||model.revision!==input.revision||
   model.feeReplay.to.block!==model.source.block||
   model.feeReplay.to.hash.toLowerCase()!==model.source.hash.toLowerCase()||
