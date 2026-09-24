@@ -52,7 +52,12 @@ async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:str
  * checks inside their transaction. HTTP acceptance remains separately gated. */
 export async function processOnePaperOperation(store:DeploymentStore,
  chain:RobinhoodClient,indexer:Pool,workerId:string){
- const claim=await store.claimNext(workerId,LEASE_SECONDS,'paper','static_manual_v1');
+ // Keep static/manual priority. RangeKeeper open operations are claimed only
+ // so the worker can leave an explicit fail-closed recovery record; their
+ // producer provenance and operation-bound completion path are not yet an
+ // admission capability.
+ const claim=await store.claimNext(workerId,LEASE_SECONDS,'paper','static_manual_v1')??
+  await store.claimNext(workerId,LEASE_SECONDS,'paper','rangekeeper_v1');
  if(!claim)return {status:'idle' as const};
  let lost=false,renewing=false;
  const renew=setInterval(()=>{
@@ -70,9 +75,13 @@ export async function processOnePaperOperation(store:DeploymentStore,
  try{
   if(claim.attempts>MAX_ATTEMPTS)return await block('paper_operation_attempt_bound');
   const context=await readClaimContext(indexer,claim,workerId);
-  if(context.mode!=='paper'||context.strategy_id!=='static_manual_v1'||
+  if(context.mode!=='paper'||
    !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
+  if(context.strategy_id==='rangekeeper_v1')
+   return await block(context.kind==='open'?'rangekeeper_paper_open_worker_unavailable':
+    'rangekeeper_paper_operation_path_unavailable');
+  if(context.strategy_id!=='static_manual_v1')return await block('paper_operation_path_unavailable');
   if((context.kind==='pause'||context.kind==='resume')&&
    (context.preview_kind!==context.kind||context.expected_revision!==context.current_revision))
    return await block('paper_lifecycle_revision_or_preview_mismatch');
