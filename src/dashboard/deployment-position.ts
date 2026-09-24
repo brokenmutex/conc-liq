@@ -1,8 +1,9 @@
 import type {PoolClient} from 'pg';
 import {allocationSchema} from '../deployments/contracts.js';
 import {contentHash} from '../deployments/contracts.js';
-import {paperAccountingSchema,paperConversionAccountingV2Schema,PAPER_ACCOUNTING_POLICY,
- PAPER_CONVERSION_ACCOUNTING_POLICY_V2,type PaperAccounting,type PaperConversionAccountingV2}
+import {paperAccountingSchema,paperConversionAccountingV2Schema,paperConversionAccountingV3Schema,
+ PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
+ type PaperAccounting,type PaperConversionAccountingV2,type PaperConversionAccountingV3}
  from '../deployments/paper-accounting.js';
 import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
@@ -85,34 +86,44 @@ const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccou
    parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
 };
 const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
- runtimeIdentity:unknown):PaperConversionAccountingV2|null=>{
+ runtimeIdentity:unknown):PaperConversionAccountingV2|PaperConversionAccountingV3|null=>{
  if(row.accounting_invalidated_at)return null;
- const parsed=paperConversionAccountingV2Schema.safeParse(row.conversion_accounting_snapshot);
- if(!parsed.success||row.conversion_accounting_hash!==contentHash(parsed.data)||
-  runtimeIdentity===null||contentHash(parsed.data.runtimeIdentity)!==contentHash(runtimeIdentity)||
-  parsed.data.policyVersion!==PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
-  parsed.data.campaignId!==campaignId||parsed.data.markKind!=='close_convert'||
-  parsed.data.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
-  parsed.data.source.block!==row.source_block||
-  parsed.data.source.hash.toLowerCase()!==row.source_hash?.toLowerCase()||
-  parsed.data.conversion===null)return null;
- const conversions=parsed.data.flows.filter(flow=>flow.kind==='modeled_conversion'),
-  capitalOut=parsed.data.flows.filter(isCapitalOut),
-  conversion=parsed.data.conversion,flow=conversions[0],assets=new Set(capitalOut.map(item=>item.asset));
+ const v2=paperConversionAccountingV2Schema.safeParse(row.conversion_accounting_snapshot),
+  v3=paperConversionAccountingV3Schema.safeParse(row.conversion_accounting_snapshot),
+  parsed=v3.success?v3.data:v2.success?v2.data:null;
+ if(!parsed||row.conversion_accounting_hash!==contentHash(parsed)||
+  runtimeIdentity===null||contentHash(parsed.runtimeIdentity)!==contentHash(runtimeIdentity)||
+  parsed.campaignId!==campaignId||parsed.markKind!=='close_convert'||
+  parsed.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
+  parsed.source.block!==row.source_block||
+  parsed.source.hash.toLowerCase()!==row.source_hash?.toLowerCase()||
+  parsed.conversion===null)return null;
+ if(parsed.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3){
+  const gas=parsed.conversion.gasEvidence,costs=record(record(row.provenance).modeledCosts);
+  if(gas.reportHash!==record(row.provenance).prestateReportHash||
+   gas.reportHash!==costs.reportHash||gas.scopeHash!==costs.scopeHash||
+   gas.sequenceHash!==costs.sequenceHash||gas.sizeBand!==costs.sizeBand||
+   contentHash(gas.profileIds)!==contentHash(costs.stages && Array.isArray(costs.stages)?
+    costs.stages.map(item=>record(item).profileId):[]))return null;
+ }
+ const conversions=parsed.flows.filter(flow=>flow.kind==='modeled_conversion'),
+  capitalOut=parsed.flows.filter(isCapitalOut),
+  conversion=parsed.conversion,flow=conversions[0],assets=new Set(capitalOut.map(item=>item.asset));
  return conversions.length===1&&capitalOut.length===3&&assets.size===3&&
   ['token0','token1','native'].every(asset=>assets.has(asset as 'token0'|'token1'|'native'))&&
   flow?.quoteHash===conversion.quoteHash&&flow.fromAsset===conversion.fromAsset&&
   flow.toAsset===conversion.toAsset&&flow.fromAmountRaw===conversion.inputAmountRaw&&
   flow.expectedToAmountRaw===conversion.expectedOutputRaw&&
-  flow.minimumToAmountRaw===conversion.minimumOutputRaw?parsed.data:null;
+  flow.minimumToAmountRaw===conversion.minimumOutputRaw?parsed:null;
 };
 const isConvertedClose=(provenance:unknown)=>
  record(provenance).classification==='paper_model_converted_close';
 type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native';
  amountRaw:string;valueQuote:string};
-const isCapitalOut=(flow:PaperConversionAccountingV2['flows'][number]):flow is PaperCapitalOut=>
+const isCapitalOut=(flow:(PaperConversionAccountingV2|PaperConversionAccountingV3)['flows'][number]):flow is PaperCapitalOut=>
  flow.kind==='modeled_capital_out';
-const modeledExposure=(model:PaperAccounting|PaperConversionAccountingV2,p:MarketProfile['pool'])=>{
+const modeledExposure=(model:PaperAccounting|PaperConversionAccountingV2|PaperConversionAccountingV3,
+ p:MarketProfile['pool'])=>{
  const risk=p.quoteToken===0?1:0,r=model.reference;
  const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
   value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
@@ -153,8 +164,11 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
-   LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=c.id
-   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}'`:''}
+   LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
+    (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
+    WHERE campaign_id=c.id AND source_mark_id=m.id AND policy_version IN
+     ('${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}','${PAPER_CONVERSION_ACCOUNTING_POLICY_V3}')
+    HAVING count(*)=1) a2 ON TRUE`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
@@ -301,9 +315,11 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
   feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
   gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
-  swapThisMarkQuote:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2?
+  swapThisMarkQuote:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
+   model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?
    micro(model.economics.modeledSwapCostQuote):model?'0':null,
-  swapsThisMark:model?.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2?1:0,
+  swapsThisMark:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
+   model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?1:0,
   drawdownPpm:null};
 };
 
@@ -325,8 +341,11 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   FROM deployment_marks m
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
-   LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=m.campaign_id
-   AND a2.source_mark_id=m.id AND a2.policy_version='${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}'`:''}
+   LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
+    (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
+    WHERE campaign_id=m.campaign_id AND source_mark_id=m.id AND policy_version IN
+     ('${PAPER_CONVERSION_ACCOUNTING_POLICY_V2}','${PAPER_CONVERSION_ACCOUNTING_POLICY_V3}')
+    HAVING count(*)=1) a2 ON TRUE`:''}
   ${hasInvalidations?`LEFT JOIN LATERAL (
    SELECT i.recorded_at,i.reason FROM deployment_paper_accounting_invalidations i
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
