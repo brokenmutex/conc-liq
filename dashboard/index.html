@@ -21,14 +21,19 @@
         <div class="page-heading"><div><h1>Positions</h1><p>Your capital, performance and next actions.</p></div><div class="global-controls"><label><span class="sr-only">Filter by asset</span><select id="asset-filter"><option value="all">All assets</option></select></label><label><span class="sr-only">Filter by status</span><select id="status-filter"><option value="all">All statuses</option><option value="attention">Needs attention</option><option value="open">In range</option><option value="outside">Outside range</option><option value="paused">Management paused</option><option value="blocked">Recovery blocked</option><option value="waiting">Awaiting entry</option></select></label></div></div>
         <section id="live" class="portfolio" aria-label="Live positions"></section><section id="paper" class="portfolio" aria-label="Paper positions"></section>
         <section class="setup-panel" aria-labelledby="setup-title"><div class="setup-heading"><div><span class="eyebrow">NEW POSITION</span><h2 id="setup-title">Set up a position</h2><p>Choose a registered pool, capital, strategy and centered range.</p></div><span class="badge paper">Actions unavailable</span></div>
+          <section id="operator-auth" class="operator-auth" aria-labelledby="operator-auth-title" hidden>
+            <div><h3 id="operator-auth-title">Loopback operator sign in</h3><p id="operator-auth-status" role="status">Not signed in. Session credentials stay in this page memory.</p></div>
+            <form id="operator-login-form"><div id="operator-login-fields" class="operator-login-fields"><label for="operator-password">Operator password</label><input id="operator-password" type="password" autocomplete="current-password" required><button type="submit">Sign in</button></div></form>
+            <button id="operator-logout" type="button" hidden>Sign out</button>
+          </section>
           <form id="setup-form"><div class="form-grid">
             <label>Pool and fee tier<select id="setup-pool" required disabled><option value="">Loading registered pools…</option></select></label>
             <label>Capital · USDG<input id="setup-capital" type="number" min="1" max="10000" step="1" value="250" required></label>
             <label>Centered half-width<select id="setup-width" required disabled><option value="">Choose a pool first</option></select></label>
             <label>Strategy<select id="setup-strategy"><option value="static_manual_v1">Static / manual</option><option value="rangekeeper_v1">RangeKeeper</option></select></label>
             <label>Mode<select id="setup-mode"><option value="paper">Paper</option><option value="live">Live</option></select></label>
-          </div><p class="inline-note" id="setup-note">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
-          <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><p>Exact bounds, token requirements, costs and eligibility need a fresh preflight. No position is submitted or booked.</p></div>
+          </div><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
+          <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div><p>Setup preflight is read-only. It creates no draft or operation; its costs are provisional and it does not establish wallet funding or admission limits.</p></div>
         </section>
         <footer class="positions-footer">CONC LIQ <span>Live and paper position history</span><button id="diagnostics-button" class="text-button" type="button">Diagnostics</button></footer>
       </section>
