@@ -67,6 +67,7 @@ test('queued lifecycle operations remain visible before a valuation mark exists'
  assert.match(run('condition(opening)'),/Open in progress · accepted · queued/);
  assert.match(run('condition(pausing)'),/Pause in progress · source_recheck · preflighting/);
  assert.match(run('row(opening,null)'),/Open in progress · accepted · queued/);
+ assert.match(run('deploymentDetail(opening,modes.paper)'),/Open in progress · accepted · queued/);
  assert.equal(run('needsAttention(pausing)'),true);
 });
 
