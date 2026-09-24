@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {describe,it} from 'node:test';
 import {assertRangeKeeperPaperTerminalInventory,rangeKeeperPaperCandidateFunding,
- rangeKeeperPaperTerminalAllowances,sampleRangeKeeperPaperGasStages} from '../src/deployments/rangekeeper-paper-gas-sampler.js';
+ rangeKeeperPaperTerminalAllowances,sampleRangeKeeperPaperGasStages,
+ assertSameRangeKeeperPinnedReferenceProof} from '../src/deployments/rangekeeper-paper-gas-sampler.js';
 import {replayPaperMint} from '../src/v3/position-math.js';
 import type {RangeKeeperCandidate} from '../src/strategy/rangekeeper/domain.js';
 
@@ -10,6 +11,20 @@ const base:RangeKeeperCandidate={kind:'entry',range:{tickLower:-10,tickUpper:10}
  deployedValue:150n,sourceBlock:7n,sourceHash:`0x${'1'.repeat(64)}`,expiresAt:1_000};
 
 describe('RangeKeeper owned-fork gas sampler inventory',()=>{
+ it('normalizes only pinned external-source fetch time while preserving byte and feed identity',()=>{
+  const proof={token1:{oracle:{state:{roundId:'17',answer:'101'}}},
+   registry:{fetchedAt:'2026-09-24T10:00:00.000Z',sha256:'sha256:'+'a'.repeat(64),url:'https://example.test/registry'},
+   feedDirectory:{fetchedAt:'2026-09-24T10:00:00.000Z',sha256:'sha256:'+'b'.repeat(64),url:'https://example.test/feeds'}};
+  const reread={...proof,registry:{...proof.registry,fetchedAt:'2026-09-24T10:00:02.000Z'},
+   feedDirectory:{...proof.feedDirectory,fetchedAt:'2026-09-24T10:00:02.000Z'}};
+  assert.doesNotThrow(()=>assertSameRangeKeeperPinnedReferenceProof(proof,reread));
+  assert.throws(()=>assertSameRangeKeeperPinnedReferenceProof(proof,{...reread,
+   registry:{...reread.registry,sha256:'sha256:'+'c'.repeat(64)}}),/source bytes or URL changed/);
+  assert.throws(()=>assertSameRangeKeeperPinnedReferenceProof(proof,{...reread,
+   feedDirectory:{...reread.feedDirectory,url:'https://example.test/other-feeds'}}),/source bytes or URL changed/);
+  assert.throws(()=>assertSameRangeKeeperPinnedReferenceProof(proof,{...reread,
+   token1:{oracle:{state:{roundId:'18',answer:'101'}}}}),/round, or chain reference proof changed/);
+ });
  it('keeps trusted draft idle inventory when replaying either swap direction',()=>{
   const candidate={...base,swap:{token:0 as const,amountIn:20n,quotedOut:15n,minOut:14n,
    priceAfter:1n,feeValue:0n,shortfallValue:0n}};

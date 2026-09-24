@@ -55,6 +55,31 @@ function serializeCandidate(c:RangeKeeperCandidate){return {kind:c.kind,range:c.
  sourceHash:c.sourceHash,expiresAt:c.expiresAt};}
 const rawValue=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
 
+/** HTTP source acquisition time changes on each pinned-frame reread. Treat
+ * that transport timestamp as audit metadata, while requiring identical URL,
+ * exact response bytes, and every on-chain/reference fact in the proof. */
+export function assertSameRangeKeeperPinnedReferenceProof(expected:unknown,actual:unknown){
+ assert(expected&&typeof expected==='object'&&!Array.isArray(expected));
+ assert(actual&&typeof actual==='object'&&!Array.isArray(actual));
+ const expectedProof={...(expected as Record<string,unknown>)},actualProof={...(actual as Record<string,unknown>)};
+ const source=(value:unknown)=>{
+  assert(value&&typeof value==='object'&&!Array.isArray(value),'Pinned source evidence malformed');
+  const row=value as Record<string,unknown>;
+  assert.deepEqual(Object.keys(row).sort(),['fetchedAt','sha256','url']);
+  assert(typeof row.fetchedAt==='string'&&Number.isFinite(Date.parse(row.fetchedAt)));
+  assert(typeof row.sha256==='string'&&/^sha256:[0-9a-f]{64}$/.test(row.sha256));
+  assert(typeof row.url==='string'&&URL.canParse(row.url));
+  return {sha256:row.sha256,url:row.url};
+ };
+ for(const key of ['registry','feedDirectory'] as const){
+  const left=source(expectedProof[key]),right=source(actualProof[key]);
+  assert.deepEqual(right,left,`Pinned ${key} source bytes or URL changed`);
+  delete expectedProof[key];delete actualProof[key];
+ }
+ assert.equal(contentHash(actualProof),contentHash(expectedProof),
+  'Pinned oracle, selected feed, round, or chain reference proof changed');
+}
+
 /** Reconstructs the exact post-mint idle balances and retained approvals from
  * the trusted draft allocation and saved open model. */
 export function rangeKeeperPaperTerminalAllowances(input:{candidate:RangeKeeperCandidate;
@@ -190,7 +215,7 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
  const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,
   timestamp:BigInt(frame.source.timestamp)};
  const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
-  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000});
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true});
  try{
   const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0});
   const chain=new RangeKeeperChain(local,p);
@@ -201,8 +226,7 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
    'RangeKeeper owned-fork independent references unavailable');
   assert.equal(String(reference.price0),String(frame.price0));assert.equal(String(reference.price1),String(frame.price1));
   assert.equal(String(reference.nativePrice),String(frame.nativePrice));
-  assert.equal(referenceProofHash(reference.proof),frame.referenceProofHash,
-   'RangeKeeper owned-fork reference proof changed');
+  assertSameRangeKeeperPinnedReferenceProof(frame.referenceProof,reference.proof);
   const sourceSlot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'});
   const sourceLiquidity=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'liquidity'});
   assert.equal(sourceSlot[1],frame.tick);assert.equal(String(sourceSlot[0]),String(frame.sqrtPriceX96));
@@ -312,7 +336,7 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   'Terminal source reference proof unavailable');
  const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,timestamp:BigInt(frame.source.timestamp)};
  const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
-  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000});
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true});
  try{
   const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0}),chain=new RangeKeeperChain(local,p);
   await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});

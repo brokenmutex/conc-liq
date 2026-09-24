@@ -33,6 +33,9 @@ async function unusedPort() {
 export async function openPaperFork(input: {
   source: ForkSource; rpcUrl: string; beforeRead: () => Promise<void>;
   maxRequests?: number; intervalMs?: number; timeoutMs?: number;
+  /** Pin local Anvil time to the canonical fork point and advance one second
+   * per mined block. Off by default for existing paper fork consumers. */
+  deterministicClock?: boolean;
 }) {
   const budget: ReadBudget = { requests: 0, rejected: 0, methods: {}, maxRequests: input.maxRequests ?? 400 };
   const deadline = Date.now() + (input.timeoutMs ?? 150_000);
@@ -84,11 +87,12 @@ export async function openPaperFork(input: {
   const child = spawn(process.env.ANVIL_BIN ?? "anvil", [
     "--host", "127.0.0.1", "--port", String(port), "--accounts", "0", "--chain-id", "4663",
     "--fork-url", `http://127.0.0.1:${address.port}`, "--fork-block-number", String(input.source.number),
+    ...(input.deterministicClock ? ["--timestamp", String(input.source.timestamp)] : []),
     "--retries", "0", "--silent",
   ], { stdio: "ignore" });
   let spawnError = false;
   child.on("error", () => { spawnError = true; });
-  const rpc = async <T = unknown>(method: string, params: unknown[] = []): Promise<T> => {
+  const request = async <T = unknown>(method: string, params: unknown[] = []): Promise<T> => {
     if (spawnError || child.exitCode !== null || child.signalCode !== null) throw new Error("Owned paper Anvil is not running");
     if (Date.now() >= deadline) throw new Error("Paper fork time budget exhausted");
     const response = await fetch(localUrl, {
@@ -99,6 +103,16 @@ export async function openPaperFork(input: {
     const result = await response.json() as { result?: T; error?: { message?: string } };
     if (result.error) throw new Error(`Local paper ${method}: ${(result.error.message ?? "RPC failure").slice(0, 300)}`);
     return result.result as T;
+  };
+  let deterministicTransactionIndex = 0;
+  const rpc = async <T = unknown>(method: string, params: unknown[] = []): Promise<T> => {
+    if (input.deterministicClock && method === "eth_sendTransaction") {
+      deterministicTransactionIndex++;
+      const nextTimestamp = Number(input.source.timestamp) + deterministicTransactionIndex;
+      assert(Number.isSafeInteger(nextTimestamp), "Deterministic fork timestamp exceeds safe integer range");
+      await request("anvil_setNextBlockTimestamp", [nextTimestamp]);
+    }
+    return request<T>(method, params);
   };
   const close = async () => {
     if (!spawnError && child.exitCode === null && child.signalCode === null) {
