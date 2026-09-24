@@ -34,7 +34,7 @@ export interface RangeKeeperPaperConfirmedContext {
  costs:RangeKeeperPaperModeledCosts;scope:RangeKeeperPaperCandidateScope;
  inventory:{kind:'modeled_after_confirmation';position:{tickLower:number;tickUpper:number;liquidity:string};
   idle:{token0:string;token1:string}};
- evidence:{gas:'fork_estimated_provisional';simulation:'caller_supplied_unverified';
+ evidence:{gas:'fork_estimated_provisional';simulation:'source_bound_caller_evidence_unverified';
   openingBooked:false;actionAvailable:false};snapshotHash:string;
 }
 export interface RangeKeeperPaperConfirmationContextUnavailable {
@@ -166,6 +166,6 @@ export async function loadRangeKeeperPaperConfirmationContext(input:{campaignId:
   openModel:open,envelope,candidate,state,costs,scope,
   inventory:{kind:'modeled_after_confirmation',position:{tickLower:range.tickLower,
    tickUpper:range.tickUpper,liquidity:String(candidate.liquidity)},idle:{token0:String(idle0),token1:String(idle1)}},
-  evidence:{gas:'fork_estimated_provisional',simulation:'caller_supplied_unverified',
+  evidence:{gas:'fork_estimated_provisional',simulation:'source_bound_caller_evidence_unverified',
    openingBooked:false,actionAvailable:false},snapshotHash};
 }

@@ -13,6 +13,8 @@ import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft,
 import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
  rangeKeeperPaperSizeBand,selectRangeKeeperPaperCostProfiles,type RangeKeeperPaperCandidateScope,
  type RangeKeeperPaperGasProfileReader,type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
+import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence,
+ type RangeKeeperPaperOwnedForkConfirmationEvidence} from './rangekeeper-paper-confirmation-simulation.js';
 
 const PPM=1_000_000n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
@@ -43,15 +45,17 @@ export interface RangeKeeperPaperConfirmationEnvelope {
   reference:{price0:string;price1:string;nativePrice:string;proofHash:string;proof:Record<string,unknown>}};
  decision:{action:'execute';reason:'two_confirmations';gasSequenceHash:string;
   simulation:{status:'success';sourceBlock:string;sourceHash:string;candidateHash:string;simulationHash:string}};
+ simulationEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence;
  costs:RangeKeeperPaperModeledCosts;strategyState:unknown;
  inventory:{position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
- selectedGasProfileIds:string[];executionEvidence:'caller_supplied_simulation_attestation_unverified';
+ selectedGasProfileIds:string[];executionEvidence:'source_bound_caller_simulation_evidence_unverified';
  openingBooked:false;actionAvailable:false;envelopeHash:string;
 }
 export type RangeKeeperPaperConfirmationResult=RangeKeeperPaperConfirmationProbe|
  RangeKeeperPaperConfirmationUnavailable|RangeKeeperPaperConfirmationEnvelope;
 export interface RangeKeeperPaperConfirmationSimulation {
  status:'success';sourceBlock:string;sourceHash:string;candidateHash:string;simulationHash:string;
+ ownedForkEvidence?:unknown;
 }
 
 function deserializeCandidate(value:unknown):RangeKeeperCandidate{
@@ -207,7 +211,8 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
  const finalObservation={...observation,actionCost:BigInt(costs.open.boundValue),
   actionGasWei:BigInt(costs.open.boundWei),requiredExitReserveWei:BigInt(costs.retainExit.requiredReserveWei),
   liquiditySharePpm:Number(share)};
- let simulation:RangeKeeperPaperConfirmationSimulation|null=null;
+ let simulation:RangeKeeperPaperConfirmationSimulation|null=null,
+  simulationEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence|null=null;
  const final=await planRangeKeeper({state:initialState(open,first),observation:finalObservation,limits,
   spacing:p.tickSpacing,decimals0:p.decimals0,decimals1:p.decimals1,quoteToken:p.quoteToken,
   maxPoolDeviationPpm:draft.profile.referencePolicy.maxPoolDeviationPpm,quote,
@@ -216,14 +221,22 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
     profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
     referenceProofHash:frame.referenceProofHash,candidate:frozen})!==candidateHash)return false;
    try{simulation=await input.simulate(frozen);}catch{return false;}
-   return simulation.status==='success'&&simulation.sourceBlock===frame.source.block&&
+   if(simulation.status!=='success'||simulation.sourceBlock!==frame.source.block||
+    simulation.sourceHash.toLowerCase()!==frame.source.hash.toLowerCase()||
+    simulation.candidateHash!==candidateHash||!/^0x[0-9a-fA-F]{64}$/.test(simulation.simulationHash))return false;
+   try{simulationEvidence=verifyRangeKeeperPaperOwnedForkConfirmationEvidence(simulation.ownedForkEvidence,{
+    campaignId:draft.id,revision:draft.revision,configHash:draft.configHash,profileHash:draft.profileHash,
+    source:frame.source,referenceProofHash:frame.referenceProofHash,candidate:frozen,
+    candidateHash,simulationHash:simulation.simulationHash});}catch{return false;}
+   return simulationEvidence.candidateHash===candidateHash&&simulation.status==='success'&&
+    simulation.sourceBlock===frame.source.block&&
     simulation.sourceHash.toLowerCase()===frame.source.hash.toLowerCase()&&
-    simulation.candidateHash===candidateHash&&/^0x[0-9a-fA-F]{64}$/.test(simulation.simulationHash);
+    simulation.candidateHash===candidateHash;
   }});
  if(final.action!=='execute'||final.reason!=='two_confirmations'||!final.candidate||
   rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
    profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
-   referenceProofHash:frame.referenceProofHash,candidate:final.candidate})!==candidateHash||!simulation)
+   referenceProofHash:frame.referenceProofHash,candidate:final.candidate})!==candidateHash||!simulation||!simulationEvidence)
   return unavailable(draft,`rangekeeper_confirmation_cost_or_simulation_gate:${final.reason}`);
  const replay=replayPaperMint(frame.sqrtPriceX96,candidate.range,candidate.amount0Desired,
   candidate.amount1Desired,0n);
@@ -232,6 +245,7 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
   else{afterSwap1-=candidate.swap.amountIn;afterSwap0+=candidate.swap.quotedOut;}}
  const idle0=afterSwap0-replay.amount0,idle1=afterSwap1-replay.amount1;
  if(idle0<0n||idle1<0n)return unavailable(draft,'rangekeeper_confirmation_idle_inventory_invalid');
+ const confirmedSimulation=simulation as unknown as RangeKeeperPaperConfirmationSimulation;
  const body={schemaVersion:1 as const,kind:'rangekeeper_paper_open_confirmation_v1' as const,
   status:'confirmed' as const,campaignId:draft.id,revision:draft.revision,
   draftConfigHash:draft.configHash,profileHash:draft.profileHash,
@@ -241,12 +255,14 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
    reference:{price0:String(frame.price0),price1:String(frame.price1),nativePrice:String(frame.nativePrice),
     proofHash:frame.referenceProofHash,proof:frame.referenceProof!}},
   decision:{action:'execute' as const,reason:'two_confirmations' as const,
-   gasSequenceHash:selected.simulationHash,simulation},
+   gasSequenceHash:selected.simulationHash,simulation:{status:confirmedSimulation.status,
+    sourceBlock:confirmedSimulation.sourceBlock,sourceHash:confirmedSimulation.sourceHash,
+    candidateHash:confirmedSimulation.candidateHash,simulationHash:confirmedSimulation.simulationHash}},simulationEvidence,
   costs,strategyState:serializedState(final.state),
   inventory:{position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
    liquidity:String(candidate.liquidity)},idle:{token0:String(idle0),token1:String(idle1)}},
   selectedGasProfileIds:costs.profileIds.map(row=>row.id),
-  executionEvidence:'caller_supplied_simulation_attestation_unverified' as const,
+  executionEvidence:'source_bound_caller_simulation_evidence_unverified' as const,
   openingBooked:false as const,actionAvailable:false as const};
  return {...body,envelopeHash:contentHash(body)};
 }

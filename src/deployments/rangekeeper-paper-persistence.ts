@@ -2,6 +2,8 @@ import {z} from 'zod';
 import {replayPaperMint} from '../v3/position-math.js';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import {contentHash} from './contracts.js';
+import {referenceProofHash} from './market-profile.js';
+import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence} from './rangekeeper-paper-confirmation-simulation.js';
 import type {RangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-confirmation.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
@@ -27,13 +29,14 @@ const confirmationBodySchema=z.object({schemaVersion:z.literal(1),
   z.string().regex(/^0x[0-9a-fA-F]{64}$/),simulation:z.object({status:z.literal('success'),
    sourceBlock:raw,sourceHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),candidateHash:hash64,
    simulationHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/)}).strict()}).strict(),
+ simulationEvidence:z.record(z.string(),z.unknown()),
  costs:z.object({status:z.literal('provisional'),profileIds:z.array(z.object({stage:z.string().min(1),
   id:z.string().uuid(),version:z.number().int().positive()}).strict())}).passthrough(),
  strategyState:z.record(z.string(),z.unknown()),
  inventory:z.object({position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
   liquidity:raw}).strict(),idle:z.object({token0:raw,token1:raw}).strict()}).strict(),
  selectedGasProfileIds:z.array(z.string().uuid()),
- executionEvidence:z.literal('caller_supplied_simulation_attestation_unverified'),
+ executionEvidence:z.literal('source_bound_caller_simulation_evidence_unverified'),
  openingBooked:z.literal(false),actionAvailable:z.literal(false)}).strict();
 const stateSchema=z.object({schemaVersion:z.literal(1),policyId:z.literal('rangekeeper_v1'),
  strategyVersion:z.literal('1.0.0'),configHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
@@ -87,8 +90,17 @@ export function validateRangeKeeperPaperConfirmationEnvelope(value:unknown,
   parsed.decision.simulation.candidateHash!==parsed.confirmationObservation.candidateHash||
   parsed.costs.profileIds.length!==parsed.selectedGasProfileIds.length||
   parsed.costs.profileIds.some((profile,index)=>profile.id!==parsed.selectedGasProfileIds[index])||
+  referenceProofHash(parsed.confirmationObservation.reference.proof)!==
+   parsed.confirmationObservation.reference.proofHash||
   contentHash(body)!==envelopeHash)
   throw new Error('rangekeeper_paper_confirmation_envelope_integrity_invalid');
+ verifyRangeKeeperPaperOwnedForkConfirmationEvidence(parsed.simulationEvidence,{
+  campaignId:parsed.campaignId,revision:parsed.revision,configHash:parsed.draftConfigHash,
+  profileHash:parsed.profileHash,source:parsed.confirmationObservation.source,
+  referenceProofHash:parsed.confirmationObservation.reference.proofHash,
+  candidate:parseRangeKeeperPaperCandidate(parsed.confirmationObservation.candidate),
+  candidateHash:parsed.confirmationObservation.candidateHash,
+  simulationHash:parsed.decision.simulation.simulationHash});
  return parsed as unknown as RangeKeeperPaperConfirmationEnvelope;
 }
 

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {keccak256,stringToHex} from 'viem';
 import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {contentHash} from '../src/deployments/contracts.js';
 import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-profile.js';
@@ -10,6 +11,8 @@ import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe
 import {parseRangeKeeperPaperCandidate,validateRangeKeeperPaperConfirmationEnvelope}
  from '../src/deployments/rangekeeper-paper-persistence.js';
 import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
+import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
+ '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
@@ -150,18 +153,35 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   simulate:async confirmed=>{
    const h=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:1,profileHash,configHash,
     source:secondSource,referenceProofHash:proofHash,candidate:confirmed});
-   simulationHash=h;return {status:'success' as const,sourceBlock:secondSource.block,
-    sourceHash:secondSource.hash,candidateHash:h,simulationHash:gasHash('f')};
+   simulationHash=h;
+   const stages=[...(confirmed.swap?RANGEKEEPER_PAPER_OPEN_STAGES_SWAP:RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP),
+    ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],ownedForkEvidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({
+     probe:probe as RangeKeeperPaperConfirmationProbe,frame:frame2,configHash,
+     samples:stages.map((action,index)=>({action,to:address('3'),calldata:'0x1234',returnData:'0x',
+      localHash:gasHash(String((index%8)+2)),localGasUsed:'21000',localEffectiveGasPriceWei:'1',
+      sourceBlock:secondSource.block,sourceHash:secondSource.hash,estimate:{gas:'25000',parentGas:'21000',
+       baseFeeWei:'1',parentBaseFeeWei:'1',totalFeeWei:'1',parentFeeWei:'1',executionFeeWei:'0',
+       basis:'node_estimateGas_with_paper_prestate_and_parent_component' as const},
+      stateOverrideHash:'f'.repeat(64),stateOverrides:{}}))});
+   return {status:'success' as const,sourceBlock:secondSource.block,sourceHash:secondSource.hash,
+    candidateHash:h,simulationHash:ownedForkEvidence.sequenceHash,ownedForkEvidence};
   }});
  assert.equal(result.status,'confirmed');
  if(result.status!=='confirmed')return;
  assert.equal(result.actionAvailable,false);assert.equal(result.decision.reason,'two_confirmations');
  assert.equal(result.openingBooked,false);
- assert.equal(result.executionEvidence,'caller_supplied_simulation_attestation_unverified');
+ assert.equal(result.executionEvidence,'source_bound_caller_simulation_evidence_unverified');
+ assert.equal(result.simulationEvidence.sequenceHash,result.decision.simulation.simulationHash);
  assert.equal(result.confirmationObservation.candidateHash,simulationHash);
  assert.equal(result.decision.simulation.candidateHash,simulationHash);
  assert.equal(result.decision.gasSequenceHash,gasHash('e'));
  assert.deepEqual(validateRangeKeeperPaperConfirmationEnvelope(result,{campaignId:draft.id,revision:1}),result);
+ const callerSupplied=await buildRangeKeeperPaperConfirmation({...baseInput,readGasProfiles:reader,
+  simulate:async candidate=>({status:'success' as const,sourceBlock:secondSource.block,
+   sourceHash:secondSource.hash,candidateHash:rangeKeeperPaperCandidateHash({campaignId:draft.id,
+    revision:1,profileHash,configHash,source:secondSource,referenceProofHash:proofHash,candidate}),
+   simulationHash:gasHash('f')})});
+ assert.equal(callerSupplied.status,'unavailable');
  const confirmationContextBody={schemaVersion:1,kind:'rangekeeper_paper_confirmation_context_v1',
   campaignId:draft.id,revision:1,mode:'paper',lifecycle:'draft',
   runtimeIdentity:{buildId,configHash:'a'.repeat(64),nodeVersion:'v24.20.0'},
@@ -176,6 +196,7 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   assert.equal(restoredContext.state.lastEligible?.hash.toLowerCase(),secondSource.hash.toLowerCase());
   assert.deepEqual(restoredContext.costs,result.costs);
   assert.equal(restoredContext.inventory.kind,'modeled_after_confirmation');
+  assert.equal(restoredContext.evidence.simulation,'source_bound_caller_evidence_unverified');
   assert.equal(restoredContext.evidence.actionAvailable,false);
   assert.equal(restoredContext.evidence.openingBooked,false);
  }
@@ -210,6 +231,12 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  invalidEnvelopeBody.confirmationObservation.candidate=invalidCandidateJson;
  invalidEnvelopeBody.confirmationObservation.candidateHash=invalidCandidateHash;
  invalidEnvelopeBody.decision.simulation.candidateHash=invalidCandidateHash;
+ const invalidSimulationEvidence=invalidEnvelopeBody.simulationEvidence;
+ invalidSimulationEvidence.candidate=invalidCandidateJson;
+ invalidSimulationEvidence.candidateHash=invalidCandidateHash;
+ const {sequenceHash:_oldSequenceHash,...invalidSimulationEvidenceBody}=invalidSimulationEvidence;
+ invalidSimulationEvidence.sequenceHash=keccak256(stringToHex(contentHash(invalidSimulationEvidenceBody)));
+ invalidEnvelopeBody.decision.simulation.simulationHash=invalidSimulationEvidence.sequenceHash;
  const invalidEnvelope={...invalidEnvelopeBody,envelopeHash:contentHash(invalidEnvelopeBody)},
   invalidContextBody={...confirmationContextBody,envelope:invalidEnvelope},
   invalidContext={...invalidContextBody,snapshotHash:contentHash(invalidContextBody)},

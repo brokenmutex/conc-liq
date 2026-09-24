@@ -40,6 +40,10 @@ import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {replayPaperMint} from '../../src/v3/position-math.ts';
 import {serializeRangeKeeperPaperKernelSnapshot}
  from '../../src/deployments/rangekeeper-paper-persistence.ts';
+import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
+ RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES} from '../../src/deployments/rangekeeper-paper-cost.ts';
+import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
+ '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
  from '../../src/dashboard/deployment-position.ts';
@@ -242,22 +246,51 @@ try{
  assert.deepEqual(savedRkMark.provenance.kernelSnapshot,rkKernel);
  assert.equal(savedRkMark.provenance.actionAvailable,false);
  const rkConfirmationSource={block:'204',hash:'0x'+'a'.repeat(64),timestamp:rkMarkSource.timestamp+3},
-  rkConfirmationCandidate={...rkOpenModel.candidate,sourceBlock:'204',sourceHash:rkConfirmationSource.hash},
+  rkConfirmationProof={fixture:'deployment-confirmation'},
+  rkConfirmationProofHash=referenceProofHash(rkConfirmationProof),
+  rkConfirmationCandidate={kind:'entry',range:rkRange,swap:null,
+   amount0Desired:10n**18n,amount1Desired:10n**18n,amount0Min:0n,amount1Min:0n,
+   liquidity:rkMint.liquidity,deployedValue:1n,sourceBlock:204n,sourceHash:rkConfirmationSource.hash,
+   expiresAt:rkOpenSource.timestamp+90},
+  rkConfirmationCandidateHash=rangeKeeperPaperCandidateHash({campaignId:rkDraft.id,revision:1,
+   profileHash:contentHash(market),configHash:rkDraft.configHash,source:rkConfirmationSource,
+   referenceProofHash:rkConfirmationProofHash,candidate:rkConfirmationCandidate}),
+  rkConfirmationFrame={source:rkConfirmationSource,tick:0,sqrtPriceX96:rkSqrt,poolLiquidity:1n,
+   price0:1n,price1:1n,nativePrice:1n,referenceEligible:true,referenceReasons:[],
+   referenceProofHash:rkConfirmationProofHash,referenceProof:rkConfirmationProof},
+  rkConfirmationProbe={status:'candidate',campaignId:rkDraft.id,revision:1,
+   firstModelHash:contentHash(rkOpenModel),firstCandidateHash:rkCandidateHash,
+   source:rkConfirmationSource,candidate:rkConfirmationCandidate,candidateHash:rkConfirmationCandidateHash,
+   scope:{poolAddress:market.pool.pool,profileHash:contentHash(market),
+    candidateHash:rkConfirmationCandidateHash,deployedValue:1n,sharePpm:1n,range:rkRange,swapKind:'none'},
+   pathVersion:'paper_rangekeeper_v1_no_swap_v1',sizeBand:'rk_'+'0'.repeat(32),actionAvailable:false},
+  rkConfirmationSamples=[...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES]
+   .map((action,index)=>({action,to:'0x'+'2'.repeat(40),calldata:'0x1234',returnData:'0x',
+    localHash:'0x'+String(index+1).repeat(64),localGasUsed:'21000',localEffectiveGasPriceWei:'1',
+    sourceBlock:rkConfirmationSource.block,sourceHash:rkConfirmationSource.hash,
+    estimate:{gas:'25000',parentGas:'21000',baseFeeWei:'1',parentBaseFeeWei:'1',totalFeeWei:'1',
+     parentFeeWei:'1',executionFeeWei:'0',
+     basis:'node_estimateGas_with_paper_prestate_and_parent_component'},
+    stateOverrideHash:'f'.repeat(64),stateOverrides:{}})),
+  rkConfirmationEvidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe:rkConfirmationProbe,
+   frame:rkConfirmationFrame,configHash:rkDraft.configHash,samples:rkConfirmationSamples}),
   rkGasId=randomUUID(),rkConfirmationBody={schemaVersion:1,kind:'rangekeeper_paper_open_confirmation_v1',
    status:'confirmed',campaignId:rkDraft.id,revision:1,draftConfigHash:rkDraft.configHash,
    profileHash:contentHash(market),firstObservation:{source:rkOpenSource,
     modelHash:contentHash(rkOpenModel),candidateHash:rkCandidateHash},
-   confirmationObservation:{source:rkConfirmationSource,candidateHash:'d'.repeat(64),
-    candidate:rkConfirmationCandidate,poolState:{tick:0,sqrtPriceX96:String(rkSqrt),poolLiquidity:'1'},
-    reference:{price0:'1',price1:'1',nativePrice:'1',proofHash:'e'.repeat(64),proof:{fixture:true}}},
+   confirmationObservation:{source:rkConfirmationSource,candidateHash:rkConfirmationCandidateHash,
+    candidate:{...rkOpenModel.candidate,sourceBlock:'204',sourceHash:rkConfirmationSource.hash},
+    poolState:{tick:0,sqrtPriceX96:String(rkSqrt),poolLiquidity:'1'},
+    reference:{price0:'1',price1:'1',nativePrice:'1',proofHash:rkConfirmationProofHash,proof:rkConfirmationProof}},
    decision:{action:'execute',reason:'two_confirmations',gasSequenceHash:'0x'+'b'.repeat(64),
     simulation:{status:'success',sourceBlock:'204',sourceHash:rkConfirmationSource.hash,
-     candidateHash:'d'.repeat(64),simulationHash:'0x'+'c'.repeat(64)}},
+     candidateHash:rkConfirmationCandidateHash,simulationHash:rkConfirmationEvidence.sequenceHash}},
+   simulationEvidence:rkConfirmationEvidence,
    costs:{status:'provisional',scope:'range_keeper_open_and_retain_exit_gas_only',
     evidenceClass:'fork_estimated',profileIds:[{stage:'open_mint',id:rkGasId,version:1}]},
    strategyState:{fixture:true},inventory:{position:{tickLower:-60,tickUpper:60,liquidity:String(rkMint.liquidity)},
     idle:{token0:'0',token1:'0'}},selectedGasProfileIds:[rkGasId],
-   executionEvidence:'caller_supplied_simulation_attestation_unverified',openingBooked:false,actionAvailable:false},
+   executionEvidence:'source_bound_caller_simulation_evidence_unverified',openingBooked:false,actionAvailable:false},
   rkConfirmation={...rkConfirmationBody,envelopeHash:contentHash(rkConfirmationBody)},
   verifyConfirmationAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
    sources.map(source=>source.block),['200','204']);};

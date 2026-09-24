@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {describe,it} from 'node:test';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence} from
+ '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES} from '../src/deployments/rangekeeper-paper-cost.js';
 import type {RangeKeeperPaperConfirmationProbe} from '../src/deployments/rangekeeper-paper-confirmation.js';
@@ -40,7 +42,7 @@ function samples():RangeKeeperPaperGasStageSample[]{
 describe('RangeKeeper owned-fork confirmation simulation evidence',()=>{
  it('binds the complete local entry and retain sequence to the exact candidate source',()=>{
   const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,configHash,samples:samples()});
-  assert.equal(evidence.status,'success');assert.equal(evidence.evidenceClass,'local_owned_anvil_fork');
+  assert.equal(evidence.status,'success');assert.equal(evidence.evidenceClass,'caller_claimed_owned_anvil_fork');
   assert.equal(evidence.candidateHash,probe.candidateHash);assert.equal(evidence.source.hash,source.hash);
   assert.equal(evidence.stages.length,8);assert.equal(evidence.admissionAvailable,false);
   assert.equal(evidence.openingBooked,false);assert.match(evidence.sequenceHash,/^0x[0-9a-f]{64}$/);
@@ -50,5 +52,15 @@ describe('RangeKeeper owned-fork confirmation simulation evidence',()=>{
   assert.throws(()=>buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,configHash,samples:changed}));
   const reordered=samples();reordered[0]={...reordered[0]!,action:'open_mint'};
   assert.throws(()=>buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,configHash,samples:reordered}));
+ });
+ it('rejects tampered persisted stage data and a different campaign binding',()=>{
+  const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,configHash,samples:samples()});
+  const expected={campaignId,revision:1,configHash,profileHash,source,
+   referenceProofHash:frame.referenceProofHash,candidate,candidateHash,simulationHash:evidence.sequenceHash};
+  assert.deepEqual(verifyRangeKeeperPaperOwnedForkConfirmationEvidence(evidence,expected),evidence);
+  const tampered=structuredClone(evidence) as any;tampered.stages[0].calldata='0xabcd';
+  assert.throws(()=>verifyRangeKeeperPaperOwnedForkConfirmationEvidence(tampered,expected));
+  assert.throws(()=>verifyRangeKeeperPaperOwnedForkConfirmationEvidence(evidence,
+   {...expected,campaignId:'d7ee3ef7-f665-40d0-869e-a4e35ed4d907'}));
  });
 });
