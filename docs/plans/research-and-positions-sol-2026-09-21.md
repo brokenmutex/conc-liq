@@ -1260,6 +1260,46 @@ paper campaign state, revision and pending operation before saving a 60-second
 no-economics proposal. Invalid state writes no preview. Focused server and
 isolated integration tests passed; acceptance remains 503.
 
+**September 24 source checkpoint:** `76eaa25` and `888a8f9` show the latest
+persisted operation kind/status/stage in Positions, including a queued open
+before its first mark, while preserving unavailable economics. `44a7141` and
+`555eacd` serve the accepted UI plus Research/Positions read models on the
+loopback command origin; the public dashboard remains read-only. `6e94dc1`
+binds the bottom setup to authenticated, verified pool/profile data and a
+read-only static/manual paper sizing preflight. It shows aligned bounds,
+integer token requirements and provisional scoped costs. It creates no draft:
+the accepted form has no wallet identity, and sizing has not established
+funding or admission limits. `4726764` and `fd56774` add a registered,
+disposable Chromium check: 16 public/operator desktop/mobile checks passed,
+with two setup preflight POSTs, zero draft/operation POSTs and zero browser
+errors against mock read/command responses.
+
+`9d38b8a` persists a source-pinned static/manual retain-close preview and
+adds a specialized HTTP acceptance path that verifies its campaign, revision,
+open/prior/terminal anchors and saved model before queueing. Isolated tests
+exercise authenticated HTTP acceptance, idempotent replay, forged-evidence
+and reorg rejection, worker restart and terminal completion. Runtime sets
+`paperRetainWorkerReady: false`, so previews remain non-actionable and HTTP
+acceptance returns 503 until worker readiness and cost revalidation pass.
+Static open, pause/resume and convert-close are not yet connected end to end
+through the operator page.
+
+**F3 source checkpoint:** `6923842` adds migration 9 for append-only,
+hash-checked RangeKeeper second-observation confirmation envelopes with
+canonical anchor rechecks. `c3dee73` and `7bd9c55` add a restart-safe,
+read-only context that replays candidate inventory, scoped provisional costs
+and kernel identity; invalid mint/proof inputs fail unavailable. Simulation
+remains caller-supplied and unverified, opening is not booked, and actions
+remain unavailable. An owned-fork producer, worker consumer, both exits and
+shared dashboard lifecycle parity remain F3 gates. No production migration,
+service restart, signing, broadcast or sealed release occurred.
+
+On this checkpoint, the pinned `npm run check` passed 736/736 tests and the
+isolated PostgreSQL `npm run test:integration` gate passed through migration 9.
+The Chromium run used mock responses, not real chain/profile availability or
+the full paper lifecycle. These source checks do not satisfy F2/F3 browser,
+worker-supervision or sealed-release acceptance.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
