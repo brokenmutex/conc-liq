@@ -599,11 +599,96 @@ try{
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,previewCountBeforeReorg);
  const paperPreview=await persistTrustedPaperOpenPreview({store,draft:paperInput,frame,
-  preview:{...costed,expiresAt:new Date(Date.now()+1500).toISOString()},verifyAnchors:verifyPaperAnchors});
+  preview:{...costed,expiresAt:new Date(Date.now()+10_000).toISOString()},verifyAnchors:verifyPaperAnchors});
  assert.equal(paperPreview.expectedRevision,1);assert.equal(paperPreview.modelHash,contentHash(paperModel));
- const paperOperation=await store.acceptOperation(paperDraft.id,{previewId:paperPreview.id,
+ const openCommand={previewId:paperPreview.id,
   contentDigest:paperPreview.contentDigest,expectedRevision:1,
-  idempotencyKey:'paper-open-model-unique-1'},'operator');
+  idempotencyKey:'paper-open-model-unique-1'};
+ const openPortProbe=createTcpServer();openPortProbe.listen(0,'127.0.0.1');await once(openPortProbe,'listening');
+ const openProbeAddress=openPortProbe.address();assert(openProbeAddress&&typeof openProbeAddress!=='string');
+ const openCommandPort=openProbeAddress.port;
+ await new Promise((resolve,reject)=>openPortProbe.close(error=>error?reject(error):resolve()));
+  const openCommandOrigin='http://127.0.0.1:'+openCommandPort,openSalt=randomBytes(16),
+  openPassword='integration-paper-open-operator',openPasswordHash='scrypt:'+openSalt.toString('hex')+':'+
+  scryptSync(openPassword,openSalt,32).toString('hex'),
+  openPreviewResponse={...costed,...paperPreview,status:'indicative',trustedPreviewSaved:true};
+ assert.equal(openPreviewResponse.kind,'open');
+ assert.equal(openPreviewResponse.status,'indicative');
+ assert.equal(openPreviewResponse.trustedPreviewSaved,true);
+ assert.match(openPreviewResponse.id,/^[0-9a-f-]{36}$/i);
+ assert.match(openPreviewResponse.contentDigest,/^[0-9a-f]{64}$/);
+ assert.equal(Number.isSafeInteger(openPreviewResponse.expectedRevision),true);
+ assert.ok(new Date(openPreviewResponse.expiresAt).getTime()>Date.now());
+ assert.match(openPreviewResponse.modelHash,/^[0-9a-f]{64}$/);
+ assert.ok(openPreviewResponse.source.timestamp*1000<=Date.now());
+ assert.ok(Date.now()-openPreviewResponse.source.timestamp*1000<=180_000);
+ const openCommandServer=createDeploymentCommandServer(store,{origin:openCommandOrigin,
+  passwordHash:openPasswordHash,paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
+  paperOpenAcceptance:(campaignId,input,actor)=>
+   store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyPaperAnchors),
+  paperRetainAcceptance:(campaignId,input,actor)=>
+   store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyPaperAnchors),
+  paperPreview:async()=>openPreviewResponse});
+ openCommandServer.listen(openCommandPort,'127.0.0.1');await once(openCommandServer,'listening');
+ let paperOperation;
+ try{
+  const post=(path,body,headers={})=>fetch(openCommandOrigin+path,{method:'POST',
+   headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+  const login=await post('/api/session',{password:openPassword},{origin:openCommandOrigin});
+  assert.equal(login.status,200);
+  const cookie=login.headers.get('set-cookie').split(';')[0],{csrfToken}=await login.json();
+  const headers={origin:openCommandOrigin,cookie,'x-csrf-token':csrfToken};
+  const unavailablePreviewResponse=await post(`/api/deployments/${paperDraft.id}/previews`,
+   {kind:'open'},headers);
+  assert.equal(unavailablePreviewResponse.status,200);
+  assert.equal((await unavailablePreviewResponse.json()).actionAvailable,false);
+  const noLeaseResponse=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
+  assert.equal(noLeaseResponse.status,503);
+  const noLeaseCount=(await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',
+   [paperDraft.id])).rows[0].n;
+  assert.equal(noLeaseCount,0);
+  workerLease=await pool.connect();
+  assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+   PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+  assert.equal(await store.paperOperationWorkerReady(),true,'open preview requires visible worker lease');
+  const readyPreviewResponse=await post(`/api/deployments/${paperDraft.id}/previews`,
+   {kind:'open'},headers);
+  const readyPreviewBody=await readyPreviewResponse.json();
+  assert.equal(readyPreviewBody.actionAvailable,true,JSON.stringify(readyPreviewBody));
+  assert.equal(readyPreviewBody.economics,null,'open preview is provisional, not paid economics');
+  workerLease.release(true);workerLease=undefined;
+  const leaseLost=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
+  assert.equal(leaseLost.status,503);
+  assert.equal((await leaseLost.json()).error,'operation_worker_not_ready');
+  const afterLeaseLossCount=(await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',
+   [paperDraft.id])).rows[0].n;
+  assert.equal(afterLeaseLossCount,0);
+  workerLease=await pool.connect();
+  assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+   PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+  const wrongGenericRoute=await post(`/api/deployments/${paperDraft.id}/operations`,openCommand,headers);
+  assert.equal(wrongGenericRoute.status,409);
+  assert.equal((await wrongGenericRoute.json()).error,'paper_close_retain_admission_unavailable');
+  const staleDigestResponse=await post(`/api/deployments/${paperDraft.id}/open-operations`,
+   {...openCommand,contentDigest:'f'.repeat(64),idempotencyKey:'paper-open-bad-digest-1'},headers);
+  assert.equal(staleDigestResponse.status,409);
+  assert.equal((await staleDigestResponse.json()).error,'stale_preview');
+  const staleRevisionResponse=await post(`/api/deployments/${paperDraft.id}/open-operations`,
+   {...openCommand,expectedRevision:2,idempotencyKey:'paper-open-bad-revision-1'},headers);
+  assert.equal(staleRevisionResponse.status,409);
+  assert.equal((await staleRevisionResponse.json()).error,'stale_revision');
+  const accepted=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
+  assert.equal(accepted.status,202);paperOperation=await accepted.json();
+  assert.equal(paperOperation.status,'queued');assert.equal(paperOperation.replayed,false);
+  const replay=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
+  assert.equal(replay.status,202);assert.equal((await replay.json()).replayed,true);
+ }finally{openCommandServer.close();await once(openCommandServer,'close');}
+ assert(workerLease);workerLease.release(true);workerLease=undefined;
+ assert.equal(await store.paperOperationWorkerReady(),false);
+ workerLease=await pool.connect();
+ assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+  PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+ assert.equal(await store.paperOperationWorkerReady(),true);
  const queuedPaper=deploymentPosition((await readDeploymentRows(admin)).find(row=>row.id===paperDraft.id));
  assert.equal(queuedPaper.status,'waiting');
  assert.equal(queuedPaper.deployment.operation.id,paperOperation.id);

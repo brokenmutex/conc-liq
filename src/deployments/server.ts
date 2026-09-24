@@ -18,6 +18,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  dashboardRead?:(path:string)=>Promise<unknown>;
+ paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperLifecycleAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainWorkerReady?:()=>Promise<boolean>}
@@ -218,7 +219,42 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(lifecycleSaved&&options.paperLifecycleAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
+    const openId=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {id?:unknown}).id:null;
+    const openDigest=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {contentDigest?:unknown}).contentDigest:null;
+    const openRevision=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {expectedRevision?:unknown}).expectedRevision:null;
+    const openExpiry=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {expiresAt?:unknown}).expiresAt:null;
+    const openExpiryMs=openExpiry instanceof Date?openExpiry.getTime():
+     typeof openExpiry==='string'?Date.parse(openExpiry):Number.NaN;
+    const openSource=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {source?:unknown}).source:null;
+    const openModelHash=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {modelHash?:unknown}).modelHash:null;
+    const openSourceRecord=openSource&&typeof openSource==='object'&&!Array.isArray(openSource)?
+     openSource as {block?:unknown;hash?:unknown;timestamp?:unknown}:null;
+    const openSourceFresh=Boolean(openSourceRecord&&
+     typeof openSourceRecord.block==='string'&&/^(0|[1-9][0-9]*)$/.test(openSourceRecord.block)&&
+     typeof openSourceRecord.hash==='string'&&/^0x[0-9a-f]{64}$/i.test(openSourceRecord.hash)&&
+     Number.isSafeInteger(openSourceRecord.timestamp)&&Number(openSourceRecord.timestamp)>=0&&
+     Number(openSourceRecord.timestamp)*1000<=now()&&
+     now()-Number(openSourceRecord.timestamp)*1000<=180_000);
+    const openSaved=result&&typeof result==='object'&&!Array.isArray(result)&&
+     (result as {status?:unknown;kind?:unknown;trustedPreviewSaved?:unknown}).status==='indicative'&&
+     (result as {kind?:unknown}).kind==='open'&&
+     (result as {trustedPreviewSaved?:unknown}).trustedPreviewSaved===true&&
+     typeof openId==='string'&&uuid.test(openId)&&typeof openDigest==='string'&&
+     /^[0-9a-f]{64}$/.test(openDigest)&&Number.isSafeInteger(openRevision)&&Number(openRevision)>0&&
+     Number.isFinite(openExpiryMs)&&openExpiryMs>now()&&
+     openSourceFresh&&
+     typeof openModelHash==='string'&&/^[0-9a-f]{64}$/.test(openModelHash);
+    if(openSaved&&options.paperOpenAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
     const actionable=Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
+     Boolean(openSaved&&workerReady&&options.paperOpenAcceptance)||
      Boolean(lifecycleSaved&&workerReady&&options.paperLifecycleAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
      {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
@@ -249,6 +285,19 @@ export function createDeploymentCommandServer(store:CommandStore,
     }
     const input=acceptInput.parse(await jsonBody(request));
     send(response,202,await options.paperLifecycleAcceptance(lifecycleAcceptMatch[1]!,input,'operator'));return;
+   }
+   const openAcceptMatch=/^\/api\/deployments\/([^/]+)\/open-operations$/.exec(path);
+   if(openAcceptMatch&&request.method==='POST'){
+    if(!uuid.test(openAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    let workerReady=false;
+    if(options.paperOpenAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    if(!workerReady||!options.paperOpenAcceptance){
+     send(response,503,{error:'operation_worker_not_ready'});return;
+    }
+    const input=acceptInput.parse(await jsonBody(request));
+    send(response,202,await options.paperOpenAcceptance(openAcceptMatch[1]!,input,'operator'));return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
    if(operationMatch&&request.method==='GET'){
