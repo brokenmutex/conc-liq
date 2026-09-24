@@ -19,6 +19,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
+ paperSetupDraftList?:()=>Promise<unknown>;
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
@@ -170,6 +171,12 @@ export function createDeploymentCommandServer(store:CommandStore,
    }
    if(path==='/api/market-profiles'&&request.method==='GET'){
     send(response,200,{profiles:await store.listMarketProfiles()});return;
+   }
+   if(path==='/api/deployments/setup-drafts'&&request.method==='GET'){
+    if(!options.paperSetupDraftList){send(response,503,{error:'paper_setup_draft_list_unavailable'});return;}
+    try{send(response,200,{drafts:await options.paperSetupDraftList()});}
+    catch{send(response,503,{error:'paper_setup_draft_list_unavailable'});}
+    return;
    }
    if(path==='/api/deployments/setup-preflight'&&request.method==='POST'){
     const input=paperSetupPreflightInput.parse(await jsonBody(request));

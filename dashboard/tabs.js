@@ -178,6 +178,7 @@ function bootDashboardTabs() {
   const logoutButton = document.getElementById('operator-logout');
   const onOperatorOrigin = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
   if (authPanel) authPanel.hidden = !onOperatorOrigin;
+  document.getElementById('saved-paper-drafts').hidden=!onOperatorOrigin;
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let registeredPools = [];
   let marketProfiles = [];
@@ -191,6 +192,26 @@ function bootDashboardTabs() {
   let openIdempotencyKey = null;
   let openAcceptanceAmbiguous = false;
   let setupReviewSequence = 0;
+  const pendingDraftStorageKey='concliq.operator.static-paper-draft.pending.v1';
+  const pendingOpenStorageKey='concliq.operator.paper-open.pending.v1';
+  let pendingDraftPersistenceAvailable=true;
+  let pendingOpenAcceptance=null;
+  try{
+    const saved=JSON.parse(localStorage.getItem(pendingDraftStorageKey)??'null');
+    if(saved&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(saved.requestId??'')&&
+      typeof saved.body==='string'&&saved.body.length<16_000&&JSON.parse(saved.body)){
+      pendingDraftRequestId=saved.requestId;pendingDraftBody=saved.body;
+    }
+  }catch{pendingDraftPersistenceAvailable=false;}
+  try{
+    const saved=JSON.parse(localStorage.getItem(pendingOpenStorageKey)??'null');
+    const payload=saved?.payload;
+    if(saved&&PROFILE_UUID.test(saved.campaignId??'')&&PROFILE_UUID.test(payload?.previewId??'')&&
+      /^[0-9a-f]{64}$/.test(payload?.contentDigest??'')&&Number.isSafeInteger(payload?.expectedRevision)&&
+      PROFILE_UUID.test(payload?.idempotencyKey??'')){
+      pendingOpenAcceptance=saved;openAcceptanceAmbiguous=true;
+    }
+  }catch{pendingDraftPersistenceAvailable=false;}
   const setSetupStatus = (message, kind = 'unavailable') => {
     setupNote.textContent = message;
     setupNote.dataset.state = kind;
@@ -401,7 +422,8 @@ function bootDashboardTabs() {
       status=document.getElementById('operator-draft-binding-status');
     status.dataset.state=result.status==='reviewable'?'available':'unavailable';
     status.textContent=result.status==='reviewable'?
-      'Binding values are structurally complete. Wallet ownership/funding and all policy admission remain unchecked; no draft was saved.':
+      (savedDraftId?'Static paper admission passed when draft '+savedDraftId+' was created. Wallet ownership/funding remain unchecked; request a fresh open preview.':
+       'Binding values are structurally complete. Wallet ownership/funding and server admission have not been checked; no draft was saved.'):
       `Review incomplete: ${result.missing.join(', ')}.`;
     const facts=document.getElementById('operator-draft-binding-facts');
     const saveButton=document.getElementById('save-paper-draft');
@@ -411,14 +433,15 @@ function bootDashboardTabs() {
       ['Registered market profile',binding.profileId],['Pool / fee tier',`${currentSetupPreflight.profile.pool} · ${currentSetupPreflight.profile.fee}`],
       ['Registered profile hash',binding.profileHash],
       ['Preflight source block / hash',`${binding.source.block} · ${binding.source.hash}`],
-      ['Campaign revision','None · no draft exists'],['Capital budget · raw USDG',currentSetupPreflight.input.capitalQuoteRaw],
+      ['Campaign revision',savedDraftId?'1':'None · no draft exists'],['Capital budget · raw USDG',currentSetupPreflight.input.capitalQuoteRaw],
       ['Centered half-width · ticks',String(proposal.config.halfWidthTicks)],
       ['Resolved tick bounds',`${currentSetupPreflight.range.tickLower} to ${currentSetupPreflight.range.tickUpper}`],
       [`${currentSetupPreflight.profile.token0} allocation · raw`,proposal.allocation.token0Raw],
       [`${currentSetupPreflight.profile.token1} allocation · raw`,proposal.allocation.token1Raw],
       ['Native gas allocation · wei',proposal.allocation.nativeWei],
       ...Object.entries(proposal.config.limits).map(([key,value])=>[limitLabels[key]??key,String(value)]),
-      ['Policy admission','Not evaluated'],['Draft persistence',savedDraftId?'Saved · '+savedDraftId:'Not saved'],
+      ['Policy admission',savedDraftId?'Passed at draft creation; fresh open preview required':'Not evaluated'],
+      ['Draft persistence',savedDraftId?'Saved · '+savedDraftId:pendingDraftRequestId?'Pending · same request ID retained':'Not saved'],
     ];
     facts.replaceChildren(...rows.map(([name,value])=>{const row=document.createElement('div');
       const label=document.createElement('dt');label.textContent=name;
@@ -436,6 +459,12 @@ function bootDashboardTabs() {
   const draftStatus=document.getElementById('setup-draft-submit-status');
   const openStatus=document.getElementById('setup-open-status');
   const setDraftStatus=(message,state='unavailable')=>{draftStatus.textContent=message;draftStatus.dataset.state=state;};
+  const persistPendingDraft=()=>{
+    try{localStorage.setItem(pendingDraftStorageKey,JSON.stringify({requestId:pendingDraftRequestId,body:pendingDraftBody}));return true;}
+    catch{pendingDraftPersistenceAvailable=false;return false;}
+  };
+  const clearPendingDraft=()=>{pendingDraftRequestId=null;pendingDraftBody=null;
+    try{localStorage.removeItem(pendingDraftStorageKey);}catch{pendingDraftPersistenceAvailable=false;}};
   function freezeDraftInputs(frozen){
     for(const element of [poolSelect,document.getElementById('setup-capital'),widthSelect,
       document.getElementById('setup-strategy'),document.getElementById('setup-mode'),
@@ -448,20 +477,71 @@ function bootDashboardTabs() {
     const wallet=document.getElementById('setup-wallet-address').value.trim();
     const nativeWei=document.getElementById('setup-allocation-native').value;
     const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+    const localReview=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits});
+    if(localReview.status!=='reviewable')return null;
+    const proposal=localReview.binding.proposedDraft;
     const reviewed={profileId:currentSetupPreflight.profileId,profileHash:currentSetupPreflight.profileHash,
       input:currentSetupPreflight.input,source:currentSetupPreflight.source,profile:currentSetupPreflight.profile,
       range:currentSetupPreflight.range,requirements:currentSetupPreflight.requirements,
       references:currentSetupPreflight.references,costs:currentSetupPreflight.costs};
     return {profileId:currentSetupPreflight.profileId,capitalQuoteRaw:currentSetupPreflight.input.capitalQuoteRaw,
-      halfWidthTicks:currentSetupPreflight.input.halfWidthTicks,wallet,
-      allocation:{token0Raw:document.getElementById('setup-allocation-token0').value,
-        token1Raw:document.getElementById('setup-allocation-token1').value,nativeWei},limits,reviewed};
+      halfWidthTicks:currentSetupPreflight.input.halfWidthTicks,wallet:proposal.wallet,
+      allocation:proposal.allocation,limits:proposal.config.limits,reviewed};
   };
-  async function requestFreshOpenPreview(campaignId){
-    const refreshButton=document.getElementById('refresh-open-preview');
+  const setOpenActionsLocked=locked=>{
+    const setupRefresh=document.getElementById('refresh-open-preview');if(setupRefresh)setupRefresh.disabled=locked||!window.concliqOperatorAuthenticated?.();
+    for(const button of document.querySelectorAll('.saved-open-preview'))button.disabled=locked||!window.concliqOperatorAuthenticated?.();
+  };
+  const persistPendingOpen=()=>{
+    try{localStorage.setItem(pendingOpenStorageKey,JSON.stringify(pendingOpenAcceptance));return true;}
+    catch{pendingDraftPersistenceAvailable=false;return false;}
+  };
+  const clearPendingOpen=()=>{pendingOpenAcceptance=null;openIdempotencyKey=null;openAcceptanceAmbiguous=false;
+    try{localStorage.removeItem(pendingOpenStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
+    document.getElementById('pending-open-recovery').hidden=true;
+    setOpenActionsLocked(false);};
+  async function submitOpenAcceptance(campaignId,payload,text,accept,refreshButton){
+    if(!window.concliqOperatorAuthenticated?.())return;
+    const priorAttemptWasAmbiguous=openAcceptanceAmbiguous;
+    accept.disabled=true;setOpenActionsLocked(true);
+    try{
+      const accepted=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/open-operations`,
+        {method:'POST',body:payload,csrf:true});
+      if(!PROFILE_UUID.test(accepted?.id??'')||
+         !['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected'].includes(accepted.status))
+        throw new Error('operation_acceptance_response_invalid');
+      clearPendingOpen();
+      text.textContent=`Open operation ${accepted.id} accepted · ${accepted.status}. Check Positions for saved stages; paid costs remain unavailable.`;
+      try{window.dispatchEvent(new Event('positions-refresh-requested'));}catch{}
+      void loadSavedPaperDrafts();
+    }catch(error){
+      const reason=error?.data?.error??error?.message??'command_failed';
+      if(error?.data?.error==='operation_worker_not_ready'){
+        if(priorAttemptWasAmbiguous){
+          openAcceptanceAmbiguous=true;setOpenActionsLocked(true);accept.disabled=false;
+          accept.textContent='Retry same open acceptance / reconcile';
+          text.textContent='The same-key retry could not be reconciled because worker readiness is unavailable. The earlier acceptance outcome remains unknown; keep this key and retry after readiness returns.';
+        }else{
+          clearPendingOpen();accept.disabled=true;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+          text.textContent='Open acceptance unavailable because worker readiness was not available before submission. No operation was submitted; request a fresh preview when readiness returns.';
+        }
+      }else if(error?.status>=400&&error.status<500){
+        clearPendingOpen();accept.disabled=true;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
+        text.textContent=`Open preview rejected (${reason}). Request a fresh preview before retrying.`;
+      }else{
+        openAcceptanceAmbiguous=true;setOpenActionsLocked(true);accept.disabled=false;
+        accept.textContent='Retry same open acceptance / reconcile';
+        text.textContent=`Open acceptance outcome unknown (${reason}). Retry with the same in-page key; do not request a new preview until reconciled.`;
+      }
+    }
+  }
+  async function requestFreshOpenPreview(campaignId,statusTarget=openStatus,
+    refreshButton=document.getElementById('refresh-open-preview')){
+    if(openAcceptanceAmbiguous||pendingOpenAcceptance){refreshButton.disabled=true;
+      statusTarget.textContent='An earlier open acceptance outcome is unknown. Reconcile with its same-key retry before requesting another preview.';return;}
     refreshButton.disabled=true;
-    openStatus.textContent='Requesting a fresh saved open preview…';
-    openStatus.dataset.state='unavailable';
+    statusTarget.textContent='Requesting a fresh saved open preview…';
+    statusTarget.dataset.state='unavailable';
     try{
       const preview=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
         {method:'POST',body:{kind:'open'},csrf:true});
@@ -471,59 +551,43 @@ function bootDashboardTabs() {
         /^[0-9a-f]{64}$/.test(preview.contentDigest??'')&&Number.isSafeInteger(preview.expectedRevision)&&
         Number.isFinite(Date.parse(preview.expiresAt))&&Date.parse(preview.expiresAt)>Date.now();
       const facts=preview?.costs?.open;
-      openStatus.replaceChildren();
+      statusTarget.replaceChildren();
       const text=document.createElement('p');
       text.textContent=usable?`Saved open preview · campaign ${campaignId} · revision ${preview.expectedRevision}. Cost evidence is provisional, not paid; funding remains unchecked.`:
         `Open preview unavailable (${preview?.error??preview?.status??'incomplete binding'}). No operation was submitted.`;
-      openStatus.append(text);
-      if(facts){const cost=document.createElement('p');cost.textContent=`Open gas expected / bound: ${facts.expectedGasUnits??'Unavailable'} / ${facts.boundGasUnits??'Unavailable'} units; reference USD X18 ${facts.expectedValue??'Unavailable'} / ${facts.boundValue??'Unavailable'} · provisional, not paid.`;openStatus.append(cost);}
+      statusTarget.append(text);
+      if(facts){const cost=document.createElement('p');cost.textContent=`Open gas expected / bound: ${facts.expectedGasUnits??'Unavailable'} / ${facts.boundGasUnits??'Unavailable'} units; reference USD X18 ${facts.expectedValue??'Unavailable'} / ${facts.boundValue??'Unavailable'} · provisional, not paid.`;statusTarget.append(cost);}
       const accept=document.createElement('button');accept.type='button';accept.textContent='Accept open operation';
       const actionAvailable=preview.actionAvailable===true&&preview.operationAcceptanceAvailable===true;
       accept.disabled=!usable||!actionAvailable||!window.concliqOperatorAuthenticated?.();
-      if(usable&&!actionAvailable){const note=document.createElement('p');note.textContent='Open acceptance unavailable: the command service has not proven current worker readiness.';openStatus.append(note);}
-      openStatus.append(accept);
+      if(usable&&!actionAvailable){const note=document.createElement('p');note.textContent='Open acceptance unavailable: the command service has not proven current worker readiness.';statusTarget.append(note);}
+      statusTarget.append(accept);
       refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
-      accept.addEventListener('click',async()=>{
+      accept.addEventListener('click',()=>{
+        if(preview!==openPreview||!usable||!actionAvailable)return;
         if(!openIdempotencyKey)openIdempotencyKey=globalThis.crypto?.randomUUID?.()??null;
-        if(!openIdempotencyKey||!window.concliqOperatorAuthenticated?.()||preview!==openPreview)return;
-        accept.disabled=true;
-        const payload={previewId:preview.id,contentDigest:preview.contentDigest,
-          expectedRevision:preview.expectedRevision,idempotencyKey:openIdempotencyKey};
-        try{
-          const accepted=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/open-operations`,
-            {method:'POST',body:payload,csrf:true});
-          if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(accepted?.id??'')||
-             !['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected'].includes(accepted.status))
-            throw new Error('operation_acceptance_response_invalid');
-          openIdempotencyKey=null;
-          openAcceptanceAmbiguous=false;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
-          text.textContent=`Open operation ${accepted.id} accepted · ${accepted.status}. Check Positions for saved stages; paid costs remain unavailable.`;
-          try{window.dispatchEvent(new Event('positions-refresh-requested'));}catch{}
-        }catch(error){
-          const reason=error?.data?.error??error?.message??'command_failed';
-          if(error?.data?.error==='operation_worker_not_ready'){
-            openIdempotencyKey=null;openAcceptanceAmbiguous=false;accept.disabled=true;
-            refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
-            text.textContent='Open acceptance unavailable because worker readiness expired. The server did not accept an operation; request a fresh preview when readiness returns.';
-          }else if(error?.status>=400&&error.status<500){openIdempotencyKey=null;accept.disabled=true;
-            openAcceptanceAmbiguous=false;refreshButton.disabled=!window.concliqOperatorAuthenticated?.();
-            text.textContent=error?.data?.error==='operation_worker_not_ready'?
-              'Open acceptance unavailable because worker readiness expired. No operation was accepted; request a fresh preview when readiness returns.':
-              `Open preview rejected (${reason}). Request a fresh preview before retrying.`;
-          }else{openAcceptanceAmbiguous=true;refreshButton.disabled=true;accept.disabled=false;accept.textContent='Retry same open acceptance / reconcile';
-            text.textContent=`Open acceptance outcome unknown (${reason}). Retry with the same in-page key; do not request a new preview until reconciled.`;}
-        }
+        if(!openIdempotencyKey)return;
+        pendingOpenAcceptance={campaignId,payload:{previewId:preview.id,contentDigest:preview.contentDigest,
+          expectedRevision:preview.expectedRevision,idempotencyKey:openIdempotencyKey}};
+        if(!persistPendingOpen()){clearPendingOpen();accept.disabled=true;
+          text.textContent='A durable same-key recovery record could not be saved. No open operation was submitted.';return;}
+        void submitOpenAcceptance(campaignId,pendingOpenAcceptance.payload,text,accept,refreshButton);
       });
-    }catch(error){refreshButton.disabled=!window.concliqOperatorAuthenticated?.();openStatus.textContent=`Fresh open preview unavailable (${error?.data?.error??error?.message??'command_failed'}). No operation was submitted.`;}
+    }catch(error){refreshButton.disabled=!window.concliqOperatorAuthenticated?.();statusTarget.textContent=`Fresh open preview unavailable (${error?.data?.error??error?.message??'command_failed'}). No operation was submitted.`;}
   }
   document.getElementById('save-paper-draft').addEventListener('click',async()=>{
     const button=document.getElementById('save-paper-draft');
     if(!onOperatorOrigin||!window.concliqOperatorAuthenticated?.()||savedDraftId)return;
-    const candidate=currentDraftRequest();if(!candidate)return;
-    const body=JSON.stringify(candidate);
+    let candidate,body;
+    try{candidate=pendingDraftRequestId?JSON.parse(pendingDraftBody):currentDraftRequest();
+      body=pendingDraftRequestId?pendingDraftBody:JSON.stringify(candidate);}catch{return;}
+    if(!candidate)return;
     if(pendingDraftRequestId&&pendingDraftBody!==body){setDraftStatus('A prior draft submission has an unknown outcome. Restore the exact reviewed inputs to retry the same request ID.');return;}
-    if(!pendingDraftRequestId){pendingDraftRequestId=globalThis.crypto?.randomUUID?.()??null;pendingDraftBody=body;}
-    if(!pendingDraftRequestId){setDraftStatus('Secure browser UUID generation is unavailable; draft submission is disabled.');return;}
+    if(!pendingDraftRequestId){
+      if(!pendingDraftPersistenceAvailable){setDraftStatus('This browser cannot persist a same-request recovery key. Draft submission is disabled until origin storage is available.');return;}
+      pendingDraftRequestId=globalThis.crypto?.randomUUID?.()??null;pendingDraftBody=body;
+      if(!pendingDraftRequestId||!persistPendingDraft()){clearPendingDraft();setDraftStatus('A recoverable draft request ID could not be persisted; no draft request was sent.');return;}
+    }
     button.disabled=true;freezeDraftInputs(true);setDraftStatus('Rechecking canonical source, cost evidence, profile, reserve and limits before saving…');
     const payload={...candidate,requestId:pendingDraftRequestId};
     try{
@@ -531,16 +595,17 @@ function bootDashboardTabs() {
       if(result?.status!=='draft_created'||!/^\d+$/.test(String(result.revision))||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.draftId??''))
         throw new Error('draft_creation_response_invalid');
-      savedDraftId=result.draftId;pendingDraftRequestId=null;pendingDraftBody=null;
+      savedDraftId=result.draftId;clearPendingDraft();
       freezeDraftInputs(false);
       setDraftStatus(`${result.replayed?'Reconciled existing':'Saved'} static/manual paper draft ${result.draftId} · revision ${result.revision}. Wallet funding is unchecked; no operation was created.`,'available');
       const link=document.createElement('a');link.href='#positions-tab';link.textContent='Open Positions';link.addEventListener('click',()=>document.getElementById('positions-tab').click());draftStatus.append(' ',link);
       document.getElementById('setup-open-review').hidden=false;
       await requestFreshOpenPreview(result.draftId);
+      void loadSavedPaperDrafts();
       updateDraftBinding();
     }catch(error){
       const reason=error?.data?.error??error?.message??'command_failed';
-      if(error?.status>=400&&error.status<500){pendingDraftRequestId=null;pendingDraftBody=null;freezeDraftInputs(false);button.disabled=false;
+      if(error?.status>=400&&error.status<500){clearPendingDraft();freezeDraftInputs(false);button.disabled=true;
         setDraftStatus(error.status===409?`Draft admission conflicted or became stale (${reason}). Review fresh source and input values before a new request.`:
           `Draft admission rejected (${reason}). No draft was reported as created.`);}
       else{button.disabled=false;setDraftStatus(`Draft creation outcome unknown (${reason}). Retry the exact same reviewed inputs with the retained request ID to reconcile; do not create a new request yet.`);}
@@ -549,6 +614,96 @@ function bootDashboardTabs() {
   document.getElementById('refresh-open-preview').addEventListener('click',()=>{
     if(savedDraftId&&!openAcceptanceAmbiguous&&window.concliqOperatorAuthenticated?.())void requestFreshOpenPreview(savedDraftId);
   });
+  function renderSavedPaperDrafts(drafts){
+    const section=document.getElementById('saved-paper-drafts'),list=document.getElementById('saved-paper-drafts-list'),
+      status=document.getElementById('saved-paper-drafts-status');
+    section.hidden=!onOperatorOrigin||!window.concliqOperatorAuthenticated?.();list.replaceChildren();
+    const recovery=document.getElementById('pending-open-recovery'),retry=document.getElementById('retry-pending-open'),
+      recoveryDetail=document.getElementById('pending-open-recovery-detail');
+    recovery.hidden=!pendingOpenAcceptance||section.hidden;
+    if(pendingOpenAcceptance){
+      recoveryDetail.textContent=`Campaign ${pendingOpenAcceptance.campaignId} · preview ${pendingOpenAcceptance.payload.previewId} · expected revision ${pendingOpenAcceptance.payload.expectedRevision}. The original idempotency key is retained. Costs and preview freshness are not re-presented as current.`;
+      retry.disabled=!window.concliqOperatorAuthenticated?.();retry.onclick=()=>{
+        if(!pendingOpenAcceptance||!window.concliqOperatorAuthenticated?.())return;
+        openIdempotencyKey=pendingOpenAcceptance.payload.idempotencyKey;openAcceptanceAmbiguous=true;
+        const setupRefresh=document.getElementById('refresh-open-preview');
+        void submitOpenAcceptance(pendingOpenAcceptance.campaignId,pendingOpenAcceptance.payload,
+          recoveryDetail,retry,setupRefresh);
+      };
+      setOpenActionsLocked(true);
+    }else{retry.onclick=null;}
+    const rows=Array.isArray(drafts)?drafts.filter(row=>row&&PROFILE_UUID.test(row.id??'')&&
+      Number.isSafeInteger(row.revision)&&row.revision>0&&PROFILE_UUID.test(row.marketProfileId??'')&&
+      /^[0-9a-f]{64}$/.test(row.profileHash??'')&&EVM_ADDRESS.test(row.wallet??'')&&EVM_ADDRESS.test(row.pool??'')&&
+      /^[0-9a-f]{64}$/.test(row.configHash??'')&&Number.isSafeInteger(row.fee)&&Number.isSafeInteger(row.tickSpacing)&&row.allocation&&row.config):[];
+    if(!rows.length){status.textContent='No saved static/manual paper drafts are available.';return;}
+    status.textContent=`${rows.length} saved draft${rows.length===1?'':'s'} · configuration only; source and cost evidence must be refreshed.`;
+    for(const draft of rows){
+      const card=document.createElement('article');card.className='saved-paper-draft';
+      const heading=document.createElement('h3');heading.textContent=`Draft ${draft.id} · revision ${draft.revision}`;card.append(heading);
+      const facts=document.createElement('dl');
+      const config=draft.config,range=Number.isSafeInteger(config.halfWidthTicks)?`Centered half-width · ${config.halfWidthTicks} ticks`:
+        Number.isSafeInteger(config.tickLower)&&Number.isSafeInteger(config.tickUpper)?`Saved tick bounds · ${config.tickLower} to ${config.tickUpper}`:'Saved range unavailable';
+      const rows=[['Lifecycle','Draft · no operation accepted'],['Wallet identity',draft.wallet],
+        ['Registered pool / fee',`${draft.pool} · ${draft.fee} · spacing ${draft.tickSpacing}`],
+        ['Market profile ID / hash',`${draft.marketProfileId} · ${draft.profileHash}`],['Saved configuration hash',draft.configHash],
+        ['Allocation · token0/token1 raw',`${draft.allocation.token0Raw??'Unavailable'} / ${draft.allocation.token1Raw??'Unavailable'}`],
+        ['Native allocation · wei',String(draft.allocation.nativeWei??'Unavailable')],[ 'Range configuration',range],
+        ...Object.entries(config.limits??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+        ['Created',String(draft.createdAt??'Unavailable')],['Funding','Unchecked'],
+        ['Current source / current costs','Unavailable · request a fresh preview']];
+      for(const [label,value]of rows){const cell=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');
+        dt.textContent=label;dd.textContent=value;cell.append(dt,dd);facts.append(cell);}
+      card.append(facts);
+      const actions=document.createElement('div');actions.className='draft-actions';
+      const button=document.createElement('button');button.type='button';button.textContent='Request fresh open preview';
+      button.className='saved-open-preview';button.disabled=Boolean(pendingOpenAcceptance)||!window.concliqOperatorAuthenticated?.();
+      const actionStatus=document.createElement('p');actionStatus.className='draft-action-status';actionStatus.setAttribute('role','status');
+      actionStatus.textContent='No open operation is submitted until a fresh preview is explicitly actionable and confirmed.';
+      button.addEventListener('click',()=>{if(window.concliqOperatorAuthenticated?.())void requestFreshOpenPreview(draft.id,actionStatus,button);});
+      actions.append(button,actionStatus);card.append(actions);list.append(card);
+    }
+  }
+  async function loadSavedPaperDrafts(){
+    const section=document.getElementById('saved-paper-drafts'),status=document.getElementById('saved-paper-drafts-status');
+    if(!onOperatorOrigin||!window.concliqOperatorAuthenticated?.()){section.hidden=true;return;}
+    section.hidden=false;status.textContent='Loading saved static/manual paper drafts…';
+    try{const result=await authRequest('/api/deployments/setup-drafts');renderSavedPaperDrafts(result.drafts);}
+    catch(error){section.hidden=false;status.textContent=`Saved paper drafts unavailable (${error?.data?.error??error?.message??'command_failed'}).`;
+      document.getElementById('saved-paper-drafts-list').replaceChildren();}
+  }
+  function restorePendingDraftReview(){
+    if(!pendingDraftRequestId||!pendingDraftBody||!window.concliqOperatorAuthenticated?.())return;
+    let body;try{body=JSON.parse(pendingDraftBody);}catch{clearPendingDraft();return;}
+    if(!body?.reviewed||body.profileId!==body.reviewed.profileId){clearPendingDraft();return;}
+    const setupReview=document.getElementById('setup-review'),binding=document.getElementById('operator-draft-binding');
+    setupReview.hidden=false;binding.hidden=false;document.getElementById('setup-preflight-result').hidden=true;
+    document.getElementById('setup-wallet-address').value=body.wallet??'';
+    document.getElementById('setup-allocation-token0').value=body.allocation?.token0Raw??'';
+    document.getElementById('setup-allocation-token1').value=body.allocation?.token1Raw??'';
+    document.getElementById('setup-allocation-native').value=body.allocation?.nativeWei??'';
+    for(const [key,id]of Object.entries(limitInputIds))document.getElementById(id).value=String(body.limits?.[key]??'');
+    document.getElementById('setup-allocation-token0-label').firstChild.textContent=`Token 0 (${body.reviewed.profile?.token0??'address unavailable'}) allocation · raw `;
+    document.getElementById('setup-allocation-token1-label').firstChild.textContent=`Token 1 (${body.reviewed.profile?.token1??'address unavailable'}) allocation · raw `;
+    document.getElementById('operator-draft-binding-status').textContent='Recovered pending request. Its previous source and costs are historical; retrying the same UUID first checks for an already-saved campaign, then server admission requires fresh evidence.';
+    document.getElementById('operator-draft-binding-status').dataset.state='loading';
+    const facts=document.getElementById('operator-draft-binding-facts');
+    const review=body.reviewed,config={halfWidthTicks:body.halfWidthTicks,limits:body.limits};
+    const rows=[['Wallet identity · syntax only',body.wallet],['Funding status','Unchecked'],
+      ['Registered market profile',body.profileId],['Registered profile hash',review.profileHash],
+      ['Previously reviewed source · not current',`${review.source?.block??'Unavailable'} · ${review.source?.hash??'Unavailable'}`],
+      ['Capital budget · raw USDG',body.capitalQuoteRaw],['Centered half-width · ticks',String(body.halfWidthTicks)],
+      ['Previously reviewed bounds · not current',`${review.range?.tickLower??'Unavailable'} to ${review.range?.tickUpper??'Unavailable'}`],
+      ['Token 0 allocation · raw',body.allocation?.token0Raw??'Unavailable'],
+      ['Token 1 allocation · raw',body.allocation?.token1Raw??'Unavailable'],['Native allocation · wei',body.allocation?.nativeWei??'Unavailable'],
+      ...Object.entries(config.limits??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+      ['Draft request ID',pendingDraftRequestId],['Admission state','Unknown · retry same request to reconcile']];
+    facts.replaceChildren(...rows.map(([label,value])=>{const cell=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');
+      dt.textContent=label;dd.textContent=value;cell.append(dt,dd);return cell;}));
+    const saveButton=document.getElementById('save-paper-draft');saveButton.textContent='Retry same draft request / reconcile';saveButton.disabled=false;
+    freezeDraftInputs(true);setDraftStatus('A prior draft POST may have completed. Retry the retained request UUID to reconcile the saved campaign; source, bounds and cost evidence shown above are historical, not current.');
+    document.getElementById('positions-tab').click();
+  }
   for(const id of ['setup-wallet-address','setup-allocation-native',...Object.values(limitInputIds)]){
     document.getElementById(id).addEventListener('input',()=>{if(pendingDraftRequestId&&pendingDraftBody!==JSON.stringify(currentDraftRequest()))setDraftStatus('Inputs changed while a draft request may be pending. Restore the exact prior values to retry and reconcile.');});
   }
@@ -573,6 +728,8 @@ function bootDashboardTabs() {
           marketProfiles = response.profiles ?? [];
           applyProfileIds();
           setSetupStatus('Signed in. Verified, indexed profiles are available for static/manual paper preflight.');
+          restorePendingDraftReview();
+          await loadSavedPaperDrafts();
         } catch (cause) {
           poolSelect.disabled = true; reviewButton.disabled = true;
           setSetupStatus(`Verified market profiles unavailable (${cause.data?.error ?? cause.message ?? 'command_failed'}); no preflight can be sent.`);

@@ -6,7 +6,7 @@ import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../paper/execution-abi.js';
 import {principalAmounts} from '../backtest/principal.js';
 import {acceptInput,allocationSchema,contentHash,draftInput,parseStrategyParameters,previewDigest,previewInput,
- strategyId,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
+ staticManualParameters,strategyId,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verifiedMarketProfileSchema,
  type VerifiedMarketProfile} from './market-profile.js';
 import {PAPER_STATIC_GAS_PATH,costIndicativePaperOpenPreview,type PaperGasProfileRow} from './paper-cost.js';
@@ -323,6 +323,42 @@ export class DeploymentStore {
  async findDraftRequest(requestId:string,raw:DraftInput):Promise<DraftRequestOutcome>{
   const id=z.uuid().parse(requestId),input=draftInput.parse(raw);
   return matchDraftRequest(this.readPool,id,input);
+ }
+
+ /** Bounded authenticated recovery view. It deliberately excludes previews,
+  * source observations and cost estimates, which must be refreshed. */
+ async listStaticPaperDrafts(){
+  const rows=(await this.readPool.query<{id:string;revision:number;wallet:string;market_profile_id:string;
+   allocation:unknown;created_at:Date;profile_hash:string;pool_address:string;fee:number;tick_spacing:number;
+   profile:unknown;config:unknown;config_hash:string}>(`SELECT c.id,c.current_revision AS revision,c.wallet,
+   c.market_profile_id,c.allocation,c.created_at,p.profile_hash,p.pool_address,p.fee,p.tick_spacing,
+   p.profile,r.config,r.config_hash FROM deployment_campaigns c
+   JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=1
+   WHERE c.mode='paper' AND c.lifecycle='draft' AND c.current_revision=1
+    AND r.strategy_id='static_manual_v1'
+   ORDER BY c.created_at DESC,c.id LIMIT 50`)).rows;
+  return rows.map(row=>{
+   const profile=marketProfileSchema.safeParse(row.profile),allocation=allocationSchema.safeParse(row.allocation);
+   if(!profile.success||!allocation.success||contentHash(profile.data)!==row.profile_hash||
+    profile.data.pool.pool.toLowerCase()!==row.pool_address.toLowerCase()||
+    profile.data.pool.fee!==row.fee||profile.data.pool.tickSpacing!==row.tick_spacing||
+    row.config===null||typeof row.config!=='object'||Array.isArray(row.config)||
+    contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('static_paper_draft_list_integrity');
+   const config=row.config as Record<string,unknown>;
+   if(config.strategyId!=='static_manual_v1'||config.strategyVersion!=='1.0.0'||config.stateSchemaVersion!==1)
+    throw new DeploymentConflict('static_paper_draft_list_integrity');
+   const parameters=staticManualParameters.safeParse({halfWidthTicks:config.halfWidthTicks,limits:config.limits});
+   const absolute=parameters.success?null:staticManualParameters.safeParse({tickLower:config.tickLower,
+    tickUpper:config.tickUpper,limits:config.limits});
+   if(!parameters.success&&!absolute?.success)throw new DeploymentConflict('static_paper_draft_list_integrity');
+   const savedConfig=parameters.success?parameters.data:absolute!.data;
+   return {id:row.id,revision:row.revision,wallet:row.wallet,marketProfileId:row.market_profile_id,
+    profileHash:row.profile_hash,pool:profile.data.pool.pool,fee:profile.data.pool.fee,
+    tickSpacing:profile.data.pool.tickSpacing,allocation:allocation.data,configHash:row.config_hash,
+    config:savedConfig,createdAt:row.created_at.toISOString()};
+  });
  }
 
  async createDraftWithRequestId(requestId:string,raw:DraftInput){

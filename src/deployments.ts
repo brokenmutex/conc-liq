@@ -187,7 +187,8 @@ async function main(){
  const paperLifecycleAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
   actor:string)=>store.acceptStaticPaperLifecycleOperation(campaignId,input,actor);
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
-  paperPreview,paperSetupPreflight,paperSetupDraftAdmission,dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
+  paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
+  dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});

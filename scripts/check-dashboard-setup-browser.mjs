@@ -11,7 +11,7 @@ const profileId='67b2b303-e821-4450-bb7b-27171b12079f';
 const pool='0x1111111111111111111111111111111111111111';
 const token0='0x2222222222222222222222222222222222222222';
 const token1='0x3333333333333333333333333333333333333333';
-const counts={setup:[],operations:0,drafts:0,draftRequestIds:[],draftReconciliationResponses:0,openPreviews:0,openOperations:0,openOperationKeys:[],openReconciliationResponses:0,session:0};
+const counts={setup:[],operations:0,drafts:0,draftRequestIds:[],draftBodies:[],draftReconciliationResponses:0,openPreviews:0,openOperations:0,openOperationKeys:[],openReconciliationResponses:0,session:0};
 const profile={id:profileId,chainId:4663,pool,token0,token1,decimals0:18,decimals1:6,
  quoteToken:1,fee:3000,tickSpacing:60,draftAvailable:true,deploymentAvailable:false};
 const research={generatedAt:'2026-09-24T10:00:00.000Z',streamKey:'mock-stream',bucketMinutes:60,
@@ -73,6 +73,13 @@ const server=createServer(async(req,res)=>{
   if(!session){json(401,{error:'authentication_required'});return;}
   json(200,{profiles:[profile]});return;
  }
+ if(req.method==='GET'&&path==='/api/deployments/setup-drafts'){
+  if(!session){json(401,{error:'authentication_required'});return;}
+  const saved=counts.drafts>=2?counts.draftBodies[1]:null;
+  json(200,{drafts:saved?[{id:saved.requestId,revision:1,wallet:saved.wallet,marketProfileId:profileId,
+   profileHash:'c'.repeat(64),configHash:'d'.repeat(64),pool,fee:3000,tickSpacing:60,allocation:saved.allocation,
+   config:{halfWidthTicks:saved.halfWidthTicks,limits:saved.limits},createdAt:new Date().toISOString()}]:[]});return;
+ }
  if(req.method==='POST'&&path==='/api/deployments/setup-preflight'){
   if(!session){json(401,{error:'authentication_required'});return;}
   if(req.headers.origin!=='http://'+req.headers.host||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
@@ -87,7 +94,7 @@ const server=createServer(async(req,res)=>{
   if(!session){json(401,{error:'authentication_required'});return;}
   if(req.headers.origin!=='http://'+req.headers.host||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
   let body='';for await(const chunk of req)body+=chunk;
-  const draft=JSON.parse(body);counts.drafts++;counts.draftRequestIds.push(draft.requestId);
+  const draft=JSON.parse(body);counts.drafts++;counts.draftRequestIds.push(draft.requestId);counts.draftBodies.push(draft);
   assert.equal(draft.reviewed.profileHash,preview.profileHash);
   assert.equal(draft.reviewed.source.block,'100');
   assert.equal(draft.reviewed.costs.stages.length,6);
@@ -110,6 +117,7 @@ const server=createServer(async(req,res)=>{
   const payload=JSON.parse(body);assert.equal(payload.previewId,'a9954e65-38b0-4084-8c0b-75b86136d729');
   assert.match(payload.idempotencyKey,/^[0-9a-f-]{36}$/i);counts.openOperations++;counts.openOperationKeys.push(payload.idempotencyKey);
   if(counts.openOperations===1){counts.openReconciliationResponses++;json(503,{error:'acceptance_outcome_unknown'});return;}
+  if(counts.openOperations===2){json(503,{error:'operation_worker_not_ready'});return;}
   json(202,{id:'90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',status:'queued',replayed:true});return;
  }
  if(path==='/api/deployments/drafts'){counts.drafts++;json(503,{error:'draft_not_expected_in_smoke'});return;}
@@ -208,12 +216,21 @@ try{
  await check('Ambiguous draft POST retains same-request retry and freezes reviewed inputs',
   'document.querySelector("#save-paper-draft").disabled===false&&document.querySelector("#setup-wallet-address").disabled&&document.querySelector("#setup-draft-submit-status").textContent.includes("retained request ID")');
  assert.equal(counts.drafts,1);
+ await nav('/operator');await waitFor('!document.querySelector("#operator-auth").hidden');
+ await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+ await waitFor('document.querySelector("#save-paper-draft").textContent.includes("Retry same")&&document.querySelector("#setup-wallet-address").value==="0x4444444444444444444444444444444444444444"');
+ await check('Reload recovery restores visible wallet/config and historical-only source binding',
+  'document.querySelector("#operator-draft-binding-facts").textContent.includes("Admission stateUnknown")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("not current")&&document.querySelector("#operator-password").value===""&& !localStorage.getItem("concliq.operator.static-paper-draft.pending.v1").includes("mock-only-password")');
+ checks.push('Ambiguous setup draft survives reload without storing credentials');
  await click('#save-paper-draft');
  await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Reconciled existing")&&document.querySelector("#setup-open-review").hidden===false');
  assert.equal(counts.drafts,2);
  assert.equal(counts.draftRequestIds[0],counts.draftRequestIds[1],'Ambiguous retry must reuse its request UUID');
  await check('Draft replay shows saved campaign revision and authenticated Positions link',
   'document.querySelector("#setup-draft-submit-status").textContent.includes("revision 1")&&document.querySelector("#setup-draft-submit-status a")?.textContent==="Open Positions"');
+ await waitFor('document.querySelector(".saved-paper-draft")!==null');
+ await check('Authenticated saved draft list shows configuration but no stale source or cost',
+  'document.querySelector("#saved-paper-drafts").textContent.includes("Draft ")&&document.querySelector("#saved-paper-drafts").textContent.includes("Wallet identity")&&document.querySelector("#saved-paper-drafts").textContent.includes("Saved configuration hash")&&document.querySelector("#saved-paper-drafts").textContent.includes("Current source / current costsUnavailable")&&document.querySelector(".saved-paper-draft").textContent.includes("Request fresh open preview")');
  await check('First fresh open preview remains non-actionable when worker readiness flags are false',
   'document.querySelector("#setup-open-status").textContent.includes("worker readiness")&&document.querySelector("#setup-open-status button")?.disabled===true');
  assert.equal(counts.openPreviews,1);assert.equal(counts.openOperations,0);
@@ -225,10 +242,21 @@ try{
  await waitFor('document.querySelector("#setup-open-status").textContent.includes("outcome unknown")');
  await check('Ambiguous open POST retains its key and blocks a fresh preview',
   'document.querySelector("#setup-open-status button")?.disabled===false&&document.querySelector("#refresh-open-preview").disabled&&document.querySelector("#setup-open-status").textContent.includes("same in-page key")');
- await click('#setup-open-status button');
- await waitFor('document.querySelector("#setup-open-status").textContent.includes("Open operation")&&document.querySelector("#setup-open-status").textContent.includes("accepted")');
- assert.equal(counts.openOperations,2);
- assert.equal(counts.openOperationKeys[0],counts.openOperationKeys[1],'Ambiguous open retry must reuse its idempotency key');
+ await nav('/operator');await waitFor('!document.querySelector("#operator-auth").hidden');
+ await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+ await waitFor('document.querySelector("#pending-open-recovery").hidden===false');
+ await check('Open acceptance reload recovery keeps same payload key and hides stale preview costs',
+  'document.querySelector("#pending-open-recovery-detail").textContent.includes("original idempotency key is retained")&&!document.querySelector("#pending-open-recovery-detail").textContent.includes("provisional")&&document.querySelector("#retry-pending-open").disabled===false');
+ await click('#retry-pending-open');
+ await waitFor('document.querySelector("#pending-open-recovery").hidden===false&&document.querySelector("#pending-open-recovery-detail").textContent.includes("earlier acceptance outcome remains unknown")');
+ await check('Worker-not-ready same-key retry preserves unknown acceptance outcome and blocks new previews',
+  'document.querySelector("#retry-pending-open").disabled===false&&document.querySelector("#refresh-open-preview").disabled&&document.querySelector("#pending-open-recovery-detail").textContent.includes("earlier acceptance outcome remains unknown")');
+ await click('#retry-pending-open');
+ await waitFor('document.querySelector("#pending-open-recovery").hidden===true');
+ await check('Open acceptance reconciles after reload using the same persisted key',
+  'document.querySelector("#pending-open-recovery-detail").textContent.includes("Open operation")&&document.querySelector("#pending-open-recovery-detail").textContent.includes("accepted")');
+ assert.equal(counts.openOperations,3);
+ assert.equal(new Set(counts.openOperationKeys).size,1,'Ambiguous open retries must reuse their idempotency key');
  checks.push('Saved draft followed by fresh action-gated open preview and acceptance');
  await check('Password input clears after login','document.querySelector("#operator-password").value===""');
  const actionTest=await evaluate(`(async()=>{const {mountStaticRetainAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);const campaign='${profileId}',operation='90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',previewId='7b2309a4-a301-4869-a385-995ef8d12344';let accepts=0;const preview={kind:'close_retain',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:previewId,contentDigest:'${'a'.repeat(64)}',expectedRevision:2,expiresAt:new Date(Date.now()+30000).toISOString(),retainedLowerBound:{token0Raw:'123',token1Raw:'456'},costs:{closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'}}};mountStaticRetainAction(root,{campaignId:campaign,authenticated:()=>true,request:async(path)=>{if(path.endsWith('/previews'))return preview;if(path.endsWith('/operations')){accepts++;return{id:operation,status:'queued'};}if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_retain_recorded'};throw Error('unexpected_path');},onAccepted:async()=>{},now:Date.now});root.querySelector('.retain-preview-button').click();for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));const enabled=root.querySelector('.retain-confirm-button')?.disabled===false;const facts=root.textContent.includes('123')&&root.textContent.includes('456')&&root.textContent.includes('2.000000 / 3.000000')&&root.textContent.includes('provisional, not paid');root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes('succeeded · paper_close_retain_recorded');i++)await new Promise(r=>setTimeout(r,20));const accepted=root.textContent.includes('succeeded · paper_close_retain_recorded')&&accepts===1;root.remove();return{enabled,facts,accepted};})()`);
@@ -263,8 +291,8 @@ try{
  assert.equal(counts.setup.length,count,'Live mode sent a preflight');
  await size(390,844,true);await check('Operator mobile layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  const oshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});shots.push(['operator-mobile.png',Buffer.from(oshot.data,'base64')]);
- assert.equal(counts.session,1);assert.equal(counts.setup.length,2);assert.equal(counts.operations,0);assert.equal(counts.drafts,2);
- assert.equal(counts.openPreviews,2);assert.equal(counts.openOperations,2);assert.equal(counts.openReconciliationResponses,1);
+ assert.equal(counts.session,3);assert.equal(counts.setup.length,2);assert.equal(counts.operations,0);assert.equal(counts.drafts,2);
+ assert.equal(counts.openPreviews,2);assert.equal(counts.openOperations,3);assert.equal(counts.openReconciliationResponses,1);
  assert.equal(counts.draftReconciliationResponses,1);
  assert.deepEqual(counts.setup,[{profileId,capitalQuoteRaw:'250000000',halfWidthTicks:240},
   {profileId,capitalQuoteRaw:'250000000',halfWidthTicks:480}],'Setup payload must bind the registered profile, USDG budget and selected width');

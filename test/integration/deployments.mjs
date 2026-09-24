@@ -491,6 +491,13 @@ try{
  const centeredDraft=await store.createDraft({...draftInput,mode:'paper',
   allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
   config:{halfWidthTicks:180,limits:paperLimits}});
+ const recoveredDrafts=await store.listStaticPaperDrafts(),recoveredCentered=recoveredDrafts.find(row=>row.id===centeredDraft.id);
+ assert(recoveredCentered,'saved static/manual paper draft is recoverable');
+ assert.equal(recoveredCentered.profileHash,(await store.paperSetupProfile(profile)).profileHash);
+ assert.equal(recoveredCentered.configHash,centeredDraft.configHash);
+ assert.deepEqual(recoveredCentered.config,{halfWidthTicks:180,limits:paperLimits});
+ assert.equal('source'in recoveredCentered,false,'recovery must not present stale preflight source');
+ assert.equal('costs'in recoveredCentered,false,'recovery must not present stale provisional costs');
  const centeredInput=await store.paperDraft(centeredDraft.id),centeredPreview=
   buildIndicativePaperOpenPreview(centeredInput,frame);
  assert.equal(centeredPreview.status,'indicative');

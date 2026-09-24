@@ -12,6 +12,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const previewCalls:Array<{id:string;kind:string}>=[];
  const setupCalls:unknown[]=[];
  const setupDraftCalls:unknown[]=[];
+ let setupDraftListCalls=0;
  const dashboardReads:string[]=[];
  let acceptCalls=0;
  const store={
@@ -39,7 +40,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
     replayed:true,source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:1},
     range:{tickLower:-60,tickUpper:60},allocationHash:'d'.repeat(64)};
    return {status:'request_conflict',requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',
-    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['draft_request_id_conflict']};},
+   profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['draft_request_id_conflict']};},
+  paperSetupDraftList:async()=>{setupDraftListCalls++;return [{id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1}];},
   dashboardRead:async(path)=>{dashboardReads.push(path);
    return path.startsWith('/api/positions/paper-dep-')&&!path.includes('?')?null:{path};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -68,11 +70,17 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6',
    `/api/positions/${detailId}?hours=24`,`/api/positions/${detailId}`]);
   assert.equal((await fetch(url+'/api/strategies')).status,401);
+  assert.equal((await fetch(url+'/api/deployments/setup-drafts')).status,401,
+   'saved draft recovery must require the loopback operator session');
   assert.equal((await post('/api/session',{password})).status,403);
   assert.equal((await post('/api/session',{password:'wrong'},{origin})).status,401);
   const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
+  const draftList=await fetch(url+'/api/deployments/setup-drafts',{headers:{cookie}});
+  assert.equal(draftList.status,200);
+  assert.deepEqual(await draftList.json(),{drafts:[{id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1}]});
+  assert.equal(setupDraftListCalls,1);
   const setupPath='/api/deployments/setup-preflight',setupInput={
    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',capitalQuoteRaw:'100000000',halfWidthTicks:60};
   assert.equal((await post(setupPath,setupInput,{origin})).status,401);
