@@ -36,7 +36,8 @@ export async function readLiveCustodySnapshot(input:{client:Client;targetStrateg
   input.targetStrategyId:null;
  const empty=()=>({kind:'live_custody_snapshot' as const,status:'unavailable' as 'unavailable'|'snapshot_partial',
   targetStrategyId:target,operator:null as string|null,source:{block:String(input.source?.block??''),hash:input.source?.hash??null,
-   timestamp:input.source?.timestamp??null,confirmed:false},chainId:unavailable<number>('not_checked'),
+   timestamp:input.source?.timestamp??null,confirmed:false},positionManager:null as string|null,
+  chainId:unavailable<number>('not_checked'),
   nonce:unavailable<string>('not_checked'),nativeBalanceWei:unavailable<string>('not_checked'),
   tokenBalances:[] as {symbol:string;token:string;raw:Field<string>}[],
   allowances:[] as {token:string;spender:string;label:string;raw:Field<string>}[],
@@ -65,7 +66,7 @@ export async function readLiveCustodySnapshot(input:{client:Client;targetStrateg
  if(reasons.length){result.unavailableReasons=reasons;return result;}
  const operator=getAddress(input.operator as Address),manager=getAddress(input.positionManager as Address),
   blockNumber=input.source.block;
- result.operator=operator;
+ result.operator=operator;result.positionManager=manager;
  result.source={block:String(blockNumber),hash:input.source.hash,timestamp:input.source.timestamp,confirmed:false};
  const failSource=(reason:string)=>{result.unavailableReasons=[reason];result.source={...result.source,confirmed:false};return result;};
  let chainId:number,latest:Awaited<ReturnType<Client['getBlock']>>,
