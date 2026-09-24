@@ -104,6 +104,35 @@ function serializeCandidate(candidate:RangeKeeperCandidate){
   sourceBlock:String(candidate.sourceBlock),sourceHash:candidate.sourceHash,expiresAt:candidate.expiresAt};
 }
 
+/** Parses the persisted JSON representation of a strategy candidate without
+ * converting any absent or malformed quantity to a default. */
+export function parseRangeKeeperPaperCandidate(value:unknown):RangeKeeperCandidate{
+ const c=candidateSchema.parse(value);
+ return {kind:c.kind,range:c.range,swap:c.swap?{token:c.swap.token,amountIn:BigInt(c.swap.amountIn),
+  quotedOut:BigInt(c.swap.quotedOut),minOut:BigInt(c.swap.minOut),priceAfter:BigInt(c.swap.priceAfter),
+  feeValue:BigInt(c.swap.feeValue),shortfallValue:BigInt(c.swap.shortfallValue)}:null,
+  amount0Desired:BigInt(c.amount0Desired),amount1Desired:BigInt(c.amount1Desired),
+  amount0Min:BigInt(c.amount0Min),amount1Min:BigInt(c.amount1Min),liquidity:BigInt(c.liquidity),
+  deployedValue:BigInt(c.deployedValue),sourceBlock:BigInt(c.sourceBlock),
+  sourceHash:c.sourceHash as `0x${string}`,expiresAt:c.expiresAt};
+}
+
+/** Parses JSON-safe persisted kernel state into the exact strategy state used
+ * by RangeKeeper. */
+export function parseRangeKeeperPaperState(value:unknown):RangeKeeperState{
+ const s=stateSchema.parse(value);
+ return {schemaVersion:s.schemaVersion,policyId:s.policyId,strategyVersion:s.strategyVersion,
+  configHash:s.configHash as `0x${string}`,buildId:s.buildId,
+  lastEligible:s.lastEligible?{block:BigInt(s.lastEligible.block),hash:s.lastEligible.hash as `0x${string}`,
+   timestamp:s.lastEligible.timestamp}:null,
+  confirmation:s.confirmation?{candidate:parseRangeKeeperPaperCandidate(s.confirmation.candidate),
+   firstBlock:BigInt(s.confirmation.firstBlock),firstHash:s.confirmation.firstHash as `0x${string}`,
+   firstAt:s.confirmation.firstAt}:null,
+  exit:s.exit?{tokenId:s.exit.tokenId,tickLower:s.exit.tickLower,tickUpper:s.exit.tickUpper,
+   block:BigInt(s.exit.block),hash:s.exit.hash as `0x${string}`,since:s.exit.since,
+   lastOutsideAt:s.exit.lastOutsideAt}:null};
+}
+
 /** Converts live in-memory kernel BigInts into the exact JSON-safe wire shape
  * consumed after process restart. */
 export function serializeRangeKeeperPaperKernelSnapshot(input:{state:RangeKeeperState;

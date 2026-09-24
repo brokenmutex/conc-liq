@@ -8,6 +8,7 @@ import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe}
  from '../src/deployments/rangekeeper-paper-confirmation.js';
 import {validateRangeKeeperPaperConfirmationEnvelope} from '../src/deployments/rangekeeper-paper-persistence.js';
+import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
@@ -160,6 +161,34 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.decision.simulation.candidateHash,simulationHash);
  assert.equal(result.decision.gasSequenceHash,gasHash('e'));
  assert.deepEqual(validateRangeKeeperPaperConfirmationEnvelope(result,{campaignId:draft.id,revision:1}),result);
+ const confirmationContextBody={schemaVersion:1,kind:'rangekeeper_paper_confirmation_context_v1',
+  campaignId:draft.id,revision:1,mode:'paper',lifecycle:'draft',
+  runtimeIdentity:{buildId,configHash:'a'.repeat(64),nodeVersion:'v24.20.0'},
+  draft:{...draft},openModel,openModelHash:contentHash(openModel),envelope:result},
+  confirmationContext={...confirmationContextBody,snapshotHash:contentHash(confirmationContextBody)};
+ const restoredContext=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
+  runtimeIdentity:confirmationContext.runtimeIdentity,readSnapshot:async()=>confirmationContext,
+  readGasProfiles:reader,now:frameNow});
+ assert.equal(restoredContext.status,'available');
+ if(restoredContext.status==='available'){
+  assert.equal(restoredContext.candidate.sourceBlock,BigInt(secondSource.block));
+  assert.equal(restoredContext.state.lastEligible?.hash.toLowerCase(),secondSource.hash.toLowerCase());
+  assert.deepEqual(restoredContext.costs,result.costs);
+  assert.equal(restoredContext.inventory.kind,'modeled_after_confirmation');
+  assert.equal(restoredContext.evidence.actionAvailable,false);
+  assert.equal(restoredContext.evidence.openingBooked,false);
+ }
+ const staleRuntime=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
+  runtimeIdentity:{...confirmationContext.runtimeIdentity,buildId:'0'.repeat(64)},
+  readSnapshot:async()=>confirmationContext,readGasProfiles:reader,now:frameNow});
+ assert.equal(staleRuntime.status,'unavailable');
+ if(staleRuntime.status==='unavailable')
+  assert.equal(staleRuntime.reason,'rangekeeper_confirmation_snapshot_identity_invalid');
+ const agedGas=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
+  runtimeIdentity:confirmationContext.runtimeIdentity,readSnapshot:async()=>confirmationContext,
+  readGasProfiles:reader,now:frameNow+31_000});
+ assert.equal(agedGas.status,'unavailable');
+ if(agedGas.status==='unavailable')assert.equal(agedGas.reason,'rangekeeper_confirmation_gas_price_stale');
  assert.throws(()=>validateRangeKeeperPaperConfirmationEnvelope({...result,
   confirmationObservation:{...result.confirmationObservation,source:{...secondSource,hash:gasHash('3')}}},
   {campaignId:draft.id,revision:1}),/rangekeeper_paper_confirmation_envelope_integrity_invalid/);

@@ -742,6 +742,85 @@ export class DeploymentStore {
   return {...envelope,actionAvailable:false as const};
  }
 
+ /** Read-only, repeatable-read snapshot for the restart-safe confirmation
+  * consumer. Campaign config, runtime, open preview and the envelope are read
+  * together; both anchors are rechecked before the snapshot is returned. */
+ async rangeKeeperPaperConfirmationContextSnapshot(input:{campaignId:string;
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}):Promise<unknown>{
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const row=(await db.query<{campaign_id:string;mode:string;lifecycle:string;revision:number;chain_id:number;
+    allocation:unknown;runtime_identity:unknown;profile:unknown;profile_hash:string;config:unknown;
+    config_hash:string;strategy_id:string;strategy_version:string;state_schema_version:number;
+    envelope:unknown;envelope_hash:string;open_preview_id:string;open_request:Record<string,unknown>;
+    open_proposal:Record<string,unknown>;open_evidence:Record<string,unknown>;open_digest:string;
+    open_expected_revision:number;open_expires_at:Date;pending:boolean}>(`
+    SELECT c.id AS campaign_id,c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,
+     c.allocation,c.runtime_identity,p.profile,p.profile_hash,r.config,r.config_hash,
+     r.strategy_id,r.strategy_version,r.state_schema_version,proof.envelope,proof.envelope_hash,
+     v.id::text AS open_preview_id,v.request AS open_request,v.proposal AS open_proposal,
+     v.evidence AS open_evidence,v.content_digest AS open_digest,
+     v.expected_revision AS open_expected_revision,v.expires_at AS open_expires_at,
+     EXISTS(SELECT 1 FROM deployment_operations op WHERE op.campaign_id=c.id AND op.status IN
+      ('queued','preflighting','executing','confirming','reconciling','blocked')) AS pending
+    FROM deployment_rangekeeper_paper_confirmations proof
+    JOIN deployment_campaigns c ON c.id=proof.campaign_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=proof.revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_previews v ON v.id=proof.open_preview_id AND v.campaign_id=c.id
+    WHERE proof.campaign_id=$1 AND proof.revision=c.current_revision`,[input.campaignId])).rows[0];
+   const runtime=sealedRuntimeIdentitySchema.safeParse(row?.runtime_identity),
+    currentRuntime=loadRuntimeIdentity(),profile=marketProfileSchema.safeParse(row?.profile);
+   if(!row||row.mode!=='paper'||!['draft','active'].includes(row.lifecycle)||row.chain_id!==4663||
+    row.strategy_id!=='rangekeeper_v1'||row.strategy_version!=='1.0.0'||row.state_schema_version!==1||
+    row.pending||
+    row.open_expected_revision!==row.revision||!runtime.success||!currentRuntime||
+    contentHash(runtime.data)!==contentHash(currentRuntime)||!profile.success||
+    contentHash(profile.data)!==row.profile_hash||!row.config||typeof row.config!=='object'||
+    Array.isArray(row.config)||contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_context_unavailable');
+   if(previewDigest({campaignId:input.campaignId,expectedRevision:row.open_expected_revision,kind:'open',
+    request:row.open_request,proposal:row.open_proposal,evidence:row.open_evidence,
+    expiresAt:row.open_expires_at})!==row.open_digest)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_preview_integrity');
+   const openModel=(row.open_proposal as Record<string,unknown>).rangekeeperPaperOpenModel,
+    envelope=validateRangeKeeperPaperConfirmationEnvelope(row.envelope,
+     {campaignId:input.campaignId,revision:row.revision});
+   if(!openModel||typeof openModel!=='object'||Array.isArray(openModel)||
+    contentHash(openModel)!==envelope.firstObservation.modelHash||
+    envelope.envelopeHash!==row.envelope_hash||envelope.draftConfigHash!==row.config_hash||
+    envelope.profileHash!==row.profile_hash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_context_integrity');
+   const config=row.config as Record<string,unknown>;
+   if(config.strategyId!==row.strategy_id||config.strategyVersion!==row.strategy_version||
+    config.stateSchemaVersion!==row.state_schema_version)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_config_invalid');
+   const {strategyId:_id,strategyVersion:_version,stateSchemaVersion:_schema,...parameters}=config,
+    draft={id:input.campaignId,revision:row.revision,allocation:allocationSchema.parse(row.allocation),
+     profile:profile.data,profileHash:row.profile_hash,configHash:row.config_hash,
+     strategyId:'rangekeeper_v1' as const,parameters},
+    sources=[envelope.firstObservation.source,envelope.confirmationObservation.source];
+   parseStrategyParameters('rangekeeper_v1',parameters);
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+   const body={schemaVersion:1 as const,kind:'rangekeeper_paper_confirmation_context_v1' as const,
+    campaignId:input.campaignId,revision:row.revision,mode:'paper' as const,
+    lifecycle:row.lifecycle as 'draft'|'active',runtimeIdentity:runtime.data,draft,
+    openModel,openModelHash:contentHash(openModel),envelope};
+   const snapshot={...body,snapshotHash:contentHash(body)};
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_changed_during_read');throw error;}
+   await db.query('COMMIT');
+   return snapshot;
+  }catch(error){
+   await db.query('ROLLBACK').catch(()=>{});
+   throw error;
+  }finally{db.release();}
+ }
+
  /** Appends one source-pinned RangeKeeper paper mark and its kernel snapshot.
   * This persists hypothetical state only; it cannot create an operation or
   * make an action available. The open model remains the source of position and

@@ -6,7 +6,7 @@ import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,DeploymentConflict} from '../../src/deployments/store.ts';
-import {contentHash} from '../../src/deployments/contracts.ts';
+import {contentHash,previewDigest} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
@@ -175,11 +175,16 @@ try{
     swap:null,amount0Desired:'1000000000000000000',amount1Desired:'1000000000000000000',
     amount0Min:'0',amount1Min:'0',liquidity:String(rkMint.liquidity),deployedValue:'1',
     sourceBlock:rkOpenSource.block,sourceHash:rkOpenSource.hash,expiresAt:rkOpenSource.timestamp+90}},
-  rkPreviewId=randomUUID();
+  rkPreviewId=randomUUID(),rkPreviewProposal={rangekeeperPaperOpenModel:rkOpenModel},
+  rkPreviewRequest={},rkPreviewEvidence={},rkPreviewExpiresAt=new Date(Date.now()+3_600_000),
+  rkPreviewDigest=previewDigest({campaignId:rkDraft.id,expectedRevision:1,kind:'open',
+   request:rkPreviewRequest,proposal:rkPreviewProposal,evidence:rkPreviewEvidence,
+   expiresAt:rkPreviewExpiresAt});
  await admin.query(`INSERT INTO deployment_previews
   (id,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at)
-  VALUES($1,$2,1,'open','{}',$3,'{}',$4,clock_timestamp()+interval '1 hour')`,
-  [rkPreviewId,rkDraft.id,JSON.stringify({rangekeeperPaperOpenModel:rkOpenModel}),'d'.repeat(64)]);
+  VALUES($1,$2,1,'open',$3,$4,$5,$6,$7)`,[rkPreviewId,rkDraft.id,
+   JSON.stringify(rkPreviewRequest),JSON.stringify(rkPreviewProposal),JSON.stringify(rkPreviewEvidence),
+   rkPreviewDigest,rkPreviewExpiresAt]);
  await admin.query(`INSERT INTO deployment_marks
   (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
   VALUES($1,1,$2,$3,'{}',NULL,'{}'::uuid[],$4)`,
@@ -247,6 +252,21 @@ try{
   campaignId:rkDraft.id,verifyAnchors:verifyConfirmationAnchors});
  assert.equal(dashboardRkConfirmation.envelopeHash,rkConfirmation.envelopeHash);
  assert.equal(dashboardRkConfirmation.actionAvailable,false);
+ const priorRkIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY,
+  rkRuntimeIdentity={buildId:rkBuildId,configHash:'f'.repeat(64),nodeVersion:process.version};
+ await admin.query('UPDATE deployment_campaigns SET runtime_identity=$2::jsonb WHERE id=$1',
+  [rkDraft.id,JSON.stringify(rkRuntimeIdentity)]);
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeIdentity);
+ const rkConfirmationSnapshot=await store.rangeKeeperPaperConfirmationContextSnapshot({
+  campaignId:rkDraft.id,verifyAnchors:verifyConfirmationAnchors});
+ const {snapshotHash:rkSnapshotHash,...rkSnapshotBody}=rkConfirmationSnapshot;
+ assert.equal(rkSnapshotHash,contentHash(rkSnapshotBody));
+ assert.equal(rkConfirmationSnapshot.envelope.envelopeHash,rkConfirmation.envelopeHash);
+ await assert.rejects(store.rangeKeeperPaperConfirmationContextSnapshot({campaignId:rkDraft.id,
+  verifyAnchors:async()=>{throw new assert.AssertionError({message:'canonical anchor changed'});}}),
+  /rangekeeper_paper_confirmation_source_not_canonical/);
+ if(priorRkIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
+ else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorRkIdentity;
  const rkConflictBody={...rkConfirmation,confirmationObservation:{...rkConfirmation.confirmationObservation,
   reference:{...rkConfirmation.confirmationObservation.reference,price0:'2'}}};
  delete rkConflictBody.envelopeHash;
