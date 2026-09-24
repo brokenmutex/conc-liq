@@ -7,6 +7,7 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe}
  from '../src/deployments/rangekeeper-paper-confirmation.js';
+import {validateRangeKeeperPaperConfirmationEnvelope} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
@@ -158,6 +159,12 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.confirmationObservation.candidateHash,simulationHash);
  assert.equal(result.decision.simulation.candidateHash,simulationHash);
  assert.equal(result.decision.gasSequenceHash,gasHash('e'));
+ assert.deepEqual(validateRangeKeeperPaperConfirmationEnvelope(result,{campaignId:draft.id,revision:1}),result);
+ assert.throws(()=>validateRangeKeeperPaperConfirmationEnvelope({...result,
+  confirmationObservation:{...result.confirmationObservation,source:{...secondSource,hash:gasHash('3')}}},
+  {campaignId:draft.id,revision:1}),/rangekeeper_paper_confirmation_envelope_integrity_invalid/);
+ assert.throws(()=>validateRangeKeeperPaperConfirmationEnvelope(result,{campaignId:draft.id,revision:2}),
+  /rangekeeper_paper_confirmation_envelope_integrity_invalid/);
  const stale=await buildRangeKeeperPaperConfirmation({...baseInput,readGasProfiles:async query=>
   query.sizeBand===firstCosts.sizeBand?firstRows:secondRows.map(row=>({...row,
    model:{...row.model,source:{...row.model.source,block:'99'}}}))});

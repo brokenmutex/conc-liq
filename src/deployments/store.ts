@@ -41,7 +41,7 @@ import type {PaperCloseConvertGasPersistedEvidence} from './paper-gas-source.js'
 import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {verifyCanonicalPaperAnchors} from './paper-canonical-anchors.js';
 import {loadRangeKeeperPaperExitContext} from './rangekeeper-paper-context.js';
-import {buildRangeKeeperPaperMarkPayload} from './rangekeeper-paper-persistence.js';
+import {buildRangeKeeperPaperMarkPayload,validateRangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation}
  from './rangekeeper-paper-confirmation.js';
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
@@ -573,8 +573,8 @@ export class DeploymentStore {
    [poolAddress,pathVersion,sizeBand])).rows;
  }
 
- /** Builds a read-only second-observation confirmation envelope while the
-  * campaign is still a draft. It never writes a mark, books capital, or opens a position. */
+ /** Builds and persists a read-only second-observation confirmation envelope
+  * while the campaign is still a draft. It never books capital or opens a position. */
  async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
   client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
   simulate:(candidate:import('../strategy/rangekeeper/domain.js').RangeKeeperCandidate)=>
@@ -640,12 +640,106 @@ export class DeploymentStore {
      catch(error){if(error instanceof AssertionError)
        throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
     }
+    if(result.status==='confirmed')await this.persistRangeKeeperPaperConfirmationEnvelope({
+     campaignId:input.campaignId,openPreviewId:row.open_preview_id,envelope:result,
+     verifyAnchors:input.verifyAnchors});
     return {...result,actionAvailable:false as const};
    }catch(error){
     if(error instanceof DeploymentConflict)throw error;
     throw new DeploymentConflict('rangekeeper_paper_confirmation_replay_unavailable');
    }
   }
+ }
+
+ /** Transactionally stores one validated confirmation per draft revision.
+  * Canonical anchors are checked inside and again immediately before commit. */
+ private async persistRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;openPreviewId:string;
+  envelope:unknown;verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+  const envelope=validateRangeKeeperPaperConfirmationEnvelope(input.envelope,
+   {campaignId:input.campaignId,revision:(input.envelope as {revision:number}).revision});
+  return this.transaction(async db=>{
+   await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
+    [`deployment-rangekeeper-paper-confirmation:${input.campaignId}`]);
+   const row=(await db.query<{mode:string;lifecycle:string;revision:number;chain_id:number;
+    strategy_id:string;profile_hash:string;config_hash:string;preview_id:string;
+    preview_revision:number;open_model:unknown;content_digest:string}>(`
+    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,r.strategy_id,p.profile_hash,
+     r.config_hash,v.id::text AS preview_id,v.expected_revision AS preview_revision,
+     v.proposal->'rangekeeperPaperOpenModel' AS open_model,v.content_digest
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_previews v ON v.id=$2 AND v.campaign_id=c.id AND v.kind='open'
+    WHERE c.id=$1 FOR UPDATE OF c`,[input.campaignId,input.openPreviewId])).rows[0];
+   if(!row||row.mode!=='paper'||!['draft','active'].includes(row.lifecycle)||row.chain_id!==4663||
+    row.strategy_id!=='rangekeeper_v1'||row.revision!==envelope.revision||
+    row.preview_revision!==row.revision||row.profile_hash!==envelope.profileHash||
+    row.config_hash!==envelope.draftConfigHash||!row.open_model||
+    contentHash(row.open_model)!==envelope.firstObservation.modelHash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_campaign_changed');
+   const openModel=row.open_model as {source?:PaperCanonicalAnchor};
+   if(!openModel.source||contentHash(row.open_model)!==envelope.firstObservation.modelHash||
+    openModel.source.block!==envelope.firstObservation.source.block||
+    openModel.source.hash.toLowerCase()!==envelope.firstObservation.source.hash.toLowerCase()||
+    openModel.source.timestamp!==envelope.firstObservation.source.timestamp)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_first_observation_changed');
+   const sources=[envelope.firstObservation.source,envelope.confirmationObservation.source];
+   const existing=(await db.query<{envelope_hash:string;envelope:unknown}>(`
+    SELECT envelope_hash,envelope FROM deployment_rangekeeper_paper_confirmations
+    WHERE campaign_id=$1 AND revision=$2`,[input.campaignId,envelope.revision])).rows[0];
+   if(existing){
+    const prior=validateRangeKeeperPaperConfirmationEnvelope(existing.envelope,
+     {campaignId:input.campaignId,revision:envelope.revision});
+    if(existing.envelope_hash!==envelope.envelopeHash||prior.envelopeHash!==envelope.envelopeHash)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_replay_conflict');
+    try{await input.verifyAnchors(row.chain_id,sources);}
+    catch(error){if(error instanceof AssertionError)
+      throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+    return {campaignId:input.campaignId,revision:envelope.revision,
+     envelopeHash:envelope.envelopeHash,replayed:true,actionAvailable:false as const};
+   }
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+   await db.query(`INSERT INTO deployment_rangekeeper_paper_confirmations
+    (campaign_id,revision,open_preview_id,first_source_block,first_source_hash,
+     confirmation_source_block,confirmation_source_hash,envelope_hash,envelope)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)`,[input.campaignId,envelope.revision,
+    input.openPreviewId,envelope.firstObservation.source.block,envelope.firstObservation.source.hash,
+    envelope.confirmationObservation.source.block,envelope.confirmationObservation.source.hash,
+    envelope.envelopeHash,JSON.stringify(envelope)]);
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_changed_during_write');throw error;}
+   return {campaignId:input.campaignId,revision:envelope.revision,
+    envelopeHash:envelope.envelopeHash,replayed:false,actionAvailable:false as const};
+  });
+ }
+
+ /** Read-only dashboard projection. It verifies the stored content hash and
+  * both canonical observations on every read; revoked or missing proof fails closed. */
+ async rangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+  const row=(await this.readPool.query<{revision:number;chain_id:number;envelope:unknown;
+   envelope_hash:string;mode:string;strategy_id:string}>(`
+   SELECT c.current_revision AS revision,c.chain_id,c.mode,r.strategy_id,
+    proof.envelope,proof.envelope_hash
+   FROM deployment_rangekeeper_paper_confirmations proof
+   JOIN deployment_campaigns c ON c.id=proof.campaign_id
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=proof.revision
+   WHERE proof.campaign_id=$1 AND proof.revision=c.current_revision`,[input.campaignId])).rows[0];
+  if(!row||row.mode!=='paper'||row.strategy_id!=='rangekeeper_v1')return null;
+  let envelope;
+  try{envelope=validateRangeKeeperPaperConfirmationEnvelope(row.envelope,
+   {campaignId:input.campaignId,revision:row.revision});}
+  catch{throw new DeploymentConflict('rangekeeper_paper_confirmation_envelope_integrity_invalid');}
+  if(envelope.envelopeHash!==row.envelope_hash)
+   throw new DeploymentConflict('rangekeeper_paper_confirmation_envelope_integrity_invalid');
+  try{await input.verifyAnchors(row.chain_id,[envelope.firstObservation.source,
+   envelope.confirmationObservation.source]);}
+  catch(error){if(error instanceof AssertionError)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+  return {...envelope,actionAvailable:false as const};
  }
 
  /** Appends one source-pinned RangeKeeper paper mark and its kernel snapshot.

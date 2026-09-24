@@ -3,7 +3,7 @@ import type { Pool, PoolClient } from "pg";
 // Exact supported migration history. Change only alongside a reviewed migration.
 // Read-only workers must never repair or bootstrap a database implicitly.
 export const REQUIRED_SCHEMA_VERSION = 3;
-export const DEPLOYMENT_SCHEMA_VERSION = 8;
+export const DEPLOYMENT_SCHEMA_VERSION = 9;
 export const SCHEMA_ERROR = "Database schema incompatible; run the release's explicit db:migrate command before starting workers";
 
 export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): Promise<void> {

@@ -1,10 +1,40 @@
 import {z} from 'zod';
 import {replayPaperMint} from '../v3/position-math.js';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
+import {contentHash} from './contracts.js';
+import type {RangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-confirmation.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const sourceSchema=z.object({block:raw,hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
  timestamp:z.number().int().nonnegative()}).strict();
+const hash64=z.string().regex(/^[0-9a-f]{64}$/);
+const confirmationCandidateSchema=z.object({kind:z.enum(['entry','recenter']),
+ range:z.object({tickLower:z.number().int(),tickUpper:z.number().int()}).strict(),
+ swap:z.object({token:z.union([z.literal(0),z.literal(1)]),amountIn:raw,quotedOut:raw,minOut:raw,
+  priceAfter:raw,feeValue:raw,shortfallValue:raw}).strict().nullable(),
+ amount0Desired:raw,amount1Desired:raw,amount0Min:raw,amount1Min:raw,liquidity:raw,
+ deployedValue:raw,sourceBlock:raw,sourceHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+ expiresAt:z.number().int().nonnegative()}).strict();
+const confirmationBodySchema=z.object({schemaVersion:z.literal(1),
+ kind:z.literal('rangekeeper_paper_open_confirmation_v1'),status:z.literal('confirmed'),
+ campaignId:z.uuid(),revision:z.number().int().positive(),draftConfigHash:hash64,profileHash:hash64,
+ firstObservation:z.object({source:sourceSchema,modelHash:hash64,candidateHash:hash64}).strict(),
+ confirmationObservation:z.object({source:sourceSchema,candidateHash:hash64,
+  candidate:confirmationCandidateSchema,poolState:z.object({tick:z.number().int(),sqrtPriceX96:raw,
+   poolLiquidity:raw}).strict(),reference:z.object({price0:raw,price1:raw,nativePrice:raw,
+   proofHash:hash64,proof:z.record(z.string(),z.unknown())}).strict()}).strict(),
+ decision:z.object({action:z.literal('execute'),reason:z.literal('two_confirmations'),gasSequenceHash:
+  z.string().regex(/^0x[0-9a-fA-F]{64}$/),simulation:z.object({status:z.literal('success'),
+   sourceBlock:raw,sourceHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),candidateHash:hash64,
+   simulationHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/)}).strict()}).strict(),
+ costs:z.object({status:z.literal('provisional'),profileIds:z.array(z.object({stage:z.string().min(1),
+  id:z.string().uuid(),version:z.number().int().positive()}).strict())}).passthrough(),
+ strategyState:z.record(z.string(),z.unknown()),
+ inventory:z.object({position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+  liquidity:raw}).strict(),idle:z.object({token0:raw,token1:raw}).strict()}).strict(),
+ selectedGasProfileIds:z.array(z.string().uuid()),
+ executionEvidence:z.literal('caller_supplied_simulation_attestation_unverified'),
+ openingBooked:z.literal(false),actionAvailable:z.literal(false)}).strict();
 const stateSchema=z.object({schemaVersion:z.literal(1),policyId:z.literal('rangekeeper_v1'),
  strategyVersion:z.literal('1.0.0'),configHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
  buildId:z.string().regex(/^[a-f0-9]{64}$/),
@@ -38,6 +68,28 @@ export interface RangeKeeperPaperMarkPayload {
  inventory:{position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
  provenance:{classification:'rangekeeper_paper_mark_v1';source:{block:string;hash:string;timestamp:number};
   candidateHash:string;kernelSnapshot:z.infer<typeof kernelSchema>};
+}
+
+/** Validates the restart-safe, dashboard-safe representation of the second
+ * observation. The envelope remains provisional and cannot book an opening. */
+export function validateRangeKeeperPaperConfirmationEnvelope(value:unknown,
+ expected:{campaignId:string;revision:number}):RangeKeeperPaperConfirmationEnvelope{
+ const parsed=z.object({...confirmationBodySchema.shape,envelopeHash:hash64}).strict().parse(value),
+  {envelopeHash,...body}=parsed;
+ if(parsed.campaignId!==expected.campaignId||parsed.revision!==expected.revision||
+  BigInt(parsed.confirmationObservation.source.block)<=BigInt(parsed.firstObservation.source.block)||
+  parsed.confirmationObservation.source.timestamp<=parsed.firstObservation.source.timestamp||
+  parsed.confirmationObservation.candidate.sourceBlock!==parsed.confirmationObservation.source.block||
+  parsed.confirmationObservation.candidate.sourceHash.toLowerCase()!==
+   parsed.confirmationObservation.source.hash.toLowerCase()||
+  parsed.decision.simulation.sourceBlock!==parsed.confirmationObservation.source.block||
+  parsed.decision.simulation.sourceHash.toLowerCase()!==parsed.confirmationObservation.source.hash.toLowerCase()||
+  parsed.decision.simulation.candidateHash!==parsed.confirmationObservation.candidateHash||
+  parsed.costs.profileIds.length!==parsed.selectedGasProfileIds.length||
+  parsed.costs.profileIds.some((profile,index)=>profile.id!==parsed.selectedGasProfileIds[index])||
+  contentHash(body)!==envelopeHash)
+  throw new Error('rangekeeper_paper_confirmation_envelope_integrity_invalid');
+ return parsed as unknown as RangeKeeperPaperConfirmationEnvelope;
 }
 
 function serializeCandidate(candidate:RangeKeeperCandidate){

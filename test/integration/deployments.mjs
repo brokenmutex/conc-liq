@@ -51,7 +51,7 @@ let store,feePool;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8,9]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -210,6 +210,57 @@ try{
  assert.equal(savedRkMark.inventory.idle.token0,String(rkIdle0));
  assert.deepEqual(savedRkMark.provenance.kernelSnapshot,rkKernel);
  assert.equal(savedRkMark.provenance.actionAvailable,false);
+ const rkConfirmationSource={block:'204',hash:'0x'+'a'.repeat(64),timestamp:rkMarkSource.timestamp+3},
+  rkConfirmationCandidate={...rkOpenModel.candidate,sourceBlock:'204',sourceHash:rkConfirmationSource.hash},
+  rkGasId=randomUUID(),rkConfirmationBody={schemaVersion:1,kind:'rangekeeper_paper_open_confirmation_v1',
+   status:'confirmed',campaignId:rkDraft.id,revision:1,draftConfigHash:rkDraft.configHash,
+   profileHash:contentHash(market),firstObservation:{source:rkOpenSource,
+    modelHash:contentHash(rkOpenModel),candidateHash:rkCandidateHash},
+   confirmationObservation:{source:rkConfirmationSource,candidateHash:'d'.repeat(64),
+    candidate:rkConfirmationCandidate,poolState:{tick:0,sqrtPriceX96:String(rkSqrt),poolLiquidity:'1'},
+    reference:{price0:'1',price1:'1',nativePrice:'1',proofHash:'e'.repeat(64),proof:{fixture:true}}},
+   decision:{action:'execute',reason:'two_confirmations',gasSequenceHash:'0x'+'b'.repeat(64),
+    simulation:{status:'success',sourceBlock:'204',sourceHash:rkConfirmationSource.hash,
+     candidateHash:'d'.repeat(64),simulationHash:'0x'+'c'.repeat(64)}},
+   costs:{status:'provisional',scope:'range_keeper_open_and_retain_exit_gas_only',
+    evidenceClass:'fork_estimated',profileIds:[{stage:'open_mint',id:rkGasId,version:1}]},
+   strategyState:{fixture:true},inventory:{position:{tickLower:-60,tickUpper:60,liquidity:String(rkMint.liquidity)},
+    idle:{token0:'0',token1:'0'}},selectedGasProfileIds:[rkGasId],
+   executionEvidence:'caller_supplied_simulation_attestation_unverified',openingBooked:false,actionAvailable:false},
+  rkConfirmation={...rkConfirmationBody,envelopeHash:contentHash(rkConfirmationBody)},
+  verifyConfirmationAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
+   sources.map(source=>source.block),['200','204']);};
+ const rkConfirmationResult=await store.persistRangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,openPreviewId:rkPreviewId,envelope:rkConfirmation,
+  verifyAnchors:verifyConfirmationAnchors});
+ assert.deepEqual(rkConfirmationResult,{campaignId:rkDraft.id,revision:1,
+  envelopeHash:rkConfirmation.envelopeHash,replayed:false,actionAvailable:false});
+ const rkConfirmationReplay=await store.persistRangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,openPreviewId:rkPreviewId,envelope:rkConfirmation,
+  verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(rkConfirmationReplay.replayed,true);
+ await assert.rejects(store.persistRangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,openPreviewId:rkPreviewId,envelope:rkConfirmation,
+  verifyAnchors:async()=>{throw new assert.AssertionError({message:'canonical anchor changed'});}}),
+  /rangekeeper_paper_confirmation_source_not_canonical/);
+ const dashboardRkConfirmation=await store.rangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(dashboardRkConfirmation.envelopeHash,rkConfirmation.envelopeHash);
+ assert.equal(dashboardRkConfirmation.actionAvailable,false);
+ const rkConflictBody={...rkConfirmation,confirmationObservation:{...rkConfirmation.confirmationObservation,
+  reference:{...rkConfirmation.confirmationObservation.reference,price0:'2'}}};
+ delete rkConflictBody.envelopeHash;
+ await assert.rejects(store.persistRangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,openPreviewId:rkPreviewId,
+  envelope:{...rkConflictBody,envelopeHash:contentHash(rkConflictBody)},
+  verifyAnchors:verifyConfirmationAnchors}),/rangekeeper_paper_confirmation_replay_conflict/);
+ await assert.rejects(store.persistRangeKeeperPaperConfirmationEnvelope({
+  campaignId:rkDraft.id,openPreviewId:rkPreviewId,envelope:{...rkConfirmation,
+   confirmationObservation:{...rkConfirmation.confirmationObservation,source:{...rkConfirmationSource,
+    hash:'0x'+'f'.repeat(64)}}},verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_envelope_integrity_invalid/);
+ await assert.rejects(admin.query(`UPDATE deployment_rangekeeper_paper_confirmations
+  SET envelope='{}' WHERE campaign_id=$1`,[rkDraft.id]),/append-only/);
  const rkNextSource={block:'202',hash:'0x'+'8'.repeat(64),timestamp:rkMarkSource.timestamp+1},
   rkNextKernel={...rkKernel,source:rkNextSource,state:{...rkKernel.state,
    lastEligible:{block:rkNextSource.block,hash:rkNextSource.hash,timestamp:rkNextSource.timestamp}}};
@@ -455,6 +506,13 @@ try{
  const paperOperation=await store.acceptOperation(paperDraft.id,{previewId:paperPreview.id,
   contentDigest:paperPreview.contentDigest,expectedRevision:1,
   idempotencyKey:'paper-open-model-unique-1'},'operator');
+ const queuedPaper=deploymentPosition((await readDeploymentRows(admin)).find(row=>row.id===paperDraft.id));
+ assert.equal(queuedPaper.status,'waiting');
+ assert.equal(queuedPaper.deployment.operation.id,paperOperation.id);
+ assert.equal(queuedPaper.deployment.operation.kind,'open');
+ assert.equal(queuedPaper.deployment.operation.status,'queued');
+ assert.equal(queuedPaper.deployment.operation.stage,'accepted');
+ assert.equal(queuedPaper.navQuote,null);
  const paperClaim=await store.claimNext('paper-worker',30,'paper');
  assert.equal(paperClaim.id,paperOperation.id);
  await assert.rejects(store.completeTrustedPaperOpen(paperOperation.id,'wrong-worker'),
