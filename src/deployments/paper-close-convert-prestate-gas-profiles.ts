@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import {PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2} from './paper-close-convert-model.js';
 import {paperCloseConvertGasAllowanceStateV2} from './paper-gas-evidence.js';
-import {verifyPaperCloseConvertPrestateReport,type PaperCloseConvertPrestateReport}
- from './paper-close-convert-prestate-sampler.js';
+import {verifyPaperCloseConvertPrestateReport} from './paper-close-convert-prestate-sampler.js';
 
 export const PAPER_STATIC_CONVERT_PRESTATE_GAS_PATH_V1=
  'paper_static_manual_close_convert_prestate_v1' as const;

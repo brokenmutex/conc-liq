@@ -38,7 +38,14 @@ const campaignId='00000000-0000-4000-8000-000000000001',
    oneSided:false,dilutedSharePpm:'1'},
   costs:{status:'provisional',scope:'open_and_close_retain_gas_only',pathVersion:PAPER_STATIC_GAS_PATH,
    sizeBand:'fixture',gasPriceWei:'1',boundGasPriceWei:'1',gasPriceObservedAt:new Date(1000).toISOString(),
-   nativeReferencePrice:'1',stages:[],open:{},closeRetain:{},missing:[]}} as Record<string,any>,
+   nativeReferencePrice:'1',stages:Array.from({length:6},(_,i)=>({stage:`fixture_${i}`,
+    profileId:`00000000-0000-4000-8000-${String(i+1).padStart(12,'0')}`,version:1,
+    evidenceClass:'fork_estimated',expectedGasUnits:'1',boundGasUnits:'1',source:{block:'100',
+     hash:`0x${'1'.repeat(64)}`,estimatedAt:new Date(1000).toISOString(),
+     callHash:`0x${'2'.repeat(64)}`,method:'owned_fork_nitro_exact_call_v1'}})),
+   open:{expectedGasUnits:'0',boundGasUnits:'0',expectedWei:'0',boundWei:'0',expectedValue:'0',boundValue:'0'},
+   closeRetain:{expectedGasUnits:'0',boundGasUnits:'0',expectedWei:'0',boundWei:'0',expectedValue:'0',boundValue:'0'},
+   missing:[]}} as Record<string,any>,
  frame={source:{block:'120',hash:sourceHash,timestamp:1020},tick:0,sqrtPriceX96:String(sqrtRatioAtTick(0)),
   poolLiquidity:'1000000',price0:'100',price1:'100',nativePrice:'100',referenceEligible:true,
   referenceReasons:[],referenceProofHash:proofHash,referenceProof:proof},
@@ -50,7 +57,7 @@ const campaignId='00000000-0000-4000-8000-000000000001',
   inputAmountRaw:'100',expectedOutputRaw:'90',minimumOutputRaw:'89',slippageBps:50,
   pathVersion:route.pathVersion},quote={...quoteBody,quoteHash:contentHash(quoteBody)};
 
-function validReport(){
+export function validReport(){
  const inventory={principal0Raw:'80',principal1Raw:'10',idle0Raw:'10',idle1Raw:'20',
   fee0Raw:'10',fee1Raw:'5',token0Raw:'100',token1Raw:'35',inputAsset:'token0',inputAmountRaw:'100'},
   postWithdrawReplayBody={poolState:{tick:0,sqrtPriceX96:frame.sqrtPriceX96,poolLiquidity:'1000'},
@@ -90,7 +97,7 @@ function validReport(){
    initialAllowances:initialAllowance},gasScopeHash=contentHash(gasScope),
   gasStages=definitions.map((definition,index)=>{
    const callHash=keccak256(definition.calldata as `0x${string}`),source={block:frame.source.block,
-    hash:frame.source.hash,estimatedAt:new Date(1000).toISOString(),callHash,
+    hash:frame.source.hash,estimatedAt:new Date(frame.source.timestamp*1000).toISOString(),callHash,
     method:'owned_fork_nitro_exact_call_v1'},estimate={gas:'100000',parentGas:'0',baseFeeWei:'100',
     parentBaseFeeWei:'0',totalFeeWei:'10000000',parentFeeWei:'0',executionFeeWei:'10000000',
     basis:'node_estimateGas_with_paper_prestate_and_parent_component'},
