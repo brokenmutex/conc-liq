@@ -124,3 +124,20 @@ test('complete transfer-index custody can match the strategy composer but cannot
  assert.equal(wrongBinding.checks.find(item=>item.name==='nft_custody')?.status,'unavailable');
  assert(result.missing.includes('live_intent_construction_review_and_signer_custody_not_implemented'));
 });
+
+test('a source-bound runtime profile proof can satisfy identity check without enabling action',()=>{
+ const pinned=snapshot(),runtime={kind:'live_pool_runtime_identity',status:'available',
+  targetStrategyId:'static_manual_v1',profileHash:contentHash(profile),source:pinned.source,
+  contractHashes:{poolCodeHash:profile.pool.poolCodeHash,token0CodeHash:profile.pool.token0CodeHash,
+   token1CodeHash:profile.pool.token1CodeHash,managerCodeHash:profile.pool.managerCodeHash,
+   quoterCodeHash:profile.pool.quoterCodeHash},missing:[],actionAvailable:false};
+ const result=compose(saved(),pinned,journal(),undefined);
+ const withRuntime=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,
+  journalDiagnostic:journal(),poolRuntimeIdentity:runtime});
+ assert.equal(result.checks.find(item=>item.name==='pool_runtime_identity')?.status,'unavailable');
+ assert.equal(withRuntime.checks.find(item=>item.name==='pool_runtime_identity')?.status,'matched');
+ assert.equal(withRuntime.actionAvailable,false);assert.equal(withRuntime.executionEligible,false);
+ const mismatched=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,
+  journalDiagnostic:journal(),poolRuntimeIdentity:{...runtime,source:{...pinned.source,block:'99'}}});
+ assert.equal(mismatched.checks.find(item=>item.name==='pool_runtime_identity')?.status,'unavailable');
+});

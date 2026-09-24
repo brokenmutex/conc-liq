@@ -1,7 +1,7 @@
 import {getAddress,isAddress} from 'viem';
 import {z} from 'zod';
 import {allocationSchema,contentHash,rangeKeeperParameters,staticManualParameters} from './contracts.js';
-import {marketProfileSchema} from './market-profile.js';
+import {marketProfileSchema,type MarketProfile} from './market-profile.js';
 
 const strategyIds=['static_manual_v1','rangekeeper_v1'] as const;
 type StrategyId=typeof strategyIds[number];
@@ -12,7 +12,8 @@ const inputSchema=z.object({draft:z.object({id:z.string().min(1),revision:z.numb
  mode:z.enum(['paper','live']),strategyId:z.enum(strategyIds),wallet:address,chainId:z.number().int().positive(),
  profile: z.unknown(),profileHash:z.string().regex(/^[0-9a-f]{64}$/),config:z.unknown(),
  configHash:z.string().regex(/^[0-9a-f]{64}$/),allocation:allocationSchema}).strict(),
- custodySnapshot:z.unknown(),nftCustodyEnumeration:z.unknown().optional(),journalDiagnostic:z.unknown()}).strict();
+ custodySnapshot:z.unknown(),nftCustodyEnumeration:z.unknown().optional(),poolRuntimeIdentity:z.unknown().optional(),
+ journalDiagnostic:z.unknown()}).strict();
 
 function record(value:unknown):Record<string,unknown>|null{
  return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
@@ -55,6 +56,21 @@ function completeNftEnumerationMatches(value:unknown,strategy:StrategyId,operato
  }
  return tokenIds.every(id=>typeof id==='string'&&ownerById.has(id));
 }
+function poolRuntimeIdentityMatches(value:unknown,strategy:StrategyId,profileHash:string,
+ profile:MarketProfile,source:Record<string,unknown>|null):boolean{
+ const row=record(value),runtimeSource=record(row?.source),hashes=record(row?.contractHashes);
+ const pool=profile.pool;
+ return Boolean(row?.kind==='live_pool_runtime_identity'&&row.status==='available'&&
+  row.targetStrategyId===strategy&&row.profileHash===profileHash&&row.actionAvailable===false&&
+  Array.isArray(row.missing)&&row.missing.length===0&&runtimeSource?.confirmed===true&&
+  source?.confirmed===true&&runtimeSource.block===source.block&&typeof runtimeSource.hash==='string'&&
+  typeof source.hash==='string'&&same(runtimeSource.hash,source.hash)&&runtimeSource.timestamp===source.timestamp&&
+  hashes&&typeof hashes.poolCodeHash==='string'&&same(hashes.poolCodeHash,pool.poolCodeHash)&&
+  typeof hashes.token0CodeHash==='string'&&same(hashes.token0CodeHash,pool.token0CodeHash)&&
+  typeof hashes.token1CodeHash==='string'&&same(hashes.token1CodeHash,pool.token1CodeHash)&&
+  typeof hashes.managerCodeHash==='string'&&same(hashes.managerCodeHash,pool.managerCodeHash)&&
+  typeof hashes.quoterCodeHash==='string'&&same(hashes.quoterCodeHash,pool.quoterCodeHash));
+}
 
 /** Join a saved deployment identity with custody and legacy-journal evidence.
  * This is a diagnostic composer only: it never evaluates strategy admission,
@@ -64,7 +80,7 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
  if(!parsed.success)return {kind:'live_strategy_preflight_evidence' as const,status:'unavailable' as const,
   strategyId:null,campaignId:null,revision:null,checks:[],journal:{status:'unavailable',blockers:[]},
   missing:['saved_strategy_binding_invalid'],actionAvailable:false as const,executionEligible:false as const};
- const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal,nftCustodyEnumeration}=parsed.data;
+ const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal,nftCustodyEnumeration,poolRuntimeIdentity}=parsed.data;
  const strategyId=draft.strategyId as StrategyId,poolProfile=marketProfileSchema.safeParse(draft.profile),
   allocation=allocationSchema.safeParse(draft.allocation);
  const checks:Check[]=[],missing:string[]=[];
@@ -103,8 +119,17 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
    profileHashValid?undefined:'saved_profile_not_integrity_bound'));
   checks.push(check('manager_identity',profileHashValid?'matched':'mismatch',
    profileHashValid?undefined:'saved_manager_profile_not_integrity_bound'));
-  checks.push(check('pool_runtime_identity','unavailable','pool_code_and_factory_relations_not_rechecked_at_snapshot_source'));
-  addMissing('pool_code_and_factory_relations_not_rechecked_at_snapshot_source');
+  const runtime=poolRuntimeIdentity??record(rawSnapshot)?.poolRuntimeIdentity;
+  const runtimeMatches=poolRuntimeIdentityMatches(runtime,strategyId,draft.profileHash,poolProfile.data,
+   record(rawSnapshot)?.source?record(record(rawSnapshot)?.source):null);
+  checks.push(check('pool_runtime_identity',runtimeMatches?'matched':'unavailable',
+   runtimeMatches?undefined:'pool_code_and_factory_relations_not_rechecked_at_snapshot_source'));
+  if(!runtimeMatches){
+   addMissing('pool_code_and_factory_relations_not_rechecked_at_snapshot_source');
+   const runtimeMissing=record(runtime)?.missing;
+   if(Array.isArray(runtimeMissing))for(const reason of runtimeMissing)
+    if(typeof reason==='string')addMissing(reason);
+  }
  }
  const snapshot=record(rawSnapshot),journal=record(rawJournal);
  const operator=getAddress(draft.wallet),profile=poolProfile.success?poolProfile.data:null;
