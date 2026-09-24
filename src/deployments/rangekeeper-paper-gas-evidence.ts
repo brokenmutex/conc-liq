@@ -19,6 +19,7 @@ import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
  type RangeKeeperPaperCandidateScope} from './rangekeeper-paper-cost.js';
 import type {PaperGasProfileRow} from './paper-cost.js';
+import {assertSameRangeKeeperPinnedReferenceProof} from './rangekeeper-paper-gas-sampler.js';
 
 const PPM=1_000_000n;
 const WAD=10n**18n;
@@ -354,6 +355,7 @@ export async function verifyRangeKeeperPaperGasEvidenceSource(input:{client:Robi
   'RangeKeeper gas independent references unavailable');
  const proof=JSON.parse(JSON.stringify(references.proof,(_,value)=>
   typeof value==='bigint'?String(value):value)) as Record<string,unknown>,frame=report.frame;
+ assertSameRangeKeeperPinnedReferenceProof(frame.referenceProof,proof);
  assert.equal(slot[1],frame.tick);assert.equal(String(slot[0]),frame.sqrtPriceX96);
  assert.equal(String(liquidity),frame.poolLiquidity);assert.equal(String(references.price0),frame.price0);
  assert.equal(String(references.price1),frame.price1);assert.equal(String(references.nativePrice),frame.nativePrice);
