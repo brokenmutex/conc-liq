@@ -7,6 +7,8 @@ import {paperQuoterAbi} from '../paper/execution-abi.js';
 import {USDG} from '../constants.js';
 import {referenceProofHash} from './market-profile.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
+import {ephemeralStaticPaperCloseConvertFeeReplaySchema,verifyEphemeralStaticPaperCloseConvertFeeReplay,
+ type EphemeralStaticPaperCloseConvertFeeReplay} from './paper-close-convert-ephemeral-fees.js';
 import {paperCloseConvertQuoteSchema,paperCloseConvertRouteSchema,
  paperCloseConvertGasScopeV2Schema,paperCloseConvertGasScopeHashV2,
  paperCloseConvertGasSizeBandV2,paperCloseConvertGasAllowanceStatesV2,
@@ -49,6 +51,7 @@ export type PaperStaticCloseConvertTerminalModel={
  referenceProofHash:string;inventory:{principal0Raw:string;principal1Raw:string;idle0Raw:string;idle1Raw:string;
  fee0Raw:string;fee1Raw:string;token0Raw:string;token1Raw:string;inputAsset:'token0'|'token1';inputAmountRaw:string};
  conversionRoute:PaperCloseConvertRoute;quote:PaperCloseConvertQuote;
+ feeReplay:EphemeralStaticPaperCloseConvertFeeReplay;
  postWithdraw:PaperCloseConvertPostWithdrawEvidence;scope:PaperCloseConvertGasScopeV2;
  costs:PaperCloseConvertCostsV2;modelHash:string;
 };
@@ -65,9 +68,20 @@ const terminalBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('pa
   fee0Raw:raw,fee1Raw:raw,token0Raw:raw,token1Raw:raw,inputAsset:z.enum(['token0','token1']),
   inputAmountRaw:z.string().regex(/^[1-9][0-9]*$/)}).strict(),
  conversionRoute:paperCloseConvertRouteSchema,quote:paperCloseConvertQuoteSchema,
+ feeReplay:ephemeralStaticPaperCloseConvertFeeReplaySchema,
  postWithdraw:postWithdrawSchema,scope:paperCloseConvertGasScopeV2Schema,
  costs:z.custom<PaperCloseConvertCostsV2>(),}).strict();
 const terminalSchema=terminalBodySchema.extend({modelHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
+
+export function parsePaperStaticCloseConvertTerminalV2(rawInput:unknown):PaperStaticCloseConvertTerminalModel{
+ const model=terminalSchema.parse(rawInput),{modelHash,...body}=model;
+ if(contentHash(body)!==modelHash)throw Error('paper_close_convert_terminal_model_hash_invalid');
+ const {replayHash,...replayBody}=model.feeReplay;
+ if(contentHash(replayBody)!==replayHash||contentHash(model.feeReplay.interval)!==model.feeReplay.intervalHash||
+  contentHash(model.feeReplay.feeCarry)!==model.feeReplay.feeCarryHash)
+  throw Error('paper_close_convert_terminal_fee_replay_hash_invalid');
+ return model;
+}
 
 function exactRoute(state:PaperCloseConvertPreflightState):PaperCloseConvertRoute{
  const p=state.profile.pool,limits=state.parameters.limits as {maxSlippageBps?:unknown}|undefined;
@@ -121,10 +135,13 @@ export async function quotePaperCloseConvertAtSource(client:RobinhoodClient,
  * this V2 envelope.
  */
 export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:PaperCloseConvertPreviewWriter;
- state:PaperCloseConvertPreflightState;frame:PaperOpenFrame;feeCarry:PaperFeeCarry;
+ state:PaperCloseConvertPreflightState;frame:PaperOpenFrame;previousFeeCarry:PaperFeeCarry;
+ feeReplay:EphemeralStaticPaperCloseConvertFeeReplay;
  feeEvidence:PaperCloseConvertFeeEvidenceBinding;postWithdraw:unknown;client:RobinhoodClient;
- verifyPersistedContext:(input:{state:PaperCloseConvertPreflightState;feeCarry:PaperFeeCarry;
-  feeEvidence:PaperCloseConvertFeeEvidenceBinding;source:PaperOpenFrame['source']})=>Promise<void>;
+ verifyPersistedContext:(input:{state:PaperCloseConvertPreflightState;previousFeeCarry:PaperFeeCarry;
+  feeCarry:PaperFeeCarry;
+  feeReplay:EphemeralStaticPaperCloseConvertFeeReplay;feeEvidence:PaperCloseConvertFeeEvidenceBinding;
+  source:PaperOpenFrame['source']})=>Promise<void>;
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
  verifyOwnedFork:(input:{state:PaperCloseConvertPreflightState;frame:PaperOpenFrame;
   route:PaperCloseConvertRoute;inventory:PaperStaticCloseConvertTerminalModel['inventory'];
@@ -132,7 +149,8 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
    reportHash:string;postWithdrawReplayHash:string;sourceReplayHash:string;source:PaperOpenFrame['source']}>;
  gasProfiles:readonly PaperGasProfileRow[];gasPriceWei:bigint;now?:number}){
  const now=input.now??Date.now(),state=input.state,open=state.openModel,p=state.profile.pool,
-  frame=input.frame,feeCarry=input.feeCarry,post=postWithdrawSchema.parse(input.postWithdraw);
+  frame=input.frame,feeReplay=input.feeReplay,feeCarry=feeReplay.feeCarry,
+  post=postWithdrawSchema.parse(input.postWithdraw);
  if(open.strategyId!=='static_manual_v1'||
   open.profileHash!==state.profileHash||contentHash(state.profile)!==state.profileHash||
   open.revision<1||
@@ -147,19 +165,33 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   !/^[0-9a-f]{64}$/.test(input.feeEvidence.proofHash)||
   !/^[0-9a-f]{64}$/.test(input.feeEvidence.carryHash))
   throw Error('paper_close_convert_fee_evidence_unavailable');
- if(feeCarry.pool.toLowerCase()!==p.pool.toLowerCase()||
-  feeCarry.token0Address.toLowerCase()!==p.token0.toLowerCase()||
-  feeCarry.token1Address.toLowerCase()!==p.token1.toLowerCase()||
-  feeCarry.through.block!==state.previous.sourceBlock||
-  feeCarry.through.hash.toLowerCase()!==state.previous.sourceHash.toLowerCase()||
+ const previousFeeCarry=input.previousFeeCarry;
+ if(previousFeeCarry.pool.toLowerCase()!==p.pool.toLowerCase()||
+  previousFeeCarry.token0Address.toLowerCase()!==p.token0.toLowerCase()||
+  previousFeeCarry.token1Address.toLowerCase()!==p.token1.toLowerCase()||
+  previousFeeCarry.through.block!==state.previous.sourceBlock||
+  previousFeeCarry.through.hash.toLowerCase()!==state.previous.sourceHash.toLowerCase()||
+  previousFeeCarry.from.block!==open.source.block||previousFeeCarry.from.hash.toLowerCase()!==open.source.hash.toLowerCase()||
+  previousFeeCarry.fee!==p.fee||previousFeeCarry.tickSpacing!==p.tickSpacing||
+  previousFeeCarry.liquidity!==open.candidate.liquidity||
+  previousFeeCarry.range.tickLower!==open.candidate.range.tickLower||
+  previousFeeCarry.range.tickUpper!==open.candidate.range.tickUpper||
+  previousFeeCarry.intervals<1||previousFeeCarry.accounting!=='modeled_hypothetical_fee_share'||
+  feeCarry.through.block!==frame.source.block||feeCarry.through.hash.toLowerCase()!==frame.source.hash.toLowerCase()||
   feeCarry.from.block!==open.source.block||feeCarry.from.hash.toLowerCase()!==open.source.hash.toLowerCase()||
-  feeCarry.fee!==p.fee||feeCarry.tickSpacing!==p.tickSpacing||
-  feeCarry.liquidity!==open.candidate.liquidity||
-  feeCarry.range.tickLower!==open.candidate.range.tickLower||
-  feeCarry.range.tickUpper!==open.candidate.range.tickUpper||
-  feeCarry.intervals<1||feeCarry.accounting!=='modeled_hypothetical_fee_share')
+  feeCarry.intervals!==previousFeeCarry.intervals+1||
+  feeCarry.pool.toLowerCase()!==p.pool.toLowerCase()||feeCarry.liquidity!==open.candidate.liquidity)
   throw Error('paper_close_convert_fee_carry_unavailable');
- await input.verifyPersistedContext({state,feeCarry,feeEvidence:input.feeEvidence,source:frame.source});
+ verifyEphemeralStaticPaperCloseConvertFeeReplay({replay:feeReplay,previous:input.previousFeeCarry,
+  sampleSource:frame.source,previousFeeEvidenceId:input.feeEvidence.id,
+  previousFeeCarryHash:input.feeEvidence.carryHash,stream:feeCarry.stream,
+  targetSetHash:feeCarry.targetSetHash,opening:open.source});
+ if(feeReplay.from.block!==state.previous.sourceBlock||
+  feeReplay.from.hash.toLowerCase()!==state.previous.sourceHash.toLowerCase()||
+  feeReplay.to.block!==frame.source.block||feeReplay.to.hash.toLowerCase()!==frame.source.hash.toLowerCase())
+  throw Error('paper_close_convert_fee_replay_source_mismatch');
+ await input.verifyPersistedContext({state,previousFeeCarry:input.previousFeeCarry,feeCarry,feeReplay,
+  feeEvidence:input.feeEvidence,source:frame.source});
  await input.verifyAnchors(state.profile.pool.chainId,[open.source,state.previous.source,frame.source]);
  const route=exactRoute(state),quoteAsset=p.quoteToken===0?'token0':'token1',
   inputAsset: 'token0'|'token1'=quoteAsset==='token0'?'token1':'token0';
@@ -218,7 +250,7 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   poolState:post.poolState,reference:{price0:String(frame.price0),price1:String(frame.price1),
    nativePrice:String(frame.nativePrice)},referenceProof:frame.referenceProof,
   referenceProofHash:frame.referenceProofHash,inventory,conversionRoute:route,quote,
-  postWithdraw:post,scope,costs};
+  feeReplay,postWithdraw:post,scope,costs};
  const parsed=terminalBodySchema.parse(body),model=terminalSchema.parse({...parsed,
   modelHash:contentHash(terminalHashBody(parsed))});
  const expiresAt=new Date(now+60_000),modelHash=model.modelHash;
@@ -235,7 +267,10 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
    costScopeHash:costs.scopeHash,postWithdrawReplayHash:post.postWithdrawReplayHash,
    sourceReplayHash:ownedReplay.sourceReplayHash,
    feeEvidenceId:input.feeEvidence.id,feeEvidenceHash:input.feeEvidence.proofHash,
-   feeCarryHash:input.feeEvidence.carryHash,paidCostsAvailable:false,feeAccrualAvailable:false,
+   feeCarryHash:feeReplay.feeCarryHash,priorFeeCarryHash:feeReplay.previousFeeCarryHash,
+   feeIntervalHash:feeReplay.intervalHash,feeReplayHash:feeReplay.replayHash,
+   feeStream:feeReplay.stream,feeTargetSetHash:feeReplay.targetSetHash,
+   paidCostsAvailable:false,feeAccrualAvailable:false,
    quoteHash:quote.quoteHash},expiresAt});
  return {id:saved.id,kind:'close_convert' as const,status:'indicative' as const,
   expectedRevision:open.revision,contentDigest:saved.contentDigest,

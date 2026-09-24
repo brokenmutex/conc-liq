@@ -10,6 +10,8 @@ import {paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
 import {persistTrustedStaticPaperCloseConvertPreview} from '../src/deployments/paper-close-convert-preflight.js';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
+import {advanceEphemeralStaticPaperFeeCarry} from
+ '../src/deployments/paper-close-convert-ephemeral-fees.js';
 
 const campaignId='00000000-0000-4000-8000-000000000001',
  token0='0x1000000000000000000000000000000000000001',
@@ -85,12 +87,16 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
     allowanceState:wrongAllowances[stage],sizeBand:wrongSizeBand,component:'gas_units',status:'provisional',
     evidenceClass:'fork_estimated',model,sourceHash:contentHash(source),observedUntil:new Date(sampleTime)};
   }),
-  feeCarry={kind:'paper_fee_carry_v1' as const,pool:profile.pool.pool,token0Address:profile.pool.token0,
+  previousFeeCarry={kind:'paper_fee_carry_v1' as const,pool:profile.pool.pool,token0Address:profile.pool.token0,
    token1Address:profile.pool.token1,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
    range:{tickLower:lower,tickUpper:upper},liquidity:openModel.candidate.liquidity,
    stream:'fixture',targetSetHash:'e'.repeat(64),from:{block:'100',hash:openModel.source.hash},
-   through:{block:'110',hash:state.previous.sourceHash},token0:{lowerRawQ128:'0',upperRawQ128:'0',
-    lowerAmountRaw:'1',upperAmountRaw:'1'},token1:{lowerRawQ128:'0',upperRawQ128:'0',
+   through:{block:'110',hash:state.previous.sourceHash},token0:{
+    lowerRawQ128:'340282366920938463463374607431768211456',
+     upperRawQ128:'340282366920938463463374607431768211456',
+    lowerAmountRaw:'1',upperAmountRaw:'1'},token1:{
+    lowerRawQ128:'340282366920938463463374607431768211456',
+    upperRawQ128:'340282366920938463463374607431768211456',
     lowerAmountRaw:'1',upperAmountRaw:'1'},intervals:1,events:0,segments:0,partialSegments:0,
    accounting:'modeled_hypothetical_fee_share' as const},
   postWithdraw={verificationClass:'owned_fork_close_convert_post_withdraw_v2' as const,
@@ -99,11 +105,28 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
    poolState:{tick,sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity)},
    balances:{token0:token0Raw,token1:token1Raw},quotedOutputRaw:'999',
    position:{liquidity:'0',tokensOwed0:'0',tokensOwed1:'0'}};
+ const interval={kind:'paper_observed_flow_fee_interval_v1' as const,pool:profile.pool.pool,
+  token0Address:profile.pool.token0,token1Address:profile.pool.token1,fee:profile.pool.fee,
+  tickSpacing:profile.pool.tickSpacing,from:previousFeeCarry.through,
+  to:{block:frame.source.block,hash:frame.source.hash},
+  range:{tickLower:lower,tickUpper:upper},liquidity:openModel.candidate.liquidity,
+  token0:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},
+  token1:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},
+  events:0,segments:0,partialSegments:0,accounting:'modeled_hypothetical_fee_share' as const,
+  coverage:{stream:'fixture',targetSetHash:'e'.repeat(64),completeThroughBlock:frame.source.block,
+   completeThroughHash:frame.source.hash,chainAnchorRecheckRequired:false as const}},
+  advanced=advanceEphemeralStaticPaperFeeCarry({previous:previousFeeCarry,interval,
+   sampleSource:frame.source,stream:'fixture',targetSetHash:'e'.repeat(64),opening:openModel.source}),
+  replayBody={kind:'paper_close_convert_ephemeral_fee_replay_v1' as const,
+   classification:'fork_estimated' as const,previousFeeEvidenceId:'3',from:interval.from,to:interval.to,
+   stream:'fixture',targetSetHash:'e'.repeat(64),interval,intervalHash:advanced.intervalHash,
+   previousFeeCarryHash:contentHash(previousFeeCarry),feeCarry:advanced.feeCarry,
+   feeCarryHash:advanced.feeCarryHash},feeReplay={...replayBody,replayHash:contentHash(replayBody)};
  let writes=0;
  await assert.rejects(persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async()=>{
    writes++;return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
-  }},state,frame,feeCarry,feeEvidence:{id:'3',
-   proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},
+  }},state,frame,previousFeeCarry,feeReplay,feeEvidence:{id:'3',
+   proofHash:'4'.repeat(64),carryHash:contentHash(previousFeeCarry)},
   postWithdraw,client:mockClient(),verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},
   verifyOwnedFork:async input=>({
    reportHash:input.postWithdraw.reportHash,
@@ -121,8 +144,8 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
  const result=await persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async input=>{
    writes++;savedPreviews.push(input as unknown as Record<string,unknown>);
    return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
-  }},state,frame,feeCarry,feeEvidence:{id:'3',
-   proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},postWithdraw,client:mockClient(),
+  }},state,frame,previousFeeCarry,feeReplay,feeEvidence:{id:'3',
+   proofHash:'4'.repeat(64),carryHash:contentHash(previousFeeCarry)},postWithdraw,client:mockClient(),
   verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},verifyOwnedFork:async input=>({
    reportHash:input.postWithdraw.reportHash,
    postWithdrawReplayHash:input.postWithdraw.postWithdrawReplayHash,
@@ -133,4 +156,10 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
  const savedPreview=savedPreviews[0];assert(savedPreview);assert.equal(savedPreview.kind,'close_convert');
  assert.equal((savedPreview.proposal as Record<string,unknown>).paperCloseConvertTerminalV2!==undefined,true);
  assert.equal((savedPreview.evidence as Record<string,unknown>).sourceReplayHash,'b'.repeat(64));
+ const terminal=(savedPreview.proposal as {paperCloseConvertTerminalV2:{feeReplay:{replayHash:string;
+  previousFeeEvidenceId:string;feeCarryHash:string;intervalHash:string}}}).paperCloseConvertTerminalV2;
+ assert.equal(terminal.feeReplay.replayHash,feeReplay.replayHash);
+ assert.equal(terminal.feeReplay.previousFeeEvidenceId,'3');
+ assert.equal(terminal.feeReplay.feeCarryHash,feeReplay.feeCarryHash);
+ assert.equal(terminal.feeReplay.intervalHash,feeReplay.intervalHash);
 });

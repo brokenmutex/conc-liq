@@ -6,6 +6,10 @@ import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import type {DeploymentStore} from './store.js';
 import {persistTrustedStaticPaperCloseConvertPreview,type PaperCloseConvertPreflight}
  from './paper-close-convert-preflight.js';
+import {replayEphemeralStaticPaperCloseConvertFees} from './paper-close-convert-ephemeral-fees.js';
+import type {Pool} from 'pg';
+import type {RobinhoodClient} from '../client.js';
+import type {PaperOpenFrame} from './paper-preview.js';
 
 export interface StaticPaperCloseConvertFeeContext {
  state:PaperCloseConvertPreflightState;feeCarry:PaperFeeCarry;
@@ -48,12 +52,21 @@ export async function readStaticPaperCloseConvertFeeContext(input:{store:Pick<De
  * context that was not read and replayed from DeploymentStore. */
 type PersistInput=Parameters<typeof persistTrustedStaticPaperCloseConvertPreview>[0];
 export async function persistStaticPaperCloseConvertPreviewFromPersistedFees(input:
- Omit<PersistInput,'state'|'feeCarry'|'feeEvidence'|'verifyPersistedContext'> &
+ Omit<PersistInput,'state'|'previousFeeCarry'|'feeReplay'|'feeEvidence'|'verifyPersistedContext'> &
  {store:PersistInput['store']&Pick<DeploymentStore,'readStaticPaperCloseConvertFeeCarry'>;
-  campaignId:string;expectedRevision:number}):Promise<PaperCloseConvertPreflight>{
+  campaignId:string;expectedRevision:number;client:RobinhoodClient;indexer:Pool;
+  frame:PaperOpenFrame}):Promise<PaperCloseConvertPreflight>{
  const context=await readStaticPaperCloseConvertFeeContext({store:input.store,
   campaignId:input.campaignId,revision:input.expectedRevision,verifyAnchors:input.verifyAnchors});
+ const replay=()=>replayEphemeralStaticPaperCloseConvertFees({context,client:input.client,
+  indexer:input.indexer,frame:input.frame}),feeReplay=await replay();
  return persistTrustedStaticPaperCloseConvertPreview({...input,state:context.state,
-  feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,
-  verifyPersistedContext:context.verifyPersistedContext});
+  previousFeeCarry:context.feeCarry,feeReplay,feeEvidence:context.feeEvidence,
+  verifyPersistedContext:async current=>{
+   await context.verifyPersistedContext({state:current.state,feeCarry:context.feeCarry,
+    feeEvidence:current.feeEvidence,source:current.source});
+   const replayed=await replay();
+   assert.equal(contentHash(replayed),contentHash(current.feeReplay),
+    'Canonical close-convert ephemeral fee interval changed before preview persistence');
+  }});
 }
