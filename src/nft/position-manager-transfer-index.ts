@@ -9,7 +9,7 @@ const transferAbi=parseAbi(['event Transfer(address indexed from,address indexed
 const ZERO='0x0000000000000000000000000000000000000000';
 const HASH=/^0x[0-9a-f]{64}$/i;
 const MAX_CHUNK_BLOCKS=10_000n,MAX_BLOCKS_PER_RUN=100_000n,MAX_LOGS_PER_CHUNK=25_000,
- MAX_REPLAY_EVENTS=1_000_000,HEADER_CONCURRENCY=12;
+ MAX_REPLAY_EVENTS=1_000_000,MAX_REPLAY_CHECKPOINT_BLOCKS=10_000,HEADER_CONCURRENCY=12;
 
 export interface PositionManagerCheckpoint {
  number:bigint;hash:Hash;parentHash:Hash;timestamp:number;
@@ -34,7 +34,11 @@ export interface PositionManagerTransferIndexStore {
  recentCheckpoints(chainId:number,manager:Address,startBlock:bigint,limit:number):Promise<PositionManagerCheckpoint[]>;
  rewind(chainId:number,manager:Address,startBlock:bigint,fromBlock:bigint,boundary:PositionManagerCheckpoint|null):Promise<void>;
  saveChunk(chunk:PositionManagerTransferChunk):Promise<void>;
+ savePinnedCheckpoint(chainId:number,manager:Address,startBlock:bigint,checkpoint:PositionManagerCheckpoint):Promise<void>;
  loadTransfers(chainId:number,manager:Address,startBlock:bigint,toBlock:bigint,limit:number):Promise<PositionManagerTransfer[]>;
+ loadReplayEvidence(chainId:number,manager:Address,startBlock:bigint,sourceBlock:bigint,limit:number):Promise<{
+  cursor:PositionManagerTransferCursor;checkpoints:PositionManagerCheckpoint[];transfers:PositionManagerTransfer[];
+ }|null>;
 }
 
 function same(a:string,b:string){return a.toLowerCase()===b.toLowerCase();}
@@ -155,6 +159,9 @@ export async function scanPositionManagerTransferHistory(input:{client:Robinhood
    if(!same(sourceStillCanonical.hash,source.hash))
     return {status:'unavailable' as const,reason:'transfer_scan_source_reorged',enumerationComplete:false as const,
      actionAvailable:false as const};
+  }
+  if(cursor.coveredThroughBlock!==null&&cursor.coveredThroughBlock>=source.block){
+   await store.savePinnedCheckpoint(input.chainId,manager,startBlock,asCheckpoint(sourceBefore));
   }
   return {status:'scanned' as const,chainId:input.chainId,manager,startBlock,
    coveredThroughBlock:cursor.coveredThroughBlock?.toString()??null,
@@ -320,6 +327,29 @@ export class PostgresPositionManagerTransferStore {
    await db.query('COMMIT');
   }catch(error){await db.query('ROLLBACK');throw error;}finally{db.release();}
  }
+ async savePinnedCheckpoint(chainId:number,manager:Address,startBlock:bigint,checkpoint:PositionManagerCheckpoint){
+  const db=await this.pool.connect();
+  try{await db.query('BEGIN');
+   const cursor=(await db.query<{covered_through_block:string|null}>(`SELECT covered_through_block::text
+    FROM position_manager_transfer_cursors WHERE chain_id=$1 AND position_manager=$2 AND start_block=$3 FOR UPDATE`,
+    [chainId,manager.toLowerCase(),startBlock.toString()])).rows[0];
+   if(!cursor||cursor.covered_through_block===null||BigInt(cursor.covered_through_block)<checkpoint.number)
+    throw Error('position_manager_transfer_source_checkpoint_outside_coverage');
+   await db.query(`INSERT INTO position_manager_transfer_checkpoints
+    (chain_id,position_manager,start_block,block_number,block_hash,parent_hash,block_timestamp)
+    VALUES($1,$2,$3,$4,$5,$6,to_timestamp($7))
+    ON CONFLICT(chain_id,position_manager,start_block,block_number) DO NOTHING`,
+    [chainId,manager.toLowerCase(),startBlock.toString(),checkpoint.number.toString(),checkpoint.hash,
+     checkpoint.parentHash,checkpoint.timestamp]);
+   const saved=(await db.query<{block_hash:Hash;parent_hash:Hash;block_timestamp:Date}>(`SELECT block_hash,parent_hash,block_timestamp
+    FROM position_manager_transfer_checkpoints WHERE chain_id=$1 AND position_manager=$2 AND start_block=$3 AND block_number=$4`,
+    [chainId,manager.toLowerCase(),startBlock.toString(),checkpoint.number.toString()])).rows[0];
+   if(!saved||!same(saved.block_hash,checkpoint.hash)||!same(saved.parent_hash,checkpoint.parentHash)||
+    Math.floor(saved.block_timestamp.getTime()/1000)!==checkpoint.timestamp)
+    throw Error('position_manager_transfer_checkpoint_conflict');
+   await db.query('COMMIT');
+  }catch(error){await db.query('ROLLBACK');throw error;}finally{db.release();}
+ }
  async loadTransfers(chainId:number,manager:Address,startBlock:bigint,toBlock:bigint,limit:number){
   const rows=await this.pool.query<{block_number:string;block_hash:Hash;transaction_hash:Hash;
    transaction_index:number;log_index:number;from_address:string;to_address:string;token_id:string}>(
@@ -332,6 +362,38 @@ export class PostgresPositionManagerTransferStore {
   return rows.rows.map(row=>({blockNumber:BigInt(row.block_number),blockHash:row.block_hash,
    transactionHash:row.transaction_hash,transactionIndex:row.transaction_index,logIndex:row.log_index,
    from:getAddress(row.from_address),to:getAddress(row.to_address),tokenId:BigInt(row.token_id)}));
+ }
+ async loadReplayEvidence(chainId:number,manager:Address,startBlock:bigint,sourceBlock:bigint,limit:number){
+  const db=await this.pool.connect();
+  try{await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const cursorRow=(await db.query<CursorRow>(`SELECT chain_id::text,position_manager,start_block::text,next_block::text,
+    covered_through_block::text,covered_through_hash,last_scanned_block::text,last_scanned_hash
+    FROM position_manager_transfer_cursors WHERE chain_id=$1 AND position_manager=$2 AND start_block=$3`,
+    [chainId,manager.toLowerCase(),startBlock.toString()])).rows[0];
+   if(!cursorRow){await db.query('COMMIT');return null;}
+   const eventRows=await db.query<{block_number:string;block_hash:Hash;transaction_hash:Hash;transaction_index:number;
+    log_index:number;from_address:string;to_address:string;token_id:string}>(`SELECT block_number::text,block_hash,transaction_hash,
+     transaction_index,log_index,from_address,to_address,token_id::text FROM position_manager_transfers
+     WHERE chain_id=$1 AND position_manager=$2 AND start_block=$3 AND block_number<=$4
+     ORDER BY block_number,transaction_index,log_index LIMIT $5`,
+    [chainId,manager.toLowerCase(),startBlock.toString(),sourceBlock.toString(),Math.min(MAX_REPLAY_EVENTS+1,limit+1)]);
+   if(eventRows.rows.length>limit||eventRows.rows.length>MAX_REPLAY_EVENTS)
+    throw Error('position_manager_transfer_replay_bound_exceeded');
+   const transfers=eventRows.rows.map(row=>({blockNumber:BigInt(row.block_number),blockHash:row.block_hash,
+    transactionHash:row.transaction_hash,transactionIndex:row.transaction_index,logIndex:row.log_index,
+    from:getAddress(row.from_address),to:getAddress(row.to_address),tokenId:BigInt(row.token_id)}));
+   const blockNumbers=[...new Set(transfers.map(event=>event.blockNumber.toString()))];
+   if(blockNumbers.length>MAX_REPLAY_CHECKPOINT_BLOCKS)
+    throw Error('position_manager_transfer_checkpoint_replay_bound_exceeded');
+   const cursor=mapCursor(cursorRow),requiredBlocks=[...new Set([
+    ...blockNumbers,sourceBlock.toString(),...(cursor.coveredThroughBlock===null?[]:[cursor.coveredThroughBlock.toString()]),
+   ])];
+   const checkpointRows=await db.query<CheckpointRow>(`SELECT block_number::text,block_hash,parent_hash,block_timestamp
+    FROM position_manager_transfer_checkpoints WHERE chain_id=$1 AND position_manager=$2 AND start_block=$3
+    AND block_number=ANY($4::numeric[])`,[chainId,manager.toLowerCase(),startBlock.toString(),requiredBlocks]);
+   await db.query('COMMIT');
+   return {cursor,transfers,checkpoints:checkpointRows.rows.map(mapCheckpoint)};
+  }catch(error){await db.query('ROLLBACK');throw error;}finally{db.release();}
  }
  async close(){await this.pool.end();}
 }

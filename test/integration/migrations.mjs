@@ -8,6 +8,7 @@ import { assertSchemaReady,assertDeploymentSchemaReady } from '../../src/storage
 import { SCHEMA_SQL } from '../../src/storage/schema.ts';
 import { PostgresRiskStore } from '../../src/risk/store.ts';
 import { PostgresPositionManagerTransferStore,scanPositionManagerTransferHistory } from '../../src/nft/position-manager-transfer-index.ts';
+import { readCompletePositionManagerNftCustody } from '../../src/deployments/live-transfer-nft-enumeration.ts';
 
 if (!process.env.TEST_DATABASE_URL) throw Error('Set TEST_DATABASE_URL explicitly; tests create and remove isolated schemas only');
 const pool = new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:3});
@@ -38,7 +39,8 @@ try {
   parentHash:`0x${(BigInt(number)+((epoch&&BigInt(number)-1n>=2n)?100n:0n)).toString(16).padStart(64,'0')}`,
   timestamp:1700000000n+BigInt(number)});
  const chain=(epoch=0)=>({getChainId:async()=>4663,getBlock:async({blockNumber}={})=>block(blockNumber??100n,epoch),
-  getBytecode:async()=> '0x6000',getLogs:async({fromBlock,toBlock})=>fromBlock<=1n&&toBlock>=1n?[{
+  getBytecode:async()=> '0x6000',readContract:async({functionName})=>functionName==='balanceOf'?1n:alice,
+  getLogs:async({fromBlock,toBlock})=>fromBlock<=1n&&toBlock>=1n?[{
    address:manager,eventName:'Transfer',blockNumber:1n,blockHash:blockHash(1,epoch),
    transactionHash:`0x${'5'.repeat(64)}`,transactionIndex:0,logIndex:0,
    args:{from:'0x0000000000000000000000000000000000000000',to:alice,tokenId:7n},
@@ -52,6 +54,10 @@ try {
    manager,startBlock:0n,source:oldSource,chunkBlocks:2n,maxBlocksPerRun:2n});
   assert.equal(next.status,'scanned');assert.equal(next.coveredThroughBlock,'3');assert.equal(next.enumerationComplete,false);
   assert.equal((await transferStore.loadTransfers(4663,manager,0n,3n,10)).length,1);
+  const custody=await readCompletePositionManagerNftCustody({client:chain(),store:transferStore,
+   targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,source:oldSource});
+  assert.equal(custody.status,'available');assert.equal(custody.enumerationComplete,true);
+  assert.deepEqual(custody.tokenIds,['7']);assert.equal(custody.actionAvailable,false);
   const forkSource={block:3n,hash:blockHash(3,1),timestamp:Number(block(3,1).timestamp)};
   const fork=await scanPositionManagerTransferHistory({client:chain(1),store:transferStore,chainId:4663,
    manager,startBlock:0n,source:forkSource,chunkBlocks:2n,maxBlocksPerRun:2n});

@@ -8,6 +8,7 @@ import {
  PositionManagerTransferIndexStore,PositionManagerTransferCursor,PositionManagerCheckpoint,
  PositionManagerTransfer,scanPositionManagerTransferHistory,replayPositionManagerOwnerSet,
 } from '../src/nft/position-manager-transfer-index.js';
+import {readCompletePositionManagerNftCustody} from '../src/deployments/live-transfer-nft-enumeration.js';
 
 const manager=getAddress('0x1111111111111111111111111111111111111111');
 const alice=getAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
@@ -46,12 +47,23 @@ class MemoryIndex implements PositionManagerTransferIndexStore {
   this.cursor={...this.cursor!,nextBlock:chunk.toBlock+1n,coveredThroughBlock:chunk.toBlock,
    coveredThroughHash:chunk.checkpoint.hash,lastScannedBlock:chunk.toBlock,lastScannedHash:chunk.checkpoint.hash};
  }
+ async savePinnedCheckpoint(_chain:number,_manager:Address,_start:bigint,checkpoint:PositionManagerCheckpoint){
+  const at=this.checkpoints.findIndex(row=>row.number===checkpoint.number);
+  if(at<0)this.checkpoints.push(checkpoint);else this.checkpoints[at]=checkpoint;
+ }
  async loadTransfers(_chain:number,_manager:Address,_start:bigint,to:bigint,limit:number){
   return this.transfers.filter(row=>row.blockNumber<=to).slice(0,limit+1);
  }
+ async loadReplayEvidence(_chain:number,_manager:Address,_start:bigint,source:bigint,limit:number){
+  if(!this.cursor)return null;
+  const transfers=this.transfers.filter(row=>row.blockNumber<=source).slice(0,limit+1);
+  const blocks=new Set(transfers.map(row=>row.blockNumber.toString()));blocks.add(source.toString());
+  if(this.cursor.coveredThroughBlock!==null)blocks.add(this.cursor.coveredThroughBlock.toString());
+  return {cursor:this.cursor,transfers,checkpoints:this.checkpoints.filter(row=>blocks.has(row.number.toString()))};
+ }
 }
 
-function mockClient(epoch=0,logs:boolean=true){
+function mockClient(epoch=0,logs:boolean=true,balance=1n,owner:Address=alice){
  const getBlock=async(args?:{blockNumber?:bigint})=>{
   if(args?.blockNumber!==undefined)return header(args.blockNumber,epoch);
   return header(100n,epoch);
@@ -60,6 +72,7 @@ function mockClient(epoch=0,logs:boolean=true){
   transactionHash:hash(500),transactionIndex:0,logIndex:0,args:{from:'0x0000000000000000000000000000000000000000',
    to:alice,tokenId:7n}}:null;
  return {getChainId:async()=>4663,getBlock,getBytecode:async()=> '0x6000',
+  readContract:async({functionName}:{functionName:string})=>functionName==='balanceOf'?balance:owner,
   getLogs:async(args:{fromBlock:bigint;toBlock:bigint})=>transfer&&transfer.blockNumber>=args.fromBlock&&
    transfer.blockNumber<=args.toBlock?[transfer]:[]} as unknown as RobinhoodClient;
 }
@@ -124,4 +137,42 @@ test('owner replay requires genesis coverage and validates each previous owner',
  assert.equal(partial.status,'unavailable');
  const wrongSource=replayPositionManagerOwnerSet({...common,sourceCheckpointHash:hash(12),transfers:[]});
  assert.equal(wrongSource.status,'unavailable');
+});
+
+test('pinned-source resolver reconciles canonical indexed ownership with balanceOf and ownerOf',async()=>{
+ const store=new MemoryIndex(),source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ await scanPositionManagerTransferHistory({client:mockClient(),store,chainId:4663,manager,startBlock:0n,
+  source,chunkBlocks:2n,maxBlocksPerRun:10n});
+ const result=await readCompletePositionManagerNftCustody({client:mockClient(),store,
+  targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,source});
+ assert.equal(result.status,'available');assert.equal(result.enumerationComplete,true);
+ assert.deepEqual(result.tokenIds,['7']);assert.deepEqual(result.knownOwners.map(row=>row.owner),[
+  {status:'available',value:alice},
+ ]);assert.equal(result.actionAvailable,false);
+ const wrongSource=await readCompletePositionManagerNftCustody({client:mockClient(),store,
+  targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,
+  source:{...source,hash:hash(99)}});
+ assert.equal(wrongSource.status,'unavailable');assert.equal(wrongSource.enumerationComplete,false);
+});
+
+test('reconciliation rejects missing event checkpoints and balance or owner mismatches',async()=>{
+ const source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ const scanStore=async()=>{
+  const store=new MemoryIndex();
+  await scanPositionManagerTransferHistory({client:mockClient(),store,chainId:4663,manager,startBlock:0n,
+   source,chunkBlocks:2n,maxBlocksPerRun:10n});
+  return store;
+ };
+ const checkpointStore=await scanStore();
+ checkpointStore.checkpoints=checkpointStore.checkpoints.filter(row=>row.number!==1n);
+ const noEventCheckpoint=await readCompletePositionManagerNftCustody({client:mockClient(),store:checkpointStore,
+  targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,source});
+ assert.equal(noEventCheckpoint.status,'unavailable');
+ assert.equal(noEventCheckpoint.missing[0],'transfer_event_not_bound_to_persisted_checkpoint');
+ const noBalanceMatch=await readCompletePositionManagerNftCustody({client:mockClient(0,true,0n),store:await scanStore(),
+  targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,source});
+ assert.equal(noBalanceMatch.status,'unavailable');assert.equal(noBalanceMatch.enumerationComplete,false);
+ const noOwnerMatch=await readCompletePositionManagerNftCustody({client:mockClient(0,true,1n,bob),store:await scanStore(),
+  targetStrategyId:'static_manual_v1',operator:alice,positionManager:manager,startBlock:0n,source});
+ assert.equal(noOwnerMatch.status,'unavailable');assert.equal(noOwnerMatch.enumerationComplete,false);
 });

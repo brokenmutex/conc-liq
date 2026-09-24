@@ -49,8 +49,8 @@ const journal=(strategyId:'static_manual_v1'|'rangekeeper_v1'='static_manual_v1'
  status:'unavailable',targetStrategyId:strategyId,operator,journalStatus:'coherent',journalBlockers:[],
  unavailableReasons:['legacy_live_pilot_journal_not_bound_to_target_strategy_or_campaign'],
  actionAvailable:false,executionEligible:false,...overrides});
-const compose=(draft=saved(),custody=snapshot(),diagnostic=journal())=>
- composeLiveStrategyPreflightEvidence({draft,custodySnapshot:custody,journalDiagnostic:diagnostic});
+const compose=(draft=saved(),custody=snapshot(),diagnostic=journal(),nftCustodyEnumeration?:unknown)=>
+ composeLiveStrategyPreflightEvidence({draft,custodySnapshot:custody,journalDiagnostic:diagnostic,nftCustodyEnumeration});
 
 test('static/manual evidence binds saved wallet, verified profile, limits, snapshot and expected allowance scope',()=>{
  const result=compose();
@@ -106,4 +106,21 @@ test('live allocation is only compared to observed raw balances and never change
  const result=compose(saved(),insufficient);
  assert(result.missing.includes('live_allocation_balance_coverage_unavailable_or_insufficient'));
  assert.equal(result.actionAvailable,false);
+});
+
+test('complete transfer-index custody can match the strategy composer but cannot enable action',()=>{
+ const pinned=snapshot();
+ const enumeration={kind:'complete_position_manager_nft_custody',status:'available',targetStrategyId:'static_manual_v1',
+  operator,positionManager:manager,source:pinned.source,enumerationComplete:true,tokenIds:[],
+  balanceOfCount:{status:'available',value:'0'},knownOwners:[],
+  indexedTransferCoverage:{status:'available',startBlock:'0',coveredThroughBlock:'100',
+   coveredThroughHash:pinned.source.hash,sourceCheckpointHash:pinned.source.hash,transferCount:0,checkpointBlockCount:1},
+  missing:[],actionAvailable:false,executionEligible:false};
+ const result=compose(saved(),pinned,journal(),enumeration);
+ assert.equal(result.checks.find(item=>item.name==='nft_custody')?.status,'matched');
+ assert.equal(result.status,'unavailable');assert.equal(result.actionAvailable,false);
+ assert.equal(result.executionEligible,false);
+ const wrongBinding=compose(saved(),pinned,journal(),{...enumeration,positionManager:router});
+ assert.equal(wrongBinding.checks.find(item=>item.name==='nft_custody')?.status,'unavailable');
+ assert(result.missing.includes('live_intent_construction_review_and_signer_custody_not_implemented'));
 });

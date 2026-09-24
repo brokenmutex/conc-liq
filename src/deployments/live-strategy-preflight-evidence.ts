@@ -12,7 +12,7 @@ const inputSchema=z.object({draft:z.object({id:z.string().min(1),revision:z.numb
  mode:z.enum(['paper','live']),strategyId:z.enum(strategyIds),wallet:address,chainId:z.number().int().positive(),
  profile: z.unknown(),profileHash:z.string().regex(/^[0-9a-f]{64}$/),config:z.unknown(),
  configHash:z.string().regex(/^[0-9a-f]{64}$/),allocation:allocationSchema}).strict(),
- custodySnapshot:z.unknown(),journalDiagnostic:z.unknown()}).strict();
+ custodySnapshot:z.unknown(),nftCustodyEnumeration:z.unknown().optional(),journalDiagnostic:z.unknown()}).strict();
 
 function record(value:unknown):Record<string,unknown>|null{
  return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
@@ -23,6 +23,38 @@ function arrayField<T=Record<string,unknown>>(value:unknown):T[]{return Array.is
 function fieldAvailable(value:unknown):value is {status:'available';value:unknown}{
  const row=record(value);return row?.status==='available'&&'value'in row;
 }
+function completeNftEnumerationMatches(value:unknown,strategy:StrategyId,operator:string,manager:string|null,
+ source:Record<string,unknown>|null,snapshotCount:unknown):boolean{
+ const row=record(value),boundSource=record(row?.source),count=record(row?.balanceOfCount),coverage=record(row?.indexedTransferCoverage);
+ const snapshotCountField=record(snapshotCount);
+ if(!row||row.kind!=='complete_position_manager_nft_custody'||row.status!=='available'||
+  row.enumerationComplete!==true||row.actionAvailable!==false||row.executionEligible!==false||
+  row.targetStrategyId!==strategy||typeof row.operator!=='string'||!same(row.operator,operator)||
+  !manager||typeof row.positionManager!=='string'||!same(row.positionManager,manager)||
+  boundSource?.confirmed!==true||source?.confirmed!==true||boundSource.block!==source.block||
+  typeof boundSource.hash!=='string'||typeof source.hash!=='string'||!same(boundSource.hash,source.hash)||
+  boundSource.timestamp!==source.timestamp||count?.status!=='available'||typeof count.value!=='string'||
+  !raw.safeParse(count.value).success||coverage?.status!=='available'||coverage.startBlock!=='0'||
+  typeof coverage.coveredThroughBlock!=='string'||!raw.safeParse(coverage.coveredThroughBlock).success||
+  BigInt(coverage.coveredThroughBlock)<BigInt(String(source.block??'0'))||
+  typeof coverage.sourceCheckpointHash!=='string'||!same(coverage.sourceCheckpointHash,source.hash)||
+  !Number.isSafeInteger(coverage.transferCount)||Number(coverage.transferCount)<0||
+  !Number.isSafeInteger(coverage.checkpointBlockCount)||Number(coverage.checkpointBlockCount)<1||
+  !Array.isArray(row.tokenIds)||!Array.isArray(row.knownOwners)||row.missing!==undefined&&
+  (!Array.isArray(row.missing)||row.missing.length!==0)||snapshotCountField?.status!=='available'||
+  typeof snapshotCountField.value!=='string'||snapshotCountField.value!==count.value)return false;
+ const tokenIds=row.tokenIds as unknown[],owners=row.knownOwners as unknown[];
+ if(tokenIds.some(id=>typeof id!=='string'||!raw.safeParse(id).success)||
+  new Set(tokenIds).size!==tokenIds.length||owners.length!==tokenIds.length||
+  BigInt(count.value)!==BigInt(tokenIds.length))return false;
+ const ownerById=new Map<string,string>();
+ for(const item of owners){const ownerRow=record(item),owner=record(ownerRow?.owner);
+  if(typeof ownerRow?.tokenId!=='string'||owner?.status!=='available'||typeof owner.value!=='string'||
+   !isAddress(owner.value)||!same(owner.value,operator)||ownerById.has(ownerRow.tokenId))return false;
+  ownerById.set(ownerRow.tokenId,owner.value);
+ }
+ return tokenIds.every(id=>typeof id==='string'&&ownerById.has(id));
+}
 
 /** Join a saved deployment identity with custody and legacy-journal evidence.
  * This is a diagnostic composer only: it never evaluates strategy admission,
@@ -32,7 +64,7 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
  if(!parsed.success)return {kind:'live_strategy_preflight_evidence' as const,status:'unavailable' as const,
   strategyId:null,campaignId:null,revision:null,checks:[],journal:{status:'unavailable',blockers:[]},
   missing:['saved_strategy_binding_invalid'],actionAvailable:false as const,executionEligible:false as const};
- const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal}=parsed.data;
+ const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal,nftCustodyEnumeration}=parsed.data;
  const strategyId=draft.strategyId as StrategyId,poolProfile=marketProfileSchema.safeParse(draft.profile),
   allocation=allocationSchema.safeParse(draft.allocation);
  const checks:Check[]=[],missing:string[]=[];
@@ -154,12 +186,21 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
    checks.push(check('token_scope','unavailable','saved_profile_unavailable'));
    checks.push(check('allowance_scope','unavailable','saved_profile_unavailable'));
   }
-  checks.push(check('nft_custody','unavailable','nft_enumeration_and_full_position_identity_unavailable'));
-  addMissing('nft_enumeration_and_full_position_identity_unavailable');
+  const enumeration=nftCustodyEnumeration??snapshot.nftEnumeration;
+  const manager=profile?.pool.positionManager??null;
+  const enumerationMatches=completeNftEnumerationMatches(enumeration,strategyId,operator,manager,source,snapshot.nftCount);
+  checks.push(check('nft_custody',enumerationMatches?'matched':'unavailable',
+   enumerationMatches?undefined:'nft_enumeration_and_full_position_identity_unavailable'));
+  if(!enumerationMatches){
+   addMissing('nft_enumeration_and_full_position_identity_unavailable');
+   const enumerationMissing=record(enumeration)?.missing;
+   if(Array.isArray(enumerationMissing))for(const reason of enumerationMissing)
+    if(typeof reason==='string')addMissing(reason);
+  }
   const nftCount=record(snapshot.nftCount);
   if(!fieldAvailable(nftCount)||typeof nftCount.value!=='string'||!raw.safeParse(nftCount.value).success)
    addMissing('nft_count_unavailable');
-  else if(BigInt(nftCount.value)>0n)addMissing('owned_nfts_require_full_identity_reconciliation');
+  else if(BigInt(nftCount.value)>0n&&!enumerationMatches)addMissing('owned_nfts_require_full_identity_reconciliation');
   const native=record(snapshot.nativeBalanceWei);
   if(!fieldAvailable(native)||typeof native.value!=='string'||!raw.safeParse(native.value).success)
    addMissing('native_balance_unavailable');
