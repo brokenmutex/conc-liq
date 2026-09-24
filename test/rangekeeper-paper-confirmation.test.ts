@@ -13,6 +13,9 @@ import {parseRangeKeeperPaperCandidate,validateRangeKeeperPaperConfirmationEnvel
 import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
 import {adaptRangeKeeperConfirmedOpenContext} from
  '../src/deployments/rangekeeper-paper-confirmed-open-adapter.js';
+import {buildRangeKeeperPaperConfirmedOpenInventory,createRangeKeeperPaperConfirmedOpenRecord,
+ validateRangeKeeperPaperConfirmedOpenRecord} from
+ '../src/deployments/rangekeeper-paper-confirmed-open-adapter.js';
 import {buildRangeKeeperPaperMarkPayload} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
@@ -227,6 +230,26 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   assert.equal(payload.provenance.source.block,nextSource.block);
   assert.equal(payload.provenance.candidateHash,result.confirmationObservation.candidateHash);
   assert.equal(payload.inventory.position.liquidity,String(restoredContext.candidate.liquidity));
+  const previewId=randomUUID(),operationId=randomUUID(),record=createRangeKeeperPaperConfirmedOpenRecord({
+   adapter:adapted,previewId,operationId});
+  const openInventory=buildRangeKeeperPaperConfirmedOpenInventory({model:adapted.model,
+   allocation:draft.allocation,decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1});
+  assert.equal(openInventory.position.liquidity,String(restoredContext.candidate.liquidity));
+  assert.equal(openInventory.idle.token0,restoredContext.inventory.idle.token0);
+  assert.equal(openInventory.idle.token1,restoredContext.inventory.idle.token1);
+  assert.equal(validateRangeKeeperPaperConfirmedOpenRecord(record,{campaignId:draft.id,revision:1,
+   previewId,operationId,firstModel:openModel,
+   confirmationEnvelopeHash:result.envelopeHash,confirmationEnvelope:result}),record);
+  assert.throws(()=>validateRangeKeeperPaperConfirmedOpenRecord({...record,
+   confirmationEnvelopeHash:'0'.repeat(64)},{campaignId:draft.id,revision:1,previewId,operationId,
+   firstModel:openModel,confirmationEnvelopeHash:result.envelopeHash,confirmationEnvelope:result}),
+   /rangekeeper_paper_confirmed_open_record_invalid/);
+  const tamperedModel={...record.model,reference:{...record.model.reference,price0:'1'}},
+   tamperedRecord={...record,model:tamperedModel,modelHash:contentHash(tamperedModel)};
+  assert.throws(()=>validateRangeKeeperPaperConfirmedOpenRecord(tamperedRecord,{campaignId:draft.id,
+   revision:1,previewId,operationId,firstModel:openModel,
+   confirmationEnvelopeHash:result.envelopeHash,confirmationEnvelope:result}),
+   /rangekeeper_paper_confirmed_open_model_invalid/);
  }
  const expiredOpenModel=structuredClone(openModel) as any;
  expiredOpenModel.candidate.expiresAt=firstAt-1;

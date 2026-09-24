@@ -1,7 +1,11 @@
 import {contentHash} from './contracts.js';
 import {rawValue} from '../strategy/rangekeeper/planner.js';
+import {replayPaperMint} from '../v3/position-math.js';
 import type {RangeKeeperPaperConfirmedContext} from './rangekeeper-paper-confirmation-context.js';
+import type {RangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-confirmation.js';
 import type {RangeKeeperPaperOpenModel} from './rangekeeper-paper-open-model.js';
+import {rangeKeeperPaperCandidateHash} from './rangekeeper-paper-cost.js';
+import {parseRangeKeeperPaperCandidate} from './rangekeeper-paper-persistence.js';
 
 const WAD=10n**18n;
 
@@ -25,6 +29,132 @@ export interface RangeKeeperPaperConfirmedOpenAdapterResult {
   confirmationCandidateHash:string;simulationProvenance:'source_bound_caller_evidence_unverified';
   booked:false;actionAvailable:false};
  modelHash:string;bookingAvailable:false;actionAvailable:false;
+}
+
+export interface RangeKeeperPaperConfirmedOpenRecord {
+ schemaVersion:1;kind:'rangekeeper_paper_confirmed_open_v1';status:'booked';
+ campaignId:string;revision:number;previewId:string;operationId:string;
+ firstModelHash:string;firstCandidateHash:string;confirmationEnvelopeHash:string;
+ modelHash:string;model:RangeKeeperPaperOpenModel;
+ simulationProvenance:'source_bound_caller_evidence_unverified';
+ bookingClass:'provisional_mark_and_capital_ledger';openingBooked:true;actionAvailable:false;
+}
+
+/** Prepares the JSON provenance value written atomically with the first
+ * RangeKeeper open mark. Only the completion transaction should call this. */
+export function createRangeKeeperPaperConfirmedOpenRecord(input:{
+ adapter:RangeKeeperPaperConfirmedOpenAdapterResult;previewId:string;operationId:string;
+}):RangeKeeperPaperConfirmedOpenRecord{
+ const {adapter,previewId,operationId}=input,lineage=adapter.lineage;
+ if(adapter.bookingAvailable!==false||adapter.actionAvailable!==false||
+  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(previewId)||
+  !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId))
+  throw new Error('rangekeeper_paper_confirmed_open_record_invalid');
+ return {schemaVersion:1,kind:'rangekeeper_paper_confirmed_open_v1',status:'booked',
+  campaignId:lineage.campaignId,revision:lineage.revision,previewId,operationId,
+  firstModelHash:lineage.firstModelHash,firstCandidateHash:lineage.firstCandidateHash,
+  confirmationEnvelopeHash:lineage.confirmationEnvelopeHash,modelHash:adapter.modelHash,
+  model:adapter.model,simulationProvenance:lineage.simulationProvenance,
+  bookingClass:'provisional_mark_and_capital_ledger',openingBooked:true,actionAvailable:false};
+}
+
+/** Validates the append-only open provenance against the immutable first
+ * preview and persisted confirmation row. A present but malformed record is
+ * an integrity failure; consumers must not fall back to the first model. */
+export function validateRangeKeeperPaperConfirmedOpenRecord(value:unknown,expected:{
+ campaignId:string;revision:number;previewId:string;operationId:string;
+ firstModel:unknown;confirmationEnvelopeHash:string;confirmationEnvelope:unknown;
+}):RangeKeeperPaperConfirmedOpenRecord{
+ if(!value||typeof value!=='object'||Array.isArray(value))
+  throw new Error('rangekeeper_paper_confirmed_open_record_invalid');
+ const record=value as Partial<RangeKeeperPaperConfirmedOpenRecord>,first=expected.firstModel as
+  {candidateHash?:unknown;source?:unknown;profileHash?:unknown;draftConfigHash?:unknown;
+   kernelPolicyHash?:unknown;kernelBuildId?:unknown},envelope=expected.confirmationEnvelope as
+   RangeKeeperPaperConfirmationEnvelope|undefined;
+ if(record.schemaVersion!==1||record.kind!=='rangekeeper_paper_confirmed_open_v1'||
+  record.status!=='booked'||record.campaignId!==expected.campaignId||
+  record.revision!==expected.revision||record.previewId!==expected.previewId||
+  record.operationId!==expected.operationId||record.firstModelHash!==contentHash(expected.firstModel)||
+  record.firstCandidateHash!==first.candidateHash||
+  record.confirmationEnvelopeHash!==expected.confirmationEnvelopeHash||
+  !/^[0-9a-f]{64}$/.test(record.confirmationEnvelopeHash??'')||
+  !envelope||envelope.envelopeHash!==expected.confirmationEnvelopeHash||
+  envelope.campaignId!==expected.campaignId||envelope.revision!==expected.revision||
+  !record.model||typeof record.model!=='object'||Array.isArray(record.model)||
+  record.modelHash!==contentHash(record.model)||!/^[0-9a-f]{64}$/.test(record.modelHash??'')||
+  record.simulationProvenance!=='source_bound_caller_evidence_unverified'||
+  record.bookingClass!=='provisional_mark_and_capital_ledger'||record.openingBooked!==true||
+  record.actionAvailable!==false)
+  throw new Error('rangekeeper_paper_confirmed_open_record_invalid');
+ const model=record.model;
+ if(model.kind!=='rangekeeper_paper_open_model'||model.status!=='indicative'||
+  model.actionAvailable!==false||model.campaignId!==expected.campaignId||
+  model.revision!==expected.revision||model.candidateHash===null||!model.source||!model.candidate||
+  model.profileHash!==first.profileHash||model.draftConfigHash!==first.draftConfigHash||
+  model.kernelPolicyHash!==first.kernelPolicyHash||model.kernelBuildId!==first.kernelBuildId||
+  model.candidate.sourceBlock!==model.source.block||
+  model.candidate.sourceHash.toLowerCase()!==model.source.hash.toLowerCase()||
+  model.candidateHash!==envelope.confirmationObservation.candidateHash||
+  contentHash(model.candidate)!==contentHash(envelope.confirmationObservation.candidate)||
+  contentHash(model.source)!==contentHash(envelope.confirmationObservation.source)||
+  contentHash(model.poolState)!==contentHash(envelope.confirmationObservation.poolState)||
+  contentHash(model.reference)!==contentHash({price0:envelope.confirmationObservation.reference.price0,
+   price1:envelope.confirmationObservation.reference.price1,
+   nativePrice:envelope.confirmationObservation.reference.nativePrice,eligible:true,
+   proofHash:envelope.confirmationObservation.reference.proofHash,
+   proof:envelope.confirmationObservation.reference.proof,reasons:[]})||
+  contentHash(model.costs)!==contentHash(envelope.costs))
+  throw new Error('rangekeeper_paper_confirmed_open_model_invalid');
+ let candidate:ReturnType<typeof parseRangeKeeperPaperCandidate>;
+ try{candidate=parseRangeKeeperPaperCandidate(model.candidate);}catch{
+  throw new Error('rangekeeper_paper_confirmed_open_model_invalid');
+ }
+ if(model.reference.proofHash!==envelope.confirmationObservation.reference.proofHash||
+  rangeKeeperPaperCandidateHash({campaignId:expected.campaignId,revision:expected.revision,
+   profileHash:model.profileHash,configHash:model.draftConfigHash,source:model.source,
+   referenceProofHash:model.reference.proofHash,candidate})!==model.candidateHash)
+  throw new Error('rangekeeper_paper_confirmed_open_model_invalid');
+ return record as RangeKeeperPaperConfirmedOpenRecord;
+}
+
+export interface RangeKeeperPaperConfirmedOpenInventory {
+ classification:'rangekeeper_paper_open_v1';token0Raw:string;token1Raw:string;nativeWei:string;
+ position:{tickLower:number;tickUpper:number;liquidity:string;amount0Minted:string;amount1Minted:string};
+ idle:{token0:string;token1:string};
+}
+
+/** Reconstructs the open-mark inventory from the second-observation model. */
+export function buildRangeKeeperPaperConfirmedOpenInventory(input:{model:RangeKeeperPaperOpenModel;
+ allocation:{token0Raw:string;token1Raw:string;nativeWei:string};decimals0:number;decimals1:number;
+}):RangeKeeperPaperConfirmedOpenInventory{
+ const {model,allocation}=input,candidate=model.candidate;
+ if(model.kind!=='rangekeeper_paper_open_model'||model.status!=='indicative'||
+  model.actionAvailable!==false||!candidate||!model.candidateHash||
+  !/^(0|[1-9][0-9]*)$/.test(allocation.token0Raw)||
+  !/^(0|[1-9][0-9]*)$/.test(allocation.token1Raw)||
+  !/^(0|[1-9][0-9]*)$/.test(allocation.nativeWei))
+  throw new Error('rangekeeper_paper_confirmed_open_inventory_invalid');
+ if(model.allocation.token0Raw!==allocation.token0Raw||model.allocation.token1Raw!==allocation.token1Raw||
+  model.allocation.nativeWei!==allocation.nativeWei)
+  throw new Error('rangekeeper_paper_confirmed_open_inventory_identity');
+ const minted=replayPaperMint(BigInt(model.poolState.sqrtPriceX96),candidate.range,
+  BigInt(candidate.amount0Desired),BigInt(candidate.amount1Desired),0n);
+ if(minted.liquidity!==BigInt(candidate.liquidity))
+  throw new Error('rangekeeper_paper_confirmed_open_mint_replay_mismatch');
+ let available0=BigInt(allocation.token0Raw),available1=BigInt(allocation.token1Raw);
+ if(candidate.swap){
+  const amount=BigInt(candidate.swap.amountIn),output=BigInt(candidate.swap.quotedOut);
+  if(candidate.swap.token===0){available0-=amount;available1+=output;}
+  else{available1-=amount;available0+=output;}
+ }
+ const idle0=available0-minted.amount0,idle1=available1-minted.amount1;
+ if(idle0<0n||idle1<0n||BigInt(candidate.liquidity)<=0n)
+  throw new Error('rangekeeper_paper_confirmed_open_inventory_negative');
+ return {classification:'rangekeeper_paper_open_v1',token0Raw:allocation.token0Raw,
+  token1Raw:allocation.token1Raw,nativeWei:allocation.nativeWei,
+  position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
+   liquidity:String(minted.liquidity),amount0Minted:String(minted.amount0),amount1Minted:String(minted.amount1)},
+  idle:{token0:String(idle0),token1:String(idle1)}};
 }
 
 /**
