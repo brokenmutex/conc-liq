@@ -1345,6 +1345,21 @@ capital. Readers and a worker still need verified confirmation lineage,
 operation-scoped replay and isolated database lifecycle tests before F3 actions
 can be enabled.
 
+**September 24 integration checkpoint:** `25f6259` adds authenticated,
+idempotent static/manual paper draft admission from a reviewed setup. It
+rechecks canonical sizing, registered profile, independent references,
+provisional stage costs, allocation, native reserve and limits before an atomic
+draft insert. `7c5e7c1` makes an invalid store outcome reconciliation-required.
+The operator form has not yet completed the saved-draft browser path.
+`2ab1d0b` adds an inert owned-fork close-convert prestate sampler; persisted fee
+carry, worker replay and HTTP acceptance still gate convert-close. `40b2899`
+verifies persisted RangeKeeper confirmed-open lineage before later mark/exit
+reads, while `8e0bae1` makes unsupported RangeKeeper worker claims fail closed.
+Server-owned confirmation provenance, operation-scoped replay and atomic
+booking remain F3 gates. The combined isolated PostgreSQL migration, deployment
+and paper lifecycle integration suite passed through migration 9 on this source
+checkpoint. This does not establish the browser or supervised worker lifecycle.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
