@@ -86,6 +86,9 @@ export async function loadRangeKeeperPaperConfirmationContext(input:{campaignId:
   proofHash===null||proofHash!==confirmed.reference.proofHash||!open.kernelBuildId||
   open.kernelBuildId!==snapshot.runtimeIdentity.buildId||!open.kernelPolicyHash)
   return unavailable(input.campaignId,'rangekeeper_confirmation_open_identity_invalid');
+ const openCandidate=(()=>{try{return parseRangeKeeperPaperCandidate(open.candidate);}catch{return null;}})();
+ if(!openCandidate||now>openCandidate.expiresAt*1000)
+  return unavailable(input.campaignId,'rangekeeper_confirmation_open_preview_expired');
  if(!confirmed.reference.proof||BigInt(confirmed.reference.price0)<=0n||
   BigInt(confirmed.reference.price1)<=0n||BigInt(confirmed.reference.nativePrice)<=0n||
   BigInt(confirmed.poolState.sqrtPriceX96)<=0n||BigInt(confirmed.poolState.poolLiquidity)<0n||

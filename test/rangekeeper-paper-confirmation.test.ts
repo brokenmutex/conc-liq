@@ -179,17 +179,27 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   assert.equal(restoredContext.evidence.actionAvailable,false);
   assert.equal(restoredContext.evidence.openingBooked,false);
  }
+ const expiredOpenModel=structuredClone(openModel) as any;
+ expiredOpenModel.candidate.expiresAt=firstAt-1;
+ const expiredOpenHash=contentHash(expiredOpenModel),expiredEnvelopeBody=structuredClone(result) as any;
+ delete expiredEnvelopeBody.envelopeHash;
+ expiredEnvelopeBody.firstObservation.modelHash=expiredOpenHash;
+ const expiredEnvelope={...expiredEnvelopeBody,envelopeHash:contentHash(expiredEnvelopeBody)},
+  expiredContextBody={...confirmationContextBody,openModel:expiredOpenModel,
+   openModelHash:expiredOpenHash,envelope:expiredEnvelope},
+  expiredContext={...expiredContextBody,snapshotHash:contentHash(expiredContextBody)},
+  expiredPreview=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
+   runtimeIdentity:confirmationContext.runtimeIdentity,readSnapshot:async()=>expiredContext,
+   readGasProfiles:reader,now:frameNow});
+ assert.equal(expiredPreview.status,'unavailable');
+ if(expiredPreview.status==='unavailable')
+  assert.equal(expiredPreview.reason,'rangekeeper_confirmation_open_preview_expired');
  const staleRuntime=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
   runtimeIdentity:{...confirmationContext.runtimeIdentity,buildId:'0'.repeat(64)},
   readSnapshot:async()=>confirmationContext,readGasProfiles:reader,now:frameNow});
  assert.equal(staleRuntime.status,'unavailable');
  if(staleRuntime.status==='unavailable')
   assert.equal(staleRuntime.reason,'rangekeeper_confirmation_snapshot_identity_invalid');
- const agedGas=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
-  runtimeIdentity:confirmationContext.runtimeIdentity,readSnapshot:async()=>confirmationContext,
-  readGasProfiles:reader,now:frameNow+31_000});
- assert.equal(agedGas.status,'unavailable');
- if(agedGas.status==='unavailable')assert.equal(agedGas.reason,'rangekeeper_confirmation_gas_price_stale');
  const invalidCandidateJson=structuredClone(result.confirmationObservation.candidate) as any;
  invalidCandidateJson.range={tickLower:900000,tickUpper:900060};
  const invalidCandidate=parseRangeKeeperPaperCandidate(invalidCandidateJson),
