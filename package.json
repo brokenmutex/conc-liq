@@ -52,6 +52,8 @@
     "paper": "node --import tsx src/paper.ts",
     "paper:simulate": "node --import tsx src/paper-execute.ts",
     "test:integration": "node --import tsx test/integration/migrations.mjs && node --import tsx test/integration/research-candidate-store.mjs && node --import tsx test/integration/deployments.mjs && node --import tsx test/integration/paper-close-convert-prestate-gas-importer.mjs && node --import tsx test/integration/paper-lifecycle.mjs && node --import tsx test/integration/paper-reference.mjs",
+    "test:integration:dashboard-command-browser": "node --import tsx test/integration/dashboard-setup-command-browser.mjs",
+    "test:integration:paper-worker-process": "node --import tsx test/integration/paper-command-worker-process.mjs",
     "release:build": "node scripts/build-release.mjs"
   },
   "dependencies": {
