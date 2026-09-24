@@ -10,6 +10,7 @@ import {persistTrustedStaticPaperCloseConvertPreview,type PaperCloseConvertPrefl
 export interface StaticPaperCloseConvertFeeContext {
  state:PaperCloseConvertPreflightState;feeCarry:PaperFeeCarry;
  feeEvidence:PaperCloseConvertFeeEvidenceBinding;
+ stream:string;targetSetHash:string;
  verifyPersistedContext:(input:{state:PaperCloseConvertPreflightState;feeCarry:PaperFeeCarry;
   feeEvidence:PaperCloseConvertFeeEvidenceBinding;source:PaperCloseConvertPreflightState['previous']['source']})=>Promise<void>;
 }
@@ -26,10 +27,11 @@ export async function readStaticPaperCloseConvertFeeContext(input:{store:Pick<De
  const saved=await read(),state:PaperCloseConvertPreflightState={openModel:saved.openModel,
   openMarkId:saved.openMarkId,previous:saved.previous,profile:saved.profile,
   profileHash:saved.profileHash,configHash:saved.configHash,parameters:saved.parameters},
-  feeCarry=saved.feeCarry,feeEvidence=saved.feeEvidence;
+  feeCarry=saved.feeCarry,feeEvidence=saved.feeEvidence,
+  {stream,targetSetHash}=saved;
  const digest=contentHash(saved);
  await input.verifyAnchors(state.profile.pool.chainId,saved.sources);
- return {state,feeCarry,feeEvidence,verifyPersistedContext:async current=>{
+ return {state,feeCarry,feeEvidence,stream,targetSetHash,verifyPersistedContext:async current=>{
   assert.equal(contentHash(current.state),contentHash(state));
   assert.equal(contentHash(current.feeCarry),contentHash(feeCarry));
   assert.equal(contentHash(current.feeEvidence),contentHash(feeEvidence));

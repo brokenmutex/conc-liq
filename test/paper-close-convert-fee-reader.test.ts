@@ -6,6 +6,7 @@ import {readStaticPaperCloseConvertFeeContext} from '../src/deployments/paper-cl
 const saved={campaignId:'00000000-0000-4000-8000-000000000001',revision:1,
  openMarkId:'1',openModel:{candidate:{fixture:true}},openModelHash:'a'.repeat(64),
  profile:{pool:{chainId:4663}},profileHash:'b'.repeat(64),configHash:'c'.repeat(64),
+ stream:'paper-fees',targetSetHash:'0x'+'4'.repeat(64),
  parameters:{limits:{maxSlippageBps:50}},
  previous:{markId:'2',sourceBlock:'100',sourceHash:'0x'+'1'.repeat(64),
   source:{block:'100',hash:'0x'+'1'.repeat(64),timestamp:1000}},
@@ -22,6 +23,7 @@ test('persisted close-convert fee context is rebound and source-anchor checked b
   revision:1,verifyAnchors:async(chainId,sources)=>{anchorChecks++;assert.equal(chainId,4663);
    assert.deepEqual(sources,saved.sources);}});
  assert.equal(reads,1);assert.equal(anchorChecks,1);
+ assert.equal(context.stream,saved.stream);assert.equal(context.targetSetHash,saved.targetSetHash);
  await context.verifyPersistedContext({state:context.state,feeCarry:context.feeCarry,
   feeEvidence:context.feeEvidence,source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}});
  assert.equal(reads,2);assert.equal(anchorChecks,2);
