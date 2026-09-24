@@ -1,0 +1,136 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {sqrtRatioAtTick} from '../src/backtest/principal.js';
+import {contentHash} from '../src/deployments/contracts.js';
+import {referenceProofHash,marketProfileSchema} from '../src/deployments/market-profile.js';
+import {PAPER_STATIC_GAS_PATH} from '../src/deployments/paper-cost.js';
+import {paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
+ paperCloseConvertGasAllowanceStatesV2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
+ type PaperCloseConvertGasScopeV2} from '../src/deployments/paper-close-convert-model.js';
+import {persistTrustedStaticPaperCloseConvertPreview} from '../src/deployments/paper-close-convert-preflight.js';
+import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
+import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
+
+const campaignId='00000000-0000-4000-8000-000000000001',
+ token0='0x1000000000000000000000000000000000000001',
+ codeHash=`0x${'a'.repeat(64)}`,sourceHash=`0x${'2'.repeat(64)}`,
+ now=Date.now(),nowSec=Math.floor(now/1000),tick=0,lower=-60,upper=60,
+ profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_FACTORY,
+  pool:'0x8000000000000000000000000000000000000001',token0,token1:USDG,quoteToken:1,
+  decimals0:18,decimals1:6,fee:3000,tickSpacing:60,positionManager:NONFUNGIBLE_POSITION_MANAGER,
+  router:PAPER_ROUTER,quoter:PAPER_QUOTER,poolCodeHash:codeHash,token0CodeHash:codeHash,
+  token1CodeHash:codeHash,managerCodeHash:codeHash,quoterCodeHash:codeHash,
+  reference0:'TOKEN/USD',reference1:'USDG/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+  referencePolicy:{token0:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+   token1:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+   nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10000}}),
+ proof={fixture:true},proofHash=referenceProofHash(proof),
+ openModel={schemaVersion:1 as const,kind:'paper_open_model' as const,campaignId,revision:1,
+  strategyId:'static_manual_v1' as const,profileHash:contentHash(profile),configHash:'b'.repeat(64),
+  candidateHash:'c'.repeat(64),source:{block:'100',hash:`0x${'1'.repeat(64)}`,timestamp:nowSec-30},
+  poolState:{tick,sqrtPriceX96:String(sqrtRatioAtTick(tick)),poolLiquidity:'1000000000000'},
+  referenceProof:proof,referenceProofHash:proofHash,reference:{price0:'1000000000000000000000000000000',
+   price1:'1000000000000000000',nativePrice:'1000000000000000000'},
+  allocation:{token0Raw:'1000000000000000000',token1Raw:'1000000',nativeWei:'1000000000000000000'},
+  candidate:{range:{tickLower:lower,tickUpper:upper,fullWidthTicks:upper-lower},liquidity:'1000000',
+   amount0Desired:'1000000000000',amount1Desired:'1000',amount0Minted:'1000000000000',amount1Minted:'1000',
+   idle0:'0',idle1:'0',deployedValue:'1000000000',exposurePpm:'100',feeEarningAtEntry:true,
+   oneSided:false,dilutedSharePpm:'100'},
+  costs:{status:'provisional' as const,scope:'open_and_close_retain_gas_only' as const,
+   pathVersion:PAPER_STATIC_GAS_PATH as 'paper_static_manual_no_swap_v1',sizeBand:'fixture',gasPriceWei:'1',boundGasPriceWei:'2',
+   gasPriceObservedAt:new Date(now-1000).toISOString(),nativeReferencePrice:'1000000000000000000',
+   stages:[],open:{expectedGasUnits:'1',boundGasUnits:'1',expectedWei:'1',boundWei:'1',expectedValue:'1',boundValue:'1'},
+   closeRetain:{expectedGasUnits:'1',boundGasUnits:'1',expectedWei:'1',boundWei:'1',expectedValue:'1',boundValue:'1'},
+   missing:[]}},
+ frame={source:{block:'120',hash:sourceHash,timestamp:nowSec},tick,
+  sqrtPriceX96:sqrtRatioAtTick(tick),poolLiquidity:1_000_000_000_000n,
+  price0:1_000_000_000_000_000_000_000_000_000_000n,price1:1_000_000_000_000_000_000n,
+  nativePrice:1_000_000_000_000_000_000n,referenceEligible:true,referenceReasons:[],
+  referenceProofHash:proofHash,referenceProof:proof},
+ state={openModel,openMarkId:'1',previous:{markId:'2',sourceBlock:'110',
+  sourceHash:`0x${'3'.repeat(64)}`,source:{block:'110',hash:`0x${'3'.repeat(64)}`,timestamp:nowSec-10}},
+  profile,profileHash:contentHash(profile),configHash:openModel.configHash,parameters:{limits:{maxSlippageBps:50}}};
+
+function mockClient(output='999'){
+ return {getChainId:async()=>4663,getBlock:async()=>({hash:frame.source.hash,timestamp:BigInt(frame.source.timestamp)}),
+  simulateContract:async()=>({result:[BigInt(output)]})} as never;
+}
+
+test('post-booking V2 rows for another withdraw inventory cannot bind a new terminal preview',async()=>{
+ const principal=(await import('../src/backtest/principal.js')).principalAmounts({liquidity:1_000_000n,
+  tickLower:lower,tickUpper:upper,sqrtPriceX96:frame.sqrtPriceX96});
+ const token0Raw=String(principal.amount0+1n),token1Raw=String(principal.amount1+1n),
+  inputAmountRaw=token0Raw,routeBody={router:profile.pool.router,quoter:profile.pool.quoter,
+   path:[profile.pool.token0,profile.pool.token1],fee:profile.pool.fee,inputAsset:'token0' as const,
+   slippageBps:50,pathVersion:'paper_static_manual_close_convert_v1'},
+  route={...routeBody,routeHash:contentHash(routeBody)},
+  scope=({poolAddress:profile.pool.pool,profileHash:state.profileHash,openModelHash:contentHash(openModel),
+   candidate:{deployedValue:openModel.candidate.deployedValue,sharePpm:openModel.candidate.dilutedSharePpm,
+    tickLower:lower,tickUpper:upper,liquidity:openModel.candidate.liquidity},routeHash:route.routeHash,
+   inputAsset:'token0',inputAmountRaw,inventory:{token0Raw,token1Raw},
+   initialAllowances:{manager0:'0',manager1:'0',router0:'0',router1:'0'}} satisfies PaperCloseConvertGasScopeV2),
+  wrongScope={...scope,inputAmountRaw:String(BigInt(inputAmountRaw)+1n),
+   inventory:{...scope.inventory,token0Raw:String(BigInt(token0Raw)+1n)}} as PaperCloseConvertGasScopeV2,
+  wrongHash=paperCloseConvertGasScopeHashV2(wrongScope),wrongSizeBand=paperCloseConvertGasSizeBandV2(wrongScope),
+  wrongAllowances=paperCloseConvertGasAllowanceStatesV2(wrongScope),sequenceHash='d'.repeat(64),
+  sampleTime=new Date(now-1000).toISOString(),gasProfiles=PAPER_STATIC_CONVERT_GAS_STAGES_V2.map((stage,index)=>{
+   const source={block:'119',hash:sourceHash,estimatedAt:sampleTime,callHash:'0x'+String(index+1).repeat(64),
+    method:'owned_fork_nitro_exact_call_v1' as const},
+    model={schemaVersion:1 as const,source,gasUnitsExpected:'100',gasUnitsBound:'120',
+     sizeMinValue:'0',sizeMaxValue:'2000000000',shareMinPpm:'0',shareMaxPpm:'1000000',
+     tickLower:lower,tickUpper:upper,scopeHash:wrongHash,sequenceHash,stageIndex:index,
+     stageCount:PAPER_STATIC_CONVERT_GAS_STAGES_V2.length};
+   return {id:'00000000-0000-4000-8000-'+String(index+1).padStart(12,'0'),version:1,
+    poolAddress:profile.pool.pool,pathVersion:'paper_static_manual_close_convert_v2',stage,
+    allowanceState:wrongAllowances[stage],sizeBand:wrongSizeBand,component:'gas_units',status:'provisional',
+    evidenceClass:'fork_estimated',model,sourceHash:contentHash(source),observedUntil:new Date(sampleTime)};
+  }),
+  feeCarry={kind:'paper_fee_carry_v1' as const,pool:profile.pool.pool,token0Address:profile.pool.token0,
+   token1Address:profile.pool.token1,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
+   range:{tickLower:lower,tickUpper:upper},liquidity:openModel.candidate.liquidity,
+   stream:'fixture',targetSetHash:'e'.repeat(64),from:{block:'100',hash:openModel.source.hash},
+   through:{block:'110',hash:state.previous.sourceHash},token0:{lowerRawQ128:'0',upperRawQ128:'0',
+    lowerAmountRaw:'1',upperAmountRaw:'1'},token1:{lowerRawQ128:'0',upperRawQ128:'0',
+    lowerAmountRaw:'1',upperAmountRaw:'1'},intervals:1,events:0,segments:0,partialSegments:0,
+   accounting:'modeled_hypothetical_fee_share' as const},
+  postWithdraw={verificationClass:'owned_fork_close_convert_post_withdraw_v2' as const,
+   reportHash:'f'.repeat(64),source:frame.source,postWithdrawReplayHash:'a'.repeat(64),
+   withdrawCallHash:'0x'+'1'.repeat(64),quoterCallHash:'0x'+'2'.repeat(64),
+   poolState:{tick,sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity)},
+   balances:{token0:token0Raw,token1:token1Raw},quotedOutputRaw:'999',
+   position:{liquidity:'0',tokensOwed0:'0',tokensOwed1:'0'}};
+ let writes=0;
+ await assert.rejects(persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async()=>{
+   writes++;return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
+  }},state,frame,feeCarry,feeEvidence:{id:'00000000-0000-4000-8000-000000000003',
+   proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},
+  postWithdraw,client:mockClient(),verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},
+  verifyOwnedFork:async input=>({
+   reportHash:input.postWithdraw.reportHash,
+   postWithdrawReplayHash:input.postWithdraw.postWithdrawReplayHash,
+   sourceReplayHash:'b'.repeat(64),source:frame.source}),
+  gasProfiles,gasPriceWei:1_000_000_000n,now}),/paper_close_convert_gas_v2_profiles_unavailable/);
+ assert.equal(writes,0,'scope mismatch must fail before preview persistence');
+ const exactHash=paperCloseConvertGasScopeHashV2(scope),exactSizeBand=paperCloseConvertGasSizeBandV2(scope),
+  exactAllowances=paperCloseConvertGasAllowanceStatesV2(scope),matchingProfiles=gasProfiles.map(row=>{
+   const stage=row.stage as typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number],
+    model={...(row.model as Record<string,unknown>),scopeHash:exactHash};
+   return {...row,sizeBand:exactSizeBand,allowanceState:exactAllowances[stage],model};
+  });
+ const savedPreviews:Record<string,unknown>[]=[];
+ const result=await persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async input=>{
+   writes++;savedPreviews.push(input as unknown as Record<string,unknown>);
+   return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
+  }},state,frame,feeCarry,feeEvidence:{id:'00000000-0000-4000-8000-000000000003',
+   proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},postWithdraw,client:mockClient(),
+  verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},verifyOwnedFork:async input=>({
+   reportHash:input.postWithdraw.reportHash,
+   postWithdrawReplayHash:input.postWithdraw.postWithdrawReplayHash,
+   sourceReplayHash:'b'.repeat(64),source:frame.source}),
+  gasProfiles:matchingProfiles,gasPriceWei:1_000_000_000n,now});
+ assert.equal(writes,1);assert.equal(result.actionAvailable,false);
+ assert.equal(result.operationAcceptanceAvailable,false);assert.equal(result.economics,null);
+ const savedPreview=savedPreviews[0];assert(savedPreview);assert.equal(savedPreview.kind,'close_convert');
+ assert.equal((savedPreview.proposal as Record<string,unknown>).paperCloseConvertTerminalV2!==undefined,true);
+ assert.equal((savedPreview.evidence as Record<string,unknown>).sourceReplayHash,'b'.repeat(64));
+});
