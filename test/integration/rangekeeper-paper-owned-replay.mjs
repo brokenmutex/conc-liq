@@ -19,6 +19,7 @@ import {createRobinhoodClient} from '../../src/client.js';
 // all generated transactions run on the owned local Anvil fork.
 const envPath=process.argv[2]??'.env';
 const pinnedBlock=process.argv[3];
+const secondPinnedBlock=process.argv[4];
 const failSafe=(error)=>{
  const safe=error instanceof Error?error.message:'owned replay failed';
  process.stderr.write(`${safe.replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,240)}\n`);
@@ -104,7 +105,16 @@ try{
  assert(firstFrame&&first?.action==='confirm',`No fresh first-observation candidate: ${lastFirstReason}`);
  assert(first.candidate&&first.state.confirmation,'First candidate unavailable');
  let secondFrame,second,confirmed=false;
- if(!pinnedBlock){
+ if(secondPinnedBlock){
+  secondFrame=await readPinnedFrame(secondPinnedBlock);
+  assert(secondFrame.source.timestamp-firstFrame.source.timestamp>=30&&
+   secondFrame.source.timestamp-firstFrame.source.timestamp<=limits.maxObservationGapSeconds,
+   'Pinned test sources violate the frozen observation gap');
+  second=await planRangeKeeper({state:first.state,observation:observation(secondFrame),limits,
+   spacing:p.tickSpacing,decimals0:p.decimals0,decimals1:p.decimals1,quoteToken:p.quoteToken,
+   maxPoolDeviationPpm:profile.referencePolicy.maxPoolDeviationPpm,quote:quote(secondFrame),simulate:async()=>true});
+  confirmed=second.action==='execute'&&second.reason==='two_confirmations'&&second.candidate!==null;
+ }else if(!pinnedBlock){
   const deadline=Date.now()+90_000;
   while(Date.now()<deadline){
    await new Promise(resolve=>setTimeout(resolve,2_000));
@@ -151,6 +161,6 @@ try{
  assert.equal(firstReplay.candidateHash,candidateHash);
  process.stdout.write(JSON.stringify({status:'matched',stageCount:firstReplay.ownedForkEvidence.stages.length,
   candidateHash,replayHash:contentHash(firstReplay.ownedForkEvidence),freshForks:2,
-  twoObservationConfirmation:confirmed,testOnlyPinnedSource:Boolean(pinnedBlock),
+  twoObservationConfirmation:confirmed,testOnlyPinnedSource:Boolean(pinnedBlock||secondPinnedBlock),
   bookingAvailable:false,actionAvailable:false})+'\n');
 }catch(error){failSafe(error);}
