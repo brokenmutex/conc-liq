@@ -105,7 +105,7 @@ const reportBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('pape
   z.literal('inventory_is_simulated_not_canonical_custody'),
   z.literal('fee_carry_requires_persisted_replay'),z.literal('v2_worker_acceptance_replay_unavailable'),
   z.literal('sampler_share_cap_is_one_percent'),z.literal('native_fork_funding_is_simulation_only')])}).strict();
-const reportSchema=reportBodySchema.extend({reportHash:z.string().regex(/^[0-9a-f]{64}$/),
+export const paperCloseConvertPrestateReportSchema=reportBodySchema.extend({reportHash:z.string().regex(/^[0-9a-f]{64}$/),
  postWithdraw:evidenceSchema,sourceReplayHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
 
 function reportDigestBody(report:PaperCloseConvertPrestateReport){
@@ -197,7 +197,8 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
  feeCarry:PaperFeeCarry;feeReplay:EphemeralStaticPaperCloseConvertFeeReplay;
  verifyPersistedContext:()=>Promise<void>;
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
- beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;now?:number}):Promise<PaperCloseConvertPrestateReport>{
+ beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;now?:number;
+ deterministicClock?:boolean;sampledAt?:string}):Promise<PaperCloseConvertPrestateReport>{
  const now=input.now??Date.now(),open=input.openModel,profile=marketProfileSchema.parse(input.profile),
   p=profile.pool,frame=input.frame,route=paperCloseConvertRouteSchema.parse(input.route),
   carry=input.feeCarry;
@@ -233,7 +234,8 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
  assert(BigInt(open.candidate.dilutedSharePpm)<=10_000n,
   'paper_close_convert_prestate_sampler_share_cap_one_percent');
  const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
-  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000});
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,
+  deterministicClock:input.deterministicClock??false});
  try{
   const local=await import('../client.js').then(({createRobinhoodClient})=>
    createRobinhoodClient(fork.localUrl,60_000,{retryCount:0}));
@@ -333,7 +335,7 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
    feeCarryHash:contentHash(carry),feeReplayHash:input.feeReplay.replayHash,source:frame.source,
    routeHash:route.routeHash,inventory,quoteHash:quote.quoteHash,
    initialAllowances:stageRows[0]!.allowancesBefore};
-  const gasScopeHash=contentHash(gasScope),sampledAt=new Date().toISOString(),
+  const gasScopeHash=contentHash(gasScope),sampledAt=input.sampledAt??new Date().toISOString(),
    provisionalStages=stageRows.map((row,stageIndex)=>{
     const callHash=keccak256(row.tx.calldata),gasUnitsExpected=String(row.tx.estimate.gas),
      model={schemaVersion:1,scopeHash:gasScopeHash,stageIndex,
@@ -397,7 +399,7 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
  * It proves byte/source/inventory binding; upstream wiring must still run the
  * bounded owned-fork sampler itself and replay the persisted fee carry. */
 export function verifyPaperCloseConvertPrestateReport(rawInput:unknown):PaperCloseConvertPrestateReport{
- const report=reportSchema.parse(rawInput);
+ const report=paperCloseConvertPrestateReportSchema.parse(rawInput);
  assert.equal(report.reportHash,contentHash(reportDigestBody(report)),
   'Paper close-convert prestate report changed');
  assert.equal(report.openModelHash,contentHash(report.openModel));

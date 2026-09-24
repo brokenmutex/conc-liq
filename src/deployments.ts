@@ -1,4 +1,5 @@
 import {once} from 'node:events';
+import {Pool} from 'pg';
 import {z} from 'zod';
 import {DeploymentStore} from './deployments/store.js';
 import {DeploymentConflict} from './deployments/store.js';
@@ -15,6 +16,15 @@ import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from '.
 import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
 import {persistTrustedStaticPaperRetainPreview} from './deployments/paper-close-retain-preflight.js';
+import {buildStaticPaperCloseConvertRoute} from './deployments/paper-close-convert-preflight.js';
+import {readStaticPaperCloseConvertFeeContext,
+ persistStaticPaperCloseConvertPreviewFromPersistedFees} from
+ './deployments/paper-close-convert-fee-reader.js';
+import {replayEphemeralStaticPaperCloseConvertFees} from './deployments/paper-close-convert-ephemeral-fees.js';
+import {samplePaperCloseConvertPrestate} from './deployments/paper-close-convert-prestate-sampler.js';
+import {buildProspectivePaperCloseConvertPrestateGasProfiles} from
+ './deployments/paper-close-convert-prestate-gas-profiles.js';
+import type {PaperCanonicalAnchor} from './deployments/paper-canonical-anchors.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 import {loadDashboardConfig} from './dashboard/config.js';
@@ -26,17 +36,20 @@ const envSchema=z.object({
  DEPLOYMENT_HOST:z.enum(['127.0.0.1','::1']).default('127.0.0.1'),
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
  ROBINHOOD_READ_HTTP_URL:z.url(),
+ PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
 });
 
 async function main(){
  const env=envSchema.parse(process.env);
  const store=new DeploymentStore(env.DATABASE_URL);
- const dashboard=new DashboardRepository(loadDashboardConfig(process.env));
+ const dashboardConfig=loadDashboardConfig(process.env),dashboard=new DashboardRepository(dashboardConfig),
+  indexer=new Pool({connectionString:dashboardConfig.databaseUrl,max:2,
+   options:'-c default_transaction_read_only=on'});
  try{await store.assertReady();}
- catch(error){await Promise.allSettled([store.close(),dashboard.close()]);throw error;}
+ catch(error){await Promise.allSettled([store.close(),dashboard.close(),indexer.end()]);throw error;}
  try{await dashboard.assertReady();}
- catch(error){await Promise.allSettled([store.close(),dashboard.close()]);throw error;}
+ catch(error){await Promise.allSettled([store.close(),dashboard.close(),indexer.end()]);throw error;}
  const host=env.DEPLOYMENT_HOST,port=env.DEPLOYMENT_PORT;
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
@@ -71,11 +84,63 @@ async function main(){
    if(kind!=='open'){
    const strategyId=await store.paperStrategyId(campaignId);
     if(strategyId==='static_manual_v1'){
-     if(kind==='close_convert')return {status:'unavailable',kind,campaignId,actionAvailable:false,
-      reason:'static_manual_conversion_terminal_context_unavailable',missing:[
-       'canonical_post_withdraw_inventory_and_quote_unavailable',
-       'candidate_scoped_conversion_gas_profile_reader_unavailable',
-       'atomic_saved_terminal_preview_binding_unavailable']};
+     if(kind==='close_convert'){
+      if(!env.PAPER_FORK_RPC_URL)return {status:'unavailable',kind,campaignId,actionAvailable:false,
+       operationAcceptanceAvailable:false,reason:'static_manual_conversion_fork_rpc_unavailable'};
+      try{
+       const valuation=await store.paperValuationState(campaignId),
+        context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
+         revision:valuation.openModel.revision,verifyAnchors:(chainId,sources)=>
+          verifyCanonicalPaperAnchors(client,chainId,sources)}),
+        frame=await readCanonicalPaperNextFrame(client,context.state.profile,context.state.previous),
+        route=buildStaticPaperCloseConvertRoute(context.state),
+        feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
+        report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
+         openModel:context.state.openModel,openMarkId:context.state.openMarkId,
+         profile:context.state.profile,frame,previous:{markId:context.state.previous.markId,
+          source:context.state.previous.source},route,feeCarry:feeReplay.feeCarry,feeReplay,
+         verifyPersistedContext:()=>context.verifyPersistedContext({state:context.state,
+          feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
+         verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
+         beforeRead:async()=>{},deterministicClock:true});
+       await store.registerStaticPaperCloseConvertPrestateGas({report,
+        verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
+        verifyFeeReplay:async()=>{
+         const current=await readStaticPaperCloseConvertFeeContext({store,campaignId,
+          revision:context.state.openModel.revision,verifyAnchors:(chainId,sources)=>
+           verifyCanonicalPaperAnchors(client,chainId,sources)});
+         return replayEphemeralStaticPaperCloseConvertFees({context:current,client,indexer,frame});
+        }});
+        const gasPriceWei=await client.getGasPrice(),sizeBand=
+        buildProspectivePaperCloseConvertPrestateGasProfiles(report).sizeBand,prestateCostProfiles=
+        await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
+         poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:report.reportHash});
+       return await persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
+        expectedRevision:context.state.openModel.revision,client,indexer,frame,
+        postWithdraw:report.postWithdraw,prestateReport:report,prestateCostProfiles,gasPriceWei,
+        verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
+         verifyCanonicalPaperAnchors(client,chainId,sources),
+        verifyOwnedFork:async (replayInput:Parameters<NonNullable<Parameters<
+         typeof persistStaticPaperCloseConvertPreviewFromPersistedFees>[0]['verifyOwnedFork']>>[0])=>{
+         if(replayInput.state.openModel.candidateHash!==report.openModel.candidateHash||
+          replayInput.frame.source.hash.toLowerCase()!==report.frame.source.hash.toLowerCase()||
+          replayInput.route.routeHash!==report.route.routeHash||
+          replayInput.postWithdraw.postWithdrawReplayHash!==report.postWithdraw.postWithdrawReplayHash||
+          replayInput.quote.quoteHash!==report.quote.quoteHash||
+          replayInput.inventory.token0Raw!==report.inventory.token0Raw||
+          replayInput.inventory.token1Raw!==report.inventory.token1Raw)
+          throw new DeploymentConflict('paper_close_convert_prestate_source_changed');
+         return {reportHash:report.reportHash,postWithdrawReplayHash:report.postWithdraw.postWithdrawReplayHash,
+          sourceReplayHash:report.sourceReplayHash,source:report.frame.source,
+          gasScopeHash:report.gasScopeHash,gasSequenceHash:report.gasSequenceHash,
+          gasStages:report.gasStages.map(stage=>({stage:stage.stage,source:stage.source,
+           sourceHash:stage.sourceHash,callHash:stage.callHash,
+           gasUnitsExpected:stage.gasUnitsExpected,gasUnitsBound:stage.gasUnitsBound}))};
+        }});
+      }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+       operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?error.code:
+        'static_manual_conversion_prestate_unavailable'};}
+     }
      let state;
      try{state=await store.paperValuationState(campaignId);}
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
@@ -197,7 +262,7 @@ async function main(){
  const stop=(signal:NodeJS.Signals)=>{
   if(stopping)return;stopping=true;
   log('info','deployment_command_api_stopping',{signal});
-  server.close(()=>void Promise.all([store.close(),dashboard.close()]).then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
+  server.close(()=>void Promise.all([store.close(),dashboard.close(),indexer.end()]).then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
  };
  process.once('SIGINT',stop);process.once('SIGTERM',stop);
 }
