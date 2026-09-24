@@ -28,7 +28,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
     expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};},
   paperSetupPreflight:async(input)=>{setupCalls.push(input);return {kind:'paper_setup_preflight',
    status:'unavailable',actionAvailable:false,draftCreated:false,operationCreated:false};},
-  dashboardRead:async(path)=>{dashboardReads.push(path);return {path};}});
+  dashboardRead:async(path)=>{dashboardReads.push(path);
+   return path.startsWith('/api/positions/paper-dep-')&&!path.includes('?')?null:{path};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -45,8 +46,15 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.deepEqual(await (await fetch(url+'/api/dashboard')).json(),{path:'/api/dashboard'});
   assert.deepEqual(await (await fetch(url+'/api/positions?hours=6')).json(),
    {path:'/api/positions?hours=6'});
+  const detailId='paper-dep-67b2b303-e821-4450-bb7b-27171b12079f';
+  assert.deepEqual(await (await fetch(url+`/api/positions/${detailId}?hours=24`)).json(),
+   {path:`/api/positions/${detailId}?hours=24`});
+  const missing=await fetch(url+`/api/positions/${detailId}`);
+  assert.equal(missing.status,404);
+  assert.deepEqual(await missing.json(),{error:'position_not_found'});
   assert.equal((await fetch(url+'/api/positions?hours=2')).status,400);
-  assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6']);
+  assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6',
+   `/api/positions/${detailId}?hours=24`,`/api/positions/${detailId}`]);
   assert.equal((await fetch(url+'/api/strategies')).status,401);
   assert.equal((await post('/api/session',{password})).status,403);
   assert.equal((await post('/api/session',{password:'wrong'},{origin})).status,401);

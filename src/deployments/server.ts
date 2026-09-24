@@ -121,7 +121,10 @@ export function createDeploymentCommandServer(store:CommandStore,
      send(response,400,{error:'invalid_position_request'});return;
     }
     if(!options.dashboardRead){send(response,503,{error:'dashboard_read_source_unavailable'});return;}
-    try{send(response,200,await options.dashboardRead(path+(query.size?`?${query.toString()}`:'')));}
+    try{
+     const result=await options.dashboardRead(path+(query.size?`?${query.toString()}`:''));
+     send(response,result===null?404:200,result??{error:'position_not_found'});
+    }
     catch{send(response,503,{error:'dashboard_read_source_unavailable'});}
     return;
    }
