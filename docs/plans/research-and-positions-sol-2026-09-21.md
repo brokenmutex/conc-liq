@@ -1360,6 +1360,34 @@ booking remain F3 gates. The combined isolated PostgreSQL migration, deployment
 and paper lifecycle integration suite passed through migration 9 on this source
 checkpoint. This does not establish the browser or supervised worker lifecycle.
 
+**September 24 working-dashboard continuation:** `3ca1717`, `75861c9` and
+`d5d7399` connect the operator setup to authenticated, idempotent static/manual
+paper draft creation and a bounded saved-draft recovery list. A reviewed source
+is pinned for admission; a reopened draft requires a fresh preview. Pending
+draft and open keys survive reload and reauthentication, and an ambiguous open
+keeps its key if worker readiness later fails. The disposable Chromium run
+passed 39 public/operator desktop/mobile checks with repeated request IDs and
+no browser exceptions. `953c5fe` reconciles an already accepted open,
+retain-close, pause or resume before checking a now-missing worker lease; a
+fresh key remains blocked. Its HTTP tests and isolated PostgreSQL deployment
+integration passed, including lease-loss replay, conflicting-key rejection and
+zero additional acceptance. The combined repository check passed 766/766
+tests. This does not yet prove a browser-submitted operation completed under a
+supervised worker.
+
+`67dbdc6`, `69d7f4c` and `7635b56` add persisted static paper fee-carry
+lineage, in-memory adjacent replay to a close-convert sample frame, and a
+seven-stage owned-fork prospective gas report. These values remain
+`fork_estimated`; no terminal mark or earned-fee booking is implied. Profile
+import, accepted convert-close preview/command, worker replay and browser
+completion still gate F2. `c2fd24d` and `6d307f7` bind a RangeKeeper producer
+receipt to a completed in-process owned fork and add a source-exact replay
+verifier for saved confirmation evidence. The verifier is non-booking; atomic
+operation completion, restart proof, both exits and UI parity still gate F3.
+`3a9f593` renders source templates for the command API and opt-in paper worker
+from one sealed release. No unit was installed or started and no release was
+built from this combined source, so F5 supervision and cutover remain open.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
