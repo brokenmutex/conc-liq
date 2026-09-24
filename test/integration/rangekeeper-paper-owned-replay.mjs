@@ -13,6 +13,8 @@ import {isRangeKeeperPaperConfirmationReplayCapability,replayRangeKeeperPaperCon
  from '../../src/deployments/rangekeeper-paper-confirmation-replay-verifier.js';
 import {validateRangeKeeperPaperConfirmationEnvelope}
  from '../../src/deployments/rangekeeper-paper-persistence.js';
+import {readRangeKeeperPaperConfirmationFrame} from
+ '../../src/deployments/rangekeeper-paper-confirmation-frame.js';
 import {replayPaperMint} from '../../src/v3/position-math.js';
 import {rangeKeeperConfirmedSource} from '../../src/strategy/rangekeeper/source.js';
 import {RangeKeeperChain} from '../../src/strategy/rangekeeper/chain.js';
@@ -139,6 +141,9 @@ try{
  // first-frame construction solely for runner determinism diagnostics. It is
  // reported as non-confirmation evidence and cannot support booking.
  const evidenceFrame=confirmed?secondFrame:firstFrame;
+ const reboundFrame=await readRangeKeeperPaperConfirmationFrame({client,profile,saved:evidenceFrame});
+ assert.equal(reboundFrame.referenceProofHash,evidenceFrame.referenceProofHash);
+ assert.equal(contentHash(reboundFrame.referenceProof),contentHash(evidenceFrame.referenceProof));
  const candidate=confirmed?second.candidate:first.candidate;
  assert(candidate,'No candidate to replay on an owned fork');
  const source=evidenceFrame.source;
