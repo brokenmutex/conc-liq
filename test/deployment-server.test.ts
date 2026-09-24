@@ -146,9 +146,11 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
  const salt=randomBytes(16),password='test-only-operator-secret';
  const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const origin='http://127.0.0.1:4174',calls:unknown[]=[];
+ let workerReady=true,probeFails=false;
  const store={async createDraft(){return {};},async acceptOperation(){throw Error('generic acceptance must stay unused');},
   async operation(){return null;},async listMarketProfiles(){return [];}};
- const server=createDeploymentCommandServer(store,{origin,passwordHash:hash,paperRetainWorkerReady:true,
+ const server=createDeploymentCommandServer(store,{origin,passwordHash:hash,paperRetainWorkerReady:async()=>{
+   if(probeFails)throw Error('probe unavailable');return workerReady;},
   paperRetainAcceptance:async(campaignId,input,actor)=>{calls.push({campaignId,input,actor});
    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
   paperPreview:async()=>({kind:'close_retain',status:'indicative',trustedPreviewSaved:true})});
@@ -175,5 +177,15 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   assert.deepEqual(calls,[{campaignId:campaign,input:command,actor:'operator'}]);
   const wrongKind=await post(`/api/deployments/${campaign}/previews`,{kind:'open'},headers);
   assert.equal((await wrongKind.json() as {actionAvailable:boolean}).actionAvailable,false);
+  workerReady=false;
+  const unavailablePreview=await post(`/api/deployments/${campaign}/previews`,{kind:'close_retain'},headers);
+  assert.equal((await unavailablePreview.json() as {actionAvailable:boolean}).actionAvailable,false);
+  const unavailableAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
+  assert.equal(unavailableAccept.status,503);
+  assert.equal(calls.length,1);
+  probeFails=true;
+  const failedProbeAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
+  assert.equal(failedProbeAccept.status,503);
+  assert.equal(calls.length,1);
  }finally{server.close();await once(server,'close');}
 });

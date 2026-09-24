@@ -19,7 +19,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
- paperRetainWorkerReady?:boolean}
+ paperRetainWorkerReady?:()=>Promise<boolean>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
  createDraft(input:DraftInput):Promise<unknown>;
@@ -186,8 +186,12 @@ export function createDeploymentCommandServer(store:CommandStore,
      (result as {status?:unknown;kind?:unknown;trustedPreviewSaved?:unknown}).status==='indicative'&&
      (result as {kind?:unknown}).kind==='close_retain'&&
      (result as {trustedPreviewSaved?:unknown}).trustedPreviewSaved===true;
+    let workerReady=false;
+    if(saved&&input.kind==='close_retain'&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
     const actionable=Boolean(saved&&input.kind==='close_retain'&&
-     options.paperRetainWorkerReady===true&&options.paperRetainAcceptance);
+     workerReady&&options.paperRetainAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
      {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
     send(response,200,body);return;
@@ -195,7 +199,11 @@ export function createDeploymentCommandServer(store:CommandStore,
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){
     if(!uuid.test(acceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
-    if(!options.paperRetainAcceptance||options.paperRetainWorkerReady!==true){
+    let workerReady=false;
+    if(options.paperRetainAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    if(!workerReady||!options.paperRetainAcceptance){
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
     const input=acceptInput.parse(await jsonBody(request));

@@ -175,9 +175,7 @@ async function main(){
   (chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources));
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
   paperPreview,paperSetupPreflight,dashboardRead,paperRetainAcceptance,
-  // No supervised worker-readiness handshake exists yet; saved retain previews
-  // stay visible, while HTTP acceptance remains disabled in this runtime.
-  paperRetainWorkerReady:false});
+  paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
  let stopping=false;

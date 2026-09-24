@@ -4,9 +4,23 @@ import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../src/client.js';
 import type {DeploymentStore} from '../src/deployments/store.js';
 import {processOnePaperOperation} from '../src/deployments/paper-operation-worker.js';
+import {acquirePaperOperationReadinessLease} from '../src/deployments-paper-worker.js';
 
 const operationId='11111111-1111-4111-8111-111111111111';
 const campaignId='22222222-2222-4222-8222-222222222222';
+
+test('readiness lease destroys its connection if unlock fails',async()=>{
+ let destroyed=false,queries=0;
+ const client={on(){return this;},release(value=false){destroyed=value;},async query(sql:string){
+  queries++;if(sql.includes('pg_try_advisory_lock_shared'))return {rows:[{acquired:true}]};
+  throw Error('database connection lost');
+ }};
+ const pool={async connect(){return client;}} as unknown as Pool;
+ const lease=await acquirePaperOperationReadinessLease(pool);
+ await assert.rejects(lease.release(),/database connection lost/);
+ assert.equal(destroyed,true);assert.equal(queries,2);
+});
+
 const anchor={block:'100',hash:'0x'+'a'.repeat(64),timestamp:1_000};
 const openModel={schemaVersion:1,kind:'paper_open_model',campaignId,revision:1,
  strategyId:'static_manual_v1',profileHash:'a'.repeat(64),configHash:'b'.repeat(64),

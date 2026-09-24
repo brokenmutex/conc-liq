@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
-import {DeploymentStore,DeploymentConflict} from '../../src/deployments/store.ts';
+import {DeploymentStore,DeploymentConflict,PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {contentHash,previewDigest} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
@@ -51,7 +51,7 @@ if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a databa
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
 const admin=await pool.connect();
 const schema=`deployment_test_${randomUUID().replaceAll('-','')}`;
-let store,feePool;
+let store,feePool,workerLease;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
@@ -60,6 +60,28 @@ try{
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
  await store.assertReady();
+ assert.equal(await store.paperOperationWorkerReady(),false);
+ workerLease=await pool.connect();
+ assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+  PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+ assert.equal(await store.paperOperationWorkerReady(),true);
+ assert.deepEqual(await Promise.all(Array.from({length:8},()=>store.paperOperationWorkerReady())),
+  Array(8).fill(true));
+ // PostgreSQL releases a session advisory lease when its worker connection dies.
+ workerLease.release(true);workerLease=undefined;
+ assert.equal(await store.paperOperationWorkerReady(),false);
+ workerLease=await pool.connect();
+ assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+  PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+ assert.equal(await store.paperOperationWorkerReady(),true);
+ assert.equal((await workerLease.query('SELECT pg_advisory_unlock_shared($1::int,$2::int) AS unlocked',
+  PAPER_OPERATION_READINESS_LOCK)).rows[0].unlocked,true);
+ workerLease.release();workerLease=undefined;
+ assert.equal(await store.paperOperationWorkerReady(),false);
+ const readPool=store.readPool,originalReadQuery=readPool.query.bind(readPool);
+ readPool.query=async()=>{throw Error('readiness probe database failure');};
+ await assert.rejects(store.paperOperationWorkerReady(),/readiness probe database failure/);
+ readPool.query=originalReadQuery;
  const wallet='0x1111111111111111111111111111111111111111';
  const poolAddress='0x'+'a'.repeat(40),token0='0x'+'b'.repeat(40),token1='0x'+'c'.repeat(40);
  const codeHash='0x'+'a'.repeat(64),sourceHash='0x'+'2'.repeat(64);
@@ -1010,7 +1032,7 @@ try{
  const commandOrigin='http://127.0.0.1:'+commandPort,salt=randomBytes(16),password='integration-operator';
  const passwordHash='scrypt:'+salt.toString('hex')+':'+scryptSync(password,salt,32).toString('hex');
  const commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,passwordHash,
-  paperRetainWorkerReady:true,paperRetainAcceptance:(campaignId,input,actor)=>
+  paperRetainWorkerReady:async()=>true,paperRetainAcceptance:(campaignId,input,actor)=>
    store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyPaperAnchors)});
  commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
  let closeOperation;
@@ -1498,6 +1520,7 @@ try{
  }
  console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','paper operation worker transient RPC retry','paper operation worker open success after competing lease takeover','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','static/manual paper pause resume journal and worker restart with no economic marks','paper operation worker retain-close success','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close','static/manual strategy-filtered claim','V2 close-convert reorg and zero-write checks','V2 seven-stage conversion accounting','pending close resumes after preview expiry','canonical quote mutation rejected without capital out','paper operation worker resumes pending conversion close','idempotent V2 close completion','paper operation worker blocks a canonical mismatch without writes']}));
 }finally{
+ if(workerLease)workerLease.release(true);
  if(feePool)await feePool.end();
  if(store)await store.close();
  await admin.query('SET search_path=public');

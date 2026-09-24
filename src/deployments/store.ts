@@ -163,6 +163,11 @@ export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
 }
 
+/** Shared advisory lease held by explicitly enabled paper operation workers.
+ * The command runtime reads the matching granted ShareLock in pg_locks.
+ * Keep separate from maintenance lock 18727. */
+export const PAPER_OPERATION_READINESS_LOCK=[4663,18728] as const;
+
 export interface PaperAccountingAnchor {
  accountingId:string;markId:string;block:string;hash:string;timestamp:number;
 }
@@ -182,6 +187,21 @@ export class DeploymentStore {
  }
  async assertReady(){await assertDeploymentSchemaReady(this.readPool);}
  async close(){await Promise.all([this.pool.end(),this.readPool.end()]);}
+
+ async paperOperationWorkerReady(){
+  // Inspect the actual worker's shared lease without taking a competing lock:
+  // concurrent command requests must not mistake each other's probe lock for
+  // a connected worker. pg_locks is visible to ordinary sessions.
+  const result=await this.readPool.query<{ready:boolean}>(`
+   SELECT EXISTS(SELECT 1 FROM pg_locks
+    WHERE locktype='advisory' AND database=(SELECT oid FROM pg_database
+      WHERE datname=current_database())
+      AND classid=$1::oid AND objid=$2::oid AND objsubid=2
+      AND mode='ShareLock' AND granted) AS ready`,[...PAPER_OPERATION_READINESS_LOCK]);
+  if(typeof result.rows[0]?.ready!=='boolean')
+   throw new DeploymentConflict('paper_operation_readiness_probe_invalid');
+  return result.rows[0].ready;
+ }
 
  private async transaction<T>(work:(db:PoolClient)=>Promise<T>):Promise<T>{
   const db=await this.pool.connect();
@@ -1755,8 +1775,8 @@ export class DeploymentStore {
    contentDigest:input.contentDigest,expectedRevision:input.expectedRevision});
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:'paper'|'live';chain_id:number;wallet:string;current_revision:number;
-    lifecycle:string;strategy_id:string;profile_hash:string;config_hash:string}>(`SELECT c.mode,c.chain_id,c.wallet,c.current_revision,c.lifecycle,
-     r.strategy_id,p.profile_hash,r.config_hash
+    lifecycle:string;strategy_id:string;profile_hash:string;config_hash:string;profile:unknown;config:unknown}>(`SELECT c.mode,c.chain_id,c.wallet,c.current_revision,c.lifecycle,
+     r.strategy_id,p.profile_hash,r.config_hash,p.profile,r.config
     FROM deployment_campaigns c JOIN deployment_revisions r
      ON r.campaign_id=c.id AND r.revision=c.current_revision
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
@@ -1836,6 +1856,49 @@ export class DeploymentStore {
      model.previousSource.hash.toLowerCase()!==latest.source_hash.toLowerCase()||
      BigInt(model.source.block)<=BigInt(latest.source_block))
      throw new DeploymentConflict('paper_close_retain_previous_mark_changed');
+    const profile=marketProfileSchema.safeParse(campaign.profile);
+    if(!profile.success||contentHash(profile.data)!==campaign.profile_hash||!campaign.config||
+     typeof campaign.config!=='object'||Array.isArray(campaign.config)||
+     contentHash(campaign.config)!==campaign.config_hash)
+     throw new DeploymentConflict('paper_close_retain_current_profile_or_config_invalid');
+    const config=campaign.config as Record<string,unknown>;
+    if(config.strategyId!=='static_manual_v1'||config.strategyVersion!=='1.0.0'||
+     config.stateSchemaVersion!==1)throw new DeploymentConflict('paper_close_retain_current_config_invalid');
+    const {strategyId:_strategyId,strategyVersion:_strategyVersion,
+     stateSchemaVersion:_stateSchemaVersion,...rawParameters}=config;
+    const parameters=parseStrategyParameters('static_manual_v1',rawParameters);
+    const gasRows=(await db.query<PaperGasProfileRow>(`
+     SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+      allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+      evidence_class AS "evidenceClass",model,source_hash AS "sourceHash",
+      observed_until AS "observedUntil"
+     FROM deployment_calibration_profiles
+     WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
+      AND component='gas_units' AND allowance_state='zero'
+     ORDER BY size_band,stage,version DESC LIMIT 201`,
+     [profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+    let replayedCosts;
+    try{replayedCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:open.data.candidate},
+     gasRows,profile.data.pool.pool,BigInt(model.reference.nativePrice),
+     BigInt(model.costs.gasPriceWei),Date.parse(model.costs.gasPriceObservedAt));}
+    catch{throw new DeploymentConflict('paper_close_retain_cost_profiles_invalid');}
+    if(replayedCosts.costs.status!=='provisional'||
+     contentHash(replayedCosts.costs)!==contentHash(model.costs))
+     throw new DeploymentConflict('paper_close_retain_cost_evidence_changed');
+    const frame={source:model.source,tick:model.poolState.tick,
+     sqrtPriceX96:BigInt(model.poolState.sqrtPriceX96),
+     poolLiquidity:BigInt(model.poolState.poolLiquidity),
+     price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
+     nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,
+     referenceReasons:[],referenceProofHash:model.referenceProofHash,
+     referenceProof:model.referenceProof};
+    let rebuilt;
+    try{rebuilt=buildPaperCloseRetainModel(open.data,model.openMarkId,
+     {markId:latest.id,sourceBlock:latest.source_block,sourceHash:latest.source_hash},
+     frame,profile.data,parameters,replayedCosts,model.source.timestamp*1000);}
+    catch{throw new DeploymentConflict('paper_close_retain_model_replay_invalid');}
+    if(contentHash(rebuilt)!==contentHash(model))
+     throw new DeploymentConflict('paper_close_retain_model_replay_changed');
     const now=Date.now(),sourceAt=model.source.timestamp*1000,
      gasObservedAt=Date.parse(model.costs.gasPriceObservedAt);
     if(sourceAt>now||now-sourceAt>180_000||gasObservedAt>now||now-gasObservedAt>120_000)

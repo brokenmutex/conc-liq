@@ -1,10 +1,10 @@
-import pg from 'pg';
+import pg,{type PoolClient} from 'pg';
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
-import {DeploymentConflict,DeploymentStore} from './deployments/store.js';
+import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_READINESS_LOCK} from './deployments/store.js';
 import {log} from './logger.js';
 
 const envSchema=z.object({
@@ -19,6 +19,39 @@ const envSchema=z.object({
 });
 
 const lockKey=[4663,18727];
+export type PaperOperationReadinessLease={assertHealthy:()=>Promise<void>;release:()=>Promise<void>};
+
+/** A process-lifetime session lease. PostgreSQL releases the shared advisory
+ * lock automatically if this dedicated connection is lost. */
+export async function acquirePaperOperationReadinessLease(indexer:pg.Pool):Promise<PaperOperationReadinessLease>{
+ const client:PoolClient=await indexer.connect();let lost=false,released=false;
+ client.on('error',()=>{lost=true;});
+ try{
+  const acquired=(await client.query<{acquired:boolean}>(
+   'SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+   [...PAPER_OPERATION_READINESS_LOCK])).rows[0]?.acquired;
+  if(!acquired)throw Error('could not acquire paper operation readiness lease');
+ }catch(error){client.release(true);throw error;}
+ return {
+  async assertHealthy(){
+   if(lost||released)throw Error('paper operation readiness lease lost');
+   try{await client.query('SELECT 1');}
+   catch(error){lost=true;throw Error('paper operation readiness lease lost',{cause:error});}
+  },
+  async release(){
+   if(released)return;released=true;
+   try{
+    if(!lost){
+     const unlocked=(await client.query<{unlocked:boolean}>(
+      'SELECT pg_advisory_unlock_shared($1::int,$2::int) AS unlocked',
+      [...PAPER_OPERATION_READINESS_LOCK])).rows[0]?.unlocked;
+     if(!unlocked){lost=true;throw Error('paper operation readiness lease release failed');}
+    }
+   }catch(error){lost=true;throw error;}
+   finally{client.release(lost);}
+  },
+ };
+}
 export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked'};
 const failureCode=(error:unknown)=>error instanceof DeploymentConflict?error.code:
  error instanceof Error?error.name:'unknown';
@@ -101,11 +134,15 @@ async function main(){
  process.once('SIGTERM',()=>stop.abort());
  const store=new DeploymentStore(env.DATABASE_URL);
  const indexer=new pg.Pool({connectionString:env.DATABASE_URL,max:3});
+ let readinessLease:PaperOperationReadinessLease|undefined;
  try{
  await store.assertReady();
   const chain=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,
    env.DEPLOYMENT_RPC_TIMEOUT_MS),workerId=`paper-model:${randomUUID()}`;
+  if(env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1')
+   readinessLease=await acquirePaperOperationReadinessLease(indexer);
   while(!stop.signal.aborted){
+   if(readinessLease)await readinessLease.assertHealthy();
    try{
     const result=await runPaperMaintenancePass(store,chain,indexer,
      env.DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS,
@@ -118,6 +155,7 @@ async function main(){
    }
    if(env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1'){
     for(let n=0;n<env.DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS&&!stop.signal.aborted;n++){
+     if(readinessLease)await readinessLease.assertHealthy();
      try{
       const result=await processOnePaperOperation(store,chain,indexer,workerId);
       if(result.status==='idle')break;
@@ -129,10 +167,10 @@ async function main(){
     }
    }
    await pause(env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS,stop.signal);
-  }
+ }
  }finally{
-  await indexer.end();
-  await store.close();
+  try{await readinessLease?.release();}
+  finally{await indexer.end();await store.close();}
  }
 }
 
