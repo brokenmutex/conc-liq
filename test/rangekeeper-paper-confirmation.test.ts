@@ -19,6 +19,8 @@ import {buildRangeKeeperPaperConfirmedOpenInventory,createRangeKeeperPaperConfir
 import {buildRangeKeeperPaperMarkPayload} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {replayRangeKeeperPaperConfirmationOnOwnedFork} from
+ '../src/deployments/rangekeeper-paper-confirmation-replay-verifier.js';
 import {buildRangeKeeperPaperConfirmationProducerReceipt,
  isRangeKeeperPaperServerProduced,markRangeKeeperPaperServerProduced,
  validateRangeKeeperPaperConfirmationProducerReceipt} from
@@ -182,6 +184,20 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.openingBooked,false);
  assert.equal(result.executionEvidence,'source_bound_caller_simulation_evidence_unverified');
  assert.equal(result.simulationEvidence.sequenceHash,result.decision.simulation.simulationHash);
+ const replayed=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:result,frame:frame2,
+  rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
+   status:'success',sourceBlock:frame2.source.block,sourceHash:frame2.source.hash,
+   candidateHash:request.probe.candidateHash,simulationHash:result.simulationEvidence.sequenceHash,
+   ownedForkEvidence:result.simulationEvidence})});
+ assert.equal(replayed.status,'matched');assert.equal(replayed.bookingAvailable,false);
+ assert.equal(replayed.actionAvailable,false);
+ const tamperedReplay={...result,simulationEvidence:{...result.simulationEvidence,
+  stages:result.simulationEvidence.stages.map((stage,index)=>index===0?{...stage,to:address('9')}:stage)}};
+ await assert.rejects(replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:tamperedReplay,
+  frame:frame2,rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
+   status:'success',sourceBlock:frame2.source.block,sourceHash:frame2.source.hash,
+   candidateHash:request.probe.candidateHash,simulationHash:result.simulationEvidence.sequenceHash,
+   ownedForkEvidence:result.simulationEvidence})}));
  const producerPreviewId=randomUUID(),producerReceipt=buildRangeKeeperPaperConfirmationProducerReceipt({
   envelope:result,openPreviewId:producerPreviewId,producerRunId:randomUUID(),createdAt:new Date(now)});
  assert.equal(producerReceipt.kind,'rangekeeper_paper_server_producer_receipt_v1');
