@@ -19,6 +19,10 @@ import {buildRangeKeeperPaperConfirmedOpenInventory,createRangeKeeperPaperConfir
 import {buildRangeKeeperPaperMarkPayload} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {buildRangeKeeperPaperConfirmationProducerReceipt,
+ isRangeKeeperPaperServerProduced,markRangeKeeperPaperServerProduced,
+ validateRangeKeeperPaperConfirmationProducerReceipt} from
+ '../src/deployments/rangekeeper-paper-confirmation-provenance.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,RANGEKEEPER_PAPER_ZERO_ALLOWANCES,
@@ -178,6 +182,23 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.openingBooked,false);
  assert.equal(result.executionEvidence,'source_bound_caller_simulation_evidence_unverified');
  assert.equal(result.simulationEvidence.sequenceHash,result.decision.simulation.simulationHash);
+ const producerPreviewId=randomUUID(),producerReceipt=buildRangeKeeperPaperConfirmationProducerReceipt({
+  envelope:result,openPreviewId:producerPreviewId,producerRunId:randomUUID(),createdAt:new Date(now)});
+ assert.equal(producerReceipt.kind,'rangekeeper_paper_server_producer_receipt_v1');
+ assert.equal(producerReceipt.envelopeHash,result.envelopeHash);
+ assert.equal(producerReceipt.openPreviewId,producerPreviewId);
+ assert.deepEqual(validateRangeKeeperPaperConfirmationProducerReceipt(producerReceipt,{campaignId:draft.id,
+  revision:1,openPreviewId:producerPreviewId,envelope:result}),producerReceipt);
+ assert.throws(()=>validateRangeKeeperPaperConfirmationProducerReceipt(producerReceipt,{campaignId:draft.id,
+  revision:1,openPreviewId:randomUUID(),envelope:result}),/producer_receipt_binding_invalid/);
+ const {receiptHash:_receiptHash,...producerReceiptBody}=producerReceipt,
+  forgedReceiptBody={...producerReceiptBody,candidateHash:'f'.repeat(64)},
+  forgedReceipt={...forgedReceiptBody,receiptHash:contentHash(forgedReceiptBody)};
+ assert.throws(()=>validateRangeKeeperPaperConfirmationProducerReceipt(forgedReceipt,{campaignId:draft.id,
+  revision:1,openPreviewId:producerPreviewId,envelope:result}),/producer_receipt_binding_invalid/);
+ const resultCopy={...result};assert.equal(isRangeKeeperPaperServerProduced(resultCopy),false);
+ markRangeKeeperPaperServerProduced(result);assert.equal(isRangeKeeperPaperServerProduced(result),true);
+ assert.equal(isRangeKeeperPaperServerProduced(resultCopy),false);
  assert.equal(result.confirmationObservation.candidateHash,simulationHash);
  assert.equal(result.decision.simulation.candidateHash,simulationHash);
  assert.equal(result.decision.gasSequenceHash,gasHash('e'));

@@ -102,7 +102,7 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
  let writes=0;
  await assert.rejects(persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async()=>{
    writes++;return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
-  }},state,frame,feeCarry,feeEvidence:{id:'00000000-0000-4000-8000-000000000003',
+  }},state,frame,feeCarry,feeEvidence:{id:'3',
    proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},
   postWithdraw,client:mockClient(),verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},
   verifyOwnedFork:async input=>({
@@ -121,7 +121,7 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
  const result=await persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async input=>{
    writes++;savedPreviews.push(input as unknown as Record<string,unknown>);
    return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
-  }},state,frame,feeCarry,feeEvidence:{id:'00000000-0000-4000-8000-000000000003',
+  }},state,frame,feeCarry,feeEvidence:{id:'3',
    proofHash:'4'.repeat(64),carryHash:contentHash(feeCarry)},postWithdraw,client:mockClient(),
   verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},verifyOwnedFork:async input=>({
    reportHash:input.postWithdraw.reportHash,

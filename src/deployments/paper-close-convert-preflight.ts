@@ -143,7 +143,7 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   !frame.price0||!frame.price1||!frame.nativePrice||frame.price0<=0n||frame.price1<=0n||
   frame.nativePrice<=0n||frame.sqrtPriceX96<=0n||frame.poolLiquidity<=0n)
   throw Error('paper_close_convert_terminal_context_unavailable');
- if(!z.string().uuid().safeParse(input.feeEvidence.id).success||
+ if(!/^[1-9][0-9]*$/.test(input.feeEvidence.id)||
   !/^[0-9a-f]{64}$/.test(input.feeEvidence.proofHash)||
   !/^[0-9a-f]{64}$/.test(input.feeEvidence.carryHash))
   throw Error('paper_close_convert_fee_evidence_unavailable');

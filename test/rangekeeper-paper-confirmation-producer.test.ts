@@ -7,6 +7,8 @@ import {createRangeKeeperPaperConfirmationProducer} from
  '../src/deployments/rangekeeper-paper-confirmation-producer.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {isRangeKeeperPaperServerProduced} from
+ '../src/deployments/rangekeeper-paper-confirmation-provenance.js';
 import {RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES}
  from '../src/deployments/rangekeeper-paper-cost.js';
 import type {RangeKeeperCandidate} from '../src/strategy/rangekeeper/domain.js';
@@ -16,6 +18,35 @@ const address=(n:string)=>`0x${n.repeat(40)}`;
 const hash=(n:string)=>`0x${n.repeat(64)}`;
 
 describe('trusted RangeKeeper paper confirmation producer',()=>{
+ it('records a receipt only after the in-process producer returns a confirmed result',async()=>{
+  const campaignId=randomUUID(),draft={id:campaignId,revision:1,strategyId:'rangekeeper_v1',
+   profile:{},profileHash:'a'.repeat(64),configHash:'b'.repeat(64),allocation:{token0Raw:'1',token1Raw:'1',nativeWei:'1'}},
+   result={status:'confirmed',campaignId,revision:1,actionAvailable:false},source={block:'1',hash:hash('1'),timestamp:1};
+  const priorIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
+  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
+   configHash:'a'.repeat(64),nodeVersion:process.version});
+  let recorded=false;
+  try{
+   const client={getGasPrice:async()=>1n} as never,
+    store={paperDraft:async()=>draft,
+     readRangeKeeperPaperConfirmationEnvelope:async()=>result,
+     recordRangeKeeperPaperConfirmationProducerReceipt:async(input:any)=>{
+      recorded=true;assert.equal(input.envelope,result);
+      assert.equal(isRangeKeeperPaperServerProduced(input.envelope),true);
+      return {replayed:false,actionAvailable:false};
+     }} as never,
+    producer=createRangeKeeperPaperConfirmationProducer({store,client,rpcUrl:'http://fixture.invalid',
+     beforeRead:async()=>{},readCanonicalFrame:async()=>({source,tick:0,sqrtPriceX96:1n,
+      poolLiquidity:1n,price0:1n,price1:1n,nativePrice:1n,referenceEligible:true,
+      referenceReasons:[],referenceProofHash:'c'.repeat(64),referenceProof:{}})});
+   assert.equal(await producer(campaignId),result);
+   assert.equal(recorded,true);
+  }finally{
+   if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
+   else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorIdentity;
+  }
+ });
+
  it('loads campaign context and supplies only internally built owned-fork evidence',async()=>{
   const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:address('1'),pool:address('2'),
    token0:address('3'),token1:address('4'),quoteToken:1,decimals0:18,decimals1:18,fee:3000,

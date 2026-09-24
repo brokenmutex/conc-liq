@@ -8,12 +8,14 @@ import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangek
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  type RangeKeeperPaperCandidateScope} from './rangekeeper-paper-cost.js';
 import {simulateRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-simulation.js';
+import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
 import type {RangeKeeperPaperConfirmationCandidateBinding} from './rangekeeper-paper-confirmation-simulation.js';
 import type {DeploymentStore} from './store.js';
 
-type ConfirmationStore=Pick<DeploymentStore,'paperDraft'|'readRangeKeeperPaperConfirmationEnvelope'>;
+type ConfirmationStore=Pick<DeploymentStore,'paperDraft'|'readRangeKeeperPaperConfirmationEnvelope'|
+ 'recordRangeKeeperPaperConfirmationProducerReceipt'>;
 type ForkRunner=typeof simulateRangeKeeperPaperConfirmationOnOwnedFork;
 type CanonicalFrameReader=(client:RobinhoodClient,profile:RangeKeeperPaperDraft['profile'])=>Promise<PaperOpenFrame>;
 
@@ -56,7 +58,7 @@ export function createRangeKeeperPaperConfirmationProducer(
   try{marketGasPriceWei=await dependencies.client.getGasPrice();marketGasPriceObservedAt=Date.now();}
   catch{/* Builder returns an explicit unavailable result when gas price is absent. */}
   const now=Date.now();
-  return dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
+  const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
    client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
    simulate:async(candidate:RangeKeeperCandidate)=>{
@@ -76,10 +78,18 @@ export function createRangeKeeperPaperConfirmationProducer(
      candidate,candidateHash,scope,pathVersion:rangeKeeperPaperPathVersion(candidate),
      sizeBand:rangeKeeperPaperSizeBand(rangeKeeperPaperPathVersion(candidate),scope),actionAvailable:false};
     if(contentHash(draft.profile)!==draft.profileHash)throw new Error('rangekeeper_confirmation_profile_hash_invalid');
-    return runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
+     return runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
      initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
      limits:policy.policy.limits,rpcUrl:dependencies.rpcUrl,beforeRead:dependencies.beforeRead,
      maxRequests:dependencies.maxRequests,timeoutMs:dependencies.timeoutMs});
    }});
+  if(result.status==='confirmed'){
+   markRangeKeeperPaperServerProduced(result);
+   try{await dependencies.store.recordRangeKeeperPaperConfirmationProducerReceipt({envelope:result,
+    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources)});}
+   catch{return {status:'unavailable',reason:'rangekeeper_confirmation_producer_receipt_unavailable',
+    campaignId,revision:draft.revision,actionAvailable:false};}
+  }
+  return result;
  };
 }

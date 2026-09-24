@@ -44,12 +44,15 @@ import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES} from '../../src/deployments/rangekeeper-paper-cost.ts';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
+import {markRangeKeeperPaperServerProduced} from
+ '../../src/deployments/rangekeeper-paper-confirmation-provenance.ts';
 import {ExperimentMarket} from '../../src/experiment/market.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail}
  from '../../src/dashboard/deployment-position.ts';
 import {readPositionOverview,readPositionDetail} from '../../src/dashboard/positions.ts';
 import {createDashboardServer} from '../../src/dashboard/server.ts';
 import {readIndexedPaperFeeInterval,replayPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
+import {readStaticPaperCloseConvertFeeContext} from '../../src/deployments/paper-close-convert-fee-reader.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
@@ -59,7 +62,7 @@ let store,feePool,workerLease;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8,9]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8,9,10]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());
@@ -324,7 +327,7 @@ try{
    simulationEvidence:rkConfirmationEvidence,
    costs:{status:'provisional',scope:'range_keeper_open_and_retain_exit_gas_only',
     evidenceClass:'fork_estimated',profileIds:[{stage:'open_mint',id:rkGasId,version:1}]},
-   strategyState:{fixture:true},inventory:{position:{tickLower:-60,tickUpper:60,liquidity:String(rkMint.liquidity)},
+   strategyState:{fixture:true,buildId:rkBuildId},inventory:{position:{tickLower:-60,tickUpper:60,liquidity:String(rkMint.liquidity)},
     idle:{token0:'0',token1:'0'}},selectedGasProfileIds:[rkGasId],
    executionEvidence:'source_bound_caller_simulation_evidence_unverified',openingBooked:false,actionAvailable:false},
   rkConfirmation={...rkConfirmationBody,envelopeHash:contentHash(rkConfirmationBody)},
@@ -351,7 +354,44 @@ try{
   rkRuntimeIdentity={buildId:rkBuildId,configHash:'f'.repeat(64),nodeVersion:process.version};
  await admin.query('UPDATE deployment_campaigns SET runtime_identity=$2::jsonb WHERE id=$1',
   [rkDraft.id,JSON.stringify(rkRuntimeIdentity)]);
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='draft' WHERE id=$1",[rkDraft.id]);
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeIdentity);
+ await assert.rejects(store.recordRangeKeeperPaperConfirmationProducerReceipt({
+  envelope:{...rkConfirmation},verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_producer_untrusted/);
+ await assert.rejects(store.rangeKeeperPaperConfirmationProducerSnapshot({campaignId:rkDraft.id,
+  openPreviewId:rkPreviewId,envelopeHash:rkConfirmation.envelopeHash,
+  verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_producer_snapshot_unavailable/);
+ markRangeKeeperPaperServerProduced(rkConfirmation);
+ const producerReceipt=await store.recordRangeKeeperPaperConfirmationProducerReceipt({
+  envelope:rkConfirmation,verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(producerReceipt.replayed,false);
+ assert.equal(producerReceipt.actionAvailable,false);
+ assert.equal(producerReceipt.receipt.openPreviewId,rkPreviewId);
+ assert.equal(producerReceipt.receipt.envelopeHash,rkConfirmation.envelopeHash);
+ const producerSnapshot=await store.rangeKeeperPaperConfirmationProducerSnapshot({campaignId:rkDraft.id,
+  openPreviewId:rkPreviewId,envelopeHash:rkConfirmation.envelopeHash,
+  verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(producerSnapshot.actionAvailable,false);
+ assert.equal(producerSnapshot.openingBooked,false);
+ assert.equal(producerSnapshot.producerReceipt.receiptHash,producerReceipt.receipt.receiptHash);
+ await assert.rejects(store.rangeKeeperPaperConfirmationProducerSnapshot({campaignId:rkDraft.id,
+  openPreviewId:randomUUID(),envelopeHash:rkConfirmation.envelopeHash,
+  verifyAnchors:verifyConfirmationAnchors}),/rangekeeper_paper_confirmation_producer_snapshot_unavailable/);
+ await assert.rejects(admin.query(`UPDATE deployment_rangekeeper_paper_confirmation_producers
+  SET receipt='{}' WHERE campaign_id=$1`,[rkDraft.id]),/append-only/);
+ const restartedRkStore=new DeploymentStore(url.toString());
+ const orphanReplay={...rkConfirmation};
+ await assert.rejects(restartedRkStore.recordRangeKeeperPaperConfirmationProducerReceipt({
+  envelope:orphanReplay,verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_producer_untrusted/);
+ markRangeKeeperPaperServerProduced(orphanReplay);
+ const receiptReplay=await restartedRkStore.recordRangeKeeperPaperConfirmationProducerReceipt({
+  envelope:orphanReplay,verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(receiptReplay.replayed,true);
+ assert.equal(receiptReplay.receipt.receiptHash,producerReceipt.receipt.receiptHash);
+ await restartedRkStore.close();
  const rkConfirmationSnapshot=await store.rangeKeeperPaperConfirmationContextSnapshot({
   campaignId:rkDraft.id,verifyAnchors:verifyConfirmationAnchors});
  const {snapshotHash:rkSnapshotHash,...rkSnapshotBody}=rkConfirmationSnapshot;
@@ -374,6 +414,7 @@ try{
    confirmationObservation:{...rkConfirmation.confirmationObservation,source:{...rkConfirmationSource,
     hash:'0x'+'f'.repeat(64)}}},verifyAnchors:verifyConfirmationAnchors}),
   /rangekeeper_paper_confirmation_envelope_integrity_invalid/);
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[rkDraft.id]);
  await assert.rejects(admin.query(`UPDATE deployment_rangekeeper_paper_confirmations
   SET envelope='{}' WHERE campaign_id=$1`,[rkDraft.id]),/append-only/);
  const rkNextSource={block:'202',hash:'0x'+'8'.repeat(64),timestamp:rkMarkSource.timestamp+1},
@@ -1156,9 +1197,32 @@ try{
   WHERE source_mark_id=$1`,[secondValuation.markId])).rows[0].n,1);
  const savedSecondFee=(await admin.query(`SELECT id::text,proof,carry FROM
   deployment_paper_fee_evidence WHERE to_mark_id=$1`,[secondValuation.markId])).rows[0];
+ const closeFrame={...frame,source:{...frame.source,block:'103',hash:'0x'+'8'.repeat(64)}};
+ const closeFeeContext=await readStaticPaperCloseConvertFeeContext({store,campaignId:paperDraft.id,
+  revision:1,verifyAnchors:verifyPaperAnchors});
+ assert.equal(closeFeeContext.state.previous.markId,secondValuation.markId);
+ assert.equal(closeFeeContext.feeCarry.intervals,2);
+ assert.equal(closeFeeContext.feeEvidence.carryHash,contentHash(closeFeeContext.feeCarry));
+ await closeFeeContext.verifyPersistedContext({state:closeFeeContext.state,
+  feeCarry:closeFeeContext.feeCarry,feeEvidence:closeFeeContext.feeEvidence,source:closeFrame.source});
+ const corruptCarry={...savedSecondFee.carry,intervals:savedSecondFee.carry.intervals+1};
+ await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+  DISABLE TRIGGER deployment_paper_fee_append_only`);
+ try{await admin.query(`UPDATE deployment_paper_fee_evidence SET carry=$2,carry_hash=$3 WHERE id=$1`,
+  [savedSecondFee.id,JSON.stringify(corruptCarry),contentHash(corruptCarry)]);}
+ finally{await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+  ENABLE TRIGGER deployment_paper_fee_append_only`);}
+ await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:paperDraft.id,revision:1}),
+  error=>error instanceof DeploymentConflict&&
+   error.code==='paper_close_convert_fee_replay_invalid');
+ await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+  DISABLE TRIGGER deployment_paper_fee_append_only`);
+ try{await admin.query(`UPDATE deployment_paper_fee_evidence SET carry=$2,carry_hash=$3 WHERE id=$1`,
+  [savedSecondFee.id,JSON.stringify(savedSecondFee.carry),contentHash(savedSecondFee.carry)]);}
+ finally{await admin.query(`ALTER TABLE deployment_paper_fee_evidence
+  ENABLE TRIGGER deployment_paper_fee_append_only`);}
  assert.deepEqual(await step(),{feeEvidenceId:null,accountingMarkId:null,
   accountingSnapshotId:null,caughtUp:true});
- const closeFrame={...frame,source:{...frame.source,block:'103',hash:'0x'+'8'.repeat(64)}};
  const closeCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:paperModel.candidate},
   gasRows,poolAddress,10n**18n,1_000_000_000n);
  assert.equal(closeCosts.costs.status,'provisional');

@@ -9,6 +9,7 @@ import { DEPLOYMENT_PAPER_ACCOUNTING_SQL } from "./deployment-paper-accounting-m
 import { DEPLOYMENT_PAPER_ACCOUNTING_INVALIDATION_SQL } from "./deployment-paper-accounting-invalidation-migration.js";
 import { INDEXER_EVENT_TIMESTAMPS_SQL } from "./indexer-event-timestamps-migration.js";
 import { RANGEKEEPER_PAPER_CONFIRMATION_SQL } from "./rangekeeper-paper-confirmation-migration.js";
+import { RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL } from "./rangekeeper-paper-confirmation-provenance-migration.js";
 
 // v1 is the frozen pre-versioning schema. Existing databases are verified and
 // registered, never subjected to its historical UPDATE/DROP statements again.
@@ -30,7 +31,7 @@ ALTER TABLE indexer_cursors ADD COLUMN covered_through_block NUMERIC(78, 0);
 export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL,
  DEPLOYMENTS_SQL, DEPLOYMENT_PAPER_FEE_SQL, DEPLOYMENT_PAPER_ACCOUNTING_SQL,
  DEPLOYMENT_PAPER_ACCOUNTING_INVALIDATION_SQL, INDEXER_EVENT_TIMESTAMPS_SQL,
- RANGEKEEPER_PAPER_CONFIRMATION_SQL] as const;
+ RANGEKEEPER_PAPER_CONFIRMATION_SQL, RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL] as const;
 const identifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const checksum = (sql: string) => createHash("sha256").update(sql).digest("hex");
 
