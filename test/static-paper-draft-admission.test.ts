@@ -100,6 +100,8 @@ test('same request ID replays before stale preflight and a conflicting ID fails 
   assert.equal(replay.replayed,true);
   assert.equal(replay.draftId,saved.id);
   assert.equal(replay.revision,1);
+  assert.equal(replay.source,null);
+  assert.equal(replay.range,null);
  }
  assert.equal(preflightCalls,0);
  const conflict=await createStaticPaperDraftFromSetup(input(),deps({

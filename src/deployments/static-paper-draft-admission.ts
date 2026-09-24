@@ -53,7 +53,7 @@ type AvailablePreflight={status:'available';kind:'paper_setup_preflight';mode:'p
 
 export type StaticPaperDraftAdmissionResult=
  |{status:'draft_created';draftId:string;revision:number;configHash:string;profileId:string;
-   replayed:boolean;source:Review['source'];range:{tickLower:number;tickUpper:number};allocationHash:string;
+   replayed:boolean;source:Review['source']|null;range:{tickLower:number;tickUpper:number}|null;allocationHash:string;
    limitations:readonly string[]}
  |{status:'unavailable';draftId:null;revision:null;configHash:null;profileId:string|null;
    missing:readonly string[];limitations:readonly string[]}
@@ -117,10 +117,10 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
   profileId:input.profileId,missing:['draft_request_id_conflict'],
   limitations:['request_id_is_already_bound_to_different_saved_draft','no_preflight_or_mutation_attempted']};
  if(existing?.status==='found')return {status:'draft_created',draftId:existing.id,revision:existing.revision,
-  configHash:existing.configHash,profileId:input.profileId,replayed:true,source:input.reviewed.source,
-  range:{tickLower:input.reviewed.range.tickLower,tickUpper:input.reviewed.range.tickUpper},
+  configHash:existing.configHash,profileId:input.profileId,replayed:true,source:null,range:null,
   allocationHash:contentHash(input.allocation),limitations:['existing_matching_draft_replayed',
-   'wallet_ownership_and_funding_are_not_verified','no_preview_or_operation_is_created']};
+   'reviewed_source_not_replayed_from_store','wallet_ownership_and_funding_are_not_verified',
+   'no_preview_or_operation_is_created']};
  let preflightRaw:unknown;
  try{preflightRaw=await deps.runPreflight(requested);}
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
