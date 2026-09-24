@@ -1300,6 +1300,29 @@ The Chromium run used mock responses, not real chain/profile availability or
 the full paper lifecycle. These source checks do not satisfy F2/F3 browser,
 worker-supervision or sealed-release acceptance.
 
+**September 24 continuation (source, before final integrated gates):**
+`5892d75` replaces the hard-disabled retain readiness flag with a dedicated
+PostgreSQL session lease held only when the paper operation worker is explicitly
+enabled. Command acceptance probes that lease and replays current profile,
+configuration, scoped gas and terminal-model evidence; loss or probe failure
+fails closed. `536d095`, `6368fc1` and `1df97be` add loopback-only retain,
+pause and resume preview/accept controls and specialized pause/resume admission.
+The browser smoke exercises these controls with mock command responses. It does
+not establish that a real worker has processed a browser-submitted operation.
+Static open and convert-close are still unavailable at the HTTP boundary, and
+the bottom setup still creates no draft. The paper operation worker remains
+opt-in; this source work has not enabled a production service.
+
+`17e0a23` and `4a6f664` add source/candidate/stage-bound owned-fork evidence
+for the RangeKeeper second observation and verify its structure on persistence
+and restore. The persistence boundary can still receive caller-supplied
+evidence, so provenance remains explicitly unverified. Neither the envelope
+nor its context books opening inventory or enables an action. Trusted producer
+wiring, admission, worker claim/replay and both exits remain F3 gates. These
+commits received focused typecheck and isolated deployment integration checks;
+rerun the full pinned repository, database and browser gates after the next
+integration slice before treating the combined source as tested.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,

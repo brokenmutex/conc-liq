@@ -24,6 +24,8 @@ export interface RangeKeeperPaperOwnedForkConfirmationEvidence {
   stateOverrideHash:string;stateOverrides:Record<string,unknown>}[];
  admissionAvailable:false;openingBooked:false;
 }
+export type RangeKeeperPaperConfirmationCandidateBinding=Pick<RangeKeeperPaperConfirmationProbe,
+ 'status'|'campaignId'|'revision'|'source'|'candidate'|'candidateHash'|'scope'|'pathVersion'|'sizeBand'|'actionAvailable'>;
 const evmHash=z.string().regex(/^0x[0-9a-fA-F]{64}$/),hash64=z.string().regex(/^[a-f0-9]{64}$/),
  raw=z.string().regex(/^(0|[1-9][0-9]*)$/),
  candidateSchema=z.object({kind:z.enum(['entry','recenter']),range:z.object({tickLower:z.number().int(),
@@ -80,7 +82,7 @@ function serializeCandidate(candidate:RangeKeeperCandidate){
 /** Validates and hashes only the fixed entry+retain sequence returned by the
  * owned Anvil runner. This is simulation evidence, not a receipt or booking. */
 export function buildRangeKeeperPaperOwnedForkConfirmationEvidence(input:{
- probe:RangeKeeperPaperConfirmationProbe;frame:PaperOpenFrame;configHash:string;
+ probe:RangeKeeperPaperConfirmationCandidateBinding;frame:PaperOpenFrame;configHash:string;
  samples:readonly RangeKeeperPaperGasStageSample[];
 }):RangeKeeperPaperOwnedForkConfirmationEvidence{
  const {probe,frame,samples}=input;
@@ -129,7 +131,7 @@ export function buildRangeKeeperPaperOwnedForkConfirmationEvidence(input:{
  * Upstream RPC access is pinned read-only; local Anvil is the only place where
  * fixture funding and simulated transactions occur. */
 export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
- probe:RangeKeeperPaperConfirmationProbe;profile:MarketProfile;frame:PaperOpenFrame;
+ probe:RangeKeeperPaperConfirmationCandidateBinding;profile:MarketProfile;frame:PaperOpenFrame;
  configHash:string;initialBalances:readonly [bigint,bigint];limits:RangeKeeperLimits;
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
 }):Promise<RangeKeeperPaperConfirmationSimulation&{
