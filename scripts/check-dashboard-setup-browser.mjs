@@ -22,7 +22,7 @@ const research={generatedAt:'2026-09-24T10:00:00.000Z',streamKey:'mock-stream',b
  swapAsOf:null,volumeQuote:null,feesQuote:null,validShare:null,references:[]}],depth:[],depthReferences:[]}]};
 const preview={schemaVersion:1,kind:'paper_setup_preflight',status:'available',mode:'paper',
  strategyId:'static_manual_v1',profileId,input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
- source:{block:100,hash:'0x'+'a'.repeat(64),timestamp:1780000000},
+ source:{block:100,hash:'0x'+'a'.repeat(64),timestamp:Math.floor(Date.now()/1000)},
  profile:{pool,fee:3000,tickSpacing:60,token0,token1,quoteToken:1},
  range:{centerTick:120,centerAnchorTick:120,halfWidthTicks:240,tickLower:-120,tickUpper:360,
  fullWidthTicks:480,lowerPriceQuotePerBaseX18:'988072305665616000',upperPriceQuotePerBaseX18:'1036610933216553000'},
@@ -131,6 +131,7 @@ try{
  await waitFor('document.querySelectorAll("[role=tab]").length===2');
  await check('Public page renders Research and Positions tabs','[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent.trim()).join(",")==="Research,Positions"');
  await check('Public page hides password entry','document.querySelector("#operator-auth").hidden&&getComputedStyle(document.querySelector("#operator-auth")).display==="none"');
+ await check('Public page hides draft binding','document.querySelector("#operator-draft-binding").hidden');
  await check('Public desktop layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  await click('#research-tab');await check('Research tab remains renderable','!document.querySelector("#research-panel").hidden&&!!document.querySelector("#league")');
  await click('#positions-tab');await waitFor('!document.querySelector("#setup-pool").disabled');
@@ -154,6 +155,20 @@ try{
  await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
  await check('Available preflight shows bounds, provisional estimate and unevaluated limits',
   'document.querySelector("#setup-preflight-facts").textContent.includes("-120 to 360")&&document.querySelector("#setup-preflight-facts").textContent.includes("Provisional fork estimate")&&document.querySelector("#setup-preflight-facts").textContent.includes("Not evaluated")&&document.querySelector("#setup-preflight-detail").textContent.includes("does not create a draft")');
+ await check('Operator setup binding preserves exact token allocation and labels raw units',
+  `!document.querySelector("#operator-draft-binding").hidden&&document.querySelector("#setup-allocation-token0").value==="123456789"&&document.querySelector("#setup-allocation-token1").value==="250000000"&&document.querySelector("#setup-allocation-token0-label").textContent.includes("${token0}")&&document.querySelector("#setup-allocation-native").parentElement.textContent.includes("wei")`);
+ await check('Setup limits label reference USD X18, PPM, bps and wei',
+  'document.querySelector(".setup-limits-review").textContent.includes("reference USD (X18)")&&document.querySelector(".setup-limits-review").textContent.includes("PPM")&&document.querySelector(".setup-limits-review").textContent.includes("basis points")&&document.querySelector(".setup-limits-review").textContent.includes("wei")');
+ await fill('#setup-wallet-address','0x4444444444444444444444444444444444444444');
+ await fill('#setup-allocation-native','1000000000000000');
+ for(const [selector,value] of [['#limit-max-deployment','100000000000000000000'],['#limit-min-deployment','1000000000000000000'],
+  ['#limit-max-exposure','1000000'],['#limit-max-loss','1000000000000000000'],['#limit-max-drawdown','900000'],
+  ['#limit-max-action-cost','1000000000000000000'],['#limit-max-rolling-cost','2000000000000000000'],
+  ['#limit-max-campaign-cost','3000000000000000000'],['#limit-exit-reserve','1000000000000000'],
+  ['#limit-slippage-bps','50']])await fill(selector,value);
+ await check('Draft binding review stays local, marks funding unchecked and explains limits',
+  'document.querySelector("#operator-draft-binding-status").textContent.includes("structurally complete")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Funding statusUnchecked")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Campaign revisionNone · no draft exists")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Native gas allocation · wei1000000000000000")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Policy admissionNot evaluated")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Draft persistenceUnavailable · no request sent")');
+ assert.equal(counts.drafts,0,'Read-only draft binding attempted persistence');
  await check('Password input clears after login','document.querySelector("#operator-password").value===""');
  const actionTest=await evaluate(`(async()=>{const {mountStaticRetainAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);const campaign='${profileId}',operation='90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',previewId='7b2309a4-a301-4869-a385-995ef8d12344';let accepts=0;const preview={kind:'close_retain',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:previewId,contentDigest:'${'a'.repeat(64)}',expectedRevision:2,expiresAt:new Date(Date.now()+30000).toISOString(),retainedLowerBound:{token0Raw:'123',token1Raw:'456'},costs:{closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'}}};mountStaticRetainAction(root,{campaignId:campaign,authenticated:()=>true,request:async(path)=>{if(path.endsWith('/previews'))return preview;if(path.endsWith('/operations')){accepts++;return{id:operation,status:'queued'};}if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_retain_recorded'};throw Error('unexpected_path');},onAccepted:async()=>{},now:Date.now});root.querySelector('.retain-preview-button').click();for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));const enabled=root.querySelector('.retain-confirm-button')?.disabled===false;const facts=root.textContent.includes('123')&&root.textContent.includes('456')&&root.textContent.includes('2.000000 / 3.000000')&&root.textContent.includes('provisional, not paid');root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes('succeeded · paper_close_retain_recorded');i++)await new Promise(r=>setTimeout(r,20));const accepted=root.textContent.includes('succeeded · paper_close_retain_recorded')&&accepts===1;root.remove();return{enabled,facts,accepted};})()`);
  assert.deepEqual(actionTest,{enabled:true,facts:true,accepted:true},'Reviewed retain-close preview should be confirmable only with complete action binding and then show journal stage');

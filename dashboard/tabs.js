@@ -60,6 +60,77 @@ export function preflightFacts(result) {
   return facts;
 }
 
+const RAW_INTEGER = /^(0|[1-9][0-9]*)$/;
+const PROFILE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EVM_ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+const EVM_HASH = /^0x[0-9a-fA-F]{64}$/;
+const STATIC_LIMIT_FIELDS = ['maxDeploymentValue','minDeploymentValue','maxExposurePpm',
+  'maxLossValue','maxDrawdownPpm','maxActionCost','maxRollingCost','maxCampaignCost',
+  'exitReserveWei','maxSlippageBps'];
+
+/** Build a local, read-only draft proposal from an exact available preflight.
+ * This function never submits the result to the command API. */
+export function reviewStaticPaperDraftBinding({ walletAddress, preflight, nativeWei, limits, now = Date.now() }) {
+  const missing = [];
+  if (!EVM_ADDRESS.test(String(walletAddress ?? '').trim())) missing.push('wallet_address_invalid_or_missing');
+  if (!preflight || preflight.kind !== 'paper_setup_preflight' || preflight.status !== 'available' ||
+      preflight.mode !== 'paper' || preflight.strategyId !== 'static_manual_v1' ||
+      !PROFILE_UUID.test(preflight.profileId ?? '') || !EVM_ADDRESS.test(preflight.profile?.pool ?? '') ||
+      !Number.isSafeInteger(preflight.profile?.fee) || !Number.isSafeInteger(preflight.profile?.tickSpacing) ||
+      !RAW_INTEGER.test(preflight.input?.capitalQuoteRaw ?? '') ||
+      !Number.isSafeInteger(preflight.input?.halfWidthTicks) ||
+      !RAW_INTEGER.test(preflight.requirements?.token0Raw ?? '') ||
+      !RAW_INTEGER.test(preflight.requirements?.token1Raw ?? '') ||
+      !EVM_HASH.test(preflight.source?.hash ?? '') || !RAW_INTEGER.test(String(preflight.source?.block ?? '')) ||
+      !Number.isSafeInteger(preflight.source?.timestamp) || !Number.isSafeInteger(preflight.range?.tickLower) ||
+      !Number.isSafeInteger(preflight.range?.tickUpper) || preflight.range.tickLower >= preflight.range.tickUpper) {
+    missing.push('fresh_registered_profile_or_exact_preflight_binding_unavailable');
+  } else {
+    const sourceAge = now - preflight.source.timestamp * 1000;
+    if (sourceAge < 0 || sourceAge > 180_000) missing.push('preflight_source_expired');
+  }
+  if (!RAW_INTEGER.test(String(nativeWei ?? '')) || BigInt(RAW_INTEGER.test(String(nativeWei ?? '')) ? nativeWei : '0') <= 0n) {
+    missing.push('proposed_native_allocation_wei_missing');
+  }
+  const normalizedLimits = {};
+  for (const field of STATIC_LIMIT_FIELDS) {
+    const value = String(limits?.[field] ?? '');
+    if (!RAW_INTEGER.test(value) || BigInt(RAW_INTEGER.test(value) ? value : '0') <= 0n) {
+      missing.push(`static_limit_${field}_missing_or_invalid`);
+      continue;
+    }
+    normalizedLimits[field] = ['maxExposurePpm','maxDrawdownPpm','maxSlippageBps'].includes(field) ? Number(value) : value;
+  }
+  if (normalizedLimits.maxExposurePpm > 1_000_000) missing.push('static_limit_maxExposurePpm_out_of_range');
+  if (normalizedLimits.maxDrawdownPpm > 1_000_000) missing.push('static_limit_maxDrawdownPpm_out_of_range');
+  if (normalizedLimits.maxSlippageBps > 500) missing.push('static_limit_maxSlippageBps_out_of_range');
+  if (preflight?.status === 'available' && RAW_INTEGER.test(normalizedLimits.maxDeploymentValue ?? '') &&
+      RAW_INTEGER.test(normalizedLimits.minDeploymentValue ?? '') &&
+      BigInt(normalizedLimits.minDeploymentValue) > BigInt(normalizedLimits.maxDeploymentValue))
+    missing.push('static_minimum_deployment_exceeds_maximum');
+  if (preflight?.status === 'available' && RAW_INTEGER.test(normalizedLimits.maxActionCost ?? '') &&
+      RAW_INTEGER.test(normalizedLimits.maxRollingCost ?? '') &&
+      BigInt(normalizedLimits.maxActionCost) > BigInt(normalizedLimits.maxRollingCost))
+    missing.push('static_action_cost_exceeds_rolling_limit');
+  if (preflight?.status === 'available' && RAW_INTEGER.test(normalizedLimits.maxActionCost ?? '') &&
+      RAW_INTEGER.test(normalizedLimits.maxCampaignCost ?? '') &&
+      BigInt(normalizedLimits.maxActionCost) > BigInt(normalizedLimits.maxCampaignCost))
+    missing.push('static_action_cost_exceeds_campaign_limit');
+  if (missing.length) return { status: 'incomplete', missing };
+  return { status: 'reviewable', missing: [], binding: {
+    campaignRevision: null,
+    profileId: preflight.profileId,
+    source: preflight.source,
+    proposedDraft: {
+      mode: 'paper', chainId: 4663, wallet: walletAddress.trim(), marketProfileId: preflight.profileId,
+      strategyId: 'static_manual_v1', strategyVersion: '1.0.0', stateSchemaVersion: 1,
+      allocation: { token0Raw: preflight.requirements.token0Raw,
+        token1Raw: preflight.requirements.token1Raw, nativeWei: String(nativeWei) },
+      config: { halfWidthTicks: preflight.input.halfWidthTicks, limits: normalizedLimits },
+    },
+  } };
+}
+
 function shortToken(value) {
   return typeof value === 'string' && value.length > 15 ? `${value.slice(0, 8)}…${value.slice(-5)}` : value ?? 'Unavailable';
 }
@@ -108,6 +179,7 @@ function bootDashboardTabs() {
   let registeredPools = [];
   let marketProfiles = [];
   let researchPools = [];
+  let currentSetupPreflight = null;
   let csrfToken = null;
   const setSetupStatus = (message, kind = 'unavailable') => {
     setupNote.textContent = message;
@@ -181,7 +253,9 @@ function bootDashboardTabs() {
   poolSelect.addEventListener('change', () => { renderWidths(); invalidateReview(); });
 
   function invalidateReview() {
+    currentSetupPreflight = null;
     document.getElementById('setup-review').hidden = true;
+    document.getElementById('operator-draft-binding').hidden = true;
     setSetupStatus('Selection changed. Review again to request a fresh source and range preflight.');
   }
   document.getElementById('setup-form').addEventListener('input', invalidateReview);
@@ -201,6 +275,8 @@ function bootDashboardTabs() {
       error.hidden = false; return;
     }
     error.hidden = true;
+    currentSetupPreflight = null;
+    document.getElementById('operator-draft-binding').hidden = true;
     const facts = [
       ['Pool', poolSelect.selectedOptions[0].textContent],
       ['Capital', `${capital} USDG`],
@@ -267,7 +343,68 @@ function bootDashboardTabs() {
       row.append(label, content); return row;
     }));
     output.hidden = false;
+    currentSetupPreflight = result;
+    renderOperatorDraftBinding(result);
     setSetupStatus(isAvailable ? 'Preflight completed. Review the exact bounds and provisional estimates below; admission limits were not evaluated.' : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
+  }
+  const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
+    maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
+    maxActionCost:'limit-max-action-cost',maxRollingCost:'limit-max-rolling-cost',
+    maxCampaignCost:'limit-max-campaign-cost',exitReserveWei:'limit-exit-reserve',maxSlippageBps:'limit-slippage-bps'};
+  const limitLabels={maxDeploymentValue:'Maximum deployment · raw reference USD (X18)',
+    minDeploymentValue:'Minimum deployment · raw reference USD (X18)',
+    maxExposurePpm:'Maximum exposure · PPM',maxLossValue:'Maximum loss · raw reference USD (X18)',
+    maxDrawdownPpm:'Maximum drawdown · PPM',maxActionCost:'Maximum action cost · raw reference USD (X18)',
+    maxRollingCost:'Maximum rolling cost · raw reference USD (X18)',
+    maxCampaignCost:'Maximum campaign cost · raw reference USD (X18)',
+    exitReserveWei:'Native exit reserve · wei',maxSlippageBps:'Maximum slippage · bps'};
+  function renderOperatorDraftBinding(result) {
+    const section=document.getElementById('operator-draft-binding'),available=onOperatorOrigin&&
+      result?.status==='available'&&result.kind==='paper_setup_preflight'&&
+      result.mode==='paper'&&result.strategyId==='static_manual_v1';
+    section.hidden=!available;
+    if(!available)return;
+    const token0=document.getElementById('setup-allocation-token0'),token1=document.getElementById('setup-allocation-token1');
+    token0.value=result.requirements?.token0Raw??'';token1.value=result.requirements?.token1Raw??'';
+    document.getElementById('setup-allocation-token0-label').firstChild.textContent=
+      `Token 0 (${result.profile?.token0??'address unavailable'}) allocation · raw `;
+    document.getElementById('setup-allocation-token1-label').firstChild.textContent=
+      `Token 1 (${result.profile?.token1??'address unavailable'}) allocation · raw `;
+    updateDraftBinding();
+  }
+  function updateDraftBinding() {
+    if(!currentSetupPreflight||document.getElementById('operator-draft-binding').hidden)return;
+    const wallet=document.getElementById('setup-wallet-address').value,
+      nativeWei=document.getElementById('setup-allocation-native').value,
+      limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value])),
+      result=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits}),
+      status=document.getElementById('operator-draft-binding-status');
+    status.dataset.state=result.status==='reviewable'?'available':'unavailable';
+    status.textContent=result.status==='reviewable'?
+      'Binding values are structurally complete. Wallet ownership/funding and all policy admission remain unchecked; no draft was saved.':
+      `Review incomplete: ${result.missing.join(', ')}.`;
+    const facts=document.getElementById('operator-draft-binding-facts');
+    if(result.status!=='reviewable'){facts.replaceChildren();return;}
+    const binding=result.binding,proposal=binding.proposedDraft,rows=[
+      ['Wallet identity · syntax only',proposal.wallet],['Funding status','Unchecked'],
+      ['Registered market profile',binding.profileId],['Pool / fee tier',`${currentSetupPreflight.profile.pool} · ${currentSetupPreflight.profile.fee}`],
+      ['Preflight source block / hash',`${binding.source.block} · ${binding.source.hash}`],
+      ['Campaign revision','None · no draft exists'],['Capital budget · raw USDG',currentSetupPreflight.input.capitalQuoteRaw],
+      ['Centered half-width · ticks',String(proposal.config.halfWidthTicks)],
+      ['Resolved tick bounds',`${currentSetupPreflight.range.tickLower} to ${currentSetupPreflight.range.tickUpper}`],
+      [`${currentSetupPreflight.profile.token0} allocation · raw`,proposal.allocation.token0Raw],
+      [`${currentSetupPreflight.profile.token1} allocation · raw`,proposal.allocation.token1Raw],
+      ['Native gas allocation · wei',proposal.allocation.nativeWei],
+      ...Object.entries(proposal.config.limits).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+      ['Policy admission','Not evaluated'],['Draft persistence','Unavailable · no request sent'],
+    ];
+    facts.replaceChildren(...rows.map(([name,value])=>{const row=document.createElement('div');
+      const label=document.createElement('dt');label.textContent=name;
+      const detail=document.createElement('dd');detail.textContent=value;row.append(label,detail);return row;}));
+  }
+  for(const id of ['setup-wallet-address','setup-allocation-native',...Object.values(limitInputIds)]){
+    document.getElementById(id).addEventListener('input',updateDraftBinding);
+    document.getElementById(id).addEventListener('change',updateDraftBinding);
   }
   document.getElementById('setup-form').addEventListener('submit', runSetupReview);
 
