@@ -2530,6 +2530,24 @@ export class DeploymentStore {
   return result.rows[0]??null;
  }
 
+ /** Read-only idempotency reconciliation before a command route checks worker
+  * readiness. A later lease failure must not hide an already accepted action. */
+ async acceptedOperationReplay(campaignId:string,raw:AcceptInput,
+  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain')[]){
+  const id=z.uuid().parse(campaignId),input=acceptInput.parse(raw);
+  const digest=contentHash({campaignId:id,previewId:input.previewId,
+   contentDigest:input.contentDigest,expectedRevision:input.expectedRevision});
+  const row=(await this.readPool.query<{id:string;status:string;kind:string;
+   preview_id:string;request_digest:string}>(`SELECT id::text,status,kind,
+    preview_id::text,request_digest FROM deployment_operations
+    WHERE campaign_id=$1 AND idempotency_key=$2`,[id,input.idempotencyKey])).rows[0];
+  if(!row)return null;
+  if(row.request_digest!==digest||row.preview_id!==input.previewId||
+   !allowedKinds.includes(row.kind as 'open'|'pause'|'resume'|'close_retain'))
+   throw new DeploymentConflict('idempotency_conflict');
+  return {id:row.id,status:row.status,replayed:true as const};
+ }
+
  async advanceClaim(id:string,workerId:string,stage:string,
   status:'preflighting'|'executing'|'confirming'|'reconciling'|'blocked',
   reason:string|null){
@@ -3092,6 +3110,7 @@ export class DeploymentStore {
    return {campaignId:input.campaignId,revision:input.revision,openMarkId:open.id,
     openModel:openModel.data,openModelHash:contentHash(openModel.data),profile:profile.data,
     profileHash:campaign.profile_hash,configHash:campaign.config_hash,
+    stream:evidence.data.streamKey,targetSetHash:evidence.data.indexerTargetSetHash,
     parameters:parseStrategyParameters(campaign.strategy_id,parameters),
     previous:{markId:previous.id,sourceBlock:previous.source_block!,sourceHash:previous.source_hash!,
      source:previousSource},feeCarry:carry,feeEvidence:{id:intervals.at(-1)!.id,

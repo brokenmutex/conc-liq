@@ -719,6 +719,7 @@ try{
  assert.ok(Date.now()-openPreviewResponse.source.timestamp*1000<=180_000);
  const openCommandServer=createDeploymentCommandServer(store,{origin:openCommandOrigin,
   passwordHash:openPasswordHash,paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
+  paperOperationReplay:(campaignId,input,allowedKinds)=>store.acceptedOperationReplay(campaignId,input,allowedKinds),
   paperOpenAcceptance:(campaignId,input,actor)=>
    store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyPaperAnchors),
   paperRetainAcceptance:(campaignId,input,actor)=>
@@ -777,8 +778,19 @@ try{
   assert.equal(paperOperation.status,'queued');assert.equal(paperOperation.replayed,false);
   const replay=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
   assert.equal(replay.status,202);assert.equal((await replay.json()).replayed,true);
+  workerLease.release(true);workerLease=undefined;
+  assert.equal(await store.paperOperationWorkerReady(),false);
+  const replayAfterLeaseLoss=await post(`/api/deployments/${paperDraft.id}/open-operations`,openCommand,headers);
+  assert.equal(replayAfterLeaseLoss.status,202);
+  assert.deepEqual(await replayAfterLeaseLoss.json(),{...paperOperation,replayed:true});
+  const conflictingReplay=await post(`/api/deployments/${paperDraft.id}/open-operations`,
+   {...openCommand,contentDigest:'f'.repeat(64)},headers);
+  assert.equal(conflictingReplay.status,409);
+  assert.equal((await conflictingReplay.json()).error,'idempotency_conflict');
+  const newOpenWhileOffline=await post(`/api/deployments/${paperDraft.id}/open-operations`,
+   {...openCommand,idempotencyKey:'paper-open-new-while-offline'},headers);
+  assert.equal(newOpenWhileOffline.status,503);
  }finally{openCommandServer.close();await once(openCommandServer,'close');}
- assert(workerLease);workerLease.release(true);workerLease=undefined;
  assert.equal(await store.paperOperationWorkerReady(),false);
  workerLease=await pool.connect();
  assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
@@ -1240,6 +1252,7 @@ try{
  assert.equal(closeFeeContext.state.previous.markId,secondValuation.markId);
  assert.equal(closeFeeContext.feeCarry.intervals,2);
  assert.equal(closeFeeContext.feeEvidence.carryHash,contentHash(closeFeeContext.feeCarry));
+ assert.equal(closeFeeContext.stream,'test-stream');assert.equal(closeFeeContext.targetSetHash,targetSetHash);
  await closeFeeContext.verifyPersistedContext({state:closeFeeContext.state,
   feeCarry:closeFeeContext.feeCarry,feeEvidence:closeFeeContext.feeEvidence,source:closeFrame.source});
  const corruptCarry={...savedSecondFee.carry,intervals:savedSecondFee.carry.intervals+1};

@@ -182,8 +182,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   ]);
   const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
    {origin,cookie,'x-csrf-token':csrfToken});
-  assert.equal(accept.status,503);
-  assert.deepEqual(await accept.json(),{error:'operation_worker_not_ready'});
+  assert.equal(accept.status,400);
+  assert.deepEqual(await accept.json(),{error:'invalid_request'});
   assert.equal(acceptCalls,0);
   const catalog=await fetch(url+'/api/strategies',{headers:{cookie}});
   assert.equal(catalog.status,200);
@@ -204,12 +204,23 @@ it('command API requires operator session, exact origin and CSRF before a draft 
 it('exposes only ready, persisted retain-close acceptance on the guarded command origin',async()=>{
  const salt=randomBytes(16),password='test-only-operator-secret';
  const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
- const origin='http://127.0.0.1:4174',calls:unknown[]=[],lifecycleCalls:unknown[]=[];
+ const origin='http://127.0.0.1:4174',calls:unknown[]=[],lifecycleCalls:unknown[]=[],openCalls:unknown[]=[];
  let workerReady=true,probeFails=false;
  const store={async createDraft(){return {};},async acceptOperation(){throw Error('generic acceptance must stay unused');},
   async operation(){return null;},async listMarketProfiles(){return [];}};
  const server=createDeploymentCommandServer(store,{origin,passwordHash:hash,paperRetainWorkerReady:async()=>{
    if(probeFails)throw Error('probe unavailable');return workerReady;},
+  paperOperationReplay:async(_campaignId,input,allowedKinds)=>{
+   if(input.idempotencyKey==='retain-close-request-1'&&allowedKinds.includes('close_retain')&&!workerReady)
+    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
+   if(input.idempotencyKey==='paper-pause-http-1'&&allowedKinds.includes('pause')&&!workerReady)
+    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
+   if(input.idempotencyKey==='paper-open-http-1'&&allowedKinds.includes('open')&&!workerReady)
+    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
+   return null;
+  },
+  paperOpenAcceptance:async(campaignId,input,actor)=>{openCalls.push({campaignId,input,actor});
+   return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
   paperRetainAcceptance:async(campaignId,input,actor)=>{calls.push({campaignId,input,actor});
    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
   paperLifecycleAcceptance:async(campaignId,input,actor)=>{lifecycleCalls.push({campaignId,input,actor});
@@ -248,21 +259,32 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   const lifecycleAccepted=await post(`/api/deployments/${campaign}/lifecycle-operations`,lifecycleCommand,headers);
   assert.equal(lifecycleAccepted.status,202);
   assert.deepEqual(lifecycleCalls,[{campaignId:campaign,input:lifecycleCommand,actor:'operator'}]);
+  const openCommand={...command,idempotencyKey:'paper-open-http-1'};
+  assert.equal((await post(`/api/deployments/${campaign}/open-operations`,openCommand,headers)).status,202);
+  assert.equal(openCalls.length,1);
   const wrongKind=await post(`/api/deployments/${campaign}/previews`,{kind:'open'},headers);
   assert.equal((await wrongKind.json() as {actionAvailable:boolean}).actionAvailable,false);
   workerReady=false;
   const unavailablePreview=await post(`/api/deployments/${campaign}/previews`,{kind:'close_retain'},headers);
   assert.equal((await unavailablePreview.json() as {actionAvailable:boolean}).actionAvailable,false);
   const unavailableAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
-  assert.equal(unavailableAccept.status,503);
+  assert.equal(unavailableAccept.status,202);
+  assert.equal((await unavailableAccept.json() as {replayed:boolean}).replayed,true);
   const unavailableLifecycle=await post(`/api/deployments/${campaign}/lifecycle-operations`,
    lifecycleCommand,headers);
-  assert.equal(unavailableLifecycle.status,503);
+  assert.equal(unavailableLifecycle.status,202);
+  assert.equal((await unavailableLifecycle.json() as {replayed:boolean}).replayed,true);
+  const unavailableOpen=await post(`/api/deployments/${campaign}/open-operations`,openCommand,headers);
+  assert.equal(unavailableOpen.status,202);
+  assert.equal((await unavailableOpen.json() as {replayed:boolean}).replayed,true);
+  const newCommand={...command,idempotencyKey:'new-request-while-worker-down'};
+  assert.equal((await post(`/api/deployments/${campaign}/operations`,newCommand,headers)).status,503);
   assert.equal(calls.length,1);
   assert.equal(lifecycleCalls.length,1);
+  assert.equal(openCalls.length,1);
   probeFails=true;
   const failedProbeAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
-  assert.equal(failedProbeAccept.status,503);
+  assert.equal(failedProbeAccept.status,202);
   assert.equal(calls.length,1);
  }finally{server.close();await once(server,'close');}
 });

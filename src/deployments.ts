@@ -189,6 +189,7 @@ async function main(){
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
+  paperOperationReplay:(campaignId,input,allowedKinds)=>store.acceptedOperationReplay(campaignId,input,allowedKinds),
   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});

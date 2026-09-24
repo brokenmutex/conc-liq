@@ -24,6 +24,8 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperLifecycleAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
+ paperOperationReplay?:(campaignId:string,input:AcceptInput,
+  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain')[])=>Promise<unknown|null>;
  paperRetainWorkerReady?:()=>Promise<boolean>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
@@ -295,6 +297,9 @@ export function createDeploymentCommandServer(store:CommandStore,
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){
     if(!uuid.test(acceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    const input=acceptInput.parse(await jsonBody(request));
+    const replay=await options.paperOperationReplay?.(acceptMatch[1]!,input,['close_retain']);
+    if(replay){send(response,202,replay);return;}
     let workerReady=false;
     if(options.paperRetainAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
@@ -302,12 +307,14 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!workerReady||!options.paperRetainAcceptance){
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
-    const input=acceptInput.parse(await jsonBody(request));
     send(response,202,await options.paperRetainAcceptance(acceptMatch[1]!,input,'operator'));return;
    }
    const lifecycleAcceptMatch=/^\/api\/deployments\/([^/]+)\/lifecycle-operations$/.exec(path);
    if(lifecycleAcceptMatch&&request.method==='POST'){
     if(!uuid.test(lifecycleAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    const input=acceptInput.parse(await jsonBody(request));
+    const replay=await options.paperOperationReplay?.(lifecycleAcceptMatch[1]!,input,['pause','resume']);
+    if(replay){send(response,202,replay);return;}
     let workerReady=false;
     if(options.paperLifecycleAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
@@ -315,12 +322,14 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!workerReady||!options.paperLifecycleAcceptance){
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
-    const input=acceptInput.parse(await jsonBody(request));
     send(response,202,await options.paperLifecycleAcceptance(lifecycleAcceptMatch[1]!,input,'operator'));return;
    }
    const openAcceptMatch=/^\/api\/deployments\/([^/]+)\/open-operations$/.exec(path);
    if(openAcceptMatch&&request.method==='POST'){
     if(!uuid.test(openAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    const input=acceptInput.parse(await jsonBody(request));
+    const replay=await options.paperOperationReplay?.(openAcceptMatch[1]!,input,['open']);
+    if(replay){send(response,202,replay);return;}
     let workerReady=false;
     if(options.paperOpenAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
@@ -328,7 +337,6 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!workerReady||!options.paperOpenAcceptance){
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
-    const input=acceptInput.parse(await jsonBody(request));
     send(response,202,await options.paperOpenAcceptance(openAcceptMatch[1]!,input,'operator'));return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
