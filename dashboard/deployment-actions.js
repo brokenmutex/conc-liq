@@ -19,6 +19,27 @@ export function retainAcceptPayload(preview, idempotencyKey) {
     expectedRevision: preview.expectedRevision, idempotencyKey };
 }
 
+export function convertPreviewCanBeAccepted(preview, now = Date.now()) {
+  return Boolean(preview && preview.kind === 'close_convert' &&
+    preview.terminalModelVersion === 3 && preview.status === 'indicative' &&
+    preview.trustedPreviewSaved === true && preview.actionAvailable === true &&
+    preview.operationAcceptanceAvailable === true && uuid.test(preview.id ?? '') &&
+    digest.test(preview.contentDigest ?? '') && digest.test(preview.modelHash ?? '') &&
+    Number.isSafeInteger(preview.expectedRevision) && preview.expectedRevision > 0 &&
+    Number.isFinite(Date.parse(preview.expiresAt)) && Date.parse(preview.expiresAt) > now &&
+    preview.costs?.status === 'provisional' &&
+    preview.costs?.scope === 'candidate_prestate_gas_only' &&
+    preview.costs?.pathVersion === 'paper_static_manual_close_convert_prestate_v1' &&
+    preview.costs?.paidGasAvailable === false && preview.paidCostsAvailable === false &&
+    preview.feeAccrualAvailable === false);
+}
+
+export function convertAcceptPayload(preview, idempotencyKey) {
+  if (!convertPreviewCanBeAccepted(preview) || !uuid.test(idempotencyKey ?? '')) return null;
+  return {previewId: preview.id, contentDigest: preview.contentDigest,
+    expectedRevision: preview.expectedRevision, idempotencyKey};
+}
+
 export function lifecyclePreviewCanBeAccepted(preview, kind, now = Date.now()) {
   return Boolean(['pause', 'resume'].includes(kind) && preview && preview.kind === kind &&
     preview.status === 'indicative' && preview.actionAvailable === true &&
@@ -46,6 +67,106 @@ function formatX18(value) {
   const raw = BigInt(value), whole = raw / 10n ** 18n;
   const fraction = (raw % 10n ** 18n).toString().padStart(18, '0').slice(0, 6);
   return `${whole}.${fraction}`;
+}
+
+/** The convert command is exposed only after the server returns a saved V3
+ * preview with explicit worker readiness. A pending acceptance keeps its exact
+ * request key across a page reload until the server reconciles its outcome. */
+export function mountStaticConvertAction(root, {campaignId, authenticated, request,
+  onAccepted = () => {}, now = Date.now} = {}) {
+  root.replaceChildren();
+  const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
+  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  const storageKey = `concliq.operator.paper-convert.pending.v1.${campaignId}`;
+  const button = document.createElement('button'); button.type = 'button';
+  button.textContent = 'Review convert-close'; button.disabled = !authenticated?.();
+  const status = document.createElement('p'); status.className = 'retain-action-status';
+  status.setAttribute('role', 'status');
+  const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
+  root.append(button, status, review);
+  let pending = null;
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
+    if (saved?.campaignId === campaignId && uuid.test(saved?.payload?.previewId ?? '') &&
+      digest.test(saved?.payload?.contentDigest ?? '') &&
+      Number.isSafeInteger(saved?.payload?.expectedRevision) &&
+      uuid.test(saved?.payload?.idempotencyKey ?? '')) pending = saved;
+  } catch { /* A fresh preview remains reviewable, but acceptance needs storage. */ }
+  const clear = () => {pending = null; try { localStorage.removeItem(storageKey); } catch { /* fail closed below */ }};
+  const setStatus = value => {status.textContent = value;};
+  const submit = async () => {
+    if (!pending || !authenticated?.()) return;
+    button.disabled = true;
+    setStatus('Submitting or reconciling the saved convert-close request…');
+    try {
+      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/close-convert-operations`,
+        {method: 'POST', body: pending.payload});
+      if (!uuid.test(accepted?.id ?? '') || !['queued','preflighting','executing','confirming',
+        'reconciling','blocked','succeeded','failed','cancelled','rejected','completed'].includes(accepted.status))
+        throw new Error('operation_acceptance_response_invalid');
+      clear();
+      setStatus(`Convert-close operation ${accepted.id} · ${accepted.status}. Final economics remain unavailable until recorded.`);
+      try {await onAccepted(accepted);} catch { /* operation journal is authoritative */ }
+      await pollOperation(accepted.id, request, setStatus, onAccepted, 'Convert-close');
+    } catch (error) {
+      const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+      if (error?.status >= 400 && error.status < 500 && error?.status !== 429) {
+        clear(); setStatus(`Convert-close request rejected (${reason}). Review a fresh preview.`);
+      } else {
+        setStatus(`Acceptance outcome unknown (${reason}). Retry the same saved request to reconcile; do not create a new preview.`);
+      }
+    } finally {button.disabled = Boolean(pending) || !authenticated?.();}
+  };
+  if (pending) {
+    button.disabled = true;
+    setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
+    const retry = document.createElement('button'); retry.type = 'button';
+    retry.textContent = 'Retry same request / reconcile'; retry.disabled = !authenticated?.();
+    retry.addEventListener('click', submit); root.append(retry);
+    return;
+  }
+  setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
+    'Sign in on this loopback page to review convert-close.');
+  button.addEventListener('click', async () => {
+    button.disabled = true; review.hidden = true;
+    setStatus('Checking a fresh source, modeled fee carry and prospective convert cost…');
+    try {
+      const preview = await request(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
+        {method: 'POST', body: {kind: 'close_convert'}});
+      review.replaceChildren();
+      const heading = document.createElement('h4'); heading.textContent = 'Convert-close preview'; review.append(heading);
+      const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
+      addFact(facts, 'Swap input · raw', preview.quote?.inputAmountRaw ?? 'Unavailable');
+      addFact(facts, 'Minimum USDG output · raw', preview.quote?.minimumOutputRaw ?? 'Unavailable');
+      addFact(facts, 'Expected USDG output · raw', preview.quote?.expectedOutputRaw ?? 'Unavailable');
+      addFact(facts, 'Gas · expected / bound · reference USD', preview.costs ?
+        `${formatX18(preview.costs.expectedValue)} / ${formatX18(preview.costs.boundValue)} · fork estimated` : 'Unavailable');
+      addFact(facts, 'Modeled fee carry', 'Provisional · not earned');
+      addFact(facts, 'Paid gas and final economics', 'Unavailable');
+      review.append(facts);
+      const canAccept = convertPreviewCanBeAccepted(preview, now());
+      const detail = document.createElement('p');
+      detail.textContent = canAccept ? 'Review the minimum output and provisional cost before confirming.' :
+        'Operation acceptance is unavailable until the saved V3 preview and supervised worker pass their evidence gates.';
+      review.append(detail);
+      const accept = document.createElement('button'); accept.type = 'button';
+      accept.className = 'retain-confirm-button'; accept.textContent = 'Accept convert-close';
+      accept.disabled = !canAccept; review.append(accept);
+      accept.addEventListener('click', () => {
+        const key = globalThis.crypto?.randomUUID?.() ?? null;
+        const payload = convertAcceptPayload(preview, key);
+        if (!payload || !authenticated?.()) {accept.disabled = true; setStatus('Preview expired or authentication ended. Review again.'); return;}
+        pending = {campaignId, payload};
+        try {localStorage.setItem(storageKey, JSON.stringify(pending));}
+        catch {pending = null; setStatus('This browser cannot retain a recovery key. No request was sent.'); return;}
+        accept.disabled = true; void submit();
+      });
+      review.hidden = false;
+      setStatus(canAccept ? 'Preview ready for review.' : 'Preview is indicative; operation acceptance is unavailable.');
+    } catch (error) {
+      setStatus(`Convert-close preview unavailable (${error?.data?.error ?? error?.message ?? 'command_failed'}). No operation was sent.`);
+    } finally {button.disabled = !authenticated?.();}
+  });
 }
 
 /** Mounts the one currently eligible browser action. Caller supplies the

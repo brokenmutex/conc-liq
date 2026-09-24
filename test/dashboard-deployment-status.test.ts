@@ -11,8 +11,8 @@ const context=vm.createContext({
  AbortSignal,
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
- .replace("import {mountPaperLifecycleAction,mountStaticRetainAction} from './deployment-actions.js';",
-  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{};');
+ .replace("import {mountPaperLifecycleAction,mountStaticRetainAction,mountStaticConvertAction} from './deployment-actions.js';",
+  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountStaticConvertAction=()=>{};');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 
@@ -79,6 +79,7 @@ test('retain-close browser affordance requires loopback, static paper and no pen
  const eligible=position('open','active');
  Object.assign(context,{eligible});
  assert.match(run('lifecycleControls(eligible)'),/retain-action-root/);
+ assert.match(run('lifecycleControls(eligible)'),/convert-action-root/);
  assert.match(run('lifecycleControls(eligible)'),/paper-lifecycle-action-root[^>]+data-kind="pause"/);
  const paused=position('paused','paused');Object.assign(context,{paused});
  assert.match(run('lifecycleControls(paused)'),/paper-lifecycle-action-root[^>]+data-kind="resume"/);
@@ -86,12 +87,15 @@ test('retain-close browser affordance requires loopback, static paper and no pen
   operation:{kind:'close_retain',status:'queued',stage:'accepted',reason:null}}});
  Object.assign(context,{pending});
  assert.doesNotMatch(run('lifecycleControls(pending)'),/retain-action-root/);
+ assert.doesNotMatch(run('lifecycleControls(pending)'),/convert-action-root/);
  const rk=position('open','active',{deployment:{...eligible.deployment,strategyId:'rangekeeper_v1'}});
  Object.assign(context,{rk});
  assert.doesNotMatch(run('lifecycleControls(rk)'),/retain-action-root/);
+ assert.doesNotMatch(run('lifecycleControls(rk)'),/convert-action-root/);
  assert.doesNotMatch(run('lifecycleControls(rk)'),/paper-lifecycle-action-root/);
  context.location.pathname='/';
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/retain-action-root/);
+ assert.doesNotMatch(run('lifecycleControls(eligible)'),/convert-action-root/);
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/paper-lifecycle-action-root/);
 });
 
