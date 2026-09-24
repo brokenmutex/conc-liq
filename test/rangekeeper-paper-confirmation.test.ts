@@ -19,7 +19,7 @@ import {buildRangeKeeperPaperConfirmedOpenInventory,createRangeKeeperPaperConfir
 import {buildRangeKeeperPaperMarkPayload} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
-import {replayRangeKeeperPaperConfirmationOnOwnedFork} from
+import {isRangeKeeperPaperConfirmationReplayCapability,replayRangeKeeperPaperConfirmationOnOwnedFork} from
  '../src/deployments/rangekeeper-paper-confirmation-replay-verifier.js';
 import {buildRangeKeeperPaperConfirmationProducerReceipt,
  isRangeKeeperPaperServerProduced,markRangeKeeperPaperServerProduced,
@@ -185,16 +185,23 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.executionEvidence,'source_bound_caller_simulation_evidence_unverified');
  assert.equal(result.simulationEvidence.sequenceHash,result.decision.simulation.simulationHash);
  const replayed=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:result,frame:frame2,
+  operationId:randomUUID(),openPreviewId:randomUUID(),operationSnapshotHash:'a'.repeat(64),
   rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
    status:'success',sourceBlock:frame2.source.block,sourceHash:frame2.source.hash,
    candidateHash:request.probe.candidateHash,simulationHash:result.simulationEvidence.sequenceHash,
    ownedForkEvidence:result.simulationEvidence})});
  assert.equal(replayed.status,'matched');assert.equal(replayed.bookingAvailable,false);
  assert.equal(replayed.actionAvailable,false);
+ assert.equal(isRangeKeeperPaperConfirmationReplayCapability(replayed,{operationId:replayed.operationId,
+  openPreviewId:replayed.openPreviewId,operationSnapshotHash:replayed.operationSnapshotHash,
+  campaignId:draft.id,revision:1,envelopeHash:result.envelopeHash,
+  candidateHash:result.confirmationObservation.candidateHash,simulationHash:result.decision.simulation.simulationHash}),false,
+  'Test-injected fork runners cannot mint a booking capability');
  const tamperedReplay={...result,simulationEvidence:{...result.simulationEvidence,
   stages:result.simulationEvidence.stages.map((stage,index)=>index===0?{...stage,to:address('9')}:stage)}};
  await assert.rejects(replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:tamperedReplay,
-  frame:frame2,rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
+  frame:frame2,operationId:randomUUID(),openPreviewId:randomUUID(),
+  operationSnapshotHash:'a'.repeat(64),rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
    status:'success',sourceBlock:frame2.source.block,sourceHash:frame2.source.hash,
    candidateHash:request.probe.candidateHash,simulationHash:result.simulationEvidence.sequenceHash,
    ownedForkEvidence:result.simulationEvidence})}));
@@ -267,8 +274,14 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   assert.equal(payload.provenance.source.block,nextSource.block);
   assert.equal(payload.provenance.candidateHash,result.confirmationObservation.candidateHash);
   assert.equal(payload.inventory.position.liquidity,String(restoredContext.candidate.liquidity));
-  const previewId=randomUUID(),operationId=randomUUID(),record=createRangeKeeperPaperConfirmedOpenRecord({
-   adapter:adapted,previewId,operationId});
+  const previewId=randomUUID(),operationId=randomUUID(),replayFixture={
+   status:'matched' as const,campaignId:draft.id,revision:1,operationId,openPreviewId:previewId,
+   operationSnapshotHash:'a'.repeat(64),envelopeHash:result.envelopeHash,
+   candidateHash:result.confirmationObservation.candidateHash,
+   simulationHash:result.decision.simulation.simulationHash,replayHash:'b'.repeat(64),
+   bookingAvailable:false as const,actionAvailable:false as const},
+   record=createRangeKeeperPaperConfirmedOpenRecord({adapter:adapted,previewId,operationId,
+    replay:replayFixture});
   const openInventory=buildRangeKeeperPaperConfirmedOpenInventory({model:adapted.model,
    allocation:draft.allocation,decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1});
   assert.equal(openInventory.position.liquidity,String(restoredContext.candidate.liquidity));

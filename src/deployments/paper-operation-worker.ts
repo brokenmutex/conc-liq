@@ -8,6 +8,11 @@ import {paperCloseConvertModelSchema,
 import {verifyCanonicalPaperAnchors,type PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {maintainCanonicalPaperScenario} from './paper-maintenance.js';
 import {DeploymentConflict,type DeploymentStore} from './store.js';
+import {readCanonicalPaperOpenFrame} from './paper-preview.js';
+import {loadRangeKeeperPaperConfirmationContext} from './rangekeeper-paper-confirmation-context.js';
+import {adaptRangeKeeperConfirmedOpenContext} from './rangekeeper-paper-confirmed-open-adapter.js';
+import {isRangeKeeperPaperConfirmationReplayCapability,
+ replayRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-replay-verifier.js';
 
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
  attempts:number};
@@ -17,6 +22,7 @@ type OperationContext={id:string;campaign_id:string;kind:string;status:string;cl
  current_revision:number;expected_revision:number;preview_kind:string};
 const MAX_ATTEMPTS=5;
 const LEASE_SECONDS=120;
+export interface PaperOperationWorkerOptions {rpcUrl?:string;beforeForkRead?:()=>Promise<void>}
 
 const sourceFor=(context:OperationContext):PaperCanonicalAnchor=>{
  if(!context.proposal||typeof context.proposal!=='object'||Array.isArray(context.proposal))
@@ -51,11 +57,9 @@ async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:str
  * Completion methods remain the sole append boundary and repeat canonical
  * checks inside their transaction. HTTP acceptance remains separately gated. */
 export async function processOnePaperOperation(store:DeploymentStore,
- chain:RobinhoodClient,indexer:Pool,workerId:string){
- // Keep static/manual priority. RangeKeeper open operations are claimed only
- // so the worker can leave an explicit fail-closed recovery record; their
- // producer provenance and operation-bound completion path are not yet an
- // admission capability.
+ chain:RobinhoodClient,indexer:Pool,workerId:string,options:PaperOperationWorkerOptions={}){
+ // Keep static/manual priority. RangeKeeper opens require server-owned
+ // confirmation evidence and operation-bound replay before provisional booking.
  const claim=await store.claimNext(workerId,LEASE_SECONDS,'paper','static_manual_v1')??
   await store.claimNext(workerId,LEASE_SECONDS,'paper','rangekeeper_v1');
  if(!claim)return {status:'idle' as const};
@@ -78,11 +82,47 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(context.mode!=='paper'||
    !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
-  if(context.strategy_id==='rangekeeper_v1'){
-   if(context.kind!=='open')return await block('rangekeeper_paper_operation_path_unavailable');
-   await store.rangeKeeperPaperConfirmationOperationSnapshot({operationId:claim.id,workerId,
+   if(context.strategy_id==='rangekeeper_v1'){
+    if(context.kind!=='open')return await block('rangekeeper_paper_operation_path_unavailable');
+   if(!options.rpcUrl)return await block('rangekeeper_paper_confirmation_fork_rpc_unavailable');
+   const snapshot=await store.rangeKeeperPaperConfirmationOperationSnapshot({operationId:claim.id,workerId,
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(chain,chainId,sources)});
-   return await block('rangekeeper_paper_confirmation_simulation_provenance_unverified');
+   const confirmation=await loadRangeKeeperPaperConfirmationContext({campaignId:snapshot.campaignId,
+    runtimeIdentity:snapshot.runtimeIdentity,readSnapshot:async()=>snapshot.confirmationContext,
+    readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,query.pathVersion,query.sizeBand),
+    now:snapshot.acceptedAt.getTime()});
+   if(confirmation.status!=='available')return await block(confirmation.reason);
+   const adapter=adaptRangeKeeperConfirmedOpenContext(confirmation),
+    pinnedSource=confirmation.envelope.confirmationObservation.source,
+    frame=await readCanonicalPaperOpenFrame(chain,confirmation.draft.profile,pinnedSource);
+   if(claim.status==='preflighting'){
+    await store.advanceClaim(claim.id,workerId,'paper_model_preflight_checked','executing',null);
+    await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
+   }else if(claim.status==='executing'||claim.status==='confirming')
+    await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
+   else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
+   if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+   let replay;
+   try{replay=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft:confirmation.draft,
+    envelope:confirmation.envelope,frame,operationId:claim.id,openPreviewId:snapshot.openPreviewId,
+    operationSnapshotHash:snapshot.snapshotHash,rpcUrl:options.rpcUrl,
+    beforeRead:options.beforeForkRead??(async()=>{}),maxRequests:1600,timeoutMs:300_000});}
+   catch(error){
+    if(error instanceof AssertionError)
+     return await block('rangekeeper_paper_confirmation_fork_replay_mismatch');
+    throw error;
+   }
+   if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+   if(!isRangeKeeperPaperConfirmationReplayCapability(replay,{operationId:claim.id,
+    openPreviewId:snapshot.openPreviewId,operationSnapshotHash:snapshot.snapshotHash,
+    campaignId:confirmation.draft.id,revision:confirmation.draft.revision,
+    envelopeHash:confirmation.envelope.envelopeHash,
+    candidateHash:confirmation.envelope.confirmationObservation.candidateHash,
+    simulationHash:confirmation.envelope.decision.simulation.simulationHash}))
+    return await block('rangekeeper_paper_confirmation_replay_provenance_unavailable');
+   // Completion must atomically append the confirmed open mark and capital
+   // ledger entries. Until that transaction exists, this worker stays blocked.
+   return await block('rangekeeper_paper_confirmed_open_completion_unavailable');
   }
   if(context.strategy_id!=='static_manual_v1')return await block('paper_operation_path_unavailable');
   if((context.kind==='pause'||context.kind==='resume')&&

@@ -32,8 +32,23 @@ function deserializeCandidate(value:unknown):RangeKeeperCandidate{
 }
 
 export type RangeKeeperPaperConfirmationReplayResult={status:'matched';campaignId:string;revision:number;
- envelopeHash:string;simulationHash:string;replayHash:string;bookingAvailable:false;actionAvailable:false};
+ operationId:string;openPreviewId:string;operationSnapshotHash:string;envelopeHash:string;
+ candidateHash:string;simulationHash:string;replayHash:string;bookingAvailable:false;actionAvailable:false};
 type ReplayRunner=typeof simulateRangeKeeperPaperConfirmationOnOwnedFork;
+const replayCapabilities=new WeakMap<object,string>();
+
+export function isRangeKeeperPaperConfirmationReplayCapability(value:unknown,expected:{operationId:string;
+ openPreviewId:string;operationSnapshotHash:string;campaignId:string;revision:number;envelopeHash:string;
+ candidateHash:string;simulationHash:string}):value is RangeKeeperPaperConfirmationReplayResult{
+ if(!value||typeof value!=='object')return false;
+ const saved=replayCapabilities.get(value),row=value as RangeKeeperPaperConfirmationReplayResult;
+ return saved!==undefined&&saved===contentHash(row)&&row.status==='matched'&&
+  row.bookingAvailable===false&&row.actionAvailable===false&&
+  row.operationId===expected.operationId&&row.openPreviewId===expected.openPreviewId&&
+  row.operationSnapshotHash===expected.operationSnapshotHash&&row.campaignId===expected.campaignId&&
+  row.revision===expected.revision&&row.envelopeHash===expected.envelopeHash&&
+  row.candidateHash===expected.candidateHash&&row.simulationHash===expected.simulationHash;
+}
 
 /** Replays a persisted second-observation confirmation on a fresh owned fork.
  * All candidate and policy inputs are reconstructed from the persisted
@@ -42,11 +57,15 @@ type ReplayRunner=typeof simulateRangeKeeperPaperConfirmationOnOwnedFork;
  * evidence. This is a replay verifier only and never books or enables action. */
 export async function replayRangeKeeperPaperConfirmationOnOwnedFork(input:{
  draft:RangeKeeperPaperDraft;envelope:RangeKeeperPaperConfirmationEnvelope;frame:PaperOpenFrame;
+ operationId:string;openPreviewId:string;operationSnapshotHash:string;
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
 },dependencies:{runOwnedFork?:ReplayRunner}={}):Promise<RangeKeeperPaperConfirmationReplayResult>{
  const {draft,frame}=input,
   envelope=validateRangeKeeperPaperConfirmationEnvelope(input.envelope,
    {campaignId:draft.id,revision:draft.revision});
+ assert(z.uuid().safeParse(input.operationId).success,'Replay operation ID is invalid');
+ assert(z.uuid().safeParse(input.openPreviewId).success,'Replay preview ID is invalid');
+ assert(/^[0-9a-f]{64}$/.test(input.operationSnapshotHash),'Replay operation snapshot hash is invalid');
  assert.equal(draft.id,envelope.campaignId,'Replay campaign differs from persisted confirmation');
  assert.equal(draft.revision,envelope.revision,'Replay revision differs from persisted confirmation');
  assert.equal(draft.strategyId,'rangekeeper_v1');
@@ -103,7 +122,12 @@ export async function replayRangeKeeperPaperConfirmationOnOwnedFork(input:{
   simulationHash:replay.simulationHash});
  assert.equal(contentHash(replay.ownedForkEvidence),contentHash(expected),
   'Owned-fork stage outcomes do not exactly replay the persisted confirmation evidence');
- return {status:'matched',campaignId:draft.id,revision:draft.revision,envelopeHash:envelope.envelopeHash,
-  simulationHash:replay.simulationHash,replayHash:contentHash(replay.ownedForkEvidence),
-  bookingAvailable:false,actionAvailable:false};
+ const body={status:'matched' as const,campaignId:draft.id,revision:draft.revision,
+  operationId:input.operationId,openPreviewId:input.openPreviewId,
+  operationSnapshotHash:input.operationSnapshotHash,envelopeHash:envelope.envelopeHash,
+  candidateHash,simulationHash:replay.simulationHash,replayHash:contentHash(replay.ownedForkEvidence),
+  bookingAvailable:false as const,actionAvailable:false as const};
+ const result=Object.freeze(body);
+ if(!dependencies.runOwnedFork)replayCapabilities.set(result,contentHash(body));
+ return result;
 }

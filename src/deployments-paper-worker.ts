@@ -159,7 +159,8 @@ async function main(){
     for(let n=0;n<env.DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS&&!stop.signal.aborted;n++){
      if(readinessLease)await readinessLease.assertHealthy();
      try{
-      const result=await processOnePaperOperation(store,chain,indexer,workerId);
+      const result=await processOnePaperOperation(store,chain,indexer,workerId,
+       {rpcUrl:env.ROBINHOOD_READ_HTTP_URL});
       if(result.status==='idle')break;
       log(result.status==='blocked'?'error':'info','paper_operation_worker_pass',result);
      }catch(error){

@@ -94,7 +94,7 @@ test('paper operation pass gives static/manual priority before an explicit Range
   ['paper-worker-1',120,'paper','rangekeeper_v1']]);
 });
 
-test('paper operation pass checks RangeKeeper open provenance and blocks unverified simulation',async()=>{
+test('paper operation pass blocks RangeKeeper confirmation when owned-fork RPC is unavailable',async()=>{
  const operationId='11111111-1111-4111-8111-111111111111',
   campaignId='22222222-2222-4222-8222-222222222222';
  const transitions:unknown[][]=[];let snapshots=0;
@@ -111,10 +111,10 @@ test('paper operation pass checks RangeKeeper open provenance and blocks unverif
  const result=await processOnePaperOperation(store,{} as RobinhoodClient,indexer,
   'paper-worker-1');
  assert.deepEqual(result,{status:'blocked',operationId,
-  reason:'rangekeeper_paper_confirmation_simulation_provenance_unverified'});
- assert.equal(snapshots,1);
+  reason:'rangekeeper_paper_confirmation_fork_rpc_unavailable'});
+ assert.equal(snapshots,0,'the operation snapshot is not loaded without an owned-fork RPC');
  assert.deepEqual(transitions,[[operationId,'paper-worker-1',
-  'paper_recovery_required','blocked','rangekeeper_paper_confirmation_simulation_provenance_unverified']]);
+  'paper_recovery_required','blocked','rangekeeper_paper_confirmation_fork_rpc_unavailable']]);
 });
 
 test('paper operation pass leaves an expired claim for another worker',async()=>{

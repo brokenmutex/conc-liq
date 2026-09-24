@@ -43,7 +43,10 @@ import {verifyCanonicalPaperAnchors} from './paper-canonical-anchors.js';
 import {loadRangeKeeperPaperExitContext} from './rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperMarkPayload,validateRangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperConfirmedOpenInventory,
- validateRangeKeeperPaperConfirmedOpenRecord} from './rangekeeper-paper-confirmed-open-adapter.js';
+ createRangeKeeperPaperConfirmedOpenRecord,validateRangeKeeperPaperConfirmedOpenRecord,
+ type RangeKeeperPaperConfirmedOpenAdapterResult} from './rangekeeper-paper-confirmed-open-adapter.js';
+import {isRangeKeeperPaperConfirmationReplayCapability,
+ type RangeKeeperPaperConfirmationReplayResult} from './rangekeeper-paper-confirmation-replay-verifier.js';
 import {buildRangeKeeperPaperConfirmationProducerReceipt,
  isRangeKeeperPaperServerProduced,validateRangeKeeperPaperConfirmationProducerReceipt}
  from './rangekeeper-paper-confirmation-provenance.js';
@@ -1023,7 +1026,7 @@ export class DeploymentStore {
    await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
    const row=(await db.query<{operation_id:string;operation_campaign_id:string;operation_kind:string;
     operation_status:string;claimed_by:string|null;claim_valid:boolean|null;accepted_at:Date;
-    mode:string;lifecycle:string;revision:number;chain_id:number;runtime_identity:unknown;
+    mode:string;lifecycle:string;revision:number;chain_id:number;allocation:unknown;runtime_identity:unknown;
     strategy_id:string;strategy_version:string;state_schema_version:number;config:unknown;
     config_hash:string;profile:unknown;profile_hash:string;preview_id:string;preview_kind:string;
     preview_revision:number;preview_request:Record<string,unknown>;preview_proposal:Record<string,unknown>;
@@ -1033,7 +1036,7 @@ export class DeploymentStore {
     SELECT o.id::text AS operation_id,o.campaign_id::text AS operation_campaign_id,
      o.kind AS operation_kind,o.status AS operation_status,o.claimed_by,
      (o.claim_until>=clock_timestamp()) AS claim_valid,o.created_at AS accepted_at,
-     c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.runtime_identity,
+     c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.allocation,c.runtime_identity,
      r.strategy_id,r.strategy_version,r.state_schema_version,r.config,r.config_hash,
      p.profile,p.profile_hash,v.id::text AS preview_id,v.kind AS preview_kind,
      v.expected_revision AS preview_revision,v.request AS preview_request,v.proposal AS preview_proposal,
@@ -1086,12 +1089,25 @@ export class DeploymentStore {
     throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_binding_invalid');
    try{parseStrategyParameters('rangekeeper_v1',parameters);}
    catch{throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_config_invalid');}
+   const draft={id:row.operation_campaign_id,revision:row.revision,
+    allocation:allocationSchema.parse(row.allocation),profile:profile.data,profileHash:row.profile_hash,
+    configHash:row.config_hash,strategyId:'rangekeeper_v1' as const,parameters},
+    openModel=row.preview_proposal.rangekeeperPaperOpenModel;
+   if(!openModel||typeof openModel!=='object'||Array.isArray(openModel))
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_binding_invalid');
    const sources=[envelope.firstObservation.source,envelope.confirmationObservation.source];
    try{await input.verifyAnchors(row.chain_id,sources);}
    catch(error){if(error instanceof AssertionError)
      throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
-   const body={operationId:row.operation_id,campaignId:row.operation_campaign_id,
-    revision:row.revision,openPreviewId:row.preview_id,envelope,producerReceipt:receipt,
+   const contextBody={schemaVersion:1 as const,kind:'rangekeeper_paper_confirmation_context_v1' as const,
+    campaignId:row.operation_campaign_id,revision:row.revision,mode:'paper' as const,
+    lifecycle:'opening' as const,runtimeIdentity:runtime.data,draft,openModel,
+    openModelHash:contentHash(openModel),envelope},
+    contextSnapshot={...contextBody,snapshotHash:contentHash(contextBody)},
+    body={operationId:row.operation_id,campaignId:row.operation_campaign_id,
+    revision:row.revision,openPreviewId:row.preview_id,acceptedAt:row.accepted_at,
+    runtimeIdentity:runtime.data,draft,openModel,envelope,producerReceipt:receipt,
+    confirmationContext:contextSnapshot,
     simulationEvidenceStatus:'source_bound_caller_simulation_evidence_unverified' as const,
     bookingAvailable:false as const,actionAvailable:false as const};
    try{await input.verifyAnchors(row.chain_id,sources);}

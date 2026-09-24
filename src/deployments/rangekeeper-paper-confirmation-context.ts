@@ -22,7 +22,7 @@ const draftSchema=z.object({id:z.uuid(),revision:z.number().int().positive(),
  strategyId:z.literal('rangekeeper_v1'),parameters:z.record(z.string(),z.unknown())}).strict();
 const snapshotSchema=z.object({schemaVersion:z.literal(1),
  kind:z.literal('rangekeeper_paper_confirmation_context_v1'),campaignId:z.uuid(),revision:z.number().int().positive(),
- mode:z.literal('paper'),lifecycle:z.enum(['draft','active']),runtimeIdentity:runtimeSchema,
+ mode:z.literal('paper'),lifecycle:z.enum(['draft','active','opening']),runtimeIdentity:runtimeSchema,
  draft:draftSchema,openModel:z.record(z.string(),z.unknown()),openModelHash:hash64,
  envelope:z.unknown(),snapshotHash:hash64}).strict();
 
