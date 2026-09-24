@@ -1,20 +1,22 @@
 import pg from 'pg';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
-import {deploymentPosition,readDeploymentRows} from '../../src/dashboard/deployment-position.ts';
+import {deploymentPosition,readDeploymentByKey,readDeploymentDetail,readDeploymentRows}
+ from '../../src/dashboard/deployment-position.ts';
 
 const {DATABASE_URL,COMMAND_PORT,COMMAND_PASSWORD_HASH}=process.env;
 if(!DATABASE_URL||!COMMAND_PORT||!COMMAND_PASSWORD_HASH)throw Error('process fixture environment incomplete');
 const store=new DeploymentStore(DATABASE_URL),dashboard=new pg.Pool({connectionString:DATABASE_URL,max:2});
 await store.assertReady();
 const dashboardRead=async(rawPath)=>{
- const path=rawPath.split('?')[0];
+ const url=new URL(rawPath,'http://127.0.0.1'),path=url.pathname;
  const client=await dashboard.connect();
  try{
-  const rows=await readDeploymentRows(client),positions=rows.map(deploymentPosition);
-  if(path==='/api/positions')return {positions,serverTime:new Date().toISOString()};
-  const match=/^\/api\/positions\/paper-dep-([0-9a-f-]{36})$/.exec(path);
-  if(match){const position=positions.find(row=>row.id===`paper-dep-${match[1]}`);return position??null;}
+  const rows=await readDeploymentRows(client);
+  if(path==='/api/positions')return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
+  const match=/^\/api\/positions\/(paper-dep-[0-9a-f-]{36})$/.exec(path);
+  if(match){const row=await readDeploymentByKey(client,match[1]);
+   return row?await readDeploymentDetail(client,row,Number(url.searchParams.get('hours')??24)):null;}
   throw Error('unsupported fixture dashboard path');
  }finally{client.release();}
 };

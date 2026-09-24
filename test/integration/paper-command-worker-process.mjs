@@ -9,6 +9,8 @@ import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {createServer as createHttpServer} from 'node:http';
 import {createServer as createTcpServer} from 'node:net';
+import {access,mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
@@ -20,8 +22,8 @@ import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4}),admin=await adminPool.connect();
 const schema=`paper_process_${randomUUID().replaceAll('-','')}`;
-let store,command,worker,rpc,commandPort,rpcPort,rpcRequestCount=0,workerOutput='',commandOutput='';
-const checks=[];
+let store,command,worker,rpc,chrome,ws,chromeProfile,commandPort,rpcPort,rpcRequestCount=0,workerOutput='',commandOutput='';
+const checks=[],browserExceptions=[],browserPosts=[];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
@@ -155,16 +157,22 @@ try{
   'pause/resume add no economic ledger entries');
  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,[campaign.id])).rows[0].n,0,
   'pause/resume add no valuation marks');
+ await verifyPositionsBrowser({origin,password,expectedCampaign:campaign.id,expectedStage:'paper_resumed'});
+ checks.push('desktop and mobile browser render real Positions operation activity and unavailable economics');
  console.log(JSON.stringify({checks,campaignId:campaign.id,paused,resumed,workerProcess:'src/deployments-paper-worker.ts',
   commandProcess:'createDeploymentCommandServer in isolated fixture process',workerRestarts:1,
   readinessLeaseReleased:true,chainRpcRequests:rpcRequestCount,chainRpcBoundary:'local error-only JSON-RPC stub',
   signerLoaded:false,ledgerRows:0,markRows:0},null,2));
 }finally{
  if(worker&&worker.exitCode===null){worker.kill('SIGTERM');await Promise.race([once(worker,'exit'),sleep(2000)]);}
- if(command&&command.exitCode===null){command.kill('SIGTERM');await Promise.race([once(command,'exit'),sleep(2000)]);}
+  if(command&&command.exitCode===null){command.kill('SIGTERM');await Promise.race([once(command,'exit'),sleep(2000)]);}
+ if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([once(chrome,'exit'),sleep(1500)]);
+  if(chrome.exitCode===null)chrome.kill('SIGKILL');}
+ try{ws?.close();}catch{}
  if(rpc?.listening)await new Promise(resolve=>rpc.close(resolve));
  await store?.close();await admin.query('SET search_path=public');
  await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await adminPool.end();
+ if(chromeProfile)await rm(chromeProfile,{recursive:true,force:true});
 }
 
 async function waitFor(read,label){
@@ -174,4 +182,76 @@ async function waitFor(read,label){
   const value=await read();if(value)return value;await sleep(100);
  }
  throw Error(`Timed out waiting for ${label}; worker=${workerOutput}; command=${commandOutput}`);
+}
+
+async function verifyPositionsBrowser({origin,password,expectedCampaign,expectedStage}){
+ const candidates=process.env.CHROMIUM_PATH? [process.env.CHROMIUM_PATH]:[
+  '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome'];
+ let binary=null;for(const candidate of candidates){try{await access(candidate);binary=candidate;break;}catch{}}
+ if(!binary)throw Error('Chromium not found; set CHROMIUM_PATH');
+ chromeProfile=await mkdtemp(`${tmpdir()}/conc-liq-paper-positions-`);
+ let stderr='',debugPort=0;
+ chrome=spawn(binary,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',
+  '--disable-background-networking','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',
+  '--user-data-dir='+chromeProfile,'about:blank'],{stdio:['ignore','ignore','pipe']});
+ chrome.stderr.setEncoding('utf8');chrome.stderr.on('data',chunk=>{stderr+=chunk;
+  const match=/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//.exec(stderr);if(match)debugPort=Number(match[1]);});
+ for(let i=0;i<120&&!debugPort;i++){if(chrome.exitCode!==null)throw Error(`Chromium exited: ${stderr}`);await sleep(100);}
+ assert(debugPort,'Chromium remote debugging did not start');
+ const targets=await fetch(`http://127.0.0.1:${debugPort}/json`).then(response=>response.json()),target=targets.find(row=>row.type==='page');
+ assert(target);ws=new WebSocket(target.webSocketDebuggerUrl);
+ await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});ws.addEventListener('error',reject,{once:true});});
+ let sequence=0;const pending=new Map();
+ ws.addEventListener('message',event=>{const message=JSON.parse(event.data);
+  if(message.id){const item=pending.get(message.id);if(item){pending.delete(message.id);
+   message.error?item.reject(Error(JSON.stringify(message.error))):item.resolve(message.result);}}
+  else if(message.method==='Runtime.exceptionThrown')browserExceptions.push(message.params.exceptionDetails.text);
+  else if(message.method==='Network.requestWillBeSent'&&message.params.request.method==='POST')
+   browserPosts.push(new URL(message.params.request.url).pathname);});
+ const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});
+  ws.send(JSON.stringify({id,method,params}));});
+ const evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,returnByValue:true,awaitPromise:true});
+  if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;};
+ const wait=async(expression,label)=>{for(let i=0;i<200;i++){if(await evaluate(expression))return;await sleep(100);}
+  throw Error(`Browser timed out: ${label}; state=${JSON.stringify(await evaluate(`({connection:document.querySelector('#connection-status')?.textContent,
+   paper:document.querySelector('#paper')?.innerText?.slice(0,1200),activity:document.querySelector('#paper-bottom')?.innerText})`))}`);};
+ const fill=async(selector,value)=>evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(value)};
+  input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+ await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+ await send('Page.navigate',{url:origin+'/operator'});await wait('document.readyState==="complete"','operator document');
+ await wait('document.querySelectorAll("[role=tab]").length===2&&!document.querySelector("#operator-auth").hidden',
+  'two-tab operator dashboard');
+ await fill('#operator-password',password);await evaluate('document.querySelector("#operator-login-form button[type=submit]").click()');
+ await wait('!document.querySelector("#operator-logout").hidden','operator login');
+ await evaluate('window.dispatchEvent(new Event("positions-refresh-requested"))');
+ await wait('document.querySelector("#positions-tab").click(),document.querySelector("#paper .positions-table tbody tr")!==null',
+  'paper position list');
+ await evaluate(`document.querySelector('#paper .positions-table tbody tr[data-position="paper-dep-${expectedCampaign}"] button').click()`);
+ await wait('document.querySelector("#paper .position-detail .metrics")!==null','deployment metrics');
+ await evaluate('document.querySelector("#paper .bottom-tabs button[data-value=activity]").click()');
+ await wait(`document.querySelector('#paper .activity-list')?.textContent.includes(${JSON.stringify(expectedStage)})`,
+  'operation activity stage');
+ const desktop=await evaluate(`(()=>{const text=document.querySelector('#paper').innerText,items=[...document.querySelectorAll('#paper .activity-list li')].map(x=>x.innerText),
+  metrics=[...document.querySelectorAll('#paper .metric')].map(x=>x.innerText);return {text,items,metrics,
+  scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth};})()`);
+ assert(desktop.items.some(text=>text.includes('pause')&&text.includes('succeeded')&&text.includes('paper_paused'))&&
+  desktop.items.some(text=>text.includes('resume')&&text.includes('succeeded')&&text.includes(expectedStage)),
+  `desktop view omits operation status/stage: ${JSON.stringify(desktop)}`);
+ assert(desktop.text.toLowerCase().includes('unavailable'),
+  `desktop view implies unavailable economics are present: ${JSON.stringify(desktop)}`);
+ assert(desktop.metrics.some(text=>text.includes('Net value')&&text.includes('—'))&&
+  desktop.metrics.some(text=>text.includes('Paid execution costs')&&text.includes('—')),
+  `desktop metrics do not preserve unavailable costs: ${JSON.stringify(desktop.metrics)}`);
+ assert.equal(desktop.scrollWidth<=desktop.viewport+1,true,`desktop page overflows horizontally: ${desktop.scrollWidth}/${desktop.viewport}`);
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await send('Emulation.setTouchEmulationEnabled',{enabled:true,maxTouchPoints:1});await sleep(250);
+ const mobile=await evaluate(`(()=>({text:document.querySelector('#paper')?.innerText,
+  scrollWidth:document.documentElement.scrollWidth,viewport:innerWidth,
+  detailVisible:!!document.querySelector('#paper .position-detail'),activityVisible:!!document.querySelector('#paper .activity-list')}))()`);
+ assert(mobile.text.includes(expectedStage)&&mobile.activityVisible&&mobile.detailVisible,
+  `mobile view lost operation/detail content: ${JSON.stringify(mobile)}`);
+ assert.equal(mobile.scrollWidth<=mobile.viewport+1,true,`mobile page overflows horizontally: ${mobile.scrollWidth}/${mobile.viewport}`);
+ assert.deepEqual(browserExceptions,[]);assert.deepEqual(browserPosts,['/api/session'],`browser submitted command routes: ${browserPosts}`);
+ try{ws.close();}catch{}ws=null;
 }
