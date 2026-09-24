@@ -4,6 +4,7 @@ import type {RobinhoodClient} from '../client.js';
 import {contentHash} from './contracts.js';
 import {principalAmounts} from '../backtest/principal.js';
 import {paperQuoterAbi} from '../paper/execution-abi.js';
+import {USDG} from '../constants.js';
 import {referenceProofHash} from './market-profile.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
 import {paperCloseConvertQuoteSchema,paperCloseConvertRouteSchema,
@@ -70,6 +71,9 @@ const terminalSchema=terminalBodySchema.extend({modelHash:z.string().regex(/^[0-
 
 function exactRoute(state:PaperCloseConvertPreflightState):PaperCloseConvertRoute{
  const p=state.profile.pool,limits=state.parameters.limits as {maxSlippageBps?:unknown}|undefined;
+ const quoteAddress=p.quoteToken===0?p.token0:p.token1;
+ if(quoteAddress.toLowerCase()!==USDG.toLowerCase())
+  throw Error('paper_close_convert_usdg_route_unavailable');
  if(!limits||!Number.isSafeInteger(limits.maxSlippageBps)||Number(limits.maxSlippageBps)<=0||
   Number(limits.maxSlippageBps)>500)throw Error('paper_close_convert_limits_unavailable');
  const inputAsset=p.quoteToken===0?'token1':'token0',
