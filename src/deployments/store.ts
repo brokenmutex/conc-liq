@@ -974,6 +974,99 @@ export class DeploymentStore {
    actionAvailable:false as const,openingBooked:false as const};
  }
 
+ /** Read-only worker binding check for a claimed RangeKeeper open. It proves
+  * that the operation targets the exact preview and producer receipt, but does
+  * not make the current caller-claimed simulation eligible for booking. */
+ async rangeKeeperPaperConfirmationOperationSnapshot(input:{operationId:string;workerId:string;
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+  if(!z.uuid().safeParse(input.operationId).success||
+   !/^[a-zA-Z0-9._:-]{8,128}$/.test(input.workerId))
+   throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_binding_invalid');
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const row=(await db.query<{operation_id:string;operation_campaign_id:string;operation_kind:string;
+    operation_status:string;claimed_by:string|null;claim_valid:boolean|null;accepted_at:Date;
+    mode:string;lifecycle:string;revision:number;chain_id:number;runtime_identity:unknown;
+    strategy_id:string;strategy_version:string;state_schema_version:number;config:unknown;
+    config_hash:string;profile:unknown;profile_hash:string;preview_id:string;preview_kind:string;
+    preview_revision:number;preview_request:Record<string,unknown>;preview_proposal:Record<string,unknown>;
+    preview_evidence:Record<string,unknown>;preview_digest:string;preview_created_at:Date;
+    preview_expires_at:Date;proof_preview_id:string;envelope:unknown;envelope_hash:string;receipt:unknown;
+    receipt_hash:string;competing_operation:boolean}>(`
+    SELECT o.id::text AS operation_id,o.campaign_id::text AS operation_campaign_id,
+     o.kind AS operation_kind,o.status AS operation_status,o.claimed_by,
+     (o.claim_until>=clock_timestamp()) AS claim_valid,o.created_at AS accepted_at,
+     c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.runtime_identity,
+     r.strategy_id,r.strategy_version,r.state_schema_version,r.config,r.config_hash,
+     p.profile,p.profile_hash,v.id::text AS preview_id,v.kind AS preview_kind,
+     v.expected_revision AS preview_revision,v.request AS preview_request,v.proposal AS preview_proposal,
+     v.evidence AS preview_evidence,v.content_digest AS preview_digest,v.created_at AS preview_created_at,
+     v.expires_at AS preview_expires_at,proof.open_preview_id::text AS proof_preview_id,
+     proof.envelope,proof.envelope_hash,producer.receipt,producer.receipt_hash,
+     EXISTS(SELECT 1 FROM deployment_operations other WHERE other.campaign_id=o.campaign_id AND
+      other.id<>o.id AND other.status IN ('queued','preflighting','executing','confirming',
+       'reconciling','blocked')) AS competing_operation
+    FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_previews v ON v.id=o.preview_id AND v.campaign_id=c.id
+    JOIN deployment_rangekeeper_paper_confirmations proof
+     ON proof.campaign_id=c.id AND proof.revision=c.current_revision
+    JOIN deployment_rangekeeper_paper_confirmation_producers producer
+     ON producer.campaign_id=proof.campaign_id AND producer.revision=proof.revision
+    WHERE o.id=$1`,[input.operationId])).rows[0];
+   const runtime=sealedRuntimeIdentitySchema.safeParse(row?.runtime_identity),
+    currentRuntime=loadRuntimeIdentity(),profile=marketProfileSchema.safeParse(row?.profile);
+   if(!row||row.operation_kind!=='open'||
+    !['preflighting','executing','confirming','reconciling'].includes(row.operation_status)||
+    row.claimed_by!==input.workerId||!row.claim_valid||row.mode!=='paper'||row.lifecycle!=='opening'||
+    row.competing_operation||
+    row.strategy_id!=='rangekeeper_v1'||row.strategy_version!=='1.0.0'||row.state_schema_version!==1||
+    row.preview_kind!=='open'||row.preview_id!==row.proof_preview_id||
+    row.preview_revision!==row.revision||row.accepted_at.getTime()<row.preview_created_at.getTime()||
+    row.accepted_at.getTime()>row.preview_expires_at.getTime()||!runtime.success||!currentRuntime||
+    contentHash(runtime.data)!==contentHash(currentRuntime)||!profile.success||
+    contentHash(profile.data)!==row.profile_hash||!row.config||typeof row.config!=='object'||
+    Array.isArray(row.config)||contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_binding_invalid');
+   let envelope,receipt;
+   try{
+    envelope=validateRangeKeeperPaperConfirmationEnvelope(row.envelope,
+     {campaignId:row.operation_campaign_id,revision:row.revision});
+    receipt=validateRangeKeeperPaperConfirmationProducerReceipt(row.receipt,{campaignId:
+     row.operation_campaign_id,revision:row.revision,openPreviewId:row.preview_id,envelope});
+   }catch{throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_evidence_invalid');}
+   const config=row.config as Record<string,unknown>,
+    {strategyId:_id,strategyVersion:_version,stateSchemaVersion:_schema,...parameters}=config;
+   if(config.strategyId!=='rangekeeper_v1'||config.strategyVersion!=='1.0.0'||
+    config.stateSchemaVersion!==1||envelope.envelopeHash!==row.envelope_hash||receipt.receiptHash!==row.receipt_hash||
+    receipt.producerBuildId!==runtime.data.buildId||row.config_hash!==envelope.draftConfigHash||
+    row.profile_hash!==envelope.profileHash||
+    previewDigest({campaignId:row.operation_campaign_id,expectedRevision:row.preview_revision,
+     kind:'open',request:row.preview_request,proposal:row.preview_proposal,
+     evidence:row.preview_evidence,expiresAt:row.preview_expires_at})!==row.preview_digest||
+    contentHash(row.preview_proposal.rangekeeperPaperOpenModel)!==envelope.firstObservation.modelHash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_binding_invalid');
+   try{parseStrategyParameters('rangekeeper_v1',parameters);}
+   catch{throw new DeploymentConflict('rangekeeper_paper_confirmation_operation_config_invalid');}
+   const sources=[envelope.firstObservation.source,envelope.confirmationObservation.source];
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_not_canonical');throw error;}
+   const body={operationId:row.operation_id,campaignId:row.operation_campaign_id,
+    revision:row.revision,openPreviewId:row.preview_id,envelope,producerReceipt:receipt,
+    simulationEvidenceStatus:'source_bound_caller_simulation_evidence_unverified' as const,
+    bookingAvailable:false as const,actionAvailable:false as const};
+   try{await input.verifyAnchors(row.chain_id,sources);}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_confirmation_source_changed_during_read');throw error;}
+   await db.query('COMMIT');
+   return {...body,snapshotHash:contentHash(body)};
+  }catch(error){await db.query('ROLLBACK').catch(()=>{});throw error;}
+  finally{db.release();}
+ }
+
  /** Read-only dashboard projection. It verifies the stored content hash and
   * both canonical observations on every read; revoked or missing proof fails closed. */
  async rangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;

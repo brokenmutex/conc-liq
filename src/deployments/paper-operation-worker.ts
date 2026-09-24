@@ -78,9 +78,12 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(context.mode!=='paper'||
    !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
-  if(context.strategy_id==='rangekeeper_v1')
-   return await block(context.kind==='open'?'rangekeeper_paper_open_worker_unavailable':
-    'rangekeeper_paper_operation_path_unavailable');
+  if(context.strategy_id==='rangekeeper_v1'){
+   if(context.kind!=='open')return await block('rangekeeper_paper_operation_path_unavailable');
+   await store.rangeKeeperPaperConfirmationOperationSnapshot({operationId:claim.id,workerId,
+    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(chain,chainId,sources)});
+   return await block('rangekeeper_paper_confirmation_simulation_provenance_unverified');
+  }
   if(context.strategy_id!=='static_manual_v1')return await block('paper_operation_path_unavailable');
   if((context.kind==='pause'||context.kind==='resume')&&
    (context.preview_kind!==context.kind||context.expected_revision!==context.current_revision))

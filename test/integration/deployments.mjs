@@ -376,6 +376,36 @@ try{
  assert.equal(producerSnapshot.actionAvailable,false);
  assert.equal(producerSnapshot.openingBooked,false);
  assert.equal(producerSnapshot.producerReceipt.receiptHash,producerReceipt.receipt.receiptHash);
+ const rkOperationId=randomUUID(),rkOperationDigest=contentHash({campaignId:rkDraft.id,
+  previewId:rkPreviewId,contentDigest:rkPreviewDigest,expectedRevision:1});
+ await admin.query(`INSERT INTO deployment_operations
+  (id,campaign_id,preview_id,actor,idempotency_key,request_digest,kind,status,stage,attempts,claimed_by,claim_until)
+  VALUES($1,$2,$3,'test','rk-confirmation-open-test',$4,'open','reconciling','accepted',1,
+   'rangekeeper-worker',clock_timestamp()+interval '120 seconds')`,
+  [rkOperationId,rkDraft.id,rkPreviewId,rkOperationDigest]);
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='opening' WHERE id=$1",[rkDraft.id]);
+ const operationSnapshot=await store.rangeKeeperPaperConfirmationOperationSnapshot({
+  operationId:rkOperationId,workerId:'rangekeeper-worker',verifyAnchors:verifyConfirmationAnchors});
+ assert.equal(operationSnapshot.openPreviewId,rkPreviewId);
+ assert.equal(operationSnapshot.envelope.envelopeHash,rkConfirmation.envelopeHash);
+ assert.equal(operationSnapshot.simulationEvidenceStatus,
+  'source_bound_caller_simulation_evidence_unverified');
+ assert.equal(operationSnapshot.bookingAvailable,false);
+ assert.equal(operationSnapshot.actionAvailable,false);
+ const mismatchPreviewId=randomUUID();
+ await admin.query(`INSERT INTO deployment_previews
+  (id,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at)
+  SELECT $1,campaign_id,expected_revision,kind,request,proposal,evidence,content_digest,expires_at
+   FROM deployment_previews WHERE id=$2`,[mismatchPreviewId,rkPreviewId]);
+ await admin.query('UPDATE deployment_operations SET preview_id=$2 WHERE id=$1',
+  [rkOperationId,mismatchPreviewId]);
+ await assert.rejects(store.rangeKeeperPaperConfirmationOperationSnapshot({
+  operationId:rkOperationId,workerId:'rangekeeper-worker',verifyAnchors:verifyConfirmationAnchors}),
+  /rangekeeper_paper_confirmation_operation_binding_invalid/);
+ await admin.query('UPDATE deployment_operations SET preview_id=$2 WHERE id=$1',
+  [rkOperationId,rkPreviewId]);
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='draft' WHERE id=$1",[rkDraft.id]);
+ await admin.query('DELETE FROM deployment_operations WHERE id=$1',[rkOperationId]);
  await assert.rejects(store.rangeKeeperPaperConfirmationProducerSnapshot({campaignId:rkDraft.id,
   openPreviewId:randomUUID(),envelopeHash:rkConfirmation.envelopeHash,
   verifyAnchors:verifyConfirmationAnchors}),/rangekeeper_paper_confirmation_producer_snapshot_unavailable/);
