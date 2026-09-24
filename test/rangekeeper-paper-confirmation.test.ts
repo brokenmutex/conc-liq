@@ -11,6 +11,9 @@ import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe
 import {parseRangeKeeperPaperCandidate,validateRangeKeeperPaperConfirmationEnvelope}
  from '../src/deployments/rangekeeper-paper-persistence.js';
 import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
+import {adaptRangeKeeperConfirmedOpenContext} from
+ '../src/deployments/rangekeeper-paper-confirmed-open-adapter.js';
+import {buildRangeKeeperPaperMarkPayload} from '../src/deployments/rangekeeper-paper-persistence.js';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
@@ -199,6 +202,31 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   assert.equal(restoredContext.evidence.simulation,'source_bound_caller_evidence_unverified');
   assert.equal(restoredContext.evidence.actionAvailable,false);
   assert.equal(restoredContext.evidence.openingBooked,false);
+  const adapted=adaptRangeKeeperConfirmedOpenContext(restoredContext),
+   bookedSource=result.confirmationObservation.source,
+   nextSource={block:String(BigInt(bookedSource.block)+1n),hash:gasHash('8'),
+    timestamp:bookedSource.timestamp+15};
+  assert.equal(adapted.model.source.block,bookedSource.block);
+  assert.equal(adapted.model.candidate?.sourceBlock,bookedSource.block);
+  assert.equal(adapted.model.candidateHash,result.confirmationObservation.candidateHash);
+  assert.equal(adapted.lineage.firstModelHash,result.firstObservation.modelHash);
+  assert.equal(adapted.lineage.confirmationEnvelopeHash,result.envelopeHash);
+  assert.equal(adapted.bookingAvailable,false);assert.equal(adapted.actionAvailable,false);
+  const payload=buildRangeKeeperPaperMarkPayload({source:nextSource,
+   openSource:bookedSource,openModel:adapted.model,allocation:draft.allocation,
+   candidateHash:adapted.model.candidateHash!,kernelSnapshot:{source:nextSource,
+    state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
+     configHash:`0x${adapted.model.kernelPolicyHash}`,buildId,
+     lastEligible:{block:nextSource.block,hash:nextSource.hash,timestamp:nextSource.timestamp},
+     confirmation:null,exit:null},wallet0:restoredContext.inventory.idle.token0,
+    wallet1:restoredContext.inventory.idle.token1,released0:'0',released1:'0',
+    nativeWei:draft.allocation.nativeWei,campaignStartValue:'2000000000000000000',
+    highWaterValue:'2000000000000000000',rollingSpentCost:'0',campaignSpentCost:'0',
+    reservedCost:'0',recenters:0,pending:false,entryAllowed:true,safeExitRequired:false,
+    executionReady:true}});
+  assert.equal(payload.provenance.source.block,nextSource.block);
+  assert.equal(payload.provenance.candidateHash,result.confirmationObservation.candidateHash);
+  assert.equal(payload.inventory.position.liquidity,String(restoredContext.candidate.liquidity));
  }
  const expiredOpenModel=structuredClone(openModel) as any;
  expiredOpenModel.candidate.expiresAt=firstAt-1;
