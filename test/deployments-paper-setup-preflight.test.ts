@@ -68,6 +68,7 @@ test('setup is available only when all fresh registered gas stages cover the exa
   readGasProfiles:async()=>completeGasProfiles(),readGasPrice:async()=>1_000_000_000n,now:()=>now});
  assert.equal(result.status,'available');
  assert.equal(result.costs.status,'provisional');
+ assert.equal(result.profile.quoteToken,0,'review binding carries the registered quote-token index, not an address');
  assert.equal(result.actionAvailable,false);
  assert.equal(result.draftCreated,false);
  assert.equal(result.operationCreated,false);
