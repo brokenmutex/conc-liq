@@ -2761,7 +2761,7 @@ export class DeploymentStore {
  /** Read-only idempotency reconciliation before a command route checks worker
   * readiness. A later lease failure must not hide an already accepted action. */
  async acceptedOperationReplay(campaignId:string,raw:AcceptInput,
-  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain')[]){
+  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain'|'close_convert')[]){
   const id=z.uuid().parse(campaignId),input=acceptInput.parse(raw);
   const digest=contentHash({campaignId:id,previewId:input.previewId,
    contentDigest:input.contentDigest,expectedRevision:input.expectedRevision});
@@ -2771,7 +2771,7 @@ export class DeploymentStore {
     WHERE campaign_id=$1 AND idempotency_key=$2`,[id,input.idempotencyKey])).rows[0];
   if(!row)return null;
   if(row.request_digest!==digest||row.preview_id!==input.previewId||
-   !allowedKinds.includes(row.kind as 'open'|'pause'|'resume'|'close_retain'))
+   !allowedKinds.includes(row.kind as 'open'|'pause'|'resume'|'close_retain'|'close_convert'))
    throw new DeploymentConflict('idempotency_conflict');
   return {id:row.id,status:row.status,replayed:true as const};
  }

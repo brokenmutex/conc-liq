@@ -217,6 +217,8 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
     return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
    if(input.idempotencyKey==='paper-open-http-1'&&allowedKinds.includes('open')&&!workerReady)
     return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
+   if(input.idempotencyKey==='paper-convert-http-1'&&allowedKinds.includes('close_convert')&&!workerReady)
+    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:true};
    return null;
   },
   paperOpenAcceptance:async(campaignId,input,actor)=>{openCalls.push({campaignId,input,actor});
@@ -262,6 +264,11 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   const openCommand={...command,idempotencyKey:'paper-open-http-1'};
   assert.equal((await post(`/api/deployments/${campaign}/open-operations`,openCommand,headers)).status,202);
   assert.equal(openCalls.length,1);
+  const convertCommand={...command,idempotencyKey:'paper-convert-http-1'};
+  const unconfiguredConvert=await post(`/api/deployments/${campaign}/close-convert-operations`,
+   convertCommand,headers);
+  assert.equal(unconfiguredConvert.status,503);
+  assert.deepEqual(await unconfiguredConvert.json(),{error:'paper_close_convert_acceptance_unavailable'});
   const wrongKind=await post(`/api/deployments/${campaign}/previews`,{kind:'open'},headers);
   assert.equal((await wrongKind.json() as {actionAvailable:boolean}).actionAvailable,false);
   workerReady=false;
@@ -277,6 +284,10 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   const unavailableOpen=await post(`/api/deployments/${campaign}/open-operations`,openCommand,headers);
   assert.equal(unavailableOpen.status,202);
   assert.equal((await unavailableOpen.json() as {replayed:boolean}).replayed,true);
+  const unavailableConvert=await post(`/api/deployments/${campaign}/close-convert-operations`,
+   convertCommand,headers);
+  assert.equal(unavailableConvert.status,202);
+  assert.equal((await unavailableConvert.json() as {replayed:boolean}).replayed,true);
   const newCommand={...command,idempotencyKey:'new-request-while-worker-down'};
   assert.equal((await post(`/api/deployments/${campaign}/operations`,newCommand,headers)).status,503);
   assert.equal(calls.length,1);

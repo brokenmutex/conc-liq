@@ -11,27 +11,40 @@ import {parsePaperStaticCloseConvertTerminalV2,type PaperStaticCloseConvertTermi
 import type {DeploymentStore} from './store.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 import {PAPER_STATIC_CONVERT_GAS_STAGES_V2} from './paper-close-convert-model.js';
+import {paperCloseConvertPrestateCostsV1Schema,type PaperCloseConvertPrestateCostsV1} from
+ './paper-close-convert-prestate-costs.js';
 
 export interface PaperCloseConvertTerminalGasReplay {
  reportHash:string;scopeHash:string;sequenceHash:string;source:PaperOpenFrame['source'];
+ costs:PaperCloseConvertPrestateCostsV1;
  stages:readonly {stage:string;profileId:string;version:number;callHash:string;sourceHash:string;
   expectedGasUnits:string;boundGasUnits:string;scopeHash:string;sequenceHash:string;
   stageIndex:number;stageCount:number;source:PaperStaticCloseConvertTerminalModel['costs']['stages'][number]['source']}[];
 }
 
 export function verifyPaperCloseConvertTerminalGasReplay(input:{
- costs:PaperStaticCloseConvertTerminalModel['costs'];source:PaperOpenFrame['source'];
+ costs:PaperStaticCloseConvertTerminalModel['costs'];
+ gasReport:PaperStaticCloseConvertTerminalModel['gasReport'];source:PaperOpenFrame['source'];
  replay:PaperCloseConvertTerminalGasReplay;
 }):string{
- const {costs,source,replay}=input,expectedStages=costs.stages;
- if(!/^[0-9a-f]{64}$/.test(replay.reportHash)||replay.scopeHash!==costs.scopeHash||
-  replay.sequenceHash!==costs.sequenceHash||contentHash(replay.source)!==contentHash(source)||
+ const {costs,gasReport,source,replay}=input,expectedStages=costs.stages;
+ if(!/^[0-9a-f]{64}$/.test(replay.reportHash)||replay.reportHash!==gasReport.reportHash||
+  costs.reportHash!==gasReport.reportHash||costs.scopeHash!==gasReport.scopeHash||
+  costs.sequenceHash!==gasReport.sequenceHash||costs.paidGasAvailable!==false||
+  paperCloseConvertPrestateCostsV1Schema.safeParse(costs).success===false||
+  contentHash(replay.costs)!==contentHash(costs)||
+  replay.scopeHash!==gasReport.scopeHash||replay.sequenceHash!==gasReport.sequenceHash||
+  contentHash(replay.source)!==contentHash(source)||
   replay.stages.length!==PAPER_STATIC_CONVERT_GAS_STAGES_V2.length)
   throw Error('paper_close_convert_terminal_gas_replay_binding_invalid');
  for(let index=0;index<PAPER_STATIC_CONVERT_GAS_STAGES_V2.length;index++){
   const expected=expectedStages.find(stage=>stage.stage===PAPER_STATIC_CONVERT_GAS_STAGES_V2[index]),
    actual=replay.stages[index];
-  if(!expected||!actual||actual.stage!==expected.stage||actual.profileId!==expected.profileId||
+  const sampled=gasReport.stages[index];
+  if(!expected||!actual||!sampled||actual.stage!==expected.stage||actual.stage!==sampled.stage||
+   actual.sourceHash!==sampled.sourceHash||actual.callHash!==sampled.callHash||
+   actual.expectedGasUnits!==sampled.gasUnitsExpected||actual.boundGasUnits!==sampled.gasUnitsBound||
+   contentHash(actual.source)!==contentHash(sampled.source)||actual.profileId!==expected.profileId||
    actual.version!==expected.version||actual.callHash!==expected.source.callHash||
    actual.sourceHash!==contentHash(actual.source)||actual.expectedGasUnits!==expected.expectedGasUnits||
    actual.boundGasUnits!==expected.boundGasUnits||actual.scopeHash!==expected.scopeHash||
@@ -102,7 +115,8 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  if(contentHash(quote)!==contentHash(model.quote))
   throw Error('paper_close_convert_terminal_quote_replay_mismatch');
  const gas=await input.replayGasStages({model,frame}),gasReportHash=
-  verifyPaperCloseConvertTerminalGasReplay({costs:model.costs,source:model.source,replay:gas});
+  verifyPaperCloseConvertTerminalGasReplay({costs:model.costs,gasReport:model.gasReport,
+   source:model.source,replay:gas});
  await input.verifyAnchors(p.chainId,[open.source,state.previous.source,model.source]);
  if(now>model.source.timestamp*1000+180_000)
   throw Error('paper_close_convert_terminal_source_stale');

@@ -58,7 +58,7 @@ function mockClient(output='999'){
   simulateContract:async()=>({result:[BigInt(output)]})} as never;
 }
 
-test('post-booking V2 rows for another withdraw inventory cannot bind a new terminal preview',async()=>{
+test('terminal preview rejects prestate data unless the exact report and prospective rows are supplied',async()=>{
  const principal=(await import('../src/backtest/principal.js')).principalAmounts({liquidity:1_000_000n,
   tickLower:lower,tickUpper:upper,sqrtPriceX96:frame.sqrtPriceX96});
  const token0Raw=String(principal.amount0+1n),token1Raw=String(principal.amount1+1n),
@@ -76,7 +76,7 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
   wrongHash=paperCloseConvertGasScopeHashV2(wrongScope),wrongSizeBand=paperCloseConvertGasSizeBandV2(wrongScope),
   wrongAllowances=paperCloseConvertGasAllowanceStatesV2(wrongScope),sequenceHash='d'.repeat(64),
   sampleTime=new Date(now-1000).toISOString(),gasProfiles=PAPER_STATIC_CONVERT_GAS_STAGES_V2.map((stage,index)=>{
-   const source={block:'119',hash:sourceHash,estimatedAt:sampleTime,callHash:'0x'+String(index+1).repeat(64),
+   const source={block:frame.source.block,hash:frame.source.hash,estimatedAt:sampleTime,callHash:'0x'+String(index+1).repeat(64),
     method:'owned_fork_nitro_exact_call_v1' as const},
     model={schemaVersion:1 as const,source,gasUnitsExpected:'100',gasUnitsBound:'120',
      sizeMinValue:'0',sizeMaxValue:'2000000000',shareMinPpm:'0',shareMaxPpm:'1000000',
@@ -84,8 +84,9 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
      stageCount:PAPER_STATIC_CONVERT_GAS_STAGES_V2.length};
    return {id:'00000000-0000-4000-8000-'+String(index+1).padStart(12,'0'),version:1,
     poolAddress:profile.pool.pool,pathVersion:'paper_static_manual_close_convert_v2',stage,
-    allowanceState:wrongAllowances[stage],sizeBand:wrongSizeBand,component:'gas_units',status:'provisional',
-    evidenceClass:'fork_estimated',model,sourceHash:contentHash(source),observedUntil:new Date(sampleTime)};
+   allowanceState:wrongAllowances[stage],sizeBand:wrongSizeBand,component:'gas_units',status:'provisional',
+    evidenceClass:'fork_estimated',model,validation:{reportHash:'f'.repeat(64)},
+    sourceHash:contentHash(source),observedUntil:new Date(sampleTime)};
   }),
   previousFeeCarry={kind:'paper_fee_carry_v1' as const,pool:profile.pool.pool,token0Address:profile.pool.token0,
    token1Address:profile.pool.token1,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
@@ -123,43 +124,20 @@ test('post-booking V2 rows for another withdraw inventory cannot bind a new term
    previousFeeCarryHash:contentHash(previousFeeCarry),feeCarry:advanced.feeCarry,
    feeCarryHash:advanced.feeCarryHash},feeReplay={...replayBody,replayHash:contentHash(replayBody)};
  let writes=0;
+ const ownedForkReplay=(profiles:typeof gasProfiles)=>({reportHash:postWithdraw.reportHash,
+  postWithdrawReplayHash:postWithdraw.postWithdrawReplayHash,sourceReplayHash:'b'.repeat(64),
+  source:frame.source,gasScopeHash:'c'.repeat(64),gasSequenceHash:'d'.repeat(64),
+  gasStages:profiles.map(row=>{const model=row.model as {source:{block:string;hash:string;
+   estimatedAt:string;callHash:string;method:'owned_fork_nitro_exact_call_v1'};
+   gasUnitsExpected:string;gasUnitsBound:string};return {stage:row.stage,source:model.source,
+    sourceHash:contentHash(model.source),callHash:model.source.callHash,
+    gasUnitsExpected:model.gasUnitsExpected,gasUnitsBound:model.gasUnitsBound};})});
  await assert.rejects(persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async()=>{
    writes++;return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
   }},state,frame,previousFeeCarry,feeReplay,feeEvidence:{id:'3',
    proofHash:'4'.repeat(64),carryHash:contentHash(previousFeeCarry)},
   postWithdraw,client:mockClient(),verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},
-  verifyOwnedFork:async input=>({
-   reportHash:input.postWithdraw.reportHash,
-   postWithdrawReplayHash:input.postWithdraw.postWithdrawReplayHash,
-   sourceReplayHash:'b'.repeat(64),source:frame.source}),
-  gasProfiles,gasPriceWei:1_000_000_000n,now}),/paper_close_convert_gas_v2_profiles_unavailable/);
- assert.equal(writes,0,'scope mismatch must fail before preview persistence');
- const exactHash=paperCloseConvertGasScopeHashV2(scope),exactSizeBand=paperCloseConvertGasSizeBandV2(scope),
-  exactAllowances=paperCloseConvertGasAllowanceStatesV2(scope),matchingProfiles=gasProfiles.map(row=>{
-   const stage=row.stage as typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number],
-    model={...(row.model as Record<string,unknown>),scopeHash:exactHash};
-   return {...row,sizeBand:exactSizeBand,allowanceState:exactAllowances[stage],model};
-  });
- const savedPreviews:Record<string,unknown>[]=[];
- const result=await persistTrustedStaticPaperCloseConvertPreview({store:{recordPreview:async input=>{
-   writes++;savedPreviews.push(input as unknown as Record<string,unknown>);
-   return {id:'00000000-0000-4000-8000-000000000099',contentDigest:'a'.repeat(64),expiresAt:new Date(now+60_000)};
-  }},state,frame,previousFeeCarry,feeReplay,feeEvidence:{id:'3',
-   proofHash:'4'.repeat(64),carryHash:contentHash(previousFeeCarry)},postWithdraw,client:mockClient(),
-  verifyPersistedContext:async()=>{},verifyAnchors:async()=>{},verifyOwnedFork:async input=>({
-   reportHash:input.postWithdraw.reportHash,
-   postWithdrawReplayHash:input.postWithdraw.postWithdrawReplayHash,
-   sourceReplayHash:'b'.repeat(64),source:frame.source}),
-  gasProfiles:matchingProfiles,gasPriceWei:1_000_000_000n,now});
- assert.equal(writes,1);assert.equal(result.actionAvailable,false);
- assert.equal(result.operationAcceptanceAvailable,false);assert.equal(result.economics,null);
- const savedPreview=savedPreviews[0];assert(savedPreview);assert.equal(savedPreview.kind,'close_convert');
- assert.equal((savedPreview.proposal as Record<string,unknown>).paperCloseConvertTerminalV2!==undefined,true);
- assert.equal((savedPreview.evidence as Record<string,unknown>).sourceReplayHash,'b'.repeat(64));
- const terminal=(savedPreview.proposal as {paperCloseConvertTerminalV2:{feeReplay:{replayHash:string;
-  previousFeeEvidenceId:string;feeCarryHash:string;intervalHash:string}}}).paperCloseConvertTerminalV2;
- assert.equal(terminal.feeReplay.replayHash,feeReplay.replayHash);
- assert.equal(terminal.feeReplay.previousFeeEvidenceId,'3');
- assert.equal(terminal.feeReplay.feeCarryHash,feeReplay.feeCarryHash);
- assert.equal(terminal.feeReplay.intervalHash,feeReplay.intervalHash);
+  verifyOwnedFork:async()=>ownedForkReplay(gasProfiles),
+  prestateCostProfiles:gasProfiles,prestateReport:null,gasPriceWei:1_000_000_000n,now}));
+ assert.equal(writes,0,'invalid prestate evidence must fail before preview persistence');
 });

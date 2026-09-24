@@ -12,10 +12,13 @@ import {ephemeralStaticPaperCloseConvertFeeReplaySchema,verifyEphemeralStaticPap
 import {paperCloseConvertQuoteSchema,paperCloseConvertRouteSchema,
  paperCloseConvertGasScopeV2Schema,paperCloseConvertGasScopeHashV2,
  paperCloseConvertGasSizeBandV2,paperCloseConvertGasAllowanceStatesV2,
- costPaperCloseConvertGasV2,PAPER_STATIC_CONVERT_GAS_PATH,
+ PAPER_STATIC_CONVERT_GAS_PATH,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
  type PaperCloseConvertGasScopeV2,type PaperCloseConvertQuote,
- type PaperCloseConvertRoute,type PaperCloseConvertCostsV2} from './paper-close-convert-model.js';
-import type {PaperGasProfileRow} from './paper-cost.js';
+ type PaperCloseConvertRoute} from './paper-close-convert-model.js';
+import {paperCloseConvertPrestateCostsV1Schema,type PaperCloseConvertPrestateCostsV1,
+ selectPaperCloseConvertPrestateCostsV1,type PaperCloseConvertPrestateGasProfileRow} from
+ './paper-close-convert-prestate-costs.js';
+import {verifyPaperCloseConvertPrestateReport} from './paper-close-convert-prestate-sampler.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import type {DeploymentStore} from './store.js';
@@ -42,6 +45,15 @@ export interface PaperCloseConvertPreviewWriter {
   expiresAt:Date}):Promise<{id:string;contentDigest:string;expiresAt:Date|string}>;
 }
 export interface PaperCloseConvertFeeEvidenceBinding {id:string;proofHash:string;carryHash:string}
+export interface PaperCloseConvertTerminalGasStageSummary {
+ stage:string;source:PaperCloseConvertPrestateCostsV1['stages'][number]['source'];sourceHash:string;callHash:string;
+ gasUnitsExpected:string;gasUnitsBound:string;
+}
+export interface PaperCloseConvertTerminalGasReport {
+ reportHash:string;scopeHash:string;sequenceHash:string;
+ source:PaperCloseConvertPostWithdrawEvidence['source'];
+ stages:readonly PaperCloseConvertTerminalGasStageSummary[];
+}
 
 export type PaperStaticCloseConvertTerminalModel={
  schemaVersion:1;kind:'paper_static_manual_close_convert_terminal_v2';campaignId:string;revision:number;
@@ -52,8 +64,9 @@ export type PaperStaticCloseConvertTerminalModel={
  fee0Raw:string;fee1Raw:string;token0Raw:string;token1Raw:string;inputAsset:'token0'|'token1';inputAmountRaw:string};
  conversionRoute:PaperCloseConvertRoute;quote:PaperCloseConvertQuote;
  feeReplay:EphemeralStaticPaperCloseConvertFeeReplay;
+ gasReport:PaperCloseConvertTerminalGasReport;
  postWithdraw:PaperCloseConvertPostWithdrawEvidence;scope:PaperCloseConvertGasScopeV2;
- costs:PaperCloseConvertCostsV2;modelHash:string;
+ costs:PaperCloseConvertPrestateCostsV1;modelHash:string;
 };
 
 const terminalHashBody=(model:Omit<PaperStaticCloseConvertTerminalModel,'modelHash'>)=>model;
@@ -69,8 +82,16 @@ const terminalBodySchema=z.object({schemaVersion:z.literal(1),kind:z.literal('pa
   inputAmountRaw:z.string().regex(/^[1-9][0-9]*$/)}).strict(),
  conversionRoute:paperCloseConvertRouteSchema,quote:paperCloseConvertQuoteSchema,
  feeReplay:ephemeralStaticPaperCloseConvertFeeReplaySchema,
+ gasReport:z.object({reportHash:z.string().regex(/^[0-9a-f]{64}$/),
+  scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+  source:z.object({block:raw,hash,timestamp:z.number().int().nonnegative()}).strict(),
+  stages:z.array(z.object({stage:z.string().min(1),
+   source:z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:true}),callHash:hash,
+    method:z.literal('owned_fork_nitro_exact_call_v1')}).strict(),
+   sourceHash:z.string().regex(/^[0-9a-f]{64}$/),callHash:hash,
+   gasUnitsExpected:raw,gasUnitsBound:raw}).strict()).length(7)}).strict(),
  postWithdraw:postWithdrawSchema,scope:paperCloseConvertGasScopeV2Schema,
- costs:z.custom<PaperCloseConvertCostsV2>(),}).strict();
+ costs:paperCloseConvertPrestateCostsV1Schema,}).strict();
 const terminalSchema=terminalBodySchema.extend({modelHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
 
 export function parsePaperStaticCloseConvertTerminalV2(rawInput:unknown):PaperStaticCloseConvertTerminalModel{
@@ -146,8 +167,10 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
  verifyOwnedFork:(input:{state:PaperCloseConvertPreflightState;frame:PaperOpenFrame;
   route:PaperCloseConvertRoute;inventory:PaperStaticCloseConvertTerminalModel['inventory'];
   postWithdraw:PaperCloseConvertPostWithdrawEvidence;quote:PaperCloseConvertQuote})=>Promise<{
-   reportHash:string;postWithdrawReplayHash:string;sourceReplayHash:string;source:PaperOpenFrame['source']}>;
- gasProfiles:readonly PaperGasProfileRow[];gasPriceWei:bigint;now?:number}){
+   reportHash:string;postWithdrawReplayHash:string;sourceReplayHash:string;source:PaperOpenFrame['source'];
+   gasScopeHash:string;gasSequenceHash:string;gasStages:readonly PaperCloseConvertTerminalGasStageSummary[]}>;
+ prestateCostProfiles:readonly PaperCloseConvertPrestateGasProfileRow[];
+ prestateReport:unknown;gasPriceWei:bigint;now?:number}){
  const now=input.now??Date.now(),state=input.state,open=state.openModel,p=state.profile.pool,
   frame=input.frame,feeReplay=input.feeReplay,feeCarry=feeReplay.feeCarry,
   post=postWithdrawSchema.parse(input.postWithdraw);
@@ -230,8 +253,27 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
  if(ownedReplay.reportHash!==post.reportHash||
   ownedReplay.postWithdrawReplayHash!==post.postWithdrawReplayHash||
   contentHash(ownedReplay.source)!==contentHash(frame.source)||
-  !/^[0-9a-f]{64}$/.test(ownedReplay.sourceReplayHash))
+  !/^[0-9a-f]{64}$/.test(ownedReplay.sourceReplayHash)||
+  !/^[0-9a-f]{64}$/.test(ownedReplay.gasScopeHash)||
+  !/^[0-9a-f]{64}$/.test(ownedReplay.gasSequenceHash)||ownedReplay.gasStages.length!==7)
   throw Error('paper_close_convert_owned_fork_attestation_mismatch');
+ const gasReport= z.object({reportHash:z.string().regex(/^[0-9a-f]{64}$/),
+  scopeHash:z.string().regex(/^[0-9a-f]{64}$/),sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),
+  source:z.object({block:raw,hash,timestamp:z.number().int().nonnegative()}).strict(),
+  stages:z.array(z.object({stage:z.string().min(1),source:z.object({block:raw,hash,
+   estimatedAt:z.iso.datetime({offset:true}),callHash:hash,
+   method:z.literal('owned_fork_nitro_exact_call_v1')}).strict(),sourceHash:z.string().regex(/^[0-9a-f]{64}$/),
+   callHash:hash,gasUnitsExpected:raw,gasUnitsBound:raw}).strict()).length(7)}).strict().parse({
+   reportHash:ownedReplay.reportHash,scopeHash:ownedReplay.gasScopeHash,
+   sequenceHash:ownedReplay.gasSequenceHash,source:frame.source,stages:ownedReplay.gasStages});
+ for(let index=0;index<7;index++){
+  const stage=gasReport.stages[index]!;
+  if(stage.stage!==PAPER_STATIC_CONVERT_GAS_STAGES_V2[index]||
+   stage.source.block!==frame.source.block||stage.source.hash.toLowerCase()!==frame.source.hash.toLowerCase()||
+   stage.callHash!==stage.source.callHash||stage.sourceHash!==contentHash(stage.source)||
+   BigInt(stage.gasUnitsExpected)<=0n||BigInt(stage.gasUnitsBound)<BigInt(stage.gasUnitsExpected))
+   throw Error('paper_close_convert_owned_fork_gas_stage_invalid');
+ }
  const residual0=BigInt(open.candidate.amount0Desired)-BigInt(open.candidate.amount0Minted),
   residual1=BigInt(open.candidate.amount1Desired)-BigInt(open.candidate.amount1Minted);
  if(residual0<0n||residual1<0n)throw Error('paper_close_convert_initial_allowance_invalid');
@@ -242,15 +284,31 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   routeHash:route.routeHash,inputAsset,inputAmountRaw:inventory.inputAmountRaw,
   inventory:{token0Raw:inventory.token0Raw,token1Raw:inventory.token1Raw},
   initialAllowances:{manager0:String(residual0),manager1:String(residual1),router0:'0',router1:'0'}});
- const costs=costPaperCloseConvertGasV2(input.gasProfiles,scope,frame.nativePrice,
-  input.gasPriceWei,now,new Date(now).toISOString());
+ const prestateReport=verifyPaperCloseConvertPrestateReport(input.prestateReport),
+  costs=selectPaperCloseConvertPrestateCostsV1({report:prestateReport,
+   rows:input.prestateCostProfiles,gasPriceWei:input.gasPriceWei,
+   gasPriceObservedAt:new Date(now).toISOString(),now});
+ if(prestateReport.reportHash!==ownedReplay.reportHash||
+  prestateReport.gasScopeHash!==ownedReplay.gasScopeHash||
+  prestateReport.gasSequenceHash!==ownedReplay.gasSequenceHash||
+  contentHash(prestateReport.frame.source)!==contentHash(frame.source)||
+  prestateReport.sourceReplayHash!==ownedReplay.sourceReplayHash||
+  prestateReport.postWithdrawReplay.replayHash!==post.postWithdrawReplayHash)
+  throw Error('paper_close_convert_prestate_report_replay_mismatch');
+ for(const stage of gasReport.stages){
+  const selected=costs.stages.find(cost=>cost.stage===stage.stage);
+  if(!selected||selected.sourceHash!==stage.sourceHash||selected.expectedGasUnits!==stage.gasUnitsExpected||
+   selected.boundGasUnits!==stage.gasUnitsBound||
+   contentHash(selected.source)!==contentHash(stage.source))
+   throw Error('paper_close_convert_terminal_cost_not_exact_prestate_report');
+ }
  const body={schemaVersion:1 as const,kind:'paper_static_manual_close_convert_terminal_v2' as const,
   campaignId:open.campaignId,revision:open.revision,openMarkId:state.openMarkId,
   previousMarkId:state.previous.markId,openModelHash:contentHash(open),source:frame.source,
   poolState:post.poolState,reference:{price0:String(frame.price0),price1:String(frame.price1),
    nativePrice:String(frame.nativePrice)},referenceProof:frame.referenceProof,
   referenceProofHash:frame.referenceProofHash,inventory,conversionRoute:route,quote,
-  feeReplay,postWithdraw:post,scope,costs};
+  feeReplay,gasReport,postWithdraw:post,scope,costs};
  const parsed=terminalBodySchema.parse(body),model=terminalSchema.parse({...parsed,
   modelHash:contentHash(terminalHashBody(parsed))});
  const expiresAt=new Date(now+60_000),modelHash=model.modelHash;
@@ -266,6 +324,8 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
    costProfileIds:costs.stages.map(stage=>stage.profileId),
    costScopeHash:costs.scopeHash,postWithdrawReplayHash:post.postWithdrawReplayHash,
    sourceReplayHash:ownedReplay.sourceReplayHash,
+   gasReportHash:gasReport.reportHash,gasScopeHash:gasReport.scopeHash,
+   gasSequenceHash:gasReport.sequenceHash,
    feeEvidenceId:input.feeEvidence.id,feeEvidenceHash:input.feeEvidence.proofHash,
    feeCarryHash:feeReplay.feeCarryHash,priorFeeCarryHash:feeReplay.previousFeeCarryHash,
    feeIntervalHash:feeReplay.intervalHash,feeReplayHash:feeReplay.replayHash,
@@ -278,11 +338,11 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   inventory:model.inventory,conversionRoute:model.conversionRoute,
   quote:{expectedOutputRaw:quote.expectedOutputRaw,minimumOutputRaw:quote.minimumOutputRaw,
    inputAmountRaw:quote.inputAmountRaw,quoteHash:quote.quoteHash},
-  costs:{status:'provisional' as const,scope:'convert_close_gas_only' as const,
+  costs:{status:'provisional' as const,scope:'candidate_prestate_gas_only' as const,
    pathVersion:costs.pathVersion,scopeHash:costs.scopeHash,sequenceHash:costs.sequenceHash,
    sizeBand:costs.sizeBand,profileIds:costs.stages.map(stage=>stage.profileId),
    expectedValue:costs.expectedValue,boundValue:costs.boundValue,
-   gasPriceObservedAt:costs.gasPriceObservedAt},economics:null,
+   gasPriceObservedAt:costs.gasPriceObservedAt,evidenceClass:'fork_estimated',paidGasAvailable:false},economics:null,
   trustedPreviewSaved:true,actionAvailable:false,operationAcceptanceAvailable:false,
   paidCostsAvailable:false,feeAccrualAvailable:false,
   limitations:['owned_fork_withdraw_is_not_a_paper_fill','gas_is_fork_estimated_not_paid',

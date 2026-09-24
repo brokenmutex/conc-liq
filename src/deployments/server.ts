@@ -23,9 +23,10 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
+ paperConvertAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperLifecycleAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperOperationReplay?:(campaignId:string,input:AcceptInput,
-  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain')[])=>Promise<unknown|null>;
+  allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain'|'close_convert')[])=>Promise<unknown|null>;
  paperRetainWorkerReady?:()=>Promise<boolean>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
@@ -284,11 +285,39 @@ export function createDeploymentCommandServer(store:CommandStore,
      Number.isFinite(openExpiryMs)&&openExpiryMs>now()&&
      openSourceFresh&&
      typeof openModelHash==='string'&&/^[0-9a-f]{64}$/.test(openModelHash);
+    const convertModelRecord=result&&typeof result==='object'&&!Array.isArray(result)?
+     result as {modelHash?:unknown;source?:unknown;costs?:unknown}:null;
+    const convertSource=convertModelRecord?.source&&typeof convertModelRecord.source==='object'&&
+     !Array.isArray(convertModelRecord.source)?convertModelRecord.source as
+      {block?:unknown;hash?:unknown;timestamp?:unknown}:null;
+    const convertSaved=result&&typeof result==='object'&&!Array.isArray(result)&&
+     (result as {status?:unknown;kind?:unknown;trustedPreviewSaved?:unknown}).status==='indicative'&&
+     (result as {kind?:unknown}).kind==='close_convert'&&
+     (result as {trustedPreviewSaved?:unknown}).trustedPreviewSaved===true&&
+     typeof (result as {id?:unknown}).id==='string'&&uuid.test(String((result as {id?:unknown}).id))&&
+     typeof (result as {contentDigest?:unknown}).contentDigest==='string'&&
+     /^[0-9a-f]{64}$/.test(String((result as {contentDigest?:unknown}).contentDigest))&&
+     Number.isSafeInteger((result as {expectedRevision?:unknown}).expectedRevision)&&
+     Number((result as {expectedRevision?:unknown}).expectedRevision)>0&&
+     typeof convertModelRecord?.modelHash==='string'&&/^[0-9a-f]{64}$/.test(convertModelRecord.modelHash)&&
+     Boolean(convertSource&&typeof convertSource.block==='string'&&/^(0|[1-9][0-9]*)$/.test(convertSource.block)&&
+      typeof convertSource.hash==='string'&&/^0x[0-9a-f]{64}$/i.test(convertSource.hash)&&
+      Number.isSafeInteger(convertSource.timestamp)&&Number(convertSource.timestamp)*1000<=now()&&
+      now()-Number(convertSource.timestamp)*1000<=180_000)&&
+     Boolean(convertModelRecord?.costs&&typeof convertModelRecord.costs==='object'&&
+      !Array.isArray(convertModelRecord.costs)&&
+      (convertModelRecord.costs as {pathVersion?:unknown}).pathVersion===
+       'paper_static_manual_close_convert_prestate_v1'&&
+      (convertModelRecord.costs as {paidGasAvailable?:unknown}).paidGasAvailable===false);
+    if(convertSaved&&options.paperConvertAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
     if(openSaved&&options.paperOpenAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
     const actionable=Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
      Boolean(openSaved&&workerReady&&options.paperOpenAcceptance)||
+     Boolean(convertSaved&&input.kind==='close_convert'&&workerReady&&options.paperConvertAcceptance)||
      Boolean(lifecycleSaved&&workerReady&&options.paperLifecycleAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
      {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
@@ -338,6 +367,20 @@ export function createDeploymentCommandServer(store:CommandStore,
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
     send(response,202,await options.paperOpenAcceptance(openAcceptMatch[1]!,input,'operator'));return;
+   }
+   const convertAcceptMatch=/^\/api\/deployments\/([^/]+)\/close-convert-operations$/.exec(path);
+   if(convertAcceptMatch&&request.method==='POST'){
+    if(!uuid.test(convertAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    const input=acceptInput.parse(await jsonBody(request));
+    const replay=await options.paperOperationReplay?.(convertAcceptMatch[1]!,input,['close_convert']);
+    if(replay){send(response,202,replay);return;}
+    if(!options.paperConvertAcceptance){send(response,503,{error:'paper_close_convert_acceptance_unavailable'});return;}
+    let workerReady=false;
+    if(options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    if(!workerReady){send(response,503,{error:'operation_worker_not_ready'});return;}
+    send(response,202,await options.paperConvertAcceptance(convertAcceptMatch[1]!,input,'operator'));return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
    if(operationMatch&&request.method==='GET'){
