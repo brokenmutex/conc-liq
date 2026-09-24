@@ -42,6 +42,8 @@ import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import {verifyCanonicalPaperAnchors} from './paper-canonical-anchors.js';
 import {loadRangeKeeperPaperExitContext} from './rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperMarkPayload,validateRangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-persistence.js';
+import {buildRangeKeeperPaperConfirmedOpenInventory,
+ validateRangeKeeperPaperConfirmedOpenRecord} from './rangekeeper-paper-confirmed-open-adapter.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation}
  from './rangekeeper-paper-confirmation.js';
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
@@ -917,15 +919,20 @@ export class DeploymentStore {
    await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
     [`deployment-rangekeeper-paper-mark:${input.campaignId}`]);
    const row=(await db.query<{mode:string;lifecycle:string;revision:number;chain_id:number;
-    allocation:unknown;strategy_id:string;strategy_version:string;state_schema_version:number;
+    allocation:unknown;profile:unknown;strategy_id:string;strategy_version:string;state_schema_version:number;
     config:unknown;config_hash:string;profile_hash:string;open_id:string;open_source_block:string|null;
     open_source_hash:string|null;open_provenance:Record<string,unknown>;
-    open_model:unknown;latest_id:string|null;latest_source_block:string|null;latest_source_hash:string|null;
+    open_model:unknown;preview_open_model:unknown;open_inventory:unknown;
+    confirmation_envelope_hash:string|null;confirmation_envelope:unknown;
+    latest_id:string|null;latest_source_block:string|null;latest_source_hash:string|null;
     latest_inventory:unknown;latest_provenance:Record<string,unknown>|null;pending:boolean}>(`
-    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.allocation,
+    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.allocation,p.profile,
      r.strategy_id,r.strategy_version,r.state_schema_version,r.config,r.config_hash,p.profile_hash,
      o.id::text AS open_id,o.source_block::text AS open_source_block,o.source_hash AS open_source_hash,
-     o.provenance AS open_provenance,v.proposal->'rangekeeperPaperOpenModel' AS open_model,
+     o.provenance AS open_provenance,
+     COALESCE(o.provenance->'confirmedOpen'->'model',v.proposal->'rangekeeperPaperOpenModel') AS open_model,
+     v.proposal->'rangekeeperPaperOpenModel' AS preview_open_model,o.inventory AS open_inventory,
+     proof.envelope_hash AS confirmation_envelope_hash,proof.envelope AS confirmation_envelope,
      latest.id::text AS latest_id,latest.source_block::text AS latest_source_block,
      latest.source_hash AS latest_source_hash,latest.inventory AS latest_inventory,
      latest.provenance AS latest_provenance,
@@ -934,10 +941,12 @@ export class DeploymentStore {
     FROM deployment_campaigns c JOIN deployment_revisions r
      ON r.campaign_id=c.id AND r.revision=c.current_revision
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
-    JOIN LATERAL (SELECT m.id,m.source_block,m.source_hash,m.provenance FROM deployment_marks m
+    JOIN LATERAL (SELECT m.id,m.source_block,m.source_hash,m.inventory,m.provenance FROM deployment_marks m
      WHERE m.campaign_id=c.id AND m.provenance->>'classification'='rangekeeper_paper_open_v1'
      ORDER BY m.id LIMIT 1) o ON true
     JOIN deployment_previews v ON v.id::text=o.provenance->>'previewId' AND v.campaign_id=c.id
+    LEFT JOIN deployment_rangekeeper_paper_confirmations proof
+     ON proof.campaign_id=c.id AND proof.revision=c.current_revision
     LEFT JOIN LATERAL (SELECT m.id,m.source_block,m.source_hash,m.inventory,m.provenance FROM deployment_marks m
      WHERE m.campaign_id=c.id ORDER BY m.id DESC LIMIT 1) latest ON true
     WHERE c.id=$1 FOR UPDATE OF c`,[input.campaignId])).rows[0];
@@ -949,6 +958,31 @@ export class DeploymentStore {
     (row.config as Record<string,unknown>).stateSchemaVersion!==1||row.open_source_block===null||
     row.open_source_hash===null)
     throw new DeploymentConflict('rangekeeper_paper_mark_campaign_unavailable');
+   let confirmedAnchors:PaperCanonicalAnchor[]=[];
+   if(Object.hasOwn(row.open_provenance,'confirmedOpen')){
+    try{
+     const envelope=validateRangeKeeperPaperConfirmationEnvelope(row.confirmation_envelope,
+      {campaignId:input.campaignId,revision:row.revision});
+     if(envelope.envelopeHash!==row.confirmation_envelope_hash)
+      throw new Error('confirmed_open_envelope_hash');
+     confirmedAnchors=[envelope.firstObservation.source,envelope.confirmationObservation.source];
+     const confirmed=validateRangeKeeperPaperConfirmedOpenRecord(row.open_provenance.confirmedOpen,{
+      campaignId:input.campaignId,revision:row.revision,
+      previewId:String(row.open_provenance.previewId),operationId:String(row.open_provenance.operationId),
+      firstModel:row.preview_open_model,confirmationEnvelopeHash:envelope.envelopeHash,
+      confirmationEnvelope:envelope});
+     if(confirmed.modelHash!==row.open_provenance.modelHash||
+      confirmed.model.candidateHash!==row.open_provenance.candidateHash||
+      contentHash(confirmed.model.source)!==contentHash(row.open_provenance.source))
+      throw new Error('confirmed_open_provenance_identity');
+     const inventory=buildRangeKeeperPaperConfirmedOpenInventory({model:confirmed.model,
+      allocation:allocationSchema.parse(row.allocation),
+      decimals0:marketProfileSchema.parse(row.profile).pool.decimals0,
+      decimals1:marketProfileSchema.parse(row.profile).pool.decimals1});
+     if(contentHash(inventory)!==contentHash(row.open_inventory))
+      throw new Error('confirmed_open_inventory_identity');
+    }catch{throw new DeploymentConflict('rangekeeper_paper_confirmed_open_integrity');}
+   }
    const openSource=paperFeeMarkSourceSchema.safeParse(row.open_provenance.source),
     source=paperFeeMarkSourceSchema.safeParse(input.source);
    if(row.open_provenance.classification!=='rangekeeper_paper_open_v1'||
@@ -1000,13 +1034,14 @@ export class DeploymentStore {
       throw new DeploymentConflict('rangekeeper_paper_mark_previous_inventory_invalid');
     }else if(row.latest_provenance.classification!=='rangekeeper_paper_open_v1')
      throw new DeploymentConflict('rangekeeper_paper_mark_previous_identity_invalid');
-    const anchors=[openSource.data,previousSource.data,source.data].filter((anchor,index,array)=>
+    const anchors=[...confirmedAnchors,openSource.data,previousSource.data,source.data].filter((anchor,index,array)=>
      array.findIndex(other=>other.block===anchor.block)===index);
     try{await input.verifyAnchors(row.chain_id,anchors);}
     catch(error){if(error instanceof AssertionError)
       throw new DeploymentConflict('rangekeeper_paper_mark_source_not_canonical');throw error;}
    }else{
-    try{await input.verifyAnchors(row.chain_id,[openSource.data,source.data]);}
+    try{await input.verifyAnchors(row.chain_id,[...confirmedAnchors,openSource.data,source.data]
+     .filter((anchor,index,array)=>array.findIndex(other=>other.block===anchor.block)===index));}
     catch(error){if(error instanceof AssertionError)
       throw new DeploymentConflict('rangekeeper_paper_mark_source_not_canonical');throw error;}
    }
@@ -1032,6 +1067,8 @@ export class DeploymentStore {
     profile_hash:string;profile_indexed:boolean;config:unknown;config_hash:string;strategy_id:string;
     strategy_version:string;state_schema_version:number;open_mark_id:string;open_source_block:string|null;
     open_source_hash:string|null;open_provenance:Record<string,unknown>;open_proposal:Record<string,unknown>;
+    confirmation_envelope_hash:string|null;
+    confirmation_envelope:unknown;open_inventory:unknown;
     open_request:Record<string,unknown>;open_evidence:Record<string,unknown>;open_digest:string;
     open_expected_revision:number;open_expires_at:Date;previous_mark_id:string;previous_source_block:string|null;
     previous_source_hash:string|null;previous_inventory:Record<string,unknown>;
@@ -1042,7 +1079,10 @@ export class DeploymentStore {
       AND lower(i.rwa_address)=lower(CASE WHEN p.quote_token=0 THEN p.token1_address ELSE p.token0_address END),false)
       AS profile_indexed,
      r.config,r.config_hash,r.strategy_id,r.strategy_version,r.state_schema_version,
+     confirmation.envelope_hash AS confirmation_envelope_hash,
+     confirmation.envelope AS confirmation_envelope,
      o.id::text AS open_mark_id,o.source_block::text AS open_source_block,o.source_hash AS open_source_hash,
+     o.inventory AS open_inventory,
      o.provenance AS open_provenance,v.proposal AS open_proposal,v.request AS open_request,
      v.evidence AS open_evidence,v.content_digest AS open_digest,v.expected_revision AS open_expected_revision,
      v.expires_at AS open_expires_at,m.id::text AS previous_mark_id,
@@ -1050,9 +1090,11 @@ export class DeploymentStore {
      m.inventory AS previous_inventory,m.provenance AS previous_provenance,pending.id AS pending_operation_id
     FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    LEFT JOIN deployment_rangekeeper_paper_confirmations confirmation
+     ON confirmation.campaign_id=c.id AND confirmation.revision=c.current_revision
     LEFT JOIN indexer_pools i ON i.stream_key=p.evidence->>'streamKey'
      AND lower(i.pool_address)=lower(p.pool_address) AND i.chain_id=p.chain_id AND i.fee=p.fee
-    JOIN LATERAL (SELECT mark.id,mark.revision,mark.source_block,mark.source_hash,mark.provenance
+    JOIN LATERAL (SELECT mark.id,mark.revision,mark.source_block,mark.source_hash,mark.inventory,mark.provenance
      FROM deployment_marks mark WHERE mark.campaign_id=c.id AND
       mark.provenance->>'classification'='rangekeeper_paper_open_v1'
      ORDER BY mark.id LIMIT 1) o ON true
@@ -1100,7 +1142,31 @@ export class DeploymentStore {
      request:row.open_request,proposal:row.open_proposal,evidence:row.open_evidence,
      expiresAt:row.open_expires_at}))
     throw new DeploymentConflict('rangekeeper_paper_open_preview_integrity');
-   const openModel=row.open_proposal.rangekeeperPaperOpenModel;
+   const previewOpenModel=row.open_proposal.rangekeeperPaperOpenModel;
+   let openModel=previewOpenModel;
+   if(Object.hasOwn(row.open_provenance,'confirmedOpen')){
+    try{
+     const envelope=validateRangeKeeperPaperConfirmationEnvelope(row.confirmation_envelope,
+      {campaignId,revision:row.current_revision});
+     if(envelope.envelopeHash!==row.confirmation_envelope_hash)
+      throw new Error('confirmed_open_envelope_hash');
+     const confirmed=validateRangeKeeperPaperConfirmedOpenRecord(row.open_provenance.confirmedOpen,{
+      campaignId,revision:row.current_revision,
+      previewId:String(row.open_provenance.previewId),operationId:String(row.open_provenance.operationId),
+      firstModel:previewOpenModel,confirmationEnvelopeHash:envelope.envelopeHash,
+      confirmationEnvelope:envelope});
+     if(confirmed.modelHash!==row.open_provenance.modelHash||
+      confirmed.model.candidateHash!==row.open_provenance.candidateHash||
+      contentHash(confirmed.model.source)!==contentHash(row.open_provenance.source))
+      throw new Error('confirmed_open_provenance_identity');
+     const profile=marketProfileSchema.parse(row.profile),inventory=buildRangeKeeperPaperConfirmedOpenInventory({
+      model:confirmed.model,allocation:allocationSchema.parse(row.allocation),
+      decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1});
+     if(contentHash(inventory)!==contentHash(row.open_inventory))
+      throw new Error('confirmed_open_inventory_identity');
+     openModel=confirmed.model;
+    }catch{throw new DeploymentConflict('rangekeeper_paper_confirmed_open_integrity');}
+   }
    if(!openModel||typeof openModel!=='object'||Array.isArray(openModel)||
     contentHash(openModel)!==row.open_provenance.modelHash)
     throw new DeploymentConflict('rangekeeper_paper_open_model_integrity');
