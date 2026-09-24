@@ -19,6 +19,22 @@ export function retainAcceptPayload(preview, idempotencyKey) {
     expectedRevision: preview.expectedRevision, idempotencyKey };
 }
 
+export function lifecyclePreviewCanBeAccepted(preview, kind, now = Date.now()) {
+  return Boolean(['pause', 'resume'].includes(kind) && preview && preview.kind === kind &&
+    preview.status === 'indicative' && preview.actionAvailable === true &&
+    preview.operationAcceptanceAvailable === true && uuid.test(preview.id ?? '') &&
+    digest.test(preview.contentDigest ?? '') && Number.isSafeInteger(preview.expectedRevision) &&
+    preview.expectedRevision > 0 && Number.isFinite(Date.parse(preview.expiresAt)) &&
+    Date.parse(preview.expiresAt) > now);
+}
+
+export function lifecycleAcceptPayload(preview, kind, idempotencyKey) {
+  if (!lifecyclePreviewCanBeAccepted(preview, kind)) return null;
+  if (!uuid.test(idempotencyKey ?? '')) return null;
+  return { previewId: preview.id, contentDigest: preview.contentDigest,
+    expectedRevision: preview.expectedRevision, idempotencyKey };
+}
+
 const addFact = (list, label, value) => {
   const row = document.createElement('div'); row.className = 'retain-preview-fact';
   const name = document.createElement('span'); name.textContent = label;
@@ -144,17 +160,111 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
   });
 }
 
-async function pollOperation(id, request, setStatus, onChanged) {
+/** Static/manual pause or resume, tied to its saved preview and the same
+ * authenticated worker lease used by operation acceptance. */
+export function mountPaperLifecycleAction(root, { campaignId, kind, authenticated, request,
+  onAccepted = () => {}, now = Date.now } = {}) {
+  root.replaceChildren();
+  const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
+  if (!onOperator || !uuid.test(campaignId ?? '') || !['pause', 'resume'].includes(kind) ||
+      typeof request !== 'function') return;
+  const actionName = kind === 'pause' ? 'Pause' : 'Resume';
+  const previewButton = document.createElement('button');
+  previewButton.type = 'button'; previewButton.className = 'paper-lifecycle-preview-button';
+  previewButton.textContent = `Review ${actionName.toLowerCase()}`;
+  previewButton.disabled = !authenticated?.();
+  previewButton.title = previewButton.disabled ? 'Sign in to request a fresh lifecycle preview' : '';
+  const status = document.createElement('p'); status.className = 'retain-action-status';
+  status.setAttribute('role', 'status');
+  status.textContent = authenticated?.() ? `Static/manual paper ${kind} only.` :
+    'Sign in on this loopback page to request a fresh lifecycle preview.';
+  const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
+  root.append(previewButton, status, review);
+  let preview = null, idempotencyKey = null;
+  const setStatus = value => { status.textContent = value; };
+  previewButton.addEventListener('click', async () => {
+    previewButton.disabled = true; idempotencyKey = null; preview = null; review.hidden = true;
+    setStatus(`Checking the saved ${kind} transition and operation worker readiness…`);
+    try {
+      const result = await request(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
+        { method: 'POST', body: { kind } });
+      preview = result; review.replaceChildren();
+      const heading = document.createElement('h4');
+      heading.textContent = result.status === 'indicative' ? `${actionName} management preview` : `${actionName} management unavailable`;
+      review.append(heading);
+      const transition = document.createElement('p');
+      transition.textContent = result.proposal?.from && result.proposal?.to ?
+        `Campaign lifecycle: ${result.proposal.from} → ${result.proposal.to}. No source or strategy configuration changes.` :
+        'Saved lifecycle transition details are unavailable.';
+      review.append(transition);
+      const canAccept = lifecyclePreviewCanBeAccepted(result, kind, now());
+      if (!canAccept) {
+        const detail = document.createElement('p');
+        detail.textContent = result.actionAvailable === false || result.operationAcceptanceAvailable === false ?
+          'Acceptance is unavailable because the command service has not proven supervised worker readiness.' :
+          'This preview lacks a fresh, complete acceptance binding. Request another preview before acceptance.';
+        review.append(detail);
+      }
+      const accept = document.createElement('button'); accept.type = 'button';
+      accept.className = 'paper-lifecycle-confirm-button'; accept.textContent = `${actionName} management`;
+      accept.disabled = !canAccept; accept.setAttribute('aria-label', `Accept static/manual paper ${kind}`);
+      review.append(accept);
+      accept.addEventListener('click', async () => {
+        if (!idempotencyKey) idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
+        const payload = lifecycleAcceptPayload(preview, kind, idempotencyKey);
+        if (!payload || !authenticated?.()) {
+          accept.disabled = true; setStatus('Preview expired or authentication ended. Review a fresh lifecycle preview.'); return;
+        }
+        accept.disabled = true; previewButton.disabled = true;
+        if (!idempotencyKey) { setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
+        setStatus(`Submitting the reviewed ${kind} operation…`);
+        try {
+          const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/lifecycle-operations`,
+            { method: 'POST', body: payload });
+          const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
+          if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
+            throw new Error('operation_acceptance_response_invalid');
+          idempotencyKey = null;
+          setStatus(`${actionName} operation ${accepted.id} accepted · ${accepted.status}. Economics remain unavailable.`);
+          try { await onAccepted(accepted); } catch { /* journal polling remains authoritative */ }
+          await pollOperation(accepted.id, request, setStatus, onAccepted, actionName);
+        } catch (error) {
+          const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+          if (error?.data?.error === 'operation_worker_not_ready') {
+            idempotencyKey = null; accept.disabled = true; previewButton.disabled = !authenticated?.();
+            setStatus('Worker readiness expired before acceptance. The server did not accept an operation; request a fresh lifecycle preview when readiness returns.');
+          } else if (error?.status >= 400 && error.status < 500) {
+            idempotencyKey = null; accept.disabled = true; previewButton.disabled = !authenticated?.();
+            setStatus(error.status === 409 ? `${actionName} preview rejected as stale or conflicting (${reason}). Request a fresh preview.` :
+              `${actionName} command rejected (${reason}). Request a fresh preview before retrying.`);
+          } else {
+            accept.disabled = false; accept.textContent = `Retry same ${kind} / reconcile`;
+            setStatus(`${actionName} acceptance outcome is unknown (${reason}). Retry with the same in-page idempotency key or reconcile in Positions; do not request another preview yet.`);
+          }
+        }
+      });
+      review.hidden = false;
+      setStatus(canAccept ? `Review the saved ${kind} transition, then confirm once.` :
+        'Lifecycle preview saved for review; operation acceptance is unavailable.');
+    } catch (error) {
+      const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+      setStatus(error?.status === 409 ? `Fresh ${kind} preview rejected (${reason}); refresh the position and retry.` :
+        `${actionName} preview unavailable (${reason}). No operation was submitted.`);
+    } finally { previewButton.disabled = !authenticated?.(); }
+  });
+}
+
+async function pollOperation(id, request, setStatus, onChanged, actionName = 'Retain-close') {
   for (let attempt = 0; attempt < 8; attempt++) {
     await new Promise(resolve => setTimeout(resolve, 1000));
     try {
       const op = await request(`/api/operations/${encodeURIComponent(id)}`);
       const stage = op.stage ?? op.status ?? 'unavailable';
-      setStatus(`Retain-close ${op.status ?? 'status unavailable'} · ${stage}. Paid costs and final economics remain unavailable.`);
+      setStatus(`${actionName} ${op.status ?? 'status unavailable'} · ${stage}. Paid costs and final economics remain unavailable.`);
       await onChanged(op);
       if (['succeeded', 'completed', 'failed', 'rejected', 'blocked', 'cancelled'].includes(op.status)) return;
     } catch (error) {
-      setStatus(`Retain-close accepted · latest stage unavailable (${error?.data?.error ?? error?.message ?? 'command_failed'}). Check Positions history.`);
+      setStatus(`${actionName} accepted · latest stage unavailable (${error?.data?.error ?? error?.message ?? 'command_failed'}). Check Positions history.`);
       return;
     }
   }
