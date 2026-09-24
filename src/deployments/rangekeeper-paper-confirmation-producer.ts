@@ -35,7 +35,8 @@ export type RangeKeeperPaperConfirmationProducer=(campaignId:string)=>Promise<Ra
  * or a simulation result from the caller. */
 export function createRangeKeeperPaperConfirmationProducer(
  dependencies:RangeKeeperPaperConfirmationProducerDependencies):RangeKeeperPaperConfirmationProducer{
- const runFork=dependencies.runOwnedFork??simulateRangeKeeperPaperConfirmationOnOwnedFork,
+ const ownsForkRunner=dependencies.runOwnedFork===undefined,
+  runFork=dependencies.runOwnedFork??simulateRangeKeeperPaperConfirmationOnOwnedFork,
   readFrame=dependencies.readCanonicalFrame??readCanonicalPaperOpenFrame;
  return async campaignId=>{
   let draft:RangeKeeperPaperDraft;
@@ -57,7 +58,7 @@ export function createRangeKeeperPaperConfirmationProducer(
   let marketGasPriceWei:bigint|null=null,marketGasPriceObservedAt:number|null=null;
   try{marketGasPriceWei=await dependencies.client.getGasPrice();marketGasPriceObservedAt=Date.now();}
   catch{/* Builder returns an explicit unavailable result when gas price is absent. */}
-  const now=Date.now();
+  const now=Date.now();let completedOwnedForkEvidence:unknown;
   const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
    client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
@@ -78,12 +79,21 @@ export function createRangeKeeperPaperConfirmationProducer(
      candidate,candidateHash,scope,pathVersion:rangeKeeperPaperPathVersion(candidate),
      sizeBand:rangeKeeperPaperSizeBand(rangeKeeperPaperPathVersion(candidate),scope),actionAvailable:false};
     if(contentHash(draft.profile)!==draft.profileHash)throw new Error('rangekeeper_confirmation_profile_hash_invalid');
-     return runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
+    const simulation=await runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
      initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
      limits:policy.policy.limits,rpcUrl:dependencies.rpcUrl,beforeRead:dependencies.beforeRead,
      maxRequests:dependencies.maxRequests,timeoutMs:dependencies.timeoutMs});
+    if(ownsForkRunner)completedOwnedForkEvidence=simulation.ownedForkEvidence;
+    return simulation;
    }});
   if(result.status==='confirmed'){
+   // A confirmed-shaped value from a store/test double is not proof that the
+   // source-pinned Anvil path ran. The injected runner is deliberately
+   // untrusted; only the production runner may create a producer receipt.
+   if(!ownsForkRunner||completedOwnedForkEvidence===undefined||
+    contentHash(result.simulationEvidence)!==contentHash(completedOwnedForkEvidence))
+    return {status:'unavailable',reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',
+     campaignId,revision:draft.revision,actionAvailable:false};
    markRangeKeeperPaperServerProduced(result);
    try{await dependencies.store.recordRangeKeeperPaperConfirmationProducerReceipt({envelope:result,
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources)});}

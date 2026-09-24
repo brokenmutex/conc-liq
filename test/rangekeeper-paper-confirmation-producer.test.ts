@@ -18,7 +18,7 @@ const address=(n:string)=>`0x${n.repeat(40)}`;
 const hash=(n:string)=>`0x${n.repeat(64)}`;
 
 describe('trusted RangeKeeper paper confirmation producer',()=>{
- it('records a receipt only after the in-process producer returns a confirmed result',async()=>{
+ it('refuses a confirmed-shaped result when the owned-fork callback never ran',async()=>{
   const campaignId=randomUUID(),draft={id:campaignId,revision:1,strategyId:'rangekeeper_v1',
    profile:{},profileHash:'a'.repeat(64),configHash:'b'.repeat(64),allocation:{token0Raw:'1',token1Raw:'1',nativeWei:'1'}},
    result={status:'confirmed',campaignId,revision:1,actionAvailable:false},source={block:'1',hash:hash('1'),timestamp:1};
@@ -39,8 +39,40 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
      beforeRead:async()=>{},readCanonicalFrame:async()=>({source,tick:0,sqrtPriceX96:1n,
       poolLiquidity:1n,price0:1n,price1:1n,nativePrice:1n,referenceEligible:true,
       referenceReasons:[],referenceProofHash:'c'.repeat(64),referenceProof:{}})});
-   assert.equal(await producer(campaignId),result);
-   assert.equal(recorded,true);
+   assert.deepEqual(await producer(campaignId),{status:'unavailable',
+    reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',campaignId,revision:1,
+    actionAvailable:false});
+   assert.equal(recorded,false);
+   assert.equal(isRangeKeeperPaperServerProduced(result),false);
+  }finally{
+   if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
+   else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorIdentity;
+  }
+ });
+
+ it('does not treat an injected runner as production-owned fork proof',async()=>{
+  const campaignId=randomUUID(),draft={id:campaignId,revision:1,strategyId:'rangekeeper_v1',
+   profile:{},profileHash:'a'.repeat(64),configHash:'b'.repeat(64),allocation:{token0Raw:'1',token1Raw:'1',nativeWei:'1'}},
+   result={status:'confirmed',campaignId,revision:1,actionAvailable:false},source={block:'1',hash:hash('1'),timestamp:1};
+  const priorIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
+  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
+   configHash:'a'.repeat(64),nodeVersion:process.version});
+  let recorded=false;
+  try{
+   const client={getGasPrice:async()=>1n} as never,
+    store={paperDraft:async()=>draft,
+     readRangeKeeperPaperConfirmationEnvelope:async()=>result,
+     recordRangeKeeperPaperConfirmationProducerReceipt:async()=>{recorded=true;}} as never,
+    producer=createRangeKeeperPaperConfirmationProducer({store,client,rpcUrl:'http://fixture.invalid',
+     beforeRead:async()=>{},readCanonicalFrame:async()=>({source,tick:0,sqrtPriceX96:1n,
+      poolLiquidity:1n,price0:1n,price1:1n,nativePrice:1n,referenceEligible:true,
+      referenceReasons:[],referenceProofHash:'c'.repeat(64),referenceProof:{}}),
+     runOwnedFork:async()=>({status:'success',sourceBlock:'1',sourceHash:hash('1'),
+      candidateHash:'d'.repeat(64),simulationHash:hash('2'),ownedForkEvidence:{fixture:true}} as never)});
+   assert.deepEqual(await producer(campaignId),{status:'unavailable',
+    reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',campaignId,revision:1,
+    actionAvailable:false});
+   assert.equal(recorded,false);
   }finally{
    if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
    else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorIdentity;
