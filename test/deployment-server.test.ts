@@ -11,6 +11,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const calls:unknown[]=[];
  const previewCalls:Array<{id:string;kind:string}>=[];
  const setupCalls:unknown[]=[];
+ const dashboardReads:string[]=[];
  let acceptCalls=0;
  const store={
   async createDraft(input:unknown){calls.push(input);return {id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1};},
@@ -26,13 +27,26 @@ it('command API requires operator session, exact origin and CSRF before a draft 
     previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'a'.repeat(64),
     expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};},
   paperSetupPreflight:async(input)=>{setupCalls.push(input);return {kind:'paper_setup_preflight',
-   status:'unavailable',actionAvailable:false,draftCreated:false,operationCreated:false};}});
+   status:'unavailable',actionAvailable:false,draftCreated:false,operationCreated:false};},
+  dashboardRead:async(path)=>{dashboardReads.push(path);return {path};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
  const post=(path:string,body:unknown,headers:Record<string,string>={})=>fetch(url+path,{
   method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
  try{
+  const operatorPage=await fetch(url+'/operator');
+  assert.equal(operatorPage.status,200);
+  assert.match(operatorPage.headers.get('content-security-policy')??'',/script-src 'self'/);
+  assert.match(await operatorPage.text(),/id="setup-form"/);
+  assert.equal((await fetch(url+'/tabs.js')).status,200);
+  assert.equal((await fetch(url+'/research.css')).status,200);
+  assert.deepEqual(await (await fetch(url+'/api/research')).json(),{path:'/api/research'});
+  assert.deepEqual(await (await fetch(url+'/api/dashboard')).json(),{path:'/api/dashboard'});
+  assert.deepEqual(await (await fetch(url+'/api/positions?hours=6')).json(),
+   {path:'/api/positions?hours=6'});
+  assert.equal((await fetch(url+'/api/positions?hours=2')).status,400);
+  assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6']);
   assert.equal((await fetch(url+'/api/strategies')).status,401);
   assert.equal((await post('/api/session',{password})).status,403);
   assert.equal((await post('/api/session',{password:'wrong'},{origin})).status,401);
@@ -111,7 +125,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert(body.strategies.every(s=>s.paper===false&&s.live===false));
   const profiles=await fetch(url+'/api/market-profiles',{headers:{cookie}});
   assert.equal(profiles.status,200);
-  assert.equal((await profiles.json() as {profiles:{deploymentAvailable:boolean}[]}).profiles[0]?.deploymentAvailable,false);
+  const profileRows=(await profiles.json() as {profiles:{id:string;deploymentAvailable:boolean}[]}).profiles;
+  assert.equal(profileRows[0]?.id,'aef5f51e-18ef-4e9c-952d-8d772970f708');
+  assert.equal(profileRows[0]?.deploymentAvailable,false);
   const logout=await fetch(url+'/api/session',{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
   assert.equal(logout.status,200);
   assert.equal((await fetch(url+'/api/strategies',{headers:{cookie}})).status,401);

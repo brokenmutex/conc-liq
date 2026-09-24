@@ -1,5 +1,7 @@
 import {createHash,randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {createServer,type IncomingMessage,type ServerResponse} from 'node:http';
+import {resolve} from 'node:path';
 import {z,ZodError} from 'zod';
 import {draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
 import {DeploymentConflict} from './store.js';
@@ -14,7 +16,8 @@ const BODY_BYTES=16*1024;
 
 export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
- paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>}
+ paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
+ dashboardRead?:(path:string)=>Promise<unknown>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
  createDraft(input:DraftInput):Promise<unknown>;
@@ -36,6 +39,22 @@ function harden(response:ServerResponse){
  response.setHeader('Referrer-Policy','no-referrer');
  response.setHeader('X-Content-Type-Options','nosniff');
  response.setHeader('X-Frame-Options','DENY');
+}
+const OPERATOR_ASSETS=new Map<string,{file:string;contentType:string}>([
+ ['/operator',{file:'index.html',contentType:'text/html; charset=utf-8'}],
+ ['/operator/',{file:'index.html',contentType:'text/html; charset=utf-8'}],
+ ['/app.js',{file:'app.js',contentType:'text/javascript; charset=utf-8'}],
+ ['/tabs.js',{file:'tabs.js',contentType:'text/javascript; charset=utf-8'}],
+ ['/research.js',{file:'research.js',contentType:'text/javascript; charset=utf-8'}],
+ ['/styles.css',{file:'styles.css',contentType:'text/css; charset=utf-8'}],
+ ['/research.css',{file:'research.css',contentType:'text/css; charset=utf-8'}],
+]);
+async function sendOperatorAsset(request:IncomingMessage,response:ServerResponse,
+ asset:{file:string;contentType:string}){
+ const body=await readFile(resolve(process.cwd(),'dashboard',asset.file));
+ response.statusCode=200;response.setHeader('Cache-Control','no-cache');
+ response.setHeader('Content-Type',asset.contentType);response.setHeader('Content-Length',body.byteLength);
+ response.end(request.method==='HEAD'?undefined:body);
 }
 async function jsonBody(request:IncomingMessage){
  if(request.headers['content-type']?.split(';')[0]?.trim().toLowerCase()!=='application/json')
@@ -85,6 +104,27 @@ export function createDeploymentCommandServer(store:CommandStore,
   harden(response);
   try{
    const path=new URL(request.url??'/',options.origin).pathname;
+   if((request.method==='GET'||request.method==='HEAD')&&OPERATOR_ASSETS.has(path)){
+    const asset=OPERATOR_ASSETS.get(path)!;
+    if(path==='/operator'||path==='/operator/')
+     response.setHeader('Content-Security-Policy',"default-src 'self'; base-uri 'none'; connect-src 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'");
+    await sendOperatorAsset(request,response,asset);return;
+   }
+   if(request.method==='GET'&&(path==='/api/research'||path==='/api/dashboard'||
+    path==='/api/positions'||
+    /^\/api\/positions\/(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|(paper|live)-dep-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|live-(rk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(path))){
+    const query=new URL(request.url??'/',options.origin).searchParams;
+    const hours=query.get('hours')??'24';
+    const positionsPath=path==='/api/positions'||path.startsWith('/api/positions/');
+    if((positionsPath&&(query.size>1||![1,6,24,168].includes(Number(hours))))||
+     (!positionsPath&&query.size>0)){
+     send(response,400,{error:'invalid_position_request'});return;
+    }
+    if(!options.dashboardRead){send(response,503,{error:'dashboard_read_source_unavailable'});return;}
+    try{send(response,200,await options.dashboardRead(path+(query.size?`?${query.toString()}`:'')));}
+    catch{send(response,503,{error:'dashboard_read_source_unavailable'});}
+    return;
+   }
    if(path==='/healthz'&&request.method==='GET'){send(response,200,{status:'ok'});return;}
    if(request.method==='POST'||request.method==='DELETE'){
     if(!sameOrigin(request)){send(response,403,{error:'origin_mismatch'});return;}

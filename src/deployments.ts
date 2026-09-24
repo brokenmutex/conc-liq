@@ -16,6 +16,8 @@ import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors
 import {buildPaperStaticRetainTerminalPreview} from './deployments/paper-static-terminal-preview.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
+import {loadDashboardConfig} from './dashboard/config.js';
+import {DashboardRepository} from './dashboard/repository.js';
 
 const envSchema=z.object({
  DATABASE_URL:z.string().min(1),
@@ -29,8 +31,11 @@ const envSchema=z.object({
 async function main(){
  const env=envSchema.parse(process.env);
  const store=new DeploymentStore(env.DATABASE_URL);
+ const dashboard=new DashboardRepository(loadDashboardConfig(process.env));
  try{await store.assertReady();}
- catch(error){await store.close();throw error;}
+ catch(error){await Promise.allSettled([store.close(),dashboard.close()]);throw error;}
+ try{await dashboard.assertReady();}
+ catch(error){await Promise.allSettled([store.close(),dashboard.close()]);throw error;}
  const host=env.DEPLOYMENT_HOST,port=env.DEPLOYMENT_PORT;
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
@@ -156,17 +161,26 @@ async function main(){
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
    return {...costed,...persisted,trustedPreviewSaved:true,
     operationAcceptanceAvailable:false,actionAvailable:false,economics:null};
-  }finally{previewBusy=false;}
+ }finally{previewBusy=false;}
+ };
+ const dashboardRead=async(path:string)=>{
+  if(path==='/api/research')return dashboard.research();
+  if(path==='/api/dashboard')return dashboard.snapshot();
+  const url=new URL(path,'http://localhost');
+  const match=/^\/api\/positions(?:\/(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|(paper|live)-dep-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|live-(rk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?$/.exec(url.pathname);
+  if(!match)throw new DeploymentConflict('dashboard_read_path_unavailable');
+  const hours=Number(url.searchParams.get('hours')??24);
+  return dashboard.positions(match[1],hours);
  };
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
-  paperPreview,paperSetupPreflight});
+  paperPreview,paperSetupPreflight,dashboardRead});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
  let stopping=false;
  const stop=(signal:NodeJS.Signals)=>{
   if(stopping)return;stopping=true;
   log('info','deployment_command_api_stopping',{signal});
-  server.close(()=>void store.close().then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
+  server.close(()=>void Promise.all([store.close(),dashboard.close()]).then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
  };
  process.once('SIGINT',stop);process.once('SIGTERM',stop);
 }
