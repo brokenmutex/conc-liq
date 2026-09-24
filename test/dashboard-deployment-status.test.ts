@@ -56,6 +56,20 @@ test('attention filter excludes normal manual hold and includes recovery and sta
  assert.match(run('condition(closed)'),/Campaign closed/);
 });
 
+test('queued lifecycle operations remain visible before a valuation mark exists',()=>{
+ const opening=position('waiting','opening',{deployment:{lifecycle:'opening',
+  strategyId:'static_manual_v1',rangeState:'unknown',operation:{kind:'open',
+   status:'queued',stage:'accepted',reason:null}}});
+ const pausing=position('open','active',{deployment:{lifecycle:'active',
+  strategyId:'static_manual_v1',rangeState:'inside',operation:{kind:'pause',
+   status:'preflighting',stage:'source_recheck',reason:null}}});
+ Object.assign(context,{opening,pausing});
+ assert.match(run('condition(opening)'),/Open in progress · accepted · queued/);
+ assert.match(run('condition(pausing)'),/Pause in progress · source_recheck · preflighting/);
+ assert.match(run('row(opening,null)'),/Open in progress · accepted · queued/);
+ assert.equal(run('needsAttention(pausing)'),true);
+});
+
 test('provisional paper economics are labeled as modeled throughout the row and detail metrics',()=>{
  const modeled=position('closed','closed',{accounting:'provisional',initial:250,capital:251,
   benchmark:252,fees:2,gas:1,deployment:{lifecycle:'closed',strategyId:'static_manual_v1',

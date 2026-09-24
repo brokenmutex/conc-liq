@@ -632,8 +632,12 @@ try{
  await admin.query(`UPDATE deployment_campaigns SET lifecycle='blocked' WHERE id=$1`,[paperDraft.id]);
  const blocked=deploymentPosition((await readDeploymentRows(admin)).find(row=>row.id===paperDraft.id));
  assert.equal(blocked.status,'blocked');
- assert.deepEqual(blocked.deployment.operation,
-  {status:'blocked',stage:'recovery',reason:'receipt_mismatch'});
+ assert.equal(blocked.deployment.operation.id,paperOperation.id);
+ assert.equal(blocked.deployment.operation.kind,'open');
+ assert.equal(blocked.deployment.operation.status,'blocked');
+ assert.equal(blocked.deployment.operation.stage,'recovery');
+ assert.equal(blocked.deployment.operation.reason,'receipt_mismatch');
+ assert.match(blocked.deployment.operation.updatedAt,/^\d{4}-\d{2}-\d{2}T/);
  await admin.query(`UPDATE deployment_operations SET status='succeeded',stage='recorded',reason=NULL
   WHERE id=$1`,[paperOperation.id]);
  await admin.query(`UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1`,[paperDraft.id]);

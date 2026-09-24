@@ -24,7 +24,8 @@ interface DeploymentRow {
  closed_at:Date|null;allocation:unknown;runtime_identity:unknown;profile:unknown;strategy_id:string;config:unknown;
  mark_id:string|null;mark_at:Date|null;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;initial_value:string|null;
- operation_status:string|null;operation_stage:string|null;operation_reason:string|null;
+ operation_id:string|null;operation_kind:string|null;operation_status:string|null;
+ operation_stage:string|null;operation_reason:string|null;operation_updated_at:Date|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
@@ -138,17 +139,18 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash,'}
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
-   blocked.status AS operation_status,
-   blocked.stage AS operation_stage,blocked.reason AS operation_reason
+   latest_operation.id::text AS operation_id,latest_operation.kind AS operation_kind,
+   latest_operation.status AS operation_status,latest_operation.stage AS operation_stage,
+   latest_operation.reason AS operation_reason,latest_operation.updated_at AS operation_updated_at
   FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
   LEFT JOIN LATERAL (SELECT id,at,source_block,source_hash,inventory,economics,provenance
    FROM deployment_marks WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
   LEFT JOIN LATERAL (SELECT sum(value_raw)::text AS initial_value FROM deployment_ledger
    WHERE campaign_id=c.id AND kind='capital_in') capital ON TRUE
-  LEFT JOIN LATERAL (SELECT status,stage,reason FROM deployment_operations
-   WHERE campaign_id=c.id AND c.lifecycle='blocked' AND status='blocked'
-   ORDER BY updated_at DESC,id DESC LIMIT 1) blocked ON TRUE
+  LEFT JOIN LATERAL (SELECT id,kind,status,stage,reason,updated_at FROM deployment_operations
+   WHERE campaign_id=c.id AND (c.lifecycle<>'blocked' OR status='blocked')
+   ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
    LEFT JOIN deployment_paper_accounting a2 ON a2.campaign_id=c.id
@@ -237,9 +239,9 @@ export function deploymentPosition(row:DeploymentRow){
     'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
    lifecycle:row.lifecycle,rangeState:row.range_state,revision:row.current_revision,
-   operation:{status:row.lifecycle==='blocked'?row.operation_status:null,
-    stage:row.lifecycle==='blocked'?row.operation_stage:null,
-    reason:row.lifecycle==='blocked'?row.operation_reason:null},
+   operation:{id:row.operation_id,kind:row.operation_kind,status:row.operation_status,
+    stage:row.operation_stage,reason:row.operation_reason,
+    updatedAt:row.operation_updated_at?.toISOString()??null},
    sourceBlock:row.source_block,sourceHash:row.source_hash,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
