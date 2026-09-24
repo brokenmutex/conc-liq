@@ -3,7 +3,7 @@ import type {RobinhoodClient} from '../client.js';
 import {contentHash} from './contracts.js';
 import {marketProfileSchema,referenceProofHash,type MarketProfile} from './market-profile.js';
 import {readCanonicalPaperOpenFrame,type PaperOpenFrame} from './paper-preview.js';
-import {assertSameRangeKeeperPinnedReferenceProof} from './rangekeeper-paper-gas-sampler.js';
+import {assertSamePinnedExternalReferenceProof} from './pinned-external-reference-proof.js';
 
 /** Reconciles a fresh pinned read to the exact frame saved in the confirmation.
  * Only registry/feed-directory fetchedAt metadata may differ, and only when
@@ -27,7 +27,7 @@ export function bindRangeKeeperPaperConfirmationFrame(actual:PaperOpenFrame,
  assert.equal(String(actual.price0),String(saved.price0),'RangeKeeper confirmation token0 price changed');
  assert.equal(String(actual.price1),String(saved.price1),'RangeKeeper confirmation token1 price changed');
  assert.equal(String(actual.nativePrice),String(saved.nativePrice),'RangeKeeper confirmation native price changed');
- assertSameRangeKeeperPinnedReferenceProof(saved.referenceProof,actual.referenceProof);
+ assertSamePinnedExternalReferenceProof(saved.referenceProof,actual.referenceProof);
  return {...actual,referenceProof:saved.referenceProof,referenceProofHash:saved.referenceProofHash};
 }
 
