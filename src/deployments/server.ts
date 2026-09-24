@@ -19,6 +19,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
+ paperLifecycleAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainWorkerReady?:()=>Promise<boolean>}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
@@ -191,8 +192,34 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(saved&&input.kind==='close_retain'&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
-    const actionable=Boolean(saved&&input.kind==='close_retain'&&
-     workerReady&&options.paperRetainAcceptance);
+    const lifecycleId=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {id?:unknown}).id:null;
+    const lifecycleExpiresAt=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {expiresAt?:unknown}).expiresAt:null;
+    const lifecycleRevision=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {expectedRevision?:unknown}).expectedRevision:null;
+    const lifecycleProposal=result&&typeof result==='object'&&!Array.isArray(result)?
+     (result as {proposal?:unknown}).proposal:null;
+    const lifecycleFrom=input.kind==='pause'?'active':'paused',
+     lifecycleTo=input.kind==='pause'?'paused':'active';
+    const lifecycleSaved=result&&typeof result==='object'&&!Array.isArray(result)&&
+     (result as {status?:unknown;kind?:unknown;id?:unknown;contentDigest?:unknown;expiresAt?:unknown})
+      .status==='indicative'&&['pause','resume'].includes(input.kind)&&
+     (result as {kind?:unknown}).kind===input.kind&&
+     typeof lifecycleId==='string'&&uuid.test(lifecycleId)&&
+     Number.isSafeInteger(lifecycleRevision)&&Number(lifecycleRevision)>0&&
+     /^[0-9a-f]{64}$/.test(String((result as {contentDigest?:unknown}).contentDigest))&&
+     typeof lifecycleExpiresAt==='string'&&Number.isFinite(Date.parse(lifecycleExpiresAt))&&
+     Date.parse(lifecycleExpiresAt)>Date.now()&&lifecycleProposal!==null&&
+     typeof lifecycleProposal==='object'&&!Array.isArray(lifecycleProposal)&&
+     Object.keys(lifecycleProposal).length===2&&
+     (lifecycleProposal as Record<string,unknown>).from===lifecycleFrom&&
+     (lifecycleProposal as Record<string,unknown>).to===lifecycleTo;
+    if(lifecycleSaved&&options.paperLifecycleAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    const actionable=Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
+     Boolean(lifecycleSaved&&workerReady&&options.paperLifecycleAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
      {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
     send(response,200,body);return;
@@ -209,6 +236,19 @@ export function createDeploymentCommandServer(store:CommandStore,
     }
     const input=acceptInput.parse(await jsonBody(request));
     send(response,202,await options.paperRetainAcceptance(acceptMatch[1]!,input,'operator'));return;
+   }
+   const lifecycleAcceptMatch=/^\/api\/deployments\/([^/]+)\/lifecycle-operations$/.exec(path);
+   if(lifecycleAcceptMatch&&request.method==='POST'){
+    if(!uuid.test(lifecycleAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    let workerReady=false;
+    if(options.paperLifecycleAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    if(!workerReady||!options.paperLifecycleAcceptance){
+     send(response,503,{error:'operation_worker_not_ready'});return;
+    }
+    const input=acceptInput.parse(await jsonBody(request));
+    send(response,202,await options.paperLifecycleAcceptance(lifecycleAcceptMatch[1]!,input,'operator'));return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
    if(operationMatch&&request.method==='GET'){

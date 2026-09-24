@@ -126,8 +126,10 @@ const pause=(durationMs:number,signal:AbortSignal)=>new Promise<void>(resolve=>{
  signal.addEventListener('abort',done,{once:true});
 });
 
-/** The process supervisor owns restart and release identity. This loop has no
- * signer, operation claims, command acceptance or automatic schema migration. */
+/** The process supervisor owns restart and release identity. This loop never
+ * loads a signer or performs startup DDL. The optional operation path claims
+ * persisted work; its shared readiness lease proves a live DB session only,
+ * not timely progress or recovery. */
 async function main(){
  const env=envSchema.parse(process.env),stop=new AbortController();
  process.once('SIGINT',()=>stop.abort());

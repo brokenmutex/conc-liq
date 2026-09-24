@@ -145,7 +145,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
 it('exposes only ready, persisted retain-close acceptance on the guarded command origin',async()=>{
  const salt=randomBytes(16),password='test-only-operator-secret';
  const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
- const origin='http://127.0.0.1:4174',calls:unknown[]=[];
+ const origin='http://127.0.0.1:4174',calls:unknown[]=[],lifecycleCalls:unknown[]=[];
  let workerReady=true,probeFails=false;
  const store={async createDraft(){return {};},async acceptOperation(){throw Error('generic acceptance must stay unused');},
   async operation(){return null;},async listMarketProfiles(){return [];}};
@@ -153,7 +153,13 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
    if(probeFails)throw Error('probe unavailable');return workerReady;},
   paperRetainAcceptance:async(campaignId,input,actor)=>{calls.push({campaignId,input,actor});
    return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
-  paperPreview:async()=>({kind:'close_retain',status:'indicative',trustedPreviewSaved:true})});
+  paperLifecycleAcceptance:async(campaignId,input,actor)=>{lifecycleCalls.push({campaignId,input,actor});
+   return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
+  paperPreview:async(_campaignId,kind)=>kind==='pause'||kind==='resume'?
+   {kind,status:'indicative',id:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'b'.repeat(64),
+    expectedRevision:1,proposal:{from:kind==='pause'?'active':'paused',to:kind==='pause'?'paused':'active'},
+    expiresAt:new Date(Date.now()+60_000).toISOString()}:
+   {kind:'close_retain',status:'indicative',trustedPreviewSaved:true}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
  const address=server.address();assert(address&&typeof address!=='string');
  const url=`http://127.0.0.1:${address.port}`;
@@ -175,6 +181,14 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   assert.equal(accepted.status,202);
   assert.deepEqual(await accepted.json(),{id:campaign,status:'queued',replayed:false});
   assert.deepEqual(calls,[{campaignId:campaign,input:command,actor:'operator'}]);
+  const lifecyclePreview=await post(`/api/deployments/${campaign}/previews`,{kind:'pause'},headers);
+  assert.equal(lifecyclePreview.status,200);
+  assert.equal((await lifecyclePreview.json() as {actionAvailable:boolean}).actionAvailable,true);
+  const lifecycleCommand={previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'b'.repeat(64),
+   expectedRevision:1,idempotencyKey:'paper-pause-http-1'};
+  const lifecycleAccepted=await post(`/api/deployments/${campaign}/lifecycle-operations`,lifecycleCommand,headers);
+  assert.equal(lifecycleAccepted.status,202);
+  assert.deepEqual(lifecycleCalls,[{campaignId:campaign,input:lifecycleCommand,actor:'operator'}]);
   const wrongKind=await post(`/api/deployments/${campaign}/previews`,{kind:'open'},headers);
   assert.equal((await wrongKind.json() as {actionAvailable:boolean}).actionAvailable,false);
   workerReady=false;
@@ -182,7 +196,11 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   assert.equal((await unavailablePreview.json() as {actionAvailable:boolean}).actionAvailable,false);
   const unavailableAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
   assert.equal(unavailableAccept.status,503);
+  const unavailableLifecycle=await post(`/api/deployments/${campaign}/lifecycle-operations`,
+   lifecycleCommand,headers);
+  assert.equal(unavailableLifecycle.status,503);
   assert.equal(calls.length,1);
+  assert.equal(lifecycleCalls.length,1);
   probeFails=true;
   const failedProbeAccept=await post(`/api/deployments/${campaign}/operations`,command,headers);
   assert.equal(failedProbeAccept.status,503);

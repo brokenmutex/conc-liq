@@ -187,6 +187,18 @@ try{
  const paperDraft=await store.createDraft({...draftInput,mode:'paper',
   allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
   config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}});
+ const liveLifecycleDraft=await store.createDraft({...draftInput,
+  wallet:'0x3333333333333333333333333333333333333333'});
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[liveLifecycleDraft.id]);
+ const liveLifecyclePreview=await store.recordPreview({campaignId:liveLifecycleDraft.id,expectedRevision:1,
+  kind:'pause',request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
+  expiresAt:new Date(Date.now()+60_000)});
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(liveLifecycleDraft.id,{previewId:liveLifecyclePreview.id,
+  contentDigest:liveLifecyclePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'live-lifecycle-pause-rejected-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_operation_unavailable');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',
+  [liveLifecycleDraft.id])).rows[0].n,0);
  const rkLimits={...paperLimits,minDeploymentPpm:0,maxSwapInputValue:'1',maxSwapInputPpm:0,
   maxSwapShortfallValue:'1',maxRecenters:2,maxLiquiditySharePpm:100000,
   maxObservationGapSeconds:300};
@@ -222,6 +234,13 @@ try{
    classification:'rangekeeper_paper_open_v1',previewId:rkPreviewId,source:rkOpenSource,
    modelHash:contentHash(rkOpenModel),candidateHash:rkCandidateHash})]);
  await admin.query(`UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1`,[rkDraft.id]);
+ const rkLifecyclePreview=await store.recordPreview({campaignId:rkDraft.id,expectedRevision:1,
+  kind:'pause',request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
+  expiresAt:new Date(Date.now()+60_000)});
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(rkDraft.id,{previewId:rkLifecyclePreview.id,
+  contentDigest:rkLifecyclePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'rangekeeper-lifecycle-pause-rejected-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_operation_unavailable');
  const rkIdle0=10n**22n-rkMint.amount0,rkIdle1=10n**22n-rkMint.amount1,
   rkKernel=serializeRangeKeeperPaperKernelSnapshot({source:rkMarkSource,
    state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
@@ -682,8 +701,33 @@ try{
  assert.deepEqual(pauseRow.evidence,{});
  const pauseCommand={previewId:pausePreview.id,contentDigest:pausePreview.contentDigest,
   expectedRevision:1,idempotencyKey:'paper-pause-unique-1'};
- const pauseOperation=await store.acceptOperation(paperDraft.id,pauseCommand,'operator');
+ const duplicatePausePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'pause');
+ const invalidPausePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
+  kind:'pause',request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'},extra:true},
+  evidence:{},expiresAt:new Date(Date.now()+60_000)});
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:invalidPausePreview.id,
+  contentDigest:invalidPausePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-pause-invalid-preview-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_preview_invalid');
+ const expiredPausePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
+  kind:'pause',request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
+  expiresAt:new Date(Date.now()+20)});
+ await new Promise(resolve=>setTimeout(resolve,50));
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:expiredPausePreview.id,
+  contentDigest:expiredPausePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-pause-expired-preview-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='preview_expired');
+ const pauseOperation=await store.acceptStaticPaperLifecycleOperation(paperDraft.id,pauseCommand,'operator');
  assert.equal(pauseOperation.status,'queued');
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:pausePreview.id,
+  contentDigest:'f'.repeat(64),expectedRevision:1,idempotencyKey:'paper-pause-bad-digest-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='stale_preview');
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:pausePreview.id,
+  contentDigest:pausePreview.contentDigest,expectedRevision:2,idempotencyKey:'paper-pause-bad-revision-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='stale_revision');
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:duplicatePausePreview.id,
+  contentDigest:duplicatePausePreview.contentDigest,expectedRevision:1,idempotencyKey:'paper-pause-pending-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='operation_in_progress');
  const pauseClaim=await store.claimNext('paper-pause-crash',30,'paper','static_manual_v1');
  assert.equal(pauseClaim.id,pauseOperation.id);
  await store.advanceClaim(pauseOperation.id,'paper-pause-crash','pause_started','executing',null);
@@ -705,7 +749,7 @@ try{
   [paperDraft.id])).rows[0].n,markCountBeforePause);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1',
   [paperDraft.id])).rows[0].n,ledgerCountBeforePause);
- assert.deepEqual(await store.acceptOperation(paperDraft.id,pauseCommand,'operator'),
+ assert.deepEqual(await store.acceptStaticPaperLifecycleOperation(paperDraft.id,pauseCommand,'operator'),
   {id:pauseOperation.id,status:'succeeded',replayed:true});
  const previewCountBeforeInvalidPause=(await admin.query(
   'SELECT count(*)::int AS n FROM deployment_previews WHERE campaign_id=$1',[paperDraft.id])).rows[0].n;
@@ -715,16 +759,16 @@ try{
   [paperDraft.id])).rows[0].n,previewCountBeforeInvalidPause);
  const resumePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'resume');
  const duplicateResumePreview=await store.recordPaperLifecyclePreview(paperDraft.id,'resume');
- await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:resumePreview.id,
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:resumePreview.id,
   contentDigest:resumePreview.contentDigest,expectedRevision:2,idempotencyKey:'paper-resume-stale-1'},'operator'),
   error=>error instanceof DeploymentConflict&&error.code==='stale_revision');
- const resumeOperation=await store.acceptOperation(paperDraft.id,{previewId:resumePreview.id,
+ const resumeOperation=await store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:resumePreview.id,
   contentDigest:resumePreview.contentDigest,expectedRevision:1,idempotencyKey:'paper-resume-unique-1'},'operator');
  assert.deepEqual(await processOnePaperOperation(store,lifecycleNoRpc,admin,'paper-resume-worker'),
   {status:'completed',operationId:resumeOperation.id,kind:'resume'});
  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',
   [paperDraft.id])).rows[0].lifecycle,'active');
- await assert.rejects(store.acceptOperation(paperDraft.id,{previewId:duplicateResumePreview.id,
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:duplicateResumePreview.id,
   contentDigest:duplicateResumePreview.contentDigest,expectedRevision:1,
   idempotencyKey:'paper-resume-stale-lifecycle-1'},'operator'),
   error=>error instanceof DeploymentConflict&&error.code==='invalid_lifecycle');
@@ -1031,6 +1075,10 @@ try{
   verifyAnchors:verifyPaperAnchors});
  assert.equal(closePreview.trustedPreviewSaved,true);
  assert.equal(closePreview.actionAvailable,false);
+ await assert.rejects(store.acceptStaticPaperLifecycleOperation(paperDraft.id,{previewId:closePreview.id,
+  contentDigest:closePreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-lifecycle-close-retain-gated-1'},'operator'),
+  error=>error instanceof DeploymentConflict&&error.code==='paper_lifecycle_operation_unavailable');
  const forgedPreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
   kind:'close_retain',request:{kind:'close_retain',strategyId:'static_manual_v1',
    profileHash:terminalState.profileHash,openMarkId:opened.markId,

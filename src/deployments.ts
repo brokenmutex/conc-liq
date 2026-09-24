@@ -173,8 +173,10 @@ async function main(){
  const paperRetainAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
   actor:string)=>store.acceptStaticPaperRetainOperation(campaignId,input,actor,
   (chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources));
+ const paperLifecycleAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
+  actor:string)=>store.acceptStaticPaperLifecycleOperation(campaignId,input,actor);
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
-  paperPreview,paperSetupPreflight,dashboardRead,paperRetainAcceptance,
+  paperPreview,paperSetupPreflight,dashboardRead,paperRetainAcceptance,paperLifecycleAcceptance,
   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});

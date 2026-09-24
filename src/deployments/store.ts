@@ -1763,12 +1763,16 @@ export class DeploymentStore {
 
  async acceptStaticPaperRetainOperation(campaignId:string,raw:AcceptInput,actor:string,
   verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>){
-  return this.acceptOperation(campaignId,raw,actor,{verifyAnchors});
+  return this.acceptOperation(campaignId,raw,actor,{kind:'close_retain',verifyAnchors});
+ }
+
+ async acceptStaticPaperLifecycleOperation(campaignId:string,raw:AcceptInput,actor:string){
+  return this.acceptOperation(campaignId,raw,actor,{kind:'lifecycle'});
  }
 
  async acceptOperation(campaignId:string,raw:AcceptInput,actor:string,
-  staticPaperRetainAdmission?:{verifyAnchors:(chainId:number,
-   sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+  staticPaperAdmission?:{kind:'close_retain';verifyAnchors:(chainId:number,
+   sources:readonly PaperCanonicalAnchor[])=>Promise<void>}|{kind:'lifecycle'}){
   const input=acceptInput.parse(raw);
   if(!/^[a-z][a-z0-9_-]{0,63}$/.test(actor))throw new DeploymentConflict('invalid_actor');
   const requestDigest=contentHash({campaignId,previewId:input.previewId,
@@ -1787,8 +1791,10 @@ export class DeploymentStore {
     [campaignId,input.idempotencyKey])).rows[0];
    if(existing){
     if(existing.request_digest!==requestDigest)throw new DeploymentConflict('idempotency_conflict');
-    if(staticPaperRetainAdmission&&(existing.kind!=='close_retain'||existing.preview_id!==input.previewId))
-     throw new DeploymentConflict('idempotency_conflict');
+    if(staticPaperAdmission&&(
+     (staticPaperAdmission.kind==='close_retain'&&existing.kind!=='close_retain')||
+     (staticPaperAdmission.kind==='lifecycle'&&!['pause','resume'].includes(existing.kind))||
+     existing.preview_id!==input.previewId))throw new DeploymentConflict('idempotency_conflict');
     return {id:existing.id,status:existing.status,replayed:true};
    }
    if(campaign.current_revision!==input.expectedRevision)throw new DeploymentConflict('stale_revision');
@@ -1799,7 +1805,16 @@ export class DeploymentStore {
    if(!preview||preview.expected_revision!==campaign.current_revision||preview.content_digest!==input.contentDigest)
     throw new DeploymentConflict('stale_preview');
    if(preview.expires_at.getTime()<=Date.now())throw new DeploymentConflict('preview_expired');
-   if(staticPaperRetainAdmission){
+   if(staticPaperAdmission?.kind==='lifecycle'){
+    let canonicalDigest:string;
+    try{canonicalDigest=previewDigest(previewInput.parse({campaignId,
+     expectedRevision:preview.expected_revision,kind:preview.kind,request:preview.request,
+     proposal:preview.proposal,evidence:preview.evidence,expiresAt:preview.expires_at}));}
+    catch{throw new DeploymentConflict('paper_lifecycle_preview_integrity');}
+    if(canonicalDigest!==preview.content_digest)
+     throw new DeploymentConflict('paper_lifecycle_preview_integrity');
+   }
+   if(staticPaperAdmission?.kind==='close_retain'){
     if(campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1'||
      !['active','paused'].includes(campaign.lifecycle)||preview.kind!=='close_retain')
      throw new DeploymentConflict('paper_close_retain_admission_unavailable');
@@ -1903,7 +1918,7 @@ export class DeploymentStore {
      gasObservedAt=Date.parse(model.costs.gasPriceObservedAt);
     if(sourceAt>now||now-sourceAt>180_000||gasObservedAt>now||now-gasObservedAt>120_000)
      throw new DeploymentConflict('paper_close_retain_source_stale');
-    try{await staticPaperRetainAdmission.verifyAnchors(campaign.chain_id,
+    try{await staticPaperAdmission.verifyAnchors(campaign.chain_id,
      [open.data.source,priorSource.data,model.source]);}
     catch(error){if(error instanceof AssertionError)
       throw new DeploymentConflict('paper_close_retain_source_not_canonical');throw error;}
@@ -1914,7 +1929,10 @@ export class DeploymentStore {
     if(campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1')
      throw new DeploymentConflict('paper_lifecycle_operation_unavailable');
     if(campaign.lifecycle!==expectedLifecycle)throw new DeploymentConflict('invalid_lifecycle');
-    if(preview.request?.kind!==preview.kind||!lifecycle||typeof lifecycle!=='object'||
+    if(!preview.request||typeof preview.request!=='object'||Array.isArray(preview.request)||
+     Object.keys(preview.request).length!==1||preview.request.kind!==preview.kind||
+     !preview.proposal||typeof preview.proposal!=='object'||Array.isArray(preview.proposal)||
+     Object.keys(preview.proposal).length!==1||!lifecycle||typeof lifecycle!=='object'||
      Array.isArray(lifecycle)||Object.keys(lifecycle).length!==2||
      (lifecycle as Record<string,unknown>).from!==expectedLifecycle||
      (lifecycle as Record<string,unknown>).to!==targetLifecycle||
@@ -1922,6 +1940,8 @@ export class DeploymentStore {
      Object.keys(preview.evidence).length!==0)
      throw new DeploymentConflict('paper_lifecycle_preview_invalid');
    }
+   if(staticPaperAdmission?.kind==='lifecycle'&&preview.kind!=='pause'&&preview.kind!=='resume')
+    throw new DeploymentConflict('paper_lifecycle_operation_unavailable');
    const pending=(await db.query<{id:string}>(`SELECT id FROM deployment_operations WHERE campaign_id=$1 AND status IN
     ('queued','preflighting','executing','confirming','reconciling','blocked') LIMIT 1`,[campaignId])).rows[0];
    if(pending)throw new DeploymentConflict('operation_in_progress');
