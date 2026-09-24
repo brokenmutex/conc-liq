@@ -143,6 +143,7 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
    proofHash:frame.referenceProofHash},costs};
  return {schemaVersion:1 as const,kind:'paper_setup_preflight' as const,status:'available' as const,
   mode:'paper' as const,strategyId:'static_manual_v1' as const,profileId:registered.id,
+  profileHash:registered.profileHash,
   input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks},source:frame.source,
   profile:{pool:p!.pool,fee:p!.fee,tickSpacing:p!.tickSpacing,token0:p!.token0,token1:p!.token1,quoteToken},
   range:{centerTick:frame.tick,centerAnchorTick:range.centerAnchorTick,

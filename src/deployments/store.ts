@@ -163,6 +163,34 @@ export class DeploymentConflict extends Error {
  constructor(public readonly code:string){super(code);}
 }
 
+type DraftRequestOutcome={status:'conflict'}|{status:'found';id:string;revision:number;configHash:string}|null;
+function deploymentDraftValues(raw:DraftInput){
+ const input=draftInput.parse(raw),config={...parseStrategyParameters(input.strategyId,input.config),
+  strategyId:input.strategyId,strategyVersion:input.strategyVersion,stateSchemaVersion:input.stateSchemaVersion};
+ return {input,config,configHash:contentHash(config),wallet:input.wallet.toLowerCase()};
+}
+async function matchDraftRequest(db:Pick<PoolClient,'query'>,id:string,raw:DraftInput):Promise<DraftRequestOutcome>{
+ const {input,configHash,wallet}=deploymentDraftValues(raw);
+ const row=(await db.query<{id:string;mode:string;chain_id:number;wallet:string;market_profile_id:string;
+  allocation:unknown;strategy_id:string;revision:number;config:unknown;
+  config_hash:string}>(`SELECT c.id,c.mode,c.chain_id,c.wallet,c.market_profile_id,c.allocation,
+   r.revision,r.strategy_id,r.config,r.config_hash
+   FROM deployment_campaigns c JOIN deployment_revisions r
+    ON r.campaign_id=c.id AND r.revision=1 WHERE c.id=$1`,[id])).rows[0];
+ if(!row)return null;
+ const allocation=allocationSchema.safeParse(row.allocation);
+ let configMatches=false,allocationMatches=false;
+ try{configMatches=row.config!==null&&typeof row.config==='object'&&!Array.isArray(row.config)&&
+   contentHash(row.config)===configHash;}catch{}
+ try{allocationMatches=allocation.success&&contentHash(allocation.data)===contentHash(input.allocation);}catch{}
+ const matches=row.id===id&&row.mode===input.mode&&row.chain_id===input.chainId&&
+  row.wallet.toLowerCase()===wallet&&row.market_profile_id===input.marketProfileId&&
+  row.revision===1&&row.strategy_id===input.strategyId&&
+  row.config_hash===configHash&&configMatches&&allocationMatches;
+ return matches?{status:'found',id:row.id,revision:1,configHash:row.config_hash}:
+  {status:'conflict'};
+}
+
 /** Shared advisory lease held by explicitly enabled paper operation workers.
  * The command runtime reads the matching granted ShareLock in pg_locks.
  * Keep separate from maintenance lock 18727. */
@@ -255,12 +283,32 @@ export class DeploymentStore {
   });
  }
 
+ async findDraftRequest(requestId:string,raw:DraftInput):Promise<DraftRequestOutcome>{
+  const id=z.uuid().parse(requestId),input=draftInput.parse(raw);
+  return matchDraftRequest(this.readPool,id,input);
+ }
+
+ async createDraftWithRequestId(requestId:string,raw:DraftInput){
+  const id=z.uuid().parse(requestId),input=draftInput.parse(raw),existing=await this.findDraftRequest(id,input);
+  if(existing?.status==='conflict')return existing;
+  if(existing?.status==='found')return {status:'replayed' as const,id:existing.id,
+   revision:existing.revision,configHash:existing.configHash};
+  const inserted=await this.insertDraft(id,input,true);
+  if('status'in inserted)return inserted;
+  return {status:inserted.replayed?'replayed' as const:'created' as const,
+   id:inserted.id,revision:inserted.revision,configHash:inserted.configHash};
+ }
+
  async createDraft(raw:DraftInput){
- const input=draftInput.parse(raw),id=randomUUID(),wallet=input.wallet.toLowerCase();
+  const result=await this.insertDraft(randomUUID(),raw,false);
+  if('status'in result)throw new DeploymentConflict('campaign_id_conflict');
+  const {replayed:_replayed,...created}=result;return created;
+ }
+
+ private async insertDraft(id:string,raw:DraftInput,requestId:boolean):Promise<
+  {id:string;revision:number;configHash:string;replayed:boolean}|{status:'conflict'}>{
+ const {input,config,configHash,wallet}=deploymentDraftValues(raw);
   const runtimeIdentity=loadRuntimeIdentity()??null;
-  const config={...parseStrategyParameters(input.strategyId,input.config),strategyId:input.strategyId,strategyVersion:input.strategyVersion,
-   stateSchemaVersion:input.stateSchemaVersion};
-  const configHash=contentHash(config);
   return this.transaction(async db=>{
    const profile=(await db.query<{chain_id:number;retired_at:Date|null;profile:unknown;evidence:Record<string,unknown>;
     profile_hash:string;pool_address:string;token0_address:string;token1_address:string;fee:number}>(
@@ -284,16 +332,22 @@ export class DeploymentStore {
      profile.pool_address,profile.chain_id,profile.fee,evidence.data.indexerTargetSetHash,
      parsed.data.pool.quoteToken===0?parsed.data.pool.token1:parsed.data.pool.token0])).rows[0]?.found;
    if(!known)throw new DeploymentConflict('market_profile_indexer_changed');
-   await db.query(`INSERT INTO deployment_campaigns
+   const inserted=await db.query<{id:string}>(`INSERT INTO deployment_campaigns
     (id,mode,chain_id,wallet,market_profile_id,allocation,lifecycle,current_revision,runtime_identity)
-    VALUES($1,$2,$3,$4,$5,$6,'draft',1,$7)`,
+    VALUES($1,$2,$3,$4,$5,$6,'draft',1,$7) ${requestId?'ON CONFLICT (id) DO NOTHING':''} RETURNING id`,
     [id,input.mode,input.chainId,wallet,input.marketProfileId,JSON.stringify(input.allocation),
      runtimeIdentity?JSON.stringify(runtimeIdentity):null]);
+   if(!inserted.rows[0]){
+    if(!requestId)return {status:'conflict'};
+    const existing=await matchDraftRequest(db,id,input);
+    return existing?.status==='found'?{id:existing.id,revision:existing.revision,
+     configHash:existing.configHash,replayed:true}:{status:'conflict'};
+   }
    await db.query(`INSERT INTO deployment_revisions
     (campaign_id,revision,parent_revision,strategy_id,strategy_version,state_schema_version,config,config_hash)
     VALUES($1,1,NULL,$2,$3,$4,$5,$6)`,
     [id,input.strategyId,input.strategyVersion,input.stateSchemaVersion,JSON.stringify(config),configHash]);
-   return {id,revision:1,configHash};
+   return {id,revision:1,configHash,replayed:false};
   });
  }
 

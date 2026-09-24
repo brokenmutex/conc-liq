@@ -11,6 +11,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const calls:unknown[]=[];
  const previewCalls:Array<{id:string;kind:string}>=[];
  const setupCalls:unknown[]=[];
+ const setupDraftCalls:unknown[]=[];
  const dashboardReads:string[]=[];
  let acceptCalls=0;
  const store={
@@ -28,6 +29,17 @@ it('command API requires operator session, exact origin and CSRF before a draft 
     expectedRevision:1,expiresAt:'2026-09-23T10:00:00.000Z',trustedPreviewSaved:true}: {})};},
   paperSetupPreflight:async(input)=>{setupCalls.push(input);return {kind:'paper_setup_preflight',
    status:'unavailable',actionAvailable:false,draftCreated:false,operationCreated:false};},
+  paperSetupDraftAdmission:async(input)=>{setupDraftCalls.push(input);const attempt=setupDraftCalls.length;
+   if(attempt===1)return {status:'draft_created',draftId:'67b2b303-e821-4450-bb7b-27171b12079f',
+    revision:1,configHash:'c'.repeat(64),profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',
+    replayed:false,source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:1},
+    range:{tickLower:-60,tickUpper:60},allocationHash:'d'.repeat(64)};
+   if(attempt===2)return {status:'draft_created',draftId:'67b2b303-e821-4450-bb7b-27171b12079f',
+    revision:1,configHash:'c'.repeat(64),profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',
+    replayed:true,source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:1},
+    range:{tickLower:-60,tickUpper:60},allocationHash:'d'.repeat(64)};
+   return {status:'request_conflict',requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',
+    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['draft_request_id_conflict']};},
   dashboardRead:async(path)=>{dashboardReads.push(path);
    return path.startsWith('/api/positions/paper-dep-')&&!path.includes('?')?null:{path};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -74,6 +86,44 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.deepEqual(setupCalls,[setupInput]);
   assert.equal(calls.length,0);
   assert.equal(acceptCalls,0);
+  const setupDraftPath='/api/deployments/setup-drafts';
+  const setupDraftInput={requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',profileId:setupInput.profileId,
+   capitalQuoteRaw:setupInput.capitalQuoteRaw,halfWidthTicks:setupInput.halfWidthTicks,
+   wallet:'0x1111111111111111111111111111111111111111',
+   allocation:{token0Raw:'50000000',token1Raw:'0',nativeWei:'10000000000000000'},
+   limits:{maxDeploymentValue:'100000000000000000000',minDeploymentValue:'1000000000000000000',
+    maxExposurePpm:1000000,maxLossValue:'1000000000000000000',maxDrawdownPpm:1000000,
+    maxActionCost:'5000000000000000000',maxRollingCost:'8000000000000000000',
+    maxCampaignCost:'8000000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50},
+   reviewed:{profileId:setupInput.profileId,profileHash:'b'.repeat(64),
+    input:{capitalQuoteRaw:setupInput.capitalQuoteRaw,halfWidthTicks:60},
+    source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:1},
+    profile:{pool:'0x1111111111111111111111111111111111111111',fee:3000,tickSpacing:60,
+     token0:'0x2222222222222222222222222222222222222222',token1:'0x3333333333333333333333333333333333333333',quoteToken:1},
+    range:{centerTick:0,centerAnchorTick:0,halfWidthTicks:60,tickLower:-60,tickUpper:60,
+     fullWidthTicks:120,lowerPriceQuotePerBaseX18:'990000000000000000',upperPriceQuotePerBaseX18:'1010000000000000000'},
+    requirements:{liquidity:'100',token0Raw:'50000000',token1Raw:'0',referenceValueQuoteRaw:'50000000',
+     budgetResidualQuoteRaw:'50000000',sizingConvention:'maximize_v3_liquidity_under_independent_reference_quote_budget'},
+    references:{price0:'1000000000000000000',price1:'1000000000000000000',
+     nativePrice:'2000000000000000000000',proofHash:'c'.repeat(64)},
+    costs:{status:'provisional',scope:'open_and_close_retain_gas_only',pathVersion:'paper_static_manual_no_swap_v1',
+     sizeBand:'test',gasPriceWei:'1000000000',boundGasPriceWei:'1250000000',
+     gasPriceObservedAt:new Date().toISOString(),nativeReferencePrice:'2000000000000000000000',
+     stages:Array.from({length:6},(_,index)=>({stage:'stage-'+index,
+      profileId:'00000000-0000-4000-8000-00000000000'+(index+1),version:1,
+      evidenceClass:'fork_estimated',expectedGasUnits:'100',boundGasUnits:'120',source:{block:'99'}})),
+     open:{expectedGasUnits:'100',boundGasUnits:'120',expectedWei:'1000',boundWei:'1500',
+      expectedValue:'1000000000000000000',boundValue:'1500000000000000000'},
+     closeRetain:{expectedGasUnits:'100',boundGasUnits:'120',expectedWei:'1000',boundWei:'1500',
+      expectedValue:'1000000000000000000',boundValue:'1500000000000000000'},missing:[]}}};
+  assert.equal((await post(setupDraftPath,setupDraftInput,{origin,cookie})).status,403);
+  const admitted=await post(setupDraftPath,setupDraftInput,{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(admitted.status,201);assert.equal((await admitted.json()).replayed,false);
+  const replayed=await post(setupDraftPath,setupDraftInput,{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(replayed.status,200);assert.equal((await replayed.json()).replayed,true);
+  const conflict=await post(setupDraftPath,setupDraftInput,{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(conflict.status,409);assert.equal((await conflict.json()).error,'draft_request_id_conflict');
+  assert.equal(setupDraftCalls.length,3);
   const draft={mode:'paper',chainId:4663,wallet:'0x1111111111111111111111111111111111111111',
    marketProfileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',strategyId:'static_manual_v1',
    strategyVersion:'1.0.0',stateSchemaVersion:1,
@@ -85,7 +135,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal((await post('/api/deployments/drafts',{...draft,config:{...draft.config,signer:'secret'}},
    {origin,cookie,'x-csrf-token':csrfToken})).status,400);
   const created=await post('/api/deployments/drafts',draft,{origin,cookie,'x-csrf-token':csrfToken});
-  assert.equal(created.status,201);assert.equal(calls.length,1);
+  assert.equal(created.status,409);assert.deepEqual(await created.json(),{error:'static_paper_setup_admission_required'});
+  assert.equal(calls.length,0);
   const previewPath='/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/previews';
   assert.equal((await post(previewPath,{kind:'close'},{origin,cookie,'x-csrf-token':csrfToken})).status,400);
   const preview=await post(previewPath,{kind:'open'},{origin,cookie,'x-csrf-token':csrfToken});

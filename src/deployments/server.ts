@@ -6,6 +6,7 @@ import {z,ZodError} from 'zod';
 import {acceptInput,draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
 import {DeploymentConflict} from './store.js';
 import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-setup-preflight.js';
+import {staticPaperDraftAdmissionInputSchema} from './static-paper-draft-admission.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const loginInput=z.object({password:z.string().min(1).max(1024)}).strict();
@@ -17,6 +18,7 @@ const BODY_BYTES=16*1024;
 export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
+ paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
@@ -174,8 +176,31 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!options.paperSetupPreflight){send(response,503,{error:'paper_setup_preflight_unavailable'});return;}
     send(response,200,await options.paperSetupPreflight(input));return;
    }
+   if(path==='/api/deployments/setup-drafts'&&request.method==='POST'){
+    if(!options.paperSetupDraftAdmission){send(response,503,{error:'paper_setup_draft_admission_unavailable'});return;}
+    const input=staticPaperDraftAdmissionInputSchema.parse(await jsonBody(request));
+    const result=await options.paperSetupDraftAdmission(input) as {status?:string;replayed?:boolean;
+     missing?:string[];retrySafe?:boolean};
+    if(result.status==='draft_created'){
+     send(response,result.replayed?200:201,result);return;
+    }
+    if(result.status==='request_conflict'){
+     send(response,409,{error:'draft_request_id_conflict',...result});return;
+    }
+    if(result.status==='reconciliation_required'){
+     send(response,503,{error:'draft_creation_reconciliation_required',...result});return;
+    }
+    const reason=result.missing?.[0]??'paper_setup_draft_unavailable';
+    const stale=['setup_review_binding_stale','setup_review_evidence_expired',
+     'setup_cost_evidence_changed_since_review','registered_profile_changed_since_preflight']
+     .includes(reason);
+    send(response,stale?409:422,{error:reason,...result});return;
+   }
    if(path==='/api/deployments/drafts'&&request.method==='POST'){
     const input=draftInput.parse(await jsonBody(request));
+    if(input.mode==='paper'&&input.strategyId==='static_manual_v1'){
+     send(response,409,{error:'static_paper_setup_admission_required'});return;
+    }
     const result=await store.createDraft(input);
     send(response,201,result);return;
    }

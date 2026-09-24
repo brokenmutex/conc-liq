@@ -187,6 +187,23 @@ try{
  const paperDraft=await store.createDraft({...draftInput,mode:'paper',
   allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
   config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}});
+ const idempotentRequestId=randomUUID(),idempotentInput={...draftInput,mode:'paper',
+  allocation:{token0Raw:'1000000000000000000',token1Raw:'250000000',nativeWei:'10000000000000000'},
+  config:{tickLower:-276400,tickUpper:-276250,limits:paperLimits}},
+  duplicateDrafts=await Promise.all([
+   store.createDraftWithRequestId(idempotentRequestId,idempotentInput),
+   store.createDraftWithRequestId(idempotentRequestId,idempotentInput),
+  ]);
+ assert.deepEqual(duplicateDrafts.map(result=>result.status).sort(),['created','replayed']);
+ assert.equal(duplicateDrafts[0].id,duplicateDrafts[1].id);
+ const requestMatch=await store.findDraftRequest(idempotentRequestId,idempotentInput);
+ assert.equal(requestMatch?.status,'found');
+ await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[idempotentRequestId]);
+ const activeRequestMatch=await store.findDraftRequest(idempotentRequestId,idempotentInput);
+ assert.equal(activeRequestMatch?.status,'found','same request remains replayable after lifecycle changes');
+ const mismatchedRequest=await store.findDraftRequest(idempotentRequestId,{...idempotentInput,
+  allocation:{...idempotentInput.allocation,nativeWei:'20000000000000000'}});
+ assert.deepEqual(mismatchedRequest,{status:'conflict'});
  const liveLifecycleDraft=await store.createDraft({...draftInput,
   wallet:'0x3333333333333333333333333333333333333333'});
  await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[liveLifecycleDraft.id]);

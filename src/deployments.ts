@@ -6,6 +6,7 @@ import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonicalPaperNextFrame,
  type PaperOpenFrame} from './deployments/paper-preview.js';
 import {buildStaticPaperSetupPreflight} from './deployments/paper-setup-preflight.js';
+import {createStaticPaperDraftFromSetup} from './deployments/static-paper-draft-admission.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
@@ -50,6 +51,12 @@ async function main(){
    readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
   });}finally{paperSetupBusy=false;}
  };
+ const paperSetupDraftAdmission=(input:unknown)=>createStaticPaperDraftFromSetup(input,{
+  runPreflight:paperSetupPreflight,
+  loadProfile:id=>store.paperSetupProfile(id),
+  findDraftRequest:(requestId,draft)=>store.findDraftRequest(requestId,draft),
+  createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
+ });
  const paperPreview=async(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
   previewBusy=true;
@@ -179,7 +186,7 @@ async function main(){
  const paperLifecycleAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
   actor:string)=>store.acceptStaticPaperLifecycleOperation(campaignId,input,actor);
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
-  paperPreview,paperSetupPreflight,dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
+  paperPreview,paperSetupPreflight,paperSetupDraftAdmission,dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
