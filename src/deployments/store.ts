@@ -343,11 +343,11 @@ export class DeploymentStore {
   * stale or concurrent append. */
  async paperValuationState(id:string){
   const row=(await this.readPool.query<{current_revision:number;profile:unknown;
-   profile_hash:string;config_hash:string;open_mark_id:string;
+   profile_hash:string;config_hash:string;config:unknown;open_mark_id:string;
    open_provenance:Record<string,unknown>;latest_mark_id:string;
    latest_source_block:string|null;latest_source_hash:string|null;
    latest_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`
-   SELECT c.current_revision,p.profile,p.profile_hash,r.config_hash,
+   SELECT c.current_revision,p.profile,p.profile_hash,r.config_hash,r.config,
     o.id::text AS open_mark_id,o.provenance AS open_provenance,
     m.id::text AS latest_mark_id,m.source_block::text AS latest_source_block,
     m.source_hash AS latest_source_hash,m.provenance AS latest_provenance,v.proposal
@@ -370,11 +370,23 @@ export class DeploymentStore {
   if(!profile.success||!open.success||contentHash(row.profile)!==row.profile_hash||
    open.data.campaignId!==id||open.data.revision!==row.current_revision||
    open.data.profileHash!==row.profile_hash||open.data.configHash!==row.config_hash||
-   contentHash(open.data)!==row.open_provenance.modelHash)
+   contentHash(open.data)!==row.open_provenance.modelHash||!row.config||
+   typeof row.config!=='object'||Array.isArray(row.config)||contentHash(row.config)!==row.config_hash)
    throw new DeploymentConflict('paper_valuation_state_integrity');
+  const config=row.config as Record<string,unknown>;
+  if(config.strategyId!=='static_manual_v1'||config.strategyVersion!=='1.0.0'||
+   config.stateSchemaVersion!==1)throw new DeploymentConflict('paper_valuation_config_integrity');
+  const {strategyId:_strategyId,strategyVersion:_strategyVersion,
+   stateSchemaVersion:_stateSchemaVersion,...rawParameters}=config;
+  const parameters=parseStrategyParameters('static_manual_v1',rawParameters);
+  const previousSource=paperFeeMarkSourceSchema.safeParse(row.latest_provenance.source);
+  if(!previousSource.success||previousSource.data.block!==row.latest_source_block||
+   previousSource.data.hash.toLowerCase()!==row.latest_source_hash.toLowerCase())
+   throw new DeploymentConflict('paper_valuation_previous_source_integrity');
   return {openModel:open.data,openMarkId:row.open_mark_id,
    previous:{markId:row.latest_mark_id,sourceBlock:row.latest_source_block,
-    sourceHash:row.latest_source_hash},profile:profile.data};
+    sourceHash:row.latest_source_hash,source:previousSource.data},profile:profile.data,
+   profileHash:row.profile_hash,configHash:row.config_hash,parameters};
  }
 
  /** Returns one adjacent, unrecorded paper interval. No network call or write
@@ -1729,22 +1741,34 @@ export class DeploymentStore {
   });
  }
 
- async acceptOperation(campaignId:string,raw:AcceptInput,actor:string){
+ async acceptStaticPaperRetainOperation(campaignId:string,raw:AcceptInput,actor:string,
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>){
+  return this.acceptOperation(campaignId,raw,actor,{verifyAnchors});
+ }
+
+ async acceptOperation(campaignId:string,raw:AcceptInput,actor:string,
+  staticPaperRetainAdmission?:{verifyAnchors:(chainId:number,
+   sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
   const input=acceptInput.parse(raw);
   if(!/^[a-z][a-z0-9_-]{0,63}$/.test(actor))throw new DeploymentConflict('invalid_actor');
   const requestDigest=contentHash({campaignId,previewId:input.previewId,
    contentDigest:input.contentDigest,expectedRevision:input.expectedRevision});
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:'paper'|'live';chain_id:number;wallet:string;current_revision:number;
-    lifecycle:string;strategy_id:string}>(`SELECT c.mode,c.chain_id,c.wallet,c.current_revision,c.lifecycle,r.strategy_id
+    lifecycle:string;strategy_id:string;profile_hash:string;config_hash:string}>(`SELECT c.mode,c.chain_id,c.wallet,c.current_revision,c.lifecycle,
+     r.strategy_id,p.profile_hash,r.config_hash
     FROM deployment_campaigns c JOIN deployment_revisions r
-     ON r.campaign_id=c.id AND r.revision=c.current_revision WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
    if(!campaign)throw new DeploymentConflict('campaign_not_found');
-   const existing=(await db.query<{id:string;request_digest:string;status:string}>(
-    'SELECT id,request_digest,status FROM deployment_operations WHERE campaign_id=$1 AND idempotency_key=$2',
+   const existing=(await db.query<{id:string;request_digest:string;status:string;kind:string;preview_id:string}>(
+    'SELECT id,request_digest,status,kind,preview_id FROM deployment_operations WHERE campaign_id=$1 AND idempotency_key=$2',
     [campaignId,input.idempotencyKey])).rows[0];
    if(existing){
     if(existing.request_digest!==requestDigest)throw new DeploymentConflict('idempotency_conflict');
+    if(staticPaperRetainAdmission&&(existing.kind!=='close_retain'||existing.preview_id!==input.previewId))
+     throw new DeploymentConflict('idempotency_conflict');
     return {id:existing.id,status:existing.status,replayed:true};
    }
    if(campaign.current_revision!==input.expectedRevision)throw new DeploymentConflict('stale_revision');
@@ -1755,6 +1779,72 @@ export class DeploymentStore {
    if(!preview||preview.expected_revision!==campaign.current_revision||preview.content_digest!==input.contentDigest)
     throw new DeploymentConflict('stale_preview');
    if(preview.expires_at.getTime()<=Date.now())throw new DeploymentConflict('preview_expired');
+   if(staticPaperRetainAdmission){
+    if(campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1'||
+     !['active','paused'].includes(campaign.lifecycle)||preview.kind!=='close_retain')
+     throw new DeploymentConflict('paper_close_retain_admission_unavailable');
+    const parsed=paperCloseRetainModelSchema.safeParse(preview.proposal.paperCloseRetainModel),
+     request=preview.request,evidence=preview.evidence;
+    if(!parsed.success||!request||typeof request!=='object'||Array.isArray(request)||
+     !evidence||typeof evidence!=='object'||Array.isArray(evidence))
+     throw new DeploymentConflict('paper_close_retain_admission_model_unavailable');
+    const model=parsed.data,sourceEvidence=paperFeeMarkSourceSchema.safeParse(evidence.source);
+    if(model.campaignId!==campaignId||model.revision!==campaign.current_revision||
+     referenceProofHash(model.referenceProof)!==model.referenceProofHash||request.kind!=='close_retain'||
+     request.strategyId!=='static_manual_v1'||request.profileHash!==campaign.profile_hash||
+     request.openMarkId!==model.openMarkId||request.previousMarkId!==model.previousMarkId||
+     request.modelHash!==contentHash(model)||evidence.verificationClass!==
+      'canonical_paper_close_retain_preflight_v1'||evidence.classification!==
+      'paper_model_provisional'||evidence.profileHash!==campaign.profile_hash||
+     evidence.modelHash!==contentHash(model)||evidence.referenceProofHash!==model.referenceProofHash||
+     evidence.openModelHash!==model.openModelHash||evidence.costEvidenceClass!=='fork_estimated'||
+     evidence.paidCostsAvailable!==false||evidence.feeAccrualAvailable!==false||
+     !Array.isArray(evidence.costProfileIds)||contentHash(evidence.costProfileIds)!==
+      contentHash(model.costs.stages.map(stage=>stage.profileId))||!sourceEvidence.success||
+     contentHash(sourceEvidence.data)!==contentHash(model.source))
+     throw new DeploymentConflict('paper_close_retain_admission_integrity');
+    const openMark=(await db.query<{revision:number;source_block:string|null;source_hash:string|null;
+     provenance:Record<string,unknown>}>(`SELECT revision,source_block::text,source_hash,provenance
+     FROM deployment_marks WHERE id=$1 AND campaign_id=$2 FOR SHARE`,
+     [model.openMarkId,campaignId])).rows[0];
+    if(!openMark||openMark.revision!==campaign.current_revision||
+     openMark.provenance.classification!=='paper_model_provisional'||
+     typeof openMark.provenance.previewId!=='string'||openMark.source_block===null||
+     openMark.source_hash===null)
+     throw new DeploymentConflict('paper_close_retain_open_mark_changed');
+    const openPreview=(await db.query<{proposal:Record<string,unknown>}>(
+     'SELECT proposal FROM deployment_previews WHERE id=$1 AND campaign_id=$2 FOR SHARE',
+     [openMark.provenance.previewId,campaignId])).rows[0];
+    const open=paperOpenModelSchema.safeParse(openPreview?.proposal.paperOpenModel);
+    if(!open.success||open.data.campaignId!==campaignId||
+     open.data.revision!==campaign.current_revision||open.data.profileHash!==campaign.profile_hash||
+     open.data.configHash!==campaign.config_hash||
+     contentHash(open.data)!==openMark.provenance.modelHash||
+     contentHash(open.data)!==model.openModelHash||
+     open.data.source.block!==openMark.source_block||
+     open.data.source.hash.toLowerCase()!==openMark.source_hash.toLowerCase())
+     throw new DeploymentConflict('paper_close_retain_open_model_changed');
+    const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+     provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
+     FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0];
+    const priorSource=paperFeeMarkSourceSchema.safeParse(latest?.provenance.source);
+    if(!latest||latest.id!==model.previousMarkId||latest.source_block===null||
+     latest.source_hash===null||!priorSource.success||
+     priorSource.data.block!==latest.source_block||
+     priorSource.data.hash.toLowerCase()!==latest.source_hash.toLowerCase()||
+     model.previousSource.block!==latest.source_block||
+     model.previousSource.hash.toLowerCase()!==latest.source_hash.toLowerCase()||
+     BigInt(model.source.block)<=BigInt(latest.source_block))
+     throw new DeploymentConflict('paper_close_retain_previous_mark_changed');
+    const now=Date.now(),sourceAt=model.source.timestamp*1000,
+     gasObservedAt=Date.parse(model.costs.gasPriceObservedAt);
+    if(sourceAt>now||now-sourceAt>180_000||gasObservedAt>now||now-gasObservedAt>120_000)
+     throw new DeploymentConflict('paper_close_retain_source_stale');
+    try{await staticPaperRetainAdmission.verifyAnchors(campaign.chain_id,
+     [open.data.source,priorSource.data,model.source]);}
+    catch(error){if(error instanceof AssertionError)
+      throw new DeploymentConflict('paper_close_retain_source_not_canonical');throw error;}
+   }
    if(preview.kind==='pause'||preview.kind==='resume'){
     const expectedLifecycle=preview.kind==='pause'?'active':'paused',targetLifecycle=preview.kind==='pause'?'paused':'active';
     const lifecycle=preview.proposal?.paperLifecycle;

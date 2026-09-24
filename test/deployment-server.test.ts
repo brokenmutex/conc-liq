@@ -124,7 +124,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const accept=await post('/api/deployments/67b2b303-e821-4450-bb7b-27171b12079f/operations',{},
    {origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(accept.status,503);
-  assert.deepEqual(await accept.json(),{error:'operation_preflight_unavailable'});
+  assert.deepEqual(await accept.json(),{error:'operation_worker_not_ready'});
   assert.equal(acceptCalls,0);
   const catalog=await fetch(url+'/api/strategies',{headers:{cookie}});
   assert.equal(catalog.status,200);
@@ -139,5 +139,41 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const logout=await fetch(url+'/api/session',{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
   assert.equal(logout.status,200);
   assert.equal((await fetch(url+'/api/strategies',{headers:{cookie}})).status,401);
+ }finally{server.close();await once(server,'close');}
+});
+
+it('exposes only ready, persisted retain-close acceptance on the guarded command origin',async()=>{
+ const salt=randomBytes(16),password='test-only-operator-secret';
+ const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+ const origin='http://127.0.0.1:4174',calls:unknown[]=[];
+ const store={async createDraft(){return {};},async acceptOperation(){throw Error('generic acceptance must stay unused');},
+  async operation(){return null;},async listMarketProfiles(){return [];}};
+ const server=createDeploymentCommandServer(store,{origin,passwordHash:hash,paperRetainWorkerReady:true,
+  paperRetainAcceptance:async(campaignId,input,actor)=>{calls.push({campaignId,input,actor});
+   return {id:'67b2b303-e821-4450-bb7b-27171b12079f',status:'queued',replayed:false};},
+  paperPreview:async()=>({kind:'close_retain',status:'indicative',trustedPreviewSaved:true})});
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address();assert(address&&typeof address!=='string');
+ const url=`http://127.0.0.1:${address.port}`;
+ const post=(path:string,body:unknown,headers:Record<string,string>={})=>fetch(url+path,{
+  method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+ try{
+  const login=await post('/api/session',{password},{origin});
+  const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
+  const {csrfToken}=await login.json() as {csrfToken:string};
+  const headers={origin,cookie,'x-csrf-token':csrfToken};
+  const campaign='67b2b303-e821-4450-bb7b-27171b12079f';
+  const preview=await post(`/api/deployments/${campaign}/previews`,{kind:'close_retain'},headers);
+  assert.equal(preview.status,200);
+  assert.deepEqual(await preview.json(),{kind:'close_retain',status:'indicative',
+   trustedPreviewSaved:true,actionAvailable:true,operationAcceptanceAvailable:true});
+  const command={previewId:'aef5f51e-18ef-4e9c-952d-8d772970f708',contentDigest:'a'.repeat(64),
+   expectedRevision:1,idempotencyKey:'retain-close-request-1'};
+  const accepted=await post(`/api/deployments/${campaign}/operations`,command,headers);
+  assert.equal(accepted.status,202);
+  assert.deepEqual(await accepted.json(),{id:campaign,status:'queued',replayed:false});
+  assert.deepEqual(calls,[{campaignId:campaign,input:command,actor:'operator'}]);
+  const wrongKind=await post(`/api/deployments/${campaign}/previews`,{kind:'open'},headers);
+  assert.equal((await wrongKind.json() as {actionAvailable:boolean}).actionAvailable,false);
  }finally{server.close();await once(server,'close');}
 });

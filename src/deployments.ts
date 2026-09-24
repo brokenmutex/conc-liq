@@ -13,7 +13,7 @@ import {readCanonicalRangeKeeperPaperOpenModel,
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
-import {buildPaperStaticRetainTerminalPreview} from './deployments/paper-static-terminal-preview.js';
+import {persistTrustedStaticPaperRetainPreview} from './deployments/paper-close-retain-preflight.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 import {loadDashboardConfig} from './dashboard/config.js';
@@ -78,10 +78,6 @@ async function main(){
      try{frame=await readCanonicalPaperNextFrame(client,state.profile,state.previous);}
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
       reason:'static_manual_canonical_terminal_source_unavailable'};}
-     try{await verifyCanonicalPaperAnchors(client,state.profile.pool.chainId,
-      [state.openModel.source,frame.source]);}
-     catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
-      reason:'static_manual_saved_source_not_canonical'};}
      let gasPriceWei=0n;
      try{gasPriceWei=await client.getGasPrice();}
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
@@ -90,9 +86,11 @@ async function main(){
      try{gasProfiles=await store.paperGasProfiles(state.profile.pool.pool);}
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
       reason:'static_manual_terminal_cost_profiles_unavailable'};}
-     return buildPaperStaticRetainTerminalPreview({campaignId,openMarkId:state.openMarkId,
-      previous:state.previous,openModel:state.openModel,profile:state.profile,frame,gasProfiles,
-      gasPriceWei,now:Date.now()});
+     try{return await persistTrustedStaticPaperRetainPreview({store,state,frame,gasProfiles,
+      gasPriceWei,verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});}
+     catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?
+       error.code:'static_manual_terminal_preview_unavailable'};}
     }
     if(strategyId!=='rangekeeper_v1')return {status:'unavailable',
      reason:'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
@@ -172,8 +170,14 @@ async function main(){
   const hours=Number(url.searchParams.get('hours')??24);
   return dashboard.positions(match[1],hours);
  };
+ const paperRetainAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
+  actor:string)=>store.acceptStaticPaperRetainOperation(campaignId,input,actor,
+  (chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources));
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
-  paperPreview,paperSetupPreflight,dashboardRead});
+  paperPreview,paperSetupPreflight,dashboardRead,paperRetainAcceptance,
+  // No supervised worker-readiness handshake exists yet; saved retain previews
+  // stay visible, while HTTP acceptance remains disabled in this runtime.
+  paperRetainWorkerReady:false});
  server.listen(port,host);await once(server,'listening');
  log('info','deployment_command_api_started',{host,port});
  let stopping=false;

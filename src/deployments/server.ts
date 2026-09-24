@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {createServer,type IncomingMessage,type ServerResponse} from 'node:http';
 import {resolve} from 'node:path';
 import {z,ZodError} from 'zod';
-import {draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
+import {acceptInput,draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
 import {DeploymentConflict} from './store.js';
 import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-setup-preflight.js';
 
@@ -17,7 +17,9 @@ const BODY_BYTES=16*1024;
 export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
- dashboardRead?:(path:string)=>Promise<unknown>}
+ dashboardRead?:(path:string)=>Promise<unknown>;
+ paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
+ paperRetainWorkerReady?:boolean}
 interface Session {csrf:string;expires:number}
 export interface CommandStore {
  createDraft(input:DraftInput):Promise<unknown>;
@@ -180,19 +182,24 @@ export function createDeploymentCommandServer(store:CommandStore,
     const input=paperPreviewInput.parse(await jsonBody(request));
     if(!options.paperPreview){send(response,503,{error:'paper_preview_unavailable'});return;}
     const result=await options.paperPreview(previewMatch[1]!,input.kind);
-    // A read-only preview cannot authorize an operation. Keep the response
-    // contract fail-closed even if a preview producer accidentally marks its
-    // result actionable while acceptance and worker admission remain gated.
+    const saved=result&&typeof result==='object'&&!Array.isArray(result)&&
+     (result as {status?:unknown;kind?:unknown;trustedPreviewSaved?:unknown}).status==='indicative'&&
+     (result as {kind?:unknown}).kind==='close_retain'&&
+     (result as {trustedPreviewSaved?:unknown}).trustedPreviewSaved===true;
+    const actionable=Boolean(saved&&input.kind==='close_retain'&&
+     options.paperRetainWorkerReady===true&&options.paperRetainAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
-     {...result,actionAvailable:false,operationAcceptanceAvailable:false}:result;
+     {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
     send(response,200,body);return;
    }
    const acceptMatch=/^\/api\/deployments\/([^/]+)\/operations$/.exec(path);
    if(acceptMatch&&request.method==='POST'){
     if(!uuid.test(acceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
-    // Fresh chain and cost preflight is not wired yet. A trusted preview in
-    // storage alone must never make the incomplete worker path operable.
-    send(response,503,{error:'operation_preflight_unavailable'});return;
+    if(!options.paperRetainAcceptance||options.paperRetainWorkerReady!==true){
+     send(response,503,{error:'operation_worker_not_ready'});return;
+    }
+    const input=acceptInput.parse(await jsonBody(request));
+    send(response,202,await options.paperRetainAcceptance(acceptMatch[1]!,input,'operator'));return;
    }
    const operationMatch=/^\/api\/operations\/([^/]+)$/.exec(path);
    if(operationMatch&&request.method==='GET'){

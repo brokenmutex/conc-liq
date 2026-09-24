@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {once} from 'node:events';
+import {createServer as createTcpServer} from 'node:net';
 import {readFileSync} from 'node:fs';
 import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,DeploymentConflict} from '../../src/deployments/store.ts';
+import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {contentHash,previewDigest} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constants.ts';
@@ -19,6 +21,8 @@ import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_ST
 import {buildPaperOpenModel} from '../../src/deployments/paper-open-model.ts';
 import {persistTrustedPaperOpenPreview} from '../../src/deployments/paper-open-preflight.ts';
 import {buildPaperCloseRetainModel} from '../../src/deployments/paper-close-model.ts';
+import {persistTrustedStaticPaperRetainPreview}
+ from '../../src/deployments/paper-close-retain-preflight.ts';
 import {buildPaperCloseConvertModel,costPaperCloseConvert,
  PAPER_STATIC_CONVERT_GAS_PATH,PAPER_STATIC_CONVERT_GAS_STAGES,
  PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
@@ -964,12 +968,65 @@ try{
  assert.throws(()=>buildPaperCloseRetainModel(paperModel,opened.markId,priorClose,
   {...closeFrame,source:{...closeFrame.source,block:'100'}},paperInput.profile,
   paperInput.parameters,closeCosts),/paper_close_source_or_position_mismatch/);
- const closePreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
-  kind:'close_retain',request:{kind:'close_retain'},proposal:{paperCloseRetainModel:closeModel},
-  evidence:{verificationClass:'isolated_fixture'},expiresAt:new Date(Date.now()+1500)});
- const closeOperation=await store.acceptOperation(paperDraft.id,{previewId:closePreview.id,
+ const terminalState=await store.paperValuationState(paperDraft.id);
+ assert.equal(terminalState.parameters.limits.maxActionCost,paperLimits.maxActionCost);
+ assert.equal(terminalState.previous.markId,priorClose.markId);
+ const closePreview=await persistTrustedStaticPaperRetainPreview({store,state:terminalState,
+  frame:closeFrame,gasProfiles:gasRows,gasPriceWei:1_000_000_000n,
+  verifyAnchors:verifyPaperAnchors});
+ assert.equal(closePreview.trustedPreviewSaved,true);
+ assert.equal(closePreview.actionAvailable,false);
+ const forgedPreview=await store.recordPreview({campaignId:paperDraft.id,expectedRevision:1,
+  kind:'close_retain',request:{kind:'close_retain',strategyId:'static_manual_v1',
+   profileHash:terminalState.profileHash,openMarkId:opened.markId,
+   previousMarkId:priorClose.markId,modelHash:closeModel?contentHash(closeModel):''},
+  proposal:{paperCloseRetainModel:closeModel},evidence:{
+   verificationClass:'canonical_paper_close_retain_preflight_v1',
+   classification:'paper_model_provisional',profileHash:terminalState.profileHash,
+   modelHash:closeModel?contentHash(closeModel):'',openModelHash:contentHash(paperModel),
+   referenceProofHash:paperModel.referenceProofHash,source:closeFrame.source,
+   costEvidenceClass:'fork_estimated',costProfileIds:[],paidCostsAvailable:false,
+   feeAccrualAvailable:false},expiresAt:new Date(Date.now()+60_000)});
+ await assert.rejects(store.acceptStaticPaperRetainOperation(paperDraft.id,{previewId:forgedPreview.id,
+  contentDigest:forgedPreview.contentDigest,expectedRevision:1,
+  idempotencyKey:'paper-close-retain-forged-1'},'operator',verifyPaperAnchors),
+  error=>error instanceof DeploymentConflict&&
+   error.code==='paper_close_retain_admission_integrity');
+ accountingReorgDuringRead=true;accountingReorgBlock='103';accountingOpenReads=0;
+ await assert.rejects(store.acceptStaticPaperRetainOperation(paperDraft.id,{previewId:closePreview.id,
   contentDigest:closePreview.contentDigest,expectedRevision:1,
-  idempotencyKey:'paper-close-retain-unique-1'},'operator');
+  idempotencyKey:'paper-close-retain-reorg-1'},'operator',verifyPaperAnchors),
+  error=>error instanceof DeploymentConflict&&
+   error.code==='paper_close_retain_source_not_canonical');
+ accountingReorgDuringRead=false;accountingReorgBlock='100';accountingOpenReads=0;
+ assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_operations
+  WHERE campaign_id=$1 AND kind='close_retain'`,[paperDraft.id])).rows[0].n,0);
+ const closeCommand={previewId:closePreview.id,contentDigest:closePreview.contentDigest,
+  expectedRevision:1,idempotencyKey:'paper-close-retain-unique-1'};
+ const probe=createTcpServer();probe.listen(0,'127.0.0.1');await once(probe,'listening');
+ const probeAddress=probe.address();assert(probeAddress&&typeof probeAddress!=='string');
+ const commandPort=probeAddress.port;
+ await new Promise((resolve,reject)=>probe.close(error=>error?reject(error):resolve()));
+ const commandOrigin='http://127.0.0.1:'+commandPort,salt=randomBytes(16),password='integration-operator';
+ const passwordHash='scrypt:'+salt.toString('hex')+':'+scryptSync(password,salt,32).toString('hex');
+ const commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,passwordHash,
+  paperRetainWorkerReady:true,paperRetainAcceptance:(campaignId,input,actor)=>
+   store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyPaperAnchors)});
+ commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
+ let closeOperation;
+ try{
+  const post=(path,body,headers={})=>fetch(commandOrigin+path,{method:'POST',
+   headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+  const login=await post('/api/session',{password},{origin:commandOrigin});assert.equal(login.status,200);
+  const cookie=login.headers.get('set-cookie').split(';')[0],{csrfToken}=await login.json();
+  const accepted=await post('/api/deployments/'+paperDraft.id+'/operations',closeCommand,
+   {origin:commandOrigin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(accepted.status,202);closeOperation=await accepted.json();
+  assert.equal(closeOperation.status,'queued');assert.equal(closeOperation.replayed,false);
+  const replay=await post('/api/deployments/'+paperDraft.id+'/operations',closeCommand,
+   {origin:commandOrigin,cookie,'x-csrf-token':csrfToken});
+  assert.equal((await replay.json()).replayed,true);
+ }finally{commandServer.close();await once(commandServer,'close');}
  const closeClaim=await store.claimNext('paper-worker',30,'paper');
  assert.equal(closeClaim.id,closeOperation.id);
  await store.advanceClaim(closeOperation.id,'paper-worker','model_checked','executing',null);
