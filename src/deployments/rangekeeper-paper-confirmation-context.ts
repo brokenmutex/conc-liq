@@ -75,14 +75,15 @@ export async function loadRangeKeeperPaperConfirmationContext(input:{campaignId:
   return unavailable(input.campaignId,'rangekeeper_confirmation_envelope_invalid');
  const open=snapshot.openModel as unknown as RangeKeeperPaperOpenModel,
   first=open.source,confirmed=envelope.confirmationObservation,
-  confirmationSource=confirmed.source,proofHash=referenceProofHash(confirmed.reference.proof);
+  confirmationSource=confirmed.source,
+  proofHash=(()=>{try{return referenceProofHash(confirmed.reference.proof);}catch{return null;}})();
  if(open.kind!=='rangekeeper_paper_open_model'||open.campaignId!==snapshot.campaignId||
   open.revision!==snapshot.revision||open.status!=='indicative'||open.actionAvailable!==false||
   open.profileHash!==draft.profileHash||open.draftConfigHash!==draft.configHash||
   contentHash(open)!==envelope.firstObservation.modelHash||
   open.candidateHash!==envelope.firstObservation.candidateHash||
   contentHash(first)!==contentHash(envelope.firstObservation.source)||
-  proofHash!==confirmed.reference.proofHash||!open.kernelBuildId||
+  proofHash===null||proofHash!==confirmed.reference.proofHash||!open.kernelBuildId||
   open.kernelBuildId!==snapshot.runtimeIdentity.buildId||!open.kernelPolicyHash)
   return unavailable(input.campaignId,'rangekeeper_confirmation_open_identity_invalid');
  if(!confirmed.reference.proof||BigInt(confirmed.reference.price0)<=0n||
@@ -104,8 +105,10 @@ export async function loadRangeKeeperPaperConfirmationContext(input:{campaignId:
   candidate.sourceHash.toLowerCase()!==confirmationSource.hash.toLowerCase()||
   candidate.range.tickLower>=candidate.range.tickUpper||candidate.liquidity<=0n)
   return unavailable(input.campaignId,'rangekeeper_confirmation_candidate_identity_mismatch');
- const frameSqrt=BigInt(confirmed.poolState.sqrtPriceX96),range=candidate.range,
-  minted=replayPaperMint(frameSqrt,range,candidate.amount0Desired,candidate.amount1Desired,0n);
+ const frameSqrt=BigInt(confirmed.poolState.sqrtPriceX96),range=candidate.range;
+ let minted:ReturnType<typeof replayPaperMint>;
+ try{minted=replayPaperMint(frameSqrt,range,candidate.amount0Desired,candidate.amount1Desired,0n);}
+ catch{return unavailable(input.campaignId,'rangekeeper_confirmation_mint_replay_unavailable');}
  if(minted.liquidity!==candidate.liquidity)
   return unavailable(input.campaignId,'rangekeeper_confirmation_mint_replay_mismatch');
  let available0=BigInt(draft.allocation.token0Raw),available1=BigInt(draft.allocation.token1Raw);

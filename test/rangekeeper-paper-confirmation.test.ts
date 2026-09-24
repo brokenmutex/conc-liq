@@ -7,7 +7,8 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe}
  from '../src/deployments/rangekeeper-paper-confirmation.js';
-import {validateRangeKeeperPaperConfirmationEnvelope} from '../src/deployments/rangekeeper-paper-persistence.js';
+import {parseRangeKeeperPaperCandidate,validateRangeKeeperPaperConfirmationEnvelope}
+ from '../src/deployments/rangekeeper-paper-persistence.js';
 import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,
@@ -189,6 +190,25 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   readGasProfiles:reader,now:frameNow+31_000});
  assert.equal(agedGas.status,'unavailable');
  if(agedGas.status==='unavailable')assert.equal(agedGas.reason,'rangekeeper_confirmation_gas_price_stale');
+ const invalidCandidateJson=structuredClone(result.confirmationObservation.candidate) as any;
+ invalidCandidateJson.range={tickLower:900000,tickUpper:900060};
+ const invalidCandidate=parseRangeKeeperPaperCandidate(invalidCandidateJson),
+  invalidCandidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:1,profileHash,
+   configHash,source:secondSource,referenceProofHash:proofHash,candidate:invalidCandidate}),
+  invalidEnvelopeBody=structuredClone(result) as any;
+ delete invalidEnvelopeBody.envelopeHash;
+ invalidEnvelopeBody.confirmationObservation.candidate=invalidCandidateJson;
+ invalidEnvelopeBody.confirmationObservation.candidateHash=invalidCandidateHash;
+ invalidEnvelopeBody.decision.simulation.candidateHash=invalidCandidateHash;
+ const invalidEnvelope={...invalidEnvelopeBody,envelopeHash:contentHash(invalidEnvelopeBody)},
+  invalidContextBody={...confirmationContextBody,envelope:invalidEnvelope},
+  invalidContext={...invalidContextBody,snapshotHash:contentHash(invalidContextBody)},
+  mintFailure=await loadRangeKeeperPaperConfirmationContext({campaignId:draft.id,
+   runtimeIdentity:confirmationContext.runtimeIdentity,readSnapshot:async()=>invalidContext,
+   readGasProfiles:reader,now:frameNow});
+ assert.equal(mintFailure.status,'unavailable');
+ if(mintFailure.status==='unavailable')
+  assert.equal(mintFailure.reason,'rangekeeper_confirmation_mint_replay_unavailable');
  assert.throws(()=>validateRangeKeeperPaperConfirmationEnvelope({...result,
   confirmationObservation:{...result.confirmationObservation,source:{...secondSource,hash:gasHash('3')}}},
   {campaignId:draft.id,revision:1}),/rangekeeper_paper_confirmation_envelope_integrity_invalid/);
