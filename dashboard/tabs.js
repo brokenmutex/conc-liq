@@ -121,9 +121,20 @@ function bootDashboardTabs() {
     const response = await fetch(path, { method, credentials: 'same-origin', headers,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw Object.assign(new Error(data.error ?? `Request failed (${response.status})`), { status: response.status, data });
+    if (!response.ok) {
+      if (response.status === 401 && csrf) { csrfToken = null; setAuthState(false); }
+      throw Object.assign(new Error(data.error ?? `Request failed (${response.status})`), { status: response.status, data });
+    }
     return data;
   };
+  // Keep the CSRF value private to this module. Position actions receive only
+  // a same-origin request function and a boolean authentication check.
+  window.concliqOperatorAuthenticated = () => onOperatorOrigin && csrfToken !== null;
+  window.concliqOperatorRequest = (path, options = {}) => {
+    if (!onOperatorOrigin || !csrfToken) throw new Error('operator_authentication_required');
+    return authRequest(path, { ...options, csrf: options.method === 'POST' || options.method === 'DELETE' });
+  };
+  const notifyAuthChanged = () => window.dispatchEvent(new Event('operator-auth-changed'));
   function renderWidths() {
     const pool = registeredPools.find((candidate) => candidate.poolAddress === poolSelect.value);
     if (!pool) { widthSelect.disabled = true; widthSelect.innerHTML = '<option value="">Choose a registered pool first</option>'; return; }
@@ -264,6 +275,7 @@ function bootDashboardTabs() {
     document.getElementById('operator-login-fields').hidden = signedIn;
     logoutButton.hidden = !signedIn;
     document.getElementById('operator-auth-status').textContent = signedIn ? 'Authenticated for this browser session.' : 'Not signed in. Session credentials stay in this page memory.';
+    notifyAuthChanged();
   }
   if (onOperatorOrigin && loginForm) {
     loginForm.addEventListener('submit', async (event) => {

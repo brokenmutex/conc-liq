@@ -6,17 +6,20 @@ import vm from 'node:vm';
 const context=vm.createContext({
  document:{querySelector:()=>({addEventListener(){}}),addEventListener(){}},
  window:{addEventListener(){}},
+ location:{pathname:'/operator'},
  fetch:()=>new Promise(()=>{}),
  AbortSignal,
 });
-vm.runInContext(readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8'),context);
+const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
+ .replace("import {mountStaticRetainAction} from './deployment-actions.js';",'const mountStaticRetainAction=()=>{};');
+vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 
 function position(status:string,lifecycle:string,extra:Record<string,unknown>={}){
  return {id:`paper-dep-${status}`,label:'Manual-1',mode:'paper',asset:'BASE',quote:'USDG',
   fee:3000,status,history:lifecycle==='closed',hasLiquidity:true,initial:null,capital:null,
   fees:null,sourceAt:new Date().toISOString(),reasons:[],deployment:{lifecycle,
-   strategyId:'static_manual_v1',rangeState:'inside',operation:{stage:null,reason:null}},...extra};
+   campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',strategyId:'static_manual_v1',rangeState:'inside',operation:{stage:null,reason:null}},...extra};
 }
 
 test('deployment badges preserve manual hold, pause and blocked recovery',()=>{
@@ -69,6 +72,21 @@ test('queued lifecycle operations remain visible before a valuation mark exists'
  assert.match(run('row(opening,null)'),/Open in progress · accepted · queued/);
  assert.match(run('deploymentDetail(opening,modes.paper)'),/Open in progress · accepted · queued/);
  assert.equal(run('needsAttention(pausing)'),true);
+});
+
+test('retain-close browser affordance requires loopback, static paper and no pending operation',()=>{
+ const eligible=position('open','active');
+ Object.assign(context,{eligible});
+ assert.match(run('lifecycleControls(eligible)'),/retain-action-root/);
+ const pending=position('open','active',{deployment:{...eligible.deployment,
+  operation:{kind:'close_retain',status:'queued',stage:'accepted',reason:null}}});
+ Object.assign(context,{pending});
+ assert.doesNotMatch(run('lifecycleControls(pending)'),/retain-action-root/);
+ const rk=position('open','active',{deployment:{...eligible.deployment,strategyId:'rangekeeper_v1'}});
+ Object.assign(context,{rk});
+ assert.doesNotMatch(run('lifecycleControls(rk)'),/retain-action-root/);
+ context.location.pathname='/';
+ assert.doesNotMatch(run('lifecycleControls(eligible)'),/retain-action-root/);
 });
 
 test('provisional paper economics are labeled as modeled throughout the row and detail metrics',()=>{

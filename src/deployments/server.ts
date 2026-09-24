@@ -46,6 +46,7 @@ const OPERATOR_ASSETS=new Map<string,{file:string;contentType:string}>([
  ['/operator',{file:'index.html',contentType:'text/html; charset=utf-8'}],
  ['/operator/',{file:'index.html',contentType:'text/html; charset=utf-8'}],
  ['/app.js',{file:'app.js',contentType:'text/javascript; charset=utf-8'}],
+ ['/deployment-actions.js',{file:'deployment-actions.js',contentType:'text/javascript; charset=utf-8'}],
  ['/tabs.js',{file:'tabs.js',contentType:'text/javascript; charset=utf-8'}],
  ['/research.js',{file:'research.js',contentType:'text/javascript; charset=utf-8'}],
  ['/styles.css',{file:'styles.css',contentType:'text/css; charset=utf-8'}],
