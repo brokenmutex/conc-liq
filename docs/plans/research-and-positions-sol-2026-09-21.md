@@ -1323,6 +1323,28 @@ commits received focused typecheck and isolated deployment integration checks;
 rerun the full pinned repository, database and browser gates after the next
 integration slice before treating the combined source as tested.
 
+**Later September 24 continuation:** `34930d5` adds a read-only operator
+review of wallet syntax, exact paper allocation, native reserve and labeled
+static/manual limits. It still submits no draft. `2f4f777` adds a specialized
+static/manual paper-open endpoint: saved preview identity, fresh source and the
+paper worker lease gate actionability, while acceptance replays the allocation,
+profile, configuration, candidate, cost model and canonical source. The
+isolated PostgreSQL integration exercised authenticated loopback acceptance,
+lease loss, stale/repeated requests and worker restart. A saved draft from the
+bottom setup remains missing, so this is not the complete F2 browser path.
+`c76920b` records an inert V2 close-convert preflight contract, but runtime
+still returns unavailable: its exact pre-acceptance owned-fork sampler,
+persisted fee carry, worker replay and HTTP route are missing.
+
+`a43b526`, `b1a6612`, `76bdf01` and `bfd5b52` add a campaign-only
+RangeKeeper confirmation producer source, a non-booking completion projection,
+and an adapter that can replay a later mark from the confirmed second source.
+The producer is not connected to the command runtime or demonstrated against a
+real owned fork, and these artifacts do not create an open operation or book
+capital. Readers and a worker still need verified confirmation lineage,
+operation-scoped replay and isolated database lifecycle tests before F3 actions
+can be enabled.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
