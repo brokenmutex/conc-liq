@@ -22,8 +22,24 @@ export type PaperPreviewDraft=Pick<PaperDraft,'id'|'revision'|'profile'|'profile
 
 /** Reads a confirmed pool state and independent references at one source.
  * The chain adapter has no signer or broadcast method. */
-export async function readCanonicalPaperOpenFrame(client:RobinhoodClient,profile:MarketProfile):Promise<PaperOpenFrame>{
- const source=await rangeKeeperConfirmedSource(client),p=profile.pool;
+export async function readCanonicalPaperOpenFrame(client:RobinhoodClient,profile:MarketProfile,
+ pinnedSource?:PaperOpenFrame['source']):Promise<PaperOpenFrame>{
+ const confirmed=await rangeKeeperConfirmedSource(client);
+ let source=confirmed;
+ if(pinnedSource){
+  if(!/^(0|[1-9][0-9]*)$/.test(pinnedSource.block)||
+   !/^0x[0-9a-fA-F]{64}$/.test(pinnedSource.hash)||
+   !Number.isSafeInteger(pinnedSource.timestamp)||pinnedSource.timestamp<0)
+   throw Error('paper_pinned_source_malformed');
+  const blockNumber=BigInt(pinnedSource.block);
+  if(blockNumber>confirmed.block)throw Error('paper_pinned_source_not_confirmed');
+  const block=await client.getBlock({blockNumber});
+  if(block.hash.toLowerCase()!==pinnedSource.hash.toLowerCase()||
+   Number(block.timestamp)!==pinnedSource.timestamp)
+   throw Error('paper_pinned_source_not_canonical');
+  source={block:blockNumber,hash:block.hash,timestamp:Number(block.timestamp)};
+ }
+ const p=profile.pool;
  const chain=new RangeKeeperChain(client,p);
  await chain.verify(source);
  const [slot,poolLiquidity,references]=await Promise.all([

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import type {RobinhoodClient} from '../src/client.js';
 import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
@@ -7,6 +8,7 @@ import {contentHash} from '../src/deployments/contracts.js';
 import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-profile.js';
 import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from '../src/deployments/paper-cost.js';
 import {buildStaticPaperSetupPreflight,paperSetupPreflightInput} from '../src/deployments/paper-setup-preflight.js';
+import {readCanonicalPaperOpenFrame} from '../src/deployments/paper-preview.js';
 
 const token1='0x7000000000000000000000000000000000000001';
 const hash=`0x${'a'.repeat(64)}`;
@@ -71,6 +73,21 @@ test('setup is available only when all fresh registered gas stages cover the exa
  assert.equal(result.operationCreated,false);
 });
 
+test('setup replays the reviewed source and rejects a different returned frame',async()=>{
+ let received:unknown;
+ const deps={loadProfile:async(id:string)=>({id,profile,profileHash:contentHash(profile)}),
+  readFrame:async(_profile:unknown,pinnedSource:unknown)=>{received=pinnedSource;return frame;},
+  verifyCanonical:async()=>{},readGasProfiles:async()=>completeGasProfiles(),
+  readGasPrice:async()=>1_000_000_000n,now:()=>now};
+ const replay=await buildStaticPaperSetupPreflight(input,deps,frame.source);
+ assert.equal(replay.status,'available');
+ assert.deepEqual(received,frame.source);
+ const mismatched=await buildStaticPaperSetupPreflight(input,{...deps,
+  readFrame:async()=>({...frame,source:{...frame.source,block:'101'}})},frame.source);
+ assert.equal(mismatched.status,'unavailable');
+ assert(mismatched.missing.includes('reviewed_source_replay_mismatch'));
+});
+
 test('setup sizing fails closed for stale source, bad independent references, or invalid profile',async()=>{
  const deps={loadProfile:async(id:string)=>({id,profile,profileHash:contentHash(profile)}),
   readFrame:async()=>({...frame,source:{...frame.source,timestamp:Math.floor(now/1000)-181}}),
@@ -87,4 +104,16 @@ test('setup input is bounded to positive raw USDG and integer half-width',()=>{
  assert.equal(paperSetupPreflightInput.safeParse({...input,capitalQuoteRaw:'1.5'}).success,false);
  assert.equal(paperSetupPreflightInput.safeParse({...input,capitalQuoteRaw:String(100_001n*10n**6n)}).success,false);
  assert.equal(paperSetupPreflightInput.safeParse({...input,halfWidthTicks:60.5}).success,false);
+});
+
+test('pinned setup frame requires a confirmed canonical block and exact hash',async()=>{
+ const client={getBlock:async(args?:{blockNumber?:bigint})=>({
+  number:args?.blockNumber??200n,
+  hash:args?.blockNumber===135n?`0x${'2'.repeat(64)}`:`0x${'1'.repeat(64)}`,
+  timestamp:BigInt(Math.floor(Date.now()/1000)-15),
+ })} as unknown as RobinhoodClient;
+ await assert.rejects(readCanonicalPaperOpenFrame(client,profile,{...frame.source,block:'137'}),
+  /paper_pinned_source_not_confirmed/);
+ await assert.rejects(readCanonicalPaperOpenFrame(client,profile,{...frame.source,block:'135'}),
+  /paper_pinned_source_not_canonical/);
 });

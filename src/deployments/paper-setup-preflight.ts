@@ -53,12 +53,12 @@ function unavailable(input:PaperSetupPreflightInput,reason:string,profileId=inpu
  * sqrt price determines only the V3 inventory proportions and mint amounts. */
 export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightInput,deps:{
  loadProfile:(id:string)=>Promise<PaperSetupProfile|null>;
- readFrame:(profile:MarketProfile)=>Promise<PaperOpenFrame>;
+ readFrame:(profile:MarketProfile,pinnedSource?:PaperOpenFrame['source'])=>Promise<PaperOpenFrame>;
  verifyCanonical:(chainId:number,source:PaperOpenFrame['source'])=>Promise<void>;
  readGasProfiles:(poolAddress:string)=>Promise<PaperGasProfileRow[]>;
  readGasPrice:()=>Promise<bigint>;
  now?:()=>number;
-}){
+},pinnedSource?:PaperOpenFrame['source']){
  const now=deps.now??Date.now;
  let registered:PaperSetupProfile|null;
  try{registered=await deps.loadProfile(input.profileId);}catch{return unavailable(input,'registered_market_profile_unavailable');}
@@ -71,7 +71,12 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  if(quoteToken.toLowerCase()!==USDG.toLowerCase()||quoteDecimals!==6)
   return unavailable(input,'unsupported_usdg_quote_profile');
  let frame:PaperOpenFrame;
- try{frame=await deps.readFrame(profile.data);}catch{return unavailable(input,'fresh_canonical_pool_frame_unavailable');}
+ try{frame=await deps.readFrame(profile.data,pinnedSource);}
+ catch{return unavailable(input,'fresh_canonical_pool_frame_unavailable');}
+ if(pinnedSource&&(frame.source.block!==pinnedSource.block||
+  frame.source.hash.toLowerCase()!==pinnedSource.hash.toLowerCase()||
+  frame.source.timestamp!==pinnedSource.timestamp))
+  return unavailable(input,'reviewed_source_replay_mismatch');
  const observedAt=now(),age=observedAt-frame.source.timestamp*1000;
  if(age<0||age>180_000)return unavailable(input,'fresh_source_stale');
  if(!frame.referenceEligible||!frame.referenceProof||frame.price0===null||frame.price1===null||

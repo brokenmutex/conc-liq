@@ -41,15 +41,16 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false,paperSetupBusy=false;
- const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0])=>{
+ const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
+  pinnedSource?:PaperOpenFrame['source'])=>{
   if(paperSetupBusy)throw new DeploymentConflict('paper_setup_preflight_busy');
   paperSetupBusy=true;
   try{return await buildStaticPaperSetupPreflight(input,{
    loadProfile:id=>store.paperSetupProfile(id),
-   readFrame:profile=>readCanonicalPaperOpenFrame(client,profile),
+   readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
    verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(client,chainId,[source]),
    readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
-  });}finally{paperSetupBusy=false;}
+  },pinnedSource);}finally{paperSetupBusy=false;}
  };
  const paperSetupDraftAdmission=(input:unknown)=>createStaticPaperDraftFromSetup(input,{
   runPreflight:paperSetupPreflight,

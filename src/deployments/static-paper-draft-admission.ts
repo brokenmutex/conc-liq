@@ -88,7 +88,8 @@ export function staticPaperSetupReviewBinding(value:unknown):Review|null{
 /** Re-runs canonical sizing and creates a paper draft only when the browser's
  * reviewed source/profile/range/allocation still matches exactly. */
 export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
- runPreflight:(input:z.infer<typeof paperSetupPreflightInput>)=>Promise<unknown>;
+ runPreflight:(input:z.infer<typeof paperSetupPreflightInput>,
+  pinnedSource:Review['source'])=>Promise<unknown>;
  loadProfile:(id:string)=>Promise<PaperSetupProfile|null>;
  findDraftRequest:(requestId:string,input:DraftInput)=>Promise<null|
   {status:'conflict'}|{status:'found';id:string;revision:number;configHash:string}>;
@@ -122,7 +123,7 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
    'reviewed_source_not_replayed_from_store','wallet_ownership_and_funding_are_not_verified',
    'no_preview_or_operation_is_created']};
  let preflightRaw:unknown;
- try{preflightRaw=await deps.runPreflight(requested);}
+ try{preflightRaw=await deps.runPreflight(requested,input.reviewed.source);}
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
  const reviewed=staticPaperSetupReviewBinding(preflightRaw),fresh=freshPreflightSchema.safeParse(preflightRaw);
  if(!reviewed||!fresh.success)return unavailable('fresh_canonical_setup_preflight_unavailable',input.profileId);

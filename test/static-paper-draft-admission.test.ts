@@ -67,15 +67,16 @@ const deps=(overrides:Record<string,unknown>={})=>({
 });
 
 test('setup draft admission rechecks exact canonical binding, limits, and creates only a guarded paper draft',async()=>{
- let created:DraftInput|undefined,preflightCalls=0;
+ let created:DraftInput|undefined,preflightCalls=0,pinnedSource:unknown;
  const result=await createStaticPaperDraftFromSetup(input(),deps({
-  runPreflight:async()=>{preflightCalls++;return preflight;},
+  runPreflight:async(_request:unknown,source:unknown)=>{preflightCalls++;pinnedSource=source;return preflight;},
   createDraftWithRequestId:async(_requestId:string,draft:DraftInput)=>{created=draft;return{status:'created' as const,id:'00000000-0000-4000-8000-000000000099',
    revision:1,configHash:contentHash(draft.config)};},
  }));
  assert.equal(result.status,'draft_created');
  if(result.status==='draft_created')assert.equal(result.replayed,false);
  assert.equal(preflightCalls,1);
+ assert.deepEqual(pinnedSource,preflight.source);
  assert(created);
  assert.equal(created.mode,'paper');
  assert.equal(created.strategyId,'static_manual_v1');
