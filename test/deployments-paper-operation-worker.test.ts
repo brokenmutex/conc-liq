@@ -81,23 +81,27 @@ const retainModel={schemaVersion:1,kind:'paper_close_retain_model',campaignId,re
  principal:{amount0Raw:'1',amount1Raw:'1'},retainedLowerBound:{token0Raw:'1',token1Raw:'1'},
  unobserved:['fee_capture','paid_gas','net_economics'],costs:openModel.costs};
 
-test('paper operation pass requests only static/manual claims',async()=>{
+test('paper operation pass gives static/manual priority before an explicit RangeKeeper claim',async()=>{
+ const claims:unknown[][]=[];
  const store={claimNext:async(...args:unknown[])=>{
-  assert.deepEqual(args,['paper-worker-1',120,'paper','static_manual_v1']);
+  claims.push(args);
   return null;
  }} as unknown as DeploymentStore;
  const result=await processOnePaperOperation(store,{} as RobinhoodClient,{} as Pool,
-  'paper-worker-1');
+ 'paper-worker-1');
  assert.deepEqual(result,{status:'idle'});
+ assert.deepEqual(claims,[['paper-worker-1',120,'paper','static_manual_v1'],
+  ['paper-worker-1',120,'paper','rangekeeper_v1']]);
 });
 
-test('paper operation pass blocks an unsupported persisted strategy',async()=>{
+test('paper operation pass checks RangeKeeper open provenance and blocks unverified simulation',async()=>{
  const operationId='11111111-1111-4111-8111-111111111111',
   campaignId='22222222-2222-4222-8222-222222222222';
- const transitions:unknown[][]=[];
+ const transitions:unknown[][]=[];let snapshots=0;
  const store={claimNext:async()=>({id:operationId,campaign_id:campaignId,
    status:'preflighting',stage:'accepted',attempts:1}),
   advanceClaim:async(...args:unknown[])=>{transitions.push(args);},
+  rangeKeeperPaperConfirmationOperationSnapshot:async()=>{snapshots++;return {actionAvailable:false};},
   renewClaim:async()=>{throw Error('Renewal must not occur');}} as unknown as DeploymentStore;
  const indexer={query:async()=>({rows:[{id:operationId,campaign_id:campaignId,
   kind:'open',status:'preflighting',claimed_by:'paper-worker-1',
@@ -107,9 +111,10 @@ test('paper operation pass blocks an unsupported persisted strategy',async()=>{
  const result=await processOnePaperOperation(store,{} as RobinhoodClient,indexer,
   'paper-worker-1');
  assert.deepEqual(result,{status:'blocked',operationId,
-  reason:'paper_operation_path_unavailable'});
+  reason:'rangekeeper_paper_confirmation_simulation_provenance_unverified'});
+ assert.equal(snapshots,1);
  assert.deepEqual(transitions,[[operationId,'paper-worker-1',
-  'paper_recovery_required','blocked','paper_operation_path_unavailable']]);
+  'paper_recovery_required','blocked','rangekeeper_paper_confirmation_simulation_provenance_unverified']]);
 });
 
 test('paper operation pass leaves an expired claim for another worker',async()=>{
