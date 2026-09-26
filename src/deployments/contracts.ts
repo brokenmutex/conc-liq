@@ -11,12 +11,13 @@ const jsonRecord=z.record(z.string(),z.unknown());
 const ppm=z.number().int().min(0).max(1_000_000);
 const bps=z.number().int().min(0).max(10_000);
 const expiry=z.iso.datetime({offset:true});
-const commonLimits=z.object({
+export const staticPaperLimitsSchema=z.object({
  maxDeploymentValue:raw,minDeploymentValue:raw,
  maxExposurePpm:ppm,maxLossValue:raw,maxDrawdownPpm:ppm,
  maxActionCost:raw,maxRollingCost:raw,maxCampaignCost:raw,
  exitReserveWei:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=500),expiryAt:expiry.optional(),
 }).strict();
+const commonLimits=staticPaperLimitsSchema;
 export const staticParameters=z.object({
  tickLower:z.number().int().min(-887272).max(887272),
  tickUpper:z.number().int().min(-887272).max(887272),

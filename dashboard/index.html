@@ -44,7 +44,18 @@
             <label>Centered half-width<select id="setup-width" required disabled><option value="">Choose a pool first</option></select></label>
             <label>Strategy<select id="setup-strategy"><option value="static_manual_v1">Static / manual</option><option value="rangekeeper_v1">RangeKeeper</option></select></label>
             <label>Mode<select id="setup-mode"><option value="paper">Paper</option><option value="live">Live</option></select></label>
-          </div><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
+          </div><fieldset class="setup-limits-review" id="setup-limits-review"><legend>Static/manual paper limits · enter before review · explicit units</legend><div class="limits-grid">
+            <label>Maximum deployment · raw reference USD (X18)<input id="limit-max-deployment" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Minimum deployment · raw reference USD (X18)<input id="limit-min-deployment" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Maximum exposure · PPM (1,000,000 = 100%)<input id="limit-max-exposure" type="number" min="1" max="1000000" step="1"></label>
+            <label>Maximum loss · raw reference USD (X18)<input id="limit-max-loss" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Maximum drawdown · PPM (1,000,000 = 100%)<input id="limit-max-drawdown" type="number" min="1" max="1000000" step="1"></label>
+            <label>Maximum action cost · raw reference USD (X18)<input id="limit-max-action-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Maximum rolling cost · raw reference USD (X18)<input id="limit-max-rolling-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Maximum campaign cost · raw reference USD (X18)<input id="limit-max-campaign-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Native exit reserve · wei<input id="limit-exit-reserve" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
+            <label>Maximum slippage · basis points (1–500 bps)<input id="limit-slippage-bps" type="number" min="1" max="500" step="1"></label>
+          </div></fieldset><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
           <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div>
             <section id="operator-draft-binding" class="operator-draft-binding" aria-labelledby="operator-draft-binding-title" hidden>
               <h3 id="operator-draft-binding-title">Static/manual paper draft</h3>
@@ -55,18 +66,6 @@
                 <label id="setup-allocation-token1-label" for="setup-allocation-token1">Token 1 allocation · raw <input id="setup-allocation-token1" type="text" readonly></label>
                 <label for="setup-allocation-native">Native gas allocation · wei <input id="setup-allocation-native" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off" placeholder="Enter proposed paper allocation"></label>
               </div>
-              <fieldset class="setup-limits-review"><legend>Static/manual policy limits · explicit units</legend><div class="limits-grid">
-                <label>Maximum deployment · raw reference USD (X18)<input id="limit-max-deployment" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Minimum deployment · raw reference USD (X18)<input id="limit-min-deployment" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Maximum exposure · PPM (1,000,000 = 100%)<input id="limit-max-exposure" type="number" min="1" max="1000000" step="1"></label>
-                <label>Maximum loss · raw reference USD (X18)<input id="limit-max-loss" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Maximum drawdown · PPM (1,000,000 = 100%)<input id="limit-max-drawdown" type="number" min="1" max="1000000" step="1"></label>
-                <label>Maximum action cost · raw reference USD (X18)<input id="limit-max-action-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Maximum rolling cost · raw reference USD (X18)<input id="limit-max-rolling-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Maximum campaign cost · raw reference USD (X18)<input id="limit-max-campaign-cost" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Native exit reserve · wei<input id="limit-exit-reserve" type="text" inputmode="numeric" pattern="(?:0|[1-9][0-9]*)" autocomplete="off"></label>
-                <label>Maximum slippage · basis points (1–500 bps)<input id="limit-slippage-bps" type="number" min="1" max="500" step="1"></label>
-              </div></fieldset>
               <p id="operator-draft-binding-status" class="inline-note" role="status">Enter the wallet, native allocation and every required static/manual limit to review the proposed binding.</p>
               <dl id="operator-draft-binding-facts"></dl>
               <button id="save-paper-draft" type="button" disabled>Save reviewed paper draft</button>

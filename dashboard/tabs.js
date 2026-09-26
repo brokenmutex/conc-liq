@@ -10,7 +10,24 @@ export function capitalToQuoteRaw(value) {
   return raw > 0n && raw <= 100_000n * 1_000_000n ? String(raw) : null;
 }
 
-export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyId, mode }) {
+function normalizeSetupLimits(limits) {
+  const fields=['maxDeploymentValue','minDeploymentValue','maxExposurePpm','maxLossValue','maxDrawdownPpm',
+    'maxActionCost','maxRollingCost','maxCampaignCost','exitReserveWei','maxSlippageBps'];
+  if(!limits||typeof limits!=='object')return null;
+  const normalized={};
+  for(const field of fields){
+    const value=String(limits[field]??'');
+    if(!/^(0|[1-9][0-9]*)$/.test(value)||BigInt(value)<=0n)return null;
+    normalized[field]=['maxExposurePpm','maxDrawdownPpm','maxSlippageBps'].includes(field)?Number(value):value;
+  }
+  if(normalized.maxExposurePpm>1_000_000||normalized.maxDrawdownPpm>1_000_000||normalized.maxSlippageBps>500||
+    BigInt(normalized.minDeploymentValue)>BigInt(normalized.maxDeploymentValue)||
+    BigInt(normalized.maxActionCost)>BigInt(normalized.maxRollingCost)||
+    BigInt(normalized.maxActionCost)>BigInt(normalized.maxCampaignCost))return null;
+  return normalized;
+}
+
+export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyId, mode, limits }) {
   if (strategyId !== 'static_manual_v1' || mode !== 'paper') {
     return { available: false, reason: 'Only static/manual paper setup preflight is implemented.' };
   }
@@ -25,7 +42,10 @@ export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyI
       !Number.isSafeInteger(ticks) || ticks < spacing || ticks % spacing !== 0) {
     return { available: false, reason: 'Choose valid USDG capital and a half-width aligned to the registered pool tick spacing.' };
   }
-  return { available: true, payload: { profileId, capitalQuoteRaw, halfWidthTicks: ticks } };
+  const normalizedLimits=limits===undefined?undefined:normalizeSetupLimits(limits);
+  if(limits!==undefined&&!normalizedLimits)return {available:false,reason:'Enter all valid static/manual limits in their displayed units before review.'};
+  return { available: true, payload: { profileId, capitalQuoteRaw, halfWidthTicks: ticks,
+    ...(normalizedLimits?{limits:normalizedLimits}:{}) } };
 }
 
 export function preflightFacts(result) {
@@ -103,6 +123,8 @@ export function reviewStaticPaperDraftBinding({ walletAddress, preflight, native
     }
     normalizedLimits[field] = ['maxExposurePpm','maxDrawdownPpm','maxSlippageBps'].includes(field) ? Number(value) : value;
   }
+  if(preflight?.input?.limits&&JSON.stringify(preflight.input.limits)!==JSON.stringify(normalizedLimits))
+    missing.push('static_limits_changed_since_cost_preparation');
   if (normalizedLimits.maxExposurePpm > 1_000_000) missing.push('static_limit_maxExposurePpm_out_of_range');
   if (normalizedLimits.maxDrawdownPpm > 1_000_000) missing.push('static_limit_maxDrawdownPpm_out_of_range');
   if (normalizedLimits.maxSlippageBps > 500) missing.push('static_limit_maxSlippageBps_out_of_range');
@@ -217,11 +239,11 @@ function bootDashboardTabs() {
     setupNote.dataset.state = kind;
     setupNote.setAttribute('role', 'status');
   };
-  const authRequest = async (path, { method = 'GET', body, csrf = false } = {}) => {
+  const authRequest = async (path, { method = 'GET', body, csrf = false, signal } = {}) => {
     const headers = { accept: 'application/json' };
     if (body !== undefined) headers['content-type'] = 'application/json';
     if (csrf) headers['x-csrf-token'] = csrfToken ?? '';
-    const response = await fetch(path, { method, credentials: 'same-origin', headers,
+    const response = await fetch(path, { method, credentials: 'same-origin', headers,...(signal?{signal}:{}),
       ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -285,6 +307,7 @@ function bootDashboardTabs() {
 
   function invalidateReview() {
     setupReviewSequence++;
+    reviewButton.disabled=false;
     if (pendingDraftRequestId) {
       setSetupStatus('A draft request may still be saving. Complete the same-request retry or reconciliation before changing the reviewed setup.');
       return;
@@ -297,6 +320,11 @@ function bootDashboardTabs() {
   }
   document.getElementById('setup-form').addEventListener('input', invalidateReview);
   document.getElementById('setup-form').addEventListener('change', invalidateReview);
+  const setupStrategy=document.getElementById('setup-strategy'),setupMode=document.getElementById('setup-mode'),
+    setupLimits=document.getElementById('setup-limits-review');
+  const updateLimitsVisibility=()=>{setupLimits.hidden=setupStrategy.value!=='static_manual_v1'||setupMode.value!=='paper';};
+  setupStrategy.addEventListener('change',updateLimitsVisibility);setupMode.addEventListener('change',updateLimitsVisibility);
+  updateLimitsVisibility();
   async function runSetupReview(event) {
     event.preventDefault();
     const reviewSequence=++setupReviewSequence;
@@ -340,16 +368,22 @@ function bootDashboardTabs() {
       loginForm?.scrollIntoView({ block: 'nearest' });
       return;
     }
-    const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode });
+    const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+    const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode,limits });
     if (!request.available) { setSetupStatus(`Preflight unavailable: ${request.reason}`); return; }
-    setSetupStatus('Checking fresh source, independent references, registered profile and estimated costs…', 'loading');
+    setSetupStatus('Preparing a fresh source-matched provisional cost review. This can take several minutes; no draft or operation is created…', 'loading');
+    reviewButton.disabled=true;
     try {
-      const result = await authRequest(SETUP_PREFLIGHT_PATH, { method: 'POST', body: request.payload, csrf: true });
+      const result = await authRequest(SETUP_PREFLIGHT_PATH, { method: 'POST', body: request.payload, csrf: true,
+        signal:AbortSignal.timeout(360_000) });
       if(reviewSequence!==setupReviewSequence)return;
+      reviewButton.disabled=false;
       renderPreflight(result);
     } catch (cause) {
       if(reviewSequence!==setupReviewSequence)return;
-      const reason = cause.status === 401 ? 'Operator session expired. Sign in again; no draft or operation was created.' :
+      reviewButton.disabled=false;
+      const reason = cause.name==='TimeoutError'||cause.name==='AbortError' ? 'Cost preparation timed out or disconnected. No draft or operation was created. Review setup again to reuse any completed calibration.' :
+        cause.status === 401 ? 'Operator session expired. Sign in again; no draft or operation was created.' :
         cause.status === 404 ? 'Authenticated setup preflight route is not available on this command service.' :
         cause.data?.error === 'paper_setup_preflight_unavailable' ? 'Setup preflight service is unavailable.' :
         `Setup preflight failed (${cause.data?.error ?? 'command_failed'}). No draft or operation was created.`;

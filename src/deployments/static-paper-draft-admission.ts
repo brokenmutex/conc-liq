@@ -1,7 +1,8 @@
 import {z} from 'zod';
 import {ROBINHOOD_CHAIN_ID} from '../constants.js';
 import {paperSetupPreflightInput,type PaperSetupProfile} from './paper-setup-preflight.js';
-import {allocationSchema,contentHash,draftInput,staticManualParameters,staticParameters,type DraftInput} from './contracts.js';
+import {allocationSchema,contentHash,draftInput,staticManualParameters,staticParameters,
+ staticPaperLimitsSchema,type DraftInput} from './contracts.js';
 import {marketProfileSchema} from './market-profile.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
@@ -23,7 +24,8 @@ const referencesSchema=z.object({price0:raw,price1:raw,nativePrice:raw,
  proofHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
 const reviewSchema=z.object({profileId:z.uuid(),
  profileHash:z.string().regex(/^[0-9a-f]{64}$/),
- input:z.object({capitalQuoteRaw:raw,halfWidthTicks:z.number().int().positive()}).strict(),
+ input:z.object({capitalQuoteRaw:raw,halfWidthTicks:z.number().int().positive(),
+  limits:staticPaperLimitsSchema.optional()}).strict(),
  source:sourceSchema,profile:profileSnapshotSchema,
  range:z.object({centerTick:z.number().int(),centerAnchorTick:z.number().int(),
   halfWidthTicks:z.number().int().positive(),tickLower:z.number().int(),tickUpper:z.number().int(),
@@ -102,7 +104,7 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
  const input=inputParsed.data;
  let requested;
  try{requested=paperSetupPreflightInput.parse({profileId:input.profileId,
-  capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks});}
+  capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks,limits:input.limits});}
  catch{return unavailable('setup_draft_input_invalid',input.profileId);}
  const config=staticManualParameters.safeParse({halfWidthTicks:input.halfWidthTicks,limits:input.limits});
  if(!config.success)return unavailable('static_manual_limits_invalid',input.profileId);

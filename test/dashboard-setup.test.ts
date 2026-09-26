@@ -29,6 +29,19 @@ it('keeps unsupported setup choices and unbound profiles unavailable without sen
     strategyId: 'static_manual_v1', mode: 'paper' }).reason!, /tick spacing/);
 });
 
+it('sends explicit limits with raw, PPM and bps units intact for preparation', () => {
+  const limits={maxDeploymentValue:'100000000000000000000',minDeploymentValue:'1',maxExposurePpm:'950000',
+    maxLossValue:'1000000000000000000',maxDrawdownPpm:'100000',maxActionCost:'1000000000000000000',
+    maxRollingCost:'2000000000000000000',maxCampaignCost:'3000000000000000000',
+    exitReserveWei:'1000000000000000',maxSlippageBps:'50'};
+  const request=setupPreflightRequest({pool:profile,capital:'250',halfWidthTicks:'240',
+    strategyId:'static_manual_v1',mode:'paper',limits});
+  assert.equal(request.available,true);
+  assert.deepEqual(request.payload.limits,{...limits,maxExposurePpm:950000,maxDrawdownPpm:100000,maxSlippageBps:50});
+  assert.equal(setupPreflightRequest({pool:profile,capital:'250',halfWidthTicks:'240',
+    strategyId:'static_manual_v1',mode:'paper',limits:{...limits,exitReserveWei:'0'}}).available,false);
+});
+
 it('shows fresh bounds and exact inventory facts without implying acceptance', () => {
   assert.deepEqual(preflightFacts({ source: { block: 123 }, range: {
     centerTick: 10, centerAnchorTick: 0, tickLower: -240, tickUpper: 240,

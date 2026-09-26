@@ -3,7 +3,7 @@ import {sqrtRatioAtTick} from '../backtest/principal.js';
 import {USDG} from '../constants.js';
 import type {RobinhoodClient} from '../client.js';
 import {positionAmounts,replayPaperMint} from '../v3/position-math.js';
-import {contentHash} from './contracts.js';
+import {contentHash,staticPaperLimitsSchema} from './contracts.js';
 import {resolveCenteredManualRange} from './centered-manual-range.js';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,
  type PaperGasProfileRow} from './paper-cost.js';
@@ -15,7 +15,7 @@ const UINT128_MAX=(1n<<128n)-1n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/).max(12)
  .refine(value=>/^(0|[1-9][0-9]*)$/.test(value)&&BigInt(value)>0n&&BigInt(value)<=MAX_CAPITAL_QUOTE);
 export const paperSetupPreflightInput=z.object({profileId:z.uuid(),capitalQuoteRaw:raw,
- halfWidthTicks:z.number().int().min(1).max(887272)}).strict();
+ halfWidthTicks:z.number().int().min(1).max(887272),limits:staticPaperLimitsSchema.optional()}).strict();
 export type PaperSetupPreflightInput=z.infer<typeof paperSetupPreflightInput>;
 export interface PaperSetupProfile {id:string;profile:MarketProfile;profileHash:string}
 
@@ -39,7 +39,8 @@ function tickPriceQuoteX18(tick:number,profile:MarketProfile){
 function unavailable(input:PaperSetupPreflightInput,reason:string,profileId=input.profileId){
  return {schemaVersion:1 as const,kind:'paper_setup_preflight' as const,status:'unavailable' as const,
   mode:'paper' as const,strategyId:'static_manual_v1' as const,profileId,
-  input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks},
+  input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks,
+   ...(input.limits?{limits:input.limits}:{})},
   source:null,profile:null,range:null,requirements:null,references:null,costs:{status:'unavailable' as const},
   admissionLimits:{status:'not_evaluated' as const,reason:'static_manual_limits_not_submitted'},
   missing:[reason],actionAvailable:false,draftCreated:false,operationCreated:false,
@@ -149,7 +150,8 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  return {schemaVersion:1 as const,kind:'paper_setup_preflight' as const,status:'available' as const,
   mode:'paper' as const,strategyId:'static_manual_v1' as const,profileId:registered.id,
   profileHash:registered.profileHash,
-  input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks},source:frame.source,
+  input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks,
+   ...(input.limits?{limits:input.limits}:{})},source:frame.source,
   profile:{pool:p!.pool,fee:p!.fee,tickSpacing:p!.tickSpacing,token0:p!.token0,token1:p!.token1,
    quoteToken:p!.quoteToken},
   range:{centerTick:frame.tick,centerAnchorTick:range.centerAnchorTick,

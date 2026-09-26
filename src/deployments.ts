@@ -9,6 +9,10 @@ import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonica
 import {buildStaticPaperSetupPreflight} from './deployments/paper-setup-preflight.js';
 import {createStaticPaperDraftFromSetup} from './deployments/static-paper-draft-admission.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
+import {prepareStaticPaperGasForCandidate} from './deployments/static-paper-gas-preparation.js';
+import {prepareStaticPaperSetup} from './deployments/static-paper-setup-preparation.js';
+import {sampleStaticPaperGas} from './deployments/paper-gas-sampler.js';
+import {verifyPaperGasSource} from './deployments/paper-gas-source.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
@@ -55,16 +59,33 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false,paperSetupBusy=false;
- const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
-  pinnedSource?:PaperOpenFrame['source'])=>{
-  if(paperSetupBusy)throw new DeploymentConflict('paper_setup_preflight_busy');
-  paperSetupBusy=true;
-  try{return await buildStaticPaperSetupPreflight(input,{
+ const runStaticSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
+  pinnedSource?:PaperOpenFrame['source'])=>buildStaticPaperSetupPreflight(input,{
    loadProfile:id=>store.paperSetupProfile(id),
    readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
    verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(client,chainId,[source]),
    readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
-  },pinnedSource);}finally{paperSetupBusy=false;}
+  },pinnedSource);
+ const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
+  pinnedSource?:PaperOpenFrame['source'])=>{
+  if(paperSetupBusy)throw new DeploymentConflict('paper_setup_preflight_busy');
+  paperSetupBusy=true;
+  try{
+   if(pinnedSource||!input.limits)return await runStaticSetupPreflight(input,pinnedSource);
+   return await prepareStaticPaperSetup(input,{runPreflight:runStaticSetupPreflight,
+    loadProfile:id=>store.paperSetupProfile(id),
+    readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
+    forkRpcUrl:env.PAPER_FORK_RPC_URL??null,
+    sample:(draft,frame)=>sampleStaticPaperGas({rpcUrl:env.PAPER_FORK_RPC_URL!,draft,frame,
+     beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000}),
+    verify:report=>verifyPaperGasSource(client,report),
+    importEvidence:async(report,attestation)=>{
+     const result=await store.registerPaperGasEvidence(report,attestation);
+     if(typeof result.reportHash!=='string')throw new Error('paper_gas_import_report_hash_unavailable');
+     return {created:result.created,reportHash:result.reportHash};
+    },
+   });
+  }finally{paperSetupBusy=false;}
  };
  const paperSetupDraftAdmission=(input:unknown)=>createStaticPaperDraftFromSetup(input,{
   runPreflight:paperSetupPreflight,
@@ -225,11 +246,33 @@ async function main(){
    const frame=await readCanonicalPaperOpenFrame(client,draft.profile);
    const preview=buildIndicativePaperOpenPreview(draft,frame);
    if(preview.status!=='indicative')return preview;
-   const rows=await store.paperGasProfiles(draft.profile.pool.pool);
-   let gasPriceWei=0n;
-   if(rows.length)try{gasPriceWei=await client.getGasPrice();}catch{/* explicit unavailable cost below */}
-   const costed=costIndicativePaperOpenPreview(preview,rows,draft.profile.pool.pool,
-    frame.nativePrice??0n,gasPriceWei);
+   const rebuild=async()=>{
+    const rows=await store.paperGasProfiles(draft.profile.pool.pool);
+    let gasPriceWei=0n;
+    if(rows.length)try{gasPriceWei=await client.getGasPrice();}catch{/* explicit unavailable cost below */}
+    const reviewed={...preview,expiresAt:new Date(Math.min(
+     (frame.source.timestamp+180)*1000,Date.now()+120_000)).toISOString()};
+    return costIndicativePaperOpenPreview(reviewed,rows,draft.profile.pool.pool,
+     frame.nativePrice??0n,gasPriceWei);
+   };
+   let costed=await rebuild();
+   const forkRpc=env.PAPER_FORK_RPC_URL;
+   if(costed.costs.status!=='provisional'&&forkRpc){
+    const prepared=await prepareStaticPaperGasForCandidate(draft,frame,{
+     sample:(current,pinned)=>sampleStaticPaperGas({rpcUrl:forkRpc,draft:current,frame:pinned,
+      beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000}),
+     verify:report=>verifyPaperGasSource(client,report),
+     importEvidence:async(report,attestation)=>{
+     const result=await store.registerPaperGasEvidence(report,attestation);
+     if(typeof result.reportHash!=='string')throw new Error('paper_gas_import_report_hash_unavailable');
+     return {created:result.created,reportHash:result.reportHash};
+    },
+     rebuild,isPrepared:value=>value.costs.status==='provisional',sourceOf:value=>value.source,
+    });
+    if(prepared.status!=='available')return {...costed,status:'unavailable',reason:prepared.reason,
+     operationAcceptanceAvailable:false,actionAvailable:false};
+    costed=prepared.value;
+   }
    if(costed.costs.status!=='provisional')return costed;
    const persisted=await persistTrustedPaperOpenPreview({store,draft,frame,preview:costed,
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
