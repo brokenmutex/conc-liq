@@ -159,8 +159,14 @@ artifact with its own pinned Node:
 Before rendering, prepare the private environment file through the approved
 secret/configuration process with mode 0600 and owner `root`. It must contain
 the reviewed loopback command origin, operator password hash, database and
-read-only RPC configuration, registered-profile/indexer identity, and the
-explicit line `DEPLOYMENT_PAPER_OPERATION_WORKER=1`. This flag is required:
+read-only RPC configuration, the approved `PAPER_FORK_RPC_URL` source used by
+the temporary owned local fork, registered-profile/indexer identity, and the
+explicit line `DEPLOYMENT_PAPER_OPERATION_WORKER=1`. `PAPER_FORK_RPC_URL` is
+required for the owned-fork setup cost sampler and close-convert preview. Its
+upstream must be the approved read-only source RPC: `openPaperFork` runs a
+separate local Anvil fork at the reviewed source block; all
+simulated mutations terminate locally. This is distinct from the command's
+canonical `ROBINHOOD_READ_HTTP_URL`. The worker opt-in flag must be in this file:
 `launch.mjs` strips inherited application environment values and constructs
 `CONC_LIQ_RUNTIME_IDENTITY.configHash` from this private file. A rendered
 systemd `Environment=` value would be stripped before worker startup and would
@@ -215,12 +221,16 @@ release CLI and the separately protected profile file:
   deployments-profile-register /secure/operator-input/profile.json
 ```
 
-Capture only the returned profile ID/hash and verification class. Once the
+The registration CLI mutates the production catalog. Run it only after
+separate explicit production authorization names the target database and the
+exact profile contents/hash, chain/pool, reference policy and indexer stream/
+target set. Migration or service authorization alone does not authorize this
+write. Capture only the returned profile ID/hash and verification class. Once the
 command service is approved and started, verify that exact profile through its
 authenticated read-only `GET /api/market-profiles` response before any setup.
 The registration command verifies canonical chain and independent-reference
 evidence but performs a database registration write, so it is an explicitly
-gated cutover action, not a preflight read.
+authorized cutover action, not a preflight read.
 
 Render and validate the candidate unit files without installing or starting
 them:

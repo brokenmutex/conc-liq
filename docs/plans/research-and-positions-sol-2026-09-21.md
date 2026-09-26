@@ -1767,7 +1767,7 @@ platform is not needed to establish the cause.
 | --- | --- | --- |
 | MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
-| MVP-3 | Both canonical source browser exits passed: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Verify both lifecycles on the final clean sealed artifact. |
+| MVP-3 | Both canonical browser exits passed on sealed `b78c3f22…` / source `609e68f`: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Preserve the same artifact for economic restart and restore gates. |
 | MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
 | MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Both canonical lifecycles and economic recovery on this build, canonical restore and cutover review. Production authorization remains pending. |
 
@@ -2143,3 +2143,34 @@ fee evidence in mark provenance and the new terminal fee-evidence row are also
 checked separately. These are external test-driver changes after the runtime
 artifact was sealed; its `609e68f` identity is unchanged. Preserve the external
 harness commit and artifact identity separately for the remaining process runs.
+
+**Sealed ordinary conversion passed:** runtime build `b78c3f22…` / source
+`609e68f`, external strengthened harness `633566a`, campaign
+`950e046e-2c9b-4a15-b0fb-c5cc7c191ff2`, conversion operation
+`6462e863-015f-4c57-9a33-6e68a465d900`: succeeded at
+`paper_close_convert_v3_reconciled`, one terminal mark, one V3 snapshot,
+three exactly matched modeled capital-out ledger rows and zero paid-gas rows.
+Pre-conversion terminal mark/model binding and post-conversion V3 projection
+were independently checked. Final modeled inventory: USDG `1991738`, AAPL `0`,
+native `9999963924950024000` wei. Desktop 1440/mobile 390 closed history,
+modeled conversion values/costs and gaps passed and were visually inspected.
+Command/worker exited and disposable schema/runtime directory were cleaned.
+Log: `/tmp/conc-liq-review-evidence/canonical-convert-sealed-609e68f-633566a-20260926.txt`;
+screenshots: `/tmp/static-paper-browser-evidence-609e68f-convert-20260926/950e046e-2c9b-4a15-b0fb-c5cc7c191ff2/`.
+Both ordinary sealed exits now satisfy MVP-3. Positive interruption/restart with
+restore and the changed-anchor negative case remain open.
+
+**First sealed recovery attempt did not pass:** campaign
+`5c0c502a-7a80-40e8-806f-4dee46b58b81` reached matching V2/fee readiness and
+worker suspension, then the helper timed out looking for the first generic
+`.retain-action-status` to contain the lost-response notice. The failure page
+already showed the conversion in progress/accepted/queued and the saved-request
+reconciliation banner. The generic selector can read a different action's
+status, and polling removes action controls once the campaign is closing.
+This is a transient UI-observation problem; expiry, kill/restart and restore
+were not reached and are not claimed. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-633566a-20260926.txt`.
+The external helper will require proof that the real 202 response was dropped
+and the durable campaign/kind-specific saved-request reconciliation control,
+then rerun the entire positive gate. Runtime artifact and evidence limits remain
+unchanged. Failure cleanup completed before any retry.

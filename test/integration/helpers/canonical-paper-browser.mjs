@@ -303,14 +303,26 @@ export async function acceptPositionsAction(browser,campaignId,kind,
    return response;};})()`);
  if(dropAcceptedResponse){
   await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(acceptancePath)};
-   let dropped=false;window.fetch=async(input,options)=>{const response=await original(input,options),
+   let dropped=false;window.__canonicalDroppedAcceptedResponse=false;
+   window.fetch=async(input,options)=>{const response=await original(input,options),
     requestPath=new URL(typeof input==='string'?input:input.url,location.href).pathname;
     if(!dropped&&options?.method==='POST'&&requestPath===target&&response.status===202){
-     dropped=true;throw new TypeError('fixture_lost_accepted_response');}return response;};})()`);
+     dropped=true;window.__canonicalDroppedAcceptedResponse=true;
+     throw new TypeError('fixture_lost_accepted_response');}return response;};})()`);
  }
  await browser.click(spec.confirm);
- if(dropAcceptedResponse)await browser.waitFor("document.querySelector('.retain-action-status')?.textContent.toLowerCase().includes('outcome unknown')",
-  `${kind} lost-response UI outcome`,60_000);
+ if(dropAcceptedResponse){
+  await browser.waitFor('window.__canonicalDroppedAcceptedResponse===true',
+   `${kind} injected accepted-response loss`,60_000);
+  assert.equal(await browser.evaluate('window.__canonicalDroppedAcceptedResponse'),true,
+   `${kind} recovery fixture did not drop the actual accepted 202 response`);
+  const recoverySelector=`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button`+
+   `[data-campaign-id="${campaignId}"][data-kind="${kind}"]`;
+  await browser.waitFor(`document.querySelector(${JSON.stringify(recoverySelector)})!==null&&
+   document.querySelector(${JSON.stringify(recoverySelector)}).disabled===false&&
+   document.querySelector(${JSON.stringify(recoverySelector)}).getClientRects().length>0`,
+   `${kind} saved-acceptance reconciliation control`,60_000);
+ }
  await browser.waitFor('window.__canonicalAcceptedResponse!==null',
   `${kind} captured acceptance response`,60_000);
  const acceptedResponse=await browser.evaluate('window.__canonicalAcceptedResponse');

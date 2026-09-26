@@ -92,6 +92,19 @@ only command-server liveness; check authenticated `GET /api/market-profiles`
 for the registered profile and inspect the actual worker advisory lease in
 PostgreSQL before treating worker readiness as established.
 
+The private file must also configure `PAPER_FORK_RPC_URL` to the specifically
+approved read-only source used by the temporary owned local Anvil fork. Setup's
+owned-fork cost sampler and close-convert preview require it. The fork performs
+simulated mutations only against its local Anvil process; do not point this
+setting at a signing or production write endpoint. Keep its value private and
+include it in the file's recorded config hash.
+
+Profile registration writes to the production catalog. Obtain separate
+explicit authorization for the exact target database and profile contents/hash,
+chain/pool, reference policy and indexer stream/target set before invoking the
+registration CLI. Migration or service authorization alone does not authorize
+profile registration.
+
 The canonical browser commands are
 `test:integration:static-paper-canonical-retain-browser:sealed`,
 `test:integration:static-paper-canonical-convert-browser:sealed` and
