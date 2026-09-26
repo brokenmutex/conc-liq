@@ -2,6 +2,7 @@ import {getAddress,isAddress} from 'viem';
 import {z} from 'zod';
 import {allocationSchema,contentHash,rangeKeeperParameters,staticManualParameters} from './contracts.js';
 import {marketProfileSchema,type MarketProfile} from './market-profile.js';
+import {isCanonicalPositiveReferenceAmount} from './live-independent-reference-evidence.js';
 
 const strategyIds=['static_manual_v1','rangekeeper_v1'] as const;
 type StrategyId=typeof strategyIds[number];
@@ -13,7 +14,7 @@ const inputSchema=z.object({draft:z.object({id:z.string().min(1),revision:z.numb
  profile: z.unknown(),profileHash:z.string().regex(/^[0-9a-f]{64}$/),config:z.unknown(),
  configHash:z.string().regex(/^[0-9a-f]{64}$/),allocation:allocationSchema}).strict(),
  custodySnapshot:z.unknown(),nftCustodyEnumeration:z.unknown().optional(),poolRuntimeIdentity:z.unknown().optional(),
- journalDiagnostic:z.unknown()}).strict();
+ independentReferenceEvidence:z.unknown().optional(),journalDiagnostic:z.unknown()}).strict();
 
 function record(value:unknown):Record<string,unknown>|null{
  return value&&typeof value==='object'&&!Array.isArray(value)?value as Record<string,unknown>:null;
@@ -71,6 +72,24 @@ function poolRuntimeIdentityMatches(value:unknown,strategy:StrategyId,profileHas
   typeof hashes.managerCodeHash==='string'&&same(hashes.managerCodeHash,pool.managerCodeHash)&&
   typeof hashes.quoterCodeHash==='string'&&same(hashes.quoterCodeHash,pool.quoterCodeHash));
 }
+function independentReferenceMatches(value:unknown,strategy:StrategyId,profileHash:string,
+ profile:MarketProfile,source:Record<string,unknown>|null):boolean{
+ const row=record(value),boundSource=record(row?.source),references=record(row?.references);
+ const policyHash=contentHash(profile.referencePolicy);
+ return Boolean(row?.kind==='live_independent_reference_evidence'&&row.status==='available'&&
+  row.targetStrategyId===strategy&&row.profileHash===profileHash&&row.referencePolicyHash===policyHash&&
+  row.actionAvailable===false&&Array.isArray(row.reasons)&&row.reasons.length===0&&
+  Array.isArray(row.missing)&&row.missing.length===0&&boundSource?.confirmed===true&&source?.confirmed===true&&
+  boundSource.block===source.block&&typeof boundSource.hash==='string'&&typeof source.hash==='string'&&
+  same(boundSource.hash,source.hash)&&boundSource.timestamp===source.timestamp&&
+  Number.isSafeInteger(row.validUntil)&&typeof row.validUntil==='number'&&row.validUntil>Date.now()/1000&&
+  typeof source.timestamp==='number'&&row.validUntil<=source.timestamp+180&&
+  references&&isCanonicalPositiveReferenceAmount(references.token0)&&
+  isCanonicalPositiveReferenceAmount(references.token1)&&isCanonicalPositiveReferenceAmount(references.native)&&
+  references.reference0===profile.pool.reference0&&references.reference1===profile.pool.reference1&&
+  references.nativeReference===profile.pool.nativeReference&&references.numeraire===profile.pool.numeraire&&
+  typeof references.proofHash==='string'&&/^[0-9a-f]{64}$/.test(references.proofHash));
+}
 
 /** Join a saved deployment identity with custody and legacy-journal evidence.
  * This is a diagnostic composer only: it never evaluates strategy admission,
@@ -80,7 +99,8 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
  if(!parsed.success)return {kind:'live_strategy_preflight_evidence' as const,status:'unavailable' as const,
   strategyId:null,campaignId:null,revision:null,checks:[],journal:{status:'unavailable',blockers:[]},
   missing:['saved_strategy_binding_invalid'],actionAvailable:false as const,executionEligible:false as const};
- const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal,nftCustodyEnumeration,poolRuntimeIdentity}=parsed.data;
+ const {draft,custodySnapshot:rawSnapshot,journalDiagnostic:rawJournal,nftCustodyEnumeration,poolRuntimeIdentity,
+  independentReferenceEvidence}=parsed.data;
  const strategyId=draft.strategyId as StrategyId,poolProfile=marketProfileSchema.safeParse(draft.profile),
   allocation=allocationSchema.safeParse(draft.allocation);
  const checks:Check[]=[],missing:string[]=[];
@@ -108,7 +128,7 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
    addMissing('saved_strategy_limits_missing');}
  }
  if(!poolProfile.success){
-  for(const name of ['chain','pool_identity','manager_identity','token_scope','allowance_scope'])
+  for(const name of ['chain','pool_identity','manager_identity','token_scope','allowance_scope','independent_reference_source'])
    checks.push(check(name,'unavailable','profile_unavailable'));
  }else{
   const p=poolProfile.data.pool;
@@ -128,6 +148,17 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
    addMissing('pool_code_and_factory_relations_not_rechecked_at_snapshot_source');
    const runtimeMissing=record(runtime)?.missing;
    if(Array.isArray(runtimeMissing))for(const reason of runtimeMissing)
+    if(typeof reason==='string')addMissing(reason);
+  }
+  const independent=independentReferenceEvidence??record(rawSnapshot)?.independentReferenceEvidence;
+  const referenceMatches=independentReferenceMatches(independent,strategyId,draft.profileHash,poolProfile.data,
+   record(record(rawSnapshot)?.source));
+  checks.push(check('independent_reference_source',referenceMatches?'matched':'unavailable',
+   referenceMatches?undefined:'independent_reference_policy_not_verified_at_snapshot_source'));
+  if(!referenceMatches){
+   addMissing('independent_reference_policy_not_verified_at_snapshot_source');
+   const referenceMissing=record(independent)?.missing;
+   if(Array.isArray(referenceMissing))for(const reason of referenceMissing)
     if(typeof reason==='string')addMissing(reason);
   }
  }
@@ -269,7 +300,7 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
  }
  if(draft.mode==='paper')addMissing('saved_draft_is_paper_mode_not_live_authorization');
  addMissing('live_intent_construction_review_and_signer_custody_not_implemented');
- addMissing('canonical_pool_runtime_and_independent_live_admission_not_evaluated');
+ addMissing('strategy_live_admission_and_executable_costs_not_evaluated');
  return {kind:'live_strategy_preflight_evidence' as const,status:'unavailable' as const,
   strategyId,campaignId:draft.id,revision:draft.revision,wallet:operator,chainId:draft.chainId,
   profileHash:draft.profileHash,configHash:draft.configHash,

@@ -141,3 +141,30 @@ test('a source-bound runtime profile proof can satisfy identity check without en
   journalDiagnostic:journal(),poolRuntimeIdentity:{...runtime,source:{...pinned.source,block:'99'}}});
  assert.equal(mismatched.checks.find(item=>item.name==='pool_runtime_identity')?.status,'unavailable');
 });
+
+test('fresh independent references bind profile policy and custody source without enabling action',()=>{
+ const now=Math.floor(Date.now()/1000),pinned=snapshot('static_manual_v1',{source:{...snapshot().source,
+  timestamp:now-30}}),reference={kind:'live_independent_reference_evidence',status:'available',
+  targetStrategyId:'static_manual_v1',profileHash:contentHash(profile),referencePolicyHash:contentHash(profile.referencePolicy),
+  source:pinned.source,validUntil:now+150,references:{token0:'1000000000000000000',token1:'2000000000000000000',
+   native:'3000000000000000000',reference0:profile.pool.reference0,reference1:profile.pool.reference1,
+   nativeReference:profile.pool.nativeReference,numeraire:profile.pool.numeraire,proofHash:'a'.repeat(64)},
+  reasons:[],missing:[],actionAvailable:false};
+ const valid=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,journalDiagnostic:journal(),
+  independentReferenceEvidence:reference});
+ assert.equal(valid.checks.find(item=>item.name==='independent_reference_source')?.status,'matched');
+ assert.equal(valid.actionAvailable,false);assert.equal(valid.executionEligible,false);
+ const wrongPolicy=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,journalDiagnostic:journal(),
+  independentReferenceEvidence:{...reference,referencePolicyHash:'0'.repeat(64)}});
+ assert.equal(wrongPolicy.checks.find(item=>item.name==='independent_reference_source')?.status,'unavailable');
+ const wrongSource=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,journalDiagnostic:journal(),
+  independentReferenceEvidence:{...reference,source:{...pinned.source,hash:'0x'+'c'.repeat(64)}}});
+ assert.equal(wrongSource.checks.find(item=>item.name==='independent_reference_source')?.status,'unavailable');
+ const expired=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,journalDiagnostic:journal(),
+  independentReferenceEvidence:{...reference,validUntil:now-1}});
+ assert.equal(expired.checks.find(item=>item.name==='independent_reference_source')?.status,'unavailable');
+ const overlong=composeLiveStrategyPreflightEvidence({draft:saved(),custodySnapshot:pinned,journalDiagnostic:journal(),
+  independentReferenceEvidence:{...reference,validUntil:now+181}});
+ assert.equal(overlong.checks.find(item=>item.name==='independent_reference_source')?.status,'unavailable');
+ assert.equal(expired.actionAvailable,false);assert.equal(overlong.executionEligible,false);
+});
