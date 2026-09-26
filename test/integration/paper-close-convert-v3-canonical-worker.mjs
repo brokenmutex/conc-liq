@@ -140,7 +140,7 @@ async function inspectConvertedCloseHistory({origin,password,onChrome,onWebSocke
  await click('#paper .bottom-tabs button[data-action="tab"][data-value="activity"]');
  await waitFor('document.querySelector("#paper .activity-list")?.textContent.includes("close_convert")');
  const activity=await evaluate('document.querySelector("#paper .activity-list").innerText');
- assert(activity.includes('close_convert')&&activity.includes('completed'));
+ assert(activity.includes('close_convert')&&activity.includes('succeeded'),activity);
  await click('#paper .bottom-tabs button[data-action="tab"][data-value="sessions"]');
  await waitFor('document.querySelector("#paper .session-note")!==null');
  assert((await evaluate('document.querySelector("#paper .session-note").innerText'))
