@@ -19,7 +19,7 @@ const run=(expression:string)=>vm.runInContext(expression,context);
 function position(status:string,lifecycle:string,extra:Record<string,unknown>={}){
  return {id:`paper-dep-${status}`,label:'Manual-1',mode:'paper',asset:'BASE',quote:'USDG',
   fee:3000,status,history:lifecycle==='closed',hasLiquidity:true,initial:null,capital:null,
-  fees:null,sourceAt:new Date().toISOString(),reasons:[],deployment:{lifecycle,
+  fees:null,sourceAt:new Date().toISOString(),reasons:[],deployment:{lifecycle,revision:1,
    campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',strategyId:'static_manual_v1',rangeState:'inside',operation:{stage:null,reason:null}},...extra};
 }
 
@@ -97,6 +97,52 @@ test('retain-close browser affordance requires loopback, static paper and no pen
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/retain-action-root/);
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/convert-action-root/);
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/paper-lifecycle-action-root/);
+});
+
+test('same eligible action root survives a detail rerender while its preview is pending',()=>{
+ const root=(className:string,extra:Record<string,string>={})=>({
+  classList:{contains:(name:string)=>name===className},
+  dataset:{campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',revision:'1',
+   lifecycle:'active',authenticated:'true',...extra},
+  previewStatus:'Preview request pending',replacement:null as unknown,
+  replaceWith(value:unknown){this.replacement=value;},
+ });
+ const mounted=root('retain-action-root'),placeholder=root('retain-action-root');
+ Object.assign(context,{mounted,placeholder});
+ run('preserveActionRoots([mounted],[placeholder])');
+ assert.equal((placeholder as any).replacement,mounted);
+ assert.equal((placeholder as any).replacement.previewStatus,'Preview request pending');
+ Object.assign(context,{mountCount:0});
+ run('mountActionRootOnce(mounted,()=>mountCount++)');
+ run('mountActionRootOnce(mounted,()=>mountCount++)');
+ assert.equal(run('mountCount'),1);
+});
+
+test('action roots are not reused across lifecycle, revision, auth, or pending-operation changes',()=>{
+ const root=(className:string,extra:Record<string,string>={})=>({
+  classList:{contains:(name:string)=>name===className},
+  dataset:{campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',revision:'1',
+   lifecycle:'active',authenticated:'true',...extra},
+  replacement:null as unknown,replaceWith(value:unknown){this.replacement=value;},
+ });
+ const old=root('paper-lifecycle-action-root',{kind:'pause'});
+ const changed=root('paper-lifecycle-action-root',{kind:'resume',lifecycle:'paused'});
+ Object.assign(context,{old,changed});
+ run('preserveActionRoots([old],[changed])');
+ assert.equal((changed as any).replacement,null);
+ const oldRetain=root('retain-action-root');
+ const revision=root('retain-action-root',{revision:'2'});
+ const auth=root('retain-action-root',{authenticated:'false'});
+ Object.assign(context,{oldRetain,revision,auth});
+ run('preserveActionRoots([oldRetain],[revision,auth])');
+ assert.equal((revision as any).replacement,null);
+ assert.equal((auth as any).replacement,null);
+ const pending=position('open','active',{deployment:{...position('open','active').deployment,
+  operation:{kind:'pause',status:'queued',stage:'accepted',reason:null}}});
+ Object.assign(context,{pending});
+ assert.doesNotMatch(run('lifecycleControls(pending)'),/retain-action-root|paper-lifecycle-action-root/);
+ run('preserveActionRoots([oldRetain],[])');
+ assert.equal((oldRetain as any).replacement,null);
 });
 
 test('provisional paper economics are labeled as modeled throughout the row and detail metrics',()=>{
