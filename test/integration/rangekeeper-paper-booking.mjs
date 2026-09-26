@@ -338,7 +338,8 @@ try{
   assert(previewExpiry.getTime()>Date.now(),
    `First source preview expired before producer could persist confirmation: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
   const producerStartedAt=Date.now(),producerMetrics=[];
-  let producerReceiptFailure='not_called',producerReceiptAnchorMs=0,producerReceiptCallMs=0;
+  let producerReceiptFailure='not_called',producerReceiptFailureStage='not_called',
+   producerReceiptAnchorMs=0,producerReceiptCallMs=0;
   const assertNoProducerRows=async()=>{
    const [proofs,receipts]=await Promise.all([
     admin.query('SELECT count(*)::int AS n FROM deployment_rangekeeper_paper_confirmations WHERE campaign_id=$1',
@@ -350,23 +351,27 @@ try{
   };
   const persistProducerPublication=store.persistRangeKeeperPaperConfirmationWithProducerReceipt.bind(store);
   store.persistRangeKeeperPaperConfirmationWithProducerReceipt=async input=>{
-   const callStartedAt=Date.now();
+   const callStartedAt=Date.now();let stage='serialized_envelope_rejected';
    try{
     await assert.rejects(persistProducerPublication({...input,envelope:structuredClone(input.envelope)}),
      /rangekeeper_paper_confirmation_producer_untrusted/,
      'Serialized producer output was accepted');
+    stage='mutated_envelope_rejected';
     const originalProfileHash=input.envelope.profileHash;
     input.envelope.profileHash='0'.repeat(64);
     await assert.rejects(persistProducerPublication(input),/rangekeeper_paper_confirmation_envelope_integrity_invalid/,
      'Mutated confirmation envelope was accepted');
     input.envelope.profileHash=originalProfileHash;
+    stage='post_insert_reorg_rollback';
     let anchorPass=0;
     await assert.rejects(persistProducerPublication({...input,verifyAnchors:async(chainId,sources)=>{
      if(++anchorPass===2)throw new assert.AssertionError({message:'fixture canonical reorg after inserts'});
      await input.verifyAnchors(chainId,sources);
     }}),/rangekeeper_paper_confirmation_source_changed_during_write/,
      'Post-insert source change did not abort the atomic publication');
+    stage='post_insert_reorg_rows_absent';
     await assertNoProducerRows();
+    stage='expiry_after_final_anchor_rollback';
     let fakeExpired=false;anchorPass=0;
     const realNow=Date.now;
     try{
@@ -377,7 +382,9 @@ try{
      }}),/rangekeeper_paper_confirmation_preview_expired/,
       'Publication crossed the original preview deadline');
     }finally{Date.now=realNow;}
+    stage='expiry_rows_absent';
     await assertNoProducerRows();
+    stage='atomic_publication';
     return await persistProducerPublication({...input,verifyAnchors:async(chainId,sources)=>{
      const anchorStartedAt=Date.now();
      try{return await input.verifyAnchors(chainId,sources);}
@@ -385,7 +392,9 @@ try{
     }});
    }
    catch(error){const message=error instanceof Error?error.message:'';
-    producerReceiptFailure=/^[a-z][a-z0-9_]+$/.test(message)?message:'nonstandard_error';throw error;}
+    producerReceiptFailure=/^[a-z][a-z0-9_]+$/.test(message)?message:
+     `${error instanceof Error?error.name:'UnknownError'}:${message.replace(/https?:\/\/\S+/gi,'[redacted-url]').replace(/\s+/g,' ').slice(0,180)}`;
+    producerReceiptFailureStage=stage;throw error;}
    finally{producerReceiptCallMs=Date.now()-callStartedAt;}
   };
   const producer=createRangeKeeperPaperConfirmationProducer({store,client:rpc,rpcUrl:archive,
@@ -479,7 +488,8 @@ try{
     dashboardProjection:(dashboardFinishedAt-dashboardStartedAt)/1000,
     restartContextAndReplay:(restartFinishedAt-restartStartedAt)/1000},
    prefetchHintCount:firstReadHints.length,producerPrefetchMetrics:producerMetrics[0]??null,
-   producerReceiptDiagnostics:{failure:producerReceiptFailure,elapsedMs:producerReceiptCallMs,
+   producerReceiptDiagnostics:{failure:producerReceiptFailure,failureStage:producerReceiptFailureStage,
+    elapsedMs:producerReceiptCallMs,
     anchorMs:producerReceiptAnchorMs},
    bookingAvailable:false,actionAvailable:false})+'\n');
  }finally{
