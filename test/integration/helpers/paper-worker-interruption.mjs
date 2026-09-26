@@ -19,21 +19,66 @@ async function waitFor(read,expected,label,timeoutMs){
 /** Freeze a live worker while preserving its PostgreSQL readiness lease.
  * This lets a caller accept durable work while proving the worker cannot
  * claim it until the interrupted process is replaced. */
-export async function suspendPaperWorker(worker,readinessCheck,{timeoutMs=5_000}={}){
+export async function suspendPaperWorker(worker,readinessCheck,
+ {timeoutMs=5_000,readRuntimeBackends}={}){
  assert(worker&&worker.exitCode===null,'paper worker must be running before suspension');
- assert.equal(await readinessCheck(),true,'worker readiness lease must be held before suspension');
- assert.equal(worker.kill('SIGSTOP'),true,'could not suspend paper worker');
- await waitFor(async()=>{
+ const deadline=Date.now()+timeoutMs,quiescenceSamples=[];
+ const boundedRead=async read=>{
+  let timer;
+  try{return await Promise.race([read(),new Promise((_,reject)=>{
+   timer=setTimeout(()=>reject(Error('Timed out waiting for an idle worker suspension within the bounded window')),
+    Math.max(1,deadline-Date.now()));
+  })]);}
+  finally{clearTimeout(timer);}
+ };
+ assert.equal(await boundedRead(readinessCheck),true,
+  'worker readiness lease must be held before suspension');
+ const processStopped=async()=>{
   try{
-   const stat=await readFile(`/proc/${worker.pid}/stat`,'utf8'),state=stat.slice(stat.lastIndexOf(')')+1).trim().split(/\s+/)[0];
+   const stat=await readFile(`/proc/${worker.pid}/stat`,'utf8'),
+    state=stat.slice(stat.lastIndexOf(')')+1).trim().split(/\s+/)[0];
    return state==='T'||state==='t';
   }catch{return false;}
- },true,'worker suspension',timeoutMs);
- // SIGSTOP does not set ChildProcess.exitCode. Keep an explicit liveness and
- // lease assertion so process death cannot masquerade as a frozen worker.
- assert.equal(worker.exitCode,null,'suspended worker unexpectedly exited');
- assert.equal(await readinessCheck(),true,'suspended process must retain its readiness lease');
- return {pid:worker.pid,signal:'SIGSTOP',readinessLeaseRetained:true};
+ };
+ const resume=()=>{
+  if(worker.exitCode===null&&worker.signalCode===null)worker.kill('SIGCONT');
+ };
+ try{
+  while(Date.now()<deadline){
+   assert.equal(worker.exitCode,null,'paper worker unexpectedly exited before suspension');
+   assert.equal(worker.kill('SIGSTOP'),true,'could not suspend paper worker');
+   while(Date.now()<deadline&&!(await processStopped()))await sleep(25);
+   if(!(await processStopped()))throw Error('Timed out waiting for worker suspension');
+   if(Date.now()>=deadline)throw Error('Timed out waiting for an idle worker suspension within the bounded window');
+   // Two idle observations after SIGSTOP prove that no tagged runtime session
+   // has an active statement or open transaction whose locks the frozen
+   // process could retain. The caller supplies the database-scoped predicate.
+   const sample={first:null,second:null};quiescenceSamples.push(sample);
+   if(readRuntimeBackends){
+    sample.first=await boundedRead(readRuntimeBackends);
+    if(sample.first?.quiescent){
+     await sleep(Math.min(50,Math.max(1,deadline-Date.now())));
+     sample.second=await boundedRead(readRuntimeBackends);
+    }
+   }
+   if(Date.now()>=deadline)throw Error('Timed out waiting for an idle worker suspension within the bounded window');
+   if(!readRuntimeBackends||(sample.first?.quiescent&&sample.second?.quiescent)){
+    assert.equal(worker.exitCode,null,'suspended worker unexpectedly exited');
+    assert.equal(await boundedRead(readinessCheck),true,
+     'suspended process must retain its readiness lease');
+    if(Date.now()>=deadline)throw Error('Timed out waiting for an idle worker suspension within the bounded window');
+    return {pid:worker.pid,signal:'SIGSTOP',readinessLeaseRetained:true,
+     runtimeDatabaseQuiescence:readRuntimeBackends?sample:null};
+   }
+   resume();
+   await sleep(Math.min(50,Math.max(1,deadline-Date.now())));
+  }
+  throw Error('Timed out waiting for an idle worker suspension within the bounded window');
+ }catch(error){
+  resume();
+  if(error instanceof Error)error.runtimeDatabaseQuiescenceSamples=quiescenceSamples;
+  throw error;
+ }
 }
 
 /** Kill a deliberately suspended child and wait until PostgreSQL releases its

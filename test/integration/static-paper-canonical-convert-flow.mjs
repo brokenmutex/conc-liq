@@ -143,6 +143,7 @@ async function main(){
   adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),
   admin=await adminPool.connect(),schema=`static_convert_browser_${randomUUID().replaceAll('-','')}`;
  let store,indexer,command,worker,browser,runtimeDir,campaignId,rpcProxy,proxyClient,
+  runtimeApplicationName=null,runtimeDatabaseBackends=null,
   openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null;
  const checks=[];let runtimeEnvSha256=null,initialWorkerEnvFile=null;
  try{
@@ -153,7 +154,11 @@ async function main(){
    'v3_replay_pools,v3_pool_events CASCADE');
   const scopedUrl=new URL(process.env.TEST_DATABASE_URL);
   scopedUrl.searchParams.set('options',`-c search_path=${schema},public -c statement_timeout=30000`);
-  const deploymentUrl=scopedUrl.toString();store=new DeploymentStore(deploymentUrl);await store.assertReady();
+  runtimeApplicationName=`paper-mvp-${process.pid}-${randomBytes(6).toString('hex')}`;
+  const deploymentUrl=scopedUrl.toString(),runtimeUrl=new URL(deploymentUrl);
+  runtimeUrl.searchParams.set('application_name',runtimeApplicationName);
+  const runtimeDatabaseUrl=runtimeUrl.toString();
+  store=new DeploymentStore(deploymentUrl);await store.assertReady();
   const replayUrl=new URL(process.env.TEST_DATABASE_URL);
   replayUrl.searchParams.set('options',`-c default_transaction_read_only=on -c search_path=${schema},public`);
   indexer=new pg.Pool({connectionString:replayUrl.toString(),max:3,statement_timeout:30_000});
@@ -162,6 +167,24 @@ async function main(){
   assert.equal(sourceSettings.read_only,'on');
   assert(sourceSettings.search_path.includes(schema)&&sourceSettings.search_path.includes('public'),
    `read-only replay search path must be isolated temp schema plus public: ${sourceSettings.search_path}`);
+  runtimeDatabaseBackends=async()=>{
+   const rows=(await admin.query(`SELECT pid,state,wait_event_type,wait_event,
+    xact_start::text AS xact_start,query_start::text AS query_start,pg_blocking_pids(pid) AS blocking_pids
+    FROM pg_stat_activity WHERE datname=current_database() AND application_name=$1
+     AND pid<>pg_backend_pid() ORDER BY pid`,[runtimeApplicationName])).rows.map(row=>({
+      pid:Number.isInteger(row.pid)?row.pid:null,
+      state:['active','idle','idle in transaction','idle in transaction (aborted)',
+       'fastpath function call','disabled'].includes(row.state)?row.state:null,
+      waitEventType:typeof row.wait_event_type==='string'&&/^[a-z_]{1,32}$/i.test(row.wait_event_type)?
+       row.wait_event_type:null,
+      waitEvent:typeof row.wait_event==='string'&&/^[a-z0-9_]{1,80}$/i.test(row.wait_event)?row.wait_event:null,
+      xactStart:typeof row.xact_start==='string'?row.xact_start.slice(0,48):null,
+      queryStart:typeof row.query_start==='string'?row.query_start.slice(0,48):null,
+      blockingPids:Array.isArray(row.blocking_pids)?row.blocking_pids.filter(Number.isInteger):[]
+     }));
+   return {quiescent:rows.length>0&&rows.every(row=>row.state==='idle'&&row.xactStart===null),
+    backendCount:rows.length,backends:rows};
+  };
   const identityRows=(await indexer.query(`SELECT r.chain_id::int,p.fee,r.target_set_hash,
    r.complete_through_block::text,r.complete_through_hash FROM v3_replay_cursors r
    JOIN v3_replay_pools p USING(stream_key) WHERE r.stream_key=$1 AND
@@ -185,7 +208,7 @@ async function main(){
    identity={buildId:contentHash({kind:'canonical-convert-browser',pid:process.pid}),
     configHash:contentHash({kind:'isolated-canonical-convert-browser'}),nodeVersion:process.version};
   accountingIdentity=identity;
-  const env={...process.env,DATABASE_URL:deploymentUrl,DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,
+  const env={...process.env,DATABASE_URL:runtimeDatabaseUrl,DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,
    DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:archive,
    PAPER_FORK_RPC_URL:archive,DEPLOYMENT_RPC_TIMEOUT_MS:'20000',INDEXER_STREAM_KEY:stream,
    DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
@@ -205,7 +228,7 @@ async function main(){
   if(sealed){
    runtimeDir=await mkdtemp(`${tmpdir()}/conc-liq-convert-runtime-`);
    runtimeEnvFile=join(runtimeDir,'runtime.env');
-   const sealedRuntimeEnv={DATABASE_URL:deploymentUrl,
+   const sealedRuntimeEnv={DATABASE_URL:runtimeDatabaseUrl,
     DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,DEPLOYMENT_HOST:'127.0.0.1',
     DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:changedRestartAnchor?rpcProxy.url:archive,
     PAPER_FORK_RPC_URL:archive,
@@ -455,7 +478,11 @@ async function main(){
       'proxy must first observe the accepted model’s unchanged canonical anchor');
      phase('accepted_model_anchor_observed',{block:acceptedModelSource.block});
     }
-   if(interrupt){workerSuspension=await suspendPaperWorker(worker,workerReady);phase('worker_suspended');}
+   if(interrupt){workerSuspension=await suspendPaperWorker(worker,workerReady,
+    {timeoutMs:5_000,readRuntimeBackends:runtimeDatabaseBackends});
+    phase('worker_suspended',{pid:workerSuspension.pid,signal:workerSuspension.signal,
+     readinessLeaseRetained:workerSuspension.readinessLeaseRetained,
+     runtimeDatabaseQuiescence:workerSuspension.runtimeDatabaseQuiescence});}
    if(interrupt){
     const expiry=typeof previewResponse?.expiresAt==='string'&&
      Number.isFinite(Date.parse(previewResponse.expiresAt))?new Date(previewResponse.expiresAt).toISOString():null;
@@ -795,6 +822,9 @@ async function main(){
     'spawned source src/deployments.ts and src/deployments-paper-worker.ts',
    note:'Fork-derived estimates remain provisional. This disposable run proves static/manual browser conversion only.'},null,2));
 }catch(error){
+  if(Array.isArray(error?.runtimeDatabaseQuiescenceSamples))
+   phase('worker_suspension_quiescence_failure',{
+    runtimeApplicationName,samples:error.runtimeDatabaseQuiescenceSamples});
   if(browser&&campaignId){
    try{
     const browserObservation=await browser.evaluate(`(()=>({dropped:window.__canonicalDroppedAcceptedResponse===true,
@@ -867,6 +897,14 @@ async function main(){
      intervalDiagnostic});
    }catch(diagnosticError){phase('failure_read_only_fee_diagnostic_error',
     {message:clean(diagnosticError?.message??diagnosticError).slice(0,500)});}
+  }
+  if(runtimeApplicationName&&runtimeDatabaseBackends&&admin){
+   try{phase('failure_runtime_database_backends',{
+    runtimeApplicationName,...await runtimeDatabaseBackends()});}
+   catch(diagnosticError){phase('failure_runtime_database_backends_error',{
+    name:/^[A-Za-z]+Error$/.test(diagnosticError?.name??'')?diagnosticError.name:'Error',
+    code:typeof diagnosticError?.code==='string'&&
+     /^[A-Z0-9_]{1,60}$/i.test(diagnosticError.code)?diagnosticError.code:null});}
   }
   throw error;
  }finally{
