@@ -40,6 +40,20 @@ activation, funding, signer use or transaction submission was performed.
   `105482e`; log:
   `/tmp/conc-liq-dashboard-browser-preparation-fixed-20260926.log`.
 
+## Exact sealed lifecycle process check
+
+`test:integration:paper-worker-process:sealed` passed against this exact build
+with `TEST_EXPECTED_RELEASE_COMMIT` set to the source identity above. Actual
+sealed command and worker processes completed pause/resume, readiness-lease
+loss, one worker restart, and desktop/mobile journal views. The fixture released
+its lease and cleaned its isolated schema, processes and private environment.
+Its local error-only JSON-RPC boundary received zero requests; no signer loaded,
+and no marks or economic ledger rows were written. Log:
+`/tmp/conc-liq-sealed-process-cf6311c-20260926.log`.
+
+These results establish lifecycle process behavior, not setup or economic
+operation correctness.
+
 ## Runtime evidence boundaries
 
 This source includes server-owned exact-source static setup/open cost
