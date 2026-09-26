@@ -446,7 +446,7 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
   console.log(JSON.stringify({status:'canonical_v3_worker_fixture_passed',phaseTiming:phaseTimes,
    latestMarkBeforePreview:context.state.previous.source.block,replaySource:frame.source.block,
    replayAgeMs:Date.now()-frame.source.timestamp*1000,openOperationId:openAcceptance.id,
-   closeOperationId:accepted.id,completed:completed.stage,terminalMarks:terminalRows,
+   closeOperationId:accepted.id,completed:completed.status,terminalMarks:terminalRows,
    modeledLedgerRows:ledger,paidCostsAvailable:false,actionAvailable:preview.actionAvailable,
    httpReviewActionAvailable:httpReview.actionAvailable,httpAcceptanceReplayed:sameKeyRetry.status===202,
    browserChecks,
@@ -454,7 +454,8 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
  }finally{
   try{ws?.close();}catch{}
   if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await new Promise(resolve=>{
-   const timer=setTimeout(resolve,2000);chrome.once('exit',()=>{clearTimeout(timer);resolve();});});}
+   const timer=setTimeout(()=>resolve(undefined),2000);
+   chrome.once('exit',()=>{clearTimeout(timer);resolve(undefined);});});}
   if(browserTemp)await rm(browserTemp,{recursive:true,force:true});
   await operationReadyLease?.release().catch(()=>{});
   if(commandServer){commandServer.close();await once(commandServer,'close').catch(()=>{});}
