@@ -48,6 +48,13 @@ const envSchema=z.object({
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
 });
 
+const safePaperDiagnosticFailure=(error:unknown)=>{
+ if(error instanceof DeploymentConflict&&/^paper_[a-z0-9_]+$/.test(error.code))return error.code;
+ if(!(error instanceof Error))return 'unknown';
+ const firstLine=error.message.split('\n',1)[0]??'';
+ return /^paper_[a-z0-9_]+$/.test(firstLine)?firstLine:error.name||'unknown';
+};
+
 async function main(){
  const env=envSchema.parse(process.env);
  const store=new DeploymentStore(env.DATABASE_URL);
@@ -134,18 +141,24 @@ async function main(){
        operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?error.code:
         'static_manual_conversion_preparation_busy'};}
       let previewLeaseRetained=false;
+      let conversionPrestateStage='saved_state';
       try{
-       const valuation=await store.paperValuationState(campaignId),
-        context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
+       const valuation=await store.paperValuationState(campaignId);
+       conversionPrestateStage='fee_context';
+       const context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
          revision:valuation.openModel.revision,verifyAnchors:(chainId,sources)=>
-          verifyCanonicalPaperAnchors(client,chainId,sources)}),
-        frame=await waitCanonicalPaperReplayHeadFrame({client,indexer,
+          verifyCanonicalPaperAnchors(client,chainId,sources)});
+       conversionPrestateStage='replay_head';
+       const frame=await waitCanonicalPaperReplayHeadFrame({client,indexer,
          profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
          previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
        await preparationLease.assertHealthy();
-       const route=buildStaticPaperCloseConvertRoute(context.state),
-        feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
-        report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
+       conversionPrestateStage='route';
+       const route=buildStaticPaperCloseConvertRoute(context.state);
+       conversionPrestateStage='fee_replay';
+       const feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame});
+       conversionPrestateStage='owned_fork_sample';
+       const report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
          openModel:context.state.openModel,openMarkId:context.state.openMarkId,
          profile:context.state.profile,frame,previous:{markId:context.state.previous.markId,
           source:context.state.previous.source},route,feeCarry:feeReplay.feeCarry,feeReplay,
@@ -154,6 +167,7 @@ async function main(){
          verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
          beforeRead:async()=>{},deterministicClock:true});
        await preparationLease.assertHealthy();
+       conversionPrestateStage='gas_registration';
        await store.registerStaticPaperCloseConvertPrestateGas({report,
         verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
         verifyFeeReplay:async()=>{
@@ -162,10 +176,12 @@ async function main(){
            verifyCanonicalPaperAnchors(client,chainId,sources)});
          return replayEphemeralStaticPaperCloseConvertFees({context:current,client,indexer,frame});
         }});
+       conversionPrestateStage='cost_profiles';
         const gasPriceWei=await client.getGasPrice(),sizeBand=
         buildProspectivePaperCloseConvertPrestateGasProfiles(report).sizeBand,prestateCostProfiles=
         await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
          poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:report.reportHash});
+       conversionPrestateStage='preview_persistence';
        const saved=await persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
         expectedRevision:context.state.openModel.revision,client,indexer,frame,
         postWithdraw:report.postWithdraw,prestateReport:report,prestateCostProfiles,gasPriceWei,
@@ -191,7 +207,8 @@ async function main(){
        await preparationLease.assertHealthy();
        preparationLease.retainUntil(new Date(saved.expiresAt));previewLeaseRetained=true;
        return saved;
-      }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      }catch(error){setupDiagnostic?.(`paper_conversion_prestate_${conversionPrestateStage}`,
+       safePaperDiagnosticFailure(error));return {status:'unavailable',kind,campaignId,actionAvailable:false,
        operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?error.code:
         'static_manual_conversion_prestate_unavailable'};}
       finally{if(!previewLeaseRetained)await preparationLease.release().catch(()=>{});}

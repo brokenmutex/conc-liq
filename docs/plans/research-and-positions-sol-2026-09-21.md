@@ -1765,7 +1765,7 @@ platform is not needed to establish the cause.
 
 | Task | Current result | Remaining gate |
 | --- | --- | --- |
-| MVP-1 | Source check gate restored; 877 shared-checkout and 873 earlier clean-worktree tests passed. | Validate the final clean source/build after the remaining scoped changes. |
+| MVP-1 | Source check gate restored; the clean pinned checkout at `01ed824` passed repository/type checks and 875/875 tests. | Validate the final clean source/build after any remaining runtime changes. |
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
 | MVP-3 | Canonical source UI setup/open/pause/resume/retain passed, including first-session capital, persisted inventory lower bounds, explicit gaps and desktop/mobile closed history. Conversion browser implementation remains under diagnosis. | Complete canonical conversion and verify both lifecycles on the final sealed artifact. |
 | MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
@@ -1952,3 +1952,40 @@ empty, the source stayed unchanged, and target/archive/outer test database were
 removed. Logs: `/tmp/checks-recovery-test-integration-20260926.log` and
 `/tmp/checks-recovery-static-paper-restore-20260926.log`. This remains synthetic
 database-mechanics evidence, separate from the pending canonical process gates.
+
+**Clean scoped source gate:** `01ed824` commits the visible Starting capital
+metric, canonical browser/process/recovery fixtures, restore helpers, safe setup
+verifier diagnostics and the updated runbook/cutover inventory. Its detached
+clean checkout passed pinned `npm run check`: repository validation, typecheck,
+**875/875** tests, 85 suites. Log:
+`/tmp/static-mvp-check-01ed824-20260926.log`. Unrelated dirty hybrid/adaptive
+research remained outside this commit and worktree. No release was built yet.
+
+**Current conversion boundary:** the fresh diagnostic run at base `1844927`
+plus the recorded scoped changes succeeded at actual browser setup and open,
+then saved a later valuation at block `73195481`. After a transient preparation
+lease cleared, a fresh preview returned `static_manual_conversion_prestate_unavailable`.
+Read-only failure evidence showed mark 2, its adjacent fee proof 1→2 and
+accounting through mark 2; cursor complete-through `73195632` was later than
+the saved endpoint, and `paperFeeSamplingState` returned null. Thus a missing
+persisted interval or perpetually uncovered latest mark does not explain this
+observed rejection. The swallowed conversion preparation error still needs its
+safe phase/invariant diagnostic before a fix. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-diagnostic-1844927.txt`.
+No conversion was accepted. The earlier setup replay rejection did not recur;
+its cause remains unconfirmed rather than silently treated as fixed.
+
+**Exact transient fee-readiness rejection:** the same-parameter run at base
+`01ed824` plus opt-in conversion diagnostics reached setup/open and a later
+valuation, then reported stage `paper_conversion_prestate_fee_context` and
+`paper_close_convert_fee_interval_gap`. At rejection, mark 2's endpoint was
+`73198452`, complete indexed coverage was `73198440`, no adjacent fee proof
+was persisted and accounting covered only open mark 1. A read-only replay of
+that exact interval passed after the rejection as coverage advanced. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-prestate-diagnostic-01ed824.txt`.
+The next browser attempt will wait for the actual worker's persisted fee carry
+before requesting another fresh preview, within the same original 300-second
+preview deadline. It will not seed evidence, restart the worker, weaken coverage
+or add a new runtime scheduler. This measured transient gap does not explain
+the preceding run's separate preparation failure after persisted fees were ready;
+later phases must still be diagnosed if that failure recurs.
