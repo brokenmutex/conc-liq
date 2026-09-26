@@ -99,6 +99,16 @@ test('retain-close browser affordance requires loopback, static paper and no pen
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/paper-lifecycle-action-root/);
 });
 
+test('positions without a deployment journal render disabled controls on both surfaces',()=>{
+ const predecessor=position('open','active',{mode:'live',deployment:undefined});
+ Object.assign(context,{predecessor});
+ for(const path of ['/operator','/']){
+  context.location.pathname=path;
+  assert.match(run('lifecycleControls(predecessor)'),/Position actions unavailable/);
+  assert.doesNotMatch(run('lifecycleControls(predecessor)'),/action-root/);
+ }
+});
+
 test('same eligible action root survives a detail rerender while its preview is pending',()=>{
  const root=(className:string,extra:Record<string,string>={})=>({
   classList:{contains:(name:string)=>name===className},
