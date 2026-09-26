@@ -1801,3 +1801,48 @@ completion or production authorization. Browser/recovery helpers under
 development are not acceptance evidence until their actual canonical process
 runs pass. Both exits, economic restart recovery and the new clean sealed
 artifact remain open gates.
+
+**MVP-2 cause and backend verification:** the opt-in timed rerun localized the
+stall to `sample_fee_evidence` after `record_next_accounting` returned
+`paper_accounting_fee_evidence_unavailable`. The worker's three-connection
+indexer pool was fully held by the lifetime readiness lease, maintenance pass
+lock and campaign preparation lease. Indexed fee replay then requested a fourth
+connection and waited indefinitely. Increasing the bounded worker pool to four
+preserves those locks, accounting rules and all existing freshness/timeout gates.
+Diagnostic log: `/tmp/static-paper-canonical-flow-mvp2-diagnostics-20260926.log`.
+
+The subsequent actual source command/worker run created its draft through
+authenticated setup, completed open and later principal valuation, then
+completed retain-close in approximately **16 seconds** after acceptance with
+`attempts=1`, `stage=paper_close_retain_recorded`, exactly one terminal mark and
+matching closed Positions API state. Paid gas and fee capture remained
+unavailable. Log:
+`/tmp/static-paper-canonical-flow-mvp2-setup-diagnostic-20260926.log`.
+That harness exited unsuccessfully afterward because its browser verifier waited
+for a Current row before selecting History; a closed-only campaign correctly
+left Current empty. This proves the backend fix, not the complete browser gate.
+The earlier actual-command setup failure at `pinned_setup_source_unavailable`
+is preserved in `/tmp/static-paper-canonical-flow-mvp2-fixed-20260926.log`; it
+did not recur in the subsequent run, and no canonicality rule was loosened.
+
+The bounded worker/setup diagnostic hooks are opt-in and record stage timings
+and safe error classes/codes. Focused worker/maintenance/setup tests passed
+**17/17**, and the pinned shared-checkout `npm run check` passed again with
+**877/877** tests, repository validation and typecheck. Logs:
+`/tmp/conc-liq-mvp-focused-runtime.log` and
+`/tmp/conc-liq-mvp-pool-fix-check-20260926.log`. A separate clean worktree at
+`3563f87` passed **873/873** tests and repository/type checks; that earlier clean
+commit excludes this later runtime fix and is not its release evidence.
+
+The opt-in PostgreSQL dump/restore rehearsal passed on the completed V3
+database fixture: one closed campaign, one succeeded conversion operation,
+three marks, three ledger rows and three paper accounting snapshots matched
+after restore, including model identities, sequences, constraints and indexes.
+All eight append-only evidence guards rejected update/delete attempts. Restored
+`public` stayed empty, the source evidence hash stayed unchanged, and temporary
+database/archive cleanup was verified. This fixture uses injected synthetic
+verifiers; its evidence class is
+`synthetic_injected_verifier_database_mechanics`. It establishes restore
+mechanics, not canonical browser, economic-process recovery or sealed-release
+acceptance. Reproduce with `npm run test:integration:static-paper-restore` and
+the isolated `TEST_DATABASE_URL`.

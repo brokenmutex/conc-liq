@@ -19,6 +19,9 @@ const envSchema=z.object({
 });
 
 const lockKey=[4663,18727];
+// The maintenance path can hold the process readiness lease, pass lock and
+// campaign preparation lease while fee replay borrows a fourth session.
+const PAPER_WORKER_INDEXER_POOL_MAX=4;
 export type PaperOperationReadinessLease={assertHealthy:()=>Promise<void>;release:()=>Promise<void>};
 
 /** A process-lifetime session lease. PostgreSQL releases the shared advisory
@@ -67,7 +70,7 @@ export function advancePaperCampaignCursor(page:readonly PaperCampaignRow[],curs
 /** A single bounded, signer-free audit/projection pass. Its session lock
  * prevents two copies of this worker from scanning the same campaign set. */
 export async function runPaperMaintenancePass(store:DeploymentStore,
- chain:RobinhoodClient,indexer:pg.Pool,maxCampaigns:number,maxSteps:number){
+ chain:RobinhoodClient,indexer:pg.Pool,maxCampaigns:number,maxSteps:number,diagnostics=false){
  if(!Number.isSafeInteger(maxCampaigns)||maxCampaigns<1||maxCampaigns>100||
   !Number.isSafeInteger(maxSteps)||maxSteps<1||maxSteps>100)
   throw Error('Paper worker budget invalid');
@@ -103,8 +106,10 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    for(const campaign of campaigns){
     try{
      const result=await maintainCanonicalPaperScenario(store,chain,indexer,
-      campaign.id,maxSteps,{sampleValuation:campaign.lifecycle==='active'||
-       campaign.lifecycle==='paused'});
+      campaign.id,maxSteps,{sampleValuation:campaign.lifecycle==='active'||campaign.lifecycle==='paused',
+       ...(diagnostics?{progress:(stage,state,durationMs,reason)=>log(
+        state==='failed'?'error':'info','paper_worker_maintenance_stage',{campaignId:campaign.id,
+         stage,state,...(durationMs===undefined?{}:{durationMs}),...(reason?{reason}:{})})}:{})});
      if(result.status==='invalidated')invalidated++;
      if(result.status==='preparation_locked')preparationSkipped++;
     }catch(error){
@@ -135,10 +140,11 @@ const pause=(durationMs:number,signal:AbortSignal)=>new Promise<void>(resolve=>{
  * not timely progress or recovery. */
 async function main(){
  const env=envSchema.parse(process.env),stop=new AbortController();
+ const diagnostics=process.env.DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS==='1';
  process.once('SIGINT',()=>stop.abort());
  process.once('SIGTERM',()=>stop.abort());
  const store=new DeploymentStore(env.DATABASE_URL);
- const indexer=new pg.Pool({connectionString:env.DATABASE_URL,max:3});
+ const indexer=new pg.Pool({connectionString:env.DATABASE_URL,max:PAPER_WORKER_INDEXER_POOL_MAX});
  let readinessLease:PaperOperationReadinessLease|undefined;
  try{
  await store.assertReady();
@@ -151,7 +157,7 @@ async function main(){
    try{
     const result=await runPaperMaintenancePass(store,chain,indexer,
      env.DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS,
-     env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS);
+     env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS,diagnostics);
     log('info','paper_worker_pass',result);
    }catch(error){
     log('error','paper_worker_pass_failed',{

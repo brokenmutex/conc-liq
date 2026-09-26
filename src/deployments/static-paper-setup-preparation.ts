@@ -20,6 +20,7 @@ export async function prepareStaticPaperSetup(input:PaperSetupPreflightInput,dep
  sample:(draft:PaperDraft,frame:PaperOpenFrame)=>Promise<unknown>;
  verify:(report:unknown)=>Promise<unknown>;
  importEvidence:(report:unknown,attestation:unknown)=>Promise<{created:boolean;reportHash:string}>;
+ diagnostic?:(stage:string,reason:string)=>void;
 }):Promise<unknown>{
  let initialRaw:unknown;
  try{initialRaw=await deps.runPreflight(input);}catch{return {status:'unavailable',kind:'paper_setup_preflight',
@@ -42,7 +43,10 @@ export async function prepareStaticPaperSetup(input:PaperSetupPreflightInput,dep
   registeredHash!==registered.profileHash)
   return withUnavailable(initial,'registered_market_profile_integrity');
  let frame:PaperOpenFrame;
- try{frame=await deps.readFrame(registered.profile,initial.source);}catch{return withUnavailable(initial,'pinned_setup_source_unavailable');}
+ try{frame=await deps.readFrame(registered.profile,initial.source);}catch(error){
+  deps.diagnostic?.('pinned_setup_source_read',safeFailureCode(error));
+  return withUnavailable(initial,'pinned_setup_source_unavailable');
+ }
  if(frame.source.block!==initial.source.block||frame.source.hash.toLowerCase()!==initial.source.hash.toLowerCase()||
   frame.source.timestamp!==initial.source.timestamp)
   return withUnavailable(initial,'pinned_setup_source_changed');
@@ -74,4 +78,9 @@ function withUnavailable(raw:unknown,reason:string){
  return {...value,status:'unavailable',costs:{status:'unavailable',reason},
   missing:[reason],actionAvailable:false,draftCreated:false,operationCreated:false,
   limitations:Array.isArray(value.limitations)?value.limitations:[]};
+}
+
+function safeFailureCode(error:unknown){
+ if(!(error instanceof Error))return 'unknown';
+ return /^paper_[a-z0-9_]+$/.test(error.message)?error.message:error.name||'unknown';
 }

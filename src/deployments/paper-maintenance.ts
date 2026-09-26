@@ -16,23 +16,34 @@ import {acquirePaperPreparationSharedLease} from './paper-preparation-lease.js';
  * owns scheduling and campaign selection. Audits stop projection on reorg. */
 export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  client:RobinhoodClient,indexer:Pool,campaignId:string,maxSteps=16,
- options:{sampleValuation?:boolean}={}){
+ options:{sampleValuation?:boolean;progress?:(stage:string,state:'started'|'completed'|'failed',
+  durationMs?:number,reason?:string)=>void}={}){
  assert(Number.isSafeInteger(maxSteps)&&maxSteps>=1&&maxSteps<=100,
   'Paper maintenance budget invalid');
- const standardAudit=await auditCanonicalPaperAccounting(store,client,campaignId);
+ const timed=async<T>(stage:string,fn:()=>Promise<T>):Promise<T>=>{
+  const started=Date.now();options.progress?.(stage,'started');
+  try{const result=await fn();options.progress?.(stage,'completed',Date.now()-started);return result;}
+  catch(error){options.progress?.(stage,'failed',Date.now()-started,
+   error instanceof DeploymentConflict?error.code:'maintenance_stage_failed');throw error;}
+ };
+ const standardAudit=await timed('standard_accounting_audit',()=>
+  auditCanonicalPaperAccounting(store,client,campaignId));
  if(standardAudit.alreadyInvalidated||standardAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit:null,
    conversionAudit:null,conversionV3Audit:null,
    steps:0,caughtUp:false};
- const legacyConversionAudit=await auditCanonicalPaperConversionAccounting(store,client,campaignId);
+ const legacyConversionAudit=await timed('legacy_conversion_audit',()=>
+  auditCanonicalPaperConversionAccounting(store,client,campaignId));
  if(legacyConversionAudit.alreadyInvalidated||legacyConversionAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit,
    conversionAudit:null,conversionV3Audit:null,steps:0,caughtUp:false};
- const conversionAudit=await auditCanonicalPaperConversionAccountingV2(store,client,campaignId);
+ const conversionAudit=await timed('conversion_v2_audit',()=>
+  auditCanonicalPaperConversionAccountingV2(store,client,campaignId));
  if(conversionAudit.alreadyInvalidated||conversionAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit,conversionAudit,
    conversionV3Audit:null,steps:0,caughtUp:false};
- const conversionV3Audit=await auditCanonicalPaperConversionAccountingV3(store,client,campaignId);
+ const conversionV3Audit=await timed('conversion_v3_audit',()=>
+  auditCanonicalPaperConversionAccountingV3(store,client,campaignId));
  if(conversionV3Audit.alreadyInvalidated||conversionV3Audit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit,conversionAudit,
    conversionV3Audit,steps:0,caughtUp:false};
@@ -43,7 +54,8 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  // Audits above still run while a close preview is being prepared. A shared
  // session lease now protects only mutable valuation/fee/projection work; a
  // concurrent preparer owns the exclusive lock for this same campaign.
- const preparationLease=await acquirePaperPreparationSharedLease(indexer,campaignId);
+ const preparationLease=await timed('preparation_lease',()=>
+  acquirePaperPreparationSharedLease(indexer,campaignId));
  if(!preparationLease)return {status:'preparation_locked' as const,standardAudit,legacyConversionAudit,
   conversionAudit,conversionV3Audit,steps:0,caughtUp:false};
  try{
@@ -52,7 +64,8 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  // The store rechecks the prior mark and lifecycle under its campaign lock, so
  // a close that wins the race makes this stale append fail closed.
  if(options.sampleValuation){
-  try{await recordCanonicalPaperPrincipalValuation(store,client,campaignId);}
+  try{await timed('principal_valuation',()=>
+   recordCanonicalPaperPrincipalValuation(store,client,campaignId));}
   catch(error){
    if(error instanceof Error&&error.message==='paper_next_source_not_later'){
     // A fresh canonical head is not available yet; keep the existing marks
@@ -70,7 +83,8 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  for(;steps<maxSteps;steps++){
   if(!conversionTerminal){
    try{
-    const next=await advanceCanonicalPaperScenario(store,client,indexer,campaignId);
+    const next=await timed('advance_accounting_projection',()=>
+     advanceCanonicalPaperScenario(store,client,indexer,campaignId,options.progress));
     if(next.caughtUp)return {status:'projection_current' as const,standardAudit,
      legacyConversionAudit,conversionAudit,conversionV3Audit,
      steps,caughtUp:true};

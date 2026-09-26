@@ -88,6 +88,8 @@ async function main(){
      if(typeof result.reportHash!=='string')throw new Error('paper_gas_import_report_hash_unavailable');
      return {created:result.created,reportHash:result.reportHash};
     },
+    diagnostic:process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
+     (stage,reason)=>log('warn','paper_setup_preparation_diagnostic',{stage,reason}):undefined,
    });
    if(result&&typeof result==='object'&&!Array.isArray(result)){
     const row=result as Record<string,unknown>,captured=paperSetupReviewCache.capture(row);
