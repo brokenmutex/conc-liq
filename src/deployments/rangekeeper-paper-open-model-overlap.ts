@@ -40,6 +40,22 @@ function sameCostsExceptProfileIds(a:RangeKeeperPaperModeledCosts,b:RangeKeeperP
  return contentHash(bodyA)===contentHash(bodyB);
 }
 
+/** Waits for both unpublished branches before propagating either failure. */
+export async function settleRangeKeeperPaperOpenOverlap<T,U>(registration:Promise<T>,
+ speculative:Promise<U>):Promise<[T,U]>{
+ const results=await Promise.allSettled([registration,speculative] as const);
+ const rejected=results.find((result)=>result.status==='rejected');
+ if(rejected?.status==='rejected')throw rejected.reason;
+ const registered=results[0],modeled=results[1];
+ if(registered.status!=='fulfilled'||modeled.status!=='fulfilled')
+  throw Error('rangekeeper_open_model_overlap_unsettled');
+ return [registered.value,modeled.value];
+}
+export function assertRangeKeeperPaperOpenCandidateFresh(expiresAtSeconds:number,now=Date.now()){
+ if(!Number.isSafeInteger(expiresAtSeconds)||expiresAtSeconds<=0||now>=expiresAtSeconds*1000)
+  throw Error('rangekeeper_open_model_overlap_candidate_expired');
+}
+
 /** Exact receipt-to-row join used before provisional model costs can be rebound. */
 export function assertRangeKeeperPaperOpenReportRows(
  report:ReturnType<typeof verifyRangeKeeperPaperGasReport>,registration:Registration,
@@ -120,7 +136,7 @@ export async function buildRangeKeeperPaperOpenModelWhileRegistering(input:{
   frame:input.frame,buildId:input.buildId,gasProfiles:speculativeRows,
   marketGasPriceWei:input.marketGasPriceWei,marketGasPriceObservedAt:input.marketGasPriceObservedAt,
   pinnedQuoteCache:input.pinnedQuoteCache,now}).then(value=>{modelFinishedAt=Date.now();return value;});
- const [registration,speculative]=await Promise.all([registrationPromise,modelPromise]);
+ const [registration,speculative]=await settleRangeKeeperPaperOpenOverlap(registrationPromise,modelPromise);
  input.onTiming?.({registrationMs:registrationFinishedAt-registrationStartedAt,
   speculativeModelMs:modelFinishedAt-modelStartedAt,parallelWallMs:Date.now()-parallelStartedAt});
  if(registration.reportHash!==report.reportHash||registration.version<1||
@@ -132,6 +148,9 @@ export async function buildRangeKeeperPaperOpenModelWhileRegistering(input:{
  const persisted=await input.readRows({poolAddress:report.scope.poolAddress,
   pathVersion:report.pathVersion,sizeBand:report.sizeBand});
  const imported=assertRangeKeeperPaperOpenReportRows(report,registration,persisted);
+ verifyRangeKeeperPaperGasReport(report,Date.now());
+ if(!speculative.candidate)throw Error('rangekeeper_open_model_overlap_candidate_unavailable');
+ assertRangeKeeperPaperOpenCandidateFresh(Number(speculative.candidate.expiresAt));
  const resolved=resolveRangeKeeperPaperPolicy(input.draft,input.buildId);
  if(!resolved.policy||resolved.unavailable.length)
   throw Error('rangekeeper_open_model_overlap_policy_unavailable');

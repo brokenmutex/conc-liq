@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {assertRangeKeeperPaperOpenReportRows} from '../src/deployments/rangekeeper-paper-open-model-overlap.js';
+import {assertRangeKeeperPaperOpenCandidateFresh,assertRangeKeeperPaperOpenReportRows,
+ settleRangeKeeperPaperOpenOverlap} from
+ '../src/deployments/rangekeeper-paper-open-model-overlap.js';
 import type {PaperGasProfileRow} from '../src/deployments/paper-cost.js';
 import type {verifyRangeKeeperPaperGasReport} from '../src/deployments/rangekeeper-paper-gas-evidence.js';
 
@@ -34,4 +36,23 @@ test('overlap reconciliation rejects missing, superseded, or changed persisted e
   /persisted_profile_mismatch/);
  assert.throws(()=>assertRangeKeeperPaperOpenReportRows(report,{...receipt,reportHash:'other'},rows),
   /registration_mismatch/);
+});
+
+test('registration failure publishes nothing and waits for the speculative branch to settle',async()=>{
+ let speculativeSettled=false,returnedModel=false;
+ const registration=Promise.reject(new Error('registration_failed')),
+  speculative=new Promise<string>(resolve=>setTimeout(()=>{
+   speculativeSettled=true;resolve('unpublished model');
+  },10));
+ await assert.rejects(async()=>{
+  const [,model]=await settleRangeKeeperPaperOpenOverlap(registration,speculative);
+  returnedModel=true;return model;
+ },/registration_failed/);
+ assert.equal(speculativeSettled,true);
+ assert.equal(returnedModel,false);
+});
+
+test('overlap keeps the planner expiry and rejects a candidate expired during registration',()=>{
+ assert.doesNotThrow(()=>assertRangeKeeperPaperOpenCandidateFresh(100,99_999));
+ assert.throws(()=>assertRangeKeeperPaperOpenCandidateFresh(100,100_000),/candidate_expired/);
 });
