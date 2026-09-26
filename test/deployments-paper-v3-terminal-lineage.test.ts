@@ -101,6 +101,8 @@ test('trusted V3 terminal lineage requires campaign, source, interval, and runti
  for(const mutated of [
   {snapshot:{...snapshot,campaignId:'00000000-0000-4000-8000-000000000099'}},
   {snapshot:{...snapshot,source:{...source,block:'121'}}},
+  {fee_proof:{...feeProof,to:{block:'119',hash:`0x${'9'.repeat(64)}`}},
+   fee_proof_hash:contentHash({...feeProof,to:{block:'119',hash:`0x${'9'.repeat(64)}`}})},
   {campaign_runtime:{...runtime,buildId:'9'.repeat(64)}},
  ]){
   const saved=mutated.snapshot&&typeof mutated.snapshot==='object'?
