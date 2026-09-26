@@ -14,6 +14,8 @@ remain open. This review does not authorize a production cutover.
 - Fourth interrupted-conversion harness: `15eaf520c0cded6529436118bcfa69f19b00d907`.
 - Fifth diagnostic harness: `1c0f4ffc84371e0883dc9a5997fde93bfcde79c7`; it stopped
   before capturing conversion acceptance, so supplies no restart result.
+- Sixth diagnostic harness: `512e6a1e5e849f13c060ee68ce22229c2b1b976f`; actual
+  accepted-response loss and same-key replay passed, restart readiness failed.
   Later commits change documentation and external test drivers only. Runtime
   code and artifact bytes remain those of the clean reviewed runtime source.
 
@@ -62,9 +64,9 @@ are insufficient evidence of correct economic booking.
 | Manifest and offline units | Passed; 13 units rendered, not installed; prototype/preview excluded | `/tmp/static-mvp-release-build-609e68f-20260926.log`; `/tmp/static-mvp-render-units-609e68f-20260926.log` |
 | Canonical sealed retain | Passed: actual browser setup/open/valuation/pause/resume/retain, one terminal mark, no paid gas | `/tmp/static-paper-retain-browser-609e68f-sealed-20260926.log` |
 | Canonical sealed conversion | Passed: one V3 terminal/snapshot, three exactly matched modeled capital-out records, no paid gas | `/tmp/conc-liq-review-evidence/canonical-convert-sealed-609e68f-633566a-20260926.txt` |
-| Canonical economic restart and same-key expiry recovery | Fourth run failed at restart readiness; same-key replay after expiry passed, economic completion remains unproved | `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-15eaf5-20260926.txt` |
-| Restore of that restarted campaign | Pending actual result; synthetic mechanics do not substitute | Same recovery log |
-| Changed accepted anchor after restart | Pending actual result; injected RPC response, not observed chain reorg | Separate negative process gate |
+| Canonical economic restart and same-key expiry recovery | Sixth run proved lost accepted response and expired-preview same-key replay; restart readiness failed during release-file verification reads, economic completion remains unproved | `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-512e6a-20260926.txt` |
+| Restore of that restarted campaign | Not reached; synthetic mechanics do not substitute | Same recovery log |
+| Changed accepted anchor after restart | Not run; held until positive recovery passes; planned injected RPC response is not observed chain reorg | Separate negative process gate |
 
 Both ordinary exit campaigns passed desktop 1440/mobile 390 history checks and
 visual inspection. Retain campaign `c3f8e9b5-519d-487a-aa46-2d0a0078e8dc`
@@ -87,3 +89,27 @@ Production schema/campaign visibility, predecessor custody and execution ownersh
 and old-reader compatibility still need evidence. Exact production migration,
 profile-registration and service changes need authorization. Passing disposable
 paper rehearsals does not establish those operational facts.
+
+## Requested checkpoint
+
+Work is paused after the sixth bounded recovery run. Its campaign
+`65d402dc-84a0-40c6-8da9-a1a404367bbc` had one conversion operation
+`7e3704d4-647d-48f8-985d-4f76de26ef6c`, queued/accepted at attempt 0, after
+real browser reconciliation returned that same ID with HTTP 202 / replayed true.
+Initial startup took 1.761s with no physical reads; restart exceeded 30s while
+sampling rotating artifact files, predominantly file-page waits, and reached
+213,606,400 physical read bytes without acquiring readiness. The synchronous
+full-artifact verification path is a measured startup bottleneck in this run;
+the underlying host/storage cause is unestablished. This is a failed release
+gate, not proof of an application crash or production start SLA.
+
+The next proposed review is bounded integrity-preserving verification, followed
+by new clean release gates if runtime bytes change. No timeout extension,
+verification bypass or cache priming is implemented. MVP-4/MVP-5 are open;
+MVP-1 through MVP-3 passed. No new process or runtime work begins at this pause.
+
+Root independently confirmed checkpoint cleanup with read-only catalog/process
+checks: no canonical conversion fixture schemas, owned restore databases,
+operation-readiness lock holders or temporary conversion runtime directories;
+both sixth-run worker PIDs are absent. The proposed production private
+environment file remains absent. No further process work is active.

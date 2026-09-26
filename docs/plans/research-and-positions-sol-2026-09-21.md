@@ -1768,7 +1768,7 @@ platform is not needed to establish the cause.
 | MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete canonical retain browser lifecycle passed through the final sealed command/worker `609e68f` / `b78c3f22…`, with one terminal mark and desktop/mobile parity. | Complete; retain custody and paid-cost limitations remain explicit. |
 | MVP-3 | Both canonical browser exits passed on sealed `b78c3f22…` / source `609e68f`: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Preserve the same artifact for economic restart and restore gates. |
-| MVP-4 | Actual lost-202 response, natural preview expiry, worker kill/lease loss and browser HTTP 202 replay of the original key/operation passed. Canonical restart readiness failed; fifth diagnostics stopped earlier with acceptance outcome uncaptured. | Diagnose the measured failures, then prove canonical restart with exactly-once economic completion, canonical restore and changed-anchor rejection. Preserve the existing bounds and rejection gates. |
+| MVP-4 | Sixth sealed run proved actual lost-202 response, natural preview expiry, worker kill/lease loss and browser HTTP 202 replay of the original key/operation; one conversion remained queued at attempt 0. Restart exceeded 30s while reading release files; paired I/O evidence is recorded below. | Paused at the requested checkpoint. Review the measured startup bottleneck, then prove canonical restart with exactly-once economic completion, canonical restore and changed-anchor rejection. Preserve verification, evidence and rejection gates. |
 | MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Economic recovery on this build, canonical restore, changed-anchor rejection and final cutover review. Both ordinary canonical lifecycles passed. Production authorization remains pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
@@ -2257,3 +2257,54 @@ The fixture's 30-second readiness bound is a test gate, not a documented
 production start SLA. Read-only cgroup snapshots found no memory limit/OOM
 event for the fifth run; aggregate resource counters do not establish or
 exclude a transient host/filesystem cause for the earlier restart stall.
+
+
+### Requested checkpoint — September 26, after sixth recovery run
+
+The operator asked to stop at the next checkpoint. The sixth bounded run is
+complete; no further fixture or runtime change is being started. Three Luna
+workstreams supplied implementation, canonical browser execution and independent
+review. MVP-1 through MVP-3 passed on the same clean runtime `609e68f`, sealed
+build `b78c3f22…`. MVP-4 and MVP-5 remain incomplete.
+
+Frozen external harness `512e6a1` created campaign
+`65d402dc-84a0-40c6-8da9-a1a404367bbc` and conversion operation
+`7e3704d4-647d-48f8-985d-4f76de26ef6c`. It proved actual HTTP 202 response
+loss, natural preview expiry, SIGKILL/readiness-lease release, and browser
+reconnection returning the original operation with HTTP 202 / `replayed:true`
+while readiness was false. The failure-time database contained exactly one
+conversion, queued/accepted, attempts 0; economic completion was not reached.
+
+The paired startup measurement narrows the failure: initial readiness took
+1.761s with 285,853,410 read characters and zero physical read bytes. Restart
+PID 312634 exceeded the unchanged 30-second bound (30.178s), with no output,
+no recorded spawn/exit error and no readiness lock holder. Its proc ring
+recorded changing artifact-relative files including dependency source maps and
+type definitions, repeated `D` / `wait_on_page_bit_common` samples and rising
+physical reads. At timeout it had 283,254,464 read characters, 213,606,400
+physical read bytes and 14,983 read syscalls (not distinct-file count).
+The launcher synchronously verifies all artifact bytes before entry import;
+the sampled non-runtime files identify this verification scan as a measured
+startup bottleneck. The underlying host/storage reason remains unestablished.
+This explains the sixth readiness failure more specifically than generic lease
+contention; it does not prove the causes of earlier failures or a production SLA.
+Log: `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-512e6a-20260926.txt`.
+
+Assessment: isolated tests and ordinary terminal flows were insufficient to
+establish economic restart readiness. Preserve the passing runtime and all
+failed evidence. The next proposed step is a narrow review of bounded,
+integrity-preserving release verification; do not bypass verification, warm
+caches to manufacture acceptance, or merely extend the test deadline. Any
+runtime change needs focused integrity checks, a new clean pinned artifact and
+applicable ordinary/recovery/restore/negative process gates. No optimization
+is implemented at this checkpoint. Canonical interrupted-campaign restore and
+changed-anchor rejection were not reached; synthetic restore is separate
+mechanics evidence. RangeKeeper, live operations and full W2 remain deferred.
+Production migration, profile registration, service changes and activation
+remain unexecuted and outside this rehearsal.
+
+Root independently confirmed checkpoint cleanup with read-only catalog/process
+checks: no canonical conversion fixture schemas, owned restore databases,
+operation-readiness lock holders or temporary conversion runtime directories;
+both sixth-run worker PIDs are absent. The proposed production private
+environment file remains absent. No further process work is active.
