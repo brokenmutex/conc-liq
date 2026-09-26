@@ -1563,6 +1563,39 @@ typecheck passed. The latest prior combined workspace check passed 825 unit
 tests and the separate Chromium regression passed 43 checks; those runs predate
 this recovery-panel commit and do not establish an exact clean release identity.
 
+**Current source capability boundary, September 26:**
+
+| Path | Available source behavior | Remaining acceptance boundary |
+| --- | --- | --- |
+| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 browser mechanics assertions including lost accepted-response recovery; canonical RPC plus spawned-worker open/retain fixture passed. | Complete canonical setup-to-browser run, conversion sibling path, economic recovery and sealed economic-process review still gate complete F2/F5. No production cutover. |
+| Static/manual paper convert-close | Saved V3 provisional preview, atomic database completion, restart replay, rollback and reorg revocation proved with synthetic verifiers. | Canonical indexed fees, exact owned-fork/default-worker runtime and actual HTTP acceptance remain unproved; callback remains absent and action unavailable. |
+| RangeKeeper paper | Read-only planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. | Positive producer/worker booking has not passed the original 90-second first-preview deadline. Lifecycle admission, both terminal exits and shared closure parity remain unavailable. |
+| New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
+| Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
+
+`30b2cb9` and `fc2d7bb` add bounded, request-local code/storage read hints and
+complete RangeKeeper booking-phase timing. Hints contain addresses/slots only;
+values are freshly fetched at the selected source with four-request concurrency,
+100 ms shared pacing, existing budgets and uncached pre/post canonical anchors.
+The final-cap RPC comparison matched all ten stage and transaction hashes:
+37.610 seconds without prefetch versus 18.036 seconds with fresh prefetch.
+The next database attempt nevertheless expired at the first preview: initial
+source age 10 seconds, first planning about 16 seconds, first cold fork 51
+seconds, import 8 seconds and model replay 9 seconds left source age 94 seconds.
+The 30-second second-observation wait ran concurrently with the first report.
+No booking succeeded and no expiry was extended. Request preparation and
+trusted same-process evidence reuse must pass their own gates before admission.
+
+`eaa73f6` removes design-preview routes from the normal dashboard server and
+excludes `dashboard/preview` and `dashboard/prototype` from sealed assets.
+Source design files remain available for review and predecessor diagnostics
+remain served. Eight focused dashboard checks passed. The preceding combined
+workspace check passed 832 unit tests and typecheck; Chromium passed 43 checks
+with a successful exit after the bounded cleanup fix in `a9904c0`. A clean
+`a9904c0` checkout passed 828 unit tests, but its built artifact still included
+design fixtures and was superseded before release review. The next acceptable
+sealed artifact must include the design-directory exclusion.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
