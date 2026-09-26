@@ -6,7 +6,10 @@ import type {MarketProfile} from './market-profile.js';
 import {contentHash} from './contracts.js';
 
 export interface RangeKeeperPaperPinnedQuoteMetrics {
- calls:number;cacheHits:number;uniqueQuotes:number;uncachedAnchors:number;
+ calls:number;cacheHits:number;uniqueQuotes:number;uniqueQuoteCalls:number;uncachedAnchors:number;
+ uniqueQuoteAnchorReads:number;cacheHitAnchorReads:number;
+ coalescedQuoteAnchorChecks:number;coalescedCacheHitAnchorChecks:number;
+ quoteSimulationMs:number;anchorReadMs:number;
 }
 function deepFreeze<T>(value:T):T{
  if(value&&typeof value==='object'){
@@ -24,7 +27,9 @@ export class RangeKeeperPaperPinnedQuoteCache {
  private readonly pendingAnchors=new Map<string,Promise<void>>();
  private readonly chain:RangeKeeperChain;
  private readonly chainProfile:MarketProfile;
- private calls=0;private cacheHits=0;private uncachedAnchors=0;
+ private calls=0;private cacheHits=0;private uniqueQuoteCalls=0;private uniqueQuoteAnchorReads=0;
+ private cacheHitAnchorReads=0;private coalescedQuoteAnchorChecks=0;
+ private coalescedCacheHitAnchorChecks=0;private quoteSimulationMs=0;private anchorReadMs=0;
  readonly profileHash:string;
  constructor(readonly client:RobinhoodClient,readonly profile:MarketProfile,
   private readonly maxEntries=512){
@@ -38,7 +43,29 @@ export class RangeKeeperPaperPinnedQuoteCache {
  }
  metrics():RangeKeeperPaperPinnedQuoteMetrics{
   return {calls:this.calls,cacheHits:this.cacheHits,uniqueQuotes:this.entries.size,
-   uncachedAnchors:this.uncachedAnchors};
+   uniqueQuoteCalls:this.uniqueQuoteCalls,uncachedAnchors:this.uniqueQuoteAnchorReads+this.cacheHitAnchorReads,
+   uniqueQuoteAnchorReads:this.uniqueQuoteAnchorReads,cacheHitAnchorReads:this.cacheHitAnchorReads,
+   coalescedQuoteAnchorChecks:this.coalescedQuoteAnchorChecks,
+   coalescedCacheHitAnchorChecks:this.coalescedCacheHitAnchorChecks,
+   quoteSimulationMs:this.quoteSimulationMs,anchorReadMs:this.anchorReadMs};
+ }
+ private async verifySource(source:RangeKeeperSource,kind:'quote'|'cache-hit'){
+  const anchorKey=`${source.block}:${source.hash.toLowerCase()}:${source.timestamp}`;
+  let anchor=this.pendingAnchors.get(anchorKey);
+  if(!anchor){
+   anchor=(async()=>{
+    const startedAt=Date.now();
+    try{
+     const block=await this.client.getBlock({blockNumber:source.block});
+     assert(block.hash&&block.hash.toLowerCase()===source.hash.toLowerCase()&&
+      Number(block.timestamp)===source.timestamp,'RangeKeeper cached quote source changed');
+    }finally{this.anchorReadMs+=Date.now()-startedAt;}
+   })();
+   this.pendingAnchors.set(anchorKey,anchor);
+   if(kind==='quote')this.uniqueQuoteAnchorReads++;else this.cacheHitAnchorReads++;
+  }else if(kind==='quote')this.coalescedQuoteAnchorChecks++;
+  else this.coalescedCacheHitAnchorChecks++;
+  try{await anchor;}finally{if(this.pendingAnchors.get(anchorKey)===anchor)this.pendingAnchors.delete(anchorKey);}
  }
  async quote(source:RangeKeeperSource,token:0|1,amountIn:bigint,price0:bigint,price1:bigint):Promise<SwapQuote>{
   assert.equal(contentHash(this.profile),this.profileHash,'RangeKeeper quote cache profile changed');
@@ -49,20 +76,14 @@ export class RangeKeeperPaperPinnedQuoteCache {
     hash:source.hash.toLowerCase(),timestamp:source.timestamp},token,amountIn:String(amountIn),
    price0:String(price0),price1:String(price1)}),cached=this.entries.get(key);
   if(cached){
-   const anchorKey=`${source.block}:${source.hash.toLowerCase()}:${source.timestamp}`;
-   let anchor=this.pendingAnchors.get(anchorKey);
-   if(!anchor){
-    anchor=(async()=>{
-     const block=await this.client.getBlock({blockNumber:source.block});
-     assert(block.hash&&block.hash.toLowerCase()===source.hash.toLowerCase()&&
-      Number(block.timestamp)===source.timestamp,'RangeKeeper cached quote source changed');
-    })();
-    this.pendingAnchors.set(anchorKey,anchor);this.uncachedAnchors++;
-   }
-   try{await anchor;}finally{if(this.pendingAnchors.get(anchorKey)===anchor)this.pendingAnchors.delete(anchorKey);}
+   await this.verifySource(source,'cache-hit');
    this.cacheHits++;return {...cached};
   }
-  const result=await this.chain.quote(source,token,amountIn,price0,price1);
+  this.uniqueQuoteCalls++;
+  const result=await this.chain.quote(source,token,amountIn,price0,price1,{
+   verifySource:()=>this.verifySource(source,'quote'),
+   onQuoteComputed:elapsed=>{this.quoteSimulationMs+=elapsed;},
+  });
   if(this.entries.size<this.maxEntries)this.entries.set(key,{...result});
   return {...result};
  }

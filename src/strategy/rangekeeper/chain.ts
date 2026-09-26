@@ -12,6 +12,11 @@ import type {RangeKeeperPool} from './domain.js';
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const nftBalanceAbi=parseAbi(['function balanceOf(address) view returns(uint256)']);
 export interface RangeKeeperSource {block:bigint;hash:Hex;timestamp:number}
+export interface RangeKeeperQuoteSourceCheck {
+ /** Request-local batch owner may coalesce only in-flight checks for one pinned source. */
+ verifySource?:()=>Promise<void>;
+ onQuoteComputed?:(elapsedMs:number)=>void;
+}
 
 /** Address-based read adapter. It has no signer or broadcast API. */
 export class RangeKeeperChain {
@@ -76,9 +81,11 @@ export class RangeKeeperChain {
   return {source,operator,wallet0,wallet1,nativeWei,nonce,nftCount,tick:slot[1],sqrtPriceX96:slot[0],unlocked:slot[6],poolLiquidity,
    allowances,position:pos};
  }
- async quote(source:RangeKeeperSource,token:0|1,amountIn:bigint,price0:bigint,price1:bigint):Promise<SwapQuote>{
+ async quote(source:RangeKeeperSource,token:0|1,amountIn:bigint,price0:bigint,price1:bigint,
+  sourceCheck:RangeKeeperQuoteSourceCheck={}):Promise<SwapQuote>{
   const p=this.pool;assert(amountIn>0n&&price0>0n&&price1>0n);
   const tokenIn=token===0?p.token0:p.token1,tokenOut=token===0?p.token1:p.token0;
+  const quoteStartedAt=Date.now();
   const q=await this.client.simulateContract({address:p.quoter,abi:paperQuoterAbi,functionName:'quoteExactInputSingle',blockNumber:source.block,
    args:[{tokenIn,tokenOut,amountIn,fee:p.fee,sqrtPriceLimitX96:0n}]});
   const inputValue=rawValue(amountIn,token===0?price0:price1,token===0?p.decimals0:p.decimals1);
@@ -86,7 +93,9 @@ export class RangeKeeperChain {
   const feeValue=inputValue*BigInt(p.fee)/1_000_000n;
   // Shortfall excludes the explicit pool fee; principal conversion is not a cost.
   const shortfallValue=inputValue>outputValue+feeValue?inputValue-outputValue-feeValue:0n;
-  assert(same((await this.client.getBlock({blockNumber:source.block})).hash,source.hash),'Quote source changed');
+  sourceCheck.onQuoteComputed?.(Date.now()-quoteStartedAt);
+  if(sourceCheck.verifySource)await sourceCheck.verifySource();
+  else assert(same((await this.client.getBlock({blockNumber:source.block})).hash,source.hash),'Quote source changed');
   return {amountOut:q.result[0],priceAfter:q.result[1],feeValue,shortfallValue,sourceBlock:source.block,sourceHash:source.hash};
  }
 }

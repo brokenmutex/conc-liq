@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {describe,it} from 'node:test';
 import {parseRangeKeeperConfig} from '../src/strategy/rangekeeper/config.js';
+import {RangeKeeperChain} from '../src/strategy/rangekeeper/chain.js';
 import {marketProfileSchema} from '../src/deployments/market-profile.js';
 import {RangeKeeperPaperPinnedQuoteCache} from
  '../src/deployments/rangekeeper-paper-pinned-quote-cache.js';
@@ -29,7 +30,10 @@ describe('RangeKeeper paper pinned quote cache',()=>{
   first.amountOut=0n;
   const second=await cache.quote(source,0,10n,1_000n,2_000n);
   assert.equal(second.amountOut,1_000n);assert.equal(fake.simulations(),1);assert.equal(fake.anchors(),2);
-  assert.deepEqual(cache.metrics(),{calls:2,cacheHits:1,uniqueQuotes:1,uncachedAnchors:1});
+  const metrics=cache.metrics();
+  assert.deepEqual({...metrics,quoteSimulationMs:0,anchorReadMs:0},{calls:2,cacheHits:1,uniqueQuotes:1,
+   uniqueQuoteCalls:1,uncachedAnchors:2,uniqueQuoteAnchorReads:1,cacheHitAnchorReads:1,
+   coalescedQuoteAnchorChecks:0,coalescedCacheHitAnchorChecks:0,quoteSimulationMs:0,anchorReadMs:0});
  });
  it('rejects use after the trusted profile object is mutated',async()=>{
   const fake=fakeClient(),cache=new RangeKeeperPaperPinnedQuoteCache(fake.client,profile);
@@ -53,10 +57,32 @@ describe('RangeKeeper paper pinned quote cache',()=>{
   const batch=await Promise.all(Array.from({length:9},()=>cache.quote(source,0,10n,1_000n,2_000n)));
   assert(batch.every(quote=>quote.amountOut===1_000n));
   assert.equal(fake.anchors()-before,1,'Concurrent exact-source quote hits made redundant anchor reads');
-  assert.equal(cache.metrics().uncachedAnchors,1);
+  assert.equal(cache.metrics().uncachedAnchors,2);
+  assert.equal(cache.metrics().cacheHitAnchorReads,1);
+  assert.equal(cache.metrics().coalescedCacheHitAnchorChecks,8);
   fake.setBlock(hash('2'),source.timestamp);
   await assert.rejects(Promise.all(Array.from({length:9},()=>cache.quote(source,0,10n,1_000n,2_000n))),
    /cached quote source changed/);
+ });
+ it('coalesces only simultaneous unique-quote anchors and preserves direct per-call checks',async()=>{
+  const fake=fakeClient(),cache=new RangeKeeperPaperPinnedQuoteCache(fake.client,profile);
+  const amounts=Array.from({length:9},(_,index)=>BigInt(index+10));
+  await Promise.all(amounts.map(amount=>cache.quote(source,0,amount,1_000n,2_000n)));
+  assert.equal(fake.simulations(),9);assert.equal(fake.anchors(),1,
+   'Concurrent unique quotes did not share one in-flight exact-source anchor');
+  assert.equal(cache.metrics().uniqueQuoteCalls,9);
+  assert.equal(cache.metrics().uniqueQuoteAnchorReads,1);
+  assert.equal(cache.metrics().coalescedQuoteAnchorChecks,8);
+  await Promise.all(amounts.map(amount=>cache.quote(source,0,amount,1_000n,2_000n)));
+  assert.equal(fake.anchors(),2,'A later batch reused a settled quote anchor');
+  assert.equal(cache.metrics().cacheHitAnchorReads,1);
+  assert.equal(cache.metrics().coalescedCacheHitAnchorChecks,8);
+  fake.setBlock(hash('2'),source.timestamp);
+  await assert.rejects(Promise.all(amounts.map(amount=>cache.quote(source,0,amount,1_000n,2_000n))),
+   /cached quote source changed/);
+  const directFake=fakeClient(),direct=new RangeKeeperChain(directFake.client,profile.pool);
+  await Promise.all(amounts.map(amount=>direct.quote(source,0,amount,1_000n,2_000n)));
+  assert.equal(directFake.anchors(),9,'Direct callers no longer get per-call source checks');
  });
  it('keeps token, size, price, and source identity in the cache key',async()=>{
   const fake=fakeClient(),cache=new RangeKeeperPaperPinnedQuoteCache(fake.client,profile);
