@@ -56,6 +56,7 @@
     "test:integration:dashboard-paper-lifecycle-browser": "node --import tsx test/integration/dashboard-setup-command-browser.mjs --complete-static-lifecycle",
     "test:integration:paper-worker-process": "node --import tsx test/integration/paper-command-worker-process.mjs",
     "test:integration:paper-worker-process:sealed": "node --import tsx test/integration/paper-command-worker-process.mjs --sealed-release",
+    "test:integration:static-paper-canonical-flow": "node --import tsx test/integration/static-paper-canonical-flow.mjs",
     "release:build": "node scripts/build-release.mjs"
   },
   "dependencies": {
