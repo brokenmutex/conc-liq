@@ -69,7 +69,11 @@ export function preflightFacts(result) {
   if (result.references?.proofHash) facts.push(['Independent reference proof', String(result.references.proofHash)]);
   if (result.references?.price0) facts.push(['Independent token 0 reference · USD', formatX18(result.references.price0)]);
   if (result.references?.price1) facts.push(['Independent token 1 reference · USD', formatX18(result.references.price1)]);
-  if (result.costs?.status) facts.push(['Cost estimate', result.costs.status === 'provisional' ? 'Provisional fork estimate' : 'Unavailable']);
+  if (result.costs?.status) facts.push(['Cost estimate', result.costs.status === 'provisional'
+    ? 'Provisional fork estimate. Expected values use the gas-price observation shown; bound values are the reviewed admission cap, not paid gas.'
+    : 'Unavailable']);
+  if(result.costs?.status==='provisional'&&result.costs.gasPriceWei&&result.costs.gasPriceObservedAt)
+    facts.push(['Observed gas price · wei',`${result.costs.gasPriceWei} · ${result.costs.gasPriceObservedAt}`]);
   for (const [label, row] of [['Open', result.costs?.open], ['Retain close', result.costs?.closeRetain]]) {
     if (row) {
       facts.push([`${label} gas · expected / bound`, `${row.expectedGasUnits ?? 'Unavailable'} / ${row.boundGasUnits ?? 'Unavailable'} units`]);

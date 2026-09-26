@@ -156,8 +156,8 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
    return unavailable('setup_review_cache_miss',input.profileId);
   if(contentHash(costStructureIdentity(approvedCosts))!==contentHash(costStructureIdentity(fresh.data.costs)))
    return unavailable('setup_cost_evidence_changed_since_review',input.profileId);
-  if(BigInt(fresh.data.costs.gasPriceWei)>BigInt(approvedCosts.gasPriceWei))
-   return unavailable('setup_gas_price_increased_since_review',input.profileId);
+  if(!reviewedCostsCoverFreshGasQuote(approvedCosts,BigInt(fresh.data.costs.gasPriceWei)))
+   return unavailable('setup_gas_price_exceeds_reviewed_bound',input.profileId);
  }catch{return unavailable('setup_draft_input_invalid',input.profileId);}
  if(input.allocation.token0Raw!==reviewed.requirements.token0Raw||
   input.allocation.token1Raw!==reviewed.requirements.token1Raw)
@@ -275,4 +275,29 @@ function costStructureIdentity(value:unknown){
    boundGasUnits:stage.boundGasUnits,source:stage.source})),
   open:{expectedGasUnits:costs.open.expectedGasUnits,boundGasUnits:costs.open.boundGasUnits},
   closeRetain:{expectedGasUnits:costs.closeRetain.expectedGasUnits,boundGasUnits:costs.closeRetain.boundGasUnits}};
+}
+function reviewedCostsCoverFreshGasQuote(value:Review['costs'],freshGasPrice:bigint):boolean{
+ try{
+  const capturedPrice=BigInt(value.gasPriceWei),capturedBoundPrice=BigInt(value.boundGasPriceWei),
+   nativePrice=BigInt(value.nativeReferencePrice),expectedBoundPrice=(capturedPrice*5n+3n)/4n;
+  if(capturedPrice<=0n||nativePrice<=0n||freshGasPrice<=0n||capturedBoundPrice!==expectedBoundPrice||
+   freshGasPrice>capturedBoundPrice)return false;
+  if(value.stages.some(stage=>BigInt(stage.expectedGasUnits)>BigInt(stage.boundGasUnits)))return false;
+  const groups=[{model:value.open,stages:value.stages.slice(0,3)},
+   {model:value.closeRetain,stages:value.stages.slice(3,6)}];
+  for(const {model,stages} of groups){
+   const expectedGas=stages.reduce((sum,row)=>sum+BigInt(row.expectedGasUnits),0n),
+    boundGas=stages.reduce((sum,row)=>sum+BigInt(row.boundGasUnits),0n),
+    expectedWei=expectedGas*capturedPrice,boundWei=boundGas*capturedBoundPrice,
+    freshBoundWei=boundGas*freshGasPrice,
+    expectedValue=ceilDiv(expectedWei*nativePrice,10n**18n),
+    boundValue=ceilDiv(boundWei*nativePrice,10n**18n),
+    freshBoundValue=ceilDiv(freshBoundWei*nativePrice,10n**18n);
+   if(boundGas<expectedGas||BigInt(model.expectedGasUnits)!==expectedGas||BigInt(model.boundGasUnits)!==boundGas||
+    BigInt(model.expectedWei)!==expectedWei||BigInt(model.boundWei)!==boundWei||
+    BigInt(model.expectedValue)!==expectedValue||BigInt(model.boundValue)!==boundValue||
+    freshBoundWei>BigInt(model.boundWei)||freshBoundValue>BigInt(model.boundValue))return false;
+  }
+  return true;
+ }catch{return false;}
 }

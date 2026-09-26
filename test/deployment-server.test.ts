@@ -39,6 +39,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
     revision:1,configHash:'c'.repeat(64),profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',
     replayed:true,source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:1},
     range:{tickLower:-60,tickUpper:60},allocationHash:'d'.repeat(64)};
+   if(attempt===4)return {status:'unavailable',draftId:null,revision:null,configHash:null,
+    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['setup_gas_price_exceeds_reviewed_bound'],limitations:[]};
    return {status:'request_conflict',requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',
    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['draft_request_id_conflict']};},
   paperSetupDraftList:async()=>{setupDraftListCalls++;return [{id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1}];},
@@ -131,7 +133,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(replayed.status,200);assert.equal((await replayed.json()).replayed,true);
   const conflict=await post(setupDraftPath,setupDraftInput,{origin,cookie,'x-csrf-token':csrfToken});
   assert.equal(conflict.status,409);assert.equal((await conflict.json()).error,'draft_request_id_conflict');
-  assert.equal(setupDraftCalls.length,3);
+  const changedQuote=await post(setupDraftPath,setupDraftInput,{origin,cookie,'x-csrf-token':csrfToken});
+  assert.equal(changedQuote.status,409);assert.equal((await changedQuote.json()).error,'setup_gas_price_exceeds_reviewed_bound');
+  assert.equal(setupDraftCalls.length,4);
   const draft={mode:'paper',chainId:4663,wallet:'0x1111111111111111111111111111111111111111',
    marketProfileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',strategyId:'static_manual_v1',
    strategyVersion:'1.0.0',stateSchemaVersion:1,

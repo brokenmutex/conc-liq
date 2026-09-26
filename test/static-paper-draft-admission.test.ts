@@ -39,9 +39,9 @@ const costs={status:'provisional' as const,scope:'open_and_close_retain_gas_only
   source:{block:'99',hash,estimatedAt:new Date(now-10_000).toISOString(),callHash:hash,
    method:'owned_fork_nitro_exact_call_v1'}})),
  open:{expectedGasUnits:'300000',boundGasUnits:'360000',expectedWei:'300000000000000',
-  boundWei:'450000000000000',expectedValue:'3000000000000000000',boundValue:'4000000000000000000'},
+  boundWei:'450000000000000',expectedValue:'600000000000000000',boundValue:'900000000000000000'},
  closeRetain:{expectedGasUnits:'300000',boundGasUnits:'360000',expectedWei:'300000000000000',
-  boundWei:'450000000000000',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'},
+  boundWei:'450000000000000',expectedValue:'600000000000000000',boundValue:'900000000000000000'},
  missing:['fee_capture','execution_delay','failure_expense','close_convert_swap']};
 const preflight={schemaVersion:1,kind:'paper_setup_preflight',status:'available',mode:'paper',
  strategyId:'static_manual_v1',profileId,profileHash,
@@ -119,13 +119,38 @@ test('setup admission permits fetchedAt-only proof refresh when the server-norma
 
 test('setup admission keeps the server-captured quote when the freshly observed gas price is lower',async()=>{
  const lower={...preflight,costs:{...costs,gasPriceWei:'900000000',boundGasPriceWei:'1125000000',
-  open:{...costs.open,boundValue:'3000000000000000000'}}};
- const tighterLimits={...limits,maxActionCost:'3500000000000000000',maxRollingCost:'5000000000000000000'},
+  open:{...costs.open,boundValue:'800000000000000000'}}};
+ const tighterLimits={...limits,maxActionCost:'850000000000000000',maxRollingCost:'1000000000000000000'},
   reviewedPreflight={...preflight,input:{...preflight.input,limits:tighterLimits}},
   request={...input(),limits:tighterLimits,reviewed:staticPaperSetupReviewBinding(reviewedPreflight)};
  const result=await createStaticPaperDraftFromSetup(request,deps({runPreflight:async()=>({...lower,input:{...lower.input,limits:tighterLimits}})}));
  assert.equal(result.status,'unavailable');
  if(result.status==='unavailable')assert(result.missing.includes('provisional_cost_exceeds_static_limits'));
+});
+
+test('fresh gas price may rise only inside the reviewed buffer and must fit the original bound',async()=>{
+ const reprice=(price:bigint)=>{
+  const boundPrice=(price*5n+3n)/4n,value=(units:bigint,gasPrice:bigint)=>
+   (units*gasPrice*BigInt(costs.nativeReferencePrice)+10n**18n-1n)/10n**18n;
+  const group=(indices:number[])=>{
+   const expected=indices.reduce((sum,index)=>sum+BigInt(costs.stages[index]!.expectedGasUnits),0n),
+    bound=indices.reduce((sum,index)=>sum+BigInt(costs.stages[index]!.boundGasUnits),0n);
+   return {expectedGasUnits:String(expected),boundGasUnits:String(bound),expectedWei:String(expected*price),
+    boundWei:String(bound*boundPrice),expectedValue:String(value(expected,price)),boundValue:String(value(bound,boundPrice))};
+  };
+  return {...preflight,costs:{...costs,gasPriceWei:String(price),boundGasPriceWei:String(boundPrice),
+   open:group([0,1,2]),closeRetain:group([3,4,5])}};
+ };
+ const within=await createStaticPaperDraftFromSetup(input(),deps({
+  runPreflight:async()=>reprice(1_100_000_000n)}));
+ assert.equal(within.status,'draft_created');
+ const atCap=await createStaticPaperDraftFromSetup(input(),deps({
+  runPreflight:async()=>reprice(BigInt(costs.boundGasPriceWei))}));
+ assert.equal(atCap.status,'draft_created');
+ const overCap=await createStaticPaperDraftFromSetup(input(),deps({
+  runPreflight:async()=>reprice(BigInt(costs.boundGasPriceWei)+1n)}));
+ assert.equal(overCap.status,'unavailable');
+ if(overCap.status==='unavailable')assert(overCap.missing.includes('setup_gas_price_exceeds_reviewed_bound'));
 });
 
 test('setup admission does not extend the cached review deadline across a slow source reread',async()=>{
@@ -220,7 +245,8 @@ test('changed source, profile, allocation, or provisional cost evidence rejects 
   ['reference',{references:{...preflight.references,proofHash:'d'.repeat(64),
    proofIdentityHash:'e'.repeat(64)}},'setup_review_binding_stale'],
  ['cost profile',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,version:2}:stage)}},'setup_cost_evidence_changed_since_review'],
-  ['gas price increased',{costs:{...costs,gasPriceWei:'1000000001',boundGasPriceWei:'1250000002'}},'setup_gas_price_increased_since_review'],
+  ['cost gas units',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,expectedGasUnits:'100001'}:stage)}},'setup_cost_evidence_changed_since_review'],
+  ['cost stage source',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,source:{...stage.source,callHash:`0x${'d'.repeat(64)}`} }:stage)}},'setup_cost_evidence_changed_since_review'],
  ] as const){
   let creates=0;
   const result=await createStaticPaperDraftFromSetup(input(),deps({
@@ -241,7 +267,7 @@ test('changed source, profile, allocation, or provisional cost evidence rejects 
 
 test('cost caps, deployment bounds, gas reserve, stale evidence and store errors fail closed',async()=>{
  const cases:[string,Record<string,unknown>,string][]=[
-  ['cost cap',{limits:{...limits,maxCampaignCost:String(6n*10n**18n)}},'provisional_cost_exceeds_static_limits'],
+  ['cost cap',{limits:{...limits,maxCampaignCost:String(15n*10n**17n)}},'provisional_cost_exceeds_static_limits'],
   ['deployment cap',{limits:{...limits,maxDeploymentValue:String(49n*10n**18n)}},'allocation_outside_deployment_value_limits'],
   ['native reserve',{allocation:{...input().allocation,nativeWei:'1000000000000000'}},'native_allocation_below_cost_and_exit_reserve'],
  ];
