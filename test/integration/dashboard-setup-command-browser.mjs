@@ -50,7 +50,11 @@ const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_F
  token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
  nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}});
 const profileHash=contentHash(profile),poolAddress=profile.pool.pool;let profileId='';
-const referenceProof={fixture:'loopback-command-browser-source-boundary'};
+const referenceProof={fixture:'loopback-command-browser-source-boundary',
+ registry:{fetchedAt:new Date().toISOString(),sha256:`sha256:${'1'.repeat(64)}`,
+  url:'https://example.invalid/browser-fixture/registry'},
+ feedDirectory:{fetchedAt:new Date().toISOString(),sha256:`sha256:${'2'.repeat(64)}`,
+  url:'https://example.invalid/browser-fixture/feed-directory'}};
 const frame=()=>({source:blockSource,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),poolLiquidity:10n**24n,
  price0:10n**18n,price1:10n**18n,nativePrice:2000n*10n**18n,referenceEligible:true,
  referenceReasons:[],referenceProofHash:referenceProofHash(referenceProof),referenceProof});
