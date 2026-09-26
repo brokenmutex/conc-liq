@@ -272,3 +272,32 @@ choose a forward-compatible release or explicitly rehearse a full restore with
 ownership established. If old execution ownership is still unknown, rollback
 and campaign adoption remain blocked. None of these proposal commands were run
 as part of this inventory.
+
+## Reviewed candidate update — September 26, resumed Luna delivery
+
+Candidate runtime source `5b22ce526a239f24f04262ac128f668aa4c27645` produced build
+`f75d6277772d9beb19e633fb70a53b4d28d9b7884a487508754abe91514f483d`, preserved at
+`/tmp/conc-liq-static-mvp-releases-20260926/` plus that build ID. Its clean checks,
+manifest/units, canonical browser demonstrations, economic restart, changed-anchor
+rejection and actual canonical campaign restore are reviewed in the
+[acceptance record](static-paper-mvp-acceptance-f75d6277-2026-09-26.md). Retain
+has an explicit post-success teardown caveat and composite cleanup evidence.
+A later screenshot-only attempt failed setup before draft/open with
+`paper_cost_initial_preview_source_mismatch`; its availability cause remains
+uncharacterized and is the next narrow investigation before an availability
+claim or operator cutover recommendation.
+This supersedes only the earlier statement that no exact candidate evidence
+was available; it does not refresh the historical production inventory above.
+
+The final external harness is `2279e86`; it is not the runtime source commit.
+Do not build from the current dirty checkout or substitute that harness HEAD
+for the reviewed source. A later artifact promotion must preserve and verify
+this exact manifest/build identity before any approved service change.
+Thirteen units were rendered under `/tmp/static-mvp-units-f75d627` and checked,
+without installation.
+
+The concrete proposal remains unexecuted. Fresh production ownership/custody,
+old-reader schema compatibility, private environment/profile configuration,
+backup identity and authorization for the exact migration/registration/service
+actions remain outstanding. No production migration, registration, activation,
+signer use or broadcast occurred in candidate acceptance.

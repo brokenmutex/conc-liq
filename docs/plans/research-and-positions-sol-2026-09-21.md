@@ -1,9 +1,14 @@
 # Research and Positions — Sol implementation plan
 
 Prepared: 2026-09-21. Revised: 2026-09-26 after the MVP progress review at
-`f087abc`. Status: prototype approved; static/manual paper is the first operator
-MVP; its complete canonical workflow and release gates remain open. Initial
-source review: `b38c839`. Recheck HEAD and working-tree changes before starting.
+`f087abc`, with resumed Luna delivery recorded below. Static/manual paper is
+the first operator MVP. Candidate `5b22ce5` / `f75d6277…` has passed actual
+economic restart, changed-anchor rejection and canonical campaign restore.
+Static/manual paper candidate functionality is demonstrated, with the retain
+teardown caveat and a later setup-preflight source mismatch recorded. Narrow
+setup availability diagnosis and production cutover remain pending. See the [current acceptance record](../reviews/static-paper-mvp-acceptance-f75d6277-2026-09-26.md)
+and the section 12 status table. Initial source review: `b38c839`. Recheck HEAD
+and working-tree changes before starting.
 The approved screen contract in
 [section 11](#11-approved-prototype-contract-and-delivery-order) remains in force.
 The ordered Sol handoff in
@@ -1612,8 +1617,8 @@ this recovery-panel commit and do not establish an exact clean release identity.
 
 | Path | Available source behavior | Remaining acceptance boundary |
 | --- | --- | --- |
-| Static/manual paper setup, open, pause/resume, retain-close | Canonical browser setup/open/valuation/pause/resume/retain passed through the actual sealed command/worker on clean runtime `609e68f`, build `b78c3f22…`. One terminal mark, first-session capital and persisted lower bounds, desktop/mobile chart/activity/history and explicit gaps matched saved evidence. | Retain exact balances, earned fees and paid gas remain unavailable. Economic conversion recovery and final static paper release review remain open; see section 12. Production cutover is not authorized. |
-| Static/manual paper convert-close | Canonical browser setup/open/later valuation/convert-close passed on the same sealed `609e68f` / `b78c3f22…` runtime. One terminal mark and V3 snapshot, exactly matched modeled capital-out records, post-conversion inventory and desktop/mobile history passed. | Actual interrupted-worker economic completion, canonical restore and changed-anchor rejection remain open. Costs and conversion outcomes are provisional modeled evidence; production cutover is not authorized. |
+| Static/manual paper setup, open, pause/resume, retain-close | Canonical browser lifecycle assertions passed on clean runtime `5b22ce5`, build `f75d6277…`. First-session capital, persisted lower bounds, one terminal mark and desktop/mobile chart/activity/history matched evidence. A post-success cleanup error and subsequent shared-helper repair are recorded as composite evidence. | Retain exact balances, earned fees and paid gas remain unavailable. Candidate acceptance is recorded in section 12; production cutover is not authorized. |
+| Static/manual paper convert-close | Canonical browser setup/open/later valuation/convert-close, actual economic restart and changed-anchor rejection passed on `5b22ce5` / `f75d6277…`. One terminal mark/V3 snapshot, matched modeled capital-out records, inventory and desktop/mobile history passed. Ordinary conversion plus canonical restore exited 0 with harness `2279e86`. | Costs and conversion outcomes remain provisional modeled evidence. Blocked recovery is visible in activity but its headline needs a narrow clarity follow-up. Production cutover is not authorized. |
 | RangeKeeper paper | Planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. The newer attempt reached producer-receipt publication and failed there; see section 12. | No successful producer/worker booking is recorded. Reliable freshness, producer publication, lifecycle/management, both terminal exits and shared closure parity remain F3 gates. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
 | Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
@@ -1765,11 +1770,11 @@ platform is not needed to establish the cause.
 
 | Task | Current result | Remaining gate |
 | --- | --- | --- |
-| MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
-| MVP-2 | Connection-exhaustion cause measured and fixed; the complete canonical retain browser lifecycle passed through the final sealed command/worker `609e68f` / `b78c3f22…`, with one terminal mark and desktop/mobile parity. | Complete; retain custody and paid-cost limitations remain explicit. |
-| MVP-3 | Both canonical browser exits passed on sealed `b78c3f22…` / source `609e68f`: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Preserve the same artifact for economic restart and restore gates. |
-| MVP-4 | Sixth sealed run proved actual lost-202 response, natural preview expiry, worker kill/lease loss and browser HTTP 202 replay of the original key/operation; one conversion remained queued at attempt 0. Restart exceeded 30s while reading release files; paired I/O evidence is recorded below. | Paused at the requested checkpoint. Review the measured startup bottleneck, then prove canonical restart with exactly-once economic completion, canonical restore and changed-anchor rejection. Preserve verification, evidence and rejection gates. |
-| MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Economic recovery on this build, canonical restore, changed-anchor rejection and final cutover review. Both ordinary canonical lifecycles passed. Production authorization remains pending. |
+| MVP-1 | Source check gate restored; resumed clean candidate `5b22ce5` passed repository/type checks and 877/877 tests, including concurrent-verifier integrity checks. | Preserve runtime build `f75d6277…` and record external harness identity separately. |
+| MVP-2 | Canonical retain lifecycle assertions passed on `f75d6277…`: setup/open/pause/resume/close, one terminal mark and desktop/mobile parity. Original command exited 1 only during Chromium profile cleanup; fix `2279e86` passed direct cleanup proof and the final conversion command. | Complete using explicitly composite evidence; retain lower-bound and paid-cost limitations remain. |
+| MVP-3 | Both canonical browser exits demonstrated on sealed `f75d6277…` / source `5b22ce5`, including first-session capital, exact terminal semantics, explicit gaps and desktop/mobile history. Ordinary conversion+restore exited 0 with harness `2279e86`; retain caveat is above. | Complete for this candidate; blocked recovery is visible in activity but its headline still says Close in progress, a narrow UX follow-up. |
+| MVP-4 | On `f75d6277…`, harness `3af131b` passed expired-preview same-key replay, restart in 16.085s with 236.7 MB physical reads, exactly-once V3 conversion and desktop/mobile parity. The later restore comparison failed separately on an unsafe JSON number. | Changed-anchor rejection passed: 18.853s restart, blocked operation, zero terminal conversion marks/ledger/V3 rows. MVP-4 is complete; retain the later restore failure separately under MVP-5. |
+| MVP-5 | Clean `5b22ce5` produced verified candidate `f75d6277…`; only launcher/verifier bytes differ from prior `b78c3f22…`. Manifest and 13 rendered units passed offline review without installation. Runbook and unexecuted cutover proposal remain available. | Required candidate demonstrations passed, including actual campaign restore. An extra screenshot attempt failed before draft/open with `paper_cost_initial_preview_source_mismatch`; characterize that setup availability result before claiming consistent availability. Production configuration, compatibility, custody/ownership, backup and authorization remain pending; no activation performed. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
@@ -2308,3 +2313,38 @@ checks: no canonical conversion fixture schemas, owned restore databases,
 operation-readiness lock holders or temporary conversion runtime directories;
 both sixth-run worker PIDs are absent. The proposed production private
 environment file remains absent. No further process work is active.
+
+### Resumed Luna orchestration — September 26
+
+The operator subsequently requested development through parallel Luna agents.
+The remaining work is limited to MVP-4/MVP-5: one agent implemented the
+bounded concurrent startup verifier, one owns serialized canonical recovery
+acceptance, and one independently reviews integrity and release evidence.
+Root integrates scoped commits and preserves unrelated dirty research work.
+
+The current candidate and gate results are recorded in
+[the f75d6277 acceptance record](../reviews/static-paper-mvp-acceptance-f75d6277-2026-09-26.md).
+Runtime commit `5b22ce5` changes launch-time verification only; harness commit
+`3af131b` prevents the test from retaining a suspension while runtime database
+transactions remain open. The first new attempt's HTTP 500 preceded restart;
+its cause is unconfirmed, and no failed evidence has been replaced or relabeled.
+Both integrity checks and the existing time/economic boundaries remain intact.
+
+Harness `6ba12dc` corrected lossless PostgreSQL numeric comparison; `2279e86`
+corrected bounded browser teardown and cleanup error reporting. The final
+ordinary conversion plus actual canonical campaign restore exited zero. The
+retain command's post-success cleanup failure is preserved and accepted only
+as composite evidence with direct cleanup proof and the final shared-helper
+run. See the linked record for exact identities, counts and limitations.
+
+Assessment: the MVP is on the right path. Stop feature expansion at this
+static/manual paper candidate. Next diagnose the extra attempt's setup source
+mismatch with redacted initial-preview/source evidence, then move to operator
+review and the concrete production cutover prerequisites. Do not weaken the
+identity check or repeat full campaigns to conceal the failure. Keep the blocked-recovery headline correction
+as a small UX follow-up. No framework, queue rewrite, cache or dependency-pruning
+project is needed to deliver this milestone.
+
+Do not expand RangeKeeper, live execution, Research replay or infrastructure
+before the static paper operator milestone. Production migration, registration,
+service installation and activation remain separate from disposable paper acceptance.
