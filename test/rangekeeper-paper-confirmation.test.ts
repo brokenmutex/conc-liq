@@ -6,7 +6,8 @@ import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {contentHash} from '../src/deployments/contracts.js';
 import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-profile.js';
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
-import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe}
+import {buildRangeKeeperPaperConfirmation,prepareRangeKeeperPaperConfirmation,
+ isRangeKeeperPaperConfirmationPreparation,type RangeKeeperPaperConfirmationProbe}
  from '../src/deployments/rangekeeper-paper-confirmation.js';
 import {RangeKeeperPaperPinnedQuoteCache} from
  '../src/deployments/rangekeeper-paper-pinned-quote-cache.js';
@@ -157,6 +158,32 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
    candidateHash:'x',simulationHash:gasHash('f')}),now:frameNow};
  const probe=await buildRangeKeeperPaperConfirmation({...baseInput,probeOnly:true});
  assert.equal(probe.status,'candidate');
+ const prepared=await prepareRangeKeeperPaperConfirmation({draft,firstFrame:frame1,firstCandidate:candidate,
+  frame:frame2,buildId,client});
+ assert.equal(prepared.status,'prepared_candidate');
+ assert.equal(prepared.actionAvailable,false);
+ assert.equal(isRangeKeeperPaperConfirmationPreparation(prepared),true);
+ assert.equal(isRangeKeeperPaperConfirmationPreparation(structuredClone(prepared)),false,
+  'A JSON clone cannot carry the request-local planner brand');
+ if(prepared.status==='prepared_candidate'){
+  assert.equal(Object.isFrozen(prepared),true);
+  assert.equal(Object.isFrozen(prepared.candidate),true);
+  const joined=await buildRangeKeeperPaperConfirmation({...baseInput,preparation:prepared,probeOnly:true});
+  assert.equal(joined.status,'candidate',JSON.stringify(joined,(_key,value)=>
+   typeof value==='bigint'?String(value):value));
+  if(joined.status==='candidate'&&probe.status==='candidate'){
+   assert.equal(joined.candidateHash,probe.candidateHash);
+   assert.equal(contentHash(JSON.parse(JSON.stringify(joined.candidate,(_key,value)=>
+    typeof value==='bigint'?String(value):value))),contentHash(JSON.parse(JSON.stringify(probe.candidate,(_key,value)=>
+    typeof value==='bigint'?String(value):value))));
+  }
+  const wrongFrame={...prepared,secondFrameHash:'0'.repeat(64)};
+  assert.equal(isRangeKeeperPaperConfirmationPreparation(wrongFrame),false,
+   'A modified preparation cannot be rehashed into a trusted result');
+  const rejected=await buildRangeKeeperPaperConfirmation({...baseInput,preparation:wrongFrame as never,probeOnly:true});
+  assert.equal(rejected.status,'unavailable');
+  if(rejected.status==='unavailable')assert.equal(rejected.reason,'rangekeeper_confirmation_preparation_mismatch');
+ }
  const mismatchedCache=new RangeKeeperPaperPinnedQuoteCache(client,{...profile,
   pool:{...profile.pool,fee:profile.pool.fee+1}}),cacheMismatch=await buildRangeKeeperPaperConfirmation({
    ...baseInput,pinnedQuoteCache:mismatchedCache});

@@ -63,7 +63,8 @@ import {loadRangeKeeperPaperConfirmationContext} from './rangekeeper-paper-confi
 import {buildRangeKeeperPaperConfirmationProducerReceipt,
  isRangeKeeperPaperServerProduced,validateRangeKeeperPaperConfirmationProducerReceipt}
  from './rangekeeper-paper-confirmation-provenance.js';
-import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation}
+import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation,
+ type RangeKeeperPaperConfirmationPreparation}
  from './rangekeeper-paper-confirmation.js';
 import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
@@ -757,6 +758,7 @@ export class DeploymentStore {
  async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
   client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
   pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
+  preparation?:RangeKeeperPaperConfirmationPreparation;
   simulate:(candidate:import('../strategy/rangekeeper/domain.js').RangeKeeperCandidate)=>
    Promise<RangeKeeperPaperConfirmationSimulation>;
   verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;now?:number}){
@@ -814,7 +816,7 @@ export class DeploymentStore {
      frame:input.frame,buildId:runtime.buildId,client:input.client,
      readGasProfiles:query=>this.rangeKeeperPaperGasProfiles(query.poolAddress,query.pathVersion,query.sizeBand),
      marketGasPriceWei:input.marketGasPriceWei,marketGasPriceObservedAt:input.marketGasPriceObservedAt,
-     simulate:input.simulate,pinnedQuoteCache:input.pinnedQuoteCache,now});
+     simulate:input.simulate,pinnedQuoteCache:input.pinnedQuoteCache,preparation:input.preparation,now});
     if(result.status==='unavailable')throw new DeploymentConflict(result.reason);
     {
      const sources=result.status==='confirmed'?[result.firstObservation.source,

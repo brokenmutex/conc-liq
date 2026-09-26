@@ -10,7 +10,9 @@ import type {PaperGasProfileRow} from './paper-cost.js';
 import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft,
  type RangeKeeperPaperOpenModel} from './rangekeeper-paper-open-model.js';
 import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
- rangeKeeperPaperSizeBand,selectRangeKeeperPaperCostProfiles,type RangeKeeperPaperCandidateScope,
+ rangeKeeperPaperSizeBand,selectRangeKeeperPaperCostProfiles,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
+ RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,
+ type RangeKeeperPaperCandidateScope,
  type RangeKeeperPaperGasProfileReader,type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
 import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence,
  type RangeKeeperPaperOwnedForkConfirmationEvidence} from './rangekeeper-paper-confirmation-simulation.js';
@@ -32,6 +34,16 @@ export interface RangeKeeperPaperConfirmationProbe {
  status:'candidate';campaignId:string;revision:number;firstModelHash:string;firstCandidateHash:string;
  source:PaperOpenFrame['source'];candidate:RangeKeeperCandidate;candidateHash:string;
  scope:RangeKeeperPaperCandidateScope;pathVersion:string;sizeBand:string;actionAvailable:false;
+}
+/** Request-local, non-authorizing candidate produced before first-model cost
+ * replay completes. It cannot be persisted or admitted and must match a later
+ * full cost-verified probe before its simulation can be consumed. */
+export interface RangeKeeperPaperConfirmationPreparation {
+ status:'prepared_candidate';campaignId:string;revision:number;firstSource:PaperOpenFrame['source'];
+ firstCandidateHash:string;firstPolicyHash:string;firstBuildId:string;firstStrategyValue:string;
+ source:PaperOpenFrame['source'];secondFrameHash:string;candidate:RangeKeeperCandidate;
+ candidateHash:string;scope:RangeKeeperPaperCandidateScope;pathVersion:string;sizeBand:string;
+ stages:readonly string[];actionAvailable:false;preparationHash:string;
 }
 export interface RangeKeeperPaperConfirmationUnavailable {
  status:'unavailable';reason:string;campaignId:string;revision:number;actionAvailable:false;
@@ -57,6 +69,7 @@ export interface RangeKeeperPaperConfirmationSimulation {
  status:'success';sourceBlock:string;sourceHash:string;candidateHash:string;simulationHash:string;
  ownedForkEvidence?:unknown;
 }
+const preparationBrands=new WeakMap<object,string>();
 
 function deserializeCandidate(value:unknown):RangeKeeperCandidate{
  const c=candidateSchema.parse(value);
@@ -88,6 +101,152 @@ function usableFrame(frame:PaperOpenFrame,now:number){
   now>=frame.source.timestamp*1000&&now-frame.source.timestamp*1000<=180_000;
 }
 
+function frameBindingHash(frame:PaperOpenFrame){
+ return contentHash(JSON.parse(JSON.stringify({source:frame.source,tick:frame.tick,
+  sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity),
+  price0:frame.price0===null?null:String(frame.price0),price1:frame.price1===null?null:String(frame.price1),
+  nativePrice:frame.nativePrice===null?null:String(frame.nativePrice),referenceEligible:frame.referenceEligible,
+  referenceReasons:frame.referenceReasons,referenceProofHash:frame.referenceProofHash,
+  referenceProof:frame.referenceProof},(_key,value)=>typeof value==='bigint'?String(value):value)));
+}
+function jsonBindingHash(value:unknown){
+ return contentHash(JSON.parse(JSON.stringify(value,(_key,item)=>typeof item==='bigint'?String(item):item)));
+}
+function preparationBody(input:Omit<RangeKeeperPaperConfirmationPreparation,'preparationHash'>){
+ return JSON.parse(JSON.stringify({schemaVersion:1,kind:'rangekeeper_paper_confirmation_preparation_v1',...input,
+  candidate:serializeCandidate(input.candidate)},(_key,value)=>typeof value==='bigint'?String(value):value));
+}
+function deepFreeze<T>(value:T):T{
+ if(value&&typeof value==='object'&&!Object.isFrozen(value)){
+  for(const child of Object.values(value as Record<string,unknown>))deepFreeze(child);
+  Object.freeze(value);
+ }
+ return value;
+}
+export function isRangeKeeperPaperConfirmationPreparation(value:unknown):
+ value is RangeKeeperPaperConfirmationPreparation{
+ if(!value||typeof value!=='object'||Array.isArray(value))return false;
+ const prep=value as RangeKeeperPaperConfirmationPreparation;
+ try{
+  const {preparationHash,...body}=prep;
+  return preparationBrands.get(prep)===preparationHash&&prep.status==='prepared_candidate'&&
+   prep.actionAvailable===false&&preparationHash===contentHash(preparationBody(body));
+ }catch{return false;}
+}
+
+function verifiedPreparedProbe(input:{preparation:RangeKeeperPaperConfirmationPreparation;
+ draft:RangeKeeperPaperDraft;open:RangeKeeperPaperOpenModel;frame:PaperOpenFrame;
+ first:RangeKeeperCandidate;firstCandidateHash:string;policyHash:string;buildId:string}):
+ RangeKeeperPaperConfirmationProbe|null{
+ const {preparation:prep,draft,open,frame,first,firstCandidateHash,policyHash,buildId}=input;
+ if(!isRangeKeeperPaperConfirmationPreparation(prep)||prep.campaignId!==draft.id||
+  prep.revision!==draft.revision||prep.firstCandidateHash!==firstCandidateHash||
+  prep.firstPolicyHash!==policyHash||prep.firstBuildId!==buildId||
+  prep.firstStrategyValue!==open.allocation.strategyInventoryValue||
+  contentHash(prep.firstSource)!==contentHash(open.source)||
+  prep.secondFrameHash!==frameBindingHash(frame)||contentHash(prep.source)!==contentHash(frame.source)){
+  return null;
+ }
+ let candidate:RangeKeeperCandidate;
+ try{candidate=deserializeCandidate(serializeCandidate(prep.candidate));}catch{return null;}
+ if(candidate.sourceBlock!==BigInt(frame.source.block)||candidate.sourceHash.toLowerCase()!==frame.source.hash.toLowerCase()||
+  candidate.expiresAt!==frame.source.timestamp+90)return null;
+ const candidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
+  profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
+  referenceProofHash:frame.referenceProofHash,candidate}),denominator=frame.poolLiquidity+candidate.liquidity;
+ if(denominator<=0n||candidateHash!==prep.candidateHash)return null;
+ const scope:RangeKeeperPaperCandidateScope={poolAddress:draft.profile.pool.pool,
+  profileHash:draft.profileHash,candidateHash,deployedValue:candidate.deployedValue,
+  sharePpm:candidate.liquidity*PPM/denominator,range:candidate.range,
+  swapKind:candidate.swap?'direct_pool_exact_input':'none'},pathVersion=rangeKeeperPaperPathVersion(candidate),
+  sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope),stages=[...(candidate.swap?
+   RANGEKEEPER_PAPER_OPEN_STAGES_SWAP:RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP),
+   ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES];
+ if(jsonBindingHash(prep.scope)!==jsonBindingHash(scope)||prep.pathVersion!==pathVersion||prep.sizeBand!==sizeBand||
+  contentHash(prep.stages)!==contentHash(stages))return null;
+ return {status:'candidate',campaignId:draft.id,revision:draft.revision,
+  firstModelHash:contentHash(open),firstCandidateHash,source:frame.source,candidate,candidateHash,
+  scope,pathVersion,sizeBand,actionAvailable:false};
+}
+
+/** Runs the second-observation kernel and owned-fork setup from the actual
+ * first-source planner candidate, without requiring or fabricating an open
+ * model. The result is speculative only until the ordinary builder replays
+ * the persisted first model and matches every candidate binding. */
+export async function prepareRangeKeeperPaperConfirmation(input:{draft:RangeKeeperPaperDraft;
+ firstFrame:PaperOpenFrame;firstCandidate:RangeKeeperCandidate;frame:PaperOpenFrame;
+ buildId:string;client:RobinhoodClient;pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
+ now?:number}):Promise<RangeKeeperPaperConfirmationPreparation|RangeKeeperPaperConfirmationUnavailable>{
+ const {draft,firstFrame,firstCandidate,frame}=input,now=input.now??Date.now(),
+  unavailableResult=(reason:string)=>({status:'unavailable' as const,reason,campaignId:draft.id,
+   revision:draft.revision,actionAvailable:false as const});
+ if(contentHash(draft.profile)!==draft.profileHash||!usableFrame(firstFrame,now)||!usableFrame(frame,now))
+  return unavailableResult('rangekeeper_confirmation_preparation_context_unavailable');
+ if(firstCandidate.sourceBlock!==BigInt(firstFrame.source.block)||
+  firstCandidate.sourceHash.toLowerCase()!==firstFrame.source.hash.toLowerCase()||
+  firstCandidate.expiresAt!==firstFrame.source.timestamp+90||
+  BigInt(frame.source.block)<=BigInt(firstFrame.source.block)||
+  frame.source.timestamp<=firstFrame.source.timestamp||
+  frame.source.timestamp-firstFrame.source.timestamp>
+   Number((draft.parameters as {limits?:{maxObservationGapSeconds?:number}}).limits?.maxObservationGapSeconds??0)||
+  frame.source.timestamp>firstCandidate.expiresAt)
+  return unavailableResult('rangekeeper_confirmation_preparation_source_or_gap_invalid');
+ const policy=resolveRangeKeeperPaperPolicy(draft,input.buildId);
+ if(!policy.policy||policy.unavailable.length)
+  return unavailableResult(policy.unavailable.join(',')||'rangekeeper_confirmation_policy_unavailable');
+ const pinnedQuoteCache=input.pinnedQuoteCache??new RangeKeeperPaperPinnedQuoteCache(input.client,draft.profile);
+ if(!pinnedQuoteCache.matches(input.client,draft.profile))
+  return unavailableResult('rangekeeper_confirmation_quote_cache_context_mismatch');
+ const p=draft.profile.pool,limits=policy.policy.limits,
+  firstCandidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
+   profileHash:draft.profileHash,configHash:draft.configHash,source:firstFrame.source,
+   referenceProofHash:firstFrame.referenceProofHash,candidate:firstCandidate}),
+  firstStrategyValue=rawValue(BigInt(draft.allocation.token0Raw),firstFrame.price0!,p.decimals0)+
+   rawValue(BigInt(draft.allocation.token1Raw),firstFrame.price1!,p.decimals1),
+  source={block:BigInt(frame.source.block),hash:frame.source.hash as `0x${string}`,
+   timestamp:frame.source.timestamp},
+  quote=(token:0|1,amount:bigint)=>pinnedQuoteCache.quote(source,token,amount,frame.price0!,frame.price1!);
+ const state:RangeKeeperState={schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
+  configHash:`0x${policy.policy.policyHash}` as `0x${string}`,buildId:policy.policy.buildId,
+  lastEligible:{block:BigInt(firstFrame.source.block),hash:firstFrame.source.hash as `0x${string}`,
+   timestamp:firstFrame.source.timestamp},exit:null,
+  confirmation:{candidate:firstCandidate,firstBlock:BigInt(firstFrame.source.block),
+   firstHash:firstFrame.source.hash as `0x${string}`,firstAt:firstFrame.source.timestamp}};
+ const wallet0=BigInt(draft.allocation.token0Raw),wallet1=BigInt(draft.allocation.token1Raw),
+  observation={block:BigInt(frame.source.block),hash:frame.source.hash as `0x${string}`,
+   timestamp:frame.source.timestamp,tick:frame.tick,sqrtPriceX96:frame.sqrtPriceX96,
+   continuity:'canonical' as const,wallet0,wallet1,released0:0n,released1:0n,
+   nativeWei:BigInt(draft.allocation.nativeWei),requiredExitReserveWei:limits.exitReserveWei,
+   price0:frame.price0,price1:frame.price1,nativePrice:frame.nativePrice,position:null,pending:false,
+   entryAllowed:true,safeExitRequired:false,executionReady:true,liquiditySharePpm:0,
+   actionCost:limits.maxActionCost,actionGasWei:0n,reservedCost:0n,rollingSpentCost:0n,
+   campaignSpentCost:0n,campaignStartValue:firstStrategyValue,highWaterValue:firstStrategyValue,recenters:0};
+ const probe=await planRangeKeeper({state,observation,limits,spacing:p.tickSpacing,
+  decimals0:p.decimals0,decimals1:p.decimals1,quoteToken:p.quoteToken,
+  maxPoolDeviationPpm:draft.profile.referencePolicy.maxPoolDeviationPpm,quote,
+  simulate:async()=>true});
+ if(probe.action!=='execute'||!probe.candidate||probe.reason!=='two_confirmations')
+  return unavailableResult(`rangekeeper_second_observation_${probe.reason}`);
+ const candidate=probe.candidate,candidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,
+  revision:draft.revision,profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
+  referenceProofHash:frame.referenceProofHash,candidate}),denominator=frame.poolLiquidity+candidate.liquidity;
+ if(denominator<=0n)return unavailableResult('rangekeeper_confirmation_liquidity_share_unavailable');
+ const scope:RangeKeeperPaperCandidateScope={poolAddress:p.pool,profileHash:draft.profileHash,
+  candidateHash,deployedValue:candidate.deployedValue,sharePpm:candidate.liquidity*PPM/denominator,
+  range:candidate.range,swapKind:candidate.swap?'direct_pool_exact_input':'none'},
+  pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope),
+  stages=[...(candidate.swap?RANGEKEEPER_PAPER_OPEN_STAGES_SWAP:RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP),
+   ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
+  body={status:'prepared_candidate' as const,campaignId:draft.id,revision:draft.revision,
+   firstSource:firstFrame.source,firstCandidateHash,firstPolicyHash:policy.policy.policyHash,
+   firstBuildId:policy.policy.buildId,firstStrategyValue:String(firstStrategyValue),source:frame.source,
+   secondFrameHash:frameBindingHash(frame),candidate,candidateHash,scope,pathVersion,sizeBand,stages,
+   actionAvailable:false as const},preparation={...body,preparationHash:contentHash(preparationBody(body))};
+ const frozen=deepFreeze(preparation);
+ preparationBrands.set(frozen,preparation.preparationHash);
+ return frozen;
+}
+
 function initialState(open:RangeKeeperPaperOpenModel,first:RangeKeeperCandidate):RangeKeeperState{
  return {schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
   configHash:`0x${open.kernelPolicyHash}` as `0x${string}`,buildId:open.kernelBuildId!,
@@ -109,7 +268,8 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
  readGasProfiles:RangeKeeperPaperGasProfileReader;marketGasPriceWei:bigint|null;
  marketGasPriceObservedAt:number|null;
  simulate:(candidate:RangeKeeperCandidate)=>Promise<RangeKeeperPaperConfirmationSimulation>;
- pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;probeOnly?:boolean;now?:number}):Promise<RangeKeeperPaperConfirmationResult>{
+ pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
+ preparation?:RangeKeeperPaperConfirmationPreparation;probeOnly?:boolean;now?:number}):Promise<RangeKeeperPaperConfirmationResult>{
  const {draft,firstModel:open,frame}=input,now=input.now??Date.now();
  const firstModelHash=contentHash(open),firstCandidateHash=open.candidateHash??'';
  let first:RangeKeeperCandidate;
@@ -194,6 +354,16 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
   candidateHash,deployedValue:candidate.deployedValue,sharePpm:share,range:candidate.range,
   swapKind:candidate.swap?'direct_pool_exact_input':'none'};
  const pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope);
+ if(input.preparation){
+  const prepared=verifiedPreparedProbe({preparation:input.preparation,draft,open,frame,first,
+   firstCandidateHash,policyHash:policy.policy.policyHash,buildId:policy.policy.buildId});
+  if(!prepared||prepared.candidateHash!==candidateHash||
+   jsonBindingHash(prepared.candidate)!==jsonBindingHash(candidate)||
+   jsonBindingHash(prepared.scope)!==jsonBindingHash(scope)||prepared.pathVersion!==pathVersion||
+   prepared.sizeBand!==sizeBand){
+   return unavailable(draft,'rangekeeper_confirmation_preparation_mismatch');
+  }
+ }
  if(input.probeOnly)return {status:'candidate',campaignId:draft.id,revision:draft.revision,
   firstModelHash,firstCandidateHash,source:frame.source,candidate,candidateHash,scope,pathVersion,
   sizeBand,actionAvailable:false};

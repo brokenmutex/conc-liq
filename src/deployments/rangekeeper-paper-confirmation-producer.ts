@@ -17,6 +17,8 @@ import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-
 import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
+import type {RangeKeeperPaperConfirmationPreparation}
+ from './rangekeeper-paper-confirmation.js';
 import type {RangeKeeperPaperConfirmationSimulation} from './rangekeeper-paper-confirmation.js';
 import type {DeploymentStore} from './store.js';
 
@@ -47,6 +49,8 @@ export interface RangeKeeperPaperConfirmationProducerDependencies {
  /** In-process only. A serialized/cloned or mismatched simulation is rejected. */
  reusableSimulation?:(RangeKeeperPaperConfirmationSimulation&{
   ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence});
+ /** In-process speculative planner result; the store builder replays and exact-joins it. */
+ preparation?:RangeKeeperPaperConfirmationPreparation;
  /** Test seam bound when constructing the service; never taken from an HTTP request. */
  runOwnedFork?:ForkRunner;readCanonicalFrame?:CanonicalFrameReader;
 }
@@ -91,6 +95,7 @@ export function createRangeKeeperPaperConfirmationProducer(
   const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
    client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,
    pinnedQuoteCache:dependencies.pinnedQuoteCache,
+   preparation:dependencies.preparation,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
    simulate:async(candidate:RangeKeeperCandidate)=>{
     const policy=resolveRangeKeeperPaperPolicy(draft,runtime.buildId);
