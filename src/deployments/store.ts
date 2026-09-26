@@ -3881,6 +3881,70 @@ export class DeploymentStore {
   });
  }
 
+ /** Validates the terminal V3 snapshot and its adjacent fee row before
+  * maintenance treats the campaign as complete. V3 terminal booking is
+  * already atomic; this read never projects it through the V2 path. */
+ async hasTrustedStaticPaperCloseConvertV3Terminal(campaignId:string){
+  const rows=(await this.readPool.query<{accounting_id:string;source_mark_id:string;
+   snapshot:unknown;snapshot_hash:string;fee_evidence_id:string|null;
+   mark_source_block:string|null;mark_source_hash:string|null;mark_provenance:Record<string,unknown>;
+   fee_id:string|null;fee_from_mark_id:string|null;fee_to_mark_id:string|null;
+   fee_proof:unknown;fee_proof_hash:string|null;fee_carry:unknown;fee_carry_hash:string|null;
+   previous_source_block:string|null;previous_source_hash:string|null;
+   profile_evidence:unknown;campaign_lifecycle:string;operation_status:string|null;
+   operation_kind:string|null;operation_preview_id:string|null}>(`
+   SELECT a.id::text AS accounting_id,a.source_mark_id::text,a.snapshot,a.snapshot_hash,
+    a.fee_evidence_id::text,m.source_block::text AS mark_source_block,m.source_hash AS mark_source_hash,
+    m.provenance AS mark_provenance,f.id::text AS fee_id,f.from_mark_id::text AS fee_from_mark_id,
+    f.to_mark_id::text AS fee_to_mark_id,f.proof AS fee_proof,f.proof_hash AS fee_proof_hash,
+    f.carry AS fee_carry,f.carry_hash AS fee_carry_hash,
+    previous.source_block::text AS previous_source_block,previous.source_hash AS previous_source_hash,
+    p.evidence AS profile_evidence,c.lifecycle AS campaign_lifecycle,
+    o.status AS operation_status,o.kind AS operation_kind,o.preview_id::text AS operation_preview_id
+   FROM deployment_paper_accounting a JOIN deployment_marks m
+    ON m.campaign_id=a.campaign_id AND m.id=a.source_mark_id
+   LEFT JOIN deployment_paper_fee_evidence f ON f.campaign_id=a.campaign_id
+    AND f.id=a.fee_evidence_id
+   LEFT JOIN deployment_marks previous ON previous.campaign_id=a.campaign_id
+    AND previous.id=f.from_mark_id
+   JOIN deployment_campaigns c ON c.id=a.campaign_id
+   JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+   LEFT JOIN deployment_operations o ON o.campaign_id=a.campaign_id
+    AND o.id::text=m.provenance->>'operationId'
+   WHERE a.campaign_id=$1 AND a.policy_version=$2 AND a.snapshot->>'markKind'='close_convert'
+   ORDER BY a.id`,[campaignId,PAPER_CONVERSION_ACCOUNTING_POLICY_V3])).rows;
+  if(!rows.length)return false;
+  if(rows.length!==1)throw new DeploymentConflict('paper_close_convert_v3_terminal_lineage_ambiguous');
+  const row=rows[0]!,snapshot=paperConversionAccountingV3Schema.safeParse(row.snapshot),
+   evidence=marketProfileEvidenceSchema.safeParse(row.profile_evidence),
+   interval=canonicalPaperFeeIntervalSchema.safeParse(row.fee_proof),
+   provenance=row.mark_provenance;
+  if(!snapshot.success||!evidence.success||!interval.success||
+   contentHash(snapshot.data)!==row.snapshot_hash||snapshot.data.sourceMarkId!==row.source_mark_id||
+   snapshot.data.markKind!=='close_convert'||snapshot.data.feeEvidence?.id!==row.fee_id||
+   snapshot.data.feeEvidence?.proofHash!==row.fee_proof_hash||
+   snapshot.data.feeEvidence?.carryHash!==row.fee_carry_hash||
+   !row.fee_evidence_id||row.fee_evidence_id!==row.fee_id||
+   contentHash(row.fee_proof)!==row.fee_proof_hash||contentHash(row.fee_carry)!==row.fee_carry_hash||
+   !row.previous_source_block||!row.previous_source_hash||
+   row.fee_from_mark_id===null||row.fee_to_mark_id!==row.source_mark_id||
+   row.mark_source_block!==interval.data.to.block||
+   row.mark_source_hash?.toLowerCase()!==interval.data.to.hash.toLowerCase()||
+   row.previous_source_block!==interval.data.from.block||
+   row.previous_source_hash.toLowerCase()!==interval.data.from.hash.toLowerCase()||
+   interval.data.coverage.stream!==evidence.data.streamKey||
+   interval.data.coverage.targetSetHash!==evidence.data.indexerTargetSetHash||
+   provenance.classification!=='paper_model_converted_close'||
+   row.campaign_lifecycle!=='closed'||row.operation_status!=='succeeded'||
+   row.operation_kind!=='close_convert'||
+   provenance.terminalModelHash!==snapshot.data.closeModelHash||
+   provenance.previewId!==row.operation_preview_id||
+   provenance.previousMarkId!==row.fee_from_mark_id||provenance.feeEvidenceId!==row.fee_id||
+   provenance.feeIntervalHash!==row.fee_proof_hash||provenance.feeCarryHash!==row.fee_carry_hash)
+   throw new DeploymentConflict('paper_close_convert_v3_terminal_lineage_invalid');
+  return true;
+ }
+
  /** Rechecks every saved paper-accounting source and permanently revokes the
   * detected snapshot plus its dependent descendants after a canonical hash or
   * timestamp change. RPC/read failures throw and never create a revocation. */

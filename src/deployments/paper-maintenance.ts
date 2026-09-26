@@ -4,6 +4,7 @@ import type {RobinhoodClient} from '../client.js';
 import {auditCanonicalPaperAccounting,
  auditCanonicalPaperConversionAccounting,
  auditCanonicalPaperConversionAccountingV2,
+ auditCanonicalPaperConversionAccountingV3,
  recordCanonicalNextPaperConversionAccountingV2} from './paper-accounting.js';
 import {recordCanonicalPaperFeeEvidence} from './paper-fee-replay.js';
 import {recordCanonicalPaperPrincipalValuation} from './paper-valuation.js';
@@ -20,16 +21,23 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  const standardAudit=await auditCanonicalPaperAccounting(store,client,campaignId);
  if(standardAudit.alreadyInvalidated||standardAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit:null,
-   conversionAudit:null,
+   conversionAudit:null,conversionV3Audit:null,
    steps:0,caughtUp:false};
  const legacyConversionAudit=await auditCanonicalPaperConversionAccounting(store,client,campaignId);
  if(legacyConversionAudit.alreadyInvalidated||legacyConversionAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit,
-   conversionAudit:null,steps:0,caughtUp:false};
+   conversionAudit:null,conversionV3Audit:null,steps:0,caughtUp:false};
  const conversionAudit=await auditCanonicalPaperConversionAccountingV2(store,client,campaignId);
  if(conversionAudit.alreadyInvalidated||conversionAudit.invalidated.length)
   return {status:'invalidated' as const,standardAudit,legacyConversionAudit,conversionAudit,
-   steps:0,caughtUp:false};
+   conversionV3Audit:null,steps:0,caughtUp:false};
+ const conversionV3Audit=await auditCanonicalPaperConversionAccountingV3(store,client,campaignId);
+ if(conversionV3Audit.alreadyInvalidated||conversionV3Audit.invalidated.length)
+  return {status:'invalidated' as const,standardAudit,legacyConversionAudit,conversionAudit,
+   conversionV3Audit,steps:0,caughtUp:false};
+ if(await store.hasTrustedStaticPaperCloseConvertV3Terminal(campaignId))
+  return {status:'projection_current' as const,standardAudit,legacyConversionAudit,
+   conversionAudit,conversionV3Audit,terminalV3:true,steps:0,caughtUp:true};
 
  // Sampling is restricted to active and paused campaigns by the supervisor.
  // The store rechecks the prior mark and lifecycle under its campaign lock, so
@@ -55,7 +63,7 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
    try{
     const next=await advanceCanonicalPaperScenario(store,client,indexer,campaignId);
     if(next.caughtUp)return {status:'projection_current' as const,standardAudit,
-     legacyConversionAudit,conversionAudit,
+     legacyConversionAudit,conversionAudit,conversionV3Audit,
      steps,caughtUp:true};
     continue;
    }catch(error){
@@ -69,7 +77,7 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   try{
    const next=await recordCanonicalNextPaperConversionAccountingV2(store,client,campaignId);
    if(next===null)return {status:'projection_current' as const,standardAudit,
-    legacyConversionAudit,conversionAudit,
+    legacyConversionAudit,conversionAudit,conversionV3Audit,
     steps,caughtUp:true};
   }catch(error){
    if(!(error instanceof DeploymentConflict&&
@@ -79,6 +87,6 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   }
  }
  return {status:'budget_exhausted' as const,standardAudit,legacyConversionAudit,
-  conversionAudit,
+  conversionAudit,conversionV3Audit,
   steps,caughtUp:false};
 }

@@ -4,7 +4,7 @@ import {registerProspectivePaperCloseConvertPrestateGasProfiles}
  from '../src/deployments/paper-close-convert-prestate-gas-importer.js';
 import {PAPER_STATIC_CONVERT_PRESTATE_GAS_PATH_V1} from
  '../src/deployments/paper-close-convert-prestate-gas-profiles.js';
-import {validReport} from './paper-close-convert-prestate-sampler.test.js';
+import {validReport} from './fixtures/paper-close-convert-prestate-report.js';
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash} from
  '../src/deployments/market-profile.js';
 import {paperOpenModelSchema} from '../src/deployments/paper-open-model.js';

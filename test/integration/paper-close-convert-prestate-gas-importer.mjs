@@ -6,7 +6,7 @@ import {contentHash} from '../../src/deployments/contracts.ts';
 import {referenceProofHash,marketProfileEvidenceSchema} from '../../src/deployments/market-profile.ts';
 import {registerProspectivePaperCloseConvertPrestateGasProfiles} from
  '../../src/deployments/paper-close-convert-prestate-gas-importer.ts';
-import {validReport} from '../paper-close-convert-prestate-sampler.test.ts';
+import {validReport} from '../fixtures/paper-close-convert-prestate-report.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:2});

@@ -846,6 +846,28 @@ export async function auditCanonicalPaperConversionAccountingV2(store:Deployment
  },PAPER_CONVERSION_ACCOUNTING_POLICY_V2);
 }
 
+/** Audits terminal V3 snapshots under their own policy key. The store only
+ * appends campaign-wide invalidations after two matching canonical reads. */
+export async function auditCanonicalPaperConversionAccountingV3(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.auditPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'Paper conversion V3 audit chain changed');
+  const read=async(source:PaperAccountingAnchor)=>{
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   return {hash:block.hash.toLowerCase(),timestamp:Number(block.timestamp)};
+  };
+  const first=new Map<string,{hash:string;timestamp:number}>();
+  for(const source of sources)first.set(source.accountingId,await read(source));
+  for(const source of sources){
+   const actual=await read(source),prior=first.get(source.accountingId)!;
+   assert.deepEqual(actual,prior,'Paper conversion V3 source changed during audit');
+   if(actual.hash!==source.hash.toLowerCase()||actual.timestamp!==source.timestamp)
+    return {accountingId:source.accountingId,actual};
+  }
+  return null;
+ },PAPER_CONVERSION_ACCOUNTING_POLICY_V3);
+}
+
 /** Bounded, restart-safe journal pass for one campaign. A later run picks up
  * the first unprojected mark; missing fee evidence or revoked sources stop
  * the pass without changing prior snapshots. */
