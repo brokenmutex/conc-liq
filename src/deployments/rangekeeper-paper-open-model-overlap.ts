@@ -13,6 +13,7 @@ import {verifyRangeKeeperPaperGasReport} from './rangekeeper-paper-gas-evidence.
 import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 
 type Registration={version:number;profileIds:readonly string[];reportHash:string};
+type PersistedGasProfileRow=PaperGasProfileRow&{validation:Record<string,unknown>};
 type SpeculativeRows=PaperGasProfileRow[];
 
 function candidateFrom(value:RangeKeeperPaperOpenModel['candidate']):RangeKeeperCandidate{
@@ -59,22 +60,36 @@ export function assertRangeKeeperPaperOpenCandidateFresh(expiresAtSeconds:number
 /** Exact receipt-to-row join used before provisional model costs can be rebound. */
 export function assertRangeKeeperPaperOpenReportRows(
  report:ReturnType<typeof verifyRangeKeeperPaperGasReport>,registration:Registration,
- persisted:readonly PaperGasProfileRow[]):PaperGasProfileRow[]{
+ persisted:readonly PersistedGasProfileRow[]):PersistedGasProfileRow[]{
  if(registration.reportHash!==report.reportHash||registration.version<1||
   registration.profileIds.length!==report.stageProfiles.length||persisted.length>200)
   throw Error('rangekeeper_open_model_overlap_registration_mismatch');
  const byId=new Map(persisted.map(row=>[row.id,row]));
  if(byId.size!==persisted.length)throw Error('rangekeeper_open_model_overlap_duplicate_profile_id');
- const imported:PaperGasProfileRow[]=[];
+ const imported:PersistedGasProfileRow[]=[];
  for(let i=0;i<report.stageProfiles.length;i++){
   const stage=report.stageProfiles[i]!,id=registration.profileIds[i],row=id?byId.get(id):undefined;
+  const validation=row?.validation,attestation=validation?.sourceAttestation as
+   Record<string,unknown>|undefined;
   if(!row||row.version!==registration.version||row.stage!==stage.stage||
    row.poolAddress.toLowerCase()!==report.scope.poolAddress.toLowerCase()||
    row.pathVersion!==report.pathVersion||row.sizeBand!==report.sizeBand||
    row.allowanceState!==stage.allowanceState||row.component!=='gas_units'||
    row.status!=='provisional'||row.evidenceClass!=='fork_estimated'||
    contentHash(row.model)!==contentHash(stage.model)||row.sourceHash!==stage.sourceHash||
-   !row.observedUntil||row.observedUntil.getTime()!==Date.parse(report.sampledAt))
+   !row.observedUntil||row.observedUntil.getTime()!==Date.parse(report.sampledAt)||
+   !validation||!attestation||
+   validation.reportHash!==report.reportHash||validation.candidateHash!==report.candidateHash||
+   validation.sequenceHash!==report.sequenceHash||contentHash(validation.scope)!==contentHash(report.scope)||
+   contentHash(validation.localEvidence)!==contentHash(stage.evidence)||
+   validation.validationPolicy!=='rangekeeper_paper_candidate_replay_v1'||
+   attestation?.verificationClass!=='rangekeeper_paper_candidate_replay_v1'||
+   attestation.reportHash!==report.reportHash||
+   String(attestation.sourceHash).toLowerCase()!==report.frame.source.hash.toLowerCase()||
+   attestation.profileHash!==report.profileHash||attestation.candidateHash!==report.candidateHash||
+   attestation.replayHash!==validation.replayHash||
+   typeof validation.replayHash!=='string'||!/^[a-f0-9]{64}$/.test(validation.replayHash)||
+   typeof attestation.verifiedAt!=='string')
    throw Error('rangekeeper_open_model_overlap_persisted_profile_mismatch');
   imported.push(row);
  }
@@ -94,7 +109,7 @@ export async function buildRangeKeeperPaperOpenModelWhileRegistering(input:{
  report:unknown;marketGasPriceWei:bigint;marketGasPriceObservedAt:number;
  pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
  register:(report:unknown)=>Promise<Registration>;
- readRows:(query:{poolAddress:string;pathVersion:string;sizeBand:string})=>Promise<readonly PaperGasProfileRow[]>;
+ readRows:(query:{poolAddress:string;pathVersion:string;sizeBand:string})=>Promise<readonly PersistedGasProfileRow[]>;
  onTiming?:(timing:{registrationMs:number;speculativeModelMs:number;parallelWallMs:number})=>void;
  now?:number;
 }):Promise<RangeKeeperPaperOpenModel>{

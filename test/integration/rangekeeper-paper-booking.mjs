@@ -98,6 +98,14 @@ try{
   assert(policy.policy&&policy.unavailable.length===0,'Campaign kernel policy unavailable');
   const readRows=query=>store.rangeKeeperPaperGasProfiles(
    query.poolAddress,query.pathVersion,query.sizeBand);
+  const readOverlapRows=async query=>(await store.readPool.query(`SELECT id::text,version,
+   pool_address AS "poolAddress",path_version AS "pathVersion",stage,
+   allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
+   evidence_class AS "evidenceClass",model,validation,source_hash AS "sourceHash",
+   observed_until AS "observedUntil" FROM deployment_calibration_profiles
+   WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2 AND size_band=$3
+    AND component='gas_units' ORDER BY stage,allowance_state,version DESC LIMIT 201`,
+   [query.poolAddress,query.pathVersion,query.sizeBand])).rows;
   const sourceFrame=()=>readCanonicalPaperOpenFrame(rpc,profile);
   const observe=frame=>{
    assert(frame.price0&&frame.price1&&frame.nativePrice);
@@ -235,7 +243,7 @@ try{
     });
     firstImportFinishedAt=Date.now();
     return result;
-   },readRows:readRows,onTiming:value=>{overlapTiming=value;},now:modelGasPriceObservedAt});
+   },readRows:readOverlapRows,onTiming:value=>{overlapTiming=value;},now:modelGasPriceObservedAt});
   if(firstImportFinishedAt===0)firstImportFinishedAt=Date.now();
   const firstModelFinishedAt=Date.now();
   assert.equal(firstModel.status,'indicative','First source open model did not replay');
