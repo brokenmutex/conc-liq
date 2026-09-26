@@ -81,6 +81,10 @@ export class PaperPreparationLeaseRegistry {
  }
 
  async release(campaignId:string){await this.leases.get(campaignId)?.release();}
+ async isHealthy(campaignId:string){
+  const lease=this.leases.get(campaignId);if(!lease)return false;
+  try{await lease.assertHealthy();return true;}catch{return false;}
+ }
  async close(){this.closed=true;
   const results=await Promise.allSettled([...this.leases.values()].map(lease=>lease.release()));
   const failed=results.find((result):result is PromiseRejectedResult=>result.status==='rejected');

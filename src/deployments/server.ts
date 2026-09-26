@@ -24,6 +24,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperConvertAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
+ paperConvertPreparationReady?:(campaignId:string)=>Promise<boolean>;
  paperLifecycleAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperOperationReplay?:(campaignId:string,input:AcceptInput,
   allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain'|'close_convert')[])=>Promise<unknown|null>;
@@ -310,15 +311,20 @@ export function createDeploymentCommandServer(store:CommandStore,
       (convertModelRecord.costs as {pathVersion?:unknown}).pathVersion===
        'paper_static_manual_close_convert_prestate_v1'&&
       (convertModelRecord.costs as {paidGasAvailable?:unknown}).paidGasAvailable===false);
-    if(convertSaved&&options.paperConvertAcceptance&&options.paperRetainWorkerReady){
+    let convertPreparationReady=false;
+    if(convertSaved&&options.paperConvertAcceptance&&options.paperRetainWorkerReady&&
+     options.paperConvertPreparationReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+     if(workerReady){try{convertPreparationReady=await options.paperConvertPreparationReady(previewMatch[1]!);}
+      catch{convertPreparationReady=false;}}
     }
     if(openSaved&&options.paperOpenAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
     const actionable=Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
      Boolean(openSaved&&workerReady&&options.paperOpenAcceptance)||
-     Boolean(convertSaved&&input.kind==='close_convert'&&workerReady&&options.paperConvertAcceptance)||
+     Boolean(convertSaved&&input.kind==='close_convert'&&workerReady&&convertPreparationReady&&
+      options.paperConvertAcceptance)||
      Boolean(lifecycleSaved&&workerReady&&options.paperLifecycleAcceptance);
     const body=result&&typeof result==='object'&&!Array.isArray(result)?
      {...result,actionAvailable:actionable,operationAcceptanceAvailable:actionable}:result;
@@ -376,6 +382,12 @@ export function createDeploymentCommandServer(store:CommandStore,
     const replay=await options.paperOperationReplay?.(convertAcceptMatch[1]!,input,['close_convert']);
     if(replay){send(response,202,replay);return;}
     if(!options.paperConvertAcceptance){send(response,503,{error:'paper_close_convert_acceptance_unavailable'});return;}
+    let preparationReady=false;
+    if(options.paperConvertPreparationReady){
+     try{preparationReady=await options.paperConvertPreparationReady(convertAcceptMatch[1]!);}
+     catch{preparationReady=false;}
+    }
+    if(!preparationReady){send(response,503,{error:'paper_close_convert_preparation_unavailable'});return;}
     let workerReady=false;
     if(options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}

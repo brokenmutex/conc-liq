@@ -296,6 +296,9 @@ export class DeploymentStore {
  async releaseStaticPaperCloseConvertPreparationLease(campaignId:string){
   await this.paperPreparationLeases.release(campaignId);
  }
+ async staticPaperCloseConvertPreparationReady(campaignId:string){
+  return this.paperPreparationLeases.isHealthy(campaignId);
+ }
 
  async paperOperationWorkerReady(){
   // Inspect the actual worker's shared lease without taking a competing lock:

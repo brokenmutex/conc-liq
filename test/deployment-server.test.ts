@@ -299,3 +299,65 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
   assert.equal(calls.length,1);
  }finally{server.close();await once(server,'close');}
 });
+
+it('requires a live preparation lease for V3 convert review and fresh acceptance, preserving same-key replay',async()=>{
+ const salt=randomBytes(16),password='test-only-operator-secret';
+ const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+ const origin='http://127.0.0.1:4174',campaign='67b2b303-e821-4450-bb7b-27171b12079f';
+ const previewId='aef5f51e-18ef-4e9c-952d-8d772970f708',sourceHash='0x'+'a'.repeat(64);
+ let workerReady=true,preparationReady=false,acceptedKey:string|null=null,acceptCalls=0;
+ const acceptance={previewId,contentDigest:'b'.repeat(64),expectedRevision:1,
+  idempotencyKey:'convert-request-1'};
+ const server=createDeploymentCommandServer({async createDraft(){return {};},
+  async acceptOperation(){throw Error('generic acceptance must not be used');},
+  async operation(){return null;},async listMarketProfiles(){return [];},
+ },{origin,passwordHash:hash,
+  paperRetainWorkerReady:async()=>workerReady,
+  paperConvertPreparationReady:async()=>preparationReady,
+  paperConvertAcceptance:async(_id,input)=>{acceptCalls++;acceptedKey=input.idempotencyKey;
+   return {id:'9a7d3072-c8bf-4eae-bbb5-00dd367f93ba',status:'queued',replayed:false};},
+  paperOperationReplay:async(_id,input,kinds)=>acceptedKey===input.idempotencyKey&&
+   kinds.includes('close_convert')?{id:'9a7d3072-c8bf-4eae-bbb5-00dd367f93ba',
+    status:'queued',replayed:true}:null,
+  paperPreview:async()=>({kind:'close_convert',status:'indicative',trustedPreviewSaved:true,
+   id:previewId,contentDigest:acceptance.contentDigest,expectedRevision:1,
+   expiresAt:new Date(Date.now()+120_000).toISOString(),terminalModelVersion:3,
+   modelHash:'c'.repeat(64),source:{block:'100',hash:sourceHash,
+    timestamp:Math.floor(Date.now()/1000)},costs:{pathVersion:
+     'paper_static_manual_close_convert_prestate_v1',paidGasAvailable:false}}),
+ });
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address();assert(address&&typeof address!=='string');
+ const url=`http://127.0.0.1:${address.port}`;
+ const post=(path:string,body:unknown,headers:Record<string,string>={})=>fetch(url+path,{
+  method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+ try{
+  const login=await post('/api/session',{password},{origin});
+  const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
+  const {csrfToken}=await login.json() as {csrfToken:string};
+  const headers={origin,cookie,'x-csrf-token':csrfToken};
+  const preview=await post(`/api/deployments/${campaign}/previews`,{kind:'close_convert'},headers);
+  assert.equal(preview.status,200);
+  assert.equal((await preview.json() as {actionAvailable:boolean}).actionAvailable,false);
+  const locked=await post(`/api/deployments/${campaign}/close-convert-operations`,acceptance,headers);
+  assert.equal(locked.status,503);
+  assert.deepEqual(await locked.json(),{error:'paper_close_convert_preparation_unavailable'});
+  assert.equal(acceptCalls,0);
+
+  preparationReady=true;
+  const readyPreview=await post(`/api/deployments/${campaign}/previews`,{kind:'close_convert'},headers);
+  assert.equal((await readyPreview.json() as {actionAvailable:boolean}).actionAvailable,true);
+  // Treat the first successful response as lost. The same idempotency key
+  // must recover the queued operation even after process readiness is gone.
+  const accepted=await post(`/api/deployments/${campaign}/close-convert-operations`,acceptance,headers);
+  assert.equal(accepted.status,202);assert.equal((await accepted.json() as {replayed:boolean}).replayed,false);
+  workerReady=false;preparationReady=false;
+  const retry=await post(`/api/deployments/${campaign}/close-convert-operations`,acceptance,headers);
+  assert.equal(retry.status,202);assert.equal((await retry.json() as {replayed:boolean}).replayed,true);
+  const fresh={...acceptance,idempotencyKey:'fresh-convert-request'};
+  const unavailable=await post(`/api/deployments/${campaign}/close-convert-operations`,fresh,headers);
+  assert.equal(unavailable.status,503);
+  assert.deepEqual(await unavailable.json(),{error:'paper_close_convert_preparation_unavailable'});
+  assert.equal(acceptCalls,1);
+ }finally{server.close();await once(server,'close');}
+});
