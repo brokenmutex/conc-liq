@@ -3743,7 +3743,8 @@ export class DeploymentStore {
     proof:unknown;proof_hash:string;carry:PaperFeeCarry;carry_hash:string}>(`
     SELECT id::text,from_mark_id::text,to_mark_id::text,proof,proof_hash,carry,carry_hash
     FROM deployment_paper_fee_evidence WHERE campaign_id=$1 AND to_mark_id>$2 AND to_mark_id<=$3
-    ORDER BY to_mark_id LIMIT 101`,[input.campaignId,campaign.open_mark_id,latest.id])).rows;
+    ORDER BY deployment_paper_fee_evidence.to_mark_id LIMIT 101`,
+    [input.campaignId,campaign.open_mark_id,latest.id])).rows;
    if(intervals.length!==marks.length-1)
     throw new DeploymentConflict('paper_close_convert_fee_interval_gap');
    let carry:PaperFeeCarry|null=null,prior=marks[0]!;
@@ -4178,13 +4179,14 @@ export class DeploymentStore {
    const existing=(await db.query<{accounting_id:string;detected_accounting_id:string}>(`
     SELECT accounting_id::text,detected_accounting_id::text
     FROM deployment_paper_accounting_invalidations WHERE campaign_id=$1
-    ORDER BY accounting_id LIMIT 1`,[campaignId])).rows[0];
+    ORDER BY deployment_paper_accounting_invalidations.accounting_id LIMIT 1`,[campaignId])).rows[0];
    if(existing)return {checked:0,invalidated:[] as string[],
     alreadyInvalidated:true,detectedAccountingId:existing.detected_accounting_id};
    const rows=(await db.query<{id:string;source_mark_id:string;snapshot:unknown;snapshot_hash:string}>(`
     SELECT id::text,source_mark_id::text,snapshot,snapshot_hash
     FROM deployment_paper_accounting WHERE campaign_id=$1 AND policy_version=$2
-    ORDER BY source_mark_id LIMIT 10001`,[campaignId,policyVersion])).rows;
+    ORDER BY deployment_paper_accounting.source_mark_id LIMIT 10001`,
+    [campaignId,policyVersion])).rows;
    if(rows.length>10000)throw new DeploymentConflict('paper_accounting_audit_bound');
    const sources:PaperAccountingAnchor[]=rows.map(row=>{
     const parsed=conversionPolicy?paperConversionAccountingSchema.safeParse(row.snapshot):

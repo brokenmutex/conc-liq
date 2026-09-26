@@ -12,7 +12,8 @@ import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER} from '../../src/constan
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {paperOpenModelSchema} from '../../src/deployments/paper-open-model.ts';
 import {buildPaperPrincipalValuation} from '../../src/deployments/paper-valuation.ts';
-import {recordCanonicalNextPaperAccounting} from '../../src/deployments/paper-accounting.ts';
+import {PAPER_ACCOUNTING_POLICY,recordCanonicalNextPaperAccounting,
+ auditCanonicalPaperAccounting} from '../../src/deployments/paper-accounting.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
@@ -82,11 +83,11 @@ try{
  const preview=await store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{paperOpenModel:openModel},evidence:{fixture:true},
   expiresAt:new Date(Date.now()+60_000)});
- // A fixture with no other mark rows starts the generated ID at 10 after an
- // explicit opening mark 9. The store methods below see genuine bigint IDs.
- await admin.query("SELECT setval(pg_get_serial_sequence('deployment_marks','id'),8,true)");
+ // A fixture with no other mark rows starts the generated ID at 9 after an
+ // explicit opening mark 8. The store methods below see genuine bigint IDs.
+ await admin.query("SELECT setval(pg_get_serial_sequence('deployment_marks','id'),7,true)");
  await admin.query(`INSERT INTO deployment_marks(id,campaign_id,revision,source_block,source_hash,
-  inventory,economics,calibration_profile_ids,provenance) VALUES(9,$1,1,$2,$3,$4,NULL,$5,$6)`,
+  inventory,economics,calibration_profile_ids,provenance) VALUES(8,$1,1,$2,$3,$4,NULL,$5,$6)`,
   [draft.id,source0.block,source0.hash,JSON.stringify({classification:'paper_model_provisional',
    position:{liquidity:candidate.liquidity,tickLower:range.tickLower,tickUpper:range.tickUpper},
    token0Raw:candidate.amount0Minted,token1Raw:candidate.amount1Minted}),
@@ -94,51 +95,105 @@ try{
     previewId:preview.id,modelHash:contentHash(openModel),source:source0,
     poolState:openModel.poolState,reference:openModel.reference,modeledCosts:costs,
     referenceProofHash:proofHash})]);
- await admin.query("SELECT setval(pg_get_serial_sequence('deployment_marks','id'),9,true)");
+ await admin.query("SELECT setval(pg_get_serial_sequence('deployment_marks','id'),8,true)");
  await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[draft.id]);
  const firstState=await store.paperValuationState(draft.id);
- assert.equal(firstState.openMarkId,'9');assert.equal(firstState.previous.markId,'9');
+ assert.equal(firstState.openMarkId,'8');assert.equal(firstState.previous.markId,'8');
  const valuationFrame=(block,hash,blockTime)=>({source:{block,hash,timestamp:blockTime},tick:-276325,
   sqrtPriceX96:BigInt(sqrt),poolLiquidity:1000n,price0:BigInt(references.price0),
   price1:BigInt(references.price1),nativePrice:BigInt(references.nativePrice),referenceEligible:true,
   referenceReasons:[],referenceProofHash:proofHash,referenceProof:proofBody});
- const firstModel=buildPaperPrincipalValuation(openModel,'9',
-  {markId:'9',sourceBlock:'100',sourceHash:source0.hash},
+ const firstModel=buildPaperPrincipalValuation(openModel,'8',
+  {markId:'8',sourceBlock:'100',sourceHash:source0.hash},
   valuationFrame('101','0x'+'3'.repeat(64),timestamp+1),market);
  const first=await store.recordTrustedPaperPrincipalValuation(firstModel);
- assert.deepEqual(first,{markId:'10',replayed:false});
+ assert.deepEqual(first,{markId:'9',replayed:false});
  const afterFirst=await store.paperValuationState(draft.id);
- assert.equal(afterFirst.previous.markId,'10','valuation reader must use numeric newest mark');
+ assert.equal(afterFirst.previous.markId,'9','valuation reader must use numeric newest mark');
  const feeState=await store.paperFeeSamplingState(draft.id);
- assert.equal(feeState.fromMarkId,'9');assert.equal(feeState.toMarkId,'10',
-  'fee sampler must choose the adjacent 9 -> 10 numeric marks');
- const interval={kind:'paper_observed_flow_fee_interval_v1',pool:poolAddress,token0Address:token0,
-  token1Address:token1,fee:3000,tickSpacing:60,from:{block:'100',hash:source0.hash},
-  to:{block:'101',hash:'0x'+'3'.repeat(64)},range:{tickLower:range.tickLower,tickUpper:range.tickUpper},
+ assert.equal(feeState.fromMarkId,'8');assert.equal(feeState.toMarkId,'9',
+  'fee sampler must choose the adjacent 8 -> 9 numeric marks');
+ const makeInterval=(fromBlock,toBlock,fromHash,toHash)=>({kind:'paper_observed_flow_fee_interval_v1',pool:poolAddress,token0Address:token0,
+  token1Address:token1,fee:3000,tickSpacing:60,from:{block:fromBlock,hash:fromHash},
+  to:{block:toBlock,hash:toHash},range:{tickLower:range.tickLower,tickUpper:range.tickUpper},
   liquidity:candidate.liquidity,token0:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},
   token1:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},events:0,segments:0,
   partialSegments:0,accounting:'modeled_hypothetical_fee_share',coverage:{stream,
-   targetSetHash,completeThroughBlock:'101',completeThroughHash:'0x'+'3'.repeat(64),
-   chainAnchorRecheckRequired:false}};
- const fee=await store.recordTrustedPaperFeeEvidence(draft.id,'9','10',interval);
+   targetSetHash,completeThroughBlock:toBlock,completeThroughHash:toHash,
+   chainAnchorRecheckRequired:false}});
+ const firstInterval=makeInterval('100','101',source0.hash,'0x'+'3'.repeat(64));
+ const fee=await store.recordTrustedPaperFeeEvidence(draft.id,'8','9',firstInterval);
  assert.equal(fee.replayed,false);
  const openAccounting=await recordCanonicalNextPaperAccounting(store,{getChainId:async()=>4663,
   getBlock:async()=>({hash:source0.hash,timestamp:BigInt(timestamp)})},draft.id);
- assert.equal(openAccounting?.markId,'9','accounting must project the numeric opening mark first');
+ assert.equal(openAccounting?.markId,'8','accounting must project the numeric opening mark first');
  const valuationAccounting=await recordCanonicalNextPaperAccounting(store,{getChainId:async()=>4663,
   getBlock:async({blockNumber})=>blockNumber===100n?{hash:source0.hash,timestamp:BigInt(timestamp)}:
    {hash:'0x'+'3'.repeat(64),timestamp:BigInt(timestamp+1)}},draft.id);
- assert.equal(valuationAccounting?.markId,'10','accounting must project the numeric next mark');
- const secondModel=buildPaperPrincipalValuation(openModel,'9',
-  {markId:'10',sourceBlock:'101',sourceHash:'0x'+'3'.repeat(64)},
+ assert.equal(valuationAccounting?.markId,'9','accounting must project the numeric next mark');
+ const secondModel=buildPaperPrincipalValuation(openModel,'8',
+  {markId:'9',sourceBlock:'101',sourceHash:'0x'+'3'.repeat(64)},
   valuationFrame('102','0x'+'4'.repeat(64),timestamp+2),market);
  const second=await store.recordTrustedPaperPrincipalValuation(secondModel);
- assert.deepEqual(second,{markId:'11',replayed:false},
-  'principal writer must bind the new mark to numeric latest ID 10, not lexical ID 9');
- assert.equal((await store.paperValuationState(draft.id)).previous.markId,'11');
- console.log(JSON.stringify({status:'passed',markIds:['9','10','11'],
+ assert.deepEqual(second,{markId:'10',replayed:false},
+  'principal writer must bind the new mark to numeric latest ID 9');
+ assert.equal((await store.paperValuationState(draft.id)).previous.markId,'10');
+ const secondFeeState=await store.paperFeeSamplingState(draft.id);
+ assert.equal(secondFeeState.fromMarkId,'9');assert.equal(secondFeeState.toMarkId,'10');
+ const secondInterval=makeInterval('101','102','0x'+'3'.repeat(64),'0x'+'4'.repeat(64));
+ await store.recordTrustedPaperFeeEvidence(draft.id,'9','10',secondInterval);
+ const secondAccounting=await recordCanonicalNextPaperAccounting(store,{getChainId:async()=>4663,
+  getBlock:async({blockNumber})=>blockNumber===100n?{hash:source0.hash,timestamp:BigInt(timestamp)}:
+   blockNumber===101n?{hash:'0x'+'3'.repeat(64),timestamp:BigInt(timestamp+1)}:
+   {hash:'0x'+'4'.repeat(64),timestamp:BigInt(timestamp+2)}},draft.id);
+ assert.equal(secondAccounting?.markId,'10');
+ const thirdModel=buildPaperPrincipalValuation(openModel,'8',
+  {markId:'10',sourceBlock:'102',sourceHash:'0x'+'4'.repeat(64)},
+  valuationFrame('103','0x'+'5'.repeat(64),timestamp+3),market);
+ const third=await store.recordTrustedPaperPrincipalValuation(thirdModel);
+ assert.deepEqual(third,{markId:'11',replayed:false});
+ const thirdFeeState=await store.paperFeeSamplingState(draft.id);
+ assert.equal(thirdFeeState.fromMarkId,'10');assert.equal(thirdFeeState.toMarkId,'11');
+ const thirdInterval=makeInterval('102','103','0x'+'4'.repeat(64),'0x'+'5'.repeat(64));
+ await store.recordTrustedPaperFeeEvidence(draft.id,'10','11',thirdInterval);
+ const thirdAccounting=await recordCanonicalNextPaperAccounting(store,{getChainId:async()=>4663,
+  getBlock:async({blockNumber})=>blockNumber===100n?{hash:source0.hash,timestamp:BigInt(timestamp)}:
+   blockNumber===101n?{hash:'0x'+'3'.repeat(64),timestamp:BigInt(timestamp+1)}:
+   blockNumber===102n?{hash:'0x'+'4'.repeat(64),timestamp:BigInt(timestamp+2)}:
+   {hash:'0x'+'5'.repeat(64),timestamp:BigInt(timestamp+3)}},draft.id);
+ assert.equal(thirdAccounting?.markId,'11');
+ const closeCarry=await store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1});
+ assert.equal(closeCarry.openMarkId,'8');assert.equal(closeCarry.previous.markId,'11');
+ assert.equal(closeCarry.previous.sourceBlock,'103');assert.equal(closeCarry.feeCarry.intervals,3);
+ assert.equal(closeCarry.feeCarry.through.block,'103');
+ assert.deepEqual(closeCarry.sources.map(source=>source.block),['100','101','102','103']);
+ const accountingRows=(await admin.query(`SELECT id::text,source_mark_id::text FROM deployment_paper_accounting
+  WHERE campaign_id=$1 AND policy_version=$2 ORDER BY deployment_paper_accounting.source_mark_id`,
+  [draft.id,PAPER_ACCOUNTING_POLICY])).rows;
+ assert.deepEqual(accountingRows.map(row=>row.source_mark_id),['8','9','10','11']);
+ const accountingIdByMark=new Map(accountingRows.map(row=>[row.source_mark_id,row.id]));
+ const changedBlocks=new Map([['101','0x'+'9'.repeat(64)],['102','0x'+'a'.repeat(64)]]),auditReadOrder=[];
+ const audit=await auditCanonicalPaperAccounting(store,{getChainId:async()=>4663,
+  getBlock:async({blockNumber})=>{
+   const block=String(blockNumber);auditReadOrder.push(block);
+   return {hash:changedBlocks.get(block)??({100:source0.hash,101:'0x'+'3'.repeat(64),
+    102:'0x'+'4'.repeat(64),103:'0x'+'5'.repeat(64)}[block]),timestamp:BigInt(timestamp+Number(block)-100)};
+  }},draft.id);
+ assert.equal(audit.detectedAccountingId,accountingIdByMark.get('9'),
+  'the earliest numeric reorged accounting mark must be invalidated before mark 10');
+ assert.deepEqual(auditReadOrder.slice(0,4),['100','101','102','103'],
+  'accounting audit must query source marks in numeric order');
+ assert(audit.invalidated.includes(accountingIdByMark.get('9')));
+ const repeatAudit=await auditCanonicalPaperAccounting(store,{getChainId:async()=>4663,
+  getBlock:async({blockNumber})=>({hash:({100:source0.hash,101:'0x'+'3'.repeat(64),
+   102:'0x'+'4'.repeat(64),103:'0x'+'5'.repeat(64)}[String(blockNumber)]),
+   timestamp:BigInt(timestamp+Number(blockNumber)-100)})},draft.id);
+ assert.equal(repeatAudit.alreadyInvalidated,true);
+ assert.equal(repeatAudit.detectedAccountingId,accountingIdByMark.get('9'));
+ console.log(JSON.stringify({status:'passed',markIds:['8','9','10','11'],
   exercised:['paperValuationState','paperFeeSamplingState','recordTrustedPaperPrincipalValuation',
-   'recordTrustedPaperFeeEvidence','recordNextPaperAccounting'],source:'synthetic database fixture; real store methods'}));
+   'recordTrustedPaperFeeEvidence','recordNextPaperAccounting','readStaticPaperCloseConvertFeeCarry',
+   'auditPaperAccounting'],source:'synthetic database fixture; real store methods'}));
 }finally{
  await store?.close().catch(()=>{});
  await admin.query('SET search_path=public').catch(()=>{});
