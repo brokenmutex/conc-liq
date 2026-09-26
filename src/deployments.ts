@@ -21,6 +21,7 @@ import {readStaticPaperCloseConvertFeeContext,
  persistStaticPaperCloseConvertPreviewFromPersistedFees} from
  './deployments/paper-close-convert-fee-reader.js';
 import {replayEphemeralStaticPaperCloseConvertFees} from './deployments/paper-close-convert-ephemeral-fees.js';
+import {readCanonicalPaperReplayHeadFrame} from './deployments/paper-replay-head-frame.js';
 import {samplePaperCloseConvertPrestate} from './deployments/paper-close-convert-prestate-sampler.js';
 import {buildProspectivePaperCloseConvertPrestateGasProfiles} from
  './deployments/paper-close-convert-prestate-gas-profiles.js';
@@ -92,7 +93,9 @@ async function main(){
         context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
          revision:valuation.openModel.revision,verifyAnchors:(chainId,sources)=>
           verifyCanonicalPaperAnchors(client,chainId,sources)}),
-        frame=await readCanonicalPaperNextFrame(client,context.state.profile,context.state.previous),
+        frame=await readCanonicalPaperReplayHeadFrame({client,indexer,
+         profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
+         previous:context.state.previous}),
         route=buildStaticPaperCloseConvertRoute(context.state),
         feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
         report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
