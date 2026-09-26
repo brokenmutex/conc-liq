@@ -9,6 +9,10 @@ import {paperCloseConvertQuoteSchema,verifyCanonicalPaperCloseConvertQuote,
  type PaperCloseConvertModel,type PaperCloseConvertCostsV2,
  paperCloseConvertCostsV2Schema,PAPER_STATIC_CONVERT_GAS_PATH_V2,
  PAPER_STATIC_CONVERT_GAS_STAGES_V2} from './paper-close-convert-model.js';
+import {paperCloseConvertPrestateCostsV1Schema,type PaperCloseConvertPrestateCostsV1}
+ from './paper-close-convert-prestate-costs.js';
+import {PAPER_STATIC_CONVERT_PRESTATE_GAS_PATH_V1} from './paper-close-convert-prestate-gas-profiles.js';
+import type {PaperStaticCloseConvertTerminalModel} from './paper-close-convert-preflight.js';
 import type {PaperFeeCarry} from './paper-fee-replay.js';
 import type {RobinhoodClient} from '../client.js';
 import type {DeploymentStore,PaperAccountingAnchor} from './store.js';
@@ -16,6 +20,7 @@ import type {DeploymentStore,PaperAccountingAnchor} from './store.js';
 export const PAPER_ACCOUNTING_POLICY='paper_fixed_flow_lower_v1';
 export const PAPER_CONVERSION_ACCOUNTING_POLICY='paper_fixed_flow_convert_v1';
 export const PAPER_CONVERSION_ACCOUNTING_POLICY_V2='paper_fixed_flow_convert_v2';
+export const PAPER_CONVERSION_ACCOUNTING_POLICY_V3='paper_fixed_flow_convert_v3';
 const Q128=1n<<128n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const signed=z.string().regex(/^(0|-?[1-9][0-9]*)$/);
@@ -108,6 +113,26 @@ export const paperConversionAccountingV2Schema=paperConversionAccountingSchema.e
   z.literal('fork_estimated_gas_not_paid'),z.literal('final_custody_unobserved')]),
 }).strict();
 export type PaperConversionAccountingV2=z.infer<typeof paperConversionAccountingV2Schema>;
+
+export const conversionGasEvidenceV3Schema=z.object({kind:z.literal('candidate_prestate_gas_only'),
+ pathVersion:z.literal(PAPER_STATIC_CONVERT_PRESTATE_GAS_PATH_V1),
+ evidenceClass:z.literal('fork_estimated'),paidGasAvailable:z.literal(false),
+ reportHash:z.string().regex(/^[0-9a-f]{64}$/),scopeHash:z.string().regex(/^[0-9a-f]{64}$/),
+ sequenceHash:z.string().regex(/^[0-9a-f]{64}$/),sizeBand:z.string().min(1),
+ profileIds:z.array(z.uuid()).length(PAPER_STATIC_CONVERT_GAS_STAGES_V2.length)}).strict();
+const conversionV3Schema=paperConversionAccountingSchema.shape.conversion.unwrap()
+ .extend({gasEvidence:conversionGasEvidenceV3Schema});
+export const paperConversionAccountingV3Schema=paperConversionAccountingSchema.extend({
+ policyVersion:z.literal(PAPER_CONVERSION_ACCOUNTING_POLICY_V3),runtimeIdentity:sealedRuntimeIdentity,
+ conversion:conversionV3Schema.nullable(),
+ limitations:z.tuple([z.literal('fixed_observed_flow_counterfactual'),
+  z.literal('lower_integer_allocation_point'),z.literal('execution_delay_unmodeled'),
+  z.literal('failure_expense_unmodeled'),z.literal('quote_to_execution_deviation_unmodeled'),
+  z.literal('prospective_prestate_gas_is_fork_estimated_not_paid'),
+  z.literal('post_withdraw_inventory_is_simulated_not_custody'),
+  z.literal('final_custody_unobserved')]),
+}).strict();
+export type PaperConversionAccountingV3=z.infer<typeof paperConversionAccountingV3Schema>;
 
 export interface AccountingMark {
  id:string;kind:'open'|'valuation'|'close_retain';
@@ -271,6 +296,18 @@ export const paperAccountingFromConversionV2Snapshot=(snapshot:PaperConversionAc
  const base={...snapshot};
  delete (base as Partial<PaperConversionAccountingV2>).conversion;
  delete (base as Partial<PaperConversionAccountingV2>).runtimeIdentity;
+ return paperAccountingSchema.parse({...base,policyVersion:PAPER_ACCOUNTING_POLICY,
+  economics:v1Economics(snapshot.economics),
+  flows:snapshot.flows.filter((item)=>item.kind!=='modeled_conversion'),
+  limitations:v1Limitations});
+};
+
+export const paperAccountingFromConversionV3Snapshot=(snapshot:PaperConversionAccountingV3|null):PaperAccounting|null=>{
+ if(!snapshot)return null;
+ assert(snapshot.markKind!=='close_convert','Paper conversion V3 already terminal');
+ const base={...snapshot};
+ delete (base as Partial<PaperConversionAccountingV3>).conversion;
+ delete (base as Partial<PaperConversionAccountingV3>).runtimeIdentity;
  return paperAccountingSchema.parse({...base,policyVersion:PAPER_ACCOUNTING_POLICY,
   economics:v1Economics(snapshot.economics),
   flows:snapshot.flows.filter((item)=>item.kind!=='modeled_conversion'),
@@ -505,6 +542,137 @@ export function buildPaperConversionAccountingV2(open:PaperOpenModel,profile:Mar
     reportHash:binding.reportHash,scopeHash:binding.scopeHash,sequenceHash:binding.sequenceHash,
     sizeBand:binding.sizeBand,profileIds:binding.profileIds}},
   flows:[...base.flows,...conversionFlows],limitations:v2LimitationsV2});
+}
+
+const v3LimitationsV3:PaperConversionAccountingV3['limitations']=[
+ 'fixed_observed_flow_counterfactual','lower_integer_allocation_point',
+ 'execution_delay_unmodeled','failure_expense_unmodeled',
+ 'quote_to_execution_deviation_unmodeled','prospective_prestate_gas_is_fork_estimated_not_paid',
+ 'post_withdraw_inventory_is_simulated_not_custody','final_custody_unobserved'];
+export function assertPaperConversionV3GasWithinReserve(input:{cumulativeGasWei:bigint;
+ expectedGasWei:bigint;boundGasWei:bigint;reservedNativeWei:bigint}){
+ assert(input.cumulativeGasWei>=0n&&input.expectedGasWei>0n&&
+  input.boundGasWei>=input.expectedGasWei&&input.reservedNativeWei>=0n,
+  'Paper conversion V3 gas reserve inputs invalid');
+ assert(input.cumulativeGasWei+input.expectedGasWei<=input.reservedNativeWei,
+  'Paper conversion V3 modeled native gas exceeds reserved paper allocation');
+ assert(input.cumulativeGasWei+input.boundGasWei<=input.reservedNativeWei,
+  'Paper conversion V3 provisional gas upper bound exceeds reserved paper allocation');
+}
+export interface PaperCloseConvertGasEvidenceV3Binding {
+ reportHash:string;scopeHash:string;sequenceHash:string;sizeBand:string;profileIds:string[];
+}
+
+/** V3 keeps prospective prestate fork costs in a distinct discriminated
+ * evidence branch. It can create a provisional accounting snapshot only; it
+ * does not mark the gas as paid or the simulated inventory as custody. */
+export function buildPaperConversionAccountingV3(open:PaperOpenModel,profile:MarketProfile,
+ mark:ConversionAccountingMark,previous:PaperConversionAccountingV2|null,fee:FeeEvidence|null,
+ closeRetain:PaperCloseRetainModel|null,terminal:PaperStaticCloseConvertTerminalModel|null,
+ closeQuoteInput:PaperCloseConvertQuote|null,gasCostsInput:PaperCloseConvertPrestateCostsV1|null,
+ gasEvidenceInput:PaperCloseConvertGasEvidenceV3Binding|null,
+ runtimeIdentity:z.infer<typeof sealedRuntimeIdentity>):PaperConversionAccountingV3{
+ assert(mark.id.match(/^[1-9][0-9]*$/),'Paper conversion V3 accounting mark ID invalid');
+ if(mark.kind==='close_convert')assert(terminal&&closeQuoteInput&&gasCostsInput&&gasEvidenceInput&&
+  terminal.kind==='paper_static_manual_close_convert_terminal_v3'&&
+  terminal.campaignId===open.campaignId&&terminal.openModelHash===contentHash(open)&&
+  same(terminal.source,mark.source)&&contentHash(terminal.reference)===contentHash(mark.reference),
+  'Paper conversion V3 close inputs unavailable');
+ else assert(!terminal&&!closeQuoteInput&&!gasCostsInput&&!gasEvidenceInput,
+  'Paper conversion V3 close inputs unexpected');
+ assert(mark.kind!=='close_retain'||closeRetain,'Paper conversion V3 retain model unavailable');
+ assert(mark.kind==='close_retain'||!closeRetain,'Paper conversion V3 retain model unexpected');
+ const baseKind=mark.kind==='close_convert'?'valuation':mark.kind,
+  baseMark:AccountingMark={...mark,kind:baseKind as AccountingMark['kind']},
+  base=buildPaperAccounting(open,profile,baseMark,paperAccountingFromConversionV2Snapshot(previous),
+   fee,mark.kind==='close_retain'?closeRetain:null),
+  initialEconomics={...base.economics,cumulativeConversionCostQuote:'0',cumulativeSwapCostQuote:'0',
+   modeledSwapExpectedProceedsQuote:'0',modeledSwapProceedsQuote:'0',modeledSwapCostQuote:'0'},
+  baseV3={...base,policyVersion:PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
+   runtimeIdentity,economics:initialEconomics,conversion:null,limitations:v3LimitationsV3};
+ if(mark.kind!=='close_convert')return paperConversionAccountingV3Schema.parse(baseV3);
+ const model=terminal!,q=paperCloseConvertQuoteSchema.parse(closeQuoteInput),
+  costs=paperCloseConvertPrestateCostsV1Schema.parse(gasCostsInput),binding=gasEvidenceInput!,
+  route=model.conversionRoute,p=profile.pool;
+ assert(String(BigInt(model.inventory.principal0Raw)+BigInt(model.inventory.idle0Raw))===mark.principal0Raw&&
+  String(BigInt(model.inventory.principal1Raw)+BigInt(model.inventory.idle1Raw))===mark.principal1Raw&&
+  model.inventory.token0Raw===base.inventory.token0Raw&&model.inventory.token1Raw===base.inventory.token1Raw,
+  'Paper conversion V3 inventory replay changed');
+ assert(costs.pathVersion===PAPER_STATIC_CONVERT_PRESTATE_GAS_PATH_V1&&
+  costs.kind==='paper_close_convert_prestate_costs_v1'&&costs.status==='provisional'&&
+  costs.paidGasAvailable===false&&costs.reportHash===binding.reportHash&&
+  costs.scopeHash===binding.scopeHash&&costs.sequenceHash===binding.sequenceHash&&
+  costs.sizeBand===binding.sizeBand&&
+  contentHash(costs.stages.map(stage=>stage.profileId))===contentHash(binding.profileIds)&&
+  binding.reportHash.match(/^[0-9a-f]{64}$/),
+  'Paper conversion V3 prospective gas evidence binding changed');
+ const fromAsset=q.inputAsset,toAsset=fromAsset==='token0'?'token1':'token0',
+  input=BigInt(q.inputAmountRaw),expected=BigInt(q.expectedOutputRaw),minimum=BigInt(q.minimumOutputRaw),
+  token0Before=BigInt(base.inventory.token0Raw),token1Before=BigInt(base.inventory.token1Raw),
+  quoteAsset=p.quoteToken===0?'token0':'token1';
+ assert(route.router.toLowerCase()===q.router.toLowerCase()&&route.quoter.toLowerCase()===q.quoter.toLowerCase()&&
+  route.fee===q.fee&&route.pathVersion===q.pathVersion&&route.slippageBps===q.slippageBps&&
+  contentHash(route.path)===contentHash(q.path)&&fromAsset===route.inputAsset&&fromAsset!==quoteAsset&&
+  same(q.source,model.source)&&q.minimumOutputRaw===String(expected*BigInt(10_000-q.slippageBps)/10_000n),
+  'Paper conversion V3 quote differs from pinned route');
+ assert(input===(fromAsset==='token0'?token0Before:token1Before)&&
+  input===BigInt(model.inventory.inputAmountRaw),
+  'Paper conversion V3 quote does not cover simulated inventory');
+ const token0=fromAsset==='token0'?0n:token0Before+minimum,
+  token1=fromAsset==='token1'?0n:token1Before+minimum,
+  nativePrice=BigInt(mark.reference.nativePrice),price0=BigInt(mark.reference.price0),
+  price1=BigInt(mark.reference.price1),nativeGas=BigInt(costs.expectedWei),gasQuote=BigInt(costs.expectedValue),
+  cumulativeGas=BigInt(base.inventory.cumulativeGasWei)+nativeGas;
+ assertPaperConversionV3GasWithinReserve({cumulativeGasWei:BigInt(base.inventory.cumulativeGasWei),
+  expectedGasWei:nativeGas,boundGasWei:BigInt(costs.boundWei),
+  reservedNativeWei:BigInt(open.allocation.nativeWei)});
+ const native=BigInt(open.allocation.nativeWei)-cumulativeGas,
+  valueRaw=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals),
+  proceedsExpected=valueRaw(expected,toAsset==='token0'?price0:price1,
+   toAsset==='token0'?p.decimals0:p.decimals1),
+  proceedsMinimum=valueRaw(minimum,toAsset==='token0'?price0:price1,
+   toAsset==='token0'?p.decimals0:p.decimals1),
+  inputValue=valueRaw(input,fromAsset==='token0'?price0:price1,
+   fromAsset==='token0'?p.decimals0:p.decimals1),modeledSwapCost=inputValue-proceedsMinimum,
+  nav=valueRaw(token0,price0,p.decimals0)+valueRaw(token1,price1,p.decimals1)+
+   valueRaw(native,nativePrice,18),
+  conversionFlows:PaperConversionAccountingV3['flows'][number][]=[
+   {kind:'modeled_gas',asset:'native',amountRaw:String(nativeGas),valueQuote:String(gasQuote)},
+   {kind:'modeled_conversion',fromAsset,fromAmountRaw:String(input),toAsset,
+    expectedToAmountRaw:String(expected),minimumToAmountRaw:String(minimum),
+    expectedValueQuote:String(proceedsExpected),minimumValueQuote:String(proceedsMinimum),
+    quoteHash:q.quoteHash,pathVersion:q.pathVersion},
+  ];
+ const addCapitalOut=(asset:'token0'|'token1'|'native',amount:bigint,price:bigint,decimals:number)=>
+  conversionFlows.push({kind:'modeled_capital_out',asset,amountRaw:String(amount),
+   valueQuote:String(valueRaw(amount,price,decimals))});
+ addCapitalOut('token0',token0,price0,p.decimals0);
+ addCapitalOut('token1',token1,price1,p.decimals1);
+ addCapitalOut('native',native,nativePrice,18);
+ const gasProfiles=[...base.gasProfiles,...costs.stages.map(stage=>({stage:stage.stage,
+  id:stage.profileId,version:stage.version,sourceHash:stage.source.hash}))],
+  economics={...base.economics,netNavQuote:String(nav),
+   absolutePnlQuote:String(nav-BigInt(base.economics.initialCapitalQuote)),
+   alphaQuote:String(nav-BigInt(base.economics.passiveQuote)),
+   cumulativeGasExpenseQuote:String(BigInt(base.economics.cumulativeGasExpenseQuote)+gasQuote),
+   markGasExpenseQuote:String(gasQuote),cumulativeConversionCostQuote:String(gasQuote),
+   cumulativeSwapCostQuote:signedText(modeledSwapCost),
+   modeledSwapExpectedProceedsQuote:String(proceedsExpected),
+   modeledSwapProceedsQuote:String(proceedsMinimum),modeledSwapCostQuote:signedText(modeledSwapCost)};
+ return paperConversionAccountingV3Schema.parse({...baseV3,markKind:'close_convert',
+  closeModelHash:contentHash(model),gasProfiles,
+  inventory:{...base.inventory,token0Raw:String(token0),token1Raw:String(token1),nativeWei:String(native),
+   cumulativeGasWei:String(cumulativeGas),hasLiquidity:false},economics,
+  conversion:{quoteHash:q.quoteHash,pathVersion:q.pathVersion,source:q.source,fromAsset,toAsset,
+   inputAmountRaw:String(input),expectedOutputRaw:String(expected),minimumOutputRaw:String(minimum),
+   slippageBps:q.slippageBps,expectedProceedsQuote:String(proceedsExpected),
+   minimumProceedsQuote:String(proceedsMinimum),modeledSwapCostQuote:signedText(modeledSwapCost),
+   expectedGasWei:costs.expectedWei,boundGasWei:costs.boundWei,
+   expectedGasCostQuote:costs.expectedValue,boundGasCostQuote:costs.boundValue,
+   gasEvidence:{kind:'candidate_prestate_gas_only',pathVersion:costs.pathVersion,
+    evidenceClass:'fork_estimated',paidGasAvailable:false,reportHash:binding.reportHash,
+    scopeHash:binding.scopeHash,sequenceHash:binding.sequenceHash,sizeBand:binding.sizeBand,
+    profileIds:binding.profileIds}},flows:[...base.flows,...conversionFlows],limitations:v3LimitationsV3});
 }
 
 /** Projects one saved mark only while its source anchors still resolve on the

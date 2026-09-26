@@ -209,17 +209,16 @@ export async function processOnePaperOperation(store:DeploymentStore,
      context.proposal.paperCloseConvertTerminalV3);}
     catch{return await block('paper_close_convert_v3_terminal_envelope_invalid');}
     try{
-     await verifyPaperStaticCloseConvertTerminalForWorker({store,campaignId:claim.campaign_id,
+     const verification=await verifyPaperStaticCloseConvertTerminalForWorker({store,campaignId:claim.campaign_id,
       revision:context.current_revision,rawModel:terminal,client:chain,indexer,verifyAnchors:verify,
       replayGasStages:({model,frame})=>replayStaticCloseConvertV3Gas({store,client:chain,indexer,
        model,frame,rpcUrl:options.rpcUrl!,beforeRead:options.beforeForkRead??(async()=>{}),
        verifyAnchors:verify})});
+     const completed=await store.completeTrustedStaticPaperCloseConvertV3({operationId:claim.id,
+      workerId,verification,verifyAnchors:verify});
+     return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
     }catch(error){return await block(error instanceof DeploymentConflict?error.code:
      'paper_close_convert_v3_terminal_replay_invalid');}
-    // V3 replay is now source-exact, but the single-transaction V3 mark/fee/
-    // accounting/ledger completion has not landed. Never fall through to the
-    // legacy V2 worker or imply a successful close.
-    return await block('paper_close_convert_v3_atomic_completion_unavailable');
    }
    await store.prepareTrustedPaperCloseConvert(claim.id,workerId,verify);
    const projection=await maintainCanonicalPaperScenario(store,chain,indexer,

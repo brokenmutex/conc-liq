@@ -162,10 +162,10 @@ export async function quotePaperCloseConvertAtSource(client:RobinhoodClient,
 
 /**
  * Saves an inert terminal preview only after a trusted owned-fork verifier
- * confirms the withdraw/collect and Quoter replay at the exact canonical frame.
- * The V2 profile set and quote are bound with the preview in one recordPreview
- * transaction. HTTP acceptance remains disabled until worker replay consumes
- * this V2 envelope.
+ * confirms the withdraw/collect, Quoter, fee interval, and seven prospective
+ * gas stages at the exact canonical frame. The source-exact V3 envelope and
+ * provisional profile set are bound in one recordPreview transaction. HTTP
+ * acceptance remains separately gated on worker readiness and replay proof.
  */
 export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:PaperCloseConvertPreviewWriter;
  state:PaperCloseConvertPreflightState;frame:PaperOpenFrame;previousFeeCarry:PaperFeeCarry;
@@ -361,7 +361,7 @@ export async function persistTrustedStaticPaperCloseConvertPreview(input:{store:
   paidCostsAvailable:false,feeAccrualAvailable:false,
   limitations:['owned_fork_withdraw_is_not_a_paper_fill','gas_is_fork_estimated_not_paid',
    'fee_carry_is_modeled_hypothetical_not_earned','execution_delay_failure_and_final_custody_unmodeled',
-   'v2_worker_acceptance_replay_is_not_enabled']};
+   'operation_acceptance_not_enabled']};
 }
 
 export type PaperCloseConvertPreflight=Awaited<ReturnType<typeof persistTrustedStaticPaperCloseConvertPreview>>;

@@ -13,6 +13,8 @@ import type {PaperOpenFrame} from './paper-preview.js';
 import {PAPER_STATIC_CONVERT_GAS_STAGES_V2} from './paper-close-convert-model.js';
 import {paperCloseConvertPrestateCostsV1Schema,type PaperCloseConvertPrestateCostsV1} from
  './paper-close-convert-prestate-costs.js';
+import {readCanonicalPaperOpenFrame} from './paper-preview.js';
+import {assertSamePinnedExternalReferenceProof} from './pinned-external-reference-proof.js';
 
 export interface PaperCloseConvertTerminalGasReplay {
  reportHash:string;scopeHash:string;sequenceHash:string;source:PaperOpenFrame['source'];
@@ -88,11 +90,24 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.feeReplay.from.block!==state.previous.sourceBlock||
   model.feeReplay.from.hash.toLowerCase()!==state.previous.sourceHash.toLowerCase())
   throw Error('paper_close_convert_terminal_saved_context_changed');
- const frame:PaperOpenFrame={source:model.source,tick:model.poolState.tick,
+ const savedFrame:PaperOpenFrame={source:model.source,tick:model.poolState.tick,
   sqrtPriceX96:BigInt(model.poolState.sqrtPriceX96),poolLiquidity:BigInt(model.poolState.poolLiquidity),
   price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
   nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,referenceReasons:[],
   referenceProofHash:model.referenceProofHash,referenceProof:model.referenceProof};
+ let frame:PaperOpenFrame;
+ try{
+  const actual=await readCanonicalPaperOpenFrame(input.client,state.profile,model.source);
+  if(contentHash(actual.source)!==contentHash(savedFrame.source)||actual.tick!==savedFrame.tick||
+   actual.sqrtPriceX96!==savedFrame.sqrtPriceX96||actual.poolLiquidity!==savedFrame.poolLiquidity||
+   actual.price0!==savedFrame.price0||actual.price1!==savedFrame.price1||
+   actual.nativePrice!==savedFrame.nativePrice||!actual.referenceEligible||
+   !actual.referenceProof||!savedFrame.referenceProof)
+   throw Error('paper_close_convert_terminal_source_frame_changed');
+  assertSamePinnedExternalReferenceProof(savedFrame.referenceProof,actual.referenceProof);
+  frame={...actual,referenceProof:savedFrame.referenceProof,
+   referenceProofHash:savedFrame.referenceProofHash};
+ }catch{throw Error('paper_close_convert_terminal_source_frame_changed');}
  const replay=await replayEphemeralStaticPaperCloseConvertFees({context,client:input.client,
   indexer:input.indexer,frame});
  assert.equal(contentHash(replay),contentHash(model.feeReplay),
@@ -122,6 +137,6 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   throw Error('paper_close_convert_terminal_source_stale');
  return {status:'verified' as const,modelHash:model.modelHash,feeReplayHash:replay.replayHash,
   previousFeeEvidenceId:replay.previousFeeEvidenceId,intervalHash:replay.intervalHash,
-  feeCarryHash:replay.feeCarryHash,gasReportHash,
+  feeCarryHash:replay.feeCarryHash,gasReportHash,quoteHash:quote.quoteHash,
   source:model.source,actionAvailable:false as const,bookingAvailable:false as const};
 }
