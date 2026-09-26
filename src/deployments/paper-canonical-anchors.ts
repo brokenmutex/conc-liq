@@ -28,15 +28,26 @@ export async function verifyCanonicalPaperAnchors(client:RobinhoodClient,
   return {hash:block.hash.toLowerCase(),timestamp:Number(block.timestamp)};
  };
  const first=new Map<string,{hash:string;timestamp:number}>();
- for(const source of unique.values()){
-  const actual=await read(source);
+ const anchors=[...unique.values()];
+ const pass=async(check:(source:PaperCanonicalAnchor,actual:Awaited<ReturnType<typeof read>>)=>void)=>{
+  for(let offset=0;offset<anchors.length;offset+=4){
+   const batch=anchors.slice(offset,offset+4),results=await Promise.allSettled(batch.map(read));
+   for(let index=0;index<results.length;index++){
+    const result=results[index]!;
+    if(result.status==='rejected')throw result.reason;
+    check(batch[index]!,result.value);
+   }
+  }
+ };
+ // Each pass is complete before the next begins. Settle every issued read
+ // before rejecting, so no outstanding RPC work outlives this verification.
+ await pass((source,actual)=>{
   assert(actual.hash===source.hash.toLowerCase()&&actual.timestamp===source.timestamp,
    'Paper canonical anchor changed');
   first.set(source.block,actual);
- }
- for(const source of unique.values()){
-  const actual=await read(source);
+ });
+ await pass((source,actual)=>{
   assert.deepEqual(actual,first.get(source.block),'Paper anchor changed during verification');
- }
+ });
  assert.equal(await client.getChainId(),chainId,'Paper anchor chain changed during verification');
 }
