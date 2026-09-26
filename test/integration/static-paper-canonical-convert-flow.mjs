@@ -3,9 +3,9 @@
 // use the public indexer in read-only mode. No draft is manually inserted.
 // Run: TEST_DATABASE_URL=... node --import tsx test/integration/static-paper-canonical-convert-flow.mjs
 // Recovery: add --interrupt-conversion to suspend/kill/restart the real worker.
-// Sealed mode: --sealed-release with TEST_SEALED_RELEASE_DIR and optional expected commit.
+// Sealed mode: --sealed-release requires TEST_SEALED_RELEASE_DIR and TEST_EXPECTED_RELEASE_COMMIT.
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {createHash,randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {once} from 'node:events';
 import {parseEnv} from 'node:util';
 import {readFileSync} from 'node:fs';
@@ -17,7 +17,7 @@ import {join,resolve} from 'node:path';
 import pg from 'pg';
 import {hash as releaseHash,verifyRelease} from '../../scripts/release-files.mjs';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
-import {DeploymentStore} from '../../src/deployments/store.ts';
+import {DeploymentStore,PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
 import {createRobinhoodClient} from '../../src/client.ts';
 import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
@@ -48,6 +48,13 @@ const waitFor=async(read,label,timeoutMs=360_000)=>{
  const deadline=Date.now()+timeoutMs;
  while(Date.now()<deadline){const value=await read();if(value)return value;await sleep(500);}
  throw Error(`Timed out waiting for ${label}`);
+};
+const procSnapshot=child=>{
+ let state='unavailable',wchan='unavailable';
+ try{const stat=readFileSync(`/proc/${child.pid}/stat`,'utf8');
+  state=stat.slice(stat.lastIndexOf(')')+1).trim().split(/\s+/)[0]??'unavailable';}catch{}
+ try{wchan=readFileSync(`/proc/${child.pid}/wchan`,'utf8').trim()||'unavailable';}catch{}
+ return {state,wchan};
 };
 const reservePort=async()=>{
  const server=createTcpServer();server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -109,7 +116,7 @@ async function main(){
   admin=await adminPool.connect(),schema=`static_convert_browser_${randomUUID().replaceAll('-','')}`;
  let store,indexer,command,worker,browser,runtimeDir,campaignId,rpcProxy,proxyClient,
   openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null;
- const checks=[];
+ const checks=[];let runtimeEnvSha256=null,initialWorkerEnvFile=null;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
   await migrateDatabase(admin);
@@ -187,9 +194,16 @@ async function main(){
    accountingIdentity={buildId:manifest.buildId,
     configHash:releaseHash(JSON.stringify(Object.fromEntries(Object.entries(parsedSealedRuntimeEnv)
      .sort(([a],[b])=>a.localeCompare(b,'en'))))),nodeVersion:manifest.nodeVersion};
+   runtimeEnvSha256=createHash('sha256').update(readFileSync(runtimeEnvFile)).digest('hex');
   }
-  const capture=(child,key)=>{child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
+  const capture=(child,key)=>{child.__safeCapture={pid:child.pid,stdoutBytes:0,stderrBytes:0,
+    spawnError:null,exitCode:null,signalCode:null};
+   child.on('error',error=>{child.__safeCapture.spawnError={name:/^[A-Za-z]+Error$/.test(error?.name??'')?
+    error.name:'Error',code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};});
+   child.on('exit',(code,signal)=>{child.__safeCapture.exitCode=code;child.__safeCapture.signalCode=signal;});
+   child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
    const append=(source,chunk)=>{
+    child.__safeCapture[`${source}Bytes`]+=Buffer.byteLength(chunk,'utf8');
     processTail[key]=(processTail[key]+chunk).slice(-8000);
     if(key!=='command')return;
     const lines=(commandLineBuffer.command[source]+chunk).split('\n');
@@ -212,8 +226,65 @@ async function main(){
    'real command service health',60_000);phase('command_ready');
   const workerRpcEnv=changedRestartAnchor&&!sealed?{ROBINHOOD_READ_HTTP_URL:rpcProxy.url}:{};
   worker=launch('worker',workerRpcEnv);capture(worker,'worker');
+  initialWorkerEnvFile=runtimeEnvFile;
+  phase('worker_spawned',{pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':
+   'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?true:null,
+   runtimeIdentity:accountingIdentity});
   const workerReady=()=>store.paperOperationWorkerReady();
-  await waitFor(workerReady,'real paper worker readiness lease',30_000);phase('worker_ready');
+  const workerReadinessFailure=async(child,startedAt)=>{
+   let lockRows=[],recentBackends=[],postgresDiagnosticError=null;
+   try{
+    lockRows=(await admin.query(`SELECT a.pid,a.state,a.wait_event_type,a.wait_event,l.mode,l.granted
+     FROM pg_locks l JOIN pg_stat_activity a USING(pid) WHERE l.locktype='advisory'
+      AND l.database=(SELECT oid FROM pg_database WHERE datname=current_database())
+      AND l.classid=$1::oid AND l.objid=$2::oid AND l.objsubid=2`,
+     [...PAPER_OPERATION_READINESS_LOCK])).rows;
+    recentBackends=(await admin.query(`SELECT pid,state,wait_event_type,wait_event,backend_type,
+      backend_start::text FROM pg_stat_activity WHERE datname=current_database()
+      AND backend_type='client backend' AND backend_start >= $1 ORDER BY pid LIMIT 32`,
+     [new Date(startedAt)])).rows;
+   }catch(error){postgresDiagnosticError={name:error?.name??'Error',
+    code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};}
+   let readinessLease=null,readinessProbeError=null;
+   try{readinessLease=await workerReady();}catch(error){readinessProbeError={name:error?.name??'Error',
+    code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};}
+   return {process:{...child.__safeCapture,...procSnapshot(child),elapsedMs:Date.now()-startedAt},
+    readinessLease,readinessProbeError,
+    postgres:{readinessLockHolders:lockRows,recentBackends,diagnosticError:postgresDiagnosticError}};
+  };
+  const waitForWorkerReady=async(child,label,timeoutMs=30_000)=>{
+   const startedAt=Date.now(),deadline=startedAt+timeoutMs;
+   while(Date.now()<deadline){
+    let ready=false,probeError=null;
+    try{ready=await workerReady();}catch(error){probeError={name:error?.name??'Error',
+     code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};}
+    if(child.__safeCapture?.spawnError||processExited(child)){
+     const diagnostics=await workerReadinessFailure(child,startedAt);
+     phase('worker_unavailable_before_readiness',{launcherEntry:sealed?'deployments-paper-worker':
+      'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?
+       runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,...diagnostics,
+      readinessProbeError:probeError});
+     throw Error(`Worker exited or failed before ${label}: exitCode=${child.exitCode??'null'}, `+
+      `signal=${child.signalCode??'none'}, spawnError=${child.__safeCapture?.spawnError?.code??
+       child.__safeCapture?.spawnError?.name??'none'}`);
+    }
+    if(ready)return true;
+    await sleep(250);
+   }
+   const diagnostics=await workerReadinessFailure(child,startedAt);
+   phase('worker_readiness_timeout',{launcherEntry:sealed?'deployments-paper-worker':
+    'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?
+     runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,...diagnostics});
+   throw Error(`Timed out waiting for ${label}: pid=${child.pid}, state=${diagnostics.process.state}, `+
+    `elapsedMs=${diagnostics.process.elapsedMs}, stdoutBytes=${diagnostics.process.stdoutBytes}, `+
+    `stderrBytes=${diagnostics.process.stderrBytes}`);
+  };
+  const initialWorkerStartedAt=Date.now();
+  await waitForWorkerReady(worker,'real paper worker readiness lease');phase('worker_ready',{
+   pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':'src/deployments-paper-worker.ts',
+   runtimeEnvSha256,sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,
+   runtimeIdentity:accountingIdentity,process:{...worker.__safeCapture,...procSnapshot(worker),
+    elapsedMs:Date.now()-initialWorkerStartedAt}});
   browser=await startCanonicalPaperBrowser({origin,password});
   const setup=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,capital:'2'});
   campaignId=setup.campaignId;phase('browser_setup_and_open_accepted',
@@ -423,9 +494,20 @@ async function main(){
     phase('changed_restart_anchor_armed',{block:acceptedModelSource.block,
      classification:'fault_injected_rpc_response_process_boundary'});
    }
-   processTail.worker='';worker=launch('worker',workerRpcEnv);capture(worker,'worker');
-   await waitFor(workerReady,'restarted worker readiness lease',30_000);
-   phase('worker_restarted');
+   processTail.worker='';const restartStartedAt=Date.now();
+   const restartEnvSha256=sealed?createHash('sha256').update(readFileSync(runtimeEnvFile)).digest('hex'):null;
+   assert.equal(restartEnvSha256,runtimeEnvSha256,
+    'sealed restart must reuse unchanged runtime.env bytes and config identity');
+   worker=launch('worker',workerRpcEnv);capture(worker,'worker');
+   phase('worker_restart_spawned',{pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':
+    'src/deployments-paper-worker.ts',runtimeEnvSha256:restartEnvSha256,
+    sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,
+    process:{...worker.__safeCapture,elapsedMs:Date.now()-restartStartedAt}});
+   await waitForWorkerReady(worker,'restarted worker readiness lease',30_000);
+   phase('worker_restarted',{pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':
+    'src/deployments-paper-worker.ts',runtimeEnvSha256:restartEnvSha256,
+    sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,
+    process:{...worker.__safeCapture,...procSnapshot(worker),elapsedMs:Date.now()-restartStartedAt}});
   }
   const terminal=await waitFor(async()=>{const row=await store.operation(convertOperationId);
    return ['succeeded','blocked','rejected','failed','cancelled'].includes(row?.status)?row:null;},

@@ -2189,3 +2189,30 @@ and check durable refreshed pending state. Restart, economic completion and
 restore are still unproved. Log:
 `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-cfa74c-20260926.txt`.
 All disposable inputs/processes were cleaned before retry.
+
+**Third sealed recovery attempt proved reconciliation, not restart:** campaign
+`9b6d9434-b21e-4fba-970e-afbae555ac9b` reached SIGSTOP, accepted-202 response
+loss, natural preview expiry (`2026-09-26T16:42:49.462Z`), SIGKILL and lease
+release. The reloaded browser submitted the exact saved request and received
+HTTP 202 for original operation `62f4de50-bab6-4f64-a054-4d2886277f7e`, queued,
+`replayed:true`, with preview expired and readiness false. Restart then timed
+out at its existing 30-second readiness bound with an empty new-worker log.
+Terminal economic completion and restore were not reached. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-2d8a8f-20260926.txt`.
+
+An independent empty-schema reproduction in the shared DB, serialized with no
+other fixture worker, on the exact sealed artifact passed:
+initial readiness 2.434s, proven SIGSTOP/retained lease, SIGKILL/released lease,
+same-file relaunch readiness 2.122s, two actual worker pass logs and no stderr
+or child errors. Owned schema/runtime inputs were removed. Evidence:
+`/tmp/sealed-worker-restart-diagnostic-609e68f-20260926.json`.
+The separately owned random-database reproduction also passed: initial
+readiness 1.622s, same suspension/kill/lease checks, relaunch readiness 1.820s,
+two worker passes, no stderr/errors and a clean SIGTERM exit. The owned database,
+runtime directory and script were removed. Evidence:
+`/tmp/sealed-worker-restart-diagnostic-owned-db-609e68f-20260926.json`.
+This rules out a general sealed-launcher restart failure; advisory contention
+was not established. The canonical timeout's cause remains unconfirmed. The
+external driver will capture PID/exit/error/process-state and startup timing
+without secrets before rerunning, keeping the 30-second bound and unchanged
+runtime artifact. MVP-4 and canonical restore remain open.
