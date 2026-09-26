@@ -1,12 +1,15 @@
 # Research and Positions — Sol implementation plan
 
-Prepared: 2026-09-21. Revised: 2026-09-23 after operator approval of the
-prototype at `0e30224`. Status: prototype approved; functional paper/live
-implementation and release gates remain open. Initial source review: `b38c839`;
-latest recorded backend progress below is through `fe916bf`. Recheck HEAD and
-working-tree changes before starting. The approved screen contract and ordered
-next work in [section 11](#11-approved-prototype-contract-and-delivery-order)
-supersede conflicting UI/product scope in older progress notes.
+Prepared: 2026-09-21. Revised: 2026-09-26 after the MVP progress review at
+`f087abc`. Status: prototype approved; static/manual paper is the first operator
+MVP; its complete canonical workflow and release gates remain open. Initial
+source review: `b38c839`. Recheck HEAD and working-tree changes before starting.
+The approved screen contract in
+[section 11](#11-approved-prototype-contract-and-delivery-order) remains in force.
+The ordered Sol handoff in
+[section 12](#12-september-26-mvp-review-and-sol-delivery-order) supersedes older
+next-action lists: finish and review static/manual paper, then RangeKeeper
+paper, then guarded live operations. The two-strategy destination is unchanged.
 
 This is the authoritative implementation handoff for the accepted
 [workflow proposal](research-and-position-workflow-2026-09-21.md). The user's
@@ -1215,7 +1218,9 @@ as a browser-only review surface.
    used for execution.
 
 **Implement in this order; each step ends with a scoped commit and an updated
-evidence/status note:**
+evidence/status note. Section 12 brings the applicable F5 review forward after
+F2 so the static/manual paper MVP can be reviewed before F3/F4. The full F5 and
+W0-W7 requirements remain attached to their respective capabilities:**
 
 | Step | Work | Acceptance |
 | --- | --- | --- |
@@ -1609,7 +1614,7 @@ this recovery-panel commit and do not establish an exact clean release identity.
 | --- | --- | --- |
 | Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 browser mechanics assertions include lost accepted-response recovery. The September 26 canonical RPC run created a draft through authenticated HTTP (201), accepted and completed open, and recorded a later principal valuation; retain preview and acceptance also succeeded. | The canonical worker did not reach a terminal retain status within 300 seconds, so setup-to-closed-Positions and its desktop/mobile browser assertion remain unproved. The harness log is `/tmp/conc-liq-static-setup-bound-20260926.log`; its temporary schema and processes were cleaned. No production cutover. |
 | Static/manual paper convert-close | Saved V3 provisional preview, canonical indexed-fee HTTP acceptance, default-worker completion, atomic database completion, same-key readiness-loss replay and fresh-key readiness rejection passed in the September 26 isolated fixture. | Canonical browser and sealed command/worker conversion proof remain. Economic recovery and production cutover remain unavailable. |
-| RangeKeeper paper | Read-only planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. | Positive producer/worker booking has not passed the original 90-second first-preview deadline. Lifecycle admission, both terminal exits and shared closure parity remain unavailable. |
+| RangeKeeper paper | Planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. The newer attempt reached producer-receipt publication and failed there; see section 12. | No successful producer/worker booking is recorded. Reliable freshness, producer publication, lifecycle/management, both terminal exits and shared closure parity remain F3 gates. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
 | Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
 
@@ -1656,3 +1661,102 @@ Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
 custody, independent-reference, recovery or release gates to move faster.
+
+## 12. September 26 MVP review and Sol delivery order
+
+Review source: `f087abc`, 2026-09-26. The operator requested this handoff after
+reviewing progress with the goal of reaching an MVP as soon as possible.
+This section sets the current delivery priority; older progress records remain
+historical evidence. Implementation, isolated acceptance, sealed-release review,
+production cutover and live validation remain distinct statuses.
+
+### Assessment and first operator MVP
+
+The architecture and product direction are sound, but work has spread across
+too many unfinished paths. Authentication, idempotency, exact accounting,
+canonical evidence, independent references and restart recovery are necessary.
+The immediate delivery risk is adding more preparation/replay machinery and
+live foundations before completing the first usable operator workflow.
+
+Finish **static/manual paper** as an independently reviewable first operator
+MVP. Keep today's Research view, registered supported pools, centered-width
+setup, open, pause/resume, close-retain, close-convert, and the existing shared
+Positions metrics, charts, activity and history. Both exits remain in this
+milestone. New RangeKeeper and live actions stay unavailable until their own
+gates pass; predecessor positions and their operational tooling remain visible.
+This sequences delivery without removing RangeKeeper or live from the accepted
+product scope, and does not mark the two-strategy W2 package complete.
+
+The milestone is a repeatable browser demonstration from setup through closure
+using canonical data and the actual command/worker processes. Normal operation
+must need no manually seeded draft, source/config edits, or service restart.
+Explicit restart/disconnect recovery tests are separate fault-injection cases.
+Modeled costs and fees remain provisional; unavailable economics remain visibly
+unavailable. Statistical calibration sufficiency gates a validated claim, not
+delivery of an explicitly provisional paper workflow.
+
+### Evidence at review time
+
+Fresh validation ran against the shared checkout at `f087abc`, including the
+pre-existing dirty hybrid/adaptive files. It is not clean-release evidence.
+
+| Check / path | Result and boundary |
+| --- | --- |
+| `npm run check` with repository Node | Repository checks and typecheck passed; unit tests were **876/877**. The single failure is the stale expected cost-label string at `test/dashboard-setup.test.ts:59`; the displayed text now distinguishes expected cost, reviewed admission cap and paid gas. Log: `/tmp/conc-liq-mvp-review-check-20260926.log`. |
+| `npm run test:integration` with isolated PostgreSQL | Passed migrations through v11, deployment/accounting/recovery, conversion importer, lifecycle and reference checks. This suite does not establish the complete canonical browser lifecycle. Log: `/tmp/conc-liq-mvp-review-integration-20260926.log`. |
+| `npm run test:integration:dashboard-paper-lifecycle-browser` | **16 checks passed**, including actual authenticated HTTP, database-backed setup/open/pause/resume/retain-close, lost-response same-key recovery and desktop/mobile closed history. Chain observations were synthetic and worker passes were in-process. Log: `/tmp/conc-liq-mvp-review-browser-20260926.log`. |
+| Canonical static setup through retain-close | Previously recorded run created the draft through HTTP, completed open and later valuation, and accepted retain-close, but timed out after 300 seconds waiting for its worker. The earlier separately seeded canonical open/retain success does not close this gap. Log: `/tmp/conc-liq-static-setup-bound-20260926.log`. |
+| Canonical V3 converted close | Recorded isolated HTTP/default-worker success, one terminal mark and provisional ledger, with no paid-cost claim. Actual browser and sealed-process conversion remain unproved. Evidence: `notes/paper-close-convert-v3-http-2026-09-26.json`. |
+| RangeKeeper paper | The newer recorded attempt reached producer-receipt publication and returned `rangekeeper_confirmation_producer_receipt_unavailable`; its timing record showed source age 86 seconds. This supersedes expiry as the sole current diagnosis, but proves neither successful booking nor reliable timing. Log: `/tmp/rangekeeper-paper-booking-atomic-20260926.log`. Current worker rejects RangeKeeper operation kinds other than open; lifecycle, management and both exits remain unfinished. |
+| New live deployments | Read-only identity/reference/nonce/custody foundations exist. Executable lifecycle, custody recovery and applicable live/release gates remain open. |
+
+The canonical failures and successes above were inspected from recorded
+evidence, not rerun during this review. No production migration, service change,
+signer use or broadcast was performed.
+
+### Ordered tasks for Sol
+
+Start with MVP-1 and MVP-2. Keep changes scoped to a demonstrated blocker or an
+acceptance criterion below. Record the exact source/build, result and remaining
+boundary after each task; a growing test count is not milestone completion.
+
+| Task | Concrete work | Acceptance / stop condition |
+| --- | --- | --- |
+| MVP-1 — Restore the check gate | Update the outdated setup-label expectation to the intended provisional-cost wording. Preserve the distinction between expected cost, reviewed bound and actual paid gas. | Focused setup tests and pinned `npm run check` pass. Record shared-checkout provenance; do not claim a clean release from dirty-source tests. |
+| MVP-2 — Resolve canonical retain completion | Rerun the setup-to-retain harness with the newly added operation-row and redacted worker-tail diagnostics. Capture claim/status/stage/reason/attempts and phase timings. Determine whether delay comes from maintenance, lease retry, RPC, accounting or another failure, then fix the demonstrated cause. | Authenticated canonical setup, open, later valuation and retain-close complete through actual command/worker processes within the existing bounded test wait. Terminal operation and closed Positions projection agree; exactly one terminal mark is written. Preserve the failure evidence if it still fails. Do not merely lengthen the timeout or weaken freshness/accounting checks. |
+| MVP-3 — Complete both browser exit paths | Extend/reuse the existing canonical harnesses to drive setup and operation acceptance through the real browser UI. Run one campaign through pause/resume and retain-close, and a separate campaign through convert-close. Use real canonical frames, supported references and owned-fork evidence. | No manually seeded draft or routine source/config edits/restarts. At desktop/mobile widths, pending stages, first-session values, available economics, explicit gaps, activity and closed history match persisted evidence. Both terminal inventories match their respective exit semantics. Preserve provisional labels and unavailable paid costs. |
+| MVP-4 — Prove economic recovery | Exercise accepted static economic operations across a worker interruption/restart, including pending conversion; reuse the existing same-key lost-response and database recovery coverage. Add only missing tests for the actual process boundary. | Recovery completes the same operation without duplicate marks, ledger rows or completed conversion stages. Expired admission previews do not cause a fresh acceptance for already accepted work; changed canonical evidence blocks or invalidates rather than creating false success. Browser reconnect retrieves the persisted outcome. |
+| MVP-5 — Review the static paper release | Build one clean, pinned artifact containing MVP-1 through MVP-4. Run the applicable section 8/W7 migration/restore, manifest/unit and desktop/mobile process gates against that artifact. Include server-owned setup/cost preparation and the actual command/worker code in the recorded runtime identity. Prepare the operator runbook and concrete cutover record. | Demonstrate both static/manual paper lifecycles on the exact reviewed build with canonical evidence. Clearly record what the harness supplies versus what the sealed runtime executes. No design fixtures in runtime assets. Report this as the static paper MVP only; F3/F4 and full W2 remain open. Production cutover requires the applicable existing authorization boundary and is not implied by a passing rehearsal. |
+| NEXT-1 — Finish RangeKeeper paper | After the static paper MVP review, diagnose the producer-receipt failure at its exact failing stage before adding further caching/prefetch/overlap mechanisms. Complete confirmed-open booking, persisted kernel/management, pause/resume, both exits and shared UI parity under F3. | Positive owned-fork producer/default-worker booking and economic restart recovery pass under the existing freshness rules, followed by the same complete browser/release lifecycle gates. An optimized timing measurement or successful open alone does not complete F3. |
+| NEXT-2 — Finish guarded live operations | After paper milestones, continue F4 using the existing intent/receipt journal, reservations, custody preflight and recovery. | Owned-fork stage/recovery and capability-specific release gates pass. Funding, signing, broadcast and activation remain subject to the established authorization boundaries. |
+
+**MVP-2 diagnostic pointers:** `src/deployments-paper-worker.ts` runs maintenance
+before claiming operations and defaults to a 60-second loop interval.
+`src/deployments/paper-operation-worker.ts` returns a generic transient retry
+without releasing the 120-second claim; `DeploymentStore.claimNext()` excludes
+unexpired claims. These are confirmed source behaviors and possible delay
+contributors, not a confirmed explanation of the recorded timeout. Preserve
+lease ownership and exact-once completion if a fix changes retry scheduling.
+Use bounded, credential-redacted diagnostics; a new queue framework or telemetry
+platform is not needed to establish the cause.
+
+### Scope discipline and completion reporting
+
+- Defer further live-foundation expansion and RangeKeeper optimization until
+  the static milestone is reviewed. Preserve completed work for those paths.
+- Keep the deferred Research/candidate engine, custom ranges, strategy/range
+  changes, alerts, generalized infrastructure, cosmetic redesign and broad
+  refactors outside this MVP. Preserve unrelated dirty research work.
+- Reuse current harnesses and the TypeScript/PostgreSQL modular monolith.
+  Add an abstraction, cache or preparation stage only when a measured blocker
+  on the next deliverable requires it. Do not begin a cleanup rewrite.
+- Keep command authentication/CSRF, idempotency, canonical/reference checks,
+  exact arithmetic, append-only accounting, restart recovery and shared
+  dashboard parity. Missing evidence must not become zero or a paid/validated
+  claim. Do not relax expiry to make a slow preparation path pass.
+- Make the current capability table and this task list the concise status
+  summary. Keep detailed historical runs as evidence, but do not make Sol
+  reconstruct the current priority from earlier chronological next-action lists.
+- Mark MVP-5 complete only after the operator demonstration and its applicable
+  release evidence pass. Track each later capability separately; do not claim
+  the entire Research/Positions implementation or live readiness is complete.
