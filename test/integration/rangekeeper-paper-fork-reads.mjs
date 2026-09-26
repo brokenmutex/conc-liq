@@ -64,14 +64,29 @@ try{
   range:candidate.range,swapKind:candidate.swap?'direct_pool_exact_input':'none'},
   pathVersion=rangeKeeperPaperPathVersion(candidate),
   probe={status:'candidate',campaignId,revision:1,source:frame.source,candidate,candidateHash,scope,
-   pathVersion,sizeBand:rangeKeeperPaperSizeBand(pathVersion,scope),actionAvailable:false},
-  metrics=[];
- const result=await simulateRangeKeeperPaperConfirmationOnOwnedFork({probe,profile,frame,configHash,
-  initialBalances:[token0,token1],limits:config.limits,rpcUrl:archive,beforeRead:async()=>{},
-  timeoutMs:180_000,onReadDiagnostics:value=>metrics.push(value)});
+   pathVersion,sizeBand:rangeKeeperPaperSizeBand(pathVersion,scope),actionAvailable:false};
+ const baselineMetrics=[],prefetchMetrics=[];let readHints=[];
+ const simulationInput={probe,profile,frame,configHash,initialBalances:[token0,token1],limits:config.limits,
+  rpcUrl:archive,beforeRead:async()=>{},timeoutMs:180_000};
+ const baselineStarted=Date.now();
+ const baseline=await simulateRangeKeeperPaperConfirmationOnOwnedFork({...simulationInput,
+  onReadDiagnostics:value=>baselineMetrics.push(value),onReadHints:value=>{readHints=value;}});
+ const baselineMs=Date.now()-baselineStarted;
+ const prefetchedStarted=Date.now();
+ const prefetched=await simulateRangeKeeperPaperConfirmationOnOwnedFork({...simulationInput,prefetchHints:readHints,
+  onReadDiagnostics:value=>prefetchMetrics.push(value)});
+ const prefetchedMs=Date.now()-prefetchedStarted;
+ assert(readHints.length>0,'Baseline owned fork did not observe any immutable read shapes');
+ assert.equal(prefetched.ownedForkEvidence.sequenceHash,baseline.ownedForkEvidence.sequenceHash,
+  'Fresh-prefetch owned fork changed the ten-stage evidence hash');
+ assert.deepEqual(prefetched.ownedForkEvidence.stages.map(x=>x.txHash),
+  baseline.ownedForkEvidence.stages.map(x=>x.txHash),'Fresh-prefetch owned fork changed stage transaction hashes');
  process.stdout.write(JSON.stringify({event:'rangekeeper_owned_fork_read_diagnostics',
   source:frame.source,initialSourceAgeSeconds:Math.floor((frameReadAt-frame.source.timestamp*1000)/1000),
-  seconds:{sourceFrame:(frameReadAt-startedAt)/1000,ownedFork:(Date.now()-frameReadAt)/1000},
-  stageCount:result.ownedForkEvidence.stages.length,metrics:metrics[0]??null,
+  seconds:{sourceFrame:(frameReadAt-startedAt)/1000,baselineOwnedFork:baselineMs/1000,
+   prefetchedOwnedFork:prefetchedMs/1000,sourceToDone:(Date.now()-frameReadAt)/1000},
+  stageCount:prefetched.ownedForkEvidence.stages.length,baselineMetrics:baselineMetrics[0]??null,
+  prefetchMetrics:prefetchMetrics[0]??null,prefetchHintCount:readHints.length,
+  evidenceHash:prefetched.ownedForkEvidence.sequenceHash,
   chainBroadcast:false,bookingAvailable:false,actionAvailable:false})+'\n');
 }catch(error){safeError(error);}

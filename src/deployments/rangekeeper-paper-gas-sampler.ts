@@ -15,7 +15,7 @@ import type {RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js'
 import type {RangeKeeperPaperLoadedExitContext} from './rangekeeper-paper-context.js';
 import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
-import {openPaperFork,type ForkReadDiagnostics} from '../paper/fork.js';
+import {openPaperFork,type ForkReadDiagnostics,type ForkReadHint} from '../paper/fork.js';
 import {localReceipt,prestateOverrides,simulatePaperTransaction,type PaperTransaction} from '../paper/execution-gas.js';
 import {PAPER_ACCOUNT,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
 import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';
@@ -191,6 +191,7 @@ async function fundFixture(fork:Awaited<ReturnType<typeof openPaperFork>>,client
 export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGasProbeRequest,input:{
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
  onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
+ prefetchHints?:readonly ForkReadHint[];onReadHints?:(hints:readonly ForkReadHint[])=>void;
  limits:RangeKeeperLimits;initialBalances?:readonly [bigint,bigint];
  terminalContext?:RangeKeeperPaperLoadedExitContext;
 }):Promise<readonly RangeKeeperPaperGasStageSample[]>{
@@ -216,7 +217,8 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
  const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,
   timestamp:BigInt(frame.source.timestamp)};
  const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
-  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true});
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true,
+  prefetchHints:input.prefetchHints,onReadHints:input.onReadHints});
  try{
   const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0});
   const chain=new RangeKeeperChain(local,p);
