@@ -1531,6 +1531,38 @@ booking/restart fixture has not passed; no fork-value cache or relaxed expiry
 follows from this diagnostic. Confirmation production, accepted worker replay,
 both exits and shared UI parity remain F3 gates.
 
+`e69208f` adds the opt-in `test:integration:static-paper-canonical-flow`
+fixture. Its September 26 run passed canonical market-profile verification,
+actual six-stage owned-fork gas sampling and replay-attested profile import,
+authenticated loopback HTTP open admission, a spawned actual paper worker,
+a later principal-only valuation in Positions, and retain-close completion.
+The terminal stages were `paper_open_recorded` and
+`paper_close_retain_recorded`; `gas_paid` rows remained zero, while fee capture
+and paid gas remained unavailable. Deployment writes used a disposable schema.
+The draft was seeded directly; this is not a single canonical setup-to-browser
+flow, complete fee accounting, conversion proof or sealed economic-process gate.
+
+`e8973a0` passed the isolated V3 database mechanics fixture: stale-digest
+rejection, concurrent same-key admission, second-anchor failure with atomic
+rollback, booking, restarted-store replay, shared Positions terminal projection,
+and append-only reorg invalidation. Restoring the original source hash does not
+revalidate revoked economics. The fixture uses injected synthetic verifiers;
+actual canonical indexed fees, owned-fork/default-worker replay and HTTP action
+enablement remain distinct gates. It also fixes nonexistent campaign-column
+queries, the terminal model-hash binding and compatibility with both persisted
+fee-range shapes.
+
+`99e3794` keeps saved acceptance reconciliation reachable after lifecycle
+changes remove fresh-action widgets. The operator-only panel resends only the
+saved payload/key and never requests a preview. The browser lifecycle fixture
+passed 16 assertions, including deliberately lost accepted pause and retain-close
+responses, reload, same-key reconciliation after completion/closure, no duplicate
+operations or terminal mark, and desktop/mobile closed-history views. Its chain
+boundary remains synthetic. Thirteen focused recovery/rendering tests and
+typecheck passed. The latest prior combined workspace check passed 825 unit
+tests and the separate Chromium regression passed 43 checks; those runs predate
+this recovery-panel commit and do not establish an exact clean release identity.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
