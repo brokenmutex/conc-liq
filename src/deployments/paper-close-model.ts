@@ -1,6 +1,6 @@
 import {z} from 'zod';
 import {principalAmounts} from '../backtest/principal.js';
-import {staticParameters,contentHash} from './contracts.js';
+import {staticManualParameters,contentHash} from './contracts.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import {paperOpenModelSchema,type PaperOpenModel} from './paper-open-model.js';
 import type {PaperOpenFrame} from './paper-preview.js';
@@ -46,7 +46,7 @@ export function buildPaperCloseRetainModel(open:PaperOpenModel,openMarkId:string
  const deviation=poolPrice1>frame.price1?poolPrice1-frame.price1:frame.price1-poolPrice1;
  if(deviation*1_000_000n>frame.price1*BigInt(profile.referencePolicy.maxPoolDeviationPpm))
   throw Error('paper_close_independent_price_band');
- const limits=staticParameters.parse(parameters).limits;
+ const limits=staticManualParameters.parse(parameters).limits;
  if(!limits)throw Error('paper_close_limits_unavailable');
  const max=(a:bigint,b:bigint)=>a>b?a:b;
  if(BigInt(costed.costs.closeRetain.boundValue)>BigInt(limits.maxActionCost)||

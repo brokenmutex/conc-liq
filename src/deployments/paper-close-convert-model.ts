@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {z} from 'zod';
 import {principalAmounts} from '../backtest/principal.js';
-import {contentHash,staticParameters} from './contracts.js';
+import {contentHash,staticManualParameters} from './contracts.js';
 import {paperGasModelSchema,type PaperGasProfileRow} from './paper-cost.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import type {PaperOpenModel} from './paper-open-model.js';
@@ -330,7 +330,7 @@ export function buildPaperCloseConvertModel(open:PaperOpenModel,openMarkId:strin
  costsInput:unknown,now=Date.now()):PaperCloseConvertModel{
  const route=paperCloseConvertRouteSchema.parse(routeInput),
   costs=paperCloseConvertCostsSchema.parse(costsInput),
-  limits=staticParameters.parse(parameters).limits;
+  limits=staticManualParameters.parse(parameters).limits;
  if(!limits)throw Error('paper_close_convert_limits_unavailable');
  if(!frame.referenceEligible||!frame.referenceProof||!frame.price0||!frame.price1||
   !frame.nativePrice||frame.sqrtPriceX96<=0n||frame.poolLiquidity<=0n)
