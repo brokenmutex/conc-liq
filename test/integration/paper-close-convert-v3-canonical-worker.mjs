@@ -131,7 +131,14 @@ async function main(){
    imported=await store.registerPaperGasEvidence(openReport,attestation);
   phase('openGasImported',frame.source);
   assert.equal(imported.created,true);
-  draft=await store.paperDraft(draft.id);frame=await readCanonicalPaperOpenFrame(rpc,profile);
+  const openGasSource=openReport.source;
+  assert.equal(String(openGasSource.block),frame.source.block,'open gas report source block changed');
+  assert.equal(String(openGasSource.hash).toLowerCase(),frame.source.hash.toLowerCase(),
+   'open gas report source hash changed');
+  // Keep the exact sampled source and candidate scope. The cost resolver
+  // binds profiles to the source tick's range; refreshing to a new head here
+  // could move the centered range before the preview is persisted.
+  draft=await store.paperDraft(draft.id);
   indicative=buildIndicativePaperOpenPreview(draft,frame);
   const openGasRows=await store.paperGasProfiles(profile.pool.pool);
   const costed=costIndicativePaperOpenPreview(indicative,
