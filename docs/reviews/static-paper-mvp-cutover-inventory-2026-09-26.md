@@ -122,3 +122,143 @@ reading their values into output, read-only PostgreSQL transactions, and
 timestamped local state-file metadata/selected non-secret fields. No RPC call,
 database mutation, migration, service action, signer access or broadcast was
 performed.
+
+## Candidate static-paper cutover proposal — 2026-09-26
+
+This is a proposed sequence for a later, explicitly approved paper-only
+cutover. It is not an executed change, and every release-dependent command
+below remains unproven until the clean sealed MVP-5 gates pass and supply an
+exact build ID and source commit. The production authorization boundary above
+still applies. The proposed private runtime environment file is
+`/root/conc-liq/data/static-paper-mvp-runtime.env`; it has not been created.
+
+The proposal targets the current `public` schema at versions 1–3, with v1
+already recorded as `verified_baseline`. The candidate release's migration
+command must therefore apply versions 4–11 without `--baseline`. Before that,
+the operator must establish fresh custody/ownership for predecessor campaigns,
+resolve the current database and campaign visibility gap, and verify that the
+old dashboard and any other retained readers tolerate schema 11. No predecessor
+execution owner may be stopped, adopted or hidden on the basis of the inactive
+unit sample alone.
+
+After MVP-5 produces its clean commit, build and capture its JSON build result
+from that exact checkout:
+
+```sh
+PATH=/root/conc-liq/.tools/node/bin:$PATH npm run release:build -- /root/conc-liq/releases
+```
+
+Set `BUILD_ID` and `RELEASE` from the returned `buildId` and release path; do
+not infer either from a directory name or current checkout state. Verify the
+artifact with its own pinned Node:
+
+```sh
+"$RELEASE/bin/node" "$RELEASE/launch.mjs" --verify
+```
+
+Before rendering, prepare the private environment file through the approved
+secret/configuration process with mode 0600 and owner `root`. It must contain
+the reviewed loopback command origin, operator password hash, database and
+read-only RPC configuration, registered-profile/indexer identity, and the
+explicit line `DEPLOYMENT_PAPER_OPERATION_WORKER=1`. This flag is required:
+`launch.mjs` strips inherited application environment values and constructs
+`CONC_LIQ_RUNTIME_IDENTITY.configHash` from this private file. A rendered
+systemd `Environment=` value would be stripped before worker startup and would
+not be part of that identity. The renderer leaves the worker flag to the
+private file. Do not print the file or its secret values; record only its path
+and a separately captured SHA-256.
+
+Create a database backup before migration using the approved secure mechanism
+to populate `DATABASE_URL` in the protected operator shell, then run:
+
+```sh
+umask 077
+pg_dump --format=custom --no-owner --no-privileges \
+  --file="$BACKUP_FILE" --dbname="$DATABASE_URL"
+pg_restore --list "$BACKUP_FILE" >/dev/null
+```
+
+Record the backup path, size, timestamp and SHA-256. Confirm the target identity
+and registered baseline using read-only queries before proceeding. Once the
+exact production migration is separately approved, apply it using the release
+launcher and private environment file; do not pass `--baseline`:
+
+```sh
+"$RELEASE/bin/node" "$RELEASE/launch.mjs" \
+  /root/conc-liq/data/static-paper-mvp-runtime.env migrate
+```
+
+Then verify `schema_migrations` contains the expected sequential versions
+through 11 and run the store's actual read-only schema check with the pinned
+Node and the private environment file (this does not migrate):
+
+```sh
+(cd "$RELEASE" && "$RELEASE/bin/node" --input-type=module - \
+  /root/conc-liq/data/static-paper-mvp-runtime.env <<'NODE'
+import {readFileSync} from 'node:fs';
+import {parseEnv} from 'node:util';
+import {DeploymentStore} from './dist/src/deployments/store.js';
+const env=parseEnv(readFileSync(process.argv[2],'utf8'));
+const store=new DeploymentStore(env.DATABASE_URL);
+try { await store.assertReady(); process.stdout.write('deployment_schema_ready\n'); }
+finally { await store.close(); }
+NODE
+)
+```
+
+Register only a reviewed supported market profile, if it is absent, using the sealed
+release CLI and the separately protected profile file:
+
+```sh
+"$RELEASE/bin/node" "$RELEASE/launch.mjs" \
+  /root/conc-liq/data/static-paper-mvp-runtime.env \
+  deployments-profile-register /secure/operator-input/profile.json
+```
+
+Capture only the returned profile ID/hash and verification class. Once the
+command service is approved and started, verify that exact profile through its
+authenticated read-only `GET /api/market-profiles` response before any setup.
+The registration command verifies canonical chain and independent-reference
+evidence but performs a database registration write, so it is an explicitly
+gated cutover action, not a preflight read.
+
+Render and validate the candidate unit files without installing or starting
+them:
+
+```sh
+PATH=/root/conc-liq/.tools/node/bin:$PATH \
+  node scripts/render-release-units.mjs "$RELEASE" \
+  /root/conc-liq/data/static-paper-mvp-runtime.env "$UNIT_STAGE"
+systemd-analyze verify "$UNIT_STAGE"/*.service "$UNIT_STAGE"/*.timer
+```
+
+Review the rendered `ExecStart`, absolute release and environment paths,
+loopback binding, restart policy, and worker's private-file flag requirement.
+Only after separate authorization for these exact service changes, install
+the two rendered deployment-command and paper-operation-worker units, run
+`systemctl daemon-reload`, enable/start the operation worker, then the command
+service, and verify both active process identities. `/healthz` is only a
+liveness response; authenticate to the loopback origin and verify the
+registered profile ID/hash in `GET /api/market-profiles`. Separately verify
+the actual worker lease using this read-only query, with `DATABASE_URL` loaded
+through the approved protected mechanism:
+
+```sh
+psql "$DATABASE_URL" -XAtqc "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND database=(SELECT oid FROM pg_database WHERE datname=current_database()) AND classid=4663::oid AND objid=18728::oid AND objsubid=2 AND mode='ShareLock' AND granted)"
+```
+
+Require `t`; an active unit or `/healthz` alone is not worker readiness. Leave
+public dashboard, tail, RPC-health,
+live-pilot and RangeKeeper services unchanged unless a separate reviewed action
+authorizes otherwise.
+
+Rollback is conditional on execution ownership and schema compatibility. Before
+any accepted operation, a failed startup may be rolled back to the captured
+prior unit/config state only after checking the old readers against schema 11.
+After any accepted operation exists, do not simply stop the worker or restore
+the pre-migration database: keep a compatible pinned worker available to
+reconcile the same operation, preserve every post-upgrade journal row, and
+choose a forward-compatible release or explicitly rehearse a full restore with
+ownership established. If old execution ownership is still unknown, rollback
+and campaign adoption remain blocked. None of these proposal commands were run
+as part of this inventory.

@@ -81,6 +81,17 @@ before preparing concrete installation
 and migration commands. Run the applicable integration, restore, economic
 recovery and canonical browser gates against that same artifact.
 
+The supervised paper worker is opt-in. Put the explicit setting
+`DEPLOYMENT_PAPER_OPERATION_WORKER=1` in the private runtime environment file
+used by the rendered command and worker units. `launch.mjs` strips inherited
+application environment variables and hashes only values from that file into
+the runtime config identity, so a systemd `Environment=` override is ignored
+and cannot enable the worker. Keep the flag in the file and verify its
+mode/ownership without printing its contents. After startup, `/healthz` proves
+only command-server liveness; check authenticated `GET /api/market-profiles`
+for the registered profile and inspect the actual worker advisory lease in
+PostgreSQL before treating worker readiness as established.
+
 The canonical browser commands are
 `test:integration:static-paper-canonical-retain-browser:sealed`,
 `test:integration:static-paper-canonical-convert-browser:sealed` and

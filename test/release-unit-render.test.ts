@@ -29,7 +29,7 @@ it('renders loopback command API and supervised operation worker against one sea
   assert.match(command,/Restart=on-failure/);
   assert.doesNotMatch(command,/npm run|\/root\/conc-liq\/\.tools\/node/);
   const worker=readFileSync(join(output,'conc-liq-paper-operation-worker.service'),'utf8');
-  assert.match(worker,/Environment=DEPLOYMENT_PAPER_OPERATION_WORKER=1/);
+  assert.doesNotMatch(worker,/Environment=DEPLOYMENT_PAPER_OPERATION_WORKER=1/);
   assert.match(worker,/ExecStart=.*\/release\/bin\/node .*\/release\/launch\.mjs .*private-runtime\.env deployments-paper-worker$/m);
   assert.match(worker,/Restart=on-failure/);
   assert.match(worker,/KillMode=control-group/);
