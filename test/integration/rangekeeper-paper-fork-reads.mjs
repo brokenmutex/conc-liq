@@ -13,6 +13,10 @@ import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPap
  from '../../src/deployments/rangekeeper-paper-cost.ts';
 import {simulateRangeKeeperPaperConfirmationOnOwnedFork} from
  '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
+import {consumeTrustedRangeKeeperSimulation} from
+ '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
+import {consumeRangeKeeperSimulationWithAnchors} from
+ '../../src/deployments/rangekeeper-paper-confirmation-producer.ts';
 
 // RPC-only diagnostic for the exact RangeKeeper confirmation fork runner. It
 // uses a pinned canonical frame and a fresh local Anvil process; no DB, signer,
@@ -66,7 +70,8 @@ try{
   probe={status:'candidate',campaignId,revision:1,source:frame.source,candidate,candidateHash,scope,
    pathVersion,sizeBand:rangeKeeperPaperSizeBand(pathVersion,scope),actionAvailable:false};
  const baselineMetrics=[],prefetchMetrics=[];let readHints=[];
- const simulationInput={probe,profile,frame,configHash,initialBalances:[token0,token1],limits:config.limits,
+ const simulationInput={probe,profile,frame,configHash,initialBalances:[token0,token1],
+  allocation:{token0Raw:String(token0),token1Raw:String(token1),nativeWei:String(nativeWei)},limits:config.limits,
   rpcUrl:archive,beforeRead:async()=>{},timeoutMs:180_000};
  const baselineStarted=Date.now();
  const baseline=await simulateRangeKeeperPaperConfirmationOnOwnedFork({...simulationInput,
@@ -81,12 +86,53 @@ try{
   'Fresh-prefetch owned fork changed the ten-stage evidence hash');
  assert.deepEqual(prefetched.ownedForkEvidence.stages.map(x=>x.txHash),
   baseline.ownedForkEvidence.stages.map(x=>x.txHash),'Fresh-prefetch owned fork changed stage transaction hashes');
+ assert(Object.isFrozen(prefetched)&&Object.isFrozen(prefetched.ownedForkEvidence)&&
+  Object.isFrozen(prefetched.ownedForkEvidence.stages),'Owned simulation capability is mutable');
+ assert.throws(()=>{prefetched.ownedForkEvidence.stages[0].calldata='0x1234';},
+  'Owned simulation evidence mutation was not blocked');
+ const capabilityContext={probe,profile,frame,configHash,
+  allocation:{token0Raw:String(token0),token1Raw:String(token1),nativeWei:String(nativeWei)},limits:config.limits};
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:structuredClone(prefetched),
+  context:capabilityContext}),null,'Serialized simulation was accepted as a capability');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,configHash:'f'.repeat(64)}}),null,'Cross-config capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,allocation:{...capabilityContext.allocation,nativeWei:'1'}}}),null,
+  'Cross-allocation capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,limits:{...config.limits,maxSlippageBps:config.limits.maxSlippageBps-1}}}),null,
+  'Cross-limits capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,profile:{...profile,pool:{...profile.pool,fee:profile.pool.fee+1}}}}),null,
+  'Cross-profile capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,frame:{...frame,referenceProof:{tampered:true}}}}),null,
+  'Capability accepted a changed proof body');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,
+  context:{...capabilityContext,frame:{...frame,referenceEligible:false}}}),null,
+  'Capability accepted an ineligible reference frame');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:prefetched,context:capabilityContext,
+  now:probe.candidate.expiresAt*1000}),null,'Expired capability was accepted');
+ const verifySource=async()=>{
+  const block=await client.getBlock({blockNumber:BigInt(frame.source.block)});
+  assert.equal(block.hash?.toLowerCase(),frame.source.hash.toLowerCase());
+  assert.equal(Number(block.timestamp),frame.source.timestamp);
+ };
+ assert.equal(await consumeRangeKeeperSimulationWithAnchors({simulation:prefetched,context:capabilityContext,
+  verifySource}),prefetched,'Exact source-bound simulation capability was not consumed');
+ let anchorChecks=0;
+ await assert.rejects(consumeRangeKeeperSimulationWithAnchors({simulation:baseline,context:capabilityContext,
+  verifySource:async()=>{anchorChecks++;if(anchorChecks===2)throw new Error('pinned source reorged during consume');}}),
+  /pinned source reorged during consume/);
+ assert.equal(anchorChecks,2);
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:baseline,context:capabilityContext}),null,
+  'Capability survived a failed post-consumption source anchor');
  process.stdout.write(JSON.stringify({event:'rangekeeper_owned_fork_read_diagnostics',
   source:frame.source,initialSourceAgeSeconds:Math.floor((frameReadAt-frame.source.timestamp*1000)/1000),
   seconds:{sourceFrame:(frameReadAt-startedAt)/1000,baselineOwnedFork:baselineMs/1000,
    prefetchedOwnedFork:prefetchedMs/1000,sourceToDone:(Date.now()-frameReadAt)/1000},
   stageCount:prefetched.ownedForkEvidence.stages.length,baselineMetrics:baselineMetrics[0]??null,
   prefetchMetrics:prefetchMetrics[0]??null,prefetchHintCount:readHints.length,
-  evidenceHash:prefetched.ownedForkEvidence.sequenceHash,
+  evidenceHash:prefetched.ownedForkEvidence.sequenceHash,simulationCapabilityConsumedOnce:true,
   chainBroadcast:false,bookingAvailable:false,actionAvailable:false})+'\n');
 }catch(error){safeError(error);}

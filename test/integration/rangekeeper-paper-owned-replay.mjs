@@ -7,8 +7,10 @@ import {marketProfileSchema} from '../../src/deployments/market-profile.js';
 import {resolveRangeKeeperPaperPolicy} from '../../src/deployments/rangekeeper-paper-open-model.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand}
  from '../../src/deployments/rangekeeper-paper-cost.js';
-import {simulateRangeKeeperPaperConfirmationOnOwnedFork}
+import {consumeTrustedRangeKeeperSimulation,simulateRangeKeeperPaperConfirmationOnOwnedFork}
  from '../../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {consumeRangeKeeperSimulationWithAnchors} from
+ '../../src/deployments/rangekeeper-paper-confirmation-producer.js';
 import {isRangeKeeperPaperConfirmationReplayCapability,replayRangeKeeperPaperConfirmationOnOwnedFork}
  from '../../src/deployments/rangekeeper-paper-confirmation-replay-verifier.js';
 import {validateRangeKeeperPaperConfirmationEnvelope}
@@ -160,9 +162,26 @@ try{
   candidate,candidateHash,scope,pathVersion,sizeBand:rangeKeeperPaperSizeBand(pathVersion,scope),actionAvailable:false};
  const simulate=(readDelayMs)=>simulateRangeKeeperPaperConfirmationOnOwnedFork({probe,profile,frame:evidenceFrame,
   configHash:draft.configHash,initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
+  allocation:draft.allocation,
   limits,rpcUrl:archive,beforeRead:async()=>{if(readDelayMs)await new Promise(resolve=>setTimeout(resolve,readDelayMs));},
   timeoutMs:180_000});
  const firstReplay=await simulate(0),secondReplay=await simulate(17);
+ const capabilityContext={probe,profile,frame:evidenceFrame,configHash,allocation:draft.allocation,limits};
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:structuredClone(firstReplay),
+  context:capabilityContext}),null,'Serialized owned-fork capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:firstReplay,
+  context:{...capabilityContext,configHash:'9'.repeat(64)}}),null,'Cross-config capability was accepted');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:firstReplay,context:capabilityContext}),firstReplay,
+  'Exact owned-fork capability could not be consumed');
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:firstReplay,context:capabilityContext}),null,
+  'Owned-fork capability was reusable more than once');
+ let anchorChecks=0;
+ await assert.rejects(consumeRangeKeeperSimulationWithAnchors({simulation:secondReplay,context:capabilityContext,
+  verifySource:async()=>{anchorChecks++;if(anchorChecks===2)throw new Error('source reorg during capability consume');}}),
+  /source reorg during capability consume/);
+ assert.equal(anchorChecks,2);
+ assert.equal(consumeTrustedRangeKeeperSimulation({simulation:secondReplay,context:capabilityContext}),null,
+  'Reorged capability remained reusable');
  const evidenceDiff=differingPaths(firstReplay.ownedForkEvidence,secondReplay.ownedForkEvidence);
  if(evidenceDiff.length)process.stderr.write(`fork-evidence-diff=${evidenceDiff.slice(0,30).join(',')}\n`);
  assert.equal(contentHash(firstReplay.ownedForkEvidence),contentHash(secondReplay.ownedForkEvidence),

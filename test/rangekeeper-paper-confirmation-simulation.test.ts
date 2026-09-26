@@ -2,19 +2,23 @@ import assert from 'node:assert/strict';
 import {describe,it} from 'node:test';
 import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {consumeTrustedRangeKeeperSimulation} from
+ '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES} from '../src/deployments/rangekeeper-paper-cost.js';
+import {referenceProofHash} from '../src/deployments/market-profile.js';
 import type {RangeKeeperPaperConfirmationProbe} from '../src/deployments/rangekeeper-paper-confirmation.js';
 import type {RangeKeeperPaperGasStageSample} from '../src/deployments/rangekeeper-paper-gas-evidence.js';
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 
 const hash=(n:string)=>`0x${n.repeat(64)}`;
 const source={block:'200',hash:hash('1'),timestamp:1_800_000_000};
+const referenceProof={fixture:'independent-reference'};
 const frame:PaperOpenFrame={source,tick:0,sqrtPriceX96:1n<<96n,poolLiquidity:1000n,
  price0:1n,price1:1n,nativePrice:1n,referenceEligible:true,referenceReasons:[],
- referenceProofHash:'a'.repeat(64),referenceProof:{fixture:'independent-reference'}};
+ referenceProofHash:referenceProofHash(referenceProof),referenceProof};
 const campaignId='a07d7ca2-1098-4e21-8a4d-c2732218d73a',configHash='f'.repeat(64),profileHash='e'.repeat(64),
  candidate={kind:'entry' as const,
  range:{tickLower:-10,tickUpper:10},swap:null,amount0Desired:10n,amount1Desired:10n,
@@ -62,5 +66,13 @@ describe('RangeKeeper owned-fork confirmation simulation evidence',()=>{
   assert.throws(()=>verifyRangeKeeperPaperOwnedForkConfirmationEvidence(tampered,expected));
   assert.throws(()=>verifyRangeKeeperPaperOwnedForkConfirmationEvidence(evidence,
    {...expected,campaignId:'d7ee3ef7-f665-40d0-869e-a4e35ed4d907'}));
+ });
+ it('does not accept forged or serialized simulation evidence as an in-process capability',()=>{
+  const fake={status:'success',sourceBlock:source.block,sourceHash:source.hash,
+   candidateHash:probe.candidateHash,simulationHash:hash('2'),
+   ownedForkEvidence:buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,configHash,samples:samples()})};
+  assert.equal(consumeTrustedRangeKeeperSimulation({simulation:fake as never,context:{} as never}),null);
+  const clone=structuredClone(fake);
+  assert.equal(consumeTrustedRangeKeeperSimulation({simulation:clone as never,context:{} as never}),null);
  });
 });

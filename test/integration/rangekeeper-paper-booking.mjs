@@ -129,18 +129,19 @@ try{
     deployedValue:candidate.deployedValue,sharePpm:candidate.liquidity*1_000_000n/denominator,
     range:candidate.range,swapKind:candidate.swap?'direct_pool_exact_input':'none'};
   };
-  const samplesFrom=async(frame,candidate,scope,firstCandidateHash='0'.repeat(64),prefetchHints,saveHints)=>{
+  const samplesFrom=async(frame,candidate,scope,firstCandidateHash='0'.repeat(64),prefetchHints,saveHints,saveSimulation)=>{
    const pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope),
     probe={status:'candidate',campaignId,revision:1,firstModelHash:'0'.repeat(64),firstCandidateHash,
      source:frame.source,candidate,candidateHash:scope.candidateHash,scope,pathVersion,sizeBand,
      actionAvailable:false},
     simulation=await simulateRangeKeeperPaperConfirmationOnOwnedFork({probe,profile,frame,
      configHash:draft.configHash,initialBalances:[BigInt(draft.allocation.token0Raw),
-      BigInt(draft.allocation.token1Raw)],limits:policy.policy.limits,rpcUrl:archive,
+      BigInt(draft.allocation.token1Raw)],allocation:draft.allocation,limits:policy.policy.limits,rpcUrl:archive,
      beforeRead:async()=>{},timeoutMs:180_000,onReadDiagnostics:metrics=>{
       forkReadMetrics.push(metrics);process.stdout.write(JSON.stringify({event:'rangekeeper_owned_fork_reads',
        source:{block:frame.source.block,hash:frame.source.hash},metrics})+'\n');
-      },prefetchHints,onReadHints:saveHints});
+     },prefetchHints,onReadHints:saveHints});
+   saveSimulation?.(simulation);
    return simulation.ownedForkEvidence.stages.map(stage=>({action:stage.stage,to:stage.to,
     calldata:stage.calldata,returnData:stage.returnData,localHash:stage.localTransactionHash,
     localGasUsed:stage.gasUsed,localEffectiveGasPriceWei:stage.effectiveGasPriceWei,
@@ -148,8 +149,8 @@ try{
     stateOverrideHash:stage.stateOverrideHash,stateOverrides:stage.stateOverrides}));
   };
   const makeReport=async(frame,candidate,scope,candidateSource,referenceProofHashValue,firstCandidateHash,
-   prefetchHints,saveHints)=>{
-   const samples=await samplesFrom(frame,candidate,scope,firstCandidateHash,prefetchHints,saveHints);
+   prefetchHints,saveHints,saveSimulation)=>{
+   const samples=await samplesFrom(frame,candidate,scope,firstCandidateHash,prefetchHints,saveHints,saveSimulation);
    return produceRangeKeeperPaperGasEvidence({kind:'open',campaignId,revision:1,
     configHash:draft.configHash,buildId,profile,frame,candidateSource,
     candidateReferenceProofHash:referenceProofHashValue,candidate,openMarkId:null,openModelHash:null,
@@ -158,13 +159,23 @@ try{
   };
   const register=async(report,replay)=>store.registerRangeKeeperPaperGasEvidence({report,client:rpc,
    replayPersistedContext:replay});
+  const primeStartedAt=Date.now(),primeFrame=await sourceFrame(),primePlanStartedAt=Date.now(),
+   primePlan=await planOpen(primeFrame),primePlanFinishedAt=Date.now();
+  assert.equal(primePlan.action,'confirm',`Prime candidate unavailable: ${primePlan.reason}`);
+  assert(primePlan.candidate,'Prime candidate missing');
+  let primedReadHints=[];
+  const primeScope=scopeFor(primeFrame,primePlan.candidate);
+  await samplesFrom(primeFrame,primePlan.candidate,primeScope,'0'.repeat(64),undefined,
+   hints=>{primedReadHints=hints;});
+  const primeFinishedAt=Date.now();
+  assert(primedReadHints.length>0,'No code/storage request shapes observed during the prime report');
   const firstFrameReadStartedAt=Date.now(),firstFrame=await sourceFrame(),firstCapturedAt=Date.now(),
    firstPlanStartedAt=Date.now(),firstPlan=await planOpen(firstFrame),firstPlanFinishedAt=Date.now();
   assert.equal(firstPlan.action,'confirm',`First candidate unavailable: ${firstPlan.reason}`);
   assert(firstPlan.candidate,'First candidate unavailable');
   let firstReportFinishedAt=0,secondFrameCapturedAt=0,firstReadHints=[];
   const firstScope=scopeFor(firstFrame,firstPlan.candidate),firstReportStartedAt=Date.now(),firstReportPromise=makeReport(firstFrame,
-   firstPlan.candidate,firstScope,firstFrame.source,firstFrame.referenceProofHash,'0'.repeat(64),undefined,
+   firstPlan.candidate,firstScope,firstFrame.source,firstFrame.referenceProofHash,'0'.repeat(64),primedReadHints,
    hints=>{firstReadHints=hints;}).then(report=>{
     firstReportFinishedAt=Date.now();return report;
    }),
@@ -210,7 +221,7 @@ try{
   assert(firstCandidate,'First model candidate missing');
   const previewExpiry=new Date(firstCandidate.expiresAt*1000);
   assert(previewExpiry.getTime()>Date.now()+10_000,
-   `First source preview expired after first report: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, finalSourceAge=${Math.floor((Date.now()-firstFrame.source.timestamp*1000)/1000)}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, pinnedQuoteMetrics=${JSON.stringify(quoteCache.metrics())}`);
+   `First source preview expired after first report: primeFrameRead=${(primePlanStartedAt-primeStartedAt)/1000}s, primePlan=${(primePlanFinishedAt-primePlanStartedAt)/1000}s, primeFork=${(primeFinishedAt-primePlanFinishedAt)/1000}s, initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${Math.floor((Date.now()-firstFrame.source.timestamp*1000)/1000)}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, prefetchHints=${primedReadHints.length}, pinnedQuoteMetrics=${JSON.stringify(quoteCache.metrics())}`);
 
   const gap=secondFrame.source.timestamp-firstFrame.source.timestamp;
   assert(gap>=30&&gap<=policy.policy.limits.maxObservationGapSeconds,'Second source gap violated frozen policy');
@@ -219,9 +230,11 @@ try{
    marketGasPriceObservedAt:Date.now(),simulate:async()=>{throw Error('probe-only must not simulate')},
    pinnedQuoteCache:quoteCache,probeOnly:true}),secondPlanFinishedAt=Date.now();
   assert.equal(secondPlanResult?.status,'candidate','Fresh second observation did not confirm the candidate');
+  let secondOwnedSimulation;
   const secondCandidate=secondPlanResult.candidate,secondScope=secondPlanResult.scope,
    secondReportStartedAt=Date.now(),secondReport=await makeReport(secondFrame,secondCandidate,secondScope,secondFrame.source,
-    secondFrame.referenceProofHash,firstPlan.candidateHash??firstScope.candidateHash,firstReadHints),
+    secondFrame.referenceProofHash,firstPlan.candidateHash??firstScope.candidateHash,firstReadHints,undefined,
+    simulation=>{secondOwnedSimulation=simulation;}),
    secondReportFinishedAt=Date.now();
   const secondImportStartedAt=Date.now();
   await register(secondReport,async({report,frame})=>{
@@ -235,6 +248,8 @@ try{
   });
   const secondImportFinishedAt=Date.now(),sourceAge=()=>Math.floor((Date.now()-firstFrame.source.timestamp*1000)/1000);
   process.stdout.write(JSON.stringify({event:'rangekeeper_paper_preview_timing',
+   prime:{frameRead:(primePlanStartedAt-primeStartedAt)/1000,plan:(primePlanFinishedAt-primePlanStartedAt)/1000,
+    ownedFork:(primeFinishedAt-primePlanFinishedAt)/1000,hintCount:primedReadHints.length},
    initialSourceAge:Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000),
    phaseSeconds:{firstFrameRead:(firstCapturedAt-firstFrameReadStartedAt)/1000,
     firstPlan:(firstPlanFinishedAt-firstPlanStartedAt)/1000,
@@ -250,13 +265,16 @@ try{
   // source-bound gas sampling above. Its expiry remains the planner's original
   // 90-second candidate deadline; the test never extends it.
   assert(previewExpiry.getTime()>Date.now()+10_000,
-   `First source preview expired before persistence: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
+   `First source preview expired before persistence: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
   const preview=await store.recordPreview({campaignId,expectedRevision:1,kind:'open',
    request:{kind:'open',source:firstFrame.source},proposal:{rangekeeperPaperOpenModel:firstModel},
    evidence:{classification:'rangekeeper_paper_open_model_v1'},expiresAt:previewExpiry});
   const producerStartedAt=Date.now(),producerMetrics=[];
   const producer=createRangeKeeperPaperConfirmationProducer({store,client:rpc,rpcUrl:archive,
-   beforeRead:async()=>{},readCanonicalFrame:async()=>secondFrame,prefetchHints:firstReadHints,
+   beforeRead:async()=>{},readCanonicalFrame:async(_client,receivedProfile)=>
+    readRangeKeeperPaperConfirmationFrame({client:rpc,profile:receivedProfile,saved:secondFrame}),
+   prefetchHints:firstReadHints,
+   reusableSimulation:secondOwnedSimulation,
    onReadDiagnostics:metrics=>{producerMetrics.push(metrics);forkReadMetrics.push(metrics);}});
   const envelope=await producer(campaignId);
   const producerFinishedAt=Date.now();

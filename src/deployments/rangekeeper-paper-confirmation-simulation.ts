@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {keccak256,stringToHex} from 'viem';
 import {z} from 'zod';
 import type {RangeKeeperLimits,RangeKeeperCandidate} from '../strategy/rangekeeper/domain.js';
-import type {MarketProfile} from './market-profile.js';
+import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import {contentHash} from './contracts.js';
 import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
  RANGEKEEPER_PAPER_OPEN_STAGES_SWAP,RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES}
@@ -27,6 +27,58 @@ export interface RangeKeeperPaperOwnedForkConfirmationEvidence {
 }
 export type RangeKeeperPaperConfirmationCandidateBinding=Pick<RangeKeeperPaperConfirmationProbe,
  'status'|'campaignId'|'revision'|'source'|'candidate'|'candidateHash'|'scope'|'pathVersion'|'sizeBand'|'actionAvailable'>;
+export interface RangeKeeperPaperSimulationCapabilityContext {
+ probe:RangeKeeperPaperConfirmationCandidateBinding;profile:MarketProfile;frame:PaperOpenFrame;
+ configHash:string;allocation:{token0Raw:string;token1Raw:string;nativeWei:string};limits:RangeKeeperLimits;
+}
+const trustedSimulationCapabilities=new WeakMap<object,{bindingHash:string;evidenceHash:string;consumed:boolean}>();
+function canonicalHash(value:unknown){return contentHash(JSON.parse(JSON.stringify(value,(_key,item)=>
+ typeof item==='bigint'?String(item):item)));}
+function capabilityBindingHash(context:RangeKeeperPaperSimulationCapabilityContext){
+ const {probe,profile,frame,configHash,allocation,limits}=context;
+ assert(frame.referenceEligible&&frame.referenceProof&&
+  referenceProofHash(frame.referenceProof)===frame.referenceProofHash,
+  'Simulation capability frame reference proof is invalid');
+ return canonicalHash({campaignId:probe.campaignId,revision:probe.revision,configHash,
+  profileHash:contentHash(profile),allocation,limits,source:frame.source,
+  frame:{referenceEligible:frame.referenceEligible,referenceReasons:frame.referenceReasons,
+   referenceProofHash:frame.referenceProofHash,tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),
+   poolLiquidity:String(frame.poolLiquidity),price0:frame.price0===null?null:String(frame.price0),
+   price1:frame.price1===null?null:String(frame.price1),nativePrice:frame.nativePrice===null?null:String(frame.nativePrice)},
+  candidateHash:probe.candidateHash,candidate:serializeCandidate(probe.candidate),scope:probe.scope,
+  pathVersion:probe.pathVersion,sizeBand:probe.sizeBand});
+}
+function freezeDeep<T>(value:T):T{
+ if(value&&typeof value==='object'&&!Object.isFrozen(value)){
+  Object.freeze(value);for(const child of Object.values(value as Record<string,unknown>))freezeDeep(child);
+ }
+ return value;
+}
+
+/** Consumes an in-process capability issued only by the owned-fork runner.
+ * It cannot be reconstructed from serialized evidence and is one-shot. */
+export function consumeTrustedRangeKeeperSimulation(input:{simulation:RangeKeeperPaperConfirmationSimulation&{
+ ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence};context:RangeKeeperPaperSimulationCapabilityContext;
+ now?:number}):RangeKeeperPaperConfirmationSimulation&{
+ ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}|null{
+ const {simulation,context}=input,record=trustedSimulationCapabilities.get(simulation as object),now=input.now??Date.now();
+ let validProof=false;
+ try{validProof=!!context.frame.referenceEligible&&!!context.frame.referenceProof&&
+  referenceProofHash(context.frame.referenceProof)===context.frame.referenceProofHash;}catch{return null;}
+ if(!record||record.consumed||!validProof||
+  now>=context.probe.candidate.expiresAt*1000||
+  now<context.frame.source.timestamp*1000||now-context.frame.source.timestamp*1000>180_000||
+  record.bindingHash!==capabilityBindingHash(context))return null;
+ let evidenceHash:string;
+ try{evidenceHash=contentHash(simulation.ownedForkEvidence);}catch{return null;}
+ if(evidenceHash!==record.evidenceHash||simulation.status!=='success'||
+  simulation.simulationHash!==simulation.ownedForkEvidence.sequenceHash||
+  simulation.sourceBlock!==context.frame.source.block||
+  simulation.sourceHash.toLowerCase()!==context.frame.source.hash.toLowerCase()||
+  simulation.candidateHash!==context.probe.candidateHash)return null;
+ record.consumed=true;
+ return simulation;
+}
 const evmHash=z.string().regex(/^0x[0-9a-fA-F]{64}$/),hash64=z.string().regex(/^[a-f0-9]{64}$/),
  raw=z.string().regex(/^(0|[1-9][0-9]*)$/),
  candidateSchema=z.object({kind:z.enum(['entry','recenter']),range:z.object({tickLower:z.number().int(),
@@ -96,7 +148,8 @@ export function buildRangeKeeperPaperOwnedForkConfirmationEvidence(input:{
  assert.equal(probe.candidateHash,probe.scope.candidateHash);
  assert(/^[a-f0-9]{64}$/.test(input.configHash));
  assert(frame.referenceEligible&&frame.referenceProof&&frame.price0!==null&&frame.price1!==null&&
-  frame.nativePrice!==null,'Pinned fork simulation frame is missing independent references');
+  frame.nativePrice!==null&&referenceProofHash(frame.referenceProof)===frame.referenceProofHash,
+  'Pinned fork simulation frame is missing independent references');
  const stages=[...(probe.candidate.swap?RANGEKEEPER_PAPER_OPEN_STAGES_SWAP:
   RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP),...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES];
  assert.equal(samples.length,stages.length,'Owned-fork simulation stage count differs from the frozen path');
@@ -134,6 +187,7 @@ export function buildRangeKeeperPaperOwnedForkConfirmationEvidence(input:{
 export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
  probe:RangeKeeperPaperConfirmationCandidateBinding;profile:MarketProfile;frame:PaperOpenFrame;
  configHash:string;initialBalances:readonly [bigint,bigint];limits:RangeKeeperLimits;
+ allocation:{token0Raw:string;token1Raw:string;nativeWei:string};
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
  onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
  prefetchHints?:readonly ForkReadHint[];onReadHints?:(hints:readonly ForkReadHint[])=>void;
@@ -141,6 +195,8 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
  ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}>{
  const {probe,profile,frame}=input;
  assert(/^[a-f0-9]{64}$/.test(input.configHash));
+ assert.equal(input.allocation.token0Raw,String(input.initialBalances[0]));
+ assert.equal(input.allocation.token1Raw,String(input.initialBalances[1]));
  assert.equal(probe.scope.profileHash,contentHash(profile));
  assert.equal(probe.scope.poolAddress.toLowerCase(),profile.pool.pool.toLowerCase());
  assert.equal(probe.source.block,frame.source.block);
@@ -160,6 +216,10 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
   limits:input.limits,initialBalances:input.initialBalances});
  const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,
   configHash:input.configHash,samples});
- return {status:'success',sourceBlock:frame.source.block,sourceHash:frame.source.hash,
+ const result={status:'success' as const,sourceBlock:frame.source.block,sourceHash:frame.source.hash,
   candidateHash,simulationHash:evidence.sequenceHash,ownedForkEvidence:evidence};
+ freezeDeep(result);
+ trustedSimulationCapabilities.set(result,{bindingHash:capabilityBindingHash(input),
+  evidenceHash:contentHash(evidence),consumed:false});
+ return result;
 }

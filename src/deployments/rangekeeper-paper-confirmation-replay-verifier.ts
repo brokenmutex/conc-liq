@@ -109,7 +109,7 @@ export async function replayRangeKeeperPaperConfirmationOnOwnedFork(input:{
  const replay=await (dependencies.runOwnedFork??simulateRangeKeeperPaperConfirmationOnOwnedFork)({probe,
   profile:draft.profile,frame,configHash:draft.configHash,
   initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
-  limits:policy.policy.limits,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+  allocation:draft.allocation,limits:policy.policy.limits,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
   maxRequests:input.maxRequests,timeoutMs:input.timeoutMs});
  assert.equal(replay.status,'success');
  assert.equal(replay.sourceBlock,envelope.decision.simulation.sourceBlock);

@@ -7,12 +7,16 @@ import {verifyCanonicalPaperAnchors} from './paper-canonical-anchors.js';
 import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangekeeper-paper-open-model.js';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  type RangeKeeperPaperCandidateScope} from './rangekeeper-paper-cost.js';
-import {simulateRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-simulation.js';
+import {consumeTrustedRangeKeeperSimulation,simulateRangeKeeperPaperConfirmationOnOwnedFork,
+ type RangeKeeperPaperConfirmationCandidateBinding,type RangeKeeperPaperSimulationCapabilityContext}
+ from './rangekeeper-paper-confirmation-simulation.js';
+import type {RangeKeeperPaperOwnedForkConfirmationEvidence}
+ from './rangekeeper-paper-confirmation-simulation.js';
 import type {ForkReadDiagnostics,ForkReadHint} from '../paper/fork.js';
 import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
-import type {RangeKeeperPaperConfirmationCandidateBinding} from './rangekeeper-paper-confirmation-simulation.js';
+import type {RangeKeeperPaperConfirmationSimulation} from './rangekeeper-paper-confirmation.js';
 import type {DeploymentStore} from './store.js';
 
 type ConfirmationStore=Pick<DeploymentStore,'paperDraft'|'readRangeKeeperPaperConfirmationEnvelope'|
@@ -20,11 +24,26 @@ type ConfirmationStore=Pick<DeploymentStore,'paperDraft'|'readRangeKeeperPaperCo
 type ForkRunner=typeof simulateRangeKeeperPaperConfirmationOnOwnedFork;
 type CanonicalFrameReader=(client:RobinhoodClient,profile:RangeKeeperPaperDraft['profile'])=>Promise<PaperOpenFrame>;
 
+export async function consumeRangeKeeperSimulationWithAnchors(input:{
+ simulation:RangeKeeperPaperConfirmationSimulation&{ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence};
+ context:RangeKeeperPaperSimulationCapabilityContext;
+ verifySource:()=>Promise<void>;
+}):Promise<RangeKeeperPaperConfirmationSimulation&{ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}|null>{
+ await input.verifySource();
+ const consumed=consumeTrustedRangeKeeperSimulation({simulation:input.simulation,context:input.context});
+ if(!consumed)return null;
+ await input.verifySource();
+ return consumed;
+}
+
 export interface RangeKeeperPaperConfirmationProducerDependencies {
  store:ConfirmationStore;client:RobinhoodClient;rpcUrl:string;beforeRead:()=>Promise<void>;
  maxRequests?:number;timeoutMs?:number;
  /** Optional request-scoped address/slot shapes; values are freshly fetched by the fork. */
  prefetchHints?:readonly ForkReadHint[];onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
+ /** In-process only. A serialized/cloned or mismatched simulation is rejected. */
+ reusableSimulation?:(RangeKeeperPaperConfirmationSimulation&{
+  ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence});
  /** Test seam bound when constructing the service; never taken from an HTTP request. */
  runOwnedFork?:ForkRunner;readCanonicalFrame?:CanonicalFrameReader;
 }
@@ -82,9 +101,20 @@ export function createRangeKeeperPaperConfirmationProducer(
      candidate,candidateHash,scope,pathVersion:rangeKeeperPaperPathVersion(candidate),
      sizeBand:rangeKeeperPaperSizeBand(rangeKeeperPaperPathVersion(candidate),scope),actionAvailable:false};
     if(contentHash(draft.profile)!==draft.profileHash)throw new Error('rangekeeper_confirmation_profile_hash_invalid');
+    const allocation={token0Raw:draft.allocation.token0Raw,token1Raw:draft.allocation.token1Raw,
+     nativeWei:draft.allocation.nativeWei},context:RangeKeeperPaperSimulationCapabilityContext={
+      probe,profile:draft.profile,frame,configHash:draft.configHash,allocation,limits:policy.policy.limits};
+    if(dependencies.reusableSimulation){
+     if(!ownsForkRunner)throw new Error('rangekeeper_confirmation_reusable_simulation_runner_untrusted');
+     const reused=await consumeRangeKeeperSimulationWithAnchors({simulation:dependencies.reusableSimulation,context,
+      verifySource:()=>verifyCanonicalPaperAnchors(dependencies.client,draft.profile.pool.chainId,[frame.source])});
+     if(!reused)throw new Error('rangekeeper_confirmation_reusable_simulation_unavailable');
+     completedOwnedForkEvidence=reused.ownedForkEvidence;
+     return reused;
+    }
     const simulation=await runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
      initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
-     limits:policy.policy.limits,rpcUrl:dependencies.rpcUrl,beforeRead:dependencies.beforeRead,
+     limits:policy.policy.limits,allocation,rpcUrl:dependencies.rpcUrl,beforeRead:dependencies.beforeRead,
      maxRequests:dependencies.maxRequests,timeoutMs:dependencies.timeoutMs,
      prefetchHints:dependencies.prefetchHints,onReadDiagnostics:dependencies.onReadDiagnostics});
     if(ownsForkRunner)completedOwnedForkEvidence=simulation.ownedForkEvidence;
