@@ -1,16 +1,22 @@
 // Opt-in canonical static/manual open -> retain-close integration. Reads the
 // operator's configured archive RPC, but all writes are isolated to a temporary
-// PostgreSQL schema and a local owned Anvil fork. It never loads a signer or
-// broadcasts a transaction.
+// PostgreSQL schema and a local owned Anvil fork. Sealed mode uses actual pinned
+// release command/worker entrypoints; neither mode loads a signer or broadcasts.
 // Run with TEST_DATABASE_URL=... node --import tsx test/integration/static-paper-canonical-flow.mjs
+// Sealed: TEST_SEALED_RELEASE_DIR=/path/to/release TEST_EXPECTED_RELEASE_COMMIT=<sha>
+//   node --import tsx test/integration/static-paper-canonical-flow.mjs --sealed-release
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {parseEnv} from 'node:util';
 import {readFileSync} from 'node:fs';
+import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {createServer as createTcpServer} from 'node:net';
+import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
 import pg from 'pg';
+import {verifyRelease} from '../../scripts/release-files.mjs';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
@@ -46,6 +52,16 @@ const waitFor=async(read,label,timeoutMs=300_000)=>{
 const rawUsd=(usd)=>String(BigInt(usd)*10n**18n);
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
+const sealedReleaseMode=process.argv.includes('--sealed-release');
+if(sealedReleaseMode&&!process.env.TEST_SEALED_RELEASE_DIR)
+ throw Error('TEST_SEALED_RELEASE_DIR is required with --sealed-release');
+if(!sealedReleaseMode&&process.env.TEST_SEALED_RELEASE_DIR)
+ throw Error('Use --sealed-release to opt into TEST_SEALED_RELEASE_DIR');
+const releaseRoot=sealedReleaseMode?resolve(process.env.TEST_SEALED_RELEASE_DIR):null,
+ releaseManifest=releaseRoot?verifyRelease(releaseRoot):null;
+if(releaseManifest&&process.env.TEST_EXPECTED_RELEASE_COMMIT&&
+ releaseManifest.sourceCommit!==process.env.TEST_EXPECTED_RELEASE_COMMIT)
+ throw Error(`Sealed release source commit mismatch: ${releaseManifest.sourceCommit}`);
 const dbParsed=new URL(process.env.TEST_DATABASE_URL),socket=dbParsed.searchParams.get('host');
 if(!['localhost','127.0.0.1','[::1]','::1'].includes(dbParsed.hostname.toLowerCase())&&
  !(socket&&socket.startsWith('/')))throw Error('TEST_DATABASE_URL must use local PostgreSQL');
@@ -62,7 +78,7 @@ const rpc=createRobinhoodClient(readRpc,20_000,{retryCount:0}),
   referencePolicy:rawMarket.referencePolicy}),
  adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),admin=await adminPool.connect(),
  schema=`static_canonical_${randomUUID().replaceAll('-','')}`;
-let store,command,worker,commandPort,dashboardPool,workerOutput='',password;
+let store,command,worker,commandPort,dashboardPool,workerOutput='',commandOutput='',password,runtimeTemp;
 const checks=[];
 const targetSetHash=`0x${'e'.repeat(64)}`;
 const operator='0x1111111111111111111111111111111111111111';
@@ -126,42 +142,70 @@ try{
  const origin=`http://127.0.0.1:${commandPort}`;
  password=`canonical-paper-${randomUUID()}`;
  const salt=randomBytes(16),passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
- const dashboardRead=async(path)=>{
-  const url=new URL(path,origin),client=await dashboardPool.connect();
-  try{
-   const rows=await readDeploymentRows(client);
-   if(url.pathname==='/api/positions')return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
-   const key=/^\/api\/positions\/(paper-dep-[0-9a-f-]{36})$/.exec(url.pathname);
-   if(key){const row=await readDeploymentByKey(client,key[1]);
-    return row?await readDeploymentDetail(client,row,Number(url.searchParams.get('hours')??24)):null;}
-   throw Error('dashboard path unsupported');
-  }finally{client.release();}
- };
- const verifyAnchors=(chainId,sources)=>verifyCanonicalPaperAnchors(rpc,chainId,sources);
- const paperPreview=async(campaignId,kind)=>{
-  if(kind==='open'){
-   const current=await store.paperDraft(campaignId),source=await readCanonicalPaperOpenFrame(rpc,current.profile),
-    model=buildIndicativePaperOpenPreview(current,source),rows=await store.paperGasProfiles(current.profile.pool.pool),
-    price=await rpc.getGasPrice(),costed=costIndicativePaperOpenPreview(model,rows,
-     current.profile.pool.pool,source.nativePrice??0n,price);
-   if(costed.costs.status!=='provisional')return costed;
-   const saved=await persistTrustedPaperOpenPreview({store,draft:current,frame:source,preview:costed,verifyAnchors});
-   return {...costed,...saved,status:'indicative',kind:'open',trustedPreviewSaved:true,economics:null};
-  }
-  if(kind==='close_retain'){
-   const state=await store.paperValuationState(campaignId),source=await readCanonicalPaperNextFrame(rpc,
-    state.profile,state.previous),rows=await store.paperGasProfiles(state.profile.pool.pool),price=await rpc.getGasPrice();
-   return await persistTrustedStaticPaperRetainPreview({store,state,frame:source,gasProfiles:rows,
-    gasPriceWei:price,verifyAnchors});
-  }
-  return {kind,status:'unavailable',campaignId,reason:'unsupported_in_static_flow_fixture',actionAvailable:false};
- };
- const server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,paperPreview,
-  paperOperationReplay:(campaignId,input,kinds)=>store.acceptedOperationReplay(campaignId,input,kinds),
-  paperOpenAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyAnchors),
-  paperRetainAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyAnchors),
-  paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
- command=server;server.listen(commandPort,'127.0.0.1');await once(server,'listening');
+ let runtimeEnvFile=null;
+ if(sealedReleaseMode){
+  runtimeTemp=await mkdtemp(`${tmpdir()}/conc-liq-static-canonical-sealed-`);
+  const dashboardProbe=createTcpServer();dashboardProbe.listen(0,'127.0.0.1');await once(dashboardProbe,'listening');
+  const dashboardPort=dashboardProbe.address().port;
+  await new Promise((resolve,reject)=>dashboardProbe.close(error=>error?reject(error):resolve()));
+  runtimeEnvFile=join(runtimeTemp,'runtime.env');
+  const runtime={DATABASE_URL:scopedUrl.toString(),DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,
+   DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:readRpc,
+   DEPLOYMENT_RPC_TIMEOUT_MS:'20000',DEPLOYMENT_PAPER_OPERATION_WORKER:'1',
+   DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',
+   DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',
+   INDEXER_STREAM_KEY:streamKey,ADAPTIVE_PAPER_STATE_PATH:join(runtimeTemp,'absent-adaptive-state.json'),
+   DASHBOARD_HOST:'127.0.0.1',DASHBOARD_PORT:String(dashboardPort)};
+  await writeFile(runtimeEnvFile,Object.entries(runtime)
+   .map(([key,value])=>`${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600});
+ }
+ const launchSealed=entrypoint=>spawn(join(releaseRoot,'bin/node'),
+  [join(releaseRoot,'launch.mjs'),runtimeEnvFile,entrypoint],
+  {cwd:releaseRoot,env:{PATH:'/usr/bin:/bin',HOME:runtimeTemp},stdio:['ignore','pipe','pipe']});
+ if(sealedReleaseMode){
+  command=launchSealed('deployments');
+  command.stdout.setEncoding('utf8');command.stdout.on('data',chunk=>commandOutput+=chunk);
+  command.stderr.setEncoding('utf8');command.stderr.on('data',chunk=>commandOutput+=chunk);
+  await waitFor(async()=>await fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false),
+   'sealed command server health endpoint',30_000);
+ }else{
+  const dashboardRead=async(path)=>{
+   const url=new URL(path,origin),client=await dashboardPool.connect();
+   try{
+    const rows=await readDeploymentRows(client);
+    if(url.pathname==='/api/positions')return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
+    const key=/^\/api\/positions\/(paper-dep-[0-9a-f-]{36})$/.exec(url.pathname);
+    if(key){const row=await readDeploymentByKey(client,key[1]);
+     return row?await readDeploymentDetail(client,row,Number(url.searchParams.get('hours')??24)):null;}
+    throw Error('dashboard path unsupported');
+   }finally{client.release();}
+  };
+  const verifyAnchors=(chainId,sources)=>verifyCanonicalPaperAnchors(rpc,chainId,sources);
+  const paperPreview=async(campaignId,kind)=>{
+   if(kind==='open'){
+    const current=await store.paperDraft(campaignId),source=await readCanonicalPaperOpenFrame(rpc,current.profile),
+     model=buildIndicativePaperOpenPreview(current,source),rows=await store.paperGasProfiles(current.profile.pool.pool),
+     price=await rpc.getGasPrice(),costed=costIndicativePaperOpenPreview(model,rows,
+      current.profile.pool.pool,source.nativePrice??0n,price);
+    if(costed.costs.status!=='provisional')return costed;
+    const saved=await persistTrustedPaperOpenPreview({store,draft:current,frame:source,preview:costed,verifyAnchors});
+    return {...costed,...saved,status:'indicative',kind:'open',trustedPreviewSaved:true,economics:null};
+   }
+   if(kind==='close_retain'){
+    const state=await store.paperValuationState(campaignId),source=await readCanonicalPaperNextFrame(rpc,
+     state.profile,state.previous),rows=await store.paperGasProfiles(state.profile.pool.pool),price=await rpc.getGasPrice();
+    return await persistTrustedStaticPaperRetainPreview({store,state,frame:source,gasProfiles:rows,
+     gasPriceWei:price,verifyAnchors});
+   }
+   return {kind,status:'unavailable',campaignId,reason:'unsupported_in_static_flow_fixture',actionAvailable:false};
+  };
+  const server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,paperPreview,
+   paperOperationReplay:(campaignId,input,kinds)=>store.acceptedOperationReplay(campaignId,input,kinds),
+   paperOpenAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyAnchors),
+   paperRetainAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyAnchors),
+   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
+  command=server;server.listen(commandPort,'127.0.0.1');await once(server,'listening');
+ }
  const post=(path,body,headers={})=>fetch(origin+path,{method:'POST',headers:{'content-type':'application/json',...headers},
   body:JSON.stringify(body),signal:AbortSignal.timeout(60_000)});
  assert.equal((await fetch(origin+'/api/market-profiles')).status,401);
@@ -177,8 +221,9 @@ try{
   DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
   DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
  const startWorker=async()=>{
-  workerOutput='';worker=spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
-   {cwd:process.cwd(),env:workerEnv,stdio:['ignore','pipe','pipe']});
+  workerOutput='';worker=sealedReleaseMode?launchSealed('deployments-paper-worker'):
+   spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
+    {cwd:process.cwd(),env:workerEnv,stdio:['ignore','pipe','pipe']});
   worker.stdout.setEncoding('utf8');worker.stderr.setEncoding('utf8');
   worker.stdout.on('data',chunk=>workerOutput+=chunk);worker.stderr.on('data',chunk=>workerOutput+=chunk);
   await waitFor(()=>store.paperOperationWorkerReady(),'paper worker readiness lease',30_000);
@@ -257,14 +302,21 @@ try{
  console.log(JSON.stringify({checks,campaignId:campaign.id,openOperationId:opened.operation.id,
   retainOperationId:closeOperation.id,gasReportHash:report.reportHash,
   provisionalStages:report.stageProfiles.map(stage=>stage.stage),paidGasLedgerRows:ledger,
+  commandProcess:sealedReleaseMode?'verified sealed launch.mjs deployments':'source createDeploymentCommandServer',
+  workerProcess:sealedReleaseMode?'verified sealed launch.mjs deployments-paper-worker':'source deployments-paper-worker.ts',
+  release:releaseManifest?{buildId:releaseManifest.buildId,sourceCommit:releaseManifest.sourceCommit,verified:true}:null,
   signerLoaded:false,broadcasts:0,productionSchemaTouched:false,
-  note:'Direct static/manual draft seed; this harness does not exercise setup-draft HTTP admission.'},null,2));
+  note:'Canonical source sampling/profile import run in the harness process. Draft is directly seeded. This does not exercise setup-draft HTTP admission or convert-close.'},null,2));
 }catch(error){cleanError(error);}
 finally{
  if(worker&&worker.exitCode===null){worker.kill('SIGTERM');await Promise.race([once(worker,'exit'),sleep(3000)]);
   if(worker.exitCode===null)worker.kill('SIGKILL');}
+ if(command&&typeof command.close!=='function'&&command.exitCode===null){
+  command.kill('SIGTERM');await Promise.race([once(command,'exit'),sleep(3000)]);
+  if(command.exitCode===null)command.kill('SIGKILL');
+ }
  if(command?.listening)await new Promise(resolve=>command.close(resolve));
  await dashboardPool?.end();await store?.close();
  try{await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}
- finally{admin.release();await adminPool.end();}
+ finally{admin.release();await adminPool.end();if(runtimeTemp)await rm(runtimeTemp,{recursive:true,force:true});}
 }
