@@ -83,7 +83,7 @@ function deploymentMetrics(p){
 function conversionAccountingPanel(p){
  const status=p.deployment?.conversionAccountingStatus;
  if(status==='not_applicable')return '';
- if(status!=='available')return `<div class="alert neutral"><strong>Converted-close accounting unavailable</strong><small>The exact hash-checked v2 snapshot is missing, invalid or revoked. Modeled conversion costs, proceeds and capital-out are unavailable; no paid values are recorded.</small></div>`;
+ if(status!=='available')return `<div class="alert neutral"><strong>Converted-close accounting unavailable</strong><small>The saved accounting record is missing, invalid or revoked. Modeled conversion costs, proceeds and capital-out are unavailable; no paid values are recorded.</small></div>`;
  const accounting=p.deployment.accounting,conversion=accounting?.conversion,
   fromToken=conversion?.fromAsset==='token0'?p.deployment.token0:p.deployment.token1,
   toToken=conversion?.toAsset==='token0'?p.deployment.token0:p.deployment.token1,
