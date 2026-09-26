@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {sqrtRatioAtTick} from '../src/backtest/principal.js';
+import {principalAmounts,sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {contentHash} from '../src/deployments/contracts.js';
 import {referenceProofHash,marketProfileSchema} from '../src/deployments/market-profile.js';
-import {PAPER_STATIC_GAS_PATH} from '../src/deployments/paper-cost.js';
+import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from '../src/deployments/paper-cost.js';
 import {paperCloseConvertGasScopeHashV2,paperCloseConvertGasSizeBandV2,
  paperCloseConvertGasAllowanceStatesV2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
  type PaperCloseConvertGasScopeV2} from '../src/deployments/paper-close-convert-model.js';
 import {persistTrustedStaticPaperCloseConvertPreview} from '../src/deployments/paper-close-convert-preflight.js';
+import {buildPaperCloseRetainModel} from '../src/deployments/paper-close-model.js';
+import {buildPaperCloseConvertModel,PAPER_STATIC_CONVERT_GAS_PATH,
+ PAPER_STATIC_CONVERT_GAS_STAGES} from '../src/deployments/paper-close-convert-model.js';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
 import {advanceEphemeralStaticPaperFeeCarry} from
@@ -140,4 +143,45 @@ test('terminal preview rejects prestate data unless the exact report and prospec
   verifyOwnedFork:async()=>ownedForkReplay(gasProfiles),
   prestateCostProfiles:gasProfiles,prestateReport:null,gasPriceWei:1_000_000_000n,now}));
  assert.equal(writes,0,'invalid prestate evidence must fail before preview persistence');
+});
+
+test('centered static parameters reuse the frozen open range for retain and convert builders',()=>{
+ const centered={halfWidthTicks:120,limits:{maxDeploymentValue:'1000000000',minDeploymentValue:'0',
+  maxExposurePpm:1_000_000,maxLossValue:'1000000000',maxDrawdownPpm:1_000_000,
+  maxActionCost:'1000000000',maxRollingCost:'1000000000',maxCampaignCost:'1000000000',
+  exitReserveWei:'1',maxSlippageBps:50}},
+  centeredState={...state,parameters:centered},
+  openCosts={...openModel.costs,stages:PAPER_STATIC_GAS_STAGES.map((stage,index)=>({stage,
+   profileId:`00000000-0000-4000-8000-${String(index+20).padStart(12,'0')}`,version:1,
+   evidenceClass:'fork_estimated' as const,expectedGasUnits:'1',boundGasUnits:'1',
+   source:{block:frame.source.block,hash:frame.source.hash,estimatedAt:new Date(now-1000).toISOString(),
+    callHash:`0x${String(index+1).repeat(64)}`,method:'owned_fork_nitro_exact_call_v1' as const}}))},
+  costed={status:'indicative' as const,candidate:openModel.candidate,costs:openCosts},
+  previous={markId:'2',sourceBlock:'110',sourceHash:`0x${'3'.repeat(64)}`},
+  retained=buildPaperCloseRetainModel(openModel,'1',previous,frame,profile,centered,costed,now);
+ const frozenPrincipal=principalAmounts({liquidity:BigInt(openModel.candidate.liquidity),
+  tickLower:openModel.candidate.range.tickLower,tickUpper:openModel.candidate.range.tickUpper,
+  sqrtPriceX96:frame.sqrtPriceX96});
+ assert.deepEqual(retained.principal,{amount0Raw:String(frozenPrincipal.amount0),
+  amount1Raw:String(frozenPrincipal.amount1)});
+
+ const routeBody={router:profile.pool.router,quoter:profile.pool.quoter,
+  path:[profile.pool.token0,profile.pool.token1],fee:profile.pool.fee,inputAsset:'token0' as const,
+  slippageBps:50,pathVersion:PAPER_STATIC_CONVERT_GAS_PATH},
+  route={...routeBody,routeHash:contentHash(routeBody)},
+  gasPriceObservedAt=new Date(now-1000).toISOString(),stages=PAPER_STATIC_CONVERT_GAS_STAGES.map((stage,index)=>({
+   stage,profileId:`00000000-0000-4000-8000-${String(index+1).padStart(12,'0')}`,
+   version:1,evidenceClass:'fork_estimated' as const,expectedGasUnits:'1',boundGasUnits:'1',
+   source:{block:frame.source.block,hash:frame.source.hash,estimatedAt:gasPriceObservedAt,
+    callHash:`0x${String(index+1).repeat(64)}`,method:'owned_fork_nitro_exact_call_v1' as const},
+  }));
+ const costs={status:'provisional' as const,scope:'convert_close_gas_only' as const,
+  pathVersion:PAPER_STATIC_CONVERT_GAS_PATH,sizeBand:'fixture',gasPriceWei:'1',boundGasPriceWei:'2',
+  gasPriceObservedAt,nativeReferencePrice:String(frame.nativePrice),stages,expectedGasUnits:'4',
+  boundGasUnits:'4',expectedWei:'4',boundWei:'8',expectedValue:'4',boundValue:'8'};
+ const converted=buildPaperCloseConvertModel(openModel,'1',previous,frame,profile,centered,
+  route,costs,now);
+ assert.deepEqual(converted.principal,{amount0Raw:String(frozenPrincipal.amount0),
+  amount1Raw:String(frozenPrincipal.amount1)});
+ assert.equal(centeredState.parameters.halfWidthTicks,120);
 });
