@@ -340,12 +340,21 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
   liquiditySharePpm:0,actionCost:limits.maxActionCost,actionGasWei:0n,reservedCost:0n,
   rollingSpentCost:0n,campaignSpentCost:0n,campaignStartValue:strategyValue,
   highWaterValue:strategyValue,recenters:0};
- const probe=await planRangeKeeper({state:initialState(open,first),observation,limits,
-  spacing:p.tickSpacing,decimals0:p.decimals0,decimals1:p.decimals1,quoteToken:p.quoteToken,
-  maxPoolDeviationPpm:draft.profile.referencePolicy.maxPoolDeviationPpm,quote,simulate:async()=>true});
- if(probe.action!=='execute'||!probe.candidate||probe.reason!=='two_confirmations')
-  return unavailable(draft,`rangekeeper_second_observation_${probe.reason}`);
- const candidate=probe.candidate,candidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,
+ let candidate:RangeKeeperCandidate;
+ if(input.preparation){
+  const prepared=verifiedPreparedProbe({preparation:input.preparation,draft,open,frame,first,
+   firstCandidateHash,policyHash:policy.policy.policyHash,buildId:policy.policy.buildId});
+  if(!prepared)return unavailable(draft,'rangekeeper_confirmation_preparation_mismatch');
+  candidate=prepared.candidate;
+ }else{
+  const probe=await planRangeKeeper({state:initialState(open,first),observation,limits,
+   spacing:p.tickSpacing,decimals0:p.decimals0,decimals1:p.decimals1,quoteToken:p.quoteToken,
+   maxPoolDeviationPpm:draft.profile.referencePolicy.maxPoolDeviationPpm,quote,simulate:async()=>true});
+  if(probe.action!=='execute'||!probe.candidate||probe.reason!=='two_confirmations')
+   return unavailable(draft,`rangekeeper_second_observation_${probe.reason}`);
+  candidate=probe.candidate;
+ }
+ const candidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,
   revision:draft.revision,profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
   referenceProofHash:frame.referenceProofHash,candidate}),denominator=frame.poolLiquidity+candidate.liquidity;
  if(denominator<=0n)return unavailable(draft,'rangekeeper_confirmation_liquidity_share_unavailable');
@@ -354,16 +363,6 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
   candidateHash,deployedValue:candidate.deployedValue,sharePpm:share,range:candidate.range,
   swapKind:candidate.swap?'direct_pool_exact_input':'none'};
  const pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope);
- if(input.preparation){
-  const prepared=verifiedPreparedProbe({preparation:input.preparation,draft,open,frame,first,
-   firstCandidateHash,policyHash:policy.policy.policyHash,buildId:policy.policy.buildId});
-  if(!prepared||prepared.candidateHash!==candidateHash||
-   jsonBindingHash(prepared.candidate)!==jsonBindingHash(candidate)||
-   jsonBindingHash(prepared.scope)!==jsonBindingHash(scope)||prepared.pathVersion!==pathVersion||
-   prepared.sizeBand!==sizeBand){
-   return unavailable(draft,'rangekeeper_confirmation_preparation_mismatch');
-  }
- }
  if(input.probeOnly)return {status:'candidate',campaignId:draft.id,revision:draft.revision,
   firstModelHash,firstCandidateHash,source:frame.source,candidate,candidateHash,scope,pathVersion,
   sizeBand,actionAvailable:false};
