@@ -1,16 +1,19 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import type {Pool} from 'pg';
 import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {ExperimentMarket,type MarketSeed} from '../src/experiment/market.js';
 import {historicalSwapQuote} from '../src/research/portfolio-math.js';
 import type {RobinhoodClient} from '../src/client.js';
 import type {MarketProfile} from '../src/deployments/market-profile.js';
 import {advancePaperFeeCarry,readAnchoredPaperFeeFrame,replayPaperFeeInterval,
- type CanonicalPaperFeeInterval,type PaperFeeFrame} from '../src/deployments/paper-fee-replay.js';
+ waitForCompletePaperFeeCursor,type CanonicalPaperFeeInterval,type PaperFeeFrame}
+ from '../src/deployments/paper-fee-replay.js';
 
 const hashA='0x'+'a'.repeat(64),hashB='0x'+'b'.repeat(64),hashC='0x'+'f'.repeat(64),Q128=1n<<128n;
 const pool={address:'0x'+'c'.repeat(40),token0:'0x'+'d'.repeat(40),
  token1:'0x'+'e'.repeat(40),fee:3000,tickSpacing:60};
+const cursorProfile={pool:{pool:pool.address,chainId:1,fee:pool.fee}} as MarketProfile;
 const seed=(tick=0):MarketSeed=>({price:String(sqrtRatioAtTick(tick)),tick,
  liquidity:'1000000000000',global0:'0',global1:'0',protocol0:0,protocol1:0,
  fee:3000,spacing:60,ticks:[{tick:-60,gross:'1000000000000',net:'1000000000000'},
@@ -42,6 +45,28 @@ test('hypothetical fee replay dilutes an observed flash without pretending it wa
   {tickLower:-60,tickUpper:60},1000000000000n,pool),/Checkpoint fee1 mismatch/);
  assert.throws(()=>replayPaperFeeInterval(initial,[{...event,hash:hashA}],before,after,
   {tickLower:-60,tickUpper:60},1000000000000n,pool),/ending block hash mismatch/);
+});
+
+test('fee cursor settle waits for an in-flight later block, then accepts complete coverage',async()=>{
+ const rows=[
+  {targetSetHash:'set',chainId:1,fee:3000,initialized:true,lastBlock:'120',completeBlock:'110'},
+  {targetSetHash:'set',chainId:1,fee:3000,initialized:true,lastBlock:'120',completeBlock:'120'},
+ ];
+ let polls=0;
+ const db={query:async()=>({rows:[rows[Math.min(polls++,rows.length-1)]]})} as unknown as Pool;
+ await waitForCompletePaperFeeCursor(db,'stream','set',cursorProfile,'105',2_000);
+ assert.equal(polls,2);
+});
+
+test('fee cursor settle rejects target-set changes and bounded timeout',async()=>{
+ const wrongSet={query:async()=>({rows:[{targetSetHash:'other',chainId:1,fee:3000,
+  initialized:true,lastBlock:'120',completeBlock:'120'}]})} as unknown as Pool;
+ await assert.rejects(waitForCompletePaperFeeCursor(wrongSet,'stream','set',cursorProfile,'105',100),
+  /coverage unavailable/);
+ const stillIncomplete={query:async()=>({rows:[{targetSetHash:'set',chainId:1,fee:3000,
+  initialized:true,lastBlock:'120',completeBlock:'110'}]})} as unknown as Pool;
+ await assert.rejects(waitForCompletePaperFeeCursor(stillIncomplete,'stream','set',
+  cursorProfile,'105',1),/cursor settle timeout/);
 });
 
 test('a fee-3000 spacing-60 swap produces bounded credit across a virtual boundary',()=>{

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {AssertionError} from 'node:assert';
 import type {Pool} from 'pg';
 import {parseAbi,type Hex} from 'viem';
 import {poolAbi} from '../abi.js';
@@ -17,6 +18,34 @@ const allowedEvents=new Set(['Swap','Flash','Mint','Burn','SetFeeProtocol','Coll
  'CollectProtocol','IncreaseObservationCardinalityNext']);
 const feeGrowthAbi=parseAbi(['function feeGrowthGlobal0X128() view returns (uint256)',
  'function feeGrowthGlobal1X128() view returns (uint256)']);
+const INCOMPLETE_LATER_BLOCK='Paper fee replay cursor has an incomplete later block';
+
+/** Cheap read-only cursor polling outside fee replay transactions. The exact
+ * sample block remains fixed; callers still rerun the full interval query and
+ * canonical anchor checks after the indexer finishes its in-flight block. */
+export async function waitForCompletePaperFeeCursor(db:Pool,stream:string,targetSetHash:string,
+ profile:MarketProfile,sourceBlock:string,maxWaitMs=15_000){
+ if(!Number.isSafeInteger(maxWaitMs)||maxWaitMs<1||maxWaitMs>30_000)
+  throw Error('paper_fee_cursor_settle_budget_invalid');
+ const p=profile.pool,deadline=Date.now()+maxWaitMs;
+ while(Date.now()<deadline){
+  const row=(await db.query<{targetSetHash:string;chainId:number;fee:number;initialized:boolean;
+   lastBlock:string|null;completeBlock:string|null}>(`
+   SELECT c.target_set_hash AS "targetSetHash",p.chain_id::int AS "chainId",p.fee,p.initialized,
+    c.last_block_number::text AS "lastBlock",c.complete_through_block::text AS "completeBlock"
+   FROM v3_replay_pools p JOIN v3_replay_cursors c USING(stream_key)
+   WHERE p.stream_key=$1 AND lower(p.pool_address)=lower($2)`,[stream,p.pool])).rows[0];
+  assert(row&&row.initialized&&row.chainId===p.chainId&&row.fee===p.fee&&
+   row.targetSetHash===targetSetHash&&row.completeBlock!==null,
+   'Paper fee replay coverage unavailable');
+  const complete=BigInt(row.completeBlock);
+  if(Date.now()<deadline&&complete>=BigInt(sourceBlock)&&
+   (row.lastBlock===null||BigInt(row.lastBlock)<=complete))return;
+  if(Date.now()>=deadline)break;
+  await new Promise(resolve=>setTimeout(resolve,Math.min(250,Math.max(1,deadline-Date.now()))));
+ }
+ throw new Error('Paper fee replay cursor settle timeout');
+}
 
 export interface PaperFeeFrame {
  source:{block:string;hash:string};
@@ -218,7 +247,19 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
   assert.equal(observed.poolState.poolLiquidity,String(saved.poolLiquidity),
    'Paper fee snapshot liquidity mismatch');
  }
- const proof=await readIndexedPaperFeeInterval(db,stream,targetSetHash,profile,start,end,range,liquidity);
+ let proof:Awaited<ReturnType<typeof readIndexedPaperFeeInterval>>;
+ const settleDeadline=Date.now()+15_000;
+ while(true){
+  try{
+   proof=await readIndexedPaperFeeInterval(db,stream,targetSetHash,profile,start,end,range,liquidity);
+   break;
+  }catch(error){
+   if(!(error instanceof AssertionError)||error.message!==INCOMPLETE_LATER_BLOCK||
+    Date.now()>=settleDeadline)throw error;
+   await waitForCompletePaperFeeCursor(db,stream,targetSetHash,profile,after.source.block,
+    Math.min(15_000,Math.max(1,settleDeadline-Date.now())));
+  }
+ }
  for(const source of [before.source,after.source]){
   const block=await client.getBlock({blockNumber:BigInt(source.block)});
   assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),'Paper fee source reorged');
