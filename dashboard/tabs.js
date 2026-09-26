@@ -420,6 +420,10 @@ function bootDashboardTabs() {
     output.hidden = false;
     currentSetupPreflight = result;
     renderOperatorDraftBinding(result);
+    const reviewExpiry=Date.parse(result.setupReviewExpiresAt??'');
+    if(Number.isFinite(reviewExpiry))setTimeout(()=>{
+      if(currentSetupPreflight===result)updateDraftBinding();
+    },Math.max(0,reviewExpiry-Date.now()+1));
     setSetupStatus(isAvailable ? 'Preflight completed. Review the exact bounds and provisional estimates below; admission limits were not evaluated.' : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
   }
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
