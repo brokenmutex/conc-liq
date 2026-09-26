@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-26T10:21:18.630Z",
+  "generatedAt": "2026-09-26T17:35:58.748Z",
   "layoutBaselineCommit": "a09bda7fffe2d20fade20b980ac4a01e7d6102d4",
   "layoutPolicy": "Frozen top-level scripts remain at their recorded paths as legacy reproduction material. New recurring tooling belongs in an owned subdirectory.",
   "entries": [
@@ -540,8 +540,8 @@
       "path": "scripts/release-files.mjs",
       "category": "operations",
       "lifecycle": "supported_operations",
-      "sha256": "5511e87e5d5574cb8f624104eeb3b3f7df9e36c0298fc9ad0ea6a4705374d3bf",
-      "bytes": 1541
+      "sha256": "aa971f44457647ce19c2fda4b308fa617b8ad9eaa67629359a397af411f17470",
+      "bytes": 3308
     },
     {
       "path": "scripts/render-adaptive-lp-long.py",
@@ -666,8 +666,8 @@
       "path": "scripts/run-release.mjs",
       "category": "operations",
       "lifecycle": "supported_operations",
-      "sha256": "29feb00a3b9856e81077dbaacd4708f50a2643c56f5af35d58f04aac127a615e",
-      "bytes": 2043
+      "sha256": "922dd6f040b6462a057c2a597fd240f3eb5c8d2e7425839f3193b0cedd91a80e",
+      "bytes": 2069
     },
     {
       "path": "scripts/sim-source.mjs",

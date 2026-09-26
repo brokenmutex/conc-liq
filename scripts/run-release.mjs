@@ -2,11 +2,11 @@ import { readFileSync, realpathSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseEnv } from 'node:util';
-import { hash, verifyRelease } from './release-files.mjs';
+import { hash, verifyReleaseConcurrent } from './release-files.mjs';
 
 const root=dirname(fileURLToPath(import.meta.url));
 const [envPath,command,...args]=process.argv.slice(2);
-const manifest=verifyRelease(root);
+const manifest=await verifyReleaseConcurrent(root);
 if(envPath==='--verify' && !command) { console.log(JSON.stringify({buildId:manifest.buildId,verified:true}));process.exit(0); }
 if(!envPath || !command || !/^[a-z][a-z-]*$/.test(command))throw Error('Usage: launch.mjs /absolute/runtime.env ENTRYPOINT [arguments]');
 if(!envPath.startsWith('/'))throw Error('Runtime environment path must be absolute');
