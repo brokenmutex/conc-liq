@@ -62,6 +62,14 @@ preparation creates no draft, operation, mark or ledger row. The selected
 source, profile, submitted limits, report and replay attestation remain bound;
 source freshness is not extended.
 
+Subsequent canonical setup testing identified a gas-scope mismatch in this
+artifact: setup cost lookup values its required inputs with upward rounding,
+while the actual static planner/sampler scopes gas by minted inventory with
+downward reference valuation. Exact value bands can therefore reject the
+prepared evidence. This artifact must be superseded by the corrected source
+before claiming a working automatic setup/economic process flow. Its lifecycle
+process result above remains evidence for the exact build tested.
+
 The source also includes the conversion pre-operation frame correction and
 exact claimed-operation fee-context replay. A separate canonical fixture at
 `3ce7fcd` reached acceptance, seven-stage owned-fork worker replay, completion
