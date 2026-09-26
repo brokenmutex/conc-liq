@@ -183,6 +183,15 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
   const rejected=await buildRangeKeeperPaperConfirmation({...baseInput,preparation:wrongFrame as never,probeOnly:true});
   assert.equal(rejected.status,'unavailable');
   if(rejected.status==='unavailable')assert.equal(rejected.reason,'rangekeeper_confirmation_preparation_mismatch');
+  const forgedCandidate={...prepared,candidate:{...prepared.candidate,
+   amount0Desired:prepared.candidate.amount0Desired+1n}};
+  assert.equal(isRangeKeeperPaperConfirmationPreparation(forgedCandidate),false,
+   'A modified candidate cannot inherit the planner brand');
+  const rejectedCandidate=await buildRangeKeeperPaperConfirmation({...baseInput,
+   preparation:forgedCandidate as never,probeOnly:true});
+  assert.equal(rejectedCandidate.status,'unavailable');
+  if(rejectedCandidate.status==='unavailable')
+   assert.equal(rejectedCandidate.reason,'rangekeeper_confirmation_preparation_mismatch');
  }
  const mismatchedCache=new RangeKeeperPaperPinnedQuoteCache(client,{...profile,
   pool:{...profile.pool,fee:profile.pool.fee+1}}),cacheMismatch=await buildRangeKeeperPaperConfirmation({
