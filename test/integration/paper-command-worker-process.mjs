@@ -3,14 +3,17 @@
 // covered by deployment integration fixtures with injected canonical clients.
 // Run with TEST_DATABASE_URL='postgresql://root@localhost/conc_liq?host=/var/run/postgresql'
 //   node --import tsx test/integration/paper-command-worker-process.mjs
+// Opt-in sealed mode additionally requires TEST_SEALED_RELEASE_DIR and
+// --sealed-release; both application processes use that verified release.
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {createServer as createHttpServer} from 'node:http';
 import {createServer as createTcpServer} from 'node:net';
-import {access,mkdtemp,rm} from 'node:fs/promises';
+import {access,mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
+import {join,resolve} from 'node:path';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
@@ -18,11 +21,27 @@ import {contentHash} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
 import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER,USDG} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
+import {verifyRelease} from '../../scripts/release-files.mjs';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
+const testDatabaseUrl=new URL(process.env.TEST_DATABASE_URL),databaseSocket=testDatabaseUrl.searchParams.get('host');
+const databaseHost=testDatabaseUrl.hostname.toLowerCase();
+if(!['localhost','127.0.0.1','[::1]','::1'].includes(databaseHost)&&
+ !(databaseSocket&&databaseSocket.startsWith('/')))
+ throw Error('TEST_DATABASE_URL must point to a local database or Unix socket');
+const sealedReleaseMode=process.argv.includes('--sealed-release');
+if(sealedReleaseMode&&!process.env.TEST_SEALED_RELEASE_DIR)
+ throw Error('TEST_SEALED_RELEASE_DIR is required with --sealed-release');
+if(!sealedReleaseMode&&process.env.TEST_SEALED_RELEASE_DIR)
+ throw Error('Use --sealed-release to opt into TEST_SEALED_RELEASE_DIR');
+const releaseRoot=sealedReleaseMode?resolve(process.env.TEST_SEALED_RELEASE_DIR):null;
+const releaseManifest=releaseRoot?verifyRelease(releaseRoot):null;
+if(releaseManifest&&process.env.TEST_EXPECTED_RELEASE_COMMIT&&
+ releaseManifest.sourceCommit!==process.env.TEST_EXPECTED_RELEASE_COMMIT)
+ throw Error(`Sealed release source commit mismatch: ${releaseManifest.sourceCommit}`);
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4}),admin=await adminPool.connect();
 const schema=`paper_process_${randomUUID().replaceAll('-','')}`;
-let store,command,worker,rpc,chrome,ws,chromeProfile,commandPort,rpcPort,rpcRequestCount=0,workerOutput='',commandOutput='';
+let store,command,worker,rpc,chrome,ws,chromeProfile,runtimeTemp,commandPort,rpcPort,rpcRequestCount=0,workerOutput='',commandOutput='';
 const checks=[],browserExceptions=[],browserPosts=[];
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 try{
@@ -78,16 +97,51 @@ try{
  rpcServer.listen(0,'127.0.0.1');await once(rpcServer,'listening');rpcPort=rpcServer.address().port;rpc=rpcServer;
  const env={...process.env,DATABASE_URL:dbUrl.toString(),COMMAND_PORT:String(commandPort),
   COMMAND_PASSWORD_HASH:passwordHash};
- command=spawn(process.execPath,['--import','tsx','test/fixtures/paper-command-server-process.mjs'],
-  {cwd:process.cwd(),env,stdio:['ignore','pipe','pipe']});
+ let runtimeEnvFile=null;
+ if(sealedReleaseMode){
+  runtimeTemp=await mkdtemp(`${tmpdir()}/conc-liq-paper-release-process-`);
+  runtimeEnvFile=join(runtimeTemp,'runtime.env');
+  const runtime={DATABASE_URL:dbUrl.toString(),DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,
+   DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),
+   ROBINHOOD_READ_HTTP_URL:`http://127.0.0.1:${rpcPort}`,DEPLOYMENT_RPC_TIMEOUT_MS:'1000',
+   DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
+   DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'1',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'1',
+   DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',INDEXER_STREAM_KEY:'worker-process-fixture',
+   ADAPTIVE_PAPER_STATE_PATH:join(runtimeTemp,'absent-adaptive-state.json'),DASHBOARD_HOST:'127.0.0.1',
+   DASHBOARD_PORT:'4173'};
+  await writeFile(runtimeEnvFile,Object.entries(runtime).map(([key,value])=>`${key}=${JSON.stringify(value)}`).join('\n')+'\n',
+   {mode:0o600});
+ }
+ const launch=(entrypoint,...args)=>sealedReleaseMode?
+  spawn(join(releaseRoot,'bin/node'),[join(releaseRoot,'launch.mjs'),runtimeEnvFile,entrypoint,...args],
+   {cwd:releaseRoot,env:{PATH:'/usr/bin:/bin',HOME:runtimeTemp},stdio:['ignore','pipe','pipe']}):
+  spawn(process.execPath,['--import','tsx',entrypoint,...args],
+   {cwd:process.cwd(),env:entrypoint==='test/fixtures/paper-command-server-process.mjs'?env:workerEnv,
+    stdio:['ignore','pipe','pipe']});
+ command=sealedReleaseMode?launch('deployments'):launch('test/fixtures/paper-command-server-process.mjs');
  command.stdout.setEncoding('utf8');command.stdout.on('data',chunk=>commandOutput+=chunk);
  command.stderr.setEncoding('utf8');command.stderr.on('data',chunk=>commandOutput+=chunk);
- await waitFor(()=>commandOutput.includes('COMMAND_SERVER_READY'),'command server child ready');
  const origin=`http://127.0.0.1:${commandPort}`;
+ await waitFor(async()=>sealedReleaseMode?
+  await fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false):
+  commandOutput.includes('COMMAND_SERVER_READY'),'command server child ready');
  const post=async(path,body,headers={})=>fetch(origin+path,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+ const unauthenticatedProfiles=await fetch(origin+'/api/market-profiles');
+ assert.equal(unauthenticatedProfiles.status,401,'profile reads require an authenticated operator session');
  const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
  const cookie=login.headers.get('set-cookie').split(';')[0],session=await login.json();
  const authHeaders={origin,cookie,'x-csrf-token':session.csrfToken};
+ const profilesResponse=await fetch(origin+'/api/market-profiles',{headers:{cookie}});
+ assert.equal(profilesResponse.status,200);const profiles=await profilesResponse.json();
+ assert(profiles.profiles.some(row=>row.id===registration.id&&row.pool===poolAddress&&row.draftAvailable));
+ const initialPositionsResponse=await fetch(origin+'/api/positions?hours=24',{headers:{cookie}});
+ assert.equal(initialPositionsResponse.status,200);
+ const initialPositions=await initialPositionsResponse.json();
+ assert(initialPositions.positions.some(row=>row.id===`paper-dep-${campaign.id}`),
+  'real deployment Positions projection lists the seeded campaign');
+ checks.push(sealedReleaseMode?
+  'sealed command entrypoint authenticates operator and serves registered profile plus Positions APIs':
+  'command process authenticates operator and serves registered profile plus Positions APIs');
  const initialPreview=await post(`/api/deployments/${campaign.id}/previews`,{kind:'pause'},authHeaders);
  assert.equal(initialPreview.status,200);assert.equal((await initialPreview.json()).actionAvailable,false);
  const beforeReady=await post(`/api/deployments/${campaign.id}/lifecycle-operations`,
@@ -101,8 +155,9 @@ try{
   DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'1',
   DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'1',DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4'};
  const startWorker=async()=>{
-  workerOutput='';worker=spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
-   {cwd:process.cwd(),env:workerEnv,stdio:['ignore','pipe','pipe']});
+  workerOutput='';worker=sealedReleaseMode?launch('deployments-paper-worker'):
+   spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
+    {cwd:process.cwd(),env:workerEnv,stdio:['ignore','pipe','pipe']});
   worker.stdout.setEncoding('utf8');worker.stderr.setEncoding('utf8');
   worker.stdout.on('data',chunk=>workerOutput+=chunk);worker.stderr.on('data',chunk=>workerOutput+=chunk);
   await waitFor(async()=>await store.paperOperationWorkerReady(),'worker shared readiness lease');
@@ -159,8 +214,10 @@ try{
   'pause/resume add no valuation marks');
  await verifyPositionsBrowser({origin,password,expectedCampaign:campaign.id,expectedStage:'paper_resumed'});
  checks.push('desktop and mobile browser render real Positions operation activity and unavailable economics');
- console.log(JSON.stringify({checks,campaignId:campaign.id,paused,resumed,workerProcess:'src/deployments-paper-worker.ts',
-  commandProcess:'createDeploymentCommandServer in isolated fixture process',workerRestarts:1,
+ console.log(JSON.stringify({checks,campaignId:campaign.id,paused,resumed,
+  release:releaseManifest?{buildId:releaseManifest.buildId,sourceCommit:releaseManifest.sourceCommit,verified:true}:null,
+  workerProcess:sealedReleaseMode?'sealed launch.mjs deployments-paper-worker':'src/deployments-paper-worker.ts',
+  commandProcess:sealedReleaseMode?'sealed launch.mjs deployments':'createDeploymentCommandServer in isolated fixture process',workerRestarts:1,
   readinessLeaseReleased:true,chainRpcRequests:rpcRequestCount,chainRpcBoundary:'local error-only JSON-RPC stub',
   signerLoaded:false,ledgerRows:0,markRows:0},null,2));
 }finally{
@@ -173,6 +230,7 @@ try{
  await store?.close();await admin.query('SET search_path=public');
  await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await adminPool.end();
  if(chromeProfile)await rm(chromeProfile,{recursive:true,force:true});
+ if(runtimeTemp)await rm(runtimeTemp,{recursive:true,force:true});
 }
 
 async function waitFor(read,label){
