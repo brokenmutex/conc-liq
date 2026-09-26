@@ -339,14 +339,51 @@ try{
    `First source preview expired before producer could persist confirmation: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
   const producerStartedAt=Date.now(),producerMetrics=[];
   let producerReceiptFailure='not_called',producerReceiptAnchorMs=0,producerReceiptCallMs=0;
-  const persistProducerReceipt=store.recordRangeKeeperPaperConfirmationProducerReceipt.bind(store);
-  store.recordRangeKeeperPaperConfirmationProducerReceipt=async input=>{
+  const assertNoProducerRows=async()=>{
+   const [proofs,receipts]=await Promise.all([
+    admin.query('SELECT count(*)::int AS n FROM deployment_rangekeeper_paper_confirmations WHERE campaign_id=$1',
+     [campaignId]),
+    admin.query('SELECT count(*)::int AS n FROM deployment_rangekeeper_paper_confirmation_producers WHERE campaign_id=$1',
+     [campaignId])]);
+   assert.equal(proofs.rows[0].n,0,'Failed atomic publication left a confirmation proof');
+   assert.equal(receipts.rows[0].n,0,'Failed atomic publication left a producer receipt');
+  };
+  const persistProducerPublication=store.persistRangeKeeperPaperConfirmationWithProducerReceipt.bind(store);
+  store.persistRangeKeeperPaperConfirmationWithProducerReceipt=async input=>{
    const callStartedAt=Date.now();
-   try{return await persistProducerReceipt({...input,verifyAnchors:async(chainId,sources)=>{
-    const anchorStartedAt=Date.now();
-    try{return await input.verifyAnchors(chainId,sources);}
-    finally{producerReceiptAnchorMs+=Date.now()-anchorStartedAt;}
-   }});}
+   try{
+    await assert.rejects(persistProducerPublication({...input,envelope:structuredClone(input.envelope)}),
+     /rangekeeper_paper_confirmation_producer_untrusted/,
+     'Serialized producer output was accepted');
+    const originalProfileHash=input.envelope.profileHash;
+    input.envelope.profileHash='0'.repeat(64);
+    await assert.rejects(persistProducerPublication(input),/rangekeeper_paper_confirmation_envelope_integrity_invalid/,
+     'Mutated confirmation envelope was accepted');
+    input.envelope.profileHash=originalProfileHash;
+    let anchorPass=0;
+    await assert.rejects(persistProducerPublication({...input,verifyAnchors:async(chainId,sources)=>{
+     if(++anchorPass===2)throw new assert.AssertionError({message:'fixture canonical reorg after inserts'});
+     await input.verifyAnchors(chainId,sources);
+    }}),/rangekeeper_paper_confirmation_source_changed_during_write/,
+     'Post-insert source change did not abort the atomic publication');
+    await assertNoProducerRows();
+    let fakeExpired=false;anchorPass=0;
+    const realNow=Date.now;
+    try{
+     Date.now=()=>fakeExpired?previewExpiry.getTime():realNow();
+     await assert.rejects(persistProducerPublication({...input,verifyAnchors:async(chainId,sources)=>{
+      await input.verifyAnchors(chainId,sources);
+      if(++anchorPass===2)fakeExpired=true;
+     }}),/rangekeeper_paper_confirmation_preview_expired/,
+      'Publication crossed the original preview deadline');
+    }finally{Date.now=realNow;}
+    await assertNoProducerRows();
+    return await persistProducerPublication({...input,verifyAnchors:async(chainId,sources)=>{
+     const anchorStartedAt=Date.now();
+     try{return await input.verifyAnchors(chainId,sources);}
+     finally{producerReceiptAnchorMs+=Date.now()-anchorStartedAt;}
+    }});
+   }
    catch(error){const message=error instanceof Error?error.message:'';
     producerReceiptFailure=/^[a-z][a-z0-9_]+$/.test(message)?message:'nonstandard_error';throw error;}
    finally{producerReceiptCallMs=Date.now()-callStartedAt;}

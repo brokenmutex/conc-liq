@@ -27,11 +27,11 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
   const priorIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
   process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
    configHash:'a'.repeat(64),nodeVersion:process.version});
-  let recorded=false;
+  let recorded=false,preparedOnly=false;
   try{
    const client={getGasPrice:async()=>1n} as never,
     store={paperDraft:async()=>draft,
-     readRangeKeeperPaperConfirmationEnvelope:async()=>result,
+     readRangeKeeperPaperConfirmationEnvelope:async(input:any)=>{preparedOnly=input.prepareOnly===true;return result;},
      recordRangeKeeperPaperConfirmationProducerReceipt:async(input:any)=>{
       recorded=true;assert.equal(input.envelope,result);
       assert.equal(isRangeKeeperPaperServerProduced(input.envelope),true);
@@ -45,6 +45,7 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
     reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',campaignId,revision:1,
     actionAvailable:false});
    assert.equal(recorded,false);
+   assert.equal(preparedOnly,true,'Producer did not request prepare-only store replay');
    assert.equal(isRangeKeeperPaperServerProduced(result),false);
   }finally{
    if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
@@ -59,11 +60,11 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
   const priorIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
   process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
    configHash:'a'.repeat(64),nodeVersion:process.version});
-  let recorded=false;
+  let recorded=false,preparedOnly=false;
   try{
    const client={getGasPrice:async()=>1n} as never,
     store={paperDraft:async()=>draft,
-     readRangeKeeperPaperConfirmationEnvelope:async()=>result,
+     readRangeKeeperPaperConfirmationEnvelope:async(input:any)=>{preparedOnly=input.prepareOnly===true;return result;},
      recordRangeKeeperPaperConfirmationProducerReceipt:async()=>{recorded=true;}} as never,
     producer=createRangeKeeperPaperConfirmationProducer({store,client,rpcUrl:'http://fixture.invalid',
      beforeRead:async()=>{},readCanonicalFrame:async()=>({source,tick:0,sqrtPriceX96:1n,
@@ -75,6 +76,7 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
     reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',campaignId,revision:1,
     actionAvailable:false});
    assert.equal(recorded,false);
+   assert.equal(preparedOnly,true,'Untrusted runner path attempted a durable confirmation write');
   }finally{
    if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
    else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorIdentity;

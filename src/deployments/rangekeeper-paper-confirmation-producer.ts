@@ -23,7 +23,7 @@ import type {RangeKeeperPaperConfirmationSimulation} from './rangekeeper-paper-c
 import type {DeploymentStore} from './store.js';
 
 type ConfirmationStore=Pick<DeploymentStore,'paperDraft'|'readRangeKeeperPaperConfirmationEnvelope'|
- 'recordRangeKeeperPaperConfirmationProducerReceipt'>;
+ 'persistRangeKeeperPaperConfirmationWithProducerReceipt'>;
 type ForkRunner=typeof simulateRangeKeeperPaperConfirmationOnOwnedFork;
 type CanonicalFrameReader=(client:RobinhoodClient,profile:RangeKeeperPaperDraft['profile'])=>Promise<PaperOpenFrame>;
 
@@ -93,7 +93,7 @@ export function createRangeKeeperPaperConfirmationProducer(
   catch{/* Builder returns an explicit unavailable result when gas price is absent. */}
   const now=Date.now();let completedOwnedForkEvidence:unknown;
   const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
-   client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,
+   client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,prepareOnly:true,
    pinnedQuoteCache:dependencies.pinnedQuoteCache,
    preparation:dependencies.preparation,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
@@ -119,8 +119,7 @@ export function createRangeKeeperPaperConfirmationProducer(
       probe,profile:draft.profile,frame,configHash:draft.configHash,allocation,limits:policy.policy.limits};
     if(dependencies.reusableSimulation){
      if(!ownsForkRunner)throw new Error('rangekeeper_confirmation_reusable_simulation_runner_untrusted');
-     const reused=await consumeRangeKeeperSimulationWithAnchors({simulation:dependencies.reusableSimulation,context,
-      verifySource:()=>verifyCanonicalPaperAnchors(dependencies.client,draft.profile.pool.chainId,[frame.source])});
+     const reused=consumeTrustedRangeKeeperSimulation({simulation:dependencies.reusableSimulation,context});
      if(!reused)throw new Error('rangekeeper_confirmation_reusable_simulation_unavailable');
      completedOwnedForkEvidence=reused.ownedForkEvidence;
      return reused;
@@ -142,7 +141,7 @@ export function createRangeKeeperPaperConfirmationProducer(
     return {status:'unavailable',reason:'rangekeeper_confirmation_owned_fork_proof_unavailable',
      campaignId,revision:draft.revision,actionAvailable:false};
    markRangeKeeperPaperServerProduced(result);
-   try{await dependencies.store.recordRangeKeeperPaperConfirmationProducerReceipt({envelope:result,
+   try{await dependencies.store.persistRangeKeeperPaperConfirmationWithProducerReceipt({envelope:result,
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources)});}
    catch{return {status:'unavailable',reason:'rangekeeper_confirmation_producer_receipt_unavailable',
     campaignId,revision:draft.revision,actionAvailable:false};}
