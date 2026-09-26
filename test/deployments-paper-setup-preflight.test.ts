@@ -85,6 +85,7 @@ test('setup gas scope matches the production planner minted floor value, not bud
   maxLossValue:'1000000000000000000000',maxDrawdownPpm:1_000_000,
   maxActionCost:'1000000000000000000000',maxRollingCost:'1000000000000000000000',
   maxCampaignCost:'1000000000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50}});
+ assert(limits.limits);
  const scopedInput=paperSetupPreflightInput.parse({...input,capitalQuoteRaw:'100000001',limits:limits.limits});
  const read=async(gasRows:ReturnType<typeof completeGasProfiles>)=>buildStaticPaperSetupPreflight(scopedInput,{
   loadProfile:async id=>({id,profile,profileHash:contentHash(profile)}),readFrame:async()=>scopedFrame,
@@ -93,8 +94,8 @@ test('setup gas scope matches the production planner minted floor value, not bud
  assert(sizing.requirements);
  const parameters={halfWidthTicks:scopedInput.halfWidthTicks,limits:limits.limits};
  const draft={id:'00000000-0000-4000-8000-000000000002',revision:1,profile,
-  profileHash:contentHash(profile),configHash:'0'.repeat(64),strategyId:'static_manual_v1',
-  strategyVersion:'1.0.0',stateSchemaVersion:1,parameters,
+  profileHash:contentHash(profile),configHash:'0'.repeat(64),strategyId:'static_manual_v1' as const,
+  strategyVersion:'1.0.0' as const,stateSchemaVersion:1 as const,parameters,
   allocation:{token0Raw:sizing.requirements.token0Raw,token1Raw:sizing.requirements.token1Raw,
    nativeWei:limits.limits.exitReserveWei}};
  const actual=buildIndicativePaperOpenPreview(draft,scopedFrame);
