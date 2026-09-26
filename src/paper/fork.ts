@@ -156,6 +156,7 @@ export async function openPaperFork(input: {
     }
     await input.beforeRead();
     await pace(input.rpcUrl, input.intervalMs ?? 100);
+    if(Date.now()>=deadline)throw new Error("Paper fork read/time budget exhausted");
     const response = await fetch(input.rpcUrl, {
       method: "POST", headers: { "content-type": "application/json" }, redirect: "error",
       body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),

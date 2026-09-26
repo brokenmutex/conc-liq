@@ -8,6 +8,7 @@ import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangek
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
  type RangeKeeperPaperCandidateScope} from './rangekeeper-paper-cost.js';
 import {simulateRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-simulation.js';
+import type {ForkReadDiagnostics,ForkReadHint} from '../paper/fork.js';
 import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
@@ -22,6 +23,8 @@ type CanonicalFrameReader=(client:RobinhoodClient,profile:RangeKeeperPaperDraft[
 export interface RangeKeeperPaperConfirmationProducerDependencies {
  store:ConfirmationStore;client:RobinhoodClient;rpcUrl:string;beforeRead:()=>Promise<void>;
  maxRequests?:number;timeoutMs?:number;
+ /** Optional request-scoped address/slot shapes; values are freshly fetched by the fork. */
+ prefetchHints?:readonly ForkReadHint[];onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
  /** Test seam bound when constructing the service; never taken from an HTTP request. */
  runOwnedFork?:ForkRunner;readCanonicalFrame?:CanonicalFrameReader;
 }
@@ -82,7 +85,8 @@ export function createRangeKeeperPaperConfirmationProducer(
     const simulation=await runFork({probe,profile:draft.profile,frame,configHash:draft.configHash,
      initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
      limits:policy.policy.limits,rpcUrl:dependencies.rpcUrl,beforeRead:dependencies.beforeRead,
-     maxRequests:dependencies.maxRequests,timeoutMs:dependencies.timeoutMs});
+     maxRequests:dependencies.maxRequests,timeoutMs:dependencies.timeoutMs,
+     prefetchHints:dependencies.prefetchHints,onReadDiagnostics:dependencies.onReadDiagnostics});
     if(ownsForkRunner)completedOwnedForkEvidence=simulation.ownedForkEvidence;
     return simulation;
    }});
