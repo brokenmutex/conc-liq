@@ -1768,7 +1768,7 @@ platform is not needed to establish the cause.
 | MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete canonical retain browser lifecycle passed through the final sealed command/worker `609e68f` / `b78c3f22…`, with one terminal mark and desktop/mobile parity. | Complete; retain custody and paid-cost limitations remain explicit. |
 | MVP-3 | Both canonical browser exits passed on sealed `b78c3f22…` / source `609e68f`: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Preserve the same artifact for economic restart and restore gates. |
-| MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
+| MVP-4 | Actual lost-202 response, natural preview expiry, worker kill/lease loss and browser HTTP 202 replay of the original key/operation passed. Canonical restart readiness failed; fifth diagnostics stopped earlier with acceptance outcome uncaptured. | Diagnose the measured failures, then prove canonical restart with exactly-once economic completion, canonical restore and changed-anchor rejection. Preserve the existing bounds and rejection gates. |
 | MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Economic recovery on this build, canonical restore, changed-anchor rejection and final cutover review. Both ordinary canonical lifecycles passed. Production authorization remains pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
@@ -2235,3 +2235,25 @@ its cause. Processes, owned schema and temporary inputs were cleaned. Log:
 Recovery, canonical restore and changed-anchor rejection remain open. Diagnose
 the measured startup boundary before repeating the same full fixture; preserve
 the existing timeout, sealed verification and economic evidence gates.
+
+
+**Fifth diagnostic attempt stopped before restart:** frozen external harness
+`1c0f4ff` on the same sealed artifact measured initial readiness at 1.762s:
+285,853,359 read characters, 1,773,568 physical read bytes and 15,532 read
+syscalls. Campaign `0a293d8e-b181-40f7-8081-68aa63204418` reached open,
+later valuation and fee/V2 readiness. After worker suspension, the browser
+showed a saved conversion request awaiting reconciliation, but the fixture
+timed out waiting for its explicit actual-202 response-loss flag. It did not
+capture the HTTP outcome or durable conversion operation before cleanup, so
+this attempt proves neither acceptance nor restart behavior. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-1c0f4f-20260926.txt`.
+The external driver must preserve safe HTTP/error observations and bounded
+campaign-operation rows on this failure path before another run. Recovery,
+canonical restore and changed-anchor rejection remain open.
+
+The worker unit is `Type=simple`, with no readiness notification or explicit
+start deadline. Service `active` is insufficient evidence of the DB lease.
+The fixture's 30-second readiness bound is a test gate, not a documented
+production start SLA. Read-only cgroup snapshots found no memory limit/OOM
+event for the fifth run; aggregate resource counters do not establish or
+exclude a transient host/filesystem cause for the earlier restart stall.

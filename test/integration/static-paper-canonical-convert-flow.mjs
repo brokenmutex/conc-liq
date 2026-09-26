@@ -455,8 +455,14 @@ async function main(){
       'proxy must first observe the accepted model’s unchanged canonical anchor');
      phase('accepted_model_anchor_observed',{block:acceptedModelSource.block});
     }
-    if(interrupt){workerSuspension=await suspendPaperWorker(worker,workerReady);phase('worker_suspended');}
-   }});
+   if(interrupt){workerSuspension=await suspendPaperWorker(worker,workerReady);phase('worker_suspended');}
+   if(interrupt){
+    const expiry=typeof previewResponse?.expiresAt==='string'&&
+     Number.isFinite(Date.parse(previewResponse.expiresAt))?new Date(previewResponse.expiresAt).toISOString():null;
+    phase('convert_acceptance_attempt_started',{at:new Date().toISOString(),previewExpiresAt:expiry,
+     previewRemainingMs:expiry?Date.parse(expiry)-Date.now():null});
+   }
+  }});
   phase('convert_acceptance_submitted');checks.push('Positions browser accepted canonical convert-close preview');
   const acceptancePost=convert.posts.find(row=>row.path===`/api/deployments/${campaignId}/close-convert-operations`);
   assert(acceptancePost?.postData,'browser trace did not capture convert acceptance request body');
@@ -491,12 +497,20 @@ async function main(){
     'saved conversion request recovery after browser reload');
    const recoveryPath=`/api/deployments/${campaignId}/close-convert-operations`;
    await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(recoveryPath)};
-    window.__canonicalRecoveryResponse=null;window.fetch=async(input,options)=>{const response=await original(input,options),
-     requestPath=new URL(typeof input==='string'?input:input.url,location.href).pathname;
-     if(requestPath===target&&options?.method==='POST'){try{const body=await response.clone().json();
-      window.__canonicalRecoveryResponse={httpStatus:response.status,id:body.id??null,status:body.status??null,
-       replayed:body.replayed??null,error:body.error??null,reason:body.reason??null};
-     }catch{window.__canonicalRecoveryResponse={httpStatus:response.status,responseJsonUnavailable:true};}}
+    window.__canonicalRecoveryResponse=null;window.__canonicalRecoveryFetchError=null;
+    window.fetch=async(input,options)=>{let requestPath='';try{requestPath=new URL(
+     typeof input==='string'?input:input.url,location.href).pathname;}catch{}
+     const isRecovery=requestPath===target&&options?.method==='POST';let response;
+     try{response=await original(input,options);}catch(error){if(isRecovery)window.__canonicalRecoveryFetchError={
+      name:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error',responseAcquired:false};throw error;}
+     if(isRecovery){try{const body=await response.clone().json(),
+      safeId=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)?value:null,
+      safeCode=value=>typeof value==='string'&&/^[a-z0-9_]{1,100}$/i.test(value)?value:null;
+      window.__canonicalRecoveryResponse={httpStatus:response.status,responseAcquired:true,id:safeId(body.id),
+       idInvalid:body.id!=null&&!safeId(body.id),status:safeCode(body.status),
+       replayed:body.replayed===true,error:safeCode(body.error),reason:safeCode(body.reason)};
+     }catch(error){window.__canonicalRecoveryResponse={httpStatus:response.status,responseAcquired:true,
+      responseJsonErrorClass:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error'};}}
      return response;};})()`);
    await browser.click(`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button[data-kind="close_convert"][data-campaign-id="${campaignId}"]`);
    await browser.waitFor('window.__canonicalRecoveryResponse!==null',
@@ -780,7 +794,38 @@ async function main(){
    runtime:sealed?{buildId:manifest.buildId,sourceCommit:manifest.sourceCommit,verified:true}:
     'spawned source src/deployments.ts and src/deployments-paper-worker.ts',
    note:'Fork-derived estimates remain provisional. This disposable run proves static/manual browser conversion only.'},null,2));
- }catch(error){
+}catch(error){
+  if(browser&&campaignId){
+   try{
+    const browserObservation=await browser.evaluate(`(()=>({dropped:window.__canonicalDroppedAcceptedResponse===true,
+     acceptedResponse:window.__canonicalAcceptedResponse,acceptanceFetchError:window.__canonicalAcceptanceFetchError,
+     dropWrapper:window.__canonicalDropWrapperObservation,recoveryResponse:window.__canonicalRecoveryResponse,
+     recoveryFetchError:window.__canonicalRecoveryFetchError}))()`),
+     convertAcceptancePath=`/api/deployments/${campaignId}/close-convert-operations`,
+     convertAcceptancePostCount=browser.posts.filter(row=>row.path===convertAcceptancePath).length;
+    phase('failure_browser_acceptance_observation',{campaignId,browserObservation,
+     postCounts:{closeConvertAcceptance:convertAcceptancePostCount}});
+   }catch(diagnosticError){phase('failure_browser_acceptance_observation_error',{
+    name:/^[A-Za-z]+Error$/.test(diagnosticError?.name??'')?diagnosticError.name:'Error'});}
+  }
+  if(campaignId&&admin){
+   try{
+    const operationRows=(await admin.query(`SELECT id::text,kind,status,stage,reason,attempts,
+     created_at::text,updated_at::text FROM deployment_operations WHERE campaign_id=$1
+     ORDER BY created_at DESC LIMIT 20`,[campaignId])).rows.map(row=>({id:row.id,
+      kind:typeof row.kind==='string'&&/^[a-z0-9_]{1,64}$/i.test(row.kind)?row.kind:null,
+      status:typeof row.status==='string'&&/^[a-z0-9_]{1,64}$/i.test(row.status)?row.status:null,
+      stage:typeof row.stage==='string'&&/^[a-z0-9_]{1,120}$/i.test(row.stage)?row.stage:null,
+      reason:typeof row.reason==='string'&&/^[a-z0-9_]{1,120}$/i.test(row.reason)?row.reason:null,
+      attempts:Number.isInteger(row.attempts)?row.attempts:null,
+      created_at:typeof row.created_at==='string'?row.created_at.slice(0,60):null,
+      updated_at:typeof row.updated_at==='string'?row.updated_at.slice(0,60):null}));
+    phase('failure_campaign_operations',{campaignId,operations:operationRows});
+   }catch(diagnosticError){phase('failure_campaign_operations_error',{
+    name:/^[A-Za-z]+Error$/.test(diagnosticError?.name??'')?diagnosticError.name:'Error',
+    code:typeof diagnosticError?.code==='string'&&
+     /^[A-Z0-9_]{1,60}$/i.test(diagnosticError.code)?diagnosticError.code:null});}
+  }
   if(campaignId&&store&&indexer){
    try{
     const sampling=await store.paperFeeSamplingState(campaignId);

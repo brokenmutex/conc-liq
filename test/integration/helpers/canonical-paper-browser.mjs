@@ -294,26 +294,50 @@ export async function acceptPositionsAction(browser,campaignId,kind,
  await beforeAccept({kind,previewText,previewResponse});
  const acceptancePath=`/api/deployments/${campaignId}${spec.acceptPath}`;
  await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(acceptancePath)};
-  window.__canonicalAcceptedResponse=null;window.fetch=async(input,init)=>{const response=await original(input,init),
-   path=new URL(typeof input==='string'?input:input.url,location.href).pathname;
-   if(path===target&&init?.method==='POST'){try{const body=await response.clone().json();
-    window.__canonicalAcceptedResponse={httpStatus:response.status,id:body.id??null,
-     status:body.status??null,error:body.error??null,reason:body.reason??null};
-   }catch{window.__canonicalAcceptedResponse={httpStatus:response.status,responseJsonUnavailable:true};}}
+  window.__canonicalAcceptedResponse=null;window.__canonicalAcceptanceFetchError=null;
+  window.fetch=async(input,init)=>{let path='';try{path=new URL(typeof input==='string'?input:input.url,location.href).pathname;}catch{}
+   const isAcceptance=path===target&&init?.method==='POST';let response;
+   try{response=await original(input,init);}catch(error){if(isAcceptance)window.__canonicalAcceptanceFetchError={
+    name:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error',responseAcquired:false};throw error;}
+   if(isAcceptance){try{const body=await response.clone().json(),safe=value=>typeof value==='string'&&
+     /^[a-z0-9_]{1,100}$/i.test(value)?value:null,
+     safeId=value=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)?value:null;
+    window.__canonicalAcceptedResponse={httpStatus:response.status,id:safeId(body.id),
+     idInvalid:body.id!=null&&!safeId(body.id),
+     status:safe(body.status),replayed:body.replayed===true,error:safe(body.error),reason:safe(body.reason),
+     responseAcquired:true};
+     }catch(error){window.__canonicalAcceptedResponse={httpStatus:response.status,
+      responseAcquired:true,responseJsonErrorClass:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error'};}}
    return response;};})()`);
  if(dropAcceptedResponse){
   await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(acceptancePath)};
    let dropped=false;window.__canonicalDroppedAcceptedResponse=false;
-   window.fetch=async(input,options)=>{const response=await original(input,options),
-    requestPath=new URL(typeof input==='string'?input:input.url,location.href).pathname;
-    if(!dropped&&options?.method==='POST'&&requestPath===target&&response.status===202){
-     dropped=true;window.__canonicalDroppedAcceptedResponse=true;
+   window.__canonicalDropWrapperObservation=null;
+   window.fetch=async(input,options)=>{let requestPath='';try{requestPath=new URL(
+    typeof input==='string'?input:input.url,location.href).pathname;}catch{}
+    const isAcceptance=options?.method==='POST'&&requestPath===target;let response;
+    try{response=await original(input,options);}catch(error){if(isAcceptance)window.__canonicalDropWrapperObservation={
+     responseAcquired:false,fetchErrorClass:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error'};throw error;}
+    if(isAcceptance)window.__canonicalDropWrapperObservation={responseAcquired:true,httpStatus:response.status};
+    if(!dropped&&isAcceptance&&response.status===202){dropped=true;window.__canonicalDroppedAcceptedResponse=true;
+     window.__canonicalDropWrapperObservation.dropped=true;
      throw new TypeError('fixture_lost_accepted_response');}return response;};})()`);
  }
  await browser.click(spec.confirm);
  if(dropAcceptedResponse){
-  await browser.waitFor('window.__canonicalDroppedAcceptedResponse===true',
-   `${kind} injected accepted-response loss`,60_000);
+  try{await browser.waitFor('window.__canonicalDroppedAcceptedResponse===true',
+    `${kind} injected accepted-response loss`,60_000);}
+  catch(error){
+   const observation=await browser.evaluate(`(()=>({dropped:window.__canonicalDroppedAcceptedResponse===true,
+    acceptedResponse:window.__canonicalAcceptedResponse,acceptanceFetchError:window.__canonicalAcceptanceFetchError,
+    dropWrapper:window.__canonicalDropWrapperObservation}))()`),
+    matchingPostCount=browser.posts.slice(before).filter(row=>row.path===acceptancePath).length,
+    previewExpiresAt=typeof previewResponse?.expiresAt==='string'&&
+     Number.isFinite(Date.parse(previewResponse.expiresAt))?new Date(previewResponse.expiresAt).toISOString():null;
+   throw Error(`${kind} accepted-response loss was not observed: `+
+    `${JSON.stringify({observation,matchingPostCount,previewExpiresAt,
+     previewRemainingMs:previewExpiresAt?Date.parse(previewExpiresAt)-Date.now():null})}`);
+  }
   assert.equal(await browser.evaluate('window.__canonicalDroppedAcceptedResponse'),true,
    `${kind} recovery fixture did not drop the actual accepted 202 response`);
   const recoverySelector=`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button`+

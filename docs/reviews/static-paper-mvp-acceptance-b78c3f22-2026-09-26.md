@@ -11,7 +11,9 @@ remain open. This review does not authorize a production cutover.
 - Artifact: `/tmp/conc-liq-static-mvp-releases-20260926/` plus the build ID.
 - Node: bundled `v24.20.0`; its own `launch.mjs --verify` passed.
 - Ordinary sealed conversion harness: `633566a954e49e02e0c5833caa8ee4381ef240e6`.
-- Current interrupted-conversion harness: `15eaf520c0cded6529436118bcfa69f19b00d907`.
+- Fourth interrupted-conversion harness: `15eaf520c0cded6529436118bcfa69f19b00d907`.
+- Fifth diagnostic harness: `1c0f4ffc84371e0883dc9a5997fde93bfcde79c7`; it stopped
+  before capturing conversion acceptance, so supplies no restart result.
   Later commits change documentation and external test drivers only. Runtime
   code and artifact bytes remain those of the clean reviewed runtime source.
 
