@@ -242,17 +242,17 @@ await fill('#operator-password',password);await click('#operator-login-form butt
 await waitFor('!document.querySelector("#operator-logout").hidden&&document.querySelector("#setup-width").options.length>1');
 await check('Real command server authenticates operator and loads registered DB profile',
  'document.querySelector("#setup-pool").options[0].value==='+JSON.stringify(poolAddress)+'&&document.querySelector("#operator-password").value===""');
-await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
-await check('Preflight binds the registered quote-token index for exact draft admission',
- 'document.querySelector("#setup-preflight-facts").textContent.includes("USDG")');
-await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
-await fill('#setup-allocation-native','2000000000000000');
 const limits=[['#limit-max-deployment','10000000000000000000000'],['#limit-min-deployment','1000000000000000000'],
  ['#limit-max-exposure','1000000'],['#limit-max-loss','10000000000000000000000'],['#limit-max-drawdown','1000000'],
  ['#limit-max-action-cost','10000000000000000000'],['#limit-max-rolling-cost','20000000000000000000'],
  ['#limit-max-campaign-cost','30000000000000000000'],['#limit-exit-reserve','1000000000000000'],
  ['#limit-slippage-bps','50']];
 for(const [selector,value]of limits)await fill(selector,value);
+await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
+await check('Preflight binds the registered quote-token index for exact draft admission',
+ 'document.querySelector("#setup-preflight-facts").textContent.includes("USDG")');
+await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
+await fill('#setup-allocation-native','2000000000000000');
 await waitFor('document.querySelector("#save-paper-draft").disabled===false');
 await click('#save-paper-draft');await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Saved static/manual paper draft")');
 const draftId=await evaluate(`document.querySelector("#setup-draft-submit-status").textContent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]`);
