@@ -13,7 +13,7 @@ import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {prepareStaticPaperGasForCandidate} from './deployments/static-paper-gas-preparation.js';
 import {prepareStaticPaperSetup} from './deployments/static-paper-setup-preparation.js';
 import {sampleStaticPaperGas} from './deployments/paper-gas-sampler.js';
-import {verifyPaperGasSource} from './deployments/paper-gas-source.js';
+import {safePaperGasVerifyFailure,verifyPaperGasSource} from './deployments/paper-gas-source.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
@@ -62,6 +62,8 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false,paperSetupBusy=false;
+ const setupDiagnostic=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
+  (stage:string,reason:string)=>log('warn','paper_setup_preparation_diagnostic',{stage,reason}):undefined;
  const paperSetupReviewCache=new StaticPaperSetupReviewCache();
  const runStaticSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
   pinnedSource?:PaperOpenFrame['source'])=>buildStaticPaperSetupPreflight(input,{
@@ -82,14 +84,16 @@ async function main(){
     forkRpcUrl:env.PAPER_FORK_RPC_URL??null,
     sample:(draft,frame)=>sampleStaticPaperGas({rpcUrl:env.PAPER_FORK_RPC_URL!,draft,frame,
      beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000}),
-    verify:report=>verifyPaperGasSource(client,report),
+    verify:async report=>{
+     try{return await verifyPaperGasSource(client,report);}
+     catch(error){setupDiagnostic?.('paper_gas_sample_source_verify',safePaperGasVerifyFailure(error));throw error;}
+    },
     importEvidence:async(report,attestation)=>{
      const result=await store.registerPaperGasEvidence(report,attestation);
      if(typeof result.reportHash!=='string')throw new Error('paper_gas_import_report_hash_unavailable');
      return {created:result.created,reportHash:result.reportHash};
     },
-    diagnostic:process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
-     (stage,reason)=>log('warn','paper_setup_preparation_diagnostic',{stage,reason}):undefined,
+    diagnostic:setupDiagnostic,
    });
    if(result&&typeof result==='object'&&!Array.isArray(result)){
     const row=result as Record<string,unknown>,captured=paperSetupReviewCache.capture(row);

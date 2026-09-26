@@ -163,9 +163,22 @@ test('provisional paper economics are labeled as modeled throughout the row and 
  assert.match(run('condition(modeled)'),/provisional modeled outcome/);
  assert.match(run('row(modeled,null)'),/Provisional modeled value/);
  const metrics=run('deploymentMetrics(modeled)');
+ assert.match(metrics,/Starting capital/);
  assert.match(metrics,/Modeled net value/);
  assert.match(metrics,/Vs passive inventory/);
  assert.match(metrics,/Lower integer fixed-flow allocation/);
  assert.match(metrics,/Scoped fork estimate · not paid gas/);
  assert.doesNotMatch(metrics,/Paid execution costs/);
+});
+
+test('static deployment metrics show persisted starting capital or an unavailable value',()=>{
+ const recorded=position('open','active',{initial:2000,accounting:'unavailable',
+  deployment:{lifecycle:'active',strategyId:'static_manual_v1',rangeState:'inside',
+   lowerBoundValue:null,passiveTokenValue:null,operation:{stage:null,reason:null}}});
+ const missing=position('open','active',{initial:null,accounting:'unavailable',
+  deployment:{lifecycle:'active',strategyId:'static_manual_v1',rangeState:'inside',
+   lowerBoundValue:null,passiveTokenValue:null,operation:{stage:null,reason:null}}});
+ Object.assign(context,{recorded,missing});
+ assert.match(run('deploymentMetrics(recorded)'),/Starting capital[\s\S]*2,000\.00[\s\S]*Persisted capital-in baseline/);
+ assert.match(run('deploymentMetrics(missing)'),/Starting capital[\s\S]*>—<[\s\S]*Capital-in evidence unavailable/);
 });

@@ -19,35 +19,26 @@ import pg from 'pg';
 import {verifyRelease} from '../../scripts/release-files.mjs';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
-import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {contentHash,staticManualParameters} from '../../src/deployments/contracts.ts';
-import {buildStaticPaperSetupPreflight} from '../../src/deployments/paper-setup-preflight.ts';
 import {verifyMarketProfile,marketProfileSchema} from '../../src/deployments/market-profile.ts';
 import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 import {createRobinhoodClient} from '../../src/client.ts';
-import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER,USDG} from '../../src/constants.ts';
+import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
-import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,
- readCanonicalPaperNextFrame} from '../../src/deployments/paper-preview.ts';
-import {costIndicativePaperOpenPreview} from '../../src/deployments/paper-cost.ts';
-import {sampleStaticPaperGas} from '../../src/deployments/paper-gas-sampler.ts';
-import {verifyPaperGasSource} from '../../src/deployments/paper-gas-source.ts';
-import {persistTrustedPaperOpenPreview} from '../../src/deployments/paper-open-preflight.ts';
-import {persistTrustedStaticPaperRetainPreview} from '../../src/deployments/paper-close-retain-preflight.ts';
-import {verifyCanonicalPaperAnchors} from '../../src/deployments/paper-canonical-anchors.ts';
-import {createStaticPaperDraftFromSetup} from '../../src/deployments/static-paper-draft-admission.ts';
-import {StaticPaperSetupReviewCache} from '../../src/deployments/static-paper-setup-review-cache.ts';
-import {prepareStaticPaperSetup} from '../../src/deployments/static-paper-setup-preparation.ts';
-import {prepareStaticPaperGasForCandidate} from '../../src/deployments/static-paper-gas-preparation.ts';
-import {readDeploymentRows,readDeploymentByKey,readDeploymentDetail,deploymentPosition}
- from '../../src/dashboard/deployment-position.ts';
+import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame}
+ from '../../src/deployments/paper-preview.ts';
+import {startCanonicalPaperBrowser,createDraftAndAcceptOpen,acceptPositionsAction,
+ selectCampaignInPositions,inspectPositionAtWidths,assertBrowserHealthy}
+ from './helpers/canonical-paper-browser.mjs';
 
 const cleanError=error=>{
  const message=error instanceof Error?(error.stack??error.message):'static canonical flow failed';
  process.stderr.write(`${message.replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,10000)}\n`);
  process.exitCode=1;
 };
-const phase=(name,details={})=>process.stdout.write(`${JSON.stringify({phase:name,...details})}\n`);
+const harnessStartedAt=Date.now();
+const phase=(name,details={})=>process.stdout.write(`${JSON.stringify({phase:name,
+ elapsedMs:Date.now()-harnessStartedAt,...details})}\n`);
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const waitFor=async(read,label,timeoutMs=300_000)=>{
  const deadline=Date.now()+timeoutMs;
@@ -62,6 +53,7 @@ const rawUsd=(usd)=>String(BigInt(usd)*10n**18n);
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const sealedReleaseMode=process.argv.includes('--sealed-release');
+const browserLifecycle=process.argv.includes('--browser-lifecycle');
 if(sealedReleaseMode&&!process.env.TEST_SEALED_RELEASE_DIR)
  throw Error('TEST_SEALED_RELEASE_DIR is required with --sealed-release');
 if(!sealedReleaseMode&&process.env.TEST_SEALED_RELEASE_DIR)
@@ -87,12 +79,197 @@ const rpc=createRobinhoodClient(readRpc,20_000,{retryCount:0}),
   referencePolicy:rawMarket.referencePolicy}),
  adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),admin=await adminPool.connect(),
  schema=`static_canonical_${randomUUID().replaceAll('-','')}`;
-let store,command,worker,chrome,chromeProfile,ws,commandPort,dashboardPool,workerOutput='',commandOutput='',password,runtimeTemp,campaign,
- setupAdmissionFresh=null,
- sampledGasReport=null;
+let store,command,worker,chrome,chromeProfile,ws,browser,commandPort,workerOutput='',commandOutput='',password,runtimeTemp,campaign;
 const checks=[];
 const targetSetHash=`0x${'e'.repeat(64)}`;
 const operator='0x1111111111111111111111111111111111111111';
+
+async function runBrowserRetainLifecycle({origin,password,profile,parameters,operator,readRpc,scopedUrl,
+ identity,workerEnv,launchSealed}){
+ worker=sealedReleaseMode?launchSealed('deployments-paper-worker'):
+  spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
+   {cwd:process.cwd(),env:workerEnv,stdio:['ignore','pipe','pipe']});
+ worker.stdout.setEncoding('utf8');worker.stderr.setEncoding('utf8');
+ worker.stdout.on('data',chunk=>workerOutput+=chunk);worker.stderr.on('data',chunk=>workerOutput+=chunk);
+ await waitFor(()=>store.paperOperationWorkerReady(),'paper worker readiness lease',30_000);
+ phase('paper_worker_process_ready');
+ browser=await startCanonicalPaperBrowser({origin,password,onTemp:path=>{chromeProfile=path;}});
+ const created=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,
+  capital:'2',halfWidthTicks:20,wallet:operator,nativeWei:'10000000000000000000',limits:parameters.limits});
+ campaign={id:created.campaignId};
+ phase('browser_setup_draft_and_open_accepted',{campaignId:campaign.id,
+  openAcceptancePosts:created.openPosts.length});
+ checks.push('operator browser created the static/manual draft from a fresh server-owned setup review and accepted open');
+ const readOperation=async kind=>{
+  const row=(await admin.query(`SELECT id::text,kind,status,stage,reason,attempts,updated_at
+   FROM deployment_operations WHERE campaign_id=$1 AND kind=$2 ORDER BY created_at DESC LIMIT 1`,
+   [campaign.id,kind])).rows[0];
+  return row??null;
+ };
+ const waitOperation=async(kind,stage)=>{
+  let lastSignal=null,lastOperation=null;
+  const row=await waitFor(async()=>{
+   const current=await readOperation(kind);
+   if(!current)return null;
+   lastOperation=current;
+   const signal=JSON.stringify({status:current.status,stage:current.stage,reason:current.reason,
+    attempts:current.attempts,updatedAt:current.updated_at});
+   if(signal!==lastSignal){lastSignal=signal;phase('browser_worker_operation_progress',
+    {kind,status:current.status,stage:current.stage,reason:current.reason,
+     attempts:current.attempts,updatedAt:current.updated_at});}
+   if(['blocked','rejected','cancelled'].includes(current.status)||
+    ['succeeded','completed'].includes(current.status))return current;
+   return null;
+  },`browser ${kind} worker completion`,300_000).catch(error=>{
+   throw Error(`${error instanceof Error?error.message:'worker wait failed'}; last operation=${JSON.stringify(
+    lastOperation)}; worker=${workerOutput.slice(-1200).replace(/https?:\/\/\S+/gi,'[redacted-url]')}`);
+  });
+  assert.equal(row.status,'succeeded',JSON.stringify(row));assert.equal(row.stage,stage,JSON.stringify(row));
+  return row;
+ };
+ const opened=await waitOperation('open','paper_open_recorded');
+ phase('static_open_worker_succeeded',{operationId:opened.id,attempts:opened.attempts});
+ const openMarks=(await admin.query(`SELECT id::text,source_block::text,source_hash,
+  calibration_profile_ids,inventory,provenance FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[campaign.id,opened.id])).rows;
+ assert.equal(openMarks.length,1,'open operation must write exactly one opening mark');
+ const openMark=openMarks[0],gasProfileIds=openMark.calibration_profile_ids;
+ assert.equal(gasProfileIds.length,6,'setup must import the six provisional static/manual gas stages');
+ const gasProfiles=(await admin.query(`SELECT id::text,stage,status,evidence_class,
+  source_hash,validation->>'reportHash' AS report_hash FROM deployment_calibration_profiles
+  WHERE id=ANY($1::uuid[]) ORDER BY stage`,[gasProfileIds])).rows;
+ assert.equal(gasProfiles.length,gasProfileIds.length);
+ assert(gasProfiles.every(row=>row.status==='provisional'&&row.evidence_class==='fork_estimated'));
+ const gasReportHashes=[...new Set(gasProfiles.map(row=>row.report_hash))];
+ assert.equal(gasReportHashes.length,1,'browser setup gas profile report identity differs');
+ const gasReportHash=gasReportHashes[0];
+ const valuation=await waitFor(async()=>{
+  const row=(await admin.query(`SELECT id::text,source_block::text,source_hash,inventory
+   FROM deployment_marks WHERE campaign_id=$1
+    AND provenance->>'classification'='paper_model_principal_valuation'
+   ORDER BY id DESC LIMIT 1`,[campaign.id])).rows[0];
+  return row??null;
+ },'later canonical principal valuation',360_000);
+ phase('later_principal_valuation_present',{markId:valuation.id,sourceBlock:valuation.source_block});
+ const firstDetail=await browser.evaluate(`fetch('/api/positions/paper-dep-${campaign.id}?hours=24')
+  .then(async response=>({status:response.status,body:await response.json()}))`);
+ assert.equal(firstDetail.status,200);
+ const openEvent=firstDetail.body.events.find(event=>event.id===opened.id);
+ assert(openEvent);assert.equal(openEvent.stage,'paper_open_recorded');
+ assert.equal(firstDetail.body.position.deployment.lifecycle,'active');
+ const dashboardSourceMark=(await admin.query(`SELECT EXISTS(SELECT 1 FROM deployment_marks
+  WHERE campaign_id=$1 AND source_block=$2::numeric) AS found`,
+  [campaign.id,firstDetail.body.position.deployment.sourceBlock])).rows[0].found;
+ assert(dashboardSourceMark,'first-session dashboard source must match a persisted canonical mark');
+ for(const unavailable of ['fee_capture','paid_gas'])
+  assert(firstDetail.body.position.deployment.unavailable.includes(unavailable));
+ const capitalRaw=(await admin.query(`SELECT sum(value_raw)::text AS total FROM deployment_ledger
+  WHERE campaign_id=$1 AND kind='capital_in'`,[campaign.id])).rows[0].total;
+ assert(capitalRaw,'persisted starting capital ledger entry missing');
+ assert.equal(firstDetail.body.position.initialQuote,String(BigInt(capitalRaw)/10n**12n),
+  'first-session starting capital must match persisted capital-in ledger');
+ const firstSessionValues={initialQuote:firstDetail.body.position.initialQuote,
+  tokens:firstDetail.body.position.inventory.tokens.map(token=>({symbol:token.symbol,
+   amountRaw:token.amountRaw,lowerBoundRaw:token.lowerBoundRaw,allocatedRaw:token.allocatedRaw})),
+  sourceBlock:firstDetail.body.position.deployment.sourceBlock,
+  operationStage:firstDetail.body.position.deployment.operation.stage};
+ assert(firstSessionValues.initialQuote!==null&&firstSessionValues.tokens.every(token=>
+  token.amountRaw===null&&token.lowerBoundRaw!==null),
+  'first-session must show starting capital and lower-bound inventory with exact amounts unavailable');
+ await selectCampaignInPositions(browser,campaign.id);
+ const currentFirstDetail=await browser.evaluate(`fetch('/api/positions/paper-dep-${campaign.id}?hours=24')
+  .then(async response=>({status:response.status,body:await response.json()}))`);
+ assert.equal(currentFirstDetail.status,200);
+ const currentSourceBlock=currentFirstDetail.body.position.deployment.sourceBlock;
+ await browser.waitFor(`(document.querySelector('#paper .position-detail')?.innerText??'').includes(${JSON.stringify(currentSourceBlock)})`,
+  'first-session detail synchronized to API source block');
+ const firstSessionUi=await browser.evaluate(`document.querySelector('#paper .position-detail')?.innerText??''`);
+ const currentMark=(await admin.query(`SELECT id::text,inventory FROM deployment_marks
+  WHERE campaign_id=$1 AND source_block=$2::numeric ORDER BY id DESC LIMIT 1`,
+  [campaign.id,currentSourceBlock])).rows[0];
+ assert(currentMark,'first-session API source block must resolve to a saved canonical mark');
+ assert.match(firstSessionUi,new RegExp(`Last source\\s+${currentSourceBlock}`),
+  'first-session detail must display the API snapshot source block');
+ const firstTokens=currentFirstDetail.body.position.inventory.tokens;
+ assert.equal(firstTokens.length,2);
+ assert(firstTokens.every(token=>token.amountRaw===null),
+  'principal-only valuation must not be projected as exact token amounts');
+ assert.deepEqual(firstTokens.map(token=>token.lowerBoundRaw),
+  [currentMark.inventory.knownLowerBound.token0Raw,currentMark.inventory.knownLowerBound.token1Raw],
+  'first-session lower-bound token inventory must match its displayed source mark');
+ firstSessionValues.sourceBlock=currentSourceBlock;
+ firstSessionValues.tokens=firstTokens.map(token=>({symbol:token.symbol,amountRaw:token.amountRaw,
+  lowerBoundRaw:token.lowerBoundRaw,allocatedRaw:token.allocatedRaw}));
+ const formatLower=(token,index)=>new Intl.NumberFormat('en-US',{minimumFractionDigits:6,maximumFractionDigits:6})
+  .format(Number(token.lowerBoundRaw)/10**(index===0?profile.pool.decimals0:profile.pool.decimals1));
+ const firstVisibleValues=firstTokens.map(formatLower);
+ const firstCapitalVisible=new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
+  .format(Number(firstDetail.body.position.initialQuote)/10**6);
+ assert(firstSessionUi.length>0&&firstSessionUi.toLowerCase().includes('unavailable')&&
+  firstSessionUi.includes(firstCapitalVisible)&&firstSessionUi.includes('≥')&&
+  firstVisibleValues.every(value=>firstSessionUi.includes(value)),
+  'first-session operator view must show persisted starting capital, formatted lower bounds and explicit gaps');
+ checks.push('first-session Positions API and operator view match persisted open/valuation marks and preserve explicit gaps');
+ const lifecycle=[];
+ for(const [kind,stage]of [['pause','paper_paused'],['resume','paper_resumed']]){
+  const accepted=await acceptPositionsAction(browser,campaign.id,kind);
+  assert(accepted.posts.some(row=>row.path.endsWith('/lifecycle-operations')));
+  const operation=await waitOperation(kind,stage);lifecycle.push(operation);
+  phase(`browser_${kind}_worker_succeeded`,{operationId:operation.id,attempts:operation.attempts});
+ }
+ checks.push('operator Positions controls previewed, accepted and reconciled pause/resume through actual processes');
+ const retainAction=await acceptPositionsAction(browser,campaign.id,'close_retain');
+ assert(retainAction.posts.some(row=>row.path.endsWith('/operations')));
+ phase('browser_retain_operation_accepted');
+ const closeOperation=await waitOperation('close_retain','paper_close_retain_recorded');
+ phase('static_retain_worker_succeeded',{operationId:closeOperation.id,attempts:closeOperation.attempts});
+ const terminalMarkCount=(await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[campaign.id,closeOperation.id])).rows[0].n;
+ assert.equal(terminalMarkCount,1,'retain operation must write exactly one terminal mark');
+ const terminalMark=(await admin.query(`SELECT id::text,inventory FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[campaign.id,closeOperation.id])).rows[0];
+ assert.equal(terminalMark.inventory.token0Raw,null);
+ assert.equal(terminalMark.inventory.token1Raw,null);
+ const paidGasRows=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
+  WHERE campaign_id=$1 AND kind='gas_paid'`,[campaign.id])).rows[0].n;
+ assert.equal(paidGasRows,0,'fork estimates must not become paid execution ledger rows');
+ const positions=await browser.evaluate(`fetch('/api/positions?hours=24').then(response=>response.json())`),
+  projected=positions.positions.find(row=>row.id===`paper-dep-${campaign.id}`);
+ assert(projected);assert.equal(projected.deployment.lifecycle,'closed');
+ assert.equal(projected.deployment.operation.id,closeOperation.id);
+ assert.equal(projected.deployment.operation.stage,'paper_close_retain_recorded');
+ assert.equal(projected.deployment.operation.status,'succeeded');
+ assert(projected.inventory.tokens.every(token=>token.amountRaw===null),
+  'retained principal-only amounts must remain unavailable as exact balances');
+ assert.deepEqual(projected.inventory.tokens.map(token=>token.lowerBoundRaw),
+  [terminalMark.inventory.retainedPrincipalLowerBound.token0Raw,
+   terminalMark.inventory.retainedPrincipalLowerBound.token1Raw],
+  'retained dashboard lower bounds must match the terminal persisted mark exactly');
+ for(const unavailable of ['paid_gas','fee_capture'])assert(projected.deployment.unavailable.includes(unavailable));
+ const browserStages=['paper_open_recorded','paper_paused','paper_resumed','paper_close_retain_recorded'];
+ const terminalDetail=await browser.evaluate(`fetch('/api/positions/paper-dep-${campaign.id}?hours=24')
+  .then(async response=>({status:response.status,body:await response.json()}))`);
+ assert.equal(terminalDetail.status,200);
+ assert.equal(terminalDetail.body.position.deployment.operation.id,closeOperation.id);
+ const terminalVisibleValues=projected.inventory.tokens.map(formatLower);
+ const view=await inspectPositionAtWidths(browser,campaign.id,browserStages,
+  {expectedVisibleValues:terminalVisibleValues,expectedGapLabels:['unavailable','≥'],
+   expectedMarkCount:terminalDetail.body.performance.markCount});
+ assertBrowserHealthy(browser);
+ checks.push('closed-history Positions API and desktop/mobile UI match terminal operation, inventory, activity and explicit gaps');
+ assert.equal(await store.paperOperationWorkerReady(),true);
+ console.log(JSON.stringify({checks,campaignId:campaign.id,openOperationId:opened.id,
+  pauseOperationId:lifecycle[0].id,resumeOperationId:lifecycle[1].id,
+  retainOperationId:closeOperation.id,gasReportHash,gasProfileIds,
+  provisionalStages:gasProfiles.map(row=>row.stage),firstSessionValues,terminalMarkCount,
+  paidGasLedgerRows:paidGasRows,desktop:{stages:browserStages,viewport:view.desktop.viewport},
+  mobile:{stages:browserStages,viewport:view.mobile.viewport},
+  commandProcess:sealedReleaseMode?'verified sealed launch.mjs deployments':'source src/deployments.ts child process',
+  workerProcess:sealedReleaseMode?'verified sealed launch.mjs deployments-paper-worker':'source deployments-paper-worker.ts child process',
+  release:releaseManifest?{buildId:releaseManifest.buildId,sourceCommit:releaseManifest.sourceCommit,verified:true}:null,
+  signerLoaded:false,broadcasts:0,productionSchemaTouched:false,
+  note:'Canonical setup, open, pause/resume and retain-close acceptance ran through the operator browser; command and paper worker were actual child processes.'},null,2));
+}
 
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
@@ -100,8 +277,6 @@ try{
  const scopedUrl=new URL(process.env.TEST_DATABASE_URL);
  scopedUrl.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=30000`);
  store=new DeploymentStore(scopedUrl.toString());await store.assertReady();
- dashboardPool=new pg.Pool({connectionString:scopedUrl.toString(),max:2,
-  options:'-c default_transaction_read_only=on'});
 
  const verified=await verifyMarketProfile(rpc,profile,streamKey);
  const riskAddress=profile.pool.quoteToken===0?profile.pool.token1:profile.pool.token0;
@@ -159,110 +334,30 @@ try{
   await waitFor(async()=>await fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false),
    'sealed command server health endpoint',30_000);
  }else{
-  const runSetupPreflight=(input,pinnedSource)=>buildStaticPaperSetupPreflight(input,{
-   loadProfile:id=>store.paperSetupProfile(id),
-   readFrame:(market,source)=>readCanonicalPaperOpenFrame(rpc,market,source),
-   verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(rpc,chainId,[source]),
-   readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>rpc.getGasPrice()},pinnedSource);
-  let setupBusy=false;
-  const setupReviewCache=new StaticPaperSetupReviewCache();
-  const setupPreflight=async(input,pinnedSource)=>{
-   if(setupBusy)throw Error('paper_setup_preflight_busy');setupBusy=true;
-   try{
-    if(pinnedSource||!input.limits)return await runSetupPreflight(input,pinnedSource);
-    phase('sample_static_six_stage_owned_fork');
-    const result=await prepareStaticPaperSetup(input,{runPreflight:runSetupPreflight,
-     loadProfile:id=>store.paperSetupProfile(id),readFrame:(market,source)=>readCanonicalPaperOpenFrame(rpc,market,source),
-     forkRpcUrl:archive,
-     sample:async(draft,frame)=>{
-      sampledGasReport=await sampleStaticPaperGas({rpcUrl:archive,draft,frame,beforeRead:async()=>{},
-       maxRequests:1600,timeoutMs:150_000});
-      return sampledGasReport;
-     },
-     verify:report=>verifyPaperGasSource(rpc,report),
-     importEvidence:(report,attestation)=>store.registerPaperGasEvidence(report,attestation)});
-    if(result.status==='available')phase('static_six_stage_profiles_imported');
-    return result;
-   }catch(error){
-    const detail=(error instanceof Error?error.stack:String(error)).replace(/https?:\/\/\S+/gi,'[redacted-url]');
-    process.stderr.write(`setup preparation exception: ${detail.slice(0,1600)}\n`);throw error;
-   }
-   finally{setupBusy=false;}
-  };
-  const dashboardRead=async(path)=>{
-   const url=new URL(path,origin),client=await dashboardPool.connect();
-   try{
-    const rows=await readDeploymentRows(client);
-    if(url.pathname==='/api/positions')return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
-    const key=/^\/api\/positions\/(paper-dep-[0-9a-f-]{36})$/.exec(url.pathname);
-    if(key){const row=await readDeploymentByKey(client,key[1]);
-     return row?await readDeploymentDetail(client,row,Number(url.searchParams.get('hours')??24)):null;}
-    throw Error('dashboard path unsupported');
-   }finally{client.release();}
-  };
-  const verifyAnchors=(chainId,sources)=>verifyCanonicalPaperAnchors(rpc,chainId,sources);
-  const setupPreflightForReview=async(input,pinnedSource)=>{
-   const result=await setupPreflight(input,pinnedSource);
-   if(pinnedSource||result?.status!=='available'||result?.costs?.status!=='provisional')return result;
-   const captured=setupReviewCache.capture(result);
-   return captured?{...result,...captured}:{...result,status:'unavailable',
-    costs:{status:'unavailable',reason:'setup_review_snapshot_unavailable'},
-    missing:['setup_review_snapshot_unavailable'],actionAvailable:false};
-  };
-  const paperPreview=async(campaignId,kind)=>{
-   if(kind==='open'){
-    const current=await store.paperDraft(campaignId),source=await readCanonicalPaperOpenFrame(rpc,current.profile);
-    const indicative=buildIndicativePaperOpenPreview(current,source);
-    if(indicative.status!=='indicative')return indicative;
-    const rebuild=async()=>{
-     const rows=await store.paperGasProfiles(current.profile.pool.pool),price=await rpc.getGasPrice(),
-      reviewed={...indicative,expiresAt:new Date(Math.min(
-       (source.source.timestamp+180)*1000,Date.now()+120_000)).toISOString()};
-     return {...costIndicativePaperOpenPreview(reviewed,rows,current.profile.pool.pool,
-      source.nativePrice??0n,price),source:source.source};
-    };
-    const prepared=await prepareStaticPaperGasForCandidate(current,source,{
-     sample:(draft,frame)=>sampleStaticPaperGas({rpcUrl:archive,draft,frame,beforeRead:async()=>{},
-      maxRequests:1600,timeoutMs:150_000}),
-     verify:report=>verifyPaperGasSource(rpc,report),
-     importEvidence:async(report,attestation)=>{
-      const result=await store.registerPaperGasEvidence(report,attestation);
-      if(typeof result.reportHash!=='string')throw Error('paper_gas_import_report_hash_unavailable');
-      return {created:result.created,reportHash:result.reportHash};
-     },rebuild,isPrepared:value=>value.costs.status==='provisional',sourceOf:value=>value.source});
-    if(prepared.status!=='available')return {...(prepared.value??{status:'unavailable'}),
-     status:'unavailable',reason:prepared.reason,actionAvailable:false,operationAcceptanceAvailable:false};
-    const costed=prepared.value;
-    if(costed.referenceProofHash!==source.referenceProofHash)
-     throw Error('paper_open_model_reference_proof_does_not_match_captured_frame');
-    const saved=await persistTrustedPaperOpenPreview({store,draft:current,frame:source,preview:costed,verifyAnchors});
-    return {...costed,...saved,status:'indicative',kind:'open',trustedPreviewSaved:true,economics:null};
-   }
-   if(kind==='close_retain'){
-    const state=await store.paperValuationState(campaignId),source=await readCanonicalPaperNextFrame(rpc,
-     state.profile,state.previous),rows=await store.paperGasProfiles(state.profile.pool.pool),price=await rpc.getGasPrice();
-    return await persistTrustedStaticPaperRetainPreview({store,state,frame:source,gasProfiles:rows,
-     gasPriceWei:price,verifyAnchors});
-   }
-   return {kind,status:'unavailable',campaignId,reason:'unsupported_in_static_flow_fixture',actionAvailable:false};
-  };
-  const server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,paperPreview,
-  paperSetupPreflight:setupPreflightForReview,
-  paperSetupDraftAdmission:input=>createStaticPaperDraftFromSetup(input,{
-   runPreflight:async(request,pinnedSource)=>{
-    setupAdmissionFresh=await setupPreflight(request,pinnedSource);return setupAdmissionFresh;
-   },
-    loadProfile:id=>store.paperSetupProfile(id),
-    lookupCapturedReview:review=>setupReviewCache.lookup(review),
-    findDraftRequest:(id,request)=>store.findDraftRequest(id,request),
-    createDraftWithRequestId:(id,request)=>store.createDraftWithRequestId(id,request)}),
-   paperSetupDraftList:()=>store.listStaticPaperDrafts(),
-   paperOperationReplay:(campaignId,input,kinds)=>store.acceptedOperationReplay(campaignId,input,kinds),
-   paperOpenAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyAnchors),
-   paperRetainAcceptance:(campaignId,input,actor)=>store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyAnchors),
-   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
-  command=server;server.listen(commandPort,'127.0.0.1');await once(server,'listening');
+  const commandEnv={...process.env,DATABASE_URL:scopedUrl.toString(),
+   DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,DEPLOYMENT_HOST:'127.0.0.1',
+   DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:readRpc,
+   PAPER_FORK_RPC_URL:archive,DEPLOYMENT_RPC_TIMEOUT_MS:'20000',
+   DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1',
+   INDEXER_STREAM_KEY:streamKey,ADAPTIVE_PAPER_STATE_PATH:join(tmpdir(),
+    `conc-liq-static-canonical-${randomUUID()}.json`)};
+  command=spawn(process.execPath,['--import','tsx','src/deployments.ts'],
+   {cwd:process.cwd(),env:commandEnv,stdio:['ignore','pipe','pipe']});
+  command.stdout.setEncoding('utf8');command.stdout.on('data',chunk=>commandOutput+=chunk);
+  command.stderr.setEncoding('utf8');command.stderr.on('data',chunk=>commandOutput+=chunk);
+  await waitFor(async()=>await fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false),
+   'source command server health endpoint',30_000);
  }
+
+ if(browserLifecycle){
+  const workerEnv={...process.env,DATABASE_URL:scopedUrl.toString(),ROBINHOOD_READ_HTTP_URL:readRpc,
+   DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
+   DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
+   DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS:'1',
+   CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
+  await runBrowserRetainLifecycle({origin,password,profile,parameters,operator,readRpc,
+   scopedUrl,identity,workerEnv,launchSealed});
+ }else{
  const post=(path,body,headers={},timeoutMs=60_000)=>fetch(origin+path,{method:'POST',headers:{'content-type':'application/json',...headers},
   body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
  assert.equal((await fetch(origin+'/api/market-profiles')).status,401);
@@ -274,8 +369,6 @@ try{
  const setupReviewResponse=await post('/api/deployments/setup-preflight',setupInput,auth,240_000);
  assert.equal(setupReviewResponse.status,200,await setupReviewResponse.clone().text());
  const setupReview=await setupReviewResponse.json();
- if(!sealedReleaseMode)assert(sampledGasReport,
-  'authenticated setup preflight did not run its exact-source sampler');
  if(setupReview.status!=='available'){
   let currentCandidate=null;
   if(setupReview.source&&setupReview.requirements){
@@ -326,7 +419,16 @@ try{
  assert.equal(setupReview.draftCreated,false);assert.equal(setupReview.operationCreated,false);
  assert.equal(setupReview.profileId,registered.id);assert.equal(setupReview.profileHash,registeredProfileHash);
  assert.equal(setupReview.costs.status,'provisional');
- checks.push('authenticated setup preflight returns exact registered profile/source/range and provisional costs without creating a draft, preview, operation or paid-ledger row');
+ const gasProfileIds=setupReview.costs.stages.map(stage=>stage.profileId),
+  importedGasProfiles=(await admin.query(`SELECT id::text,validation->>'reportHash' AS report_hash,
+   source_hash,status,evidence_class FROM deployment_calibration_profiles WHERE id=ANY($1::uuid[])`,
+   [gasProfileIds])).rows;
+ assert.equal(importedGasProfiles.length,gasProfileIds.length);
+ assert(importedGasProfiles.every(row=>row.status==='provisional'&&row.evidence_class==='fork_estimated'));
+ const gasReportHashes=[...new Set(importedGasProfiles.map(row=>row.report_hash))];
+ assert.equal(gasReportHashes.length,1,'server-owned setup calibration profile report identity differs');
+ const gasReportHash=gasReportHashes[0];
+ checks.push('actual command process setup preflight returns the exact registered profile/source/range and provisional costs without creating a draft, preview, operation or paid-ledger row');
  const reviewed={profileId:setupReview.profileId,profileHash:setupReview.profileHash,input:setupReview.input,
   source:setupReview.source,profile:setupReview.profile,range:setupReview.range,
   requirements:setupReview.requirements,references:setupReview.references,costs:setupReview.costs};
@@ -338,25 +440,9 @@ try{
  const setupDraftResponse=await post('/api/deployments/setup-drafts',setupDraftBody,auth);
  const setupDraftResult=await setupDraftResponse.json();
  if(setupDraftResponse.status!==201){
-  const fields=['profileId','profileHash','input','source','profile','range','requirements','references'];
-  const original=Object.fromEntries(fields.map(key=>[key,reviewed[key]]));
-  const fresh=setupAdmissionFresh?Object.fromEntries(fields.map(key=>[key,setupAdmissionFresh[key]])):null;
-  const equality= fresh?Object.fromEntries(fields.map(key=>[key,
-   contentHash(original[key])===contentHash(fresh[key])])):null;
-  const costIdentity=costs=>costs&&({scope:costs.scope,pathVersion:costs.pathVersion,sizeBand:costs.sizeBand,
-   gasPriceWei:costs.gasPriceWei,boundGasPriceWei:costs.boundGasPriceWei,
-   nativeReferencePrice:costs.nativeReferencePrice,
-   stages:costs.stages?.map(stage=>({stage:stage.stage,profileId:stage.profileId,version:stage.version,
-    evidenceClass:stage.evidenceClass,expectedGasUnits:stage.expectedGasUnits,
-    boundGasUnits:stage.boundGasUnits,source:stage.source})),
-   open:costs.open,closeRetain:costs.closeRetain});
-  const originalCostIdentity=costIdentity(reviewed.costs),freshCostIdentity=costIdentity(setupAdmissionFresh?.costs);
   throw Error(`setup draft admission failed: ${JSON.stringify({httpStatus:setupDraftResponse.status,
-   result:setupDraftResult,equality,costIdentityEqual:originalCostIdentity&&freshCostIdentity?
-    contentHash(originalCostIdentity)===contentHash(freshCostIdentity):null,
-   originalCosts:originalCostIdentity,freshCosts:freshCostIdentity,
-   originalReferences:reviewed.references,freshReferences:setupAdmissionFresh?.references,
-   originalSource:reviewed.source,freshSource:setupAdmissionFresh?.source})}`);
+   result:setupDraftResult,commandTail:commandOutput.slice(-1600)
+    .replace(/https?:\/\/\S+/gi,'[redacted-url]')})}`);
  }
  assert.equal(setupDraftResult.status,'draft_created');assert.equal(setupDraftResult.replayed,false);
  assert.equal(setupDraftResult.revision,1);assert.equal(setupDraftResult.source.block,setupReview.source.block);
@@ -366,12 +452,13 @@ try{
  const draft=await store.paperDraft(campaign.id);
  assert.equal(draft.strategyId,'static_manual_v1');assert.equal(draft.profileHash,registeredProfileHash);
  assert.deepEqual(draft.allocation,setupDraftBody.allocation);
- checks.push('authenticated setup draft admission persisted exactly reviewed allocation, limits and profile binding');
+ checks.push('actual command process setup draft admission persisted exactly reviewed allocation, limits and profile binding');
 
  const workerEnv={...process.env,DATABASE_URL:scopedUrl.toString(),ROBINHOOD_READ_HTTP_URL:readRpc,
   DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
   DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
-  DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
+  DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS:'1',
+  CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
  const startWorker=async()=>{
   workerOutput='';worker=sealedReleaseMode?launchSealed('deployments-paper-worker'):
    spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
@@ -450,6 +537,9 @@ try{
  assert.equal(closed.id,closeOperation.id);
  assert.equal(closed.status,'succeeded',JSON.stringify({status:closed.status,stage:closed.stage,reason:closed.reason}));
  assert.equal(closed.stage,'paper_close_retain_recorded');
+ const terminalMarkCount=(await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[campaign.id,closeOperation.id])).rows[0].n;
+ assert.equal(terminalMarkCount,1,'retain operation must write exactly one terminal mark');
  phase('static_retain_worker_succeeded');
  const finalPositions=await fetch(origin+'/api/positions?hours=24',{headers:{cookie}}).then(response=>response.json()),
   projected=finalPositions.positions.find(row=>row.id===`paper-dep-${campaign.id}`);
@@ -469,14 +559,14 @@ try{
  assert.equal(ledger,0,'fork estimates must not become paid execution ledger rows');
  assert.equal(await store.paperOperationWorkerReady(),true);
  console.log(JSON.stringify({checks,campaignId:campaign.id,openOperationId:opened.operation.id,
-  retainOperationId:closeOperation.id,gasReportHash:sampledGasReport?.reportHash??null,
-  provisionalStages:sampledGasReport?.stageProfiles.map(stage=>stage.stage)??
-   setupReview.costs.stages.map(stage=>stage.stage),paidGasLedgerRows:ledger,
-  commandProcess:sealedReleaseMode?'verified sealed launch.mjs deployments':'source createDeploymentCommandServer',
+  retainOperationId:closeOperation.id,gasReportHash,
+  gasProfileIds,provisionalStages:setupReview.costs.stages.map(stage=>stage.stage),paidGasLedgerRows:ledger,
+  commandProcess:sealedReleaseMode?'verified sealed launch.mjs deployments':'source src/deployments.ts child process',
   workerProcess:sealedReleaseMode?'verified sealed launch.mjs deployments-paper-worker':'source deployments-paper-worker.ts',
   release:releaseManifest?{buildId:releaseManifest.buildId,sourceCommit:releaseManifest.sourceCommit,verified:true}:null,
-  signerLoaded:false,broadcasts:0,productionSchemaTouched:false,
-  note:'Canonical sampling/profile import ran in the harness process; setup review and draft admission used authenticated command HTTP. No convert-close path was exercised.'},null,2));
+  terminalMarkCount,signerLoaded:false,broadcasts:0,productionSchemaTouched:false,
+  note:'Canonical owned-fork sampling, profile import, setup review, draft admission and operations used authenticated command/worker processes. No convert-close path was exercised.'},null,2));
+ }
 }catch(error){cleanError(error);}
 finally{
  if(worker&&worker.exitCode===null){worker.kill('SIGTERM');await Promise.race([once(worker,'exit'),sleep(3000)]);
@@ -487,10 +577,11 @@ finally{
  }
  if(command?.listening)await new Promise(resolve=>command.close(resolve));
  if(ws){try{ws.close();}catch{}}
+ if(browser)await browser.close();
  if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([once(chrome,'exit'),sleep(2000)]);
   if(chrome.exitCode===null)chrome.kill('SIGKILL');}
  if(chromeProfile)await rm(chromeProfile,{recursive:true,force:true});
- await dashboardPool?.end();await store?.close();
+ await store?.close();
  try{await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}
  finally{admin.release();await adminPool.end();if(runtimeTemp)await rm(runtimeTemp,{recursive:true,force:true});}
 }
@@ -542,7 +633,7 @@ async function verifyClosedPositionsBrowser({origin,password,campaignId,expected
  await wait('!document.querySelector("#operator-logout").hidden','operator login');
  assert.equal(await evaluate('document.querySelector("#operator-password").value'),'');
  await click('#positions-tab');
- await wait('document.querySelector("#paper .positions-table tbody tr")!==null','Positions list');
+ await wait('document.querySelector("#paper .positions-table tbody")!==null','Positions table');
  await click('#paper [data-action="scope"][data-value="history"]');
  await wait(`document.querySelector('#paper .positions-table tbody tr[data-position="paper-dep-${campaignId}"]')!==null`,
   'closed campaign in Positions history');

@@ -23,8 +23,9 @@ remains read-only. Log in using the configured operator password.
    Provisional modeled gas is distinct from paid gas; gaps stay unavailable.
 4. Pause and resume from the position controls. These change lifecycle without
    resetting initial inventory, budgets or the performance baseline.
-5. Review and submit one exit. Close-retain preserves the modeled withdrawn
-   token inventory. Close-convert additionally models the supported conversion
+5. Review and submit one exit. Close-retain records the withdrawn principal
+   lower bounds; complete token balances, fees and native balance remain unavailable.
+   Close-convert additionally models the supported conversion
    to the quote token, with explicit residuals and provisional costs. Wait for
    the terminal persisted operation and matching closed Positions history.
 6. A second campaign can start after the prior campaign has reconciled closure
@@ -59,7 +60,7 @@ Complete this record with measured results before a production approval request:
 | Source and runtime | Clean scoped commit; sealed build ID; manifest verification; pinned Node; command, worker and server-owned setup/cost preparation identity |
 | Configuration | Private environment file path and config hash; loopback origin; registered profile/reference policy; enabled capabilities; no secrets in the record |
 | Database | Current and target schema versions; isolated upgrade and restore rehearsal; backup identity; explicit production migration command |
-| Operator acceptance | Separate canonical browser setup-to-retain and setup-to-convert campaigns, desktop/mobile screenshots, exact terminal inventories and explicit economic gaps |
+| Operator acceptance | Separate canonical browser setup-to-retain and setup-to-convert campaigns, desktop/mobile screenshots, terminal evidence matching persisted lower bounds or modeled conversion balances, and explicit economic gaps |
 | Recovery | Actual economic worker interruption/restart including pending conversion; same-key browser reconnect; no duplicate stage, terminal mark or ledger row; changed canonical evidence rejection |
 | Services | Current owners and active campaigns; rendered command/worker units; intended enabled capabilities; predecessor workers/custody ownership preserved |
 | Rollback | Prior build/config; schema compatibility; recovery and execution ownership after any accepted operation; no deletion of post-upgrade journal evidence |
@@ -69,9 +70,32 @@ Use a clean worktree at the reviewed commit when unrelated source work is dirty.
 Build with the repository's pinned Node, then verify the artifact with its own
 `bin/node launch.mjs --verify`. Render units using
 `scripts/render-release-units.mjs RELEASE PRIVATE_ENV OUTPUT`; rendering does
-not install them. Verify rendered units before preparing concrete installation
+not install them. Run `systemd-analyze verify OUTPUT/*.service OUTPUT/*.timer`
+before preparing concrete installation
 and migration commands. Run the applicable integration, restore, economic
 recovery and canonical browser gates against that same artifact.
+
+The canonical browser commands are
+`test:integration:static-paper-canonical-retain-browser:sealed`,
+`test:integration:static-paper-canonical-convert-browser:sealed` and
+`test:integration:static-paper-canonical-convert-recovery:sealed`.
+Set `TEST_SEALED_RELEASE_DIR`, `TEST_EXPECTED_RELEASE_COMMIT`, the local
+`TEST_DATABASE_URL` and `TEST_BROWSER_EVIDENCE_DIR` for each recorded run. Add
+`-- --restore-rehearsal` to the recovery command to combine actual interruption
+and restart with the completed canonical campaign's backup/restore rehearsal.
+The dedicated `test:integration:static-paper-canonical-convert-restore:sealed`
+command rehearses backup/restore after ordinary conversion without interruption.
+These fixtures use disposable schemas,
+but worker readiness and maintenance advisory locks span the database: serialize
+process fixtures against one database. Keep independent synthetic regression
+work in a separate disposable database when running it in parallel.
+
+The separate `test:integration:static-paper-canonical-convert-recovery-negative:sealed`
+command changes one accepted anchor response through a test-only local RPC proxy
+after restart. Its evidence class is `fault_injected_rpc_response_process_boundary`;
+it tests rejection and absence of conversion booking, and does not establish an
+observed chain reorganization. Keep this result separate from the successful
+canonical lifecycle and restart-recovery evidence.
 
 Enable only the capabilities demonstrated by that artifact. Static paper MVP
 completion does not complete RangeKeeper paper, new live deployments or W2 in

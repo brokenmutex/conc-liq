@@ -25,6 +25,32 @@ import type {MarketProfile} from './market-profile.js';
 import {contentHash} from './contracts.js';
 import {loadRuntimeIdentity,type RuntimeIdentity} from '../runtime/identity.js';
 
+const paperGasVerifyInvariantCodes=new Map<string,string>([
+ ['Paper gas sample is stale or future','paper_gas_sample_time_invalid'],
+ ['Paper gas source is not confirmed','paper_gas_source_unconfirmed'],
+ ['Paper gas source chain id mismatch','paper_gas_chain_id_mismatch'],
+ ['Paper gas source block hash mismatch','paper_gas_source_hash_mismatch'],
+ ['Paper gas source block timestamp mismatch','paper_gas_source_timestamp_mismatch'],
+ ['Paper gas independent references unavailable','paper_gas_references_unavailable'],
+ ['Paper gas replay did not produce an indicative preview','paper_gas_replay_preview_invalid'],
+ ['Paper gas candidate source replay changed','paper_gas_candidate_replay_mismatch'],
+ ['Paper gas token0 reference mismatch','paper_gas_token0_reference_mismatch'],
+ ['Paper gas token1 reference mismatch','paper_gas_token1_reference_mismatch'],
+ ['Paper gas native reference mismatch','paper_gas_native_reference_mismatch'],
+ ['Paper gas token0 oracle proof changed','paper_gas_token0_oracle_proof_mismatch'],
+ ['Paper gas token1 oracle proof changed','paper_gas_token1_oracle_proof_mismatch'],
+ ['Paper gas native oracle proof changed','paper_gas_native_oracle_proof_mismatch'],
+ ['Paper gas final source anchor mismatch','paper_gas_final_anchor_mismatch'],
+]);
+
+/** Returns only an allowlisted invariant code or error class for opt-in logs. */
+export function safePaperGasVerifyFailure(error:unknown){
+ if(!(error instanceof Error))return 'unknown';
+ const firstLine=error.message.split('\n',1)[0]??'';
+ return paperGasVerifyInvariantCodes.get(firstLine)??
+  (/^paper_[a-z0-9_]+$/.test(firstLine)?firstLine:error.name||'unknown');
+}
+
 /** Replays the report's candidate from its canonical block and independent
  * references before an isolated database may ingest the fork gas sample. */
 export async function verifyPaperGasSource(client:RobinhoodClient,raw:unknown){
@@ -32,12 +58,12 @@ export async function verifyPaperGasSource(client:RobinhoodClient,raw:unknown){
  const source=report.source as {block:string;hash:`0x${string}`;timestamp:number};
  const sampledAt=Date.parse(report.sampledAt as string),age=Date.now()-sampledAt;
  assert(Number.isFinite(sampledAt)&&age>=0&&age<=86_400_000,'Paper gas sample is stale or future');
- assert.equal(await client.getChainId(),ROBINHOOD_CHAIN_ID);
+ assert.equal(await client.getChainId(),ROBINHOOD_CHAIN_ID,'Paper gas source chain id mismatch');
  const latest=await client.getBlock(),blockNumber=BigInt(source.block);
  assert(latest.number>=blockNumber+64n,'Paper gas source is not confirmed');
  const block=await client.getBlock({blockNumber});
- assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase());
- assert.equal(Number(block.timestamp),source.timestamp);
+ assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),'Paper gas source block hash mismatch');
+ assert.equal(Number(block.timestamp),source.timestamp,'Paper gas source block timestamp mismatch');
  const chainSource={block:blockNumber,hash:block.hash,timestamp:source.timestamp};
  await new RangeKeeperChain(client,profile.pool).verify(chainSource);
  const [slot,liquidity,references]=await Promise.all([
@@ -60,18 +86,18 @@ export async function verifyPaperGasSource(client:RobinhoodClient,raw:unknown){
   strategyId:'static_manual_v1' as const,parameters:report.parameters as Record<string,unknown>,
   configHash:report.configHash as string};
  const preview=buildIndicativePaperOpenPreview(draft,frame,sampledAt);
- assert.equal(preview.status,'indicative');
+ assert.equal(preview.status,'indicative','Paper gas replay did not produce an indicative preview');
  assert.equal(preview.candidateHash,report.candidateHash,'Paper gas candidate source replay changed');
  const reference=recordedReference;
- assert.equal(reference.price0,String(references.price0));
- assert.equal(reference.price1,String(references.price1));
- assert.equal(reference.nativePrice,String(references.nativePrice));
+ assert.equal(reference.price0,String(references.price0),'Paper gas token0 reference mismatch');
+ assert.equal(reference.price1,String(references.price1),'Paper gas token1 reference mismatch');
+ assert.equal(reference.nativePrice,String(references.nativePrice),'Paper gas native reference mismatch');
  const recordedProof=report.referenceProof as Record<string,unknown>;
  for(const key of ['token0','token1','native'] as const)
   assert.equal(referenceProofHash(recordedProof[key]),referenceProofHash(proof[key]),
    `Paper gas ${key} oracle proof changed`);
  const finalBlock=await client.getBlock({blockNumber});
- assert.equal(finalBlock.hash.toLowerCase(),source.hash.toLowerCase(),'Paper gas source reorged');
+ assert.equal(finalBlock.hash.toLowerCase(),source.hash.toLowerCase(),'Paper gas final source anchor mismatch');
  return {verificationClass:'canonical_candidate_replay_v1' as const,
   reportHash:report.reportHash as string,sourceHash:source.hash,profileHash:report.profileHash as string,
   verifiedAt:new Date().toISOString()};

@@ -18,6 +18,7 @@ import {PAPER_CONVERSION_ACCOUNTING_POLICY_V2,buildPaperConversionAccountingV2}
 import {auditCanonicalPaperConversionAccountingV3} from '../../src/deployments/paper-accounting.ts';
 import {readDeploymentRows,readDeploymentDetail,deploymentPosition} from '../../src/dashboard/deployment-position.ts';
 import {marketProfileEvidenceSchema} from '../../src/deployments/market-profile.ts';
+import {rehearseStaticPaperSchemaRestore} from './helpers/static-paper-schema-restore.mjs';
 
 assert(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required');
 const runtimeIdentity={buildId:'a'.repeat(64),configHash:'b'.repeat(64),nodeVersion:process.version};
@@ -321,6 +322,12 @@ try{
   assert.equal(recoveredPosition.navQuote,null);
  }finally{dashboardClient.release();}
  await restartStore.close();
+ if(process.argv.includes('--restore-rehearsal')){
+  const restore=await rehearseStaticPaperSchemaRestore({testDatabaseUrl:process.env.TEST_DATABASE_URL,
+   sourceSchema:schema});
+  assert.equal(restore.evidenceClass,'synthetic_injected_verifier_database_mechanics');
+  process.stdout.write(`${JSON.stringify({restoreRehearsal:restore})}\n`);
+ }
  console.log('V3 static close-convert database mechanics passed; injected verifiers only');
 }finally{
  if(store)await store.close();

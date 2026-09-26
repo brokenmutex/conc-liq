@@ -1612,7 +1612,7 @@ this recovery-panel commit and do not establish an exact clean release identity.
 
 | Path | Available source behavior | Remaining acceptance boundary |
 | --- | --- | --- |
-| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 browser mechanics assertions include lost accepted-response recovery. The September 26 canonical RPC run created a draft through authenticated HTTP (201), accepted and completed open, and recorded a later principal valuation; retain preview and acceptance also succeeded. | The canonical worker did not reach a terminal retain status within 300 seconds, so setup-to-closed-Positions and its desktop/mobile browser assertion remain unproved. The harness log is `/tmp/conc-liq-static-setup-bound-20260926.log`; its temporary schema and processes were cleaned. No production cutover. |
+| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 synthetic browser mechanics assertions include lost accepted-response recovery. After the four-connection worker-pool fix and browser-driver corrections, the canonical source UI completed setup/open/pause/resume/retain through actual command/worker processes. One terminal mark, first-session capital and persisted lower bounds, desktop/mobile chart/activity/history and explicit gaps matched saved evidence. | The new clean sealed artifact remains open. See section 12 for exact source, logs and delivery status. Retain exact balances, earned fees and paid gas remain unavailable; no production cutover. |
 | Static/manual paper convert-close | Saved V3 provisional preview, canonical indexed-fee HTTP acceptance, default-worker completion, atomic database completion, same-key readiness-loss replay and fresh-key readiness rejection passed in the September 26 isolated fixture. | Canonical browser and sealed command/worker conversion proof remain. Economic recovery and production cutover remain unavailable. |
 | RangeKeeper paper | Planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. The newer attempt reached producer-receipt publication and failed there; see section 12. | No successful producer/worker booking is recorded. Reliable freshness, producer publication, lifecycle/management, both terminal exits and shared closure parity remain F3 gates. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
@@ -1763,6 +1763,14 @@ platform is not needed to establish the cause.
 
 ### Parallel implementation follow-up — September 26
 
+| Task | Current result | Remaining gate |
+| --- | --- | --- |
+| MVP-1 | Source check gate restored; 877 shared-checkout and 873 earlier clean-worktree tests passed. | Validate the final clean source/build after the remaining scoped changes. |
+| MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
+| MVP-3 | Canonical source UI setup/open/pause/resume/retain passed, including first-session capital, persisted inventory lower bounds, explicit gaps and desktop/mobile closed history. Conversion browser implementation remains under diagnosis. | Complete canonical conversion and verify both lifecycles on the final sealed artifact. |
+| MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
+| MVP-5 | Operator runbook prepared; actual isolated PostgreSQL restore mechanics passed using a synthetic V3 fixture. | Final clean pinned artifact, both canonical lifecycles and economic recovery on that build, unit/restore gates and concrete cutover review. Production authorization remains pending. |
+
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
 completion diagnosis, MVP-3 canonical browser acceptance for both exits, and
@@ -1846,3 +1854,101 @@ verifiers; its evidence class is
 mechanics, not canonical browser, economic-process recovery or sealed-release
 acceptance. Reproduce with `npm run test:integration:static-paper-restore` and
 the isolated `TEST_DATABASE_URL`.
+
+**MVP-3 conversion blocker:** the first ordinary actual-process browser run at
+base `caabeb7` completed UI setup, open and later principal valuation, but the
+convert preview remained indicative/unavailable for the unchanged 300-second
+bound. No conversion was accepted. The worker reported `AssertionError` and
+`paper_fee_marks_unavailable`; the exact assertion was not captured by the safe
+worker summary. Preserved evidence:
+`/tmp/conc-liq-review-evidence/canonical-convert-first-run.txt`.
+
+Source review then identified a concrete chronology defect in queries that
+select numeric evidence IDs as text and use an unqualified `ORDER BY id`.
+PostgreSQL resolves that order to the output text alias: a read-only SQL
+reproduction sorted IDs 9, 10 and 11 as 10, 11, 9; qualifying the numeric base
+column sorted them as 9, 10, 11. Numeric ordering fixes and a real-store database
+regression are committed as `492c6c2`. This is a demonstrated source defect, not yet proof
+that it explains every reported canonical replay failure. The next ordinary
+browser run must establish that the conversion evidence gates actually pass.
+
+The [read-only cutover inventory](../reviews/static-paper-mvp-cutover-inventory-2026-09-26.md)
+records the installed older sealed identities and production visibility gaps.
+At its recorded snapshot, production `public` had migrations 1–3 and no
+deployment campaign/operation/reservation relations, while current source has
+11 migrations. Absent relations cannot establish empty campaigns or clear
+reservations. Predecessor execution units were inactive, but only stale local
+custody records were available. Fresh custody reconciliation and the concrete
+production migration/service proposal remain separate outstanding cutover gates.
+
+**Numeric chronology fix:** `492c6c2` qualifies the numeric base mark ID in
+13 affected ordering sites. The dedicated real-store regression crosses IDs
+9, 10 and 11 through valuation, fee sampling, trusted fee persistence and
+accounting projection. It passed on the corrected source and failed on the
+earlier clean source at `paper_fee_open_mark_unavailable`. Logs:
+`/tmp/conc-liq-paper-mark-id-order-pass-20260926.log` and
+`/tmp/conc-liq-paper-mark-id-order-baseline-20260926.log`. Its schema and separate
+disposable database were removed; the earlier clean worktree was restored to
+clean status. This test uses synthetic database evidence and real store methods.
+
+The first UI retain run completed open and later valuation, then failed a
+harness assumption that principal-only marks expose complete token balances.
+They correctly expose `lowerBoundRaw` and leave `amountRaw` unavailable.
+The corrected checks bind displayed lower bounds to the persisted mark/source
+and preserve that distinction through retained closure. The narrow Starting
+capital metric uses the existing persisted capital-in baseline for both
+provisional and unavailable accounting states; missing baseline evidence stays
+unavailable. Its focused dashboard checks passed **9/9**.
+
+**Complete source retain browser gate:** the corrected run at base `492c6c2`
+plus its recorded scoped browser/UI changes passed actual UI setup, open,
+later canonical valuation, pause, resume and retain-close. Campaign
+`97b33af7-ee3c-4517-a02f-7a612e631a28` completed terminal operation
+`b7679cba-64c8-4c68-9af3-632862f00db4` with one retain mark, `attempts=1`
+and zero paid-gas rows. First-session capital matched the persisted capital-in
+ledger; lower bounds matched the persisted API source-block mark while exact
+token amounts remained null. Desktop/mobile history, activity, charts, visible
+values, gaps and overflow checks passed. Log:
+`/tmp/static-paper-canonical-retain-browser-20260926.log`; base and dirty-source
+inventory are recorded beside it. Screenshots:
+`/tmp/static-paper-browser-evidence-20260926/97b33af7-ee3c-4517-a02f-7a612e631a28/`.
+All fixture processes and its schema were removed. This completes the source
+retain browser gate; conversion, economic restart recovery and the final sealed
+artifact remain required.
+
+**Conversion setup diagnostic boundary:** the subsequent ordinary converter
+browser run stopped before draft creation. Its actual setup response was
+`paper_cost_sample_replay_unverified` at source block `73188317`; it accepted
+no operation. The existing setup verifier swallowed the underlying replay
+exception, so a narrow opt-in invariant diagnostic is required before choosing
+a fix or repeating the run. Evidence:
+`/tmp/conc-liq-review-evidence/canonical-convert-next-run.txt` and the redacted
+`canonical-convert-setup-unavailable.json` beside it. The browser helper now
+reports a terminal unavailable setup response promptly instead of waiting for
+an available response that cannot arise from that completed request.
+
+The independent review also found numeric text-alias ordering in conversion
+carry and accounting audit/invalidation queries. `1844927` qualifies those three
+numeric base columns. Its real-store regression across mark IDs 8, 9, 10 and 11
+passed: three adjacent fee intervals produced carry through the latest source,
+and the canonical audit selected the earliest changed mark, then preserved its
+invalidation on replay. The pre-fix test failed at
+`paper_close_convert_fee_interval_binding_invalid`. Logs:
+`/tmp/conc-liq-paper-mark-id-order-pass-extended-20260926.log` and
+`/tmp/conc-liq-paper-mark-id-order-baseline-extended-20260926.log`.
+These defects are concrete source issues; they do not establish the cause of the
+new setup replay rejection. The process recovery harness now explicitly checks
+one V3 accounting row on success, zero operation-scoped rows on anchor rejection,
+and closes its local fault-injection proxy during cleanup. Those assertions and
+helpers remain pending actual process acceptance.
+
+**Post-fix database verification:** pinned `npm run test:integration` passed
+again after `1844927` on a separate owned disposable database, including the
+extended numeric-order regression. The updated synthetic V3 restore rehearsal
+also passed with all eight enabled append-only triggers rejecting mutations;
+one campaign/operation, three marks/ledger/accounting rows, ten model identities,
+five sequences, 88 constraints and 35 indexes matched. Restored `public` was
+empty, the source stayed unchanged, and target/archive/outer test database were
+removed. Logs: `/tmp/checks-recovery-test-integration-20260926.log` and
+`/tmp/checks-recovery-static-paper-restore-20260926.log`. This remains synthetic
+database-mechanics evidence, separate from the pending canonical process gates.

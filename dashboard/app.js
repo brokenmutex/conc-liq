@@ -73,13 +73,15 @@ function metric(label,value,note,cls=''){return `<div class="metric"><div class=
 function deploymentMetrics(p){
  const modeled=p.accounting==='provisional',lower=units(p.deployment.lowerBoundValue),
   passive=modeled?p.benchmark:units(p.deployment.passiveTokenValue),alpha=modeled&&p.capital!=null&&passive!=null?p.capital-passive:null;
- if(!modeled)return metric('Net value','—','Fee and paid-cost evidence missing')+
+ const startingCapital=metric('Starting capital',p.initial==null?'—':money(p.initial),
+  p.initial==null?'Capital-in evidence unavailable':'Persisted capital-in baseline');
+ if(!modeled)return startingCapital+metric('Net value','—','Fee and paid-cost evidence missing')+
   metric('Net P&L','—','Matched passive comparison unavailable')+
   metric('Principal lower bound',money(lower),'Reference USD · excludes fees and native balance')+
   metric('Passive tokens',money(passive),'Reference USD · initial fixed token amounts')+
   metric('LP fees','—','Capture evidence missing')+
   metric('Paid execution costs','—','Fork estimate is not paid gas');
- return metric('Modeled net value',money(p.capital),'Provisional · independent reference')+
+ return startingCapital+metric('Modeled net value',money(p.capital),'Provisional · independent reference')+
   metric('Modeled net P&L',signed(pnl(p)),'Provisional · since opening',signClass(pnl(p)))+
   metric('Vs passive inventory',signed(alpha),'Same initial tokens and native reserve',signClass(alpha))+
   metric('Passive inventory',money(passive),'Fixed initial holdings · current reference')+
