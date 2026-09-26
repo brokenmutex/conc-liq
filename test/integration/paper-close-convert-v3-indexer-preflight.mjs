@@ -10,6 +10,7 @@ import {UNISWAP_V3_FACTORY,NONFUNGIBLE_POSITION_MANAGER,USDG} from '../../src/co
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {marketProfileSchema} from '../../src/deployments/market-profile.ts';
 import {readCanonicalPaperOpenFrame} from '../../src/deployments/paper-preview.ts';
+import {readCanonicalPaperReplayHeadFrame} from '../../src/deployments/paper-replay-head-frame.ts';
 import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 
 const safeError=error=>{
@@ -102,8 +103,9 @@ async function main(){try{
    replayAgeMs=Date.now()-Number(block.timestamp)*1000,
    checkpointMatchesReplay=Boolean(row.nearest_checkpoint_block===row.complete_through_block&&
     row.nearest_checkpoint_hash?.toLowerCase()===row.complete_through_hash.toLowerCase()),
-   pinnedFrame=await readCanonicalPaperOpenFrame(rpc,profile,{block:row.complete_through_block,
-    hash:row.complete_through_hash,timestamp:Number(block.timestamp)}),
+   genesis=await rpc.getBlock({blockNumber:0n}),
+   pinnedFrame=await readCanonicalPaperReplayHeadFrame({client:rpc,indexer:db,profile,stream,
+    targetSetHash:row.pool_target,previous:{sourceBlock:'0',sourceHash:genesis.hash}}),
    pinnedFrameAgeMs=Date.now()-pinnedFrame.source.timestamp*1000,
    report={currentHeadEligible:Boolean(consistent&&frameCovered&&frameAgeMs>=0&&frameAgeMs<=180_000),
     pinnedReplayFrameEligible:Boolean(consistent&&pinnedFrame.referenceEligible&&pinnedFrameAgeMs>=0&&

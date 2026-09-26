@@ -160,7 +160,11 @@ function assertTrustedSource(input:{openModel:PaperOpenModel;profile:MarketProfi
  assert.equal(feeCarry.token0Address.toLowerCase(),p.token0.toLowerCase());
  assert.equal(feeCarry.token1Address.toLowerCase(),p.token1.toLowerCase());
  assert.equal(feeCarry.from.block,open.source.block);assert.equal(feeCarry.from.hash.toLowerCase(),open.source.hash.toLowerCase());
- assert.equal(feeCarry.through.block,previousSource.block);assert.equal(feeCarry.through.hash.toLowerCase(),previousSource.hash.toLowerCase());
+ // The sampler consumes the ephemeral carry advanced from the persisted
+ // predecessor through this exact candidate source. The replay helper binds
+ // its interval.from to previousSource and interval.to to frame.source.
+ assert.equal(feeCarry.through.block,frame.source.block);
+ assert.equal(feeCarry.through.hash.toLowerCase(),frame.source.hash.toLowerCase());
  assert.equal(feeCarry.fee,p.fee);assert.equal(feeCarry.tickSpacing,p.tickSpacing);
  assert.equal(feeCarry.liquidity,open.candidate.liquidity);
  assert.deepEqual(feeCarry.range,open.candidate.range&&{tickLower:open.candidate.range.tickLower,

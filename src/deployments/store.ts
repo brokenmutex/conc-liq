@@ -110,9 +110,12 @@ const paperFeeMarkSourceSchema=z.object({
  hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
  timestamp:z.number().int().nonnegative(),
 }).strict();
-const paperFeeRangeSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
- fullWidthTicks:z.number().int(),requestedLower:z.number().int(),requestedUpper:z.number().int(),
- rounded:z.boolean()}).strict();
+const paperFeeRangeSchema=z.union([
+ z.object({tickLower:z.number().int(),tickUpper:z.number().int()}).strict(),
+ z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+  fullWidthTicks:z.number().int(),requestedLower:z.number().int(),requestedUpper:z.number().int(),
+  rounded:z.boolean()}).strict(),
+]);
 const paperFeeMarkStateSchema=z.object({tick:z.number().int(),
  sqrtPriceX96:z.string().regex(/^(0|[1-9][0-9]*)$/),
  poolLiquidity:z.string().regex(/^(0|[1-9][0-9]*)$/)}).strict();

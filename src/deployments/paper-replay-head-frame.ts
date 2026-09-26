@@ -22,11 +22,10 @@ export async function readCanonicalPaperReplayHeadFrame(input:{client:RobinhoodC
     SELECT c.complete_through_block::text AS block,c.complete_through_hash AS hash
     FROM v3_replay_cursors c JOIN v3_replay_pools p USING(stream_key)
     WHERE c.stream_key=$1 AND p.chain_id=$2 AND lower(p.pool_address)=lower($3)
-     AND p.fee=$4 AND p.tick_spacing=$5 AND p.initialized=true AND c.target_set_hash=$6
+     AND p.fee=$4 AND p.initialized=true AND c.target_set_hash=$5
      AND c.complete_through_block IS NOT NULL AND c.complete_through_hash IS NOT NULL
      AND (c.last_block_number IS NULL OR c.last_block_number<=c.complete_through_block)`,
-    [stream,profile.pool.chainId,profile.pool.pool,profile.pool.fee,profile.pool.tickSpacing,
-     targetSetHash])).rows[0];
+    [stream,profile.pool.chainId,profile.pool.pool,profile.pool.fee,targetSetHash])).rows[0];
    await queryClient.query('COMMIT');
   }catch(error){await queryClient.query('ROLLBACK');throw error;}
  }finally{queryClient.release();}

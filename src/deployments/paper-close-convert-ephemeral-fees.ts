@@ -51,6 +51,34 @@ rangeSchema=z.union([basicRangeSchema,fullRangeSchema]),
 export const ephemeralStaticPaperCloseConvertFeeReplaySchema=replaySchema;
 export const paperCloseConvertFeeRangeSchema=rangeSchema;
 
+/** Narrows a fresh complete-through witness to the exact requested interval
+ * endpoint. A later cursor may include additional unrelated blocks; storing
+ * that moving cursor in the economic digest would make the same interval hash
+ * differently on replay. The indexed reader has already enforced target set,
+ * cursor continuity and exact event window, while readCanonicalPaperFeeInterval
+ * has rechecked both requested source anchors against canonical RPC. */
+export function bindEphemeralPaperFeeCoveragePrefix(input:{interval:CanonicalFeeInterval;
+ sampleSource:PaperFeeFrame['source'];stream:string;targetSetHash:string}):CanonicalFeeInterval{
+ const {interval,sampleSource,stream,targetSetHash}=input;
+ assert.equal(interval.coverage.stream,stream,'paper_close_convert_ephemeral_fee_stream_changed');
+ assert.equal(interval.coverage.targetSetHash,targetSetHash,
+  'paper_close_convert_ephemeral_fee_target_set_changed');
+ assert.equal(interval.coverage.chainAnchorRecheckRequired,false,
+  'paper_close_convert_ephemeral_fee_anchors_unverified');
+ assert.equal(interval.to.block,sampleSource.block,
+  'paper_close_convert_ephemeral_fee_interval_source_mismatch');
+ assert.equal(interval.to.hash.toLowerCase(),sampleSource.hash.toLowerCase(),
+  'paper_close_convert_ephemeral_fee_interval_source_hash_mismatch');
+ assert(BigInt(interval.coverage.completeThroughBlock)>=BigInt(sampleSource.block),
+  'paper_close_convert_ephemeral_fee_coverage_incomplete');
+ if(interval.coverage.completeThroughBlock===sampleSource.block)
+  assert.equal(interval.coverage.completeThroughHash?.toLowerCase(),sampleSource.hash.toLowerCase(),
+   'paper_close_convert_ephemeral_fee_coverage_hash_mismatch');
+ return {...interval,coverage:{...interval.coverage,
+  completeThroughBlock:sampleSource.block,completeThroughHash:sampleSource.hash,
+  chainAnchorRecheckRequired:false}};
+}
+
 /** Rechecks the complete ephemeral witness before it is persisted in a
  * terminal preview. The modeled carry remains hypothetical fee evidence. */
 export function verifyEphemeralStaticPaperCloseConvertFeeReplay(input:{
@@ -129,9 +157,11 @@ export async function replayEphemeralStaticPaperCloseConvertFees(input:{
    sqrtPriceX96:BigInt(anchoredBefore.poolState.sqrtPriceX96),
    poolLiquidity:BigInt(anchoredBefore.poolState.poolLiquidity)},
   after={source,tick:frame.tick,sqrtPriceX96:frame.sqrtPriceX96,poolLiquidity:frame.poolLiquidity};
- const interval=await readCanonicalPaperFeeInterval(input.client,input.indexer,stream,targetSetHash,
+ const indexedInterval=await readCanonicalPaperFeeInterval(input.client,input.indexer,stream,targetSetHash,
   state.profile,before,after,{tickLower:state.openModel.candidate.range.tickLower,
    tickUpper:state.openModel.candidate.range.tickUpper},BigInt(state.openModel.candidate.liquidity));
+ const interval=bindEphemeralPaperFeeCoveragePrefix({interval:indexedInterval,
+  sampleSource:source,stream,targetSetHash});
  const advanced=advanceEphemeralStaticPaperFeeCarry({previous:feeCarry,interval,sampleSource:source,
   stream,targetSetHash,opening:state.openModel.source});
  const replay={kind:'paper_close_convert_ephemeral_fee_replay_v1' as const,classification:'fork_estimated' as const,
