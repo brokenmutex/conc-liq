@@ -89,8 +89,12 @@ async function main(){
   'set TEST_SEALED_RELEASE_DIR only with --sealed-release');
  const releaseRoot=sealed?resolve(process.env.TEST_SEALED_RELEASE_DIR):null,
   manifest=releaseRoot?verifyRelease(releaseRoot):null;
- if(manifest&&process.env.TEST_EXPECTED_RELEASE_COMMIT)
-  assert.equal(manifest.sourceCommit,process.env.TEST_EXPECTED_RELEASE_COMMIT,'release source commit mismatch');
+ if(sealed){
+  assert.match(process.env.TEST_EXPECTED_RELEASE_COMMIT??'',/^[0-9a-f]{40}$/i,
+   'sealed conversion requires TEST_EXPECTED_RELEASE_COMMIT');
+  assert.equal(manifest.sourceCommit,process.env.TEST_EXPECTED_RELEASE_COMMIT,
+   'release source commit mismatch');
+ }
  const dotenv=parseEnv(readFileSync('.env','utf8')),
   archive=dotenv.RH_ARCHIVE_RPC_URL??dotenv.ROBINHOOD_READ_HTTP_URL,
   readRpc=dotenv.ROBINHOOD_READ_HTTP_URL??archive,
@@ -354,6 +358,8 @@ async function main(){
   assert(acceptancePost?.postData,'browser trace did not capture convert acceptance request body');
   const acceptedBody=JSON.parse(acceptancePost.postData);
   convertOperationId=await waitFor(()=>getOperationId('close_convert'),'persisted conversion operation',30_000);
+  assert.equal(convert.acceptedResponse.id,convertOperationId,
+   'persisted conversion operation must match the operation id returned to the UI');
   if(interrupt){
    const pending=await store.operation(convertOperationId);
    assert(['queued','preflighting','executing','confirming','reconciling'].includes(pending.status),
@@ -442,6 +448,8 @@ async function main(){
     lifecycle:position.deployment.lifecycle,conversionAccountingStatus:position.deployment.conversionAccountingStatus,
     browserParity:{desktop:browserHistory.desktop.viewport,mobile:browserHistory.mobile.viewport},
     publicReplayReadOnlyPool:true,deploymentWritesIsolated:true,signerLoaded:false,broadcasts:0,
+    runtime:sealed?{buildId:manifest.buildId,sourceCommit:manifest.sourceCommit,verified:true}:
+     'spawned source src/deployments.ts and src/deployments-paper-worker.ts',
     workerInterruption:{suspended:workerSuspension,...interruption},
     note:'A test proxy changed one saved source-block response for the restarted worker; this is not a claim of a real chain reorg.'},null,2));
    return;
@@ -462,24 +470,74 @@ async function main(){
   const markCount=markRows.length;
   assert.equal(markCount,1);
   const terminalMark=markRows[0];
+  const savedConversionPreview=(await admin.query(`SELECT id::text,proposal FROM deployment_previews
+   WHERE id=$1 AND campaign_id=$2`,[terminalMark.provenance.previewId,campaignId])).rows[0];
+  assert(savedConversionPreview,'terminal mark preview is missing');
+  const terminalModel=savedConversionPreview.proposal.paperCloseConvertTerminalV3;
+  assert.equal(savedConversionPreview.id,terminalMark.provenance.previewId);
+  assert(terminalModel?.modelHash,'saved terminal V3 model is missing');
+  assert.equal(terminalMark.provenance.operationId,convertOperationId);
+  assert.equal(terminalMark.provenance.classification,'paper_model_converted_close');
+  assert.equal(terminalMark.provenance.terminalModelHash,terminalModel.modelHash);
+  assert.equal(terminalMark.provenance.source?.block,terminalModel.source.block);
+  assert.equal(terminalMark.provenance.source?.hash?.toLowerCase(),terminalModel.source.hash.toLowerCase());
+  assert.equal(terminalMark.inventory.classification,'paper_model_converted_close');
+  assert.equal(terminalMark.inventory.actualCustodyAvailable,false);
+  assert.equal(terminalMark.inventory.position,null);
+  assert.equal(terminalMark.inventory.nativeWei,null);
+  assert.equal(terminalMark.provenance.paidCostsAvailable,false);
+  assert.equal(terminalMark.provenance.actualCustodyAvailable,false);
+  assert.equal(terminalMark.inventory.retainedPrincipalLowerBound.amount0Raw,
+   terminalModel.inventory.principal0Raw);
+  assert.equal(terminalMark.inventory.retainedPrincipalLowerBound.amount1Raw,
+   terminalModel.inventory.principal1Raw);
+  assert.equal(terminalMark.inventory.idleLowerBound.amount0Raw,terminalModel.inventory.idle0Raw);
+  assert.equal(terminalMark.inventory.idleLowerBound.amount1Raw,terminalModel.inventory.idle1Raw);
+  assert.equal(terminalMark.inventory.simulatedPostWithdraw.token0Raw,terminalModel.inventory.token0Raw);
+  assert.equal(terminalMark.inventory.simulatedPostWithdraw.token1Raw,terminalModel.inventory.token1Raw);
+  assert.equal(terminalMark.inventory.simulatedPostWithdraw.fee0Raw,terminalModel.inventory.fee0Raw);
+  assert.equal(terminalMark.inventory.simulatedPostWithdraw.fee1Raw,terminalModel.inventory.fee1Raw);
   const conversion=position.deployment.accounting.conversion;
   assert(BigInt(conversion.inputAmountRaw)>0n&&BigInt(conversion.expectedOutputRaw)>0n&&
    BigInt(conversion.minimumOutputRaw)>0n,'conversion input/output envelope is incomplete');
   assert(BigInt(conversion.expectedProceedsQuote)>=BigInt(conversion.minimumProceedsQuote),
    'expected proceeds must meet the modeled minimum');
-  const accountingSnapshot=(await admin.query(`SELECT snapshot FROM deployment_paper_accounting
+  const accountingRow=(await admin.query(`SELECT id::text,fee_evidence_id::text,snapshot,snapshot_hash
+   FROM deployment_paper_accounting
    WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
-   [campaignId,terminalMark.id,PAPER_CONVERSION_ACCOUNTING_POLICY_V3])).rows[0]?.snapshot;
+   [campaignId,terminalMark.id,PAPER_CONVERSION_ACCOUNTING_POLICY_V3])).rows[0];
+  const accountingSnapshot=accountingRow?.snapshot;
   const accountingSnapshots=(await admin.query(`SELECT count(*)::int AS n FROM deployment_paper_accounting
    WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
    [campaignId,terminalMark.id,PAPER_CONVERSION_ACCOUNTING_POLICY_V3])).rows[0].n;
   assert.equal(accountingSnapshots,1,'terminal conversion must persist exactly one V3 accounting snapshot');
   assert(accountingSnapshot?.inventory,'persisted V3 accounting snapshot is missing terminal inventory');
+  assert.equal(contentHash(accountingSnapshot),accountingRow.snapshot_hash,
+   'terminal V3 accounting snapshot hash changed');
+  assert.equal(accountingSnapshot.sourceMarkId,terminalMark.id,
+   'terminal V3 snapshot is bound to a different source mark');
+  assert.equal(accountingSnapshot.closeModelHash,terminalModel.modelHash,
+   'terminal V3 snapshot is bound to a different conversion model');
+  assert.deepEqual(accountingSnapshot.runtimeIdentity,accountingIdentity,
+   'terminal V3 snapshot runtime identity changed');
+  assert.equal(terminalMark.provenance.openMarkId,terminalModel.openMarkId);
+  assert.equal(terminalMark.provenance.previousMarkId,terminalModel.previousMarkId);
+  assert.equal(terminalMark.provenance.feeEvidenceId,terminalModel.feeReplay.previousFeeEvidenceId);
+  const terminalFeeEvidence=(await admin.query(`SELECT id::text,from_mark_id::text,to_mark_id::text,
+   proof_hash,carry_hash FROM deployment_paper_fee_evidence WHERE id=$1 AND campaign_id=$2`,
+   [accountingRow.fee_evidence_id,campaignId])).rows[0];
+  assert(terminalFeeEvidence,'terminal V3 fee evidence row is missing');
+  assert.equal(terminalFeeEvidence.from_mark_id,terminalModel.previousMarkId);
+  assert.equal(terminalFeeEvidence.to_mark_id,terminalMark.id);
+  assert.equal(terminalFeeEvidence.proof_hash,terminalModel.feeReplay.intervalHash);
+  assert.equal(terminalFeeEvidence.carry_hash,terminalModel.feeReplay.feeCarryHash);
   for(const asset of ['token0','token1']){
    const projectedRaw=String(position.deployment[asset].amountRaw),snapshotRaw=
     String(accountingSnapshot.inventory[`${asset}Raw`]);
    assert.equal(projectedRaw,snapshotRaw,`${asset} projection differs from persisted V3 accounting inventory`);
   }
+  assert.equal(String(position.inventory.nativeWei),accountingSnapshot.inventory.nativeWei,
+   'native inventory projection differs from persisted V3 accounting inventory');
   const conversionFlows=accountingSnapshot.flows.filter(flow=>flow.kind==='modeled_conversion'),
    capitalOutFlows=accountingSnapshot.flows.filter(flow=>flow.kind==='modeled_capital_out');
   assert.equal(conversionFlows.length,1,'persisted snapshot must contain one modeled conversion envelope');
@@ -495,11 +553,44 @@ async function main(){
   assert(detail.performance.markCount>=3&&detail.performance.timeline[0]?.action==='enter'&&
    detail.performance.timeline.some(point=>point.action==='exit'),
    'closed history must preserve first entry and converted exit session values');
-  const ledgerCount=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
-    WHERE campaign_id=$1 AND operation_id=$2`,[campaignId,convertOperationId])).rows[0].n,
+  const operationLedger=(await admin.query(`SELECT entry_key,kind,token_address,amount_raw::text,
+    value_raw::text,source FROM deployment_ledger WHERE campaign_id=$1 AND operation_id=$2
+    ORDER BY entry_key`,[campaignId,convertOperationId])).rows,
+   ledgerCount=operationLedger.length,
    paid=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
     WHERE campaign_id=$1 AND kind='gas_paid'`,[campaignId])).rows[0].n;
   assert.equal(ledgerCount,3);assert.equal(paid,0);
+  assert.equal(capitalOutFlows.length,3);
+  assert.deepEqual([...new Set(capitalOutFlows.map(flow=>flow.asset))].sort(),
+   ['native','token0','token1'],
+   'V3 capital-out flows must cover token0, token1 and native exactly once');
+  const expectedLedgerAssets={token0:profile.pool.token0,token1:profile.pool.token1,native:null};
+  for(const flow of capitalOutFlows){
+   const row=operationLedger.find(item=>item.entry_key===
+    `paper_close_convert:${convertOperationId}:${flow.asset}`);
+   assert(row,`operation ledger is missing modeled ${flow.asset} capital out`);
+   assert.equal(row.kind,'capital_out');
+   assert.equal(row.token_address?.toLowerCase()??null,
+    expectedLedgerAssets[flow.asset]?.toLowerCase()??null);
+   assert.equal(row.amount_raw,null,'modeled capital out must not be represented as a paid amount');
+   assert.equal(row.value_raw,null,'modeled capital out must not be represented as a settled value');
+   assert.equal(row.source.classification,'paper_modeled_conversion_capital_out_v3');
+   assert.equal(row.source.operationId,convertOperationId);
+   assert.equal(row.source.previewId,terminalMark.provenance.previewId);
+   assert.equal(row.source.accountingId,accountingRow.id);
+   assert.equal(row.source.policyVersion,PAPER_CONVERSION_ACCOUNTING_POLICY_V3);
+   assert.equal(row.source.snapshotHash,accountingRow.snapshot_hash);
+   assert.equal(row.source.terminalModelHash,terminalModel.modelHash);
+   assert.equal(row.source.asset,flow.asset);
+   assert.equal(row.source.modeledAmountRaw,flow.amountRaw);
+   assert.equal(row.source.modeledValueQuote,flow.valueQuote);
+   assert.equal(row.source.quoteHash,accountingSnapshot.conversion.quoteHash);
+   assert.equal(row.source.paidCostsAvailable,false);
+   assert.equal(row.source.actualCustodyAvailable,false);
+  }
+  const nativeCapitalOut=capitalOutFlows.find(flow=>flow.asset==='native');
+  assert.equal(nativeCapitalOut.amountRaw,accountingSnapshot.inventory.nativeWei,
+   'native capital-out flow differs from persisted V3 native inventory');
   const toToken=position.deployment[conversion.toAsset],fromToken=position.deployment[conversion.fromAsset],
    visibleValues=[`${formatAmount(conversion.inputAmountRaw,fromToken.decimals)} ${fromToken.symbol}`,
     `${formatAmount(conversion.expectedOutputRaw,toToken.decimals)} ${toToken.symbol}`,

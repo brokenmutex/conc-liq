@@ -1765,11 +1765,11 @@ platform is not needed to establish the cause.
 
 | Task | Current result | Remaining gate |
 | --- | --- | --- |
-| MVP-1 | Source check gate restored; the clean pinned checkout at `01ed824` passed repository/type checks and 875/875 tests. | Validate the final clean source/build after any remaining runtime changes. |
+| MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
-| MVP-3 | Canonical source UI setup/open/pause/resume/retain passed, including first-session capital, persisted inventory lower bounds, explicit gaps and desktop/mobile closed history. Conversion browser implementation remains under diagnosis. | Complete canonical conversion and verify both lifecycles on the final sealed artifact. |
+| MVP-3 | Both canonical source browser exits passed: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Verify both lifecycles on the final clean sealed artifact. |
 | MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
-| MVP-5 | Runbook and read-only cutover inventory prepared; synthetic restore mechanics passed. Clean `216ab25` passed 875 checks and produced verified candidate `d278f44c…`; rendered units verified without installation. | Final artifact after the measured V2 maintenance fix, both canonical lifecycles and economic recovery on that build, canonical restore and cutover review. Production authorization remains pending. |
+| MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Both canonical lifecycles and economic recovery on this build, canonical restore and cutover review. Production authorization remains pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
@@ -2073,3 +2073,73 @@ and target/archive cleanup. Both outer databases were removed. Logs:
 `/tmp/paper-maintenance-v2-v3-restore-20260926.log`. Restore remains synthetic
 database-mechanics evidence; canonical economic restart and restore are still
 separate MVP-4/MVP-5 gates.
+
+**Actual source conversion passed:** base `216ab25` plus the frozen recorded
+maintenance/browser changes subsequently committed in `e88a3a5` completed the
+real authenticated UI setup/open/later valuation/close-convert workflow.
+Campaign `8c07d29f-52eb-4c87-bfa2-9cc1a1aa4ee7`, conversion operation
+`333e28f8-7879-42a8-ac06-c15ef8945dbd`, stage
+`paper_close_convert_v3_reconciled`: exactly one terminal mark, three modeled
+ledger rows and zero paid-gas rows. Before preview, the real worker's latest
+V2 snapshot at mark 4 matched fee evidence 3 through block `73213095`.
+Closed inventory used the V3 accounting snapshot: USDG `1990523`, AAPL `0`,
+native `9999964274105428000` wei, all provisional modeled conversion inventory.
+Desktop 1440 and mobile 390 screenshots were inspected for closed activity,
+chart/economic gaps and provisional cost labels. The initial value includes the
+explicit 10-native allocation as well as the 2-USDG token budget; it is not a
+claim that 2 USDG alone funded that modeled portfolio. No signer or broadcast.
+Command/worker processes exited and the disposable schema was cleaned.
+Log: `/tmp/conc-liq-review-evidence/canonical-convert-v2-runtime-216ab25-plus-dirty.txt`;
+exact provenance: `canonical-convert-budget2-v2-provenance.txt` in that directory;
+screenshots: `/tmp/static-paper-browser-evidence-20260926/8c07d29f-52eb-4c87-bfa2-9cc1a1aa4ee7/`.
+This closes the source conversion diagnosis, not the sealed MVP-4/MVP-5 gates.
+
+**Final-candidate preparation:** `eb118ea` removed the renderer's ineffective
+inherited worker flag and documented its required location in the hashed
+private environment. The clean check correctly stopped on the changed script
+registry hash/length; `609e68f` deliberately refreshed that exact provenance
+entry after `1c4889e` clarified the worker template comment. The clean check and
+new candidate build now target `609e68f`. No production environment file,
+migration, service installation or activation has occurred.
+
+**Final clean candidate built:** clean detached `609e68feb95afd32ed3dd6df0ce0ec3ba15e9575`
+passed pinned `npm run check`, **876/876** tests, 85 suites. Build
+`b78c3f22bd0ffa11f5bf7f72cbcd0388464a65aac4b4f3c0d2e2af80d94dc9f3`
+under `/tmp/conc-liq-static-mvp-releases-20260926/` passed its own pinned
+Node `v24.20.0` launcher verification; prototype/preview assets were excluded.
+Thirteen unit files were rendered without installation and
+`systemd-analyze verify` exited 0, with only the existing host snapd warning.
+The proposed private environment remains absent. Logs:
+`/tmp/static-mvp-check-609e68f-20260926.log`,
+`/tmp/static-mvp-release-build-609e68f-20260926.log`,
+`/tmp/static-mvp-render-units-609e68f-20260926.log`.
+Both sealed browser exits, positive economic restart plus canonical restore,
+and changed-anchor rejection are being run serially against this exact build;
+MVP-4/MVP-5 remain open until their actual process evidence passes.
+
+**Sealed retain browser passed on the final candidate:** build `b78c3f22…`
+completed actual authenticated UI setup/open/later valuation/pause/resume/retain
+for campaign `c3f8e9b5-519d-487a-aa46-2d0a0078e8dc`. Retain operation
+`fa8ccea8-168b-41fb-9cce-42228d965834` succeeded on attempt 1 at
+`paper_close_retain_recorded`, with one terminal mark and zero paid-gas rows.
+First-session initial quote `26915017892` includes the explicit native allocation;
+recorded principal remains lower bounds with unknown complete custody/costs.
+Desktop 1440/mobile 390 history, all four operation stages, chart gaps and
+unavailable final economics were checked against persisted evidence and visually
+inspected. Actual command/worker both ran the verified sealed launcher; all
+processes and disposable inputs were cleaned before handing off the shared DB
+slot. Log: `/tmp/static-paper-retain-browser-609e68f-sealed-20260926.log`;
+screenshots: `/tmp/static-paper-browser-evidence-609e68f-retain-20260926/c3f8e9b5-519d-487a-aa46-2d0a0078e8dc/`.
+
+**Independent harness critique:** both sealed runners now require the expected
+source commit, rather than accepting any self-verifying supplied release. The
+actual retained run already supplied the correct pin. Conversion assertions now
+inspect each of the three capital-out ledger records, modeled raw/value metadata,
+asset/entry key, null settled columns, snapshot/model/quote bindings and native
+inventory. Terminal mark inventory is checked against its saved post-withdrawal
+model, while the final post-conversion dashboard inventory is checked against the
+V3 snapshot; these deliberately different semantics are not conflated. Prior
+fee evidence in mark provenance and the new terminal fee-evidence row are also
+checked separately. These are external test-driver changes after the runtime
+artifact was sealed; its `609e68f` identity is unchanged. Preserve the external
+harness commit and artifact identity separately for the remaining process runs.

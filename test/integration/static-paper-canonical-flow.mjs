@@ -60,9 +60,12 @@ if(!sealedReleaseMode&&process.env.TEST_SEALED_RELEASE_DIR)
  throw Error('Use --sealed-release to opt into TEST_SEALED_RELEASE_DIR');
 const releaseRoot=sealedReleaseMode?resolve(process.env.TEST_SEALED_RELEASE_DIR):null,
  releaseManifest=releaseRoot?verifyRelease(releaseRoot):null;
-if(releaseManifest&&process.env.TEST_EXPECTED_RELEASE_COMMIT&&
- releaseManifest.sourceCommit!==process.env.TEST_EXPECTED_RELEASE_COMMIT)
- throw Error(`Sealed release source commit mismatch: ${releaseManifest.sourceCommit}`);
+if(sealedReleaseMode){
+ assert.match(process.env.TEST_EXPECTED_RELEASE_COMMIT??'',/^[0-9a-f]{40}$/i,
+  'sealed retain requires TEST_EXPECTED_RELEASE_COMMIT');
+ assert.equal(releaseManifest.sourceCommit,process.env.TEST_EXPECTED_RELEASE_COMMIT,
+  'sealed release source commit mismatch');
+}
 const dbParsed=new URL(process.env.TEST_DATABASE_URL),socket=dbParsed.searchParams.get('host');
 if(!['localhost','127.0.0.1','[::1]','::1'].includes(dbParsed.hostname.toLowerCase())&&
  !(socket&&socket.startsWith('/')))throw Error('TEST_DATABASE_URL must use local PostgreSQL');
