@@ -7,6 +7,9 @@ import {once} from 'node:events';
 import {createServer as createNetServer} from 'node:net';
 import {parseEnv} from 'node:util';
 import {readFileSync} from 'node:fs';
+import {access,mkdtemp,readdir,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {spawn} from 'node:child_process';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
@@ -39,7 +42,8 @@ import {buildProspectivePaperCloseConvertPrestateGasProfiles}
 import {createStaticPaperCloseConvertAcceptance} from
  '../../src/deployments/paper-close-convert-runtime.ts';
 import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
-import {readDeploymentRows,deploymentPosition} from '../../src/dashboard/deployment-position.ts';
+import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from
+ '../../src/dashboard/deployment-position.ts';
 import {acquirePaperOperationReadinessLease,runPaperMaintenancePass} from
  '../../src/deployments-paper-worker.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
@@ -59,6 +63,101 @@ const assertLocalDb=()=>{
 };
 const rawUsd=usd=>String(BigInt(usd)*10n**18n);
 
+async function inspectConvertedCloseHistory({origin,password,onChrome,onWebSocket,onTemp}){
+ let executable=process.env.CHROMIUM_PATH;
+ if(!executable){
+  const entries=await readdir('/root/.cache/ms-playwright',{withFileTypes:true});
+  for(const entry of entries.filter(item=>item.isDirectory()&&/^chromium-\d+$/.test(item.name))
+   .sort((a,b)=>Number(b.name.slice(9))-Number(a.name.slice(9)))){
+   const candidate=`/root/.cache/ms-playwright/${entry.name}/chrome-linux64/chrome`;
+   try{await access(candidate);executable=candidate;break;}catch{}
+  }
+ }
+ assert(executable,'Chromium unavailable; set CHROMIUM_PATH');
+ const temp=await mkdtemp(`${tmpdir()}/conc-liq-v3-dashboard-`);onTemp(temp);
+ let debugPort=0,stderr='';
+ const browser=spawn(executable,['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',
+  '--disable-background-networking','--no-first-run','--no-default-browser-check','--remote-debugging-port=0',
+  '--user-data-dir='+temp,'about:blank'],{stdio:['ignore','ignore','pipe']});onChrome(browser);
+ browser.stderr.setEncoding('utf8');browser.stderr.on('data',part=>{stderr+=part;
+  const match=/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//.exec(stderr);
+  if(match)debugPort=Number(match[1]);});
+ for(let i=0;i<120&&!debugPort;i++){
+  if(browser.exitCode!==null)throw Error('Chromium exited before DevTools started');
+  await sleep(100);
+ }
+ assert(debugPort,'Chromium did not start remote debugging');
+ const targets=await fetch(`http://127.0.0.1:${debugPort}/json`).then(response=>response.json()),
+  target=targets.find(item=>item.type==='page');assert(target);
+ const socket=new WebSocket(target.webSocketDebuggerUrl);onWebSocket(socket);
+ await new Promise((resolve,reject)=>{
+  socket.addEventListener('open',resolve,{once:true});socket.addEventListener('error',reject,{once:true});
+ });
+ const failures=[],exceptions=[],checks=[];let sequence=0;const pending=new Map();
+ socket.addEventListener('message',event=>{const message=JSON.parse(event.data);
+  if(message.id){const item=pending.get(message.id);if(!item)return;pending.delete(message.id);
+   message.error?item.reject(Error(JSON.stringify(message.error))):item.resolve(message.result);}
+  else if(message.method==='Runtime.exceptionThrown')exceptions.push(message.params.exceptionDetails.text);
+  else if(message.method==='Network.responseReceived'&&message.params.response.status>=400)
+   failures.push({status:message.params.response.status,url:new URL(message.params.response.url).pathname});
+ });
+ const send=(method,params={})=>new Promise((resolve,reject)=>{
+  const id=++sequence;pending.set(id,{resolve,reject});socket.send(JSON.stringify({id,method,params}));
+ });
+ const evaluate=async expression=>{const result=await send('Runtime.evaluate',{
+  expression,returnByValue:true,awaitPromise:true});
+  if(result.exceptionDetails)throw Error(JSON.stringify(result.exceptionDetails));return result.result.value;
+ };
+ const waitFor=async expression=>{for(let i=0;i<200;i++){
+   if(await evaluate(expression))return;await sleep(100);
+  }
+  throw Error(`Dashboard browser wait timed out: ${expression}`);
+ };
+ const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)})?.click()`);
+ const fill=(selector,value)=>evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});
+  if(!e)throw Error('dashboard control missing');e.value=${JSON.stringify(value)};
+  e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
+ const navigate=async path=>{await send('Page.navigate',{url:origin+path});
+  await waitFor('document.readyState==="complete"');};
+ await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
+ await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+ await navigate('/operator');await fill('#operator-password',password);
+ await click('#operator-login-form button[type=submit]');
+ await waitFor('!document.querySelector("#operator-logout").hidden');
+ await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
+ await waitFor('document.querySelector("#paper .view-switch button[data-value=history]")!==null');
+ await click('#paper .view-switch button[data-value="history"]');
+ await waitFor('document.querySelector("#paper .position-detail")?.textContent.includes("Provisional converted-close scenario")');
+ const detail=await evaluate('document.querySelector("#paper .position-detail").innerText');
+ for(const phrase of ['Modeled conversion count','Expected modeled proceeds','Modeled capital out',
+  'Modeled conversion gas','no actual swap','not paid'])assert(detail.toLowerCase().includes(phrase.toLowerCase()),
+   `Converted history detail missing ${phrase}`);
+ assert.equal(await evaluate('document.querySelector("#paper .lifecycle-controls")===null'),true,
+  'Closed history must not show lifecycle controls');
+ assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+  'Desktop converted history overflows the viewport');
+ checks.push('Desktop Positions history shows provisional conversion, modeled capital out, unpaid cost labels and no close controls');
+ await click('#paper .bottom-tabs button[data-action="tab"][data-value="activity"]');
+ await waitFor('document.querySelector("#paper .activity-list")?.textContent.includes("close_convert")');
+ const activity=await evaluate('document.querySelector("#paper .activity-list").innerText');
+ assert(activity.includes('close_convert')&&activity.includes('completed'));
+ await click('#paper .bottom-tabs button[data-action="tab"][data-value="sessions"]');
+ await waitFor('document.querySelector("#paper .session-note")!==null');
+ assert((await evaluate('document.querySelector("#paper .session-note").innerText'))
+  .includes('Incomplete intervals stay blank'));
+ checks.push('History activity records close_convert and the session view keeps incomplete intervals blank');
+ await send('Emulation.setDeviceMetricsOverride',{width:390,height:844,deviceScaleFactor:1,mobile:true});
+ await sleep(150);
+ assert(await evaluate('document.documentElement.scrollWidth<=innerWidth'),
+  'Mobile converted history overflows the viewport');
+ assert((await evaluate('document.querySelector("#paper .position-detail").innerText'))
+  .includes('Provisional converted-close scenario'));
+ checks.push('Mobile converted history preserves the provisional conversion detail without horizontal overflow');
+ assert.equal(exceptions.length,0,JSON.stringify(exceptions));
+ assert.equal(failures.filter(item=>/\.(js|css)$/.test(item.url)).length,0,JSON.stringify(failures));
+ return {checks,browserExceptions:exceptions,httpFailures:failures};
+}
+
 async function main(){
  assert(process.env.TEST_DATABASE_URL,'TEST_DATABASE_URL is required');assertLocalDb();
  const dotenv=parseEnv(readFileSync('.env','utf8')),
@@ -74,7 +173,7 @@ async function main(){
    referencePolicy:rawProfile.referencePolicy}),
   adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4}),
   admin=await adminPool.connect(),schema=`paper_v3_canonical_${randomUUID().replaceAll('-','')}`;
- let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease,commandServer;
+let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease,commandServer,chrome,ws,browserTemp;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
   await migrateDatabase(admin);
@@ -267,7 +366,17 @@ async function main(){
    paperConvertPreparationReady:campaignId=>store.staticPaperCloseConvertPreparationReady(campaignId),
    paperConvertAcceptance:acceptStaticPaperCloseConvert,
    paperOperationReplay:(campaignId,input,allowedKinds)=>
-    store.acceptedOperationReplay(campaignId,input,allowedKinds)});
+    store.acceptedOperationReplay(campaignId,input,allowedKinds),
+   dashboardRead:async path=>{
+    if(path==='/api/dashboard')return {pools:[]};
+    if(path==='/api/research')return {generatedAt:new Date().toISOString(),pools:[],windows:[]};
+    const url=new URL(path,commandOrigin),match=/^\/api\/positions(?:\/(paper-dep-[0-9a-f-]{36}))?$/.exec(url.pathname);
+    if(!match)throw Error('dashboard_read_path_unavailable');
+    const rows=await readDeploymentRows(admin);
+    if(!match[1])return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
+    const row=rows.find(value=>`paper-dep-${value.id}`===match[1]);
+    return row?readDeploymentDetail(admin,row,Number(url.searchParams.get('hours')??24)):null;
+   }});
   commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
   const postCommand=(path,body,headers={})=>fetch(commandOrigin+path,{method:'POST',
    headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
@@ -302,7 +411,6 @@ async function main(){
     freshRequest,commandHeaders);
   assert.equal(noLeaseFresh.status,503);
   assert.deepEqual(await noLeaseFresh.json(),{error:'paper_close_convert_preparation_unavailable'});
-  commandServer.close();await once(commandServer,'close');commandServer=undefined;
   await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1}),
    /paper_close_convert_fee_operation_pending/);
   const replayBinding=operation=>store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,
@@ -331,14 +439,23 @@ async function main(){
    ledger=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
     WHERE campaign_id=$1 AND operation_id=$2`,[draft.id,accepted.id])).rows[0].n;
   assert.equal(terminalRows,1);assert.equal(ledger,3);
+  const browserChecks=await inspectConvertedCloseHistory({origin:commandOrigin,password,
+   onChrome:process=>{chrome=process;},onWebSocket:socket=>{ws=socket;},
+   onTemp:path=>{browserTemp=path;}});
+  commandServer.close();await once(commandServer,'close');commandServer=undefined;
   console.log(JSON.stringify({status:'canonical_v3_worker_fixture_passed',phaseTiming:phaseTimes,
    latestMarkBeforePreview:context.state.previous.source.block,replaySource:frame.source.block,
    replayAgeMs:Date.now()-frame.source.timestamp*1000,openOperationId:openAcceptance.id,
    closeOperationId:accepted.id,completed:completed.stage,terminalMarks:terminalRows,
    modeledLedgerRows:ledger,paidCostsAvailable:false,actionAvailable:preview.actionAvailable,
    httpReviewActionAvailable:httpReview.actionAvailable,httpAcceptanceReplayed:sameKeyRetry.status===202,
+   browserChecks,
    isolatedDeploymentSchema:true,sourceIndexerReadOnly:true,signerLoaded:false,broadcasts:0},null,2));
  }finally{
+  try{ws?.close();}catch{}
+  if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await new Promise(resolve=>{
+   const timer=setTimeout(resolve,2000);chrome.once('exit',()=>{clearTimeout(timer);resolve();});});}
+  if(browserTemp)await rm(browserTemp,{recursive:true,force:true});
   await operationReadyLease?.release().catch(()=>{});
   if(commandServer){commandServer.close();await once(commandServer,'close').catch(()=>{});}
   await preparationLease?.release().catch(()=>{});
