@@ -223,7 +223,8 @@ try{
   const firstImportStartedAt=Date.now(),firstModelStartedAt=firstImportStartedAt,
    modelGasPrice=await rpc.getGasPrice(),modelGasPriceObservedAt=Date.now();
   firstModel=await buildRangeKeeperPaperOpenModelWhileRegistering({client:rpc,draft,frame:firstFrame,buildId,
-   report:firstReport,marketGasPriceWei:modelGasPrice,marketGasPriceObservedAt,pinnedQuoteCache:quoteCache,
+   report:firstReport,marketGasPriceWei:modelGasPrice,
+   marketGasPriceObservedAt:modelGasPriceObservedAt,pinnedQuoteCache:quoteCache,
    register:async report=>{
     const result=await register(report,async({report,frame})=>{
    const plan=await planOpen(frame),candidateHash=rangeKeeperPaperCandidateHash({campaignId,
