@@ -371,7 +371,7 @@ function bootDashboardTabs() {
     const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
     const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode,limits });
     if (!request.available) { setSetupStatus(`Preflight unavailable: ${request.reason}`); return; }
-    setSetupStatus('Preparing a fresh source-matched provisional cost review. This can take several minutes; no draft or operation is created…', 'loading');
+    setSetupStatus('Preparing estimated costs from a fresh confirmed source. This may take several minutes; no draft or operation will be created…', 'loading');
     reviewButton.disabled=true;
     try {
       const result = await authRequest(SETUP_PREFLIGHT_PATH, { method: 'POST', body: request.payload, csrf: true,
@@ -382,7 +382,7 @@ function bootDashboardTabs() {
     } catch (cause) {
       if(reviewSequence!==setupReviewSequence)return;
       reviewButton.disabled=false;
-      const reason = cause.name==='TimeoutError'||cause.name==='AbortError' ? 'Cost preparation timed out or disconnected. No draft or operation was created. Review setup again to reuse any completed calibration.' :
+      const reason = cause.name==='TimeoutError'||cause.name==='AbortError' ? 'Cost review timed out or disconnected. No draft or operation was created. Review setup again to request a fresh result.' :
         cause.status === 401 ? 'Operator session expired. Sign in again; no draft or operation was created.' :
         cause.status === 404 ? 'Authenticated setup preflight route is not available on this command service.' :
         cause.data?.error === 'paper_setup_preflight_unavailable' ? 'Setup preflight service is unavailable.' :
