@@ -481,7 +481,13 @@ function bootDashboardTabs() {
       const label=document.createElement('dt');label.textContent=name;
       const detail=document.createElement('dd');detail.textContent=value;row.append(label,detail);return row;}));
     const candidate=currentDraftRequest?.();
+    const reviewTokenValid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentSetupPreflight.setupReviewId??'')&&
+      Number.isFinite(Date.parse(currentSetupPreflight.setupReviewExpiresAt??''))&&
+      Date.parse(currentSetupPreflight.setupReviewExpiresAt)>Date.now();
+    if(!reviewTokenValid&&!pendingDraftRequestId)
+      status.textContent='Server review token is missing or expired. Request a fresh setup review before saving; no draft was submitted.';
     saveButton.disabled=!window.concliqOperatorAuthenticated?.()||Boolean(savedDraftId)||
+      (!reviewTokenValid&&!pendingDraftRequestId)||
       Boolean(pendingDraftRequestId&&candidate&&pendingDraftBody!==JSON.stringify(candidate));
   }
   for(const id of ['setup-wallet-address','setup-allocation-native',...Object.values(limitInputIds)]){
@@ -508,6 +514,9 @@ function bootDashboardTabs() {
   }
   const currentDraftRequest=()=>{
     if(!currentSetupPreflight)return null;
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentSetupPreflight.setupReviewId??'')||
+      !Number.isFinite(Date.parse(currentSetupPreflight.setupReviewExpiresAt??''))||
+      Date.parse(currentSetupPreflight.setupReviewExpiresAt)<=Date.now())return null;
     const wallet=document.getElementById('setup-wallet-address').value.trim();
     const nativeWei=document.getElementById('setup-allocation-native').value;
     const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
