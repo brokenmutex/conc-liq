@@ -1,0 +1,50 @@
+{
+  "status": "passed",
+  "capturedAt": "2026-09-26T12:04:00Z",
+  "fixture": "test/integration/paper-close-convert-v3-canonical-worker.mjs",
+  "isolatedDeploymentSchema": true,
+  "sourceIndexerReadOnly": true,
+  "preparationLease": {
+    "concurrentCampaignsHeld": 2,
+    "thirdLeaseCheckout": "failed_fast_at_1s_cap",
+    "writerTransactionWhileLeased": "succeeded",
+    "supervisedMaintenance": {
+      "status": "completed",
+      "failed": 0,
+      "invalidated": 0,
+      "preparationSkipped": 1,
+      "latestMarkIdAndHashUnchanged": true
+    }
+  },
+  "conversion": {
+    "latestMarkBeforePreviewBlock": "73066437",
+    "replaySourceBlock": "73066537",
+    "sourceAgeMs": {
+      "preview": 121554,
+      "acceptance": 146569,
+      "workerCompletion": 174183
+    },
+    "freshnessLimitMs": 180000,
+    "terminalMarks": 1,
+    "modeledLedgerRows": 3,
+    "paidCostsAvailable": false,
+    "actionAvailable": false,
+    "operationAcceptanceAvailable": false
+  },
+  "executionBoundary": {
+    "signerLoaded": false,
+    "broadcasts": 0,
+    "schemaCleaned": true
+  },
+  "phaseTimes": {
+    "openGasSampled": "2026-09-26T12:00:26.202Z",
+    "openGasImported": "2026-09-26T12:00:29.886Z",
+    "openBooked": "2026-09-26T12:00:34.859Z",
+    "feeValuation": "2026-09-26T12:01:09.216Z",
+    "feeCarryReady": "2026-09-26T12:01:15.764Z",
+    "terminalReport": "2026-09-26T12:02:44.840Z",
+    "terminalPreview": "2026-09-26T12:03:06.554Z",
+    "terminalAccepted": "2026-09-26T12:03:31.569Z",
+    "workerCompleted": "2026-09-26T12:03:59.172Z"
+  }
+}

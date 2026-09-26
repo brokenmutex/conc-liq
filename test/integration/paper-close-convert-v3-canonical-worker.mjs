@@ -15,7 +15,8 @@ import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 import {marketProfileSchema,verifyMarketProfile} from '../../src/deployments/market-profile.ts';
 import {contentHash,staticManualParameters} from '../../src/deployments/contracts.ts';
 import {readCanonicalPaperOpenFrame,buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
-import {readCanonicalPaperReplayHeadFrame} from '../../src/deployments/paper-replay-head-frame.ts';
+import {readCanonicalPaperReplayHeadFrame,waitCanonicalPaperReplayHeadFrame} from
+ '../../src/deployments/paper-replay-head-frame.ts';
 import {costIndicativePaperOpenPreview} from '../../src/deployments/paper-cost.ts';
 import {sampleStaticPaperGas} from '../../src/deployments/paper-gas-sampler.ts';
 import {verifyPaperGasSource} from '../../src/deployments/paper-gas-source.ts';
@@ -38,6 +39,7 @@ import {verifyPaperStaticCloseConvertTerminalForWorker} from
  '../../src/deployments/paper-close-convert-terminal-replay-verifier.ts';
 import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
 import {readDeploymentRows,deploymentPosition} from '../../src/dashboard/deployment-position.ts';
+import {runPaperMaintenancePass} from '../../src/deployments-paper-worker.ts';
 
 const phaseTimes={};
 const phase=(name,source)=>{phaseTimes[name]={at:new Date().toISOString(),sourceBlock:source?.block??null,
@@ -69,7 +71,7 @@ async function main(){
    referencePolicy:rawProfile.referencePolicy}),
   adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4}),
   admin=await adminPool.connect(),schema=`paper_v3_canonical_${randomUUID().replaceAll('-','')}`;
- let store,indexer;
+ let store,indexer,preparationLease,auxiliaryPreparationLease;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
   await migrateDatabase(admin);
@@ -164,8 +166,28 @@ async function main(){
 
   // The candidate source must be a later, fresh replay cursor than the exact
   // persisted fee carry. No terminal mark is inserted by preview sampling.
-  frame=await waitReplayAfter({client:rpc,indexer,profile,stream,targetSetHash,
-   previous:context.state.previous});
+  // Freeze mutable maintenance only after the latest valuation/V2 predecessor
+  // is saved. Audits must continue while the supervised pass skips mutation.
+  const beforePreparation=await store.paperValuationState(draft.id);
+  preparationLease=await store.acquireStaticPaperCloseConvertPreparationLease(draft.id);
+  auxiliaryPreparationLease=await store.acquireStaticPaperCloseConvertPreparationLease(randomUUID());
+  await assert.rejects(store.acquireStaticPaperCloseConvertPreparationLease(randomUUID()),
+   /timeout exceeded when trying to connect/);
+  const writerProbe=await store.createDraft({mode:'paper',chainId:4663,
+   wallet:'0x2222222222222222222222222222222222222222',marketProfileId:registered.id,
+   strategyId:'static_manual_v1',strategyVersion:'1.0.0',stateSchemaVersion:1,
+   allocation:{token0Raw,token1Raw,nativeWei:'10000000000000000000'},config:parameters});
+  assert(writerProbe.id,'writer transaction starved by retained preparation lease clients');
+  await auxiliaryPreparationLease.release();auxiliaryPreparationLease=undefined;
+  const maintenance=await runPaperMaintenancePass(store,rpc,indexer,1,2);
+  assert.equal(maintenance.status,'completed');assert.equal(maintenance.failed,0);
+  assert.equal(maintenance.invalidated,0);assert.equal(maintenance.preparationSkipped,1);
+  const afterMaintenance=await store.paperValuationState(draft.id);
+  assert.equal(afterMaintenance.previous.markId,beforePreparation.previous.markId,
+   'supervised maintenance appended a mark while preview preparation held the exclusive lease');
+  assert.equal(afterMaintenance.previous.source.hash,beforePreparation.previous.source.hash);
+  frame=await waitCanonicalPaperReplayHeadFrame({client:rpc,indexer,profile,stream,targetSetHash,
+   previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
   const route=buildStaticPaperCloseConvertRoute(context.state),
    feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client:rpc,indexer,frame}),
    report=await samplePaperCloseConvertPrestate({rpcUrl:archive,openModel:context.state.openModel,
@@ -201,6 +223,7 @@ async function main(){
       sourceHash:stage.sourceHash,callHash:stage.callHash,
       gasUnitsExpected:stage.gasUnitsExpected,gasUnitsBound:stage.gasUnitsBound}))};
    }});
+  preparationLease.retainUntil(new Date(preview.expiresAt));
   phase('terminalPreview',frame.source);
   assert.equal(preview.actionAvailable,false);assert.equal(preview.operationAcceptanceAvailable,false);
   assert.equal(preview.source.block,frame.source.block);
@@ -243,6 +266,9 @@ async function main(){
   catch(error){if(sourceFrameMismatch&&error instanceof Error)
     error.message+=` (source-frame diagnostic: ${sourceFrameMismatch})`;throw error;}
   phase('terminalAccepted',frame.source);
+  // A successful admission owns the campaign lifecycle transition. Release
+  // preparation before the default worker claims and completes that operation.
+  await preparationLease.release();preparationLease=undefined;
   await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1}),
    /paper_close_convert_fee_operation_pending/);
   const replayBinding=operation=>store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,
@@ -278,6 +304,8 @@ async function main(){
    modeledLedgerRows:ledger,paidCostsAvailable:false,actionAvailable:preview.actionAvailable,
    isolatedDeploymentSchema:true,sourceIndexerReadOnly:true,signerLoaded:false,broadcasts:0},null,2));
  }finally{
+  await preparationLease?.release().catch(()=>{});
+  await auxiliaryPreparationLease?.release().catch(()=>{});
   await indexer?.end();await store?.close();
   try{await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}
   finally{admin.release();await adminPool.end();}

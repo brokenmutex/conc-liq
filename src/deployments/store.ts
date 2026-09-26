@@ -266,17 +266,22 @@ export interface PaperAccountingAnchorMismatch {
 export class DeploymentStore {
  private readonly pool:pg.Pool;
  private readonly readPool:pg.Pool;
+ private readonly paperPreparationLeasePool:pg.Pool;
  private readonly paperPreparationLeases:PaperPreparationLeaseRegistry;
  constructor(connectionString:string){
   this.pool=new pg.Pool({connectionString,max:3,statement_timeout:15000});
-  this.paperPreparationLeases=new PaperPreparationLeaseRegistry(this.pool);
+  // Retained review leases must never consume transaction clients. Two
+  // campaigns may hold preparations at once; further checkouts fail fast.
+  this.paperPreparationLeasePool=new pg.Pool({connectionString,max:2,
+   connectionTimeoutMillis:1_000,statement_timeout:5_000});
+  this.paperPreparationLeases=new PaperPreparationLeaseRegistry(this.paperPreparationLeasePool);
   const readUrl=new URL(connectionString);
   readUrl.searchParams.set('options',`${readUrl.searchParams.get('options')??''} -c default_transaction_read_only=on`.trim());
   this.readPool=new pg.Pool({connectionString:readUrl.toString(),max:2,statement_timeout:15000});
  }
  async assertReady(){await assertDeploymentSchemaReady(this.readPool);}
  async close(){try{await this.paperPreparationLeases.close();}
-  finally{await Promise.all([this.pool.end(),this.readPool.end()]);}}
+  finally{await Promise.all([this.pool.end(),this.readPool.end(),this.paperPreparationLeasePool.end()]);}}
 
  private async assertPaperPreparationMutationAllowed(db:pg.PoolClient,campaignId:string){
   const row=(await db.query<{acquired:boolean}>(
