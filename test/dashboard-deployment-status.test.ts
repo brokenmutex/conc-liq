@@ -11,8 +11,8 @@ const context=vm.createContext({
  AbortSignal,
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
- .replace("import {mountPaperLifecycleAction,mountStaticRetainAction,mountStaticConvertAction} from './deployment-actions.js';",
-  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountStaticConvertAction=()=>{};');
+ .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
+  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountStaticConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 

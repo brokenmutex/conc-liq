@@ -1,6 +1,6 @@
 'use strict';
 // Position dashboard. Command actions require the authenticated loopback surface.
-import {mountPaperLifecycleAction,mountStaticRetainAction,mountStaticConvertAction} from './deployment-actions.js';
+import {mountPaperLifecycleAction,mountStaticRetainAction,mountStaticConvertAction,mountPendingPaperAcceptanceRecovery} from './deployment-actions.js';
 let positions=[],lastOverview=null,connectedAt=null;
 const details=new Map(),requests=new Map(),mountedActionRoots=new WeakSet();
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -51,7 +51,8 @@ const keyFor=mode=>`${modes[mode].selected}/${modes[mode].hours}`;
 const detailFor=mode=>details.get(keyFor(mode));
 const eventsFor=p=>detailFor(p.mode)?.events??[];
 function visible(mode){return positions.filter(p=>p.mode===mode&&!!p.history===modes[mode].history&&(assetFilter==='all'||p.asset===assetFilter)&&(statusFilter==='all'||(statusFilter==='attention'?needsAttention(p):p.status===statusFilter)));}
-function renderAll(){renderSection('live');renderSection('paper');}
+function renderPendingRecovery(){mountPendingPaperAcceptanceRecovery($('#pending-paper-acceptance-recovery'),{authenticated:()=>window.concliqOperatorAuthenticated?.()===true,request:(path,options)=>window.concliqOperatorRequest?.(path,options),onAccepted:refreshPositionsOnly});}
+function renderAll(){renderSection('live');renderSection('paper');renderPendingRecovery();}
 function renderSection(mode){
  const section=$(`#${mode}`),previousRoots=Array.from(section.querySelectorAll(ACTION_ROOT_SELECTOR)),state=modes[mode],list=visible(mode),all=positions.filter(p=>p.mode===mode&&!p.history),capital=all.some(p=>p.capital==null)?null:all.reduce((n,p)=>n+p.capital,0),profit=all.some(p=>pnl(p)==null)?null:all.reduce((n,p)=>n+pnl(p),0);
  if(mode==='live'){const open=$('#live .rangekeeper-receipts')?.open;if(open!==undefined)rkReceiptsOpen=open;}
@@ -191,7 +192,7 @@ async function refresh(){
   if(!modes.live.selected&&!modes.paper.selected)renderAll();
   await Promise.all(['live','paper'].map(m=>loadDetail(m,true)));
  }catch(e){$('#connection-status').textContent='API unavailable';$('#connection-banner').hidden=false;$('#connection-banner').textContent=`Connection failed (${e.message}). ${connectedAt?'Showing records received '+date(connectedAt)+'.':'Retrying automatically.'}`;}
- finally{setTimeout(refresh,10000);}
+ finally{renderPendingRecovery();setTimeout(refresh,10000);}
 }
 document.addEventListener('click',e=>{
  if(!e.target.closest('#positions-panel'))return;

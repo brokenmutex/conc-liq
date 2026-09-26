@@ -319,10 +319,37 @@ if(completeLifecycle){
   await waitFor('document.querySelector("#paper-chart title")!==null');
   await waitFor('document.querySelector(".paper-lifecycle-preview-button")&&!document.querySelector(".paper-lifecycle-preview-button").disabled');
  };
+ const loseAcceptedResponse=async(path)=>evaluate(`{
+  const originalFetch=window.fetch.bind(window),target=${JSON.stringify(path)};let dropped=false;
+  window.fetch=async(input,options)=>{
+   const response=await originalFetch(input,options);
+   if(!dropped&&options?.method==='POST'&&new URL(typeof input==='string'?input:input.url,location.href).pathname===target&&response.status===202){
+    dropped=true;throw new TypeError('fixture_lost_accepted_response');
+   }
+   return response;
+  };
+ }`);
+ const pendingKey=kind=>`concliq.operator.paper-action.pending.v1.${draftId}.${kind}`;
+ const reconcileSaved=async(kind,key)=>{
+  const selector=`.paper-acceptance-reconcile-button[data-kind="${kind}"]`;
+  await waitFor(`document.querySelector(${JSON.stringify(selector)})?.disabled===false`);
+  await click(selector);
+  await waitFor(`localStorage.getItem(${JSON.stringify(key)})===null`);
+ };
  for(const [kind,lifecycle]of [['pause','paused'],['resume','active']]){
   await showPositions();await click('.paper-lifecycle-preview-button');
   await waitFor('document.querySelector(".paper-lifecycle-confirm-button")?.disabled===false');
-  await click('.paper-lifecycle-confirm-button');await complete(kind,lifecycle);
+  if(kind==='pause')await loseAcceptedResponse(`/api/deployments/${draftId}/lifecycle-operations`);
+  await click('.paper-lifecycle-confirm-button');
+  if(kind==='pause')await waitFor(`localStorage.getItem(${JSON.stringify(pendingKey(kind))})!==null`);
+  const operation=await complete(kind,lifecycle);
+  if(kind==='pause'){
+   const saved=JSON.parse(await evaluate(`localStorage.getItem(${JSON.stringify(pendingKey(kind))})`));
+   await showPositions();await reconcileSaved(kind,pendingKey(kind));
+   assert.equal((await admin.query('SELECT idempotency_key FROM deployment_operations WHERE id=$1',[operation.id])).rows[0].idempotency_key,saved.payload.idempotencyKey);
+   assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1 AND kind=$2',[draftId,kind])).rows[0].n,1);
+   checks.push('Lost accepted pause response survives reload and completed lifecycle, then reconciles its original key once');
+  }
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',[draftId])).rows[0].n,1);
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1',[draftId])).rows[0].n,3);
   checks.push(`Authenticated browser ${kind} completes through the durable paper worker`);
@@ -332,7 +359,10 @@ if(completeLifecycle){
  assert(await evaluate('document.querySelector(".retain-confirm-button")?.disabled===false'),
   await evaluate('document.querySelector(".retain-action-root").textContent'));
  checks.push('Retain preview is actionable at the authenticated boundary');
- await click('.retain-confirm-button');await complete('close_retain','closed');
+ await loseAcceptedResponse(`/api/deployments/${draftId}/operations`);
+ await click('.retain-confirm-button');
+ await waitFor(`localStorage.getItem(${JSON.stringify(pendingKey('close_retain'))})!==null`);
+ await complete('close_retain','closed');
  const closedRows=await readDeploymentRows(admin),closedRow=closedRows.find(row=>row.id===draftId);
  assert.equal(deploymentPosition(closedRow).status,'closed');
  assert.equal((await readDeploymentDetail(admin,closedRow,24)).performance.timeline.at(-1).action,'exit');
@@ -340,8 +370,12 @@ if(completeLifecycle){
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',[draftId])).rows[0].n,4);
  assert.equal((await processOnePaperOperation(store,chain,admin,'browser-restarted')).status,'idle');
  checks.push('Browser retain-close records one terminal mark; restarted worker has no duplicate action');
- await navigate('/operator');
+ await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+ await waitFor('!document.querySelector("#operator-logout").hidden');
  await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
+ await reconcileSaved('close_retain',pendingKey('close_retain'));
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1 AND kind=$2',[draftId,'close_retain'])).rows[0].n,1);
+ checks.push('Lost retain acceptance response reconciles after closure without a fresh action or duplicate terminal mark');
  await click('#paper [data-action="scope"][data-value="history"]');
  await waitFor('document.querySelector("#paper").textContent.includes("Campaign closed")');
  for(const [width,mobile]of [[1440,false],[390,true]]){

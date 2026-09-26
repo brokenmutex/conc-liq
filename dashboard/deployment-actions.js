@@ -96,6 +96,93 @@ function knownNoAcceptance(error) {
     error?.status === 409;
 }
 
+const recoveryInFlight = new Set();
+function savedPaperAcceptances() {
+  const records = [];
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      const action = /^concliq\.operator\.paper-action\.pending\.v1\.([0-9a-f-]{36})\.(pause|resume|close_retain)$/i.exec(key ?? '');
+      const convert = /^concliq\.operator\.paper-convert\.pending\.v1\.([0-9a-f-]{36})$/i.exec(key ?? '');
+      if (!action && !convert) continue;
+      const campaignId = (action ?? convert)[1], kind = action?.[2] ?? 'close_convert';
+      if (!uuid.test(campaignId)) continue;
+      let record;
+      if (action) record = readPendingAcceptance(campaignId, kind);
+      else {
+        try {
+          const saved = JSON.parse(localStorage.getItem(key));
+          record = validPendingAcceptance({...saved, kind}, campaignId, kind) ?
+            {campaignId, kind, payload:{previewId:saved.payload.previewId,
+              contentDigest:saved.payload.contentDigest,expectedRevision:saved.payload.expectedRevision,
+              idempotencyKey:saved.payload.idempotencyKey}} : {campaignId,kind,invalid:true};
+        } catch { record = {campaignId,kind,invalid:true}; }
+      }
+      if (record) records.push({...record,key});
+    }
+  } catch { /* Existing action widgets report unavailable browser storage. */ }
+  return records.sort((a,b)=>a.key.localeCompare(b.key));
+}
+
+/** Recovery remains reachable after accepted operations change the campaign's
+ * lifecycle and its fresh-action widgets disappear. It only resends the saved
+ * acceptance payload; it cannot request a new preview. */
+export function mountPendingPaperAcceptanceRecovery(root, {authenticated, request,
+  onAccepted = () => {}} = {}) {
+  if (!root) return;
+  const operator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
+  const records = operator ? savedPaperAcceptances() : [];
+  const identity = JSON.stringify([Boolean(authenticated?.()),records]);
+  if (root.dataset.recoveryIdentity === identity) return;
+  root.dataset.recoveryIdentity = identity;
+  root.replaceChildren(); root.hidden = records.length === 0;
+  if (!records.length) return;
+  const heading = document.createElement('h2'); heading.textContent = 'Pending paper request recovery';
+  root.append(heading);
+  for (const record of records) {
+    const row = document.createElement('div'), status = document.createElement('p');
+    row.className = 'paper-acceptance-recovery-row';
+    const label = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Convert-close'}[record.kind];
+    status.setAttribute('role','status');
+    status.textContent = record.invalid ? `${label} · ${record.campaignId}: saved recovery record is invalid.` :
+      `${label} · ${record.campaignId}: reconcile the saved request to learn its outcome.`;
+    const button = document.createElement('button'); button.type = 'button';
+    button.className = 'paper-acceptance-reconcile-button';
+    button.dataset.campaignId = record.campaignId; button.dataset.kind = record.kind;
+    button.textContent = 'Reconcile saved acceptance';
+    button.disabled = Boolean(record.invalid) || !authenticated?.() || recoveryInFlight.has(record.key);
+    row.append(status,button); root.append(row);
+    button.addEventListener('click',async()=>{
+      if (!record.payload || !authenticated?.() || recoveryInFlight.has(record.key) || typeof request !== 'function') return;
+      recoveryInFlight.add(record.key); button.disabled = true;
+      const suffix = record.kind === 'close_retain' ? 'operations' :
+        record.kind === 'close_convert' ? 'close-convert-operations' : 'lifecycle-operations';
+      const clearSameRequest = () => {
+        const current = savedPaperAcceptances().find(item=>item.key === record.key);
+        if (!current || JSON.stringify(current.payload) !== JSON.stringify(record.payload)) return false;
+        localStorage.removeItem(record.key); return true;
+      };
+      try {
+        const accepted = await request(`/api/deployments/${encodeURIComponent(record.campaignId)}/${suffix}`,
+          {method:'POST',body:record.payload});
+        if (!uuid.test(accepted?.id ?? '') || !['queued','preflighting','executing','confirming','reconciling',
+          'blocked','succeeded','failed','cancelled','rejected','completed'].includes(accepted.status))
+          throw new Error('operation_acceptance_response_invalid');
+        if (!clearSameRequest()) throw new Error('saved_recovery_record_changed');
+        status.textContent = `Operation ${accepted.id} · ${accepted.status}. See Positions for its recorded stage.`;
+        await onAccepted(accepted);
+      } catch (error) {
+        if (knownNoAcceptance(error)) {
+          try { clearSameRequest(); } catch { /* Retain the recovery record when storage cannot clear it. */ }
+        }
+        status.textContent = `Reconciliation unavailable (${error?.data?.error ?? error?.message ?? 'command_failed'}). Check Positions before continuing.`;
+      } finally {
+        recoveryInFlight.delete(record.key); button.disabled = !authenticated?.() || Boolean(record.invalid);
+      }
+    });
+  }
+}
+
 const addFact = (list, label, value) => {
   const row = document.createElement('div'); row.className = 'retain-preview-fact';
   const name = document.createElement('span'); name.textContent = label;

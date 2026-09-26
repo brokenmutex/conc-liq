@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 // Browser module is intentionally plain JavaScript and has no TypeScript declarations.
 // @ts-expect-error JavaScript browser module has no declaration file.
-import {mountPaperLifecycleAction,mountStaticRetainAction} from '../dashboard/deployment-actions.js';
+import {mountPaperLifecycleAction,mountStaticRetainAction,mountPendingPaperAcceptanceRecovery} from '../dashboard/deployment-actions.js';
 
 const campaignId='67b2b303-e821-4450-bb7b-27171b12079f';
 const operationId='da00e8f8-35e5-455f-8e5b-8b13a7f5fadb';
@@ -11,7 +11,7 @@ const digest='a'.repeat(64);
 const storageKey=(kind:string)=>`concliq.operator.paper-action.pending.v1.${campaignId}.${kind}`;
 
 class ElementMock {
- type='';className='';textContent='';disabled=false;hidden=false;title='';attributes:Record<string,string>={};
+ type='';className='';textContent='';disabled=false;hidden=false;title='';attributes:Record<string,string>={};dataset:Record<string,string>={};
  children:ElementMock[]=[];handlers:Record<string,(event:unknown)=>unknown>={};
  append(...items:ElementMock[]){this.children.push(...items);}
  replaceChildren(...items:ElementMock[]){this.children=[...items];}
@@ -31,7 +31,8 @@ async function withBrowser<T>(work:()=>Promise<T>){
   localStorage:global.localStorage,setTimeout:global.setTimeout};
  const storage=new Map<string,string>();
  global.document={createElement:()=>new ElementMock()};global.location={pathname:'/operator'};
- global.localStorage={getItem:(key:string)=>storage.get(key)??null,
+ global.localStorage={get length(){return storage.size;},key:(index:number)=>[...storage.keys()][index]??null,
+  getItem:(key:string)=>storage.get(key)??null,
   setItem:(key:string,value:string)=>{storage.set(key,String(value));},
   removeItem:(key:string)=>{storage.delete(key);}};
  global.setTimeout=((callback:()=>void)=>{queueMicrotask(callback);return 0;}) as typeof setTimeout;
@@ -128,4 +129,48 @@ test('malformed persisted action payload blocks a fresh preview instead of disca
  assert.match(root.children.find(element=>element.className==='retain-action-status')?.textContent??'',/recovery record is invalid/);
  await button(root,'Review pause')?.click();
  assert.equal(previewCalls,0);
+}));
+
+test('pending acceptance recovery remains available independently of lifecycle widgets',async()=>withBrowser(async()=>{
+ const payload={previewId,contentDigest:digest,expectedRevision:2,idempotencyKey:operationId};
+ const storage=(globalThis as any).localStorage;
+ const records=[['pause',storageKey('pause'),'lifecycle-operations'],
+  ['close_retain',storageKey('close_retain'),'operations'],
+  ['close_convert',`concliq.operator.paper-convert.pending.v1.${campaignId}`,'close-convert-operations']];
+ for(const [kind,key,suffix] of records){
+  storage.setItem(key,JSON.stringify({campaignId,kind,payload,csrfToken:'must-not-send'}));
+  let calls=0,accepted=0;
+  const root=new ElementMock();
+  mountPendingPaperAcceptanceRecovery(root,{authenticated:()=>true,
+   request:async(path:string,options:any)=>{
+    calls++;assert.equal(path,`/api/deployments/${campaignId}/${suffix}`);
+    assert.deepEqual(options,{method:'POST',body:payload});
+    return {id:operationId,status:'succeeded',replayed:true};
+   },onAccepted:async()=>{accepted++;}});
+  assert.equal(root.hidden,false);
+  await button(root,'Reconcile saved acceptance')?.click();
+  assert.equal(calls,1);assert.equal(accepted,1);assert.equal(storage.getItem(key),null);
+ }
+}));
+
+test('recovery panel preserves unknown outcomes and never clears a replaced recovery key',async()=>withBrowser(async()=>{
+ const payload={previewId,contentDigest:digest,expectedRevision:2,idempotencyKey:operationId},
+  storage=(globalThis as any).localStorage,key=storageKey('pause');
+ storage.setItem(key,JSON.stringify({campaignId,kind:'pause',payload}));
+ const root=new ElementMock();
+ mountPendingPaperAcceptanceRecovery(root,{authenticated:()=>true,request:async()=>{throw error(502,'gateway_timeout');}});
+ await button(root,'Reconcile saved acceptance')?.click();
+ assert.deepEqual(JSON.parse(storage.getItem(key)).payload,payload);
+ const replaced={...payload,idempotencyKey:previewId};
+ const remount=new ElementMock();
+ mountPendingPaperAcceptanceRecovery(remount,{authenticated:()=>true,request:async()=>{
+  storage.setItem(key,JSON.stringify({campaignId,kind:'pause',payload:replaced}));
+  return {id:operationId,status:'succeeded'};
+ }});
+ await button(remount,'Reconcile saved acceptance')?.click();
+ assert.deepEqual(JSON.parse(storage.getItem(key)).payload,replaced);
+ (globalThis as any).location.pathname='/';
+ const publicRoot=new ElementMock();
+ mountPendingPaperAcceptanceRecovery(publicRoot,{authenticated:()=>true,request:async()=>{throw Error('public command');}});
+ assert.equal(publicRoot.hidden,true);assert.equal(publicRoot.children.length,0);
 }));
