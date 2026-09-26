@@ -614,14 +614,14 @@ export class DeploymentStore {
     type Mark={id:string;revision:number;source_block:string|null;source_hash:string|null;
      inventory:Record<string,unknown>;provenance:Record<string,unknown>};
     const from=(await db.query<Mark>(last?`${markSql} AND id=$2`:
-     `${markSql} ORDER BY id LIMIT 1`,last?[id,last.to_mark_id]:[id])).rows[0];
+     `${markSql} ORDER BY deployment_marks.id LIMIT 1`,last?[id,last.to_mark_id]:[id])).rows[0];
     if(!from){
      if(last)throw new DeploymentConflict('paper_fee_prior_mark_unavailable');
      await db.query('COMMIT');return null;
     }
     if(!last&&from.provenance.classification!=='paper_model_provisional')
      throw new DeploymentConflict('paper_fee_open_mark_unavailable');
-    const to=(await db.query<Mark>(`${markSql} AND id>$2 ORDER BY id LIMIT 1`,
+    const to=(await db.query<Mark>(`${markSql} AND id>$2 ORDER BY deployment_marks.id LIMIT 1`,
      [id,from.id])).rows[0];
     if(!to){await db.query('COMMIT');return null;}
     const closeClass=String(to.provenance.classification),
@@ -2162,7 +2162,7 @@ export class DeploymentStore {
   if(laterMark)throw new DeploymentConflict('paper_close_convert_gas_terminal_not_latest');
   const previousMark=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
    provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
-   FROM deployment_marks WHERE campaign_id=$1 AND id<$2 ORDER BY id DESC LIMIT 1`,
+   FROM deployment_marks WHERE campaign_id=$1 AND id<$2 ORDER BY deployment_marks.id DESC LIMIT 1`,
    [input.campaignId,input.terminalMarkId])).rows[0];
   if(!previousMark||previousMark.id!==input.previousMarkId)
    throw new DeploymentConflict('paper_close_convert_gas_previous_mark_invalid');
@@ -2743,7 +2743,7 @@ export class DeploymentStore {
     throw new DeploymentConflict('paper_close_convert_v3_preview_evidence_changed');
    const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
     provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1 FOR UPDATE`,
     [campaignId])).rows[0];
    if(!latest||latest.id!==current.previousMarkId||latest.source_block!==current.feeReplay.from.block||
     latest.source_hash?.toLowerCase()!==current.feeReplay.from.hash.toLowerCase()||
@@ -3030,7 +3030,7 @@ export class DeploymentStore {
      throw new DeploymentConflict('paper_close_retain_open_model_changed');
     const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
      provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
-     FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0];
+     FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId])).rows[0];
     const priorSource=paperFeeMarkSourceSchema.safeParse(latest?.provenance.source);
     if(!latest||latest.id!==model.previousMarkId||latest.source_block===null||
      latest.source_hash===null||!priorSource.success||
@@ -3447,7 +3447,7 @@ export class DeploymentStore {
     throw new DeploymentConflict('paper_valuation_open_model_integrity');
    const previous=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
     provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[model.campaignId])).rows[0];
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[model.campaignId])).rows[0];
    if(!previous||previous.source_block===null||previous.source_hash===null)
     throw new DeploymentConflict('paper_valuation_prior_mark_unavailable');
    if(BigInt(model.source.block)===BigInt(previous.source_block))
@@ -3531,7 +3531,7 @@ export class DeploymentStore {
    const marks=(await db.query<{id:string;revision:number;source_block:string|null;
     source_hash:string|null;inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
     SELECT id::text,revision,source_block::text,source_hash,inventory,provenance
-    FROM deployment_marks WHERE campaign_id=$1 AND id IN ($2,$3) ORDER BY id`,
+    FROM deployment_marks WHERE campaign_id=$1 AND id IN ($2,$3) ORDER BY deployment_marks.id`,
     [campaignId,fromMarkId,toMarkId])).rows;
    if(marks.length!==2||marks[0]!.id!==fromMarkId||marks[1]!.id!==toMarkId||
     marks[0]!.revision!==marks[1]!.revision)
@@ -3705,12 +3705,12 @@ export class DeploymentStore {
     if(profile.data.pool[key].toLowerCase()!==evidence.data.contractHashes[key].toLowerCase())
      throw new DeploymentConflict('paper_close_convert_fee_profile_integrity');
    const latest=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
-    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[input.campaignId])).rows[0];
+    WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[input.campaignId])).rows[0];
    if(!latest)throw new DeploymentConflict('paper_close_convert_fee_mark_sequence_invalid');
    const marks=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
     inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
     SELECT id::text,revision,source_block::text,source_hash,inventory,provenance
-    FROM deployment_marks WHERE campaign_id=$1 AND id >= $2 AND id <= $3 ORDER BY id LIMIT 101`,
+    FROM deployment_marks WHERE campaign_id=$1 AND id >= $2 AND id <= $3 ORDER BY deployment_marks.id LIMIT 101`,
     [input.campaignId,campaign.open_mark_id,latest.id])).rows;
    if(marks.length>100)
     throw new DeploymentConflict('paper_close_convert_fee_mark_budget_exceeded');
@@ -3889,7 +3889,7 @@ export class DeploymentStore {
    if(kind==='close_convert'&&!conversionEnabled)
     throw new DeploymentConflict('paper_accounting_mark_unsupported');
    const priorMark=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
-    WHERE campaign_id=$1 AND id<$2 ORDER BY id DESC LIMIT 1`,[campaignId,mark.id])).rows[0];
+    WHERE campaign_id=$1 AND id<$2 ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId,mark.id])).rows[0];
    const prior=priorMark?(await db.query<{snapshot:unknown;snapshot_hash:string}>(`
     SELECT snapshot,snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
@@ -4320,7 +4320,7 @@ export class DeploymentStore {
    const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
     provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
     FROM deployment_marks WHERE campaign_id=$1 AND ($2::bigint IS NULL OR id<$2::bigint)
-    ORDER BY id DESC LIMIT 1`,[row.campaign_id,pendingMark?.id??null])).rows[0];
+    ORDER BY deployment_marks.id DESC LIMIT 1`,[row.campaign_id,pendingMark?.id??null])).rows[0];
    if(!latest||latest.id!==model.previousMarkId||latest.source_block===null||latest.source_hash===null||
     latest.source_block!==model.previousSource.block||
     latest.source_hash.toLowerCase()!==model.previousSource.hash.toLowerCase()||
@@ -4558,7 +4558,7 @@ export class DeploymentStore {
    if(row.lifecycle!=='closing'||priorMark.id!==model.previousMarkId)
     throw new DeploymentConflict('paper_close_convert_v3_lifecycle_changed');
    const latest=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
-    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,[row.campaign_id])).rows[0];
+    WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1 FOR UPDATE`,[row.campaign_id])).rows[0];
    if(latest?.id!==model.previousMarkId)
     throw new DeploymentConflict('paper_close_convert_v3_latest_mark_changed');
    const priorFee=(await db.query<{id:string;to_mark_id:string;from_mark_id:string;
@@ -5050,7 +5050,7 @@ export class DeploymentStore {
    const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
     provenance:Record<string,unknown>}>(`
     SELECT id::text,source_block::text,source_hash,provenance FROM deployment_marks
-    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[row.campaign_id])).rows[0];
+    WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[row.campaign_id])).rows[0];
    if(!latest||latest.id!==model.previousMarkId||latest.source_block===null||
     latest.source_hash===null||
     BigInt(model.source.block)<=BigInt(latest.source_block)||
