@@ -29,6 +29,7 @@ test('worker rotates its actual bounded query through active and closed history'
  const indexer={connect:async()=>lock} as unknown as Pool;
  const store={
   async auditPaperAccounting(){return {alreadyInvalidated:false,invalidated:[]};},
+  async hasTrustedStaticPaperCloseConvertV3Terminal(){return false;},
   async paperValuationState(id:string){sampled.push(id);throw new DeploymentConflict('paper_valuation_state_unavailable');},
   async recordNextPaperAccounting(){return null;},
  } as unknown as DeploymentStore;
