@@ -8,6 +8,8 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationProbe}
  from '../src/deployments/rangekeeper-paper-confirmation.js';
+import {RangeKeeperPaperPinnedQuoteCache} from
+ '../src/deployments/rangekeeper-paper-pinned-quote-cache.js';
 import {parseRangeKeeperPaperCandidate,validateRangeKeeperPaperConfirmationEnvelope}
  from '../src/deployments/rangekeeper-paper-persistence.js';
 import {loadRangeKeeperPaperConfirmationContext} from '../src/deployments/rangekeeper-paper-confirmation-context.js';
@@ -155,6 +157,12 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
    candidateHash:'x',simulationHash:gasHash('f')}),now:frameNow};
  const probe=await buildRangeKeeperPaperConfirmation({...baseInput,probeOnly:true});
  assert.equal(probe.status,'candidate');
+ const mismatchedCache=new RangeKeeperPaperPinnedQuoteCache(client,{...profile,
+  pool:{...profile.pool,fee:profile.pool.fee+1}}),cacheMismatch=await buildRangeKeeperPaperConfirmation({
+   ...baseInput,pinnedQuoteCache:mismatchedCache});
+ assert.equal(cacheMismatch.status,'unavailable');
+ if(cacheMismatch.status==='unavailable')
+  assert.equal(cacheMismatch.reason,'rangekeeper_confirmation_quote_cache_context_mismatch');
  const secondCandidate=(probe as RangeKeeperPaperConfirmationProbe).candidate,
   secondRows=gasRows({candidate:secondCandidate,scope:(probe as RangeKeeperPaperConfirmationProbe).scope,
    source:secondSource,sampledAt:now,profilePool:profile.pool.pool});

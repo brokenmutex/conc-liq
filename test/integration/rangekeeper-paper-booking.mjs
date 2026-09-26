@@ -222,6 +222,10 @@ try{
   const previewExpiry=new Date(firstCandidate.expiresAt*1000);
   assert(previewExpiry.getTime()>Date.now()+10_000,
    `First source preview expired after first report: primeFrameRead=${(primePlanStartedAt-primeStartedAt)/1000}s, primePlan=${(primePlanFinishedAt-primePlanStartedAt)/1000}s, primeFork=${(primeFinishedAt-primePlanFinishedAt)/1000}s, initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${Math.floor((Date.now()-firstFrame.source.timestamp*1000)/1000)}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, prefetchHints=${primedReadHints.length}, pinnedQuoteMetrics=${JSON.stringify(quoteCache.metrics())}`);
+  const previewPersistStartedAt=Date.now(),preview=await store.recordPreview({campaignId,expectedRevision:1,kind:'open',
+   request:{kind:'open',source:firstFrame.source},proposal:{rangekeeperPaperOpenModel:firstModel},
+   evidence:{classification:'rangekeeper_paper_open_model_v1'},expiresAt:previewExpiry}),
+   previewPersistFinishedAt=Date.now();
 
   const gap=secondFrame.source.timestamp-firstFrame.source.timestamp;
   assert(gap>=30&&gap<=policy.policy.limits.maxObservationGapSeconds,'Second source gap violated frozen policy');
@@ -266,12 +270,9 @@ try{
   // 90-second candidate deadline; the test never extends it.
   assert(previewExpiry.getTime()>Date.now()+10_000,
    `First source preview expired before persistence: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
-  const preview=await store.recordPreview({campaignId,expectedRevision:1,kind:'open',
-   request:{kind:'open',source:firstFrame.source},proposal:{rangekeeperPaperOpenModel:firstModel},
-   evidence:{classification:'rangekeeper_paper_open_model_v1'},expiresAt:previewExpiry});
   const producerStartedAt=Date.now(),producerMetrics=[];
   const producer=createRangeKeeperPaperConfirmationProducer({store,client:rpc,rpcUrl:archive,
-   beforeRead:async()=>{},readCanonicalFrame:async(_client,receivedProfile)=>
+   beforeRead:async()=>{},pinnedQuoteCache:quoteCache,readCanonicalFrame:async(_client,receivedProfile)=>
     readRangeKeeperPaperConfirmationFrame({client:rpc,profile:receivedProfile,saved:secondFrame}),
    prefetchHints:firstReadHints,
    reusableSimulation:secondOwnedSimulation,
@@ -349,6 +350,7 @@ try{
     observationWait:(secondFrameCapturedAt-firstCapturedAt)/1000,
     firstImport:(firstImportFinishedAt-firstImportStartedAt)/1000,
     firstModelReplay:(firstModelFinishedAt-firstModelStartedAt)/1000,
+    previewPersistence:(previewPersistFinishedAt-previewPersistStartedAt)/1000,
     secondPlan:(secondPlanFinishedAt-secondPlanStartedAt)/1000,
     secondOwnedFork:(secondReportFinishedAt-secondReportStartedAt)/1000,
     secondImport:(secondImportFinishedAt-secondImportStartedAt)/1000,

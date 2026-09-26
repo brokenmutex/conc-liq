@@ -9,6 +9,8 @@ import {buildRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {isRangeKeeperPaperServerProduced} from
  '../src/deployments/rangekeeper-paper-confirmation-provenance.js';
+import {RangeKeeperPaperPinnedQuoteCache} from
+ '../src/deployments/rangekeeper-paper-pinned-quote-cache.js';
 import {RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES}
  from '../src/deployments/rangekeeper-paper-cost.js';
 import type {RangeKeeperCandidate} from '../src/strategy/rangekeeper/domain.js';
@@ -109,13 +111,15 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
   const priorIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY;
   process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
    configHash:'a'.repeat(64),nodeVersion:'v24.20.0'});
-  let capturedProbe:unknown=null,capturedEvidence:unknown=null,frameRead=false,draftRead=false;
+  let capturedProbe:unknown=null,capturedEvidence:unknown=null,capturedCache:unknown=null,
+   frameRead=false,draftRead=false;
   try{
    const client={getGasPrice:async()=>1n,getChainId:async()=>4663,
     getBlock:async()=>({hash:source.hash,timestamp:BigInt(source.timestamp)})} as never,
     store={paperDraft:async(id:string)=>{draftRead=true;assert.equal(id,campaignId);return draft;},
      readRangeKeeperPaperConfirmationEnvelope:async(input:any)=>{
      assert.equal(input.frame,frame);assert.equal(input.marketGasPriceWei,1n);
+      capturedCache=input.pinnedQuoteCache;
       await input.verifyAnchors(4663,[source]);
       const simulation=await input.simulate(candidate);capturedEvidence=simulation.ownedForkEvidence;
       return {status:'unavailable',campaignId,reason:'fixture_non_actionable',actionAvailable:false};
@@ -123,7 +127,7 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
    const producer=createRangeKeeperPaperConfirmationProducer({store,client,rpcUrl:'http://fixture.invalid',
     beforeRead:async()=>{},readCanonicalFrame:async(_client,receivedProfile)=>{
      frameRead=true;assert.equal(contentHash(receivedProfile),profileHash);return frame;},
-    runOwnedFork:async request=>{
+     runOwnedFork:async request=>{
      capturedProbe=request.probe;
      const stages=[...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES];
      const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe:request.probe,frame,
@@ -137,7 +141,7 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
      return {status:'success',sourceBlock:source.block,sourceHash:source.hash,
       candidateHash:request.probe.candidateHash,simulationHash:evidence.sequenceHash,
       ownedForkEvidence:evidence};
-    }});
+    },pinnedQuoteCache:new RangeKeeperPaperPinnedQuoteCache(client,profile)});
    const result=await producer(campaignId);
    assert.equal(result.status,'unavailable');assert(draftRead&&frameRead);
    assert(capturedProbe&&capturedEvidence);
@@ -145,6 +149,8 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
     scope:{profileHash:string;candidateHash:string}};
    assert.equal(built.campaignId,campaignId);assert.equal(built.revision,draft.revision);
    assert.equal(built.scope.profileHash,profileHash);assert.equal(built.candidate.sourceBlock,400n);
+   assert(capturedCache instanceof RangeKeeperPaperPinnedQuoteCache,
+    'Producer did not forward its request-local pinned quote cache');
    assert.equal((capturedEvidence as {evidenceClass:string}).evidenceClass,
     'caller_claimed_owned_anvil_fork');
   }finally{

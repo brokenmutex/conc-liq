@@ -65,6 +65,7 @@ import {buildRangeKeeperPaperConfirmationProducerReceipt,
  from './rangekeeper-paper-confirmation-provenance.js';
 import {buildRangeKeeperPaperConfirmation,type RangeKeeperPaperConfirmationSimulation}
  from './rangekeeper-paper-confirmation.js';
+import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
  verifyRangeKeeperPaperGasEvidenceSource,
  type RangeKeeperPaperGasSourceReplayVerifier} from './rangekeeper-paper-gas-evidence.js';
@@ -752,6 +753,7 @@ export class DeploymentStore {
   * while the campaign is still a draft. It never books capital or opens a position. */
  async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
   client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
+  pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
   simulate:(candidate:import('../strategy/rangekeeper/domain.js').RangeKeeperCandidate)=>
    Promise<RangeKeeperPaperConfirmationSimulation>;
   verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;now?:number}){
@@ -801,12 +803,15 @@ export class DeploymentStore {
     contentHash(openModel)!==row.proposal.rangekeeperPaperOpenModelHash&&
      row.proposal.rangekeeperPaperOpenModelHash!==undefined)
     throw new DeploymentConflict('rangekeeper_paper_confirmation_open_model_invalid');
+   if(input.pinnedQuoteCache&&
+    !input.pinnedQuoteCache.matches(input.client,profile.data))
+    throw new DeploymentConflict('rangekeeper_confirmation_quote_cache_context_mismatch');
    try{
     const result=await buildRangeKeeperPaperConfirmation({draft,firstModel:openModel as never,
      frame:input.frame,buildId:runtime.buildId,client:input.client,
      readGasProfiles:query=>this.rangeKeeperPaperGasProfiles(query.poolAddress,query.pathVersion,query.sizeBand),
      marketGasPriceWei:input.marketGasPriceWei,marketGasPriceObservedAt:input.marketGasPriceObservedAt,
-     simulate:input.simulate,now});
+     simulate:input.simulate,pinnedQuoteCache:input.pinnedQuoteCache,now});
     if(result.status==='unavailable')throw new DeploymentConflict(result.reason);
     {
      const sources=result.status==='confirmed'?[result.firstObservation.source,

@@ -13,6 +13,7 @@ import {consumeTrustedRangeKeeperSimulation,simulateRangeKeeperPaperConfirmation
 import type {RangeKeeperPaperOwnedForkConfirmationEvidence}
  from './rangekeeper-paper-confirmation-simulation.js';
 import type {ForkReadDiagnostics,ForkReadHint} from '../paper/fork.js';
+import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
@@ -41,6 +42,8 @@ export interface RangeKeeperPaperConfirmationProducerDependencies {
  maxRequests?:number;timeoutMs?:number;
  /** Optional request-scoped address/slot shapes; values are freshly fetched by the fork. */
  prefetchHints?:readonly ForkReadHint[];onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
+ /** Optional request-local pinned quote memo; profile/client identity is checked before use. */
+ pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
  /** In-process only. A serialized/cloned or mismatched simulation is rejected. */
  reusableSimulation?:(RangeKeeperPaperConfirmationSimulation&{
   ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence});
@@ -68,6 +71,10 @@ export function createRangeKeeperPaperConfirmationProducer(
   if(draft.id!==campaignId||draft.strategyId!=='rangekeeper_v1')
    return {status:'unavailable',reason:'rangekeeper_confirmation_strategy_unavailable',
     campaignId,revision:draft.revision,actionAvailable:false};
+  if(dependencies.pinnedQuoteCache&&
+   !dependencies.pinnedQuoteCache.matches(dependencies.client,draft.profile))
+   return {status:'unavailable',reason:'rangekeeper_confirmation_quote_cache_context_mismatch',
+    campaignId,revision:draft.revision,actionAvailable:false};
   let runtime;
   try{runtime=loadRuntimeIdentity();}catch{return {status:'unavailable',
    reason:'rangekeeper_runtime_identity_unavailable',campaignId,revision:draft.revision,actionAvailable:false};}
@@ -83,6 +90,7 @@ export function createRangeKeeperPaperConfirmationProducer(
   const now=Date.now();let completedOwnedForkEvidence:unknown;
   const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
    client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,
+   pinnedQuoteCache:dependencies.pinnedQuoteCache,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
    simulate:async(candidate:RangeKeeperCandidate)=>{
     const policy=resolveRangeKeeperPaperPolicy(draft,runtime.buildId);
