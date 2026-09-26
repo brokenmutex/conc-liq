@@ -1542,6 +1542,46 @@ and paid gas remained unavailable. Deployment writes used a disposable schema.
 The draft was seeded directly; this is not a single canonical setup-to-browser
 flow, complete fee accounting, conversion proof or sealed economic-process gate.
 
+`e443151` adds a sealed-mode continuation of this canonical open→retain harness.
+It passed against verified artifact `eaa73f6` (build
+`a78b2dc0137197afd86ae23ff180d3f8e8b51137b07f86cedbcb5f1de197b6b8`): source
+profile verification, six-stage owned-fork gas sampling and provisional-profile
+import ran in the test process, while the sealed `launch.mjs deployments` and
+`deployments-paper-worker` processes served authenticated preview/admission and
+Positions reads. Open, later principal-only valuation, and retain-close reached
+`paper_open_recorded` and `paper_close_retain_recorded`; Positions showed closed
+state and unavailable paid gas/fee capture. The paid gas ledger remained empty.
+No signer, broadcast, or production schema was involved. This run still directly
+seeded the draft; setup-preflight/draft-admission through authenticated HTTP,
+convert-close, and clean-source sealed sampler provenance remain separate gates.
+
+`f53a75d` binds setup admission to a bounded process-local server review cache.
+The authenticated source harness then returned HTTP 201 from actual
+`/api/deployments/setup-drafts` after setup-preflight calibration/import and
+fresh source/profile/cost revalidation. Its reviewed/fresh gas quote drift had
+fallen between requests; admission retained the cached reviewed bound after
+matching non-price source, native-reference, stage-profile and gas-unit
+identities. `b413195` and `bfc5bbb` require a valid, unexpired review token for
+new browser submissions while preserving same-key recovery of an already
+pending draft request after token expiry. Focused admission/cache/API tests
+passed 13/13 and typecheck passed. The canonical run was on the shared, dirty
+source checkout (based on `7d6f76a` at start), not a sealed artifact. It exited
+at open-preview HTTP 409 before operation acceptance; the response body was
+not captured. Log: `/tmp/conc-liq-static-setup-quote-20260926.log`. Setup draft
+creation is therefore proven through authenticated source HTTP, while the
+complete setup-to-open-to-retain browser flow remains pending. The harness now
+logs the created campaign ID, config hash and source age before later phases.
+The next attempt at source head `eb4a171` used the corrected single captured
+frame for open-preview rebuild, but admission safely rejected before draft
+creation because the fresh gas price rose from `28102000` to `28156000` wei,
+above the captured quote, despite remaining below its displayed 25% price
+buffer. Its exact six stage identities/units, source, native reference, and
+independent price proof were unchanged. No review cap was widened. Log:
+`/tmp/conc-liq-static-setup-final-20260926.log`. The canonical setup path now
+needs a reviewed bounded-price policy or a server-owned quote snapshot that can
+be revalidated without changing shown costs; open/retain through the corrected
+fixture has not yet been rerun after this rejection.
+
 `e8973a0` passed the isolated V3 database mechanics fixture: stale-digest
 rejection, concurrent same-key admission, second-anchor failure with atomic
 rollback, booking, restarted-store replay, shared Positions terminal projection,
@@ -1567,11 +1607,27 @@ this recovery-panel commit and do not establish an exact clean release identity.
 
 | Path | Available source behavior | Remaining acceptance boundary |
 | --- | --- | --- |
-| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 browser mechanics assertions including lost accepted-response recovery; canonical RPC plus spawned-worker open/retain fixture passed. | Complete canonical setup-to-browser run, conversion sibling path, economic recovery and sealed economic-process review still gate complete F2/F5. No production cutover. |
-| Static/manual paper convert-close | Saved V3 provisional preview, atomic database completion, restart replay, rollback and reorg revocation proved with synthetic verifiers. | Canonical indexed fees, exact owned-fork/default-worker runtime and actual HTTP acceptance remain unproved; callback remains absent and action unavailable. |
+| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 browser mechanics assertions include lost accepted-response recovery. The September 26 canonical RPC run created a draft through authenticated HTTP (201), accepted and completed open, and recorded a later principal valuation; retain preview and acceptance also succeeded. | The canonical worker did not reach a terminal retain status within 300 seconds, so setup-to-closed-Positions and its desktop/mobile browser assertion remain unproved. The harness log is `/tmp/conc-liq-static-setup-bound-20260926.log`; its temporary schema and processes were cleaned. No production cutover. |
+| Static/manual paper convert-close | Saved V3 provisional preview, canonical indexed-fee HTTP acceptance, default-worker completion, atomic database completion, same-key readiness-loss replay and fresh-key readiness rejection passed in the September 26 isolated fixture. | Canonical browser and sealed command/worker conversion proof remain. Economic recovery and production cutover remain unavailable. |
 | RangeKeeper paper | Read-only planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. | Positive producer/worker booking has not passed the original 90-second first-preview deadline. Lifecycle admission, both terminal exits and shared closure parity remain unavailable. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
 | Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
+
+The source-mode setup run at `1c9ef5f` did not complete retain-close: the
+authenticated retain preview and operation acceptance returned successfully,
+but the worker operation remained nonterminal through the harness's 300-second
+wait. The run reached setup draft ID `d97dec51-2a2c-4f25-9c4c-11a365e9116f`,
+open stage `paper_open_recorded`, and a later principal-only valuation. Its log
+is `/tmp/conc-liq-static-setup-bound-20260926.log`; `finally` stopped the
+processes and dropped the temporary schema. That run's harness did not preserve
+the final operation row or worker log tail, so the retain failure reason and
+attempt count are unknown. Source review identifies a possible delay, not a
+confirmed cause: a transient non-domain exception returns `retry` while the
+worker claim remains leased for up to 120 seconds, and each worker pass runs
+maintenance before claiming operations. The worker claim/lease behavior was not
+changed. The harness now records retain status, stage, reason, attempt count,
+update time and a URL-redacted worker output tail on timeout. A complete
+canonical setup-to-closed-Positions run remains pending.
 
 `30b2cb9` and `fc2d7bb` add bounded, request-local code/storage read hints and
 complete RangeKeeper booking-phase timing. Hints contain addresses/slots only;
