@@ -78,7 +78,13 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.quote.source.block!==model.source.block||
   model.quote.source.hash.toLowerCase()!==model.source.hash.toLowerCase()||
   model.conversionRoute.routeHash!==contentHash((({routeHash:_h,...body})=>body)(model.conversionRoute))||
-  model.quote.quoteHash!==contentHash((({quoteHash:_h,...body})=>body)(model.quote)))
+  model.quote.quoteHash!==contentHash((({quoteHash:_h,...body})=>body)(model.quote))||
+  contentHash(model.prestateReport.frame.source)!==contentHash(model.source)||
+  model.prestateReport.frame.referenceProofHash!==model.referenceProofHash||
+  contentHash(model.prestateReport.frame.referenceProof)!==contentHash(model.referenceProof)||
+  model.prestateReport.frame.price0!==model.reference.price0||
+  model.prestateReport.frame.price1!==model.reference.price1||
+  model.prestateReport.frame.nativePrice!==model.reference.nativePrice)
   throw Error('paper_close_convert_terminal_candidate_binding_invalid');
  const context=await readStaticPaperCloseConvertFeeContext({store:input.store,
   campaignId:input.campaignId,revision:input.revision,verifyAnchors:input.verifyAnchors}),
@@ -93,11 +99,13 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.feeReplay.from.block!==state.previous.sourceBlock||
   model.feeReplay.from.hash.toLowerCase()!==state.previous.sourceHash.toLowerCase())
   throw Error('paper_close_convert_terminal_saved_context_changed');
- const savedFrame:PaperOpenFrame={source:model.source,tick:model.poolState.tick,
-  sqrtPriceX96:BigInt(model.poolState.sqrtPriceX96),poolLiquidity:BigInt(model.poolState.poolLiquidity),
-  price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
-  nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,referenceReasons:[],
-  referenceProofHash:model.referenceProofHash,referenceProof:model.referenceProof};
+ const sourceFrame=model.prestateReport.frame;
+ const savedFrame:PaperOpenFrame={source:sourceFrame.source,tick:sourceFrame.tick,
+  sqrtPriceX96:BigInt(sourceFrame.sqrtPriceX96),poolLiquidity:BigInt(sourceFrame.poolLiquidity),
+  price0:BigInt(sourceFrame.price0),price1:BigInt(sourceFrame.price1),
+  nativePrice:BigInt(sourceFrame.nativePrice),referenceEligible:sourceFrame.referenceEligible,
+  referenceReasons:sourceFrame.referenceReasons,referenceProofHash:sourceFrame.referenceProofHash,
+  referenceProof:sourceFrame.referenceProof};
  let actual:PaperOpenFrame;
  try{
   actual=await readCanonicalPaperOpenFrame(input.client,state.profile,model.source);
