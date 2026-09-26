@@ -64,12 +64,14 @@ const preflight={schemaVersion:1,kind:'paper_setup_preflight',status:'available'
  actionAvailable:false,draftCreated:false,operationCreated:false};
 const limits=preflight.input.limits;
 const input=()=>({profileId,capitalQuoteRaw:'100000000',halfWidthTicks:60,
+ reviewId:'00000000-0000-4000-8000-000000000077',
  requestId:'00000000-0000-4000-8000-000000000088',
  wallet:'0x1111111111111111111111111111111111111111',
  allocation:{token0Raw:'50000000',token1Raw:'0',nativeWei:'2000000000000000'},limits,
  reviewed:staticPaperSetupReviewBinding(preflight)});
 const deps=(overrides:Record<string,unknown>={})=>({
  runPreflight:async()=>preflight,
+ lookupCapturedReview:()=>({costs:structuredClone(costs)}),
  loadProfile:async(id:string)=>({id,profile,profileHash}),
  findDraftRequest:async()=>null,
  createDraftWithRequestId:async(_requestId:string,draft:DraftInput)=>({status:'created' as const,
@@ -111,6 +113,17 @@ test('setup admission permits fetchedAt-only proof refresh when the server-norma
   proofIdentityHash:pinnedExternalReferenceProofIdentityHash(refreshedProof)}};
  const result=await createStaticPaperDraftFromSetup(input(),deps({runPreflight:async()=>refreshed}));
  assert.equal(result.status,'draft_created');
+});
+
+test('setup admission keeps the server-captured quote when the freshly observed gas price is lower',async()=>{
+ const lower={...preflight,costs:{...costs,gasPriceWei:'900000000',boundGasPriceWei:'1125000000',
+  open:{...costs.open,boundValue:'3000000000000000000'}}};
+ const tighterLimits={...limits,maxActionCost:'3500000000000000000',maxRollingCost:'5000000000000000000'},
+  reviewedPreflight={...preflight,input:{...preflight.input,limits:tighterLimits}},
+  request={...input(),limits:tighterLimits,reviewed:staticPaperSetupReviewBinding(reviewedPreflight)};
+ const result=await createStaticPaperDraftFromSetup(request,deps({runPreflight:async()=>({...lower,input:{...lower.input,limits:tighterLimits}})}));
+ assert.equal(result.status,'unavailable');
+ if(result.status==='unavailable')assert(result.missing.includes('provisional_cost_exceeds_static_limits'));
 });
 
 test('legacy setup reviews remain bound to the exact full proof hash',async()=>{
@@ -159,6 +172,7 @@ test('same request ID replays before stale preflight and a conflicting ID fails 
   configHash:'d'.repeat(64)};
  const replay=await createStaticPaperDraftFromSetup(input(),deps({
   findDraftRequest:async()=>saved,
+  lookupCapturedReview:()=>{throw Error('saved same-key replay must precede cache lookup');},
   runPreflight:async()=>{preflightCalls++;throw Error('expired source should not be read on replay');},
  }));
  assert.equal(replay.status,'draft_created');
@@ -172,6 +186,7 @@ test('same request ID replays before stale preflight and a conflicting ID fails 
  assert.equal(preflightCalls,0);
  const conflict=await createStaticPaperDraftFromSetup(input(),deps({
   findDraftRequest:async()=>({status:'conflict' as const}),
+  lookupCapturedReview:()=>{throw Error('request conflict must precede cache lookup');},
   runPreflight:async()=>{preflightCalls++;throw Error('conflicting request should stop early');},
  }));
  assert.equal(conflict.status,'request_conflict');
@@ -189,7 +204,8 @@ test('changed source, profile, allocation, or provisional cost evidence rejects 
   ['profile',{profileHash:'d'.repeat(64)},'setup_review_binding_stale'],
   ['reference',{references:{...preflight.references,proofHash:'d'.repeat(64),
    proofIdentityHash:'e'.repeat(64)}},'setup_review_binding_stale'],
-  ['cost profile',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,version:2}:stage)}},'setup_cost_evidence_changed_since_review'],
+ ['cost profile',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,version:2}:stage)}},'setup_cost_evidence_changed_since_review'],
+  ['gas price increased',{costs:{...costs,gasPriceWei:'1000000001',boundGasPriceWei:'1250000002'}},'setup_gas_price_increased_since_review'],
  ] as const){
   let creates=0;
   const result=await createStaticPaperDraftFromSetup(input(),deps({
@@ -232,6 +248,12 @@ test('cost caps, deployment bounds, gas reserve, stale evidence and store errors
  }));
  assert.equal(stale.status,'unavailable');
  if(stale.status==='unavailable')assert(stale.missing.includes('setup_review_evidence_expired'));
+ let preflightAfterMiss=0;
+ const cacheMiss=await createStaticPaperDraftFromSetup(input(),deps({lookupCapturedReview:()=>null,
+  runPreflight:async()=>{preflightAfterMiss++;return preflight;}}));
+ assert.equal(cacheMiss.status,'unavailable');
+ if(cacheMiss.status==='unavailable')assert(cacheMiss.missing.includes('setup_review_cache_miss'));
+ assert.equal(preflightAfterMiss,0);
  const rejected=await createStaticPaperDraftFromSetup(input(),deps({createDraftWithRequestId:async()=>{throw Error('db');}}));
  assert.equal(rejected.status,'reconciliation_required');
  if(rejected.status==='reconciliation_required')assert.equal(rejected.retrySafe,true);

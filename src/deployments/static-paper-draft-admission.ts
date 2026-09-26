@@ -4,6 +4,7 @@ import {paperSetupPreflightInput,type PaperSetupProfile} from './paper-setup-pre
 import {allocationSchema,contentHash,draftInput,staticManualParameters,staticParameters,
  staticPaperLimitsSchema,type DraftInput} from './contracts.js';
 import {marketProfileSchema} from './market-profile.js';
+import type {StaticPaperSetupReviewInput} from './static-paper-setup-review-cache.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const sourceSchema=z.object({block:raw,hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
@@ -38,7 +39,7 @@ const reviewSchema=z.object({profileId:z.uuid(),
  references:referencesSchema,costs:reviewedCostsSchema
 }).strict();
 const limitsSchema=staticParameters.shape.limits.unwrap();
-export const staticPaperDraftAdmissionInputSchema=z.object({requestId:z.uuid(),profileId:z.uuid(),capitalQuoteRaw:raw,
+export const staticPaperDraftAdmissionInputSchema=z.object({requestId:z.uuid(),reviewId:z.uuid(),profileId:z.uuid(),capitalQuoteRaw:raw,
  halfWidthTicks:z.number().int().positive(),wallet:z.string().min(1).max(128),
  allocation:allocationSchema,limits:limitsSchema,reviewed:reviewSchema}).strict();
 
@@ -96,6 +97,7 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
  loadProfile:(id:string)=>Promise<PaperSetupProfile|null>;
  findDraftRequest:(requestId:string,input:DraftInput)=>Promise<null|
   {status:'conflict'}|{status:'found';id:string;revision:number;configHash:string}>;
+ lookupCapturedReview:(input:StaticPaperSetupReviewInput)=>{costs:Record<string,unknown>}|null;
  createDraftWithRequestId:(requestId:string,input:DraftInput)=>Promise<
   {status:'conflict'}|{status:'created'|'replayed';id:string;revision:number;configHash:string}>;
  now?:()=>number;
@@ -125,6 +127,10 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
   allocationHash:contentHash(input.allocation),limitations:['existing_matching_draft_replayed',
    'reviewed_source_not_replayed_from_store','wallet_ownership_and_funding_are_not_verified',
    'no_preview_or_operation_is_created']};
+ const captured=deps.lookupCapturedReview({reviewId:input.reviewId,profileId:input.profileId,
+  capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks,limits:input.limits,
+  reviewed:input.reviewed as unknown as Record<string,unknown>});
+ if(!captured)return unavailable('setup_review_cache_miss',input.profileId);
  let preflightRaw:unknown;
  try{preflightRaw=await deps.runPreflight(requested,input.reviewed.source);}
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
@@ -143,9 +149,15 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
   !freshTimestamp(fresh.data.source.timestamp,now,180_000)||
   !freshTimestampMs(Date.parse(fresh.data.costs.gasPriceObservedAt),now,180_000))
   return unavailable('setup_review_evidence_expired',input.profileId);
+ let approvedCosts:Review['costs'];
  try{
-  if(contentHash(costIdentity(input.reviewed.costs))!==contentHash(costIdentity(fresh.data.costs)))
+  approvedCosts=reviewedCostsSchema.parse(captured.costs);
+  if(contentHash(costIdentity(input.reviewed.costs))!==contentHash(costIdentity(approvedCosts)))
+   return unavailable('setup_review_cache_miss',input.profileId);
+  if(contentHash(costStructureIdentity(approvedCosts))!==contentHash(costStructureIdentity(fresh.data.costs)))
    return unavailable('setup_cost_evidence_changed_since_review',input.profileId);
+  if(BigInt(fresh.data.costs.gasPriceWei)>BigInt(approvedCosts.gasPriceWei))
+   return unavailable('setup_gas_price_increased_since_review',input.profileId);
  }catch{return unavailable('setup_draft_input_invalid',input.profileId);}
  if(input.allocation.token0Raw!==reviewed.requirements.token0Raw||
   input.allocation.token1Raw!==reviewed.requirements.token1Raw)
@@ -176,7 +188,7 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
   BigInt(limits.maxActionCost)>BigInt(limits.maxRollingCost))
   return unavailable('static_manual_limits_inconsistent',input.profileId);
 
- const costs=fresh.data.costs,openBound=BigInt(costs.open.boundValue),
+ const costs=approvedCosts,openBound=BigInt(costs.open.boundValue),
   closeBound=BigInt(costs.closeRetain.boundValue),openBoundWei=BigInt(costs.open.boundWei),
   closeBoundWei=BigInt(costs.closeRetain.boundWei),nativeWei=BigInt(input.allocation.nativeWei),
   exitReserve=BigInt(limits.exitReserveWei),
@@ -253,4 +265,14 @@ function costIdentity(value:unknown){
    evidenceClass:stage.evidenceClass,expectedGasUnits:stage.expectedGasUnits,
    boundGasUnits:stage.boundGasUnits,source:stage.source})),
   open:costs.open,closeRetain:costs.closeRetain};
+}
+function costStructureIdentity(value:unknown){
+ const costs=freshPreflightSchema.shape.costs.parse(value);
+ return {scope:costs.scope,pathVersion:costs.pathVersion,sizeBand:costs.sizeBand,
+  nativeReferencePrice:costs.nativeReferencePrice,
+  stages:costs.stages.map(stage=>({stage:stage.stage,profileId:stage.profileId,version:stage.version,
+   evidenceClass:stage.evidenceClass,expectedGasUnits:stage.expectedGasUnits,
+   boundGasUnits:stage.boundGasUnits,source:stage.source})),
+  open:{expectedGasUnits:costs.open.expectedGasUnits,boundGasUnits:costs.open.boundGasUnits},
+  closeRetain:{expectedGasUnits:costs.closeRetain.expectedGasUnits,boundGasUnits:costs.closeRetain.boundGasUnits}};
 }

@@ -518,7 +518,8 @@ function bootDashboardTabs() {
       input:currentSetupPreflight.input,source:currentSetupPreflight.source,profile:currentSetupPreflight.profile,
       range:currentSetupPreflight.range,requirements:currentSetupPreflight.requirements,
       references:currentSetupPreflight.references,costs:currentSetupPreflight.costs};
-    return {profileId:currentSetupPreflight.profileId,capitalQuoteRaw:currentSetupPreflight.input.capitalQuoteRaw,
+    return {reviewId:currentSetupPreflight.setupReviewId,profileId:currentSetupPreflight.profileId,
+      capitalQuoteRaw:currentSetupPreflight.input.capitalQuoteRaw,
       halfWidthTicks:currentSetupPreflight.input.halfWidthTicks,wallet:proposal.wallet,
       allocation:proposal.allocation,limits:proposal.config.limits,reviewed};
   };

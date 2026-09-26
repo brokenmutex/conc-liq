@@ -95,7 +95,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(calls.length,0);
   assert.equal(acceptCalls,0);
   const setupDraftPath='/api/deployments/setup-drafts';
-  const setupDraftInput={requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',profileId:setupInput.profileId,
+  const setupDraftInput={requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',reviewId:'aef5f51e-18ef-4e9c-952d-8d772970f710',profileId:setupInput.profileId,
    capitalQuoteRaw:setupInput.capitalQuoteRaw,halfWidthTicks:setupInput.halfWidthTicks,
    wallet:'0x1111111111111111111111111111111111111111',
    allocation:{token0Raw:'50000000',token1Raw:'0',nativeWei:'10000000000000000'},

@@ -8,6 +8,7 @@ import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonica
  type PaperOpenFrame} from './deployments/paper-preview.js';
 import {buildStaticPaperSetupPreflight} from './deployments/paper-setup-preflight.js';
 import {createStaticPaperDraftFromSetup} from './deployments/static-paper-draft-admission.js';
+import {StaticPaperSetupReviewCache} from './deployments/static-paper-setup-review-cache.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {prepareStaticPaperGasForCandidate} from './deployments/static-paper-gas-preparation.js';
 import {prepareStaticPaperSetup} from './deployments/static-paper-setup-preparation.js';
@@ -59,6 +60,7 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false,paperSetupBusy=false;
+ const paperSetupReviewCache=new StaticPaperSetupReviewCache();
  const runStaticSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
   pinnedSource?:PaperOpenFrame['source'])=>buildStaticPaperSetupPreflight(input,{
    loadProfile:id=>store.paperSetupProfile(id),
@@ -72,7 +74,7 @@ async function main(){
   paperSetupBusy=true;
   try{
    if(pinnedSource||!input.limits)return await runStaticSetupPreflight(input,pinnedSource);
-   return await prepareStaticPaperSetup(input,{runPreflight:runStaticSetupPreflight,
+   const result=await prepareStaticPaperSetup(input,{runPreflight:runStaticSetupPreflight,
     loadProfile:id=>store.paperSetupProfile(id),
     readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
     forkRpcUrl:env.PAPER_FORK_RPC_URL??null,
@@ -85,11 +87,20 @@ async function main(){
      return {created:result.created,reportHash:result.reportHash};
     },
    });
+   if(result&&typeof result==='object'&&!Array.isArray(result)){
+    const row=result as Record<string,unknown>,captured=paperSetupReviewCache.capture(row);
+    if(captured)return {...row,...captured};
+    if(row.status==='available')return {...row,status:'unavailable',costs:{status:'unavailable',
+     reason:'setup_review_snapshot_unavailable'},missing:['setup_review_snapshot_unavailable'],
+     actionAvailable:false,draftCreated:false,operationCreated:false};
+   }
+   return result;
   }finally{paperSetupBusy=false;}
  };
  const paperSetupDraftAdmission=(input:unknown)=>createStaticPaperDraftFromSetup(input,{
   runPreflight:paperSetupPreflight,
   loadProfile:id=>store.paperSetupProfile(id),
+  lookupCapturedReview:review=>paperSetupReviewCache.lookup(review),
   findDraftRequest:(requestId,draft)=>store.findDraftRequest(requestId,draft),
   createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
  });

@@ -203,7 +203,8 @@ export function createDeploymentCommandServer(store:CommandStore,
     }
     const reason=result.missing?.[0]??'paper_setup_draft_unavailable';
     const stale=['setup_review_binding_stale','setup_review_evidence_expired',
-     'setup_cost_evidence_changed_since_review','registered_profile_changed_since_preflight']
+     'setup_cost_evidence_changed_since_review','setup_gas_price_increased_since_review',
+     'setup_review_cache_miss','registered_profile_changed_since_preflight']
      .includes(reason);
     send(response,stale?409:422,{error:reason,...result});return;
    }
