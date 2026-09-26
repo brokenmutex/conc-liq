@@ -196,8 +196,10 @@ async function main(){
   assert.equal(afterPreview.previous.markId,context.state.previous.markId,
    'preview must not append a terminal/latest mark');
 
+  let sourceFrameMismatch=null;
   const verifyTerminal=model=>verifyPaperStaticCloseConvertTerminalForWorker({store,
    campaignId:draft.id,revision:1,rawModel:model,client:rpc,indexer,verifyAnchors:anchors,
+   onSourceFrameMismatch:reason=>{sourceFrameMismatch=reason;},
    replayGasStages:async({model:m,frame:f})=>{
     const current=await readStaticPaperCloseConvertFeeContext({store,campaignId:draft.id,
      revision:1,verifyAnchors:anchors}),replay=await replayEphemeralStaticPaperCloseConvertFees({
@@ -222,8 +224,12 @@ async function main(){
       stageIndex,stageCount:costs.stages.length,source:stage.source}))};
    }});
   const acceptRequest={previewId:preview.id,contentDigest:preview.contentDigest,expectedRevision:1,
-   idempotencyKey:`canonical-v3-${randomUUID()}`},accepted=await store.acceptStaticPaperCloseConvertV3Operation(
-    draft.id,acceptRequest,'fixture_operator',verifyTerminal,anchors);
+   idempotencyKey:`canonical-v3-${randomUUID()}`};
+  let accepted;
+  try{accepted=await store.acceptStaticPaperCloseConvertV3Operation(
+   draft.id,acceptRequest,'fixture_operator',verifyTerminal,anchors);}
+  catch(error){if(sourceFrameMismatch&&error instanceof Error)
+    error.message+=` (source-frame diagnostic: ${sourceFrameMismatch})`;throw error;}
   const completed=await processOnePaperOperation(store,rpc,indexer,'canonical-v3-worker',
    {rpcUrl:archive});
   assert.equal(completed.status,'completed',JSON.stringify(completed));

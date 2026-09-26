@@ -67,6 +67,9 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
  replayGasStages:(input:{model:PaperStaticCloseConvertTerminalModel;frame:PaperOpenFrame})=>
   Promise<PaperCloseConvertTerminalGasReplay>;now?:number;
+ onSourceFrameMismatch?:(reason:'reread_failed'|'source_anchor_changed'|'tick_changed'|
+  'sqrt_price_changed'|'liquidity_changed'|'reference_price_changed'|'references_unavailable'|
+  'reference_proof_missing'|'external_reference_proof_changed')=>void;
 }){
  const model=parsePaperStaticCloseConvertTerminalV3(input.rawModel),now=input.now??Date.now();
  if(model.campaignId!==input.campaignId||model.revision!==input.revision||
@@ -95,19 +98,33 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   price0:BigInt(model.reference.price0),price1:BigInt(model.reference.price1),
   nativePrice:BigInt(model.reference.nativePrice),referenceEligible:true,referenceReasons:[],
   referenceProofHash:model.referenceProofHash,referenceProof:model.referenceProof};
+ let actual:PaperOpenFrame;
+ try{
+  actual=await readCanonicalPaperOpenFrame(input.client,state.profile,model.source);
+ }catch{input.onSourceFrameMismatch?.('reread_failed');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(contentHash(actual.source)!==contentHash(savedFrame.source))
+  {input.onSourceFrameMismatch?.('source_anchor_changed');throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(actual.tick!==savedFrame.tick){input.onSourceFrameMismatch?.('tick_changed');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(actual.sqrtPriceX96!==savedFrame.sqrtPriceX96)
+  {input.onSourceFrameMismatch?.('sqrt_price_changed');throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(actual.poolLiquidity!==savedFrame.poolLiquidity)
+  {input.onSourceFrameMismatch?.('liquidity_changed');throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(actual.price0!==savedFrame.price0||actual.price1!==savedFrame.price1||
+  actual.nativePrice!==savedFrame.nativePrice){input.onSourceFrameMismatch?.('reference_price_changed');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(!actual.referenceEligible){input.onSourceFrameMismatch?.('references_unavailable');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
+ if(!actual.referenceProof||!savedFrame.referenceProof){input.onSourceFrameMismatch?.('reference_proof_missing');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
  let frame:PaperOpenFrame;
  try{
-  const actual=await readCanonicalPaperOpenFrame(input.client,state.profile,model.source);
-  if(contentHash(actual.source)!==contentHash(savedFrame.source)||actual.tick!==savedFrame.tick||
-   actual.sqrtPriceX96!==savedFrame.sqrtPriceX96||actual.poolLiquidity!==savedFrame.poolLiquidity||
-   actual.price0!==savedFrame.price0||actual.price1!==savedFrame.price1||
-   actual.nativePrice!==savedFrame.nativePrice||!actual.referenceEligible||
-   !actual.referenceProof||!savedFrame.referenceProof)
-   throw Error('paper_close_convert_terminal_source_frame_changed');
   assertSamePinnedExternalReferenceProof(savedFrame.referenceProof,actual.referenceProof);
   frame={...actual,referenceProof:savedFrame.referenceProof,
    referenceProofHash:savedFrame.referenceProofHash};
- }catch{throw Error('paper_close_convert_terminal_source_frame_changed');}
+ }catch{input.onSourceFrameMismatch?.('external_reference_proof_changed');
+  throw Error('paper_close_convert_terminal_source_frame_changed');}
  const replay=await replayEphemeralStaticPaperCloseConvertFees({context,client:input.client,
   indexer:input.indexer,frame});
  assert.equal(contentHash(replay),contentHash(model.feeReplay),
