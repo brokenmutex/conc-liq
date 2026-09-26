@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type {RobinhoodClient} from '../src/client.js';
-import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
+import {PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
  auditCanonicalPaperConversionAccountingV3} from '../src/deployments/paper-accounting.js';
 import {maintainCanonicalPaperScenario} from '../src/deployments/paper-maintenance.js';
 import type {DeploymentStore,PaperAccountingAnchor} from '../src/deployments/store.js';
@@ -50,4 +50,41 @@ test('maintenance treats a trusted V3 terminal as current without V2 reprojectio
  assert.equal(result.caughtUp,true);
  assert.equal(auditedPolicies.at(-1),PAPER_CONVERSION_ACCOUNTING_POLICY_V3);
  assert.deepEqual(calls,[]);
+});
+
+test('default maintenance continues from caught-up V1 into V2 within one bounded pass',async()=>{
+ const policies:string[]=[];let v1Writes=0,v2Writes=0;
+ const store={
+  async auditPaperAccounting(){return {alreadyInvalidated:false,invalidated:[]};},
+  async hasTrustedStaticPaperCloseConvertV3Terminal(){return false;},
+  async recordNextPaperAccounting(_campaignId:string,_verify:unknown,policy?:string){
+   const selected=policy??PAPER_ACCOUNTING_POLICY;policies.push(selected);
+   if(selected===PAPER_CONVERSION_ACCOUNTING_POLICY_V2)
+    return v2Writes++<2?{markId:String(v2Writes)}:null;
+   return v1Writes++<2?{markId:String(v1Writes)}:null;
+  },
+ } as unknown as DeploymentStore;
+ const leaseClient={on(){return this;},off(){return this;},release(){},async query(sql:string){
+  if(sql.includes('pg_try_advisory_lock_shared'))return {rows:[{acquired:true}]};
+  if(sql.includes('pg_advisory_unlock_shared'))return {rows:[{unlocked:true}]};
+  throw Error('Unexpected preparation lease query');
+ }};
+ const indexer={connect:async()=>leaseClient} as unknown as import('pg').Pool;
+ const client={getChainId:async()=>4663} as unknown as RobinhoodClient;
+ const result=await maintainCanonicalPaperScenario(store,client,indexer,
+  '00000000-0000-4000-8000-000000000001',4,{sampleValuation:false});
+ assert.deepEqual(policies,[PAPER_ACCOUNTING_POLICY,PAPER_ACCOUNTING_POLICY,
+  PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,
+  PAPER_CONVERSION_ACCOUNTING_POLICY_V2]);
+ assert.equal(result.status,'budget_exhausted');
+ assert.equal(result.caughtUp,false);
+ assert.equal(v1Writes,3,'two V1 writes plus caught-up probe');
+ assert.equal(v2Writes,2,'both V2 predecessors are projected within the same four-step budget');
+
+ policies.length=0;
+ const caughtUp=await maintainCanonicalPaperScenario(store,client,indexer,
+  '00000000-0000-4000-8000-000000000001',4,{sampleValuation:false});
+ assert.deepEqual(policies,[PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2]);
+ assert.equal(caughtUp.status,'projection_current');
+ assert.equal(caughtUp.caughtUp,true);
 });

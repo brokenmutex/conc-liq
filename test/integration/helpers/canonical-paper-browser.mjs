@@ -253,7 +253,8 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   previewAttempts++;
   const previousPreviewCount=kind==='close_convert'?
    await browser.evaluate('window.__canonicalConvertPreviewCount'):null;
-  await beforePreviewRequest({attempt:previewAttempts,kind});
+  await beforePreviewRequest({attempt:previewAttempts,kind,deadline:previewDeadline});
+  if(Date.now()>=previewDeadline)throw Error(`${kind} preview deadline expired before a fresh request`);
   await browser.click(spec.preview);
   const remaining=Math.max(1,previewDeadline-Date.now());
   if(kind==='close_convert'){

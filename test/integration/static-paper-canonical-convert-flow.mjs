@@ -15,7 +15,7 @@ import {createServer as createTcpServer} from 'node:net';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import pg from 'pg';
-import {verifyRelease} from '../../scripts/release-files.mjs';
+import {hash as releaseHash,verifyRelease} from '../../scripts/release-files.mjs';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
 import {createRobinhoodClient} from '../../src/client.ts';
@@ -24,7 +24,8 @@ import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 import {marketProfileSchema,verifyMarketProfile} from '../../src/deployments/market-profile.ts';
 import {contentHash} from '../../src/deployments/contracts.ts';
-import {PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
+import {PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
+ paperConversionAccountingV2Schema} from '../../src/deployments/paper-accounting.ts';
 import {readCanonicalPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 import {paperPreparationLockName} from '../../src/deployments/paper-preparation-lease.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
@@ -103,7 +104,7 @@ async function main(){
   adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),
   admin=await adminPool.connect(),schema=`static_convert_browser_${randomUUID().replaceAll('-','')}`;
  let store,indexer,command,worker,browser,runtimeDir,campaignId,rpcProxy,proxyClient,
-  openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null;
+  openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null;
  const checks=[];
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
@@ -144,6 +145,7 @@ async function main(){
    commandPort=await reservePort(),dashboardPort=await reservePort(),origin=`http://127.0.0.1:${commandPort}`,
    identity={buildId:contentHash({kind:'canonical-convert-browser',pid:process.pid}),
     configHash:contentHash({kind:'isolated-canonical-convert-browser'}),nodeVersion:process.version};
+  accountingIdentity=identity;
   const env={...process.env,DATABASE_URL:deploymentUrl,DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,
    DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:archive,
    PAPER_FORK_RPC_URL:archive,DEPLOYMENT_RPC_TIMEOUT_MS:'20000',INDEXER_STREAM_KEY:stream,
@@ -164,7 +166,7 @@ async function main(){
   if(sealed){
    runtimeDir=await mkdtemp(`${tmpdir()}/conc-liq-convert-runtime-`);
    runtimeEnvFile=join(runtimeDir,'runtime.env');
-   await writeFile(runtimeEnvFile,Object.entries({DATABASE_URL:deploymentUrl,
+   const sealedRuntimeEnv={DATABASE_URL:deploymentUrl,
     DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,DEPLOYMENT_HOST:'127.0.0.1',
     DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:changedRestartAnchor?rpcProxy.url:archive,
     PAPER_FORK_RPC_URL:archive,
@@ -172,8 +174,15 @@ async function main(){
     DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
     DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
     DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DASHBOARD_HOST:'127.0.0.1',
-    DASHBOARD_PORT:String(dashboardPort),ADAPTIVE_PAPER_STATE_PATH:`${runtimeDir}/absent-adaptive.json`}).map(([key,value])=>
-     `${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600});
+    DASHBOARD_PORT:String(dashboardPort),ADAPTIVE_PAPER_STATE_PATH:`${runtimeDir}/absent-adaptive.json`,
+    ...(process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
+     {DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1'}:{})};
+   await writeFile(runtimeEnvFile,Object.entries(sealedRuntimeEnv).map(([key,value])=>
+    `${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600});
+   const parsedSealedRuntimeEnv=parseEnv(readFileSync(runtimeEnvFile,'utf8'));
+   accountingIdentity={buildId:manifest.buildId,
+    configHash:releaseHash(JSON.stringify(Object.fromEntries(Object.entries(parsedSealedRuntimeEnv)
+     .sort(([a],[b])=>a.localeCompare(b,'en'))))),nodeVersion:manifest.nodeVersion};
   }
   const capture=(child,key)=>{child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
    const append=(source,chunk)=>{
@@ -253,7 +262,10 @@ async function main(){
 
   let workerSuspension=null,acceptedModelSource=null;
   let conversionDiagnosticSequence=setupDiagnosticSequence;
-  const beforePreviewRequest=async()=>{conversionDiagnosticSequence=setupDiagnosticSequence;};
+  const beforePreviewRequest=async({deadline})=>{
+   conversionDiagnosticSequence=setupDiagnosticSequence;
+   await waitForFeeCarryAndAccounting({deadline});
+  };
   const retryUnavailableReason=async({previewResponse,deadline})=>{
    if(previewResponse?.reason!=='static_manual_conversion_prestate_unavailable')return null;
    const probeUntil=Math.min(deadline,Date.now()+750);
@@ -275,14 +287,37 @@ async function main(){
       WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId])).rows[0]?.id??null;
      feeEvidence=(await admin.query(`SELECT id::text,to_mark_id::text FROM deployment_paper_fee_evidence
       WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0]??null;
-     accountingMarkId=(await admin.query(`SELECT source_mark_id::text FROM deployment_paper_accounting
-      WHERE campaign_id=$1 AND policy_version=$2 ORDER BY deployment_paper_accounting.source_mark_id DESC LIMIT 1`,
-      [campaignId,PAPER_ACCOUNTING_POLICY])).rows[0]?.source_mark_id??null;
+     const invalidated=(await admin.query(`SELECT EXISTS(SELECT 1 FROM deployment_paper_accounting_invalidations
+      WHERE campaign_id=$1) AS found`,[campaignId])).rows[0]?.found;
+     if(invalidated)throw Error('paper_conversion_accounting_history_invalidated');
+     const priorV2Row=(await admin.query(`SELECT source_mark_id::text,fee_evidence_id::text,
+      snapshot,snapshot_hash FROM deployment_paper_accounting
+      WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
+      [campaignId,latestMarkId,PAPER_CONVERSION_ACCOUNTING_POLICY_V2])).rows[0]??null;
+     let priorV2=null;
+     if(priorV2Row){
+      const parsed=paperConversionAccountingV2Schema.safeParse(priorV2Row.snapshot);
+      assert(parsed.success,'latest V2 accounting snapshot failed its persisted schema');
+      assert.equal(contentHash(parsed.data),priorV2Row.snapshot_hash,
+       'latest V2 accounting snapshot hash changed');
+      assert.equal(parsed.data.sourceMarkId,latestMarkId,'latest V2 accounting mark binding changed');
+      assert.notEqual(parsed.data.markKind,'close_convert','latest V2 accounting already records a close');
+      assert.deepEqual(parsed.data.runtimeIdentity,accountingIdentity,
+       'latest V2 accounting runtime identity changed');
+      priorV2={source_mark_id:priorV2Row.source_mark_id,
+       fee_evidence_id:priorV2Row.fee_evidence_id};
+     }
+     if(priorV2&&carried.previous.markId===latestMarkId)
+      assert.equal(priorV2.fee_evidence_id,carried.feeEvidence.id,
+       'latest V2 accounting is bound to a different fee evidence row');
+     accountingMarkId=priorV2?.source_mark_id??null;
      if(carried.previous.markId===latestMarkId&&accountingMarkId===latestMarkId&&
+      priorV2.fee_evidence_id===carried.feeEvidence.id&&
       await preparationLeaseIsClear()){
       phase('convert_fee_carry_readiness_confirmed',{latestMarkId,
        feeEvidenceId:feeEvidence?.id??null,feeEvidenceToMarkId:feeEvidence?.to_mark_id??null,
-       accountingMarkId,throughBlock:carried.previous.source.block,intervals:carried.feeCarry.intervals});
+       accountingMarkId,priorV2FeeEvidenceId:priorV2.fee_evidence_id,
+       throughBlock:carried.previous.source.block,intervals:carried.feeCarry.intervals});
       return;
      }
     }catch(error){if(error?.code!=='paper_close_convert_fee_interval_gap')throw error;}

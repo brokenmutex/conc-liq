@@ -1769,7 +1769,7 @@ platform is not needed to establish the cause.
 | MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
 | MVP-3 | Canonical source UI setup/open/pause/resume/retain passed, including first-session capital, persisted inventory lower bounds, explicit gaps and desktop/mobile closed history. Conversion browser implementation remains under diagnosis. | Complete canonical conversion and verify both lifecycles on the final sealed artifact. |
 | MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
-| MVP-5 | Operator runbook prepared; actual isolated PostgreSQL restore mechanics passed using a synthetic V3 fixture. | Final clean pinned artifact, both canonical lifecycles and economic recovery on that build, unit/restore gates and concrete cutover review. Production authorization remains pending. |
+| MVP-5 | Runbook and read-only cutover inventory prepared; synthetic restore mechanics passed. Clean `216ab25` passed 875 checks and produced verified candidate `d278f44c…`; rendered units verified without installation. | Final artifact after the measured V2 maintenance fix, both canonical lifecycles and economic recovery on that build, canonical restore and cutover review. Production authorization remains pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
@@ -2010,3 +2010,66 @@ also uses a bounded monotonic diagnostic-event sequence to correlate only the
 current failed request; rolling log-tail offsets cannot misclassify an older
 failure. Unknown preparation errors stop, and no fresh preview is submitted
 after the original 300-second deadline.
+
+**Real default-worker predecessor gap:** the capital-2 run at `216ab25`
+successfully opened with **39 ppm** diluted share, completed valuation and
+persisted fee/V1 accounting through mark 2. Conversion preview became actionable,
+but UI acceptance returned HTTP 409
+`paper_close_convert_v3_prior_accounting_unavailable`. No close operation was
+accepted. The store's V3 admission and terminal booking both require the
+runtime-bound **V2** accounting snapshot at the exact latest mark and fee proof.
+Regular maintenance returned immediately when **V1** caught up; it only entered
+V2 projection after an unsupported legacy conversion terminal. Thus the actual
+active worker did not create the predecessor that admission requires. Prior
+isolated V3 rehearsals primed V2 directly and did not establish this worker
+integration. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-budget2-216ab25.txt`.
+
+The necessary next fix is canonical V2 projection after V1 catches up, within
+the existing shared preparation lease and step budget. A real-store maintenance
+regression must prove that automatic path, and the browser must observe the
+matching V2 predecessor before previewing inside its existing timeout. No test
+may manually seed or prime the missing V2 snapshot to pass this gate.
+
+**Candidate preparation, not acceptance:** clean `216ab25` passed pinned
+repository/type checks and **875/875** tests again, then built verified candidate
+`d278f44c4b738f97a1137cd7d666f341c7a1c654bad50346b608b72b061fb268`
+under `/tmp/conc-liq-static-mvp-releases-20260926/`, Node `v24.20.0`.
+Its own launcher and 14,486-file manifest verified; prototype/preview assets were
+excluded. Thirteen owned service/timer files were rendered uninstalled and
+`systemd-analyze verify` exited 0 (one host snapd `RestartMode` warning).
+Logs: `/tmp/static-mvp-check-216ab25-20260926.log`,
+`/tmp/static-mvp-release-build-216ab25-20260926.log` and
+`/tmp/static-mvp-render-units-216ab25-20260926.log`.
+The proposed private environment remains absent. This candidate predates the
+newly measured V2 maintenance correction and is not the final MVP-5 artifact.
+
+**Default-worker correction and regression:** ordinary maintenance now continues
+from caught-up V1 into canonical V2 projection within the same shared preparation
+lease and existing step budget. The V1 caught-up probe falls through in the same
+iteration; it does not consume an extra projection step. Trusted V3 terminal
+handling and all canonical audits remain unchanged. The focused orchestration
+suite passed 3/3 and typecheck passed. More importantly, the real PostgreSQL
+regression removed the former manually inserted V2 snapshots: a maxSteps=3 pass
+wrote V1 marks 1,2 and V2 mark 1, then a maxSteps=2 resume wrote V2 mark 2 and
+observed catch-up before successful V3 admission. Synthetic canonical anchors
+remain explicit; this is default-maintenance/store integration evidence, not
+the still-pending actual canonical browser conversion. Log:
+`/tmp/paper-maintenance-v2-v3-admission-20260926.log`.
+
+The browser now observes the exact latest V2 snapshot and fee binding before
+each preview within the original 300-second deadline, checking schema, hash,
+mark, runtime identity and invalidation state. Sealed identity is calculated
+from the actual generated private environment and pinned manifest exactly as
+the launcher calculates it. These read-only observations do not prime evidence
+or replace acceptance checks.
+
+The complete pinned integration suite passed again with this correction on an
+owned disposable database. The V3 restore fixture also passed after automatic
+maintenance generated its V1/V2 predecessors: five accounting rows, all eight
+append-only guards enabled and tested, empty restored `public`, unchanged source,
+and target/archive cleanup. Both outer databases were removed. Logs:
+`/tmp/paper-maintenance-v2-full-integration-20260926.log` and
+`/tmp/paper-maintenance-v2-v3-restore-20260926.log`. Restore remains synthetic
+database-mechanics evidence; canonical economic restart and restore are still
+separate MVP-4/MVP-5 gates.

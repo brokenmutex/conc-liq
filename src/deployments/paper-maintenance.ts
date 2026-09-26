@@ -85,10 +85,13 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
    try{
     const next=await timed('advance_accounting_projection',()=>
      advanceCanonicalPaperScenario(store,client,indexer,campaignId,options.progress));
-    if(next.caughtUp)return {status:'projection_current' as const,standardAudit,
-     legacyConversionAudit,conversionAudit,conversionV3Audit,
-     steps,caughtUp:true};
-    continue;
+    if(next.caughtUp){
+     // V1 being caught up does not mean the independently versioned V2
+     // predecessor journal is ready for a later close-convert admission.
+     // Continue through the same bounded loop so the default worker projects
+     // V2 without waiting for a V1-only unsupported terminal mark.
+     conversionTerminal=true;
+    }else continue;
    }catch(error){
     if(!(error instanceof DeploymentConflict&&
      error.code==='paper_accounting_mark_unsupported'))throw error;
