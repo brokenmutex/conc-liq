@@ -83,7 +83,7 @@ const rpc=createRobinhoodClient(readRpc,20_000,{retryCount:0}),
  adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),admin=await adminPool.connect(),
  schema=`static_canonical_${randomUUID().replaceAll('-','')}`;
 let store,command,worker,chrome,chromeProfile,ws,browser,commandPort,workerOutput='',commandOutput='',password,runtimeTemp,campaign;
-const checks=[];
+const checks=[];let primaryGateError=null;
 const targetSetHash=`0x${'e'.repeat(64)}`;
 const operator='0x1111111111111111111111111111111111111111';
 
@@ -570,8 +570,10 @@ try{
   terminalMarkCount,signerLoaded:false,broadcasts:0,productionSchemaTouched:false,
   note:'Canonical owned-fork sampling, profile import, setup review, draft admission and operations used authenticated command/worker processes. No convert-close path was exercised.'},null,2));
  }
-}catch(error){cleanError(error);}
+}catch(error){primaryGateError=error;cleanError(error);}
 finally{
+ const cleanupErrors=[];
+ const attemptCleanup=async action=>{try{await action();}catch(error){cleanupErrors.push(error);}};
  if(worker&&worker.exitCode===null){worker.kill('SIGTERM');await Promise.race([once(worker,'exit'),sleep(3000)]);
   if(worker.exitCode===null)worker.kill('SIGKILL');}
  if(command&&typeof command.close!=='function'&&command.exitCode===null){
@@ -580,13 +582,27 @@ finally{
  }
  if(command?.listening)await new Promise(resolve=>command.close(resolve));
  if(ws){try{ws.close();}catch{}}
- if(browser)await browser.close();
+ if(browser)await attemptCleanup(()=>browser.close());
  if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([once(chrome,'exit'),sleep(2000)]);
   if(chrome.exitCode===null)chrome.kill('SIGKILL');}
- if(chromeProfile)await rm(chromeProfile,{recursive:true,force:true});
- await store?.close();
- try{await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}
- finally{admin.release();await adminPool.end();if(runtimeTemp)await rm(runtimeTemp,{recursive:true,force:true});}
+ if(chromeProfile)await attemptCleanup(()=>rm(chromeProfile,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
+ await attemptCleanup(()=>store?.close());
+ await attemptCleanup(async()=>{
+  await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+ });
+ admin.release();
+ await attemptCleanup(()=>adminPool.end());
+ if(runtimeTemp)await attemptCleanup(()=>rm(runtimeTemp,{recursive:true,force:true,maxRetries:5,retryDelay:100}));
+ if(cleanupErrors.length){
+  if(primaryGateError){const cleanupError=cleanupErrors[0];
+   const safeCleanupError={
+    name:/^[A-Za-z]+Error$/.test(cleanupError?.name??'')?cleanupError.name:'Error',
+    code:typeof cleanupError?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(cleanupError.code)?
+     cleanupError.code:null};
+   process.stderr.write(`cleanup also failed: ${JSON.stringify(safeCleanupError)}\n`);
+  }
+  else throw Error('static canonical retain cleanup failed',{cause:cleanupErrors[0]});
+ }
 }
 
 async function verifyClosedPositionsBrowser({origin,password,campaignId,expectedStages}){

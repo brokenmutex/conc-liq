@@ -27,10 +27,32 @@ export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},
   '--disable-gpu','--disable-background-networking','--no-first-run','--no-default-browser-check',
   '--remote-debugging-port=0','--user-data-dir='+profile,'about:blank'],
   {stdio:['ignore','ignore','pipe']});
+ let ws=null;
+ const waitForExit=async(timeoutMs)=>{
+  if(chrome.exitCode!==null||chrome.signalCode!==null)return true;
+  return await new Promise(resolve=>{
+   const finish=value=>{clearTimeout(timer);chrome.off('exit',onExit);resolve(value);},
+    onExit=()=>finish(true),timer=setTimeout(()=>finish(false),timeoutMs);
+   chrome.once('exit',onExit);
+  });
+ };
  const cleanup=async()=>{
-  if(chrome.exitCode===null){chrome.kill('SIGTERM');await Promise.race([once(chrome,'exit'),sleep(1500)]);
-   if(chrome.exitCode===null)chrome.kill('SIGKILL');}
-  await rm(profile,{recursive:true,force:true});
+  let failure=null;
+  if(ws&&ws.readyState!==WebSocket.CLOSED){
+   const closed=once(ws,'close').then(()=>true).catch(()=>true);
+   try{ws.close();}catch{}
+   await Promise.race([closed,sleep(1000).then(()=>false)]);
+  }
+  if(chrome.exitCode===null&&chrome.signalCode===null){
+   chrome.kill('SIGTERM');
+   if(!await waitForExit(1500)){
+    chrome.kill('SIGKILL');
+    if(!await waitForExit(1500))failure=Error('Chromium did not exit after bounded shutdown');
+   }
+  }
+  try{await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:100});}
+  catch(error){failure??=error;}
+  if(failure)throw failure;
  };
  chrome.stderr.setEncoding('utf8');chrome.stderr.on('data',part=>{stderr+=part;
   const match=/DevTools listening on ws:\/\/127\.0\.0\.1:(\d+)\//.exec(stderr);
@@ -46,7 +68,7 @@ export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},
   const targets=await fetch(`http://127.0.0.1:${debugPort}/json`).then(response=>response.json());
   target=targets.find(row=>row.type==='page');assert(target,'Chromium has no page target');
  }catch(error){await cleanup();throw error;}
- const ws=new WebSocket(target.webSocketDebuggerUrl);
+ ws=new WebSocket(target.webSocketDebuggerUrl);
  try{await new Promise((resolve,reject)=>{ws.addEventListener('open',resolve,{once:true});
   ws.addEventListener('error',reject,{once:true});});}
  catch(error){await cleanup();throw error;}

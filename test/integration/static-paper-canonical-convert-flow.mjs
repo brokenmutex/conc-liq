@@ -145,7 +145,7 @@ async function main(){
  let store,indexer,command,worker,browser,runtimeDir,campaignId,rpcProxy,proxyClient,
   runtimeApplicationName=null,runtimeDatabaseBackends=null,
   openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null;
- const checks=[];let runtimeEnvSha256=null,initialWorkerEnvFile=null;
+ const checks=[];let runtimeEnvSha256=null,initialWorkerEnvFile=null,primaryFailure=null;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
   await migrateDatabase(admin);
@@ -822,6 +822,7 @@ async function main(){
     'spawned source src/deployments.ts and src/deployments-paper-worker.ts',
    note:'Fork-derived estimates remain provisional. This disposable run proves static/manual browser conversion only.'},null,2));
 }catch(error){
+  primaryFailure=error;
   if(Array.isArray(error?.runtimeDatabaseQuiescenceSamples))
    phase('worker_suspension_quiescence_failure',{
     runtimeApplicationName,samples:error.runtimeDatabaseQuiescenceSamples});
@@ -908,12 +909,21 @@ async function main(){
   }
   throw error;
  }finally{
-  await browser?.close().catch(()=>{});
+  let browserCleanupError=null;
+  try{await browser?.close();}catch(error){browserCleanupError=error;}
   for(const child of [worker,command])await stopProcess(child).catch(()=>{});
   await rpcProxy?.close().catch(()=>{});
   await indexer?.end().catch(()=>{});await store?.close().catch(()=>{});
   try{await admin.query('SET search_path=public');await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}
-  finally{admin.release();await adminPool.end();if(runtimeDir)await rm(runtimeDir,{recursive:true,force:true});}
+  finally{admin.release();await adminPool.end();if(runtimeDir)await rm(runtimeDir,
+   {recursive:true,force:true,maxRetries:5,retryDelay:100});}
+  if(browserCleanupError){
+   if(primaryFailure)phase('browser_cleanup_failed_after_primary_error',{
+    name:/^[A-Za-z]+Error$/.test(browserCleanupError?.name??'')?browserCleanupError.name:'Error',
+    code:typeof browserCleanupError?.code==='string'&&
+     /^[A-Z0-9_]{1,60}$/i.test(browserCleanupError.code)?browserCleanupError.code:null});
+   else throw browserCleanupError;
+  }
  }
 }
 
