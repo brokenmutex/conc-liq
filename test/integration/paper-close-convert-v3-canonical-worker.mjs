@@ -2,7 +2,9 @@
 // replay. Deployment writes stay in a temporary schema; indexed replay reads
 // fall through to public in a read-only transaction/pool.
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {once} from 'node:events';
+import {createServer as createNetServer} from 'node:net';
 import {parseEnv} from 'node:util';
 import {readFileSync} from 'node:fs';
 import pg from 'pg';
@@ -34,14 +36,15 @@ import {persistStaticPaperCloseConvertPreviewFromPersistedFees} from
 import {samplePaperCloseConvertPrestate} from '../../src/deployments/paper-close-convert-prestate-sampler.ts';
 import {buildProspectivePaperCloseConvertPrestateGasProfiles}
  from '../../src/deployments/paper-close-convert-prestate-gas-profiles.ts';
-import {selectPaperCloseConvertPrestateCostsV1} from '../../src/deployments/paper-close-convert-prestate-costs.ts';
-import {verifyPaperStaticCloseConvertTerminalForWorker} from
- '../../src/deployments/paper-close-convert-terminal-replay-verifier.ts';
+import {createStaticPaperCloseConvertAcceptance} from
+ '../../src/deployments/paper-close-convert-runtime.ts';
 import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
 import {readDeploymentRows,deploymentPosition} from '../../src/dashboard/deployment-position.ts';
-import {runPaperMaintenancePass} from '../../src/deployments-paper-worker.ts';
+import {acquirePaperOperationReadinessLease,runPaperMaintenancePass} from
+ '../../src/deployments-paper-worker.ts';
+import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 
-const phaseTimes={};
+/** @type {Record<string, unknown>} */ const phaseTimes={};
 const phase=(name,source)=>{phaseTimes[name]={at:new Date().toISOString(),sourceBlock:source?.block??null,
  sourceAgeMs:source?Date.now()-Number(source.timestamp)*1000:null};};
 const fail=error=>{const msg=error instanceof Error?(error.stack??error.message):'canonical V3 worker fixture failed';
@@ -71,7 +74,7 @@ async function main(){
    referencePolicy:rawProfile.referencePolicy}),
   adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4}),
   admin=await adminPool.connect(),schema=`paper_v3_canonical_${randomUUID().replaceAll('-','')}`;
- let store,indexer,preparationLease,auxiliaryPreparationLease;
+ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease,commandServer;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
   await migrateDatabase(admin);
@@ -130,9 +133,16 @@ async function main(){
   assert.equal(imported.created,true);
   draft=await store.paperDraft(draft.id);frame=await readCanonicalPaperOpenFrame(rpc,profile);
   indicative=buildIndicativePaperOpenPreview(draft,frame);
+  const openGasRows=await store.paperGasProfiles(profile.pool.pool);
   const costed=costIndicativePaperOpenPreview(indicative,
-   await store.paperGasProfiles(profile.pool.pool),profile.pool.pool,frame.nativePrice??0n,
+   openGasRows,profile.pool.pool,frame.nativePrice??0n,
    await rpc.getGasPrice());
+  phaseTimes['openCosted']={at:new Date().toISOString(),status:indicative.status,
+   reason:'reason' in indicative?indicative.reason:null,costStatus:costed.costs.status,
+   costReason:'reason' in costed.costs?costed.costs.reason:null,gasProfileRows:openGasRows.length,
+   sourceBlock:frame.source.block,tick:frame.tick,range:costed.candidate?.range??null};
+  assert.equal(costed.costs.status,'provisional',
+   `open cost replay unavailable: ${JSON.stringify(phaseTimes['openCosted'])}`);
   const openPreview=await persistTrustedPaperOpenPreview({store,draft,frame,preview:costed,verifyAnchors:anchors}),
    openAcceptance=await store.acceptStaticPaperOpenOperation(draft.id,{previewId:openPreview.id,
     contentDigest:openPreview.contentDigest,expectedRevision:openPreview.expectedRevision,
@@ -231,44 +241,61 @@ async function main(){
   assert.equal(afterPreview.previous.markId,context.state.previous.markId,
    'preview must not append a terminal/latest mark');
 
-  let sourceFrameMismatch=null;
-  const verifyTerminal=model=>verifyPaperStaticCloseConvertTerminalForWorker({store,
-   campaignId:draft.id,revision:1,rawModel:model,client:rpc,indexer,verifyAnchors:anchors,
-   onSourceFrameMismatch:reason=>{sourceFrameMismatch=reason;},
-   replayGasStages:async({model:m,frame:f})=>{
-    const current=await readStaticPaperCloseConvertFeeContext({store,campaignId:draft.id,
-     revision:1,verifyAnchors:anchors}),replay=await replayEphemeralStaticPaperCloseConvertFees({
-      context:current,client:rpc,indexer,frame:f}),sampled=await samplePaperCloseConvertPrestate({
-      rpcUrl:archive,openModel:current.state.openModel,openMarkId:current.state.openMarkId,
-      profile:current.state.profile,frame:f,previous:{markId:current.state.previous.markId,
-       source:current.state.previous.source},route:m.conversionRoute,feeCarry:replay.feeCarry,
-      feeReplay:replay,verifyPersistedContext:()=>current.verifyPersistedContext({
-       state:current.state,feeCarry:current.feeCarry,feeEvidence:current.feeEvidence,source:f.source}),
-      verifyAnchors:anchors,beforeRead:async()=>{},deterministicClock:true,
-      sampledAt:m.prestateReport.gasStages[0].source.estimatedAt});
-    const path=buildProspectivePaperCloseConvertPrestateGasProfiles(sampled).sizeBand,
-     rows=await store.staticPaperCloseConvertPrestateGasProfiles({chainId:profile.pool.chainId,
-      poolAddress:profile.pool.pool,sizeBand:path,reportHash:sampled.reportHash}),
-     costs=selectPaperCloseConvertPrestateCostsV1({report:sampled,rows,
-      gasPriceWei:BigInt(m.costs.gasPriceWei),gasPriceObservedAt:m.costs.gasPriceObservedAt});
-    return {reportHash:sampled.reportHash,scopeHash:costs.scopeHash,sequenceHash:costs.sequenceHash,
-     source:f.source,costs,stages:costs.stages.map((stage,stageIndex)=>({stage:stage.stage,
-      profileId:stage.profileId,version:stage.version,callHash:stage.source.callHash,
-      sourceHash:stage.sourceHash,expectedGasUnits:stage.expectedGasUnits,
-      boundGasUnits:stage.boundGasUnits,scopeHash:stage.scopeHash,sequenceHash:stage.sequenceHash,
-      stageIndex,stageCount:costs.stages.length,source:stage.source}))};
-   }});
   const acceptRequest={previewId:preview.id,contentDigest:preview.contentDigest,expectedRevision:1,
    idempotencyKey:`canonical-v3-${randomUUID()}`};
-  let accepted;
-  try{accepted=await store.acceptStaticPaperCloseConvertV3Operation(
-   draft.id,acceptRequest,'fixture_operator',verifyTerminal,anchors);}
-  catch(error){if(sourceFrameMismatch&&error instanceof Error)
-    error.message+=` (source-frame diagnostic: ${sourceFrameMismatch})`;throw error;}
+  const acceptStaticPaperCloseConvert=createStaticPaperCloseConvertAcceptance({store,
+   client:rpc,indexer,rpcUrl:archive,verifyAnchors:anchors});
+  const password=randomBytes(24).toString('hex'),salt=randomBytes(16),
+   passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+  operationReadyLease=await acquirePaperOperationReadinessLease(indexer);
+  const reservation=createNetServer();reservation.listen(0,'127.0.0.1');await once(reservation,'listening');
+  const reservedAddress=reservation.address();assert(reservedAddress&&typeof reservedAddress!=='string');
+  const commandPort=reservedAddress.port;
+  await new Promise((resolve,reject)=>reservation.close(error=>{
+   if(error)reject(error);else resolve(undefined);
+  }));
+  const commandOrigin=`http://127.0.0.1:${commandPort}`;
+  commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,passwordHash,
+   paperPreview:async()=>preview,paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
+   paperConvertPreparationReady:campaignId=>store.staticPaperCloseConvertPreparationReady(campaignId),
+   paperConvertAcceptance:acceptStaticPaperCloseConvert,
+   paperOperationReplay:(campaignId,input,allowedKinds)=>
+    store.acceptedOperationReplay(campaignId,input,allowedKinds)});
+  commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
+  const postCommand=(path,body,headers={})=>fetch(commandOrigin+path,{method:'POST',
+   headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+  const login=await postCommand('/api/session',{password},{origin:commandOrigin});
+  assert.equal(login.status,200);const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
+  const {csrfToken}=await login.json(),commandHeaders={origin:commandOrigin,cookie,
+   'x-csrf-token':csrfToken};
+  const reviewResponse=await postCommand(`/api/deployments/${draft.id}/previews`,
+   {kind:'close_convert'},commandHeaders);
+  assert.equal(reviewResponse.status,200);const httpReview=await reviewResponse.json();
+  assert.equal(httpReview.actionAvailable,true,'HTTP preview should be actionable only under live leases');
+  // Dropping the supervised worker lease hides review acceptance without
+  // dropping the still-valid preparation lease; restore readiness for submit.
+  await operationReadyLease.release();operationReadyLease=undefined;
+  const noWorkerReview=await postCommand(`/api/deployments/${draft.id}/previews`,
+   {kind:'close_convert'},commandHeaders);
+  assert.equal((await noWorkerReview.json()).actionAvailable,false);
+  operationReadyLease=await acquirePaperOperationReadinessLease(indexer);
+  const acceptResponse=await postCommand(`/api/deployments/${draft.id}/close-convert-operations`,
+   acceptRequest,commandHeaders);
+  assert.equal(acceptResponse.status,202);const accepted=await acceptResponse.json();
+  assert.equal(accepted.status,'queued');assert.equal(accepted.replayed,false);
   phase('terminalAccepted',frame.source);
-  // A successful admission owns the campaign lifecycle transition. Release
-  // preparation before the default worker claims and completes that operation.
-  await preparationLease.release();preparationLease=undefined;
+  // The acceptance callback released its preparation lease. Reconcile a
+  // simulated lost response before readiness checks using the same key.
+  await operationReadyLease.release();operationReadyLease=undefined;
+  const sameKeyRetry=await postCommand(`/api/deployments/${draft.id}/close-convert-operations`,
+   acceptRequest,commandHeaders);
+  assert.equal(sameKeyRetry.status,202);assert.equal((await sameKeyRetry.json()).replayed,true);
+  const freshRequest={...acceptRequest,idempotencyKey:`canonical-v3-fresh-${randomUUID()}`},
+   noLeaseFresh=await postCommand(`/api/deployments/${draft.id}/close-convert-operations`,
+    freshRequest,commandHeaders);
+  assert.equal(noLeaseFresh.status,503);
+  assert.deepEqual(await noLeaseFresh.json(),{error:'paper_close_convert_preparation_unavailable'});
+  commandServer.close();await once(commandServer,'close');commandServer=undefined;
   await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1}),
    /paper_close_convert_fee_operation_pending/);
   const replayBinding=operation=>store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,
@@ -302,8 +329,11 @@ async function main(){
    replayAgeMs:Date.now()-frame.source.timestamp*1000,openOperationId:openAcceptance.id,
    closeOperationId:accepted.id,completed:completed.stage,terminalMarks:terminalRows,
    modeledLedgerRows:ledger,paidCostsAvailable:false,actionAvailable:preview.actionAvailable,
+   httpReviewActionAvailable:httpReview.actionAvailable,httpAcceptanceReplayed:sameKeyRetry.status===202,
    isolatedDeploymentSchema:true,sourceIndexerReadOnly:true,signerLoaded:false,broadcasts:0},null,2));
  }finally{
+  await operationReadyLease?.release().catch(()=>{});
+  if(commandServer){commandServer.close();await once(commandServer,'close').catch(()=>{});}
   await preparationLease?.release().catch(()=>{});
   await auxiliaryPreparationLease?.release().catch(()=>{});
   await indexer?.end();await store?.close();

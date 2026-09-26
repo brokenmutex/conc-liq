@@ -30,6 +30,8 @@ import {waitCanonicalPaperReplayHeadFrame} from './deployments/paper-replay-head
 import {samplePaperCloseConvertPrestate} from './deployments/paper-close-convert-prestate-sampler.js';
 import {buildProspectivePaperCloseConvertPrestateGasProfiles} from
  './deployments/paper-close-convert-prestate-gas-profiles.js';
+import {createStaticPaperCloseConvertAcceptance} from
+ './deployments/paper-close-convert-runtime.js';
 import type {PaperCanonicalAnchor} from './deployments/paper-canonical-anchors.js';
 import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
@@ -320,9 +322,14 @@ async function main(){
   (chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources));
  const paperLifecycleAcceptance=(campaignId:string,input:import('./deployments/contracts.js').AcceptInput,
   actor:string)=>store.acceptStaticPaperLifecycleOperation(campaignId,input,actor);
+ const paperConvertAcceptance=env.PAPER_FORK_RPC_URL?
+  createStaticPaperCloseConvertAcceptance({store,client,indexer,rpcUrl:env.PAPER_FORK_RPC_URL,
+   verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)}):undefined;
  const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
+  paperConvertAcceptance,
+  paperConvertPreparationReady:campaignId=>store.staticPaperCloseConvertPreparationReady(campaignId),
   paperOperationReplay:(campaignId,input,allowedKinds)=>store.acceptedOperationReplay(campaignId,input,allowedKinds),
   paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
  server.listen(port,host);await once(server,'listening');
