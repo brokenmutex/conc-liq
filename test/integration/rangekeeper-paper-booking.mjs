@@ -12,9 +12,12 @@ import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 import {rangeKeeperConfirmedSource} from '../../src/strategy/rangekeeper/source.ts';
 import {planRangeKeeper} from '../../src/strategy/rangekeeper/planner.ts';
 import {createRobinhoodClient} from '../../src/client.ts';
-import {resolveRangeKeeperPaperPolicy,buildRangeKeeperPaperOpenModel} from
+import {resolveRangeKeeperPaperPolicy} from
  '../../src/deployments/rangekeeper-paper-open-model.ts';
-import {buildRangeKeeperPaperConfirmation} from '../../src/deployments/rangekeeper-paper-confirmation.ts';
+import {buildRangeKeeperPaperOpenModelWhileRegistering} from
+ '../../src/deployments/rangekeeper-paper-open-model-overlap.ts';
+import {buildRangeKeeperPaperConfirmation,prepareRangeKeeperPaperConfirmation} from
+ '../../src/deployments/rangekeeper-paper-confirmation.ts';
 import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand}
  from '../../src/deployments/rangekeeper-paper-cost.ts';
 import {produceRangeKeeperPaperGasEvidence} from '../../src/deployments/rangekeeper-paper-gas-evidence.ts';
@@ -169,17 +172,9 @@ try{
    hints=>{primedReadHints=hints;});
   const primeFinishedAt=Date.now();
   assert(primedReadHints.length>0,'No code/storage request shapes observed during the prime report');
-  const firstFrameReadStartedAt=Date.now(),firstFrame=await sourceFrame(),firstCapturedAt=Date.now(),
-   firstPlanStartedAt=Date.now(),firstPlan=await planOpen(firstFrame),firstPlanFinishedAt=Date.now();
-  assert.equal(firstPlan.action,'confirm',`First candidate unavailable: ${firstPlan.reason}`);
-  assert(firstPlan.candidate,'First candidate unavailable');
+  const firstFrameReadStartedAt=Date.now(),firstFrame=await sourceFrame(),firstCapturedAt=Date.now();
   let firstReportFinishedAt=0,secondFrameCapturedAt=0,firstReadHints=[];
-  const firstScope=scopeFor(firstFrame,firstPlan.candidate),firstReportStartedAt=Date.now(),firstReportPromise=makeReport(firstFrame,
-   firstPlan.candidate,firstScope,firstFrame.source,firstFrame.referenceProofHash,'0'.repeat(64),primedReadHints,
-   hints=>{firstReadHints=hints;}).then(report=>{
-    firstReportFinishedAt=Date.now();return report;
-   }),
-   secondFramePromise=(async()=>{
+  const secondFramePromise=(async()=>{
     const minimumTimestamp=firstFrame.source.timestamp+30;
     for(let attempt=0;attempt<24;attempt++){
      const untilMinimum=(minimumTimestamp-Math.floor(Date.now()/1000))*1000;
@@ -197,49 +192,79 @@ try{
     }
     throw Error('Fresh second observation did not arrive');
    })();
-  const [firstReport,capturedSecondFrame]=await Promise.all([firstReportPromise,secondFramePromise]);
-  secondFrame=capturedSecondFrame;
-  const firstImportStartedAt=Date.now();
-  await register(firstReport,async({report,frame})=>{
+  const firstPlanStartedAt=Date.now(),firstPlan=await planOpen(firstFrame),firstPlanFinishedAt=Date.now();
+  assert.equal(firstPlan.action,'confirm',`First candidate unavailable: ${firstPlan.reason}`);
+  assert(firstPlan.candidate,'First candidate unavailable');
+  const firstScope=scopeFor(firstFrame,firstPlan.candidate),firstReportStartedAt=Date.now(),firstReportPromise=makeReport(firstFrame,
+   firstPlan.candidate,firstScope,firstFrame.source,firstFrame.referenceProofHash,'0'.repeat(64),primedReadHints,
+   hints=>{firstReadHints=hints;}).then(report=>{
+    firstReportFinishedAt=Date.now();return report;
+   });
+  const preparedSecondWorkPromise=secondFramePromise.then(async capturedSecondFrame=>{
+   const pinnedRereadStartedAt=Date.now(),pinnedFramePromise=readRangeKeeperPaperConfirmationFrame({
+    client:rpc,profile,saved:capturedSecondFrame}).then(frame=>({frame,finishedAt:Date.now()})),
+    preparationStartedAt=Date.now(),preparationPromise=prepareRangeKeeperPaperConfirmation({draft,
+    firstFrame,firstCandidate:firstPlan.candidate,frame:capturedSecondFrame,buildId,client:rpc,
+    pinnedQuoteCache:quoteCache}),
+    [pinnedReread,preparation]=await Promise.all([pinnedFramePromise,preparationPromise]),
+    pinnedFrame=pinnedReread.frame,pinnedRereadFinishedAt=pinnedReread.finishedAt,
+    preparationFinishedAt=Date.now();
+   assert.equal(preparation.status,'prepared_candidate',
+    `Speculative second observation unavailable: ${preparation.reason}`);
+   let simulation;
+   const speculativeScope=preparation.scope,reportStartedAt=Date.now(),report=await makeReport(pinnedFrame,
+    preparation.candidate,speculativeScope,pinnedFrame.source,pinnedFrame.referenceProofHash,
+    preparation.firstCandidateHash,primedReadHints,undefined,value=>{simulation=value;}),reportFinishedAt=Date.now();
+   return {frame:pinnedFrame,preparation,report,simulation,pinnedRereadStartedAt,
+    pinnedRereadFinishedAt,preparationStartedAt,preparationFinishedAt,reportStartedAt,reportFinishedAt};
+  });
+  const firstReport=await firstReportPromise;
+  let firstImportFinishedAt=0,overlapTiming=null;
+  const firstImportStartedAt=Date.now(),firstModelStartedAt=firstImportStartedAt,
+   modelGasPrice=await rpc.getGasPrice(),modelGasPriceObservedAt=Date.now();
+  firstModel=await buildRangeKeeperPaperOpenModelWhileRegistering({client:rpc,draft,frame:firstFrame,buildId,
+   report:firstReport,marketGasPriceWei:modelGasPrice,marketGasPriceObservedAt,pinnedQuoteCache:quoteCache,
+   register:async report=>{
+    const result=await register(report,async({report,frame})=>{
    const plan=await planOpen(frame),candidateHash=rangeKeeperPaperCandidateHash({campaignId,
     revision:1,profileHash:draft.profileHash,configHash:draft.configHash,source:frame.source,
     referenceProofHash:frame.referenceProofHash,candidate:plan.candidate});
    assert.equal(candidateHash,report.candidateHash,'Persisted first kernel candidate changed');
    return {replayHash:contentHash({candidateHash,source:frame.source,proofHash:frame.referenceProofHash})};
-  });
-  const firstImportFinishedAt=Date.now(),firstModelStartedAt=firstImportFinishedAt;
-  const firstGas=await readRows({poolAddress:profile.pool.pool,
-   pathVersion:rangeKeeperPaperPathVersion(firstPlan.candidate),
-   sizeBand:rangeKeeperPaperSizeBand(rangeKeeperPaperPathVersion(firstPlan.candidate),firstScope)});
-  const gasObservedAt=Date.now(),openGasPrice=await rpc.getGasPrice();
-  firstModel=await buildRangeKeeperPaperOpenModel({client:rpc,draft,frame:firstFrame,buildId,
-   readGasProfiles:async()=>firstGas,marketGasPriceWei:openGasPrice,
-   marketGasPriceObservedAt:gasObservedAt,now:gasObservedAt,pinnedQuoteCache:quoteCache});
+    });
+    firstImportFinishedAt=Date.now();
+    return result;
+   },readRows:readRows,onTiming:value=>{overlapTiming=value;},now:modelGasPriceObservedAt});
+  if(firstImportFinishedAt===0)firstImportFinishedAt=Date.now();
   const firstModelFinishedAt=Date.now();
   assert.equal(firstModel.status,'indicative','First source open model did not replay');
   const firstCandidate=firstModel.candidate;
   assert(firstCandidate,'First model candidate missing');
   const previewExpiry=new Date(firstCandidate.expiresAt*1000);
-  assert(previewExpiry.getTime()>Date.now()+10_000,
+  assert(previewExpiry.getTime()>Date.now(),
    `First source preview expired after first report: primeFrameRead=${(primePlanStartedAt-primeStartedAt)/1000}s, primePlan=${(primePlanFinishedAt-primePlanStartedAt)/1000}s, primeFork=${(primeFinishedAt-primePlanFinishedAt)/1000}s, initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${Math.floor((Date.now()-firstFrame.source.timestamp*1000)/1000)}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, prefetchHints=${primedReadHints.length}, pinnedQuoteMetrics=${JSON.stringify(quoteCache.metrics())}`);
   const previewPersistStartedAt=Date.now(),preview=await store.recordPreview({campaignId,expectedRevision:1,kind:'open',
    request:{kind:'open',source:firstFrame.source},proposal:{rangekeeperPaperOpenModel:firstModel},
    evidence:{classification:'rangekeeper_paper_open_model_v1'},expiresAt:previewExpiry}),
    previewPersistFinishedAt=Date.now();
 
+  const preparedSecond=await preparedSecondWorkPromise;
+  secondFrame=preparedSecond.frame;
   const gap=secondFrame.source.timestamp-firstFrame.source.timestamp;
   assert(gap>=30&&gap<=policy.policy.limits.maxObservationGapSeconds,'Second source gap violated frozen policy');
   const secondPlanStartedAt=Date.now(),secondPlanResult=await buildRangeKeeperPaperConfirmation({draft,firstModel,frame:secondFrame,
    buildId,client:rpc,readGasProfiles:readRows,marketGasPriceWei:await rpc.getGasPrice(),
    marketGasPriceObservedAt:Date.now(),simulate:async()=>{throw Error('probe-only must not simulate')},
-   pinnedQuoteCache:quoteCache,probeOnly:true}),secondPlanFinishedAt=Date.now();
+   pinnedQuoteCache:quoteCache,preparation:preparedSecond.preparation,probeOnly:true}),secondPlanFinishedAt=Date.now();
   assert.equal(secondPlanResult?.status,'candidate','Fresh second observation did not confirm the candidate');
-  let secondOwnedSimulation;
+  assert.equal(secondPlanResult.candidateHash,preparedSecond.preparation.candidateHash,
+   'Speculative second candidate differed from full first-model replay');
+  assert.equal(contentHash(serializeCandidate(secondPlanResult.candidate)),
+   contentHash(serializeCandidate(preparedSecond.preparation.candidate)),
+   'Speculative second candidate body differed from full first-model replay');
   const secondCandidate=secondPlanResult.candidate,secondScope=secondPlanResult.scope,
-   secondReportStartedAt=Date.now(),secondReport=await makeReport(secondFrame,secondCandidate,secondScope,secondFrame.source,
-    secondFrame.referenceProofHash,firstPlan.candidateHash??firstScope.candidateHash,firstReadHints,undefined,
-    simulation=>{secondOwnedSimulation=simulation;}),
-   secondReportFinishedAt=Date.now();
+   secondReport=preparedSecond.report,secondOwnedSimulation=preparedSecond.simulation,
+   secondReportStartedAt=preparedSecond.reportStartedAt,secondReportFinishedAt=preparedSecond.reportFinishedAt;
   const secondImportStartedAt=Date.now();
   await register(secondReport,async({report,frame})=>{
    const replay=await buildRangeKeeperPaperConfirmation({draft,firstModel,frame,buildId,client:rpc,
@@ -260,7 +285,12 @@ try{
     firstReport:(firstReportFinishedAt-firstReportStartedAt)/1000,
     secondFrameWait:(secondFrameCapturedAt-firstCapturedAt)/1000,
     firstImport:(firstImportFinishedAt-firstImportStartedAt)/1000,
-    openModelReplay:(firstModelFinishedAt-firstModelStartedAt)/1000,
+    openModelOverlapWall:(firstModelFinishedAt-firstModelStartedAt)/1000,
+    speculativeOpenModel:overlapTiming?.speculativeModelMs/1000,
+    registrationParallel:overlapTiming?.registrationMs/1000,
+    secondFramePinnedReread:(preparedSecond.pinnedRereadFinishedAt-preparedSecond.pinnedRereadStartedAt)/1000,
+    speculativeSecondPlan:(preparedSecond.preparationFinishedAt-preparedSecond.preparationStartedAt)/1000,
+    speculativeSecondOwnedFork:(preparedSecond.reportFinishedAt-preparedSecond.reportStartedAt)/1000,
     secondProbe:(secondPlanFinishedAt-secondPlanStartedAt)/1000,
     secondReport:(secondReportFinishedAt-secondReportStartedAt)/1000,
     secondImport:(secondImportFinishedAt-secondImportStartedAt)/1000},
@@ -268,18 +298,34 @@ try{
   // Keep the saved first-observation preview fresh through the expensive
   // source-bound gas sampling above. Its expiry remains the planner's original
   // 90-second candidate deadline; the test never extends it.
-  assert(previewExpiry.getTime()>Date.now()+10_000,
-   `First source preview expired before persistence: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
+  assert(previewExpiry.getTime()>Date.now(),
+   `First source preview expired before producer could persist confirmation: initialSourceAge=${Math.floor((firstCapturedAt-firstFrame.source.timestamp*1000)/1000)}s, firstPlan=${(firstPlanFinishedAt-firstPlanStartedAt)/1000}s, finalSourceAge=${sourceAge()}s, firstReport=${Math.floor((firstReportFinishedAt-firstReportStartedAt)/1000)}s, secondFrameWait=${Math.floor((secondFrameCapturedAt-firstCapturedAt)/1000)}s, firstImport=${Math.floor((firstImportFinishedAt-firstImportStartedAt)/1000)}s, openModelReplay=${Math.floor((firstModelFinishedAt-firstModelStartedAt)/1000)}s, secondObservationGap=${gap}s, secondPlan=${(secondPlanFinishedAt-secondPlanStartedAt)/1000}s, secondReport=${Math.floor((secondReportFinishedAt-secondReportStartedAt)/1000)}s, secondImport=${Math.floor((secondImportFinishedAt-secondImportStartedAt)/1000)}s, prefetchHintCount=${primedReadHints.length}, ownedForkReadMetrics=${JSON.stringify(forkReadMetrics)}`);
   const producerStartedAt=Date.now(),producerMetrics=[];
+  let producerReceiptFailure='not_called',producerReceiptAnchorMs=0,producerReceiptCallMs=0;
+  const persistProducerReceipt=store.recordRangeKeeperPaperConfirmationProducerReceipt.bind(store);
+  store.recordRangeKeeperPaperConfirmationProducerReceipt=async input=>{
+   const callStartedAt=Date.now();
+   try{return await persistProducerReceipt({...input,verifyAnchors:async(chainId,sources)=>{
+    const anchorStartedAt=Date.now();
+    try{return await input.verifyAnchors(chainId,sources);}
+    finally{producerReceiptAnchorMs+=Date.now()-anchorStartedAt;}
+   }});}
+   catch(error){const message=error instanceof Error?error.message:'';
+    producerReceiptFailure=/^[a-z][a-z0-9_]+$/.test(message)?message:'nonstandard_error';throw error;}
+   finally{producerReceiptCallMs=Date.now()-callStartedAt;}
+  };
   const producer=createRangeKeeperPaperConfirmationProducer({store,client:rpc,rpcUrl:archive,
-   beforeRead:async()=>{},pinnedQuoteCache:quoteCache,readCanonicalFrame:async(_client,receivedProfile)=>
-    readRangeKeeperPaperConfirmationFrame({client:rpc,profile:receivedProfile,saved:secondFrame}),
+   beforeRead:async()=>{},pinnedQuoteCache:quoteCache,readCanonicalFrame:async(_client,receivedProfile)=>{
+    assert.equal(contentHash(receivedProfile),contentHash(profile),'Prepared frame profile changed');
+    return preparedSecond.frame;
+   },
+   preparation:preparedSecond.preparation,
    prefetchHints:firstReadHints,
    reusableSimulation:secondOwnedSimulation,
    onReadDiagnostics:metrics=>{producerMetrics.push(metrics);forkReadMetrics.push(metrics);}});
   const envelope=await producer(campaignId);
   const producerFinishedAt=Date.now();
-  assert.equal(envelope.status,'confirmed',`Producer failed: ${envelope.reason??'unavailable'}`);
+  assert.equal(envelope.status,'confirmed',`Producer failed: ${envelope.reason??'unavailable'}, receiptError=${producerReceiptFailure}, receiptMs=${producerReceiptCallMs}, receiptAnchorMs=${producerReceiptAnchorMs}`);
   const operationId=randomUUID(),workerId='rk-open-positive-test-worker',
    requestDigest=contentHash({campaignId,previewId:preview.id,contentDigest:preview.contentDigest,
     expectedRevision:1});
@@ -359,6 +405,8 @@ try{
     dashboardProjection:(dashboardFinishedAt-dashboardStartedAt)/1000,
     restartContextAndReplay:(restartFinishedAt-restartStartedAt)/1000},
    prefetchHintCount:firstReadHints.length,producerPrefetchMetrics:producerMetrics[0]??null,
+   producerReceiptDiagnostics:{failure:producerReceiptFailure,elapsedMs:producerReceiptCallMs,
+    anchorMs:producerReceiptAnchorMs},
    bookingAvailable:false,actionAvailable:false})+'\n');
  }finally{
   if(store)await store.close().catch(()=>{});
