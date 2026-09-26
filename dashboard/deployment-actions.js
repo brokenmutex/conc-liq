@@ -130,11 +130,10 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
     button.disabled = true;
     setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
     retry.hidden = false;
-    return;
-  }
-  setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
+  } else setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
     'Sign in on this loopback page to review convert-close.');
   button.addEventListener('click', async () => {
+    if (pending || !authenticated?.()) return;
     button.disabled = true; review.hidden = true;
     setStatus('Checking a fresh source, modeled fee carry and prospective convert cost…');
     try {

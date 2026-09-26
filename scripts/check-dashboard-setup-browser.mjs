@@ -314,6 +314,27 @@ try{
  assert.deepEqual(convertRecovery,{facts:true,persisted:true,previewBlocked:true,recoveryOnly:true,
   sameKey:true,previewCalls:1,posts:2,reconciled:true,cleared:true});
  checks.push('Convert-close review preserves modeled labels and same-key recovery across remount');
+ const convertRecoveredRejection=await evaluate(`(async()=>{
+  const {mountStaticConvertAction}=await import('/deployment-actions.js');
+  const campaign='${profileId}',storageKey='concliq.operator.paper-convert.pending.v1.'+campaign;
+  localStorage.setItem(storageKey,JSON.stringify({campaignId:campaign,payload:{
+   previewId:'7b2309a4-a301-4869-a385-995ef8d12344',contentDigest:'${'a'.repeat(64)}',
+   expectedRevision:2,idempotencyKey:'fe37ef4b-2717-46a1-ac77-56ac8cfe4fdc'}}));
+  const root=document.createElement('div');document.body.append(root);let previewCalls=0;
+  mountStaticConvertAction(root,{campaignId:campaign,authenticated:()=>true,request:async(path)=>{
+   if(path.endsWith('/close-convert-operations'))throw Object.assign(Error('worker unavailable'),
+    {status:503,data:{error:'operation_worker_not_ready'}});
+   if(path.endsWith('/previews')){previewCalls++;return {kind:'close_convert',status:'unavailable'};}
+   throw Error('unexpected_path');}});
+  [...root.querySelectorAll('button')].find(b=>b.textContent==='Retry same request / reconcile').click();
+  for(let i=0;i<30&&!root.textContent.includes('was not accepted');i++)await new Promise(r=>setTimeout(r,10));
+  const cleared=localStorage.getItem(storageKey)===null,reviewEnabled=!root.querySelector('button').disabled;
+  root.querySelector('button').click();
+  for(let i=0;i<30&&!previewCalls;i++)await new Promise(r=>setTimeout(r,10));
+  root.remove();return {cleared,reviewEnabled,previewCalls};
+ })()`);
+ assert.deepEqual(convertRecoveredRejection,{cleared:true,reviewEnabled:true,previewCalls:1});
+ checks.push('Recovered convert request rejected before acceptance can review a fresh preview');
  const convertUnavailable=await evaluate(`(async()=>{
   const {mountStaticConvertAction}=await import('/deployment-actions.js');
   const root=document.createElement('div');document.body.append(root);let posts=0;
