@@ -1509,6 +1509,28 @@ in 30 seconds in an RPC-only diagnostic. The optimized booking/restart fixture
 must still pass with the original freshness, canonical-source and expiry
 rules. Do not relax those rules to admit expired evidence.
 
+**September 26 recovery and timing follow-up:** `c06c070` persists the exact
+pending retain-close and pause/resume acceptance payload before sending it.
+Unknown acceptance outcomes survive remounts and retry with the same key;
+known worker-unavailable and conflict responses clear that pending request.
+Its four focused recovery checks passed. `eb9e004` keeps predecessor positions
+without deployment metadata renderable in both public and operator views;
+eight focused dashboard checks passed. The prior combined workspace check
+passed 823 unit tests, repository checks and typecheck, but included unrelated
+dirty research prerequisites and predates these latest changes.
+
+`cb78a5e` and `41c263d` bound request-local RangeKeeper quote reuse to the exact
+profile, client, source block/hash/timestamp, token, amount and reference prices.
+Every cache hit still rechecks the canonical header; owned-fork simulation
+does not use the quote cache. `de10b09` adds opt-in read diagnostics without
+changing the serialized gas-report read-budget shape. One actual RPC-only
+ten-stage confirmation run took 52.7 seconds and found 176 unique upstream
+read signatures, including 144 immutable state reads, with no duplicate
+immutable reads. Its one repeated header remains uncached. The positive
+booking/restart fixture has not passed; no fork-value cache or relaxed expiry
+follows from this diagnostic. Confirmation production, accepted worker replay,
+both exits and shared UI parity remain F3 gates.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
