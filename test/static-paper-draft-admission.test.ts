@@ -3,7 +3,8 @@ import {test} from 'node:test';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
 import {contentHash,type DraftInput} from '../src/deployments/contracts.js';
-import {marketProfileSchema} from '../src/deployments/market-profile.js';
+import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-profile.js';
+import {pinnedExternalReferenceProofIdentityHash} from '../src/deployments/pinned-external-reference-proof.js';
 import {PAPER_STATIC_GAS_PATH} from '../src/deployments/paper-cost.js';
 import {createStaticPaperDraftFromSetup,staticPaperSetupReviewBinding} from '../src/deployments/static-paper-draft-admission.js';
 
@@ -19,6 +20,13 @@ const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_F
  token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
  nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}});
 const profileHash=contentHash(profile);
+const referenceProof={token0:{oracle:{answer:'100',updatedAt:123,feed:{address:'0x0000000000000000000000000000000000000001'}}},
+ token1:{oracle:{answer:'200',updatedAt:123,feed:{address:'0x0000000000000000000000000000000000000002'}}},
+ native:{answer:'300',updatedAt:123},
+ registry:{fetchedAt:new Date(now-2_000).toISOString(),sha256:`sha256:${'a'.repeat(64)}`,
+  url:'https://references.example/registry.json'},
+ feedDirectory:{fetchedAt:new Date(now-2_000).toISOString(),sha256:`sha256:${'b'.repeat(64)}`,
+  url:'https://references.example/feeds.json'}};
 const costs={status:'provisional' as const,scope:'open_and_close_retain_gas_only' as const,
  pathVersion:PAPER_STATIC_GAS_PATH,sizeBand:'admission-test',gasPriceWei:'1000000000',
  boundGasPriceWei:'1250000000',gasPriceObservedAt:new Date(now).toISOString(),
@@ -35,7 +43,11 @@ const costs={status:'provisional' as const,scope:'open_and_close_retain_gas_only
  missing:['fee_capture','execution_delay','failure_expense','close_convert_swap']};
 const preflight={schemaVersion:1,kind:'paper_setup_preflight',status:'available',mode:'paper',
  strategyId:'static_manual_v1',profileId,profileHash,
- input:{capitalQuoteRaw:'100000000',halfWidthTicks:60},
+ input:{capitalQuoteRaw:'100000000',halfWidthTicks:60,
+  limits:{maxDeploymentValue:String(100n*10n**18n),minDeploymentValue:String(1n*10n**18n),
+   maxExposurePpm:1_000_000,maxLossValue:String(10n*10n**18n),maxDrawdownPpm:1_000_000,
+   maxActionCost:String(5n*10n**18n),maxRollingCost:String(8n*10n**18n),
+   maxCampaignCost:String(8n*10n**18n),exitReserveWei:'1000000000000000',maxSlippageBps:50}},
  source:{block:'100',hash:`0x${'b'.repeat(64)}`,timestamp:Math.floor(now/1000)},
  profile:{pool:profile.pool.pool,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
   token0:profile.pool.token0,token1:profile.pool.token1,quoteToken:profile.pool.quoteToken},
@@ -46,12 +58,11 @@ const preflight={schemaVersion:1,kind:'paper_setup_preflight',status:'available'
   referenceValueQuoteRaw:'50000000',budgetResidualQuoteRaw:'50000000',
   sizingConvention:'maximize_v3_liquidity_under_independent_reference_quote_budget'},
  references:{price0:String(10n**18n),price1:String(10n**18n),nativePrice:String(2000n*10n**18n),
-  proofHash:'c'.repeat(64)},costs,admissionLimits:{status:'not_evaluated'},missing:[],
+  proofHash:referenceProofHash(referenceProof),
+  proofIdentityHash:pinnedExternalReferenceProofIdentityHash(referenceProof)},costs,
+ admissionLimits:{status:'not_evaluated'},missing:[],
  actionAvailable:false,draftCreated:false,operationCreated:false};
-const limits={maxDeploymentValue:String(100n*10n**18n),minDeploymentValue:String(1n*10n**18n),
- maxExposurePpm:1_000_000,maxLossValue:String(10n*10n**18n),maxDrawdownPpm:1_000_000,
- maxActionCost:String(5n*10n**18n),maxRollingCost:String(8n*10n**18n),
- maxCampaignCost:String(8n*10n**18n),exitReserveWei:'1000000000000000',maxSlippageBps:50};
+const limits=preflight.input.limits;
 const input=()=>({profileId,capitalQuoteRaw:'100000000',halfWidthTicks:60,
  requestId:'00000000-0000-4000-8000-000000000088',
  wallet:'0x1111111111111111111111111111111111111111',
@@ -88,6 +99,44 @@ test('setup draft admission rechecks exact canonical binding, limits, and create
  }
 });
 
+test('setup admission permits fetchedAt-only proof refresh when the server-normalized identity is stable',async()=>{
+ const refreshedProof={...referenceProof,
+  registry:{...referenceProof.registry,fetchedAt:new Date(now).toISOString()},
+  feedDirectory:{...referenceProof.feedDirectory,fetchedAt:new Date(now).toISOString()}};
+ assert.notEqual(referenceProofHash(refreshedProof),preflight.references.proofHash,
+  'full provenance hash retains transport timestamps');
+ assert.equal(pinnedExternalReferenceProofIdentityHash(refreshedProof),preflight.references.proofIdentityHash);
+ const refreshed={...preflight,references:{...preflight.references,
+  proofHash:referenceProofHash(refreshedProof),
+  proofIdentityHash:pinnedExternalReferenceProofIdentityHash(refreshedProof)}};
+ const result=await createStaticPaperDraftFromSetup(input(),deps({runPreflight:async()=>refreshed}));
+ assert.equal(result.status,'draft_created');
+});
+
+test('setup admission rejects changed proof bytes/feed, prices, source, and reviewed limits',async()=>{
+ const changedBytes={...referenceProof,registry:{...referenceProof.registry,sha256:`sha256:${'c'.repeat(64)}`}},
+  changedFeed={...referenceProof,feedDirectory:{...referenceProof.feedDirectory,url:'https://references.example/other.json'}};
+ const cases=[
+  ['response bytes',{...preflight,references:{...preflight.references,
+   proofHash:referenceProofHash(changedBytes),
+   proofIdentityHash:pinnedExternalReferenceProofIdentityHash(changedBytes)}}],
+  ['feed URL',{...preflight,references:{...preflight.references,
+   proofHash:referenceProofHash(changedFeed),
+   proofIdentityHash:pinnedExternalReferenceProofIdentityHash(changedFeed)}}],
+  ['reference price',{...preflight,references:{...preflight.references,price1:String(201n*10n**18n)}}],
+  ['pinned source',{...preflight,source:{...preflight.source,hash:`0x${'d'.repeat(64)}`}}],
+ ];
+ for(const [label,fresh] of cases){
+  const result=await createStaticPaperDraftFromSetup(input(),deps({runPreflight:async()=>fresh}));
+  assert.equal(result.status,'unavailable',String(label));
+  if(result.status==='unavailable')assert.equal(result.missing[0],'setup_review_binding_stale',String(label));
+ }
+ const changedLimits={...input(),limits:{...limits,maxSlippageBps:49}},
+  limitResult=await createStaticPaperDraftFromSetup(changedLimits,deps());
+ assert.equal(limitResult.status,'unavailable');
+ if(limitResult.status==='unavailable')assert.equal(limitResult.missing[0],'setup_review_binding_stale');
+});
+
 test('same request ID replays before stale preflight and a conflicting ID fails without re-sizing',async()=>{
  let preflightCalls=0;
  const saved={status:'found' as const,id:'00000000-0000-4000-8000-000000000099',revision:1,
@@ -122,7 +171,8 @@ test('changed source, profile, allocation, or provisional cost evidence rejects 
  for(const [name,change,expected] of [
   ['source',{source:{...preflight.source,hash:`0x${'d'.repeat(64)}`}},'setup_review_binding_stale'],
   ['profile',{profileHash:'d'.repeat(64)},'setup_review_binding_stale'],
-  ['reference',{references:{...preflight.references,proofHash:'d'.repeat(64)}},'setup_review_binding_stale'],
+  ['reference',{references:{...preflight.references,proofHash:'d'.repeat(64),
+   proofIdentityHash:'e'.repeat(64)}},'setup_review_binding_stale'],
   ['cost profile',{costs:{...costs,stages:costs.stages.map((stage,index)=>index===0?{...stage,version:2}:stage)}},'setup_cost_evidence_changed_since_review'],
  ] as const){
   let creates=0;
@@ -150,7 +200,11 @@ test('cost caps, deployment bounds, gas reserve, stale evidence and store errors
  ];
  for(const [name,change,expected] of cases){
   let creates=0;
-  const result=await createStaticPaperDraftFromSetup({...input(),...change},deps({
+  const raw={...input(),...change};
+  if(change.limits)raw.reviewed=staticPaperSetupReviewBinding({...preflight,
+   input:{...preflight.input,limits:change.limits}});
+  const result=await createStaticPaperDraftFromSetup(raw,deps({
+   runPreflight:async()=>change.limits?{...preflight,input:{...preflight.input,limits:change.limits}}:preflight,
    createDraftWithRequestId:async()=>{creates++;throw Error('unexpected');},
   }));
   assert.equal(result.status,'unavailable',name);

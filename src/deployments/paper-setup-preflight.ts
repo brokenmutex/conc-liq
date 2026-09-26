@@ -8,6 +8,7 @@ import {resolveCenteredManualRange} from './centered-manual-range.js';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,
  type PaperGasProfileRow} from './paper-cost.js';
 import {marketProfileSchema,referenceProofHash,type MarketProfile} from './market-profile.js';
+import {pinnedExternalReferenceProofIdentityHash} from './pinned-external-reference-proof.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 
 const MAX_CAPITAL_QUOTE=100_000n*10n**6n;
@@ -82,6 +83,9 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
   frame.nativePrice===null||frame.price0<=0n||frame.price1<=0n||frame.nativePrice<=0n||
   referenceProofHash(frame.referenceProof)!==frame.referenceProofHash)
   return unavailable(input,'independent_reference_unavailable');
+ let proofIdentityHash:string;
+ try{proofIdentityHash=pinnedExternalReferenceProofIdentityHash(frame.referenceProof);}
+ catch{return unavailable(input,'independent_reference_proof_invalid');}
  const quotePriceX18=p!.quoteToken===0?frame.price0:frame.price1;
  if(quotePriceX18<=0n)return unavailable(input,'independent_usdg_reference_unavailable');
  const poolPrice1=((1n<<192n)*10n**BigInt(p!.decimals1)*frame.price0)/
@@ -149,7 +153,7 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
    budgetResidualQuoteRaw:String(budget-needed.valueQuoteRaw),
    sizingConvention:'maximize_v3_liquidity_under_independent_reference_quote_budget'},
   references:{price0:String(frame.price0),price1:String(frame.price1),nativePrice:String(frame.nativePrice),
-   proofHash:frame.referenceProofHash},costs};
+   proofHash:frame.referenceProofHash,proofIdentityHash},costs};
  return {schemaVersion:1 as const,kind:'paper_setup_preflight' as const,status:'available' as const,
   mode:'paper' as const,strategyId:'static_manual_v1' as const,profileId:registered.id,
   profileHash:registered.profileHash,
@@ -169,7 +173,7 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
    budgetResidualQuoteRaw:String(budget-needed.valueQuoteRaw),
    sizingConvention:'maximize_v3_liquidity_under_independent_reference_quote_budget'},
   references:{price0:String(frame.price0),price1:String(frame.price1),nativePrice:String(frame.nativePrice),
-   proofHash:frame.referenceProofHash},costs,
+   proofHash:frame.referenceProofHash,proofIdentityHash},costs,
   admissionLimits:{status:'not_evaluated' as const,reason:'static_manual_limits_not_submitted'},
   missing:[],actionAvailable:false,draftCreated:false,operationCreated:false,
   limitations:['read_only_no_draft_or_operation','hypothetical_inventory_requirements_only',

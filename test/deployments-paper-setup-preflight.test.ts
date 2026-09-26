@@ -21,7 +21,11 @@ const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_F
  token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
  token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
  nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}});
-const proof={independent:true},proofHash=referenceProofHash(proof),now=Date.now();
+const now=Date.now(),proof={independent:true,
+ registry:{fetchedAt:new Date(now-5_000).toISOString(),sha256:`sha256:${'a'.repeat(64)}`,
+  url:'https://references.example/registry.json'},
+ feedDirectory:{fetchedAt:new Date(now-5_000).toISOString(),sha256:`sha256:${'b'.repeat(64)}`,
+  url:'https://references.example/feeds.json'}},proofHash=referenceProofHash(proof);
 const frame={source:{block:'100',hash:`0x${'1'.repeat(64)}`,timestamp:Math.floor(now/1000)-15},
  tick:0,sqrtPriceX96:sqrtRatioAtTick(0),poolLiquidity:10n**20n,
  price0:10n**18n,price1:10n**18n,nativePrice:2_000n*10n**18n,

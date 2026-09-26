@@ -21,7 +21,8 @@ const reviewedCostsSchema=z.object({status:z.literal('provisional'),scope:z.lite
   source:z.record(z.string(),z.unknown())}).strict()).length(6),
  open:costGroupSchema,closeRetain:costGroupSchema,missing:z.array(z.string())}).passthrough();
 const referencesSchema=z.object({price0:raw,price1:raw,nativePrice:raw,
- proofHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
+ proofHash:z.string().regex(/^[0-9a-f]{64}$/),
+ proofIdentityHash:z.string().regex(/^[0-9a-f]{64}$/).optional()}).strict();
 const reviewSchema=z.object({profileId:z.uuid(),
  profileHash:z.string().regex(/^[0-9a-f]{64}$/),
  input:z.object({capitalQuoteRaw:raw,halfWidthTicks:z.number().int().positive(),
@@ -129,9 +130,10 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
  const reviewed=staticPaperSetupReviewBinding(preflightRaw),fresh=freshPreflightSchema.safeParse(preflightRaw);
  if(!reviewed||!fresh.success)return unavailable('fresh_canonical_setup_preflight_unavailable',input.profileId);
- if(contentHash(reviewWithoutCostTime(reviewed))!==contentHash(reviewWithoutCostTime(input.reviewed))||
+ if(contentHash(reviewBindingIdentity(reviewed))!==contentHash(reviewBindingIdentity(input.reviewed))||
   reviewed.profileId!==input.profileId||reviewed.input.capitalQuoteRaw!==input.capitalQuoteRaw||
-  reviewed.input.halfWidthTicks!==input.halfWidthTicks)
+  reviewed.input.halfWidthTicks!==input.halfWidthTicks||
+  contentHash(reviewed.input.limits??null)!==contentHash(requested.limits??null))
   return unavailable('setup_review_binding_stale',input.profileId);
  const now=(deps.now??Date.now)();
  if(!freshTimestamp(reviewed.source.timestamp,now,180_000)||
@@ -230,9 +232,15 @@ function freshTimestampMs(timestamp:number,now:number,maxAgeMs:number){
  const age=now-timestamp;
  return age>=0&&age<=maxAgeMs;
 }
-function reviewWithoutCostTime(value:Review){
+function reviewBindingIdentity(value:Review){
  const {costs:_costs,...binding}=value;
- return binding;
+ const {references,...rest}=binding;
+ if(references.proofIdentityHash){
+  const {proofHash:_fullProofHash,...stableReferences}=references;
+  return {...rest,references:stableReferences};
+ }
+ const {proofIdentityHash:_optionalStableHash,...legacyReferences}=references;
+ return {...rest,references:legacyReferences};
 }
 function costIdentity(value:unknown){
  const costs=freshPreflightSchema.shape.costs.parse(value);
