@@ -75,11 +75,21 @@ export async function simulatePaperTransaction(fork: PaperFork, input: { action:
   const localReturn = await fork.rpc<Hex>("eth_call", [tx, "latest"]);
   // Validate identical results on Nitro with the prestate touched by the local
   // execution. This catches unsupported local precompiles or context drift.
-  const liveReturn = await fork.read("eth_call", [tx, fork.blockTag, overrides]) as Hex;
-  assert.equal(liveReturn.toLowerCase(), localReturn.toLowerCase(), `Local/Nitro ${input.action} result mismatch`);
-  const fullGas = BigInt(await fork.read("eth_estimateGas", [tx, fork.blockTag, overrides]) as Hex);
   const data = encodeFunctionData({ abi: nodeInterfaceAbi, functionName: "gasEstimateL1Component", args: [input.to, false, input.calldata] });
-  const result = await fork.read("eth_call", [{ ...tx, to: NODE_INTERFACE, data }, fork.blockTag, overrides]) as Hex;
+  // These reads share immutable source/prestate inputs. Finish all three
+  // before validating and sending locally, including when one read fails.
+  const responses = await Promise.allSettled([
+    fork.read("eth_call", [tx, fork.blockTag, overrides]),
+    fork.read("eth_estimateGas", [tx, fork.blockTag, overrides]),
+    fork.read("eth_call", [{ ...tx, to: NODE_INTERFACE, data }, fork.blockTag, overrides]),
+  ]);
+  const failures = responses.filter(response => response.status === "rejected");
+  if (failures.length) throw failures[0]!.reason;
+  const values = responses.map(response => {
+    assert(response.status === "fulfilled"); return response.value as Hex;
+  });
+  const liveReturn = values[0]!, fullGas = BigInt(values[1]!), result = values[2]!;
+  assert.equal(liveReturn.toLowerCase(), localReturn.toLowerCase(), `Local/Nitro ${input.action} result mismatch`);
   const [parentGas, baseFee, parentBaseFee] = decodeFunctionResult({ abi: nodeInterfaceAbi, functionName: "gasEstimateL1Component", data: result });
   const estimate = gasComponents([fullGas, parentGas, baseFee, parentBaseFee]);
   let sendTx:typeof tx&{gasPrice?:Hex}=tx,localEnvelope:PaperTransaction['localEnvelope'];
