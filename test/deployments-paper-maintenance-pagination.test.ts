@@ -13,7 +13,7 @@ test('worker rotates its actual bounded query through active and closed history'
  }));
  const visited:string[]=[],sampled:string[]=[];
  let cursor:string|null=null;
- const lock={release(){},async query(sql:string,params:unknown[]=[]){
+ const lock={release(){},on(){return this;},off(){return this;},async query(sql:string,params:unknown[]=[]){
   if(sql.includes('pg_try_advisory_lock'))return {rows:[{acquired:true}]};
   if(sql.includes('pg_advisory_unlock'))return {rows:[]};
   assert.match(sql,/ORDER BY c\.id/);
@@ -43,4 +43,42 @@ test('worker rotates its actual bounded query through active and closed history'
  assert.equal(new Set(sampled).size,40);
  assert.equal(sampled.some(id=>rows.find(row=>row.id===id)?.lifecycle==='closed'),false);
  assert.equal(cursor,rows[14]!.id);
+});
+
+test('preparation exclusive lease skips maintenance mutations after canonical audits',async()=>{
+ const campaign:PaperCampaignRow={id:'00000001-0000-4000-8000-000000000000',lifecycle:'active'};
+ const sharedLockAttempts:string[]=[],writes:string[]=[];
+ const maintenanceSession={release(){},on(){return this;},off(){return this;},async query(sql:string){
+  if(sql.includes('pg_try_advisory_lock($1::int'))return {rows:[{acquired:true}]};
+  if(sql.includes('pg_try_advisory_lock_shared')){
+   sharedLockAttempts.push(sql);return {rows:[{acquired:false}]};
+  }
+  if(sql.includes('pg_advisory_unlock'))return {rows:[{unlocked:true}]};
+  return {rows:[campaign]};
+ }};
+ const indexer={connect:async()=>maintenanceSession} as unknown as Pool;
+ const store={
+  async auditPaperAccounting(){return {alreadyInvalidated:false,invalidated:[]};},
+  async hasTrustedStaticPaperCloseConvertV3Terminal(){return false;},
+  async recordTrustedPaperPrincipalValuation(){writes.push('valuation');},
+  async recordTrustedPaperFeeEvidence(){writes.push('fee');},
+  async recordNextPaperAccounting(){writes.push('projection');},
+ } as unknown as DeploymentStore;
+ const chain={getChainId:async()=>4663} as unknown as RobinhoodClient;
+ // Feed one campaign page, then an empty wrapped page.
+ let selected=false;
+ maintenanceSession.query=async(sql:string)=>{
+  if(sql.includes('pg_try_advisory_lock($1::int'))return {rows:[{acquired:true}]};
+  if(sql.includes('pg_try_advisory_lock_shared')){
+   sharedLockAttempts.push(sql);return {rows:[{acquired:false}]};
+  }
+  if(sql.includes('pg_advisory_unlock'))return {rows:[{unlocked:true}]};
+  if(sql.includes('SELECT c.id::text,c.lifecycle')){
+   if(selected)return {rows:[]};selected=true;return {rows:[campaign]};
+  }
+  return {rows:[]};
+ };
+ const result=await runPaperMaintenancePass(store,chain,indexer,1,1);
+ assert.equal(result.processed,1);assert.equal(result.preparationSkipped,1);
+ assert.equal(sharedLockAttempts.length,1);assert.deepEqual(writes,[]);
 });

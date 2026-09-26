@@ -10,6 +10,7 @@ import {recordCanonicalPaperFeeEvidence} from './paper-fee-replay.js';
 import {recordCanonicalPaperPrincipalValuation} from './paper-valuation.js';
 import {advanceCanonicalPaperScenario} from './paper-projection.js';
 import {DeploymentConflict,type DeploymentStore} from './store.js';
+import {acquirePaperPreparationSharedLease} from './paper-preparation-lease.js';
 
 /** A bounded, signer-free pass for one paper campaign. The supervised worker
  * owns scheduling and campaign selection. Audits stop projection on reorg. */
@@ -38,6 +39,14 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  if(await store.hasTrustedStaticPaperCloseConvertV3Terminal(campaignId))
   return {status:'projection_current' as const,standardAudit,legacyConversionAudit,
    conversionAudit,conversionV3Audit,terminalV3:true,steps:0,caughtUp:true};
+
+ // Audits above still run while a close preview is being prepared. A shared
+ // session lease now protects only mutable valuation/fee/projection work; a
+ // concurrent preparer owns the exclusive lock for this same campaign.
+ const preparationLease=await acquirePaperPreparationSharedLease(indexer,campaignId);
+ if(!preparationLease)return {status:'preparation_locked' as const,standardAudit,legacyConversionAudit,
+  conversionAudit,conversionV3Audit,steps:0,caughtUp:false};
+ try{
 
  // Sampling is restricted to active and paused campaigns by the supervisor.
  // The store rechecks the prior mark and lifecycle under its campaign lock, so
@@ -89,4 +98,5 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
  return {status:'budget_exhausted' as const,standardAudit,legacyConversionAudit,
   conversionAudit,conversionV3Audit,
   steps,caughtUp:false};
+ }finally{await preparationLease.release();}
 }

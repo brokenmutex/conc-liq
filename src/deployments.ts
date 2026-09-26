@@ -25,7 +25,7 @@ import {readStaticPaperCloseConvertFeeContext,
  persistStaticPaperCloseConvertPreviewFromPersistedFees} from
  './deployments/paper-close-convert-fee-reader.js';
 import {replayEphemeralStaticPaperCloseConvertFees} from './deployments/paper-close-convert-ephemeral-fees.js';
-import {readCanonicalPaperReplayHeadFrame} from './deployments/paper-replay-head-frame.js';
+import {waitCanonicalPaperReplayHeadFrame} from './deployments/paper-replay-head-frame.js';
 import {samplePaperCloseConvertPrestate} from './deployments/paper-close-convert-prestate-sampler.js';
 import {buildProspectivePaperCloseConvertPrestateGasProfiles} from
  './deployments/paper-close-convert-prestate-gas-profiles.js';
@@ -109,15 +109,22 @@ async function main(){
      if(kind==='close_convert'){
       if(!env.PAPER_FORK_RPC_URL)return {status:'unavailable',kind,campaignId,actionAvailable:false,
        operationAcceptanceAvailable:false,reason:'static_manual_conversion_fork_rpc_unavailable'};
+      let preparationLease:Awaited<ReturnType<typeof store.acquireStaticPaperCloseConvertPreparationLease>>;
+      try{preparationLease=await store.acquireStaticPaperCloseConvertPreparationLease(campaignId);}
+      catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+       operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?error.code:
+        'static_manual_conversion_preparation_busy'};}
+      let previewLeaseRetained=false;
       try{
        const valuation=await store.paperValuationState(campaignId),
         context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
          revision:valuation.openModel.revision,verifyAnchors:(chainId,sources)=>
           verifyCanonicalPaperAnchors(client,chainId,sources)}),
-        frame=await readCanonicalPaperReplayHeadFrame({client,indexer,
+        frame=await waitCanonicalPaperReplayHeadFrame({client,indexer,
          profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
-         previous:context.state.previous}),
-        route=buildStaticPaperCloseConvertRoute(context.state),
+         previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
+       await preparationLease.assertHealthy();
+       const route=buildStaticPaperCloseConvertRoute(context.state),
         feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
         report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
          openModel:context.state.openModel,openMarkId:context.state.openMarkId,
@@ -127,6 +134,7 @@ async function main(){
           feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
          verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
          beforeRead:async()=>{},deterministicClock:true});
+       await preparationLease.assertHealthy();
        await store.registerStaticPaperCloseConvertPrestateGas({report,
         verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
         verifyFeeReplay:async()=>{
@@ -139,7 +147,7 @@ async function main(){
         buildProspectivePaperCloseConvertPrestateGasProfiles(report).sizeBand,prestateCostProfiles=
         await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
          poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:report.reportHash});
-       return await persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
+       const saved=await persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
         expectedRevision:context.state.openModel.revision,client,indexer,frame,
         postWithdraw:report.postWithdraw,prestateReport:report,prestateCostProfiles,gasPriceWei,
         verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
@@ -161,9 +169,13 @@ async function main(){
            sourceHash:stage.sourceHash,callHash:stage.callHash,
            gasUnitsExpected:stage.gasUnitsExpected,gasUnitsBound:stage.gasUnitsBound}))};
         }});
+       await preparationLease.assertHealthy();
+       preparationLease.retainUntil(new Date(saved.expiresAt));previewLeaseRetained=true;
+       return saved;
       }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
        operationAcceptanceAvailable:false,reason:error instanceof DeploymentConflict?error.code:
         'static_manual_conversion_prestate_unavailable'};}
+      finally{if(!previewLeaseRetained)await preparationLease.release().catch(()=>{});}
      }
      let state;
      try{state=await store.paperValuationState(campaignId);}

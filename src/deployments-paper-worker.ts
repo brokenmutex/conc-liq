@@ -75,7 +75,8 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
  try{
   const acquired=(await lock.query<{acquired:boolean}>(
    'SELECT pg_try_advisory_lock($1::int,$2::int) AS acquired',lockKey)).rows[0]?.acquired;
-  if(!acquired)return {status:'busy' as const,processed:0,invalidated:0,failed:0};
+  if(!acquired)return {status:'busy' as const,processed:0,invalidated:0,failed:0,
+   preparationSkipped:0};
   try{
    const after=(await lock.query<PaperCampaignRow>(`
     SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
@@ -98,13 +99,14 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
      LIMIT $2`,[campaignCursor,maxCampaigns-after.length])).rows:[];
    const campaigns=after.concat(wrapped);
    campaignCursor=advancePaperCampaignCursor(campaigns,campaignCursor);
-   let invalidated=0,failed=0;
+   let invalidated=0,failed=0,preparationSkipped=0;
    for(const campaign of campaigns){
     try{
      const result=await maintainCanonicalPaperScenario(store,chain,indexer,
       campaign.id,maxSteps,{sampleValuation:campaign.lifecycle==='active'||
        campaign.lifecycle==='paused'});
      if(result.status==='invalidated')invalidated++;
+     if(result.status==='preparation_locked')preparationSkipped++;
     }catch(error){
      failed++;
      log('error','paper_worker_campaign_failed',{
@@ -112,7 +114,8 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
      });
     }
    }
-   return {status:'completed' as const,processed:campaigns.length,invalidated,failed};
+   return {status:'completed' as const,processed:campaigns.length,invalidated,failed,
+    preparationSkipped};
   }finally{
    await lock.query('SELECT pg_advisory_unlock($1::int,$2::int)',lockKey);
   }

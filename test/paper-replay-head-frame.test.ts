@@ -3,7 +3,9 @@ import test from 'node:test';
 import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../src/client.js';
 import type {MarketProfile} from '../src/deployments/market-profile.js';
-import {readCanonicalPaperReplayHeadFrame} from '../src/deployments/paper-replay-head-frame.js';
+import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
+import {readCanonicalPaperReplayHeadFrame,waitCanonicalPaperReplayHeadFrame} from
+ '../src/deployments/paper-replay-head-frame.js';
 
 const previous={sourceBlock:'100',sourceHash:`0x${'a'.repeat(64)}`},
  cursor={block:'120',hash:`0x${'b'.repeat(64)}`},
@@ -57,4 +59,36 @@ test('rejects stale or reference-ineligible pinned replay frame',async()=>{
   indexer:ineligible.indexer,profile:ineligible.profile,stream:'stream',targetSetHash:'target',
   previous,now:timestamp*1000,readFrame:ineligible.readFrame}),
  /paper_replay_head_reference_unavailable/);
+});
+
+test('preparation polls only the scoped cursor until coverage advances',async()=>{
+ const rows=[{block:'99',hash:cursor.hash,targetSetHash:'target',lastBlock:'99'},
+  {block:'120',hash:cursor.hash,targetSetHash:'target',lastBlock:'125'},
+  {block:'120',hash:cursor.hash,targetSetHash:'target',lastBlock:'120'}];
+ let fullReads=0,healthChecks=0;
+ const freshTimestamp=Math.floor(Date.now()/1000),source={block:cursor.block,hash:cursor.hash,
+  timestamp:freshTimestamp};
+ const frame:PaperOpenFrame={source,tick:1,sqrtPriceX96:1n,poolLiquidity:1n,price0:1n,
+  price1:1n,nativePrice:1n,referenceEligible:true,referenceReasons:[],referenceProofHash:'proof'};
+ const ctx=setup();
+ const pollingPool={...ctx.indexer,async query(){return {rows:[rows.shift()!]};}} as unknown as Pool;
+ const freshClient={getBlock:async({blockNumber}:{blockNumber:bigint})=>({hash:
+  blockNumber===100n?previous.sourceHash:cursor.hash,
+  timestamp:freshTimestamp,number:blockNumber})} as unknown as RobinhoodClient;
+ const result=await waitCanonicalPaperReplayHeadFrame({client:freshClient,indexer:pollingPool,
+  profile:ctx.profile,stream:'stream',targetSetHash:'target',previous,
+  maxWaitMs:2_000,pollMs:100,assertPreparationLeaseHealthy:async()=>{healthChecks++;},
+  readFrame:async(pinned)=>{fullReads++;assert.deepEqual(pinned,source);return frame;}});
+ assert.equal(result,frame);assert.equal(fullReads,1);assert.equal(healthChecks,4);
+});
+
+test('preparation fails closed on target-set changes before frame reads',async()=>{
+ let fullReads=0;const ctx=setup();
+ const indexer={...ctx.indexer,async query(){return {rows:[{block:'120',hash:cursor.hash,
+  targetSetHash:'other-target',lastBlock:'120'}]};}} as unknown as Pool;
+ await assert.rejects(waitCanonicalPaperReplayHeadFrame({client:ctx.client,indexer,
+  profile:ctx.profile,stream:'stream',targetSetHash:'target',previous,maxWaitMs:1_000,
+  readFrame:async()=>{fullReads++;return ctx.readFrame({block:cursor.block,hash:cursor.hash,timestamp});}}),
+ /paper_replay_head_target_set_changed/);
+ assert.equal(fullReads,0);
 });

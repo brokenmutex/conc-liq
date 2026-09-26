@@ -37,6 +37,7 @@ import type {EphemeralStaticPaperCloseConvertFeeReplay} from './paper-close-conv
 import {parsePaperStaticCloseConvertTerminalV3,
  type PaperStaticCloseConvertTerminalModel} from './paper-close-convert-preflight.js';
 import {selectPaperCloseConvertPrestateCostsV1} from './paper-close-convert-prestate-costs.js';
+import {PaperPreparationLeaseRegistry,paperPreparationLockName} from './paper-preparation-lease.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {MarketProfile} from './market-profile.js';
 import {buildPaperAccounting,paperAccountingSchema,buildPaperConversionAccounting,
@@ -265,14 +266,31 @@ export interface PaperAccountingAnchorMismatch {
 export class DeploymentStore {
  private readonly pool:pg.Pool;
  private readonly readPool:pg.Pool;
+ private readonly paperPreparationLeases:PaperPreparationLeaseRegistry;
  constructor(connectionString:string){
   this.pool=new pg.Pool({connectionString,max:3,statement_timeout:15000});
+  this.paperPreparationLeases=new PaperPreparationLeaseRegistry(this.pool);
   const readUrl=new URL(connectionString);
   readUrl.searchParams.set('options',`${readUrl.searchParams.get('options')??''} -c default_transaction_read_only=on`.trim());
   this.readPool=new pg.Pool({connectionString:readUrl.toString(),max:2,statement_timeout:15000});
  }
  async assertReady(){await assertDeploymentSchemaReady(this.readPool);}
- async close(){await Promise.all([this.pool.end(),this.readPool.end()]);}
+ async close(){try{await this.paperPreparationLeases.close();}
+  finally{await Promise.all([this.pool.end(),this.readPool.end()]);}}
+
+ private async assertPaperPreparationMutationAllowed(db:pg.PoolClient,campaignId:string){
+  const row=(await db.query<{acquired:boolean}>(
+   'SELECT pg_try_advisory_xact_lock_shared(hashtextextended($1,0)) AS acquired',
+   [paperPreparationLockName(campaignId)])).rows[0];
+  if(row?.acquired!==true)throw new DeploymentConflict('paper_preparation_locked');
+ }
+
+ async acquireStaticPaperCloseConvertPreparationLease(campaignId:string,maxLifetimeMs=300_000){
+  return this.paperPreparationLeases.acquire(campaignId,maxLifetimeMs);
+ }
+ async releaseStaticPaperCloseConvertPreparationLease(campaignId:string){
+  await this.paperPreparationLeases.release(campaignId);
+ }
 
  async paperOperationWorkerReady(){
   // Inspect the actual worker's shared lease without taking a competing lock:
@@ -3243,6 +3261,7 @@ export class DeploymentStore {
  async recordTrustedPaperPrincipalValuation(raw:unknown){
   const model=paperPrincipalValuationSchema.parse(raw),modelHash=contentHash(model);
   return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,model.campaignId);
    const row=(await db.query<{mode:string;lifecycle:string;current_revision:number;
     profile:unknown;profile_hash:string;config_hash:string}>(`
     SELECT c.mode,c.lifecycle,c.current_revision,p.profile,p.profile_hash,r.config_hash
@@ -3343,6 +3362,7 @@ export class DeploymentStore {
   interval:CanonicalPaperFeeInterval){
   const proofHash=contentHash(interval);
   return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,campaignId);
    const campaign=(await db.query<{mode:string;profile:unknown;profile_hash:string;
     evidence:unknown}>(`SELECT c.mode,p.profile,p.profile_hash,p.evidence
     FROM deployment_campaigns c JOIN deployment_market_profiles p ON p.id=c.market_profile_id
@@ -3659,6 +3679,7 @@ export class DeploymentStore {
   if(conversionPolicyV2&&!currentRuntime)
    throw new DeploymentConflict('paper_accounting_runtime_unavailable');
   return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,campaignId);
    const campaign=(await db.query<{mode:string;current_revision:number;allocation:unknown;
     profile:unknown;profile_hash:string;evidence:unknown;config_hash:string;config:unknown;open_mark_id:string;
     runtime_identity:unknown;open_provenance:Record<string,unknown>;proposal:Record<string,unknown>}>(`

@@ -54,3 +54,45 @@ export async function readCanonicalPaperReplayHeadFrame(input:{client:RobinhoodC
   'paper_replay_previous_mark_reorged');
  return frame;
 }
+
+/** Waits on the cheap replay cursor only. It performs no full-frame RPC work
+ * until indexed coverage advances beyond the frozen mark, then delegates once
+ * to the exact canonical frame reader above. */
+export async function waitCanonicalPaperReplayHeadFrame(input:{client:RobinhoodClient;indexer:Pool;
+ profile:MarketProfile;stream:string;targetSetHash:string;
+ previous:{sourceBlock:string;sourceHash:string};maxWaitMs?:number;pollMs?:number;
+ assertPreparationLeaseHealthy?:()=>Promise<void>;
+ readFrame?:(source:PaperOpenFrame['source'])=>Promise<PaperOpenFrame>}):Promise<PaperOpenFrame>{
+ const maxWaitMs=input.maxWaitMs??60_000,pollMs=input.pollMs??1_000;
+ if(!Number.isSafeInteger(maxWaitMs)||maxWaitMs<1_000||maxWaitMs>120_000||
+  !Number.isSafeInteger(pollMs)||pollMs<100||pollMs>5_000)
+  throw Error('paper_replay_head_wait_budget_invalid');
+ const p=input.profile.pool,deadline=Date.now()+maxWaitMs;
+ while(Date.now()<deadline){
+  await input.assertPreparationLeaseHealthy?.();
+  const row=(await input.indexer.query<{targetSetHash:string;block:string|null;hash:string|null;
+   lastBlock:string|null}>(`
+   SELECT c.target_set_hash AS "targetSetHash",c.complete_through_block::text AS block,
+    c.complete_through_hash AS hash,c.last_block_number::text AS "lastBlock"
+   FROM v3_replay_cursors c JOIN v3_replay_pools p USING(stream_key)
+   WHERE c.stream_key=$1 AND p.chain_id=$2 AND lower(p.pool_address)=lower($3)
+    AND p.fee=$4 AND p.initialized=true`,[input.stream,p.chainId,p.pool,p.fee])).rows;
+  if(row.length!==1)throw Error('paper_replay_head_unavailable');
+  const cursor=row[0]!;
+  if(cursor.targetSetHash.toLowerCase()!==input.targetSetHash.toLowerCase())
+   throw Error('paper_replay_head_target_set_changed');
+  const coverageIncomplete=cursor.block!==null&&cursor.lastBlock!==null&&
+   BigInt(cursor.lastBlock)>BigInt(cursor.block);
+  if(Date.now()>=deadline)throw Error('paper_replay_head_wait_timeout');
+  if(!coverageIncomplete&&cursor.block!==null&&cursor.hash!==null&&
+   BigInt(cursor.block)>BigInt(input.previous.sourceBlock)){
+   await input.assertPreparationLeaseHealthy?.();
+   if(Date.now()>=deadline)throw Error('paper_replay_head_wait_timeout');
+   return readCanonicalPaperReplayHeadFrame({client:input.client,indexer:input.indexer,
+    profile:input.profile,stream:input.stream,targetSetHash:input.targetSetHash,previous:input.previous,
+    readFrame:input.readFrame});
+  }
+  await new Promise(resolve=>setTimeout(resolve,Math.min(pollMs,Math.max(1,deadline-Date.now()))));
+ }
+ throw Error('paper_replay_head_wait_timeout');
+}
