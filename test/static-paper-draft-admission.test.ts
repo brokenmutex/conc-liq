@@ -113,6 +113,22 @@ test('setup admission permits fetchedAt-only proof refresh when the server-norma
  assert.equal(result.status,'draft_created');
 });
 
+test('legacy setup reviews remain bound to the exact full proof hash',async()=>{
+ const {proofIdentityHash:_identity,...legacyReferences}=preflight.references,
+  legacyPreflight={...preflight,references:legacyReferences},
+  legacyInput={...input(),reviewed:staticPaperSetupReviewBinding(legacyPreflight)};
+ const matching=await createStaticPaperDraftFromSetup(legacyInput,deps({
+  runPreflight:async()=>preflight,
+ }));
+ assert.equal(matching.status,'draft_created');
+ const changed=await createStaticPaperDraftFromSetup(legacyInput,deps({
+  runPreflight:async()=>({...preflight,references:{...preflight.references,
+   proofHash:'d'.repeat(64)}}),
+ }));
+ assert.equal(changed.status,'unavailable');
+ if(changed.status==='unavailable')assert.equal(changed.missing[0],'setup_review_binding_stale');
+});
+
 test('setup admission rejects changed proof bytes/feed, prices, source, and reviewed limits',async()=>{
  const changedBytes={...referenceProof,registry:{...referenceProof.registry,sha256:`sha256:${'c'.repeat(64)}`}},
   changedFeed={...referenceProof,feedDirectory:{...referenceProof.feedDirectory,url:'https://references.example/other.json'}};

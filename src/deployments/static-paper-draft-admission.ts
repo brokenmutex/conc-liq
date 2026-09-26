@@ -130,7 +130,9 @@ export async function createStaticPaperDraftFromSetup(rawInput:unknown,deps:{
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
  const reviewed=staticPaperSetupReviewBinding(preflightRaw),fresh=freshPreflightSchema.safeParse(preflightRaw);
  if(!reviewed||!fresh.success)return unavailable('fresh_canonical_setup_preflight_unavailable',input.profileId);
- if(contentHash(reviewBindingIdentity(reviewed))!==contentHash(reviewBindingIdentity(input.reviewed))||
+ const useStableProofIdentity=!!input.reviewed.references.proofIdentityHash;
+ if(contentHash(reviewBindingIdentity(reviewed,useStableProofIdentity))!==
+  contentHash(reviewBindingIdentity(input.reviewed,useStableProofIdentity))||
   reviewed.profileId!==input.profileId||reviewed.input.capitalQuoteRaw!==input.capitalQuoteRaw||
   reviewed.input.halfWidthTicks!==input.halfWidthTicks||
   contentHash(reviewed.input.limits??null)!==contentHash(requested.limits??null))
@@ -232,10 +234,10 @@ function freshTimestampMs(timestamp:number,now:number,maxAgeMs:number){
  const age=now-timestamp;
  return age>=0&&age<=maxAgeMs;
 }
-function reviewBindingIdentity(value:Review){
+function reviewBindingIdentity(value:Review,useStableProofIdentity:boolean){
  const {costs:_costs,...binding}=value;
  const {references,...rest}=binding;
- if(references.proofIdentityHash){
+ if(useStableProofIdentity){
   const {proofHash:_fullProofHash,...stableReferences}=references;
   return {...rest,references:stableReferences};
  }
