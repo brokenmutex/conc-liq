@@ -56,7 +56,8 @@ it('shows fresh bounds and exact inventory facts without implying acceptance', (
     ['Confirmed source block', '123'], ['Observed center tick', '10'], ['Aligned center tick', '0'],
     ['Tick bounds', '-240 to 240'], ['Price bounds · USDG per token', '1.000000 to 2.000000'],
     ['Token 0 required · raw · 0x111111…11111', '12'], ['Token 1 required · raw · 0x222222…22222', '34'],
-    ['Budget remaining · raw USDG', '56'], ['Cost estimate', 'Provisional fork estimate'],
+    ['Budget remaining · raw USDG', '56'], ['Cost estimate',
+      'Provisional fork estimate. Expected values use the gas-price observation shown; bound values are the reviewed admission cap, not paid gas.'],
     ['Open gas · expected / bound', '100 / 120 units'], ['Open cost · expected / bound · USDG', '3.000000 / 4.000000'],
     ['Admission limits', 'Not evaluated'],
   ]);

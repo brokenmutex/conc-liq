@@ -1760,3 +1760,44 @@ platform is not needed to establish the cause.
 - Mark MVP-5 complete only after the operator demonstration and its applicable
   release evidence pass. Track each later capability separately; do not claim
   the entire Research/Positions implementation or live readiness is complete.
+
+### Parallel implementation follow-up — September 26
+
+The operator authorized proceeding with Luna agents in parallel. Three Luna
+workstreams are assigned within the static/manual milestone: MVP-2 retain
+completion diagnosis, MVP-3 canonical browser acceptance for both exits, and
+MVP-1 plus MVP-4 actual-process recovery. RangeKeeper optimization and live
+foundation work remain deferred under this delivery order.
+
+MVP-1's stale setup-label assertion is corrected. The pinned shared-checkout
+`npm run check` at base head `9398d40b381ca5a27fb62e8868d43fb0dc47334a`
+passed repository validators, typecheck and **877/877** tests; focused setup
+tests passed **4/4**. The checkout included the existing unrelated dirty
+hybrid/adaptive research changes. This is source validation, not a clean sealed
+release check.
+
+The isolated PostgreSQL `npm run test:integration` passed again, including
+migration v11, supported upgrade paths, deployment/accounting/recovery,
+conversion importer, lifecycle and independent-reference checks. Log:
+`/tmp/conc-liq-mvp-integration-20260926-followup.log`. Its synthetic/injected
+chain boundaries do not establish the canonical browser milestone.
+
+The MVP-2 diagnostic rerun again reached authenticated setup draft creation,
+open completion and later canonical principal valuation. After retain
+acceptance, read-only inspection showed `status=queued`, `stage=accepted`,
+`attempts=0` and no claim lease. Therefore the generic transient retry lease
+does not explain that observed waiting interval. The run timed out at the
+original 300-second retain bound; the last worker messages were a completed
+empty maintenance pass and successful open completion. No subsequent
+maintenance completion was logged. This narrows the failure to work before the
+next operation claim; the exact internal phase remains under diagnosis. No
+freshness rule or timeout has been relaxed. Diagnostic log:
+`/tmp/static-paper-canonical-flow-mvp2-20260926.log`.
+
+The [static paper operator runbook](../operations/static-paper-mvp.md) now
+records the ordinary UI workflow, same-key uncertainty recovery and the
+required concrete release/cutover evidence. It does not establish MVP-5
+completion or production authorization. Browser/recovery helpers under
+development are not acceptance evidence until their actual canonical process
+runs pass. Both exits, economic restart recovery and the new clean sealed
+artifact remain open gates.
