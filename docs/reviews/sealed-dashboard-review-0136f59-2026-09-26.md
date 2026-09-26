@@ -48,5 +48,10 @@ and the private, one-shot RangeKeeper simulation capability. Their focused
 and RPC checks do not prove canonical conversion booking, production-default
 RangeKeeper preparation or HTTP admission. Both paths remain unavailable.
 
+The later canonical conversion fixture exposed a replay-selector query against
+`v3_replay_pools.tick_spacing`, which that schema does not contain. This
+artifact predates its correction and cannot prove a working conversion preview.
+The conversion HTTP acceptance callback remains absent.
+
 Actual command/worker economic flow, setup HTTP admission, browser parity and
 recovery for this exact artifact must be recorded separately as they pass.
