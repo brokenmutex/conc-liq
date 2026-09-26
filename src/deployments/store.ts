@@ -3885,21 +3885,23 @@ export class DeploymentStore {
   * maintenance treats the campaign as complete. V3 terminal booking is
   * already atomic; this read never projects it through the V2 path. */
  async hasTrustedStaticPaperCloseConvertV3Terminal(campaignId:string){
-  const rows=(await this.readPool.query<{accounting_id:string;source_mark_id:string;
+  const rows=(await this.readPool.query<{accounting_id:string;campaign_id:string;source_mark_id:string;
    snapshot:unknown;snapshot_hash:string;fee_evidence_id:string|null;
    mark_source_block:string|null;mark_source_hash:string|null;mark_provenance:Record<string,unknown>;
    fee_id:string|null;fee_from_mark_id:string|null;fee_to_mark_id:string|null;
    fee_proof:unknown;fee_proof_hash:string|null;fee_carry:unknown;fee_carry_hash:string|null;
    previous_source_block:string|null;previous_source_hash:string|null;
-   profile_evidence:unknown;campaign_lifecycle:string;operation_status:string|null;
+   profile_evidence:unknown;campaign_lifecycle:string;campaign_runtime:unknown;operation_status:string|null;
    operation_kind:string|null;operation_preview_id:string|null}>(`
-   SELECT a.id::text AS accounting_id,a.source_mark_id::text,a.snapshot,a.snapshot_hash,
+   SELECT a.id::text AS accounting_id,a.campaign_id::text,a.source_mark_id::text,
+    a.snapshot,a.snapshot_hash,
     a.fee_evidence_id::text,m.source_block::text AS mark_source_block,m.source_hash AS mark_source_hash,
     m.provenance AS mark_provenance,f.id::text AS fee_id,f.from_mark_id::text AS fee_from_mark_id,
     f.to_mark_id::text AS fee_to_mark_id,f.proof AS fee_proof,f.proof_hash AS fee_proof_hash,
     f.carry AS fee_carry,f.carry_hash AS fee_carry_hash,
     previous.source_block::text AS previous_source_block,previous.source_hash AS previous_source_hash,
     p.evidence AS profile_evidence,c.lifecycle AS campaign_lifecycle,
+    c.runtime_identity AS campaign_runtime,
     o.status AS operation_status,o.kind AS operation_kind,o.preview_id::text AS operation_preview_id
    FROM deployment_paper_accounting a JOIN deployment_marks m
     ON m.campaign_id=a.campaign_id AND m.id=a.source_mark_id
@@ -3918,10 +3920,22 @@ export class DeploymentStore {
   const row=rows[0]!,snapshot=paperConversionAccountingV3Schema.safeParse(row.snapshot),
    evidence=marketProfileEvidenceSchema.safeParse(row.profile_evidence),
    interval=canonicalPaperFeeIntervalSchema.safeParse(row.fee_proof),
-   provenance=row.mark_provenance;
+   runtime=sealedRuntimeIdentitySchema.safeParse(row.campaign_runtime),
+   provenance=row.mark_provenance,
+   markSource=provenance.source&&typeof provenance.source==='object'&&
+    !Array.isArray(provenance.source)?provenance.source as Record<string,unknown>:null;
   if(!snapshot.success||!evidence.success||!interval.success||
    contentHash(snapshot.data)!==row.snapshot_hash||snapshot.data.sourceMarkId!==row.source_mark_id||
-   snapshot.data.markKind!=='close_convert'||snapshot.data.feeEvidence?.id!==row.fee_id||
+   snapshot.data.campaignId!==row.campaign_id||snapshot.data.markKind!=='close_convert'||
+   snapshot.data.source.block!==row.mark_source_block||
+   snapshot.data.source.hash.toLowerCase()!==row.mark_source_hash?.toLowerCase()||
+   snapshot.data.source.block!==interval.data.to.block||
+   snapshot.data.source.hash.toLowerCase()!==interval.data.to.hash.toLowerCase()||
+   !runtime.success||contentHash(snapshot.data.runtimeIdentity)!==contentHash(runtime.data)||
+   !markSource||markSource.block!==snapshot.data.source.block||
+   typeof markSource.hash!=='string'||markSource.hash.toLowerCase()!==snapshot.data.source.hash.toLowerCase()||
+   markSource.timestamp!==snapshot.data.source.timestamp||
+   snapshot.data.feeEvidence?.id!==row.fee_id||
    snapshot.data.feeEvidence?.proofHash!==row.fee_proof_hash||
    snapshot.data.feeEvidence?.carryHash!==row.fee_carry_hash||
    !row.fee_evidence_id||row.fee_evidence_id!==row.fee_id||
