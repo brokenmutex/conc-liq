@@ -2174,3 +2174,18 @@ The external helper will require proof that the real 202 response was dropped
 and the durable campaign/kind-specific saved-request reconciliation control,
 then rerun the entire positive gate. Runtime artifact and evidence limits remain
 unchanged. Failure cleanup completed before any retry.
+
+**Second sealed recovery attempt remains partial:** external harness `cfa74c5`
+proved the actual accepted-202 response drop and visible saved-request control,
+then natural expiry at `2026-09-26T16:33:43.812Z`, SIGKILL and release of the
+worker readiness lease for campaign `48632379-068a-47a4-a9d1-0a3cee55d17b`.
+It stopped before restart waiting for the operation ID in the reconciliation
+banner. The UI clears that banner after response handling and refreshes Positions;
+the failure page showed the persisted queued conversion instead. The server
+already performs read-only same-key replay before readiness/preparation checks.
+The next external assertion will capture the real replay HTTP response, require
+202, the original operation ID and `replayed:true`, preserve exact request/key,
+and check durable refreshed pending state. Restart, economic completion and
+restore are still unproved. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-cfa74c-20260926.txt`.
+All disposable inputs/processes were cleaned before retry.

@@ -385,13 +385,36 @@ async function main(){
    await browser.navigate('/operator');await browser.login();await browser.click('#positions-tab');
    await browser.waitFor(`document.querySelector('#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button[data-kind="close_convert"][data-campaign-id="${campaignId}"]')!==null`,
     'saved conversion request recovery after browser reload');
+   const recoveryPath=`/api/deployments/${campaignId}/close-convert-operations`;
+   await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(recoveryPath)};
+    window.__canonicalRecoveryResponse=null;window.fetch=async(input,options)=>{const response=await original(input,options),
+     requestPath=new URL(typeof input==='string'?input:input.url,location.href).pathname;
+     if(requestPath===target&&options?.method==='POST'){try{const body=await response.clone().json();
+      window.__canonicalRecoveryResponse={httpStatus:response.status,id:body.id??null,status:body.status??null,
+       replayed:body.replayed??null,error:body.error??null,reason:body.reason??null};
+     }catch{window.__canonicalRecoveryResponse={httpStatus:response.status,responseJsonUnavailable:true};}}
+     return response;};})()`);
    await browser.click(`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button[data-kind="close_convert"][data-campaign-id="${campaignId}"]`);
-   await browser.waitFor(`document.querySelector('#pending-paper-acceptance-recovery')?.innerText.includes(${JSON.stringify(convertOperationId)})`,
+   await browser.waitFor('window.__canonicalRecoveryResponse!==null',
     'same-key reconciliation response after reconnect');
-   const replayPost=browser.posts.slice(replayStart).find(row=>row.path===
-    `/api/deployments/${campaignId}/close-convert-operations`);
+   const recoveryResponse=await browser.evaluate('window.__canonicalRecoveryResponse');
+   assert.equal(recoveryResponse.httpStatus,202,`saved conversion reconciliation should return 202: ${JSON.stringify(recoveryResponse)}`);
+   assert.equal(recoveryResponse.id,convertOperationId,'saved conversion reconciliation returned a different operation');
+   assert.equal(recoveryResponse.status,'queued',`saved conversion reconciliation status changed: ${JSON.stringify(recoveryResponse)}`);
+   assert.equal(recoveryResponse.replayed,true,'saved conversion reconciliation did not report same-key replay');
+   const recoverySelector=`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button`+
+    `[data-kind="close_convert"][data-campaign-id="${campaignId}"]`;
+   const replayPost=browser.posts.slice(replayStart).find(row=>row.path===recoveryPath);
    assert(replayPost?.postData,'reconnected Positions did not submit the saved conversion request');
    assert.deepEqual(JSON.parse(replayPost.postData),acceptedBody,'reconnect must preserve the exact accepted request key');
+   assert.equal(await store.paperOperationWorkerReady(),false,
+    'same-key reconciliation should happen while worker readiness lease is still released');
+   await selectCampaignInPositions(browser,campaignId);
+   await browser.waitFor(`document.querySelector(${JSON.stringify(recoverySelector)})===null&&
+    document.querySelector('#paper .position-detail')?.innerText.includes('Close · convert to USDG in progress · accepted · queued')`,
+    'durable queued close-convert state after same-key reconciliation');
+   phase('same_key_reconciled',{httpStatus:recoveryResponse.httpStatus,operationId:recoveryResponse.id,
+    status:recoveryResponse.status,replayed:recoveryResponse.replayed,previewExpired:true,workerReady:false});
    checks.push('after response loss, preview expiry and worker lease loss, browser reconnect reconciled the same accepted conversion');
    if(changedRestartAnchor){
     assert(acceptedModelSource,'changed restart anchor has no saved accepted model source');
