@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {createHash} from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { createServer as createTcpServer } from "node:net";
@@ -6,11 +7,17 @@ import type { Hash } from "viem";
 import { pace } from "../history/client.js";
 
 export interface ForkSource { number: bigint; hash: Hash; timestamp: bigint }
-export interface ReadBudget { requests: number; rejected: number; methods: Record<string, number>; maxRequests: number }
+export interface ReadBudget { requests:number;rejected:number;methods:Record<string,number>;maxRequests:number }
+export interface ForkReadDiagnostics {
+  uniqueRequestSignatures:number;duplicateRequests:number;duplicateRequestsByMethod:Record<string,number>;
+  immutableReadRequests:number;duplicateImmutableReadRequests:number;
+  duplicateImmutableReadsByMethod:Record<string,number>;
+}
 const stateIndex: Record<string, number> = {
   eth_getCode: 1, eth_getStorageAt: 2, eth_getBalance: 1,
   eth_getTransactionCount: 1, eth_getBlockByNumber: 0, eth_call: 1, eth_estimateGas: 1,
 };
+const immutableReadMethods=new Set(["eth_getCode","eth_getStorageAt","eth_getBalance","eth_getTransactionCount"]);
 
 export function assertPinnedRead(method: string, params: readonly unknown[], source: ForkSource) {
   const index = Object.hasOwn(stateIndex, method) ? stateIndex[method] : undefined;
@@ -37,7 +44,11 @@ export async function openPaperFork(input: {
    * per mined block. Off by default for existing paper fork consumers. */
   deterministicClock?: boolean;
 }) {
-  const budget: ReadBudget = { requests: 0, rejected: 0, methods: {}, maxRequests: input.maxRequests ?? 400 };
+  const budget: ReadBudget = {requests:0,rejected:0,methods:{},maxRequests:input.maxRequests??400};
+  const diagnostics:ForkReadDiagnostics={uniqueRequestSignatures:0,duplicateRequests:0,
+    duplicateRequestsByMethod:{},immutableReadRequests:0,duplicateImmutableReadRequests:0,
+    duplicateImmutableReadsByMethod:{}};
+  const requestSignatures=new Set<string>();
   const deadline = Date.now() + (input.timeoutMs ?? 150_000);
   const blockTag = `0x${input.source.number.toString(16)}`;
   const read = async (method: string, params: unknown[] = []): Promise<unknown> => {
@@ -46,6 +57,18 @@ export async function openPaperFork(input: {
     if (Date.now() >= deadline || budget.requests >= budget.maxRequests) throw new Error("Paper fork read/time budget exhausted");
     budget.requests++;
     budget.methods[method] = (budget.methods[method] ?? 0) + 1;
+    const signature=createHash("sha256").update(JSON.stringify([method,params])).digest("hex");
+    if(requestSignatures.has(signature)){
+      diagnostics.duplicateRequests++;
+      diagnostics.duplicateRequestsByMethod[method]=(diagnostics.duplicateRequestsByMethod[method]??0)+1;
+      if(immutableReadMethods.has(method)){
+        diagnostics.duplicateImmutableReadRequests++;
+        diagnostics.duplicateImmutableReadsByMethod[method]=(diagnostics.duplicateImmutableReadsByMethod[method]??0)+1;
+      }
+    }else{
+      requestSignatures.add(signature);diagnostics.uniqueRequestSignatures++;
+    }
+    if(immutableReadMethods.has(method))diagnostics.immutableReadRequests++;
     await input.beforeRead();
     await pace(input.rpcUrl, input.intervalMs ?? 100);
     const response = await fetch(input.rpcUrl, {
@@ -136,7 +159,7 @@ export async function openPaperFork(input: {
     const metadata = await rpc<{ forkedNetwork?: { forkBlockNumber?: number; forkBlockHash?: string } }>("anvil_metadata");
     assert.equal(metadata.forkedNetwork?.forkBlockNumber, Number(input.source.number));
     assert.equal(metadata.forkedNetwork?.forkBlockHash?.toLowerCase(), input.source.hash.toLowerCase());
-    return { rpc, read, close, source: input.source, blockTag, budget, localUrl };
+    return { rpc, read, close, source: input.source, blockTag, budget, diagnostics, localUrl };
   } catch (error) { await close(); throw error; }
 }
 export type PaperFork = Awaited<ReturnType<typeof openPaperFork>>;

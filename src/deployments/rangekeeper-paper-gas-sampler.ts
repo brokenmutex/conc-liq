@@ -15,7 +15,7 @@ import type {RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js'
 import type {RangeKeeperPaperLoadedExitContext} from './rangekeeper-paper-context.js';
 import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
-import {openPaperFork} from '../paper/fork.js';
+import {openPaperFork,type ForkReadDiagnostics} from '../paper/fork.js';
 import {localReceipt,prestateOverrides,simulatePaperTransaction,type PaperTransaction} from '../paper/execution-gas.js';
 import {PAPER_ACCOUNT,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
 import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';
@@ -190,6 +190,7 @@ async function fundFixture(fork:Awaited<ReturnType<typeof openPaperFork>>,client
  * owned local Anvil endpoint created by openPaperFork. */
 export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGasProbeRequest,input:{
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
+ onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
  limits:RangeKeeperLimits;initialBalances?:readonly [bigint,bigint];
  terminalContext?:RangeKeeperPaperLoadedExitContext;
 }):Promise<readonly RangeKeeperPaperGasStageSample[]>{
@@ -318,12 +319,18 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
   const stageNames=rows.map(row=>row.action);
   assert.deepEqual(stageNames,request.stages);
   return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
- }finally{await fork.close();}
+ }finally{
+  try{input.onReadDiagnostics?.({...fork.diagnostics,
+   duplicateRequestsByMethod:{...fork.diagnostics.duplicateRequestsByMethod},
+   duplicateImmutableReadsByMethod:{...fork.diagnostics.duplicateImmutableReadsByMethod}});}
+  finally{await fork.close();}
+ }
 }
 
 async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,input:{rpcUrl:string;beforeRead:()=>Promise<void>;
- maxRequests?:number;timeoutMs?:number;limits:RangeKeeperLimits}):Promise<readonly RangeKeeperPaperGasStageSample[]>{
+ maxRequests?:number;timeoutMs?:number;limits:RangeKeeperLimits;
+ onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void}):Promise<readonly RangeKeeperPaperGasStageSample[]>{
  const {profile,frame,candidate}=request,p=profile.pool,k=context.kernel;
  assert(input.rpcUrl.length>0&&Number.isSafeInteger(input.maxRequests??1600)&&(input.maxRequests??1600)>0&&
   (input.maxRequests??1600)<=2000&&Number.isSafeInteger(input.timeoutMs??300_000)&&
@@ -401,5 +408,10 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
   assert(same(pinned.hash,source.hash),'Owned fork lost its pinned canonical source');
   return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
- }finally{await fork.close();}
+ }finally{
+  try{input.onReadDiagnostics?.({...fork.diagnostics,
+   duplicateRequestsByMethod:{...fork.diagnostics.duplicateRequestsByMethod},
+   duplicateImmutableReadsByMethod:{...fork.diagnostics.duplicateImmutableReadsByMethod}});}
+  finally{await fork.close();}
+ }
 }

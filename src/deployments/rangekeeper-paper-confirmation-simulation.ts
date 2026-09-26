@@ -13,6 +13,7 @@ import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample}
 import type {RangeKeeperPaperConfirmationProbe,RangeKeeperPaperConfirmationSimulation}
  from './rangekeeper-paper-confirmation.js';
 import type {PaperOpenFrame} from './paper-preview.js';
+import type {ForkReadDiagnostics} from '../paper/fork.js';
 
 export interface RangeKeeperPaperOwnedForkConfirmationEvidence {
  schemaVersion:1;kind:'rangekeeper_paper_owned_fork_confirmation_simulation_v1';
@@ -134,6 +135,7 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
  probe:RangeKeeperPaperConfirmationCandidateBinding;profile:MarketProfile;frame:PaperOpenFrame;
  configHash:string;initialBalances:readonly [bigint,bigint];limits:RangeKeeperLimits;
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
+ onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
 }):Promise<RangeKeeperPaperConfirmationSimulation&{
  ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}>{
  const {probe,profile,frame}=input;
@@ -153,7 +155,7 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
   candidateHash,scope:probe.scope,pathVersion:probe.pathVersion,stages,openMarkId:null,openModelHash:null};
  const samples=await sampleRangeKeeperPaperGasStages(request,{rpcUrl:input.rpcUrl,
   beforeRead:input.beforeRead,maxRequests:input.maxRequests,timeoutMs:input.timeoutMs,
-  limits:input.limits,initialBalances:input.initialBalances});
+  onReadDiagnostics:input.onReadDiagnostics,limits:input.limits,initialBalances:input.initialBalances});
  const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,
   configHash:input.configHash,samples});
  return {status:'success',sourceBlock:frame.source.block,sourceHash:frame.source.hash,
