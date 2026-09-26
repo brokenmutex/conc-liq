@@ -37,6 +37,12 @@ obtain a new review. If the acceptance response is lost, use the saved pending
 request reconciliation control: it resends the original payload and key.
 Do not replace an uncertain accepted request with a fresh key.
 
+Open success does not establish later conversion availability. The conversion
+sampler currently requires the saved candidate's diluted pool-liquidity share
+to be at most 1%; the close review also requires complete fee evidence, eligible
+references and exact scoped costs. Retain-close records principal lower bounds
+without claiming complete converted balances or earned fees.
+
 ## Interrupted operations
 
 Reload Positions and inspect the campaign and persisted operation. Saved

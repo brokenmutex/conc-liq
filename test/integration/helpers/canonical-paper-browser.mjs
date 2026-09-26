@@ -209,7 +209,7 @@ export async function selectCampaignInPositions(browser,campaignId){
 /** Clicks an actual Positions action, waits for its browser acceptance response,
  * and returns the captured authenticated POST path for persisted-operation checks. */
 export async function acceptPositionsAction(browser,campaignId,kind,
- {beforeAccept=async()=>{},onPreviewRetry=()=>{},waitBeforePreviewRetry,
+ {beforeAccept=async()=>{},beforePreviewRequest=async()=>{},onPreviewRetry=()=>{},retryUnavailableReason,waitBeforePreviewRetry,
   previewTimeoutMs=300_000,dropAcceptedResponse=false}={}){
  await selectCampaignInPositions(browser,campaignId);
  const specs={pause:{preview:'.paper-lifecycle-action-root .paper-lifecycle-preview-button',confirm:'.paper-lifecycle-action-root .paper-lifecycle-confirm-button',
@@ -249,9 +249,11 @@ export async function acceptPositionsAction(browser,campaignId,kind,
  const before=browser.posts.length,previewDeadline=Date.now()+previewTimeoutMs;let previewResponse=null,
   previewText='',previewAttempts=0;
  while(true){
+  if(Date.now()>=previewDeadline)throw Error(`${kind} preview deadline expired before a fresh request`);
   previewAttempts++;
   const previousPreviewCount=kind==='close_convert'?
    await browser.evaluate('window.__canonicalConvertPreviewCount'):null;
+  await beforePreviewRequest({attempt:previewAttempts,kind});
   await browser.click(spec.preview);
   const remaining=Math.max(1,previewDeadline-Date.now());
   if(kind==='close_convert'){
@@ -266,11 +268,18 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   previewText=await browser.evaluate(`document.querySelector(".position-detail")?.innerText??''`);
   previewResponse=kind==='close_convert'?await browser.evaluate('window.__canonicalConvertPreview'):null;
   if(!confirmState.hidden&&!confirmState.disabled)break;
-  if(kind==='close_convert'&&previewResponse?.reason==='static_manual_conversion_preparation_busy'&&
-   Date.now()<previewDeadline&&previewAttempts<120){
-   onPreviewRetry({attempt:previewAttempts,reason:previewResponse.reason});
+  const retryReason=kind==='close_convert'&&previewResponse?.reason===
+   'static_manual_conversion_preparation_busy'?'static_manual_conversion_preparation_busy':
+   kind==='close_convert'&&previewResponse?.reason==='paper_close_convert_fee_interval_gap'?
+    'paper_close_convert_fee_interval_gap':
+   kind==='close_convert'&&previewResponse?.reason==='static_manual_conversion_prestate_unavailable'&&
+    retryUnavailableReason?await retryUnavailableReason({attempt:previewAttempts,previewResponse,
+     deadline:previewDeadline}):null;
+  if(retryReason&&Date.now()<previewDeadline&&previewAttempts<120){
+   onPreviewRetry({attempt:previewAttempts,reason:retryReason,
+    responseReason:previewResponse?.reason??null});
    if(waitBeforePreviewRetry)await waitBeforePreviewRetry({attempt:previewAttempts,
-    reason:previewResponse.reason,deadline:previewDeadline});
+    reason:retryReason,deadline:previewDeadline});
    else await sleep(Math.min(2_500,Math.max(1,previewDeadline-Date.now())));
    await browser.waitFor(`document.querySelector(${JSON.stringify(spec.preview)})?.disabled===false`,
     'fresh convert preview action after busy preparation lease',

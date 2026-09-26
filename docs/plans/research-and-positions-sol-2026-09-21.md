@@ -1989,3 +1989,24 @@ preview deadline. It will not seed evidence, restart the worker, weaken coverage
 or add a new runtime scheduler. This measured transient gap does not explain
 the preceding run's separate preparation failure after persisted fees were ready;
 later phases must still be diagnosed if that failure recurs.
+
+**Measured conversion fixture sizing:** the next run at base `f91f2e7`
+proved the bounded readiness retry worked: the actual worker persisted fee carry
+and accounting through mark 3, block `73203445`, with two intervals. Its fresh
+preview then reached `paper_conversion_prestate_owned_fork_sample` and rejected
+with `paper_close_convert_prestate_sampler_share_cap_one_percent`. The saved
+USDG-2000, half-width-40 candidate had liquidity `26869210494093019`, source
+pool liquidity `685478250106834630` and diluted share **37,719 ppm (3.7719%)**,
+above the sampler's **10,000 ppm (1%)** guard. The ordinary open sampler has
+no equivalent standalone cap; open success therefore did not prove this
+conversion input was supported. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-fee-gap-retry-f91f2e7.txt`.
+No conversion was accepted, and fixture cleanup completed.
+
+The next converter fixture uses capital **2 USDG**, retaining half-width 40 and
+all existing runtime limits. This is a measured correction to the test input,
+not a relaxed conversion guard or a completed acceptance gate. The test driver
+also uses a bounded monotonic diagnostic-event sequence to correlate only the
+current failed request; rolling log-tail offsets cannot misclassify an older
+failure. Unknown preparation errors stop, and no fresh preview is submitted
+after the original 300-second deadline.

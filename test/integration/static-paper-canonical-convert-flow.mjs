@@ -24,7 +24,7 @@ import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {parseRangeKeeperConfig} from '../../src/strategy/rangekeeper/config.ts';
 import {marketProfileSchema,verifyMarketProfile} from '../../src/deployments/market-profile.ts';
 import {contentHash} from '../../src/deployments/contracts.ts';
-import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
+import {PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
 import {readCanonicalPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 import {paperPreparationLockName} from '../../src/deployments/paper-preparation-lease.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
@@ -38,6 +38,8 @@ import {startProxy} from './helpers/paper-anchor-rpc-proxy.mjs';
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const phase=(name,details={})=>process.stdout.write(JSON.stringify({phase:name,...details})+'\n');
 const clean=value=>String(value??'').replace(/https?:\/\/[^\s"']+/gi,'[redacted-url]');
+const setupDiagnosticEvents=[];let setupDiagnosticSequence=0;
+const commandLineBuffer={command:{stdout:'',stderr:''},worker:{stdout:'',stderr:''}};
 const isLocalDb=raw=>{const url=new URL(raw),socket=url.searchParams.get('host');
  return ['localhost','127.0.0.1','[::1]','::1'].includes(url.hostname.toLowerCase())||
   Boolean(socket&&socket.startsWith('/'));};
@@ -174,8 +176,24 @@ async function main(){
      `${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600});
   }
   const capture=(child,key)=>{child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
-   child.stdout.on('data',chunk=>{processTail[key]=(processTail[key]+chunk).slice(-8000);});
-   child.stderr.on('data',chunk=>{processTail[key]=(processTail[key]+chunk).slice(-8000);});};
+   const append=(source,chunk)=>{
+    processTail[key]=(processTail[key]+chunk).slice(-8000);
+    if(key!=='command')return;
+    const lines=(commandLineBuffer.command[source]+chunk).split('\n');
+    commandLineBuffer.command[source]=lines.pop()??'';
+    for(const line of lines){
+     try{const row=JSON.parse(line);
+      if(row.event==='paper_setup_preparation_diagnostic'&&typeof row.stage==='string'&&
+       /^[a-z0-9_]{1,80}$/.test(row.stage)&&typeof row.reason==='string'&&
+       (/^paper_[a-z0-9_]{1,120}$/.test(row.reason)||/^[A-Za-z]+Error$/.test(row.reason))){
+       setupDiagnosticEvents.push({sequence:++setupDiagnosticSequence,stage:row.stage,reason:row.reason});
+       if(setupDiagnosticEvents.length>32)setupDiagnosticEvents.shift();
+      }
+     }catch{}
+    }
+   };
+   child.stdout.on('data',chunk=>append('stdout',chunk));
+   child.stderr.on('data',chunk=>append('stderr',chunk));};
   command=launch('deployments');capture(command,'command');
   await waitFor(async()=>await fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false),
    'real command service health',60_000);phase('command_ready');
@@ -184,26 +202,30 @@ async function main(){
   const workerReady=()=>store.paperOperationWorkerReady();
   await waitFor(workerReady,'real paper worker readiness lease',30_000);phase('worker_ready');
   browser=await startCanonicalPaperBrowser({origin,password});
-  const setup=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,capital:'2000'});
-  campaignId=setup.campaignId;phase('browser_setup_and_open_accepted',{campaignId,halfWidthTicks:setup.halfWidthTicks});
+  const setup=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,capital:'2'});
+  campaignId=setup.campaignId;phase('browser_setup_and_open_accepted',
+   {campaignId,capitalQuote:'2',halfWidthTicks:setup.halfWidthTicks});
   checks.push('operator UI performed authenticated canonical setup admission and open acceptance; no draft seeded');
   const getOperationId=async(kind)=>{
    const rows=await admin.query(`SELECT id::text FROM deployment_operations
     WHERE campaign_id=$1 AND kind=$2 ORDER BY created_at DESC LIMIT 1`,[campaignId,kind]);
    return rows.rows[0]?.id??null;
   };
-  const waitForPreparationLease=async({deadline})=>{
+  const preparationLeaseIsClear=async()=>{
    // Observe the exact session advisory lock used by conversion preparation.
    // This only delays a fresh UI preview while maintenance owns the lease; it
    // never acquires a lock or alters the evidence gate.
    const key=BigInt.asUintN(64,BigInt((await admin.query(
     'SELECT hashtextextended($1,0)::text AS value',[paperPreparationLockName(campaignId)])).rows[0].value));
    const high=Number((key>>32n)&0xffff_ffffn),low=Number(key&0xffff_ffffn);
-   while(Date.now()<deadline){
-    const row=(await admin.query(`SELECT EXISTS(SELECT 1 FROM pg_locks
+   const row=(await admin.query(`SELECT EXISTS(SELECT 1 FROM pg_locks
      WHERE locktype='advisory' AND database=(SELECT oid FROM pg_database WHERE datname=current_database())
      AND classid=$1::oid AND objid=$2::oid AND objsubid=1 AND granted) AS busy`,[high,low])).rows[0];
-    if(!row.busy){phase('convert_preparation_lease_clear');return;}
+   return !row.busy;
+  };
+  const waitForPreparationLease=async({deadline})=>{
+   while(Date.now()<deadline){if(await preparationLeaseIsClear()){
+    phase('convert_preparation_lease_clear');return;}
     await sleep(Math.min(1_000,Math.max(1,deadline-Date.now())));
    }
   };
@@ -213,6 +235,15 @@ async function main(){
    'open worker completion',300_000);
   assert.equal(openTerminal.status,'succeeded',JSON.stringify(openTerminal));
   assert.equal(openTerminal.stage,'paper_open_recorded');phase('open_completed');
+  const openCandidate=(await admin.query(`SELECT p.proposal->'paperOpenModel'->'candidate' AS candidate,
+   p.proposal->'paperOpenModel'->'poolState'->>'poolLiquidity' AS pool_liquidity
+   FROM deployment_marks m JOIN deployment_previews p ON p.id=(m.provenance->>'previewId')::uuid
+   WHERE m.campaign_id=$1 AND m.provenance->>'classification'='paper_model_provisional'
+   ORDER BY m.id LIMIT 1`,[campaignId])).rows[0];
+  assert(openCandidate?.candidate,'saved open model candidate is unavailable');
+  phase('open_candidate_share_evidence',{dilutedSharePpm:openCandidate.candidate.dilutedSharePpm,
+   deployedValue:openCandidate.candidate.deployedValue,range:openCandidate.candidate.range,
+   liquidity:openCandidate.candidate.liquidity,poolLiquidity:openCandidate.pool_liquidity});
   const opened=await waitFor(async()=>{try{
    const state=await store.paperValuationState(campaignId);
    return state.previous.source.block!==state.openModel.source.block?state:null;
@@ -221,10 +252,53 @@ async function main(){
   checks.push('actual default worker recorded open and a later canonical principal valuation');
 
   let workerSuspension=null,acceptedModelSource=null;
+  let conversionDiagnosticSequence=setupDiagnosticSequence;
+  const beforePreviewRequest=async()=>{conversionDiagnosticSequence=setupDiagnosticSequence;};
+  const retryUnavailableReason=async({previewResponse,deadline})=>{
+   if(previewResponse?.reason!=='static_manual_conversion_prestate_unavailable')return null;
+   const probeUntil=Math.min(deadline,Date.now()+750);
+   while(Date.now()<probeUntil){
+    const event=setupDiagnosticEvents.find(item=>item.sequence>conversionDiagnosticSequence&&
+     item.stage==='paper_conversion_prestate_fee_context'&&
+     item.reason==='paper_close_convert_fee_interval_gap');
+    if(event)return event.reason;
+    await sleep(Math.min(50,Math.max(1,probeUntil-Date.now())));
+   }
+   return null;
+  };
+  const waitForFeeCarryAndAccounting=async({deadline})=>{
+   let latestMarkId=null,feeEvidence=null,accountingMarkId=null;
+   while(Date.now()<deadline){
+    try{
+     const carried=await store.readStaticPaperCloseConvertFeeCarry({campaignId,revision:1});
+     latestMarkId=(await admin.query(`SELECT id::text FROM deployment_marks
+      WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId])).rows[0]?.id??null;
+     feeEvidence=(await admin.query(`SELECT id::text,to_mark_id::text FROM deployment_paper_fee_evidence
+      WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0]??null;
+     accountingMarkId=(await admin.query(`SELECT source_mark_id::text FROM deployment_paper_accounting
+      WHERE campaign_id=$1 AND policy_version=$2 ORDER BY deployment_paper_accounting.source_mark_id DESC LIMIT 1`,
+      [campaignId,PAPER_ACCOUNTING_POLICY])).rows[0]?.source_mark_id??null;
+     if(carried.previous.markId===latestMarkId&&accountingMarkId===latestMarkId&&
+      await preparationLeaseIsClear()){
+      phase('convert_fee_carry_readiness_confirmed',{latestMarkId,
+       feeEvidenceId:feeEvidence?.id??null,feeEvidenceToMarkId:feeEvidence?.to_mark_id??null,
+       accountingMarkId,throughBlock:carried.previous.source.block,intervals:carried.feeCarry.intervals});
+      return;
+     }
+    }catch(error){if(error?.code!=='paper_close_convert_fee_interval_gap')throw error;}
+    await sleep(Math.min(1_000,Math.max(1,deadline-Date.now())));
+   }
+   phase('convert_fee_carry_readiness_timeout',{latestMarkId,feeEvidence,accountingMarkId});
+   throw Error('Timed out waiting for persisted paper fee carry and accounting through latest mark');
+  };
   const convert=await acceptPositionsAction(browser,campaignId,'close_convert',{
    previewTimeoutMs:300_000,dropAcceptedResponse:interrupt,
    onPreviewRetry:info=>phase('convert_preview_retry',info),
-   waitBeforePreviewRetry:waitForPreparationLease,beforeAccept:async({previewResponse})=>{
+   beforePreviewRequest,retryUnavailableReason,
+   waitBeforePreviewRetry:async({deadline,reason})=>{
+    if(reason==='paper_close_convert_fee_interval_gap')await waitForFeeCarryAndAccounting({deadline});
+    await waitForPreparationLease({deadline});
+   },beforeAccept:async({previewResponse})=>{
     if(changedRestartAnchor){
      assert(previewResponse?.previewId,'convert preview response did not expose its saved id');
      const savedPreview=await admin.query(`SELECT proposal FROM deployment_previews
@@ -302,12 +376,15 @@ async function main(){
     `changed-anchor operation must remain in recovery-required stage: ${JSON.stringify(terminal)}`);
    const convertedMarks=(await admin.query(`SELECT id::text FROM deployment_marks
     WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[campaignId,convertOperationId])).rows;
+   const conversionOperations=(await admin.query(`SELECT count(*)::int AS n FROM deployment_operations
+    WHERE campaign_id=$1 AND kind='close_convert'`,[campaignId])).rows[0].n;
    const operationLedger=(await admin.query(`SELECT kind,amount_raw::text FROM deployment_ledger
     WHERE campaign_id=$1 AND operation_id=$2 ORDER BY entry_key`,[campaignId,convertOperationId])).rows;
    const operationAccounting=(await admin.query(`SELECT a.id::text FROM deployment_paper_accounting a
     JOIN deployment_marks m ON m.id=a.source_mark_id WHERE m.campaign_id=$1
     AND m.provenance->>'operationId'=$2`,[campaignId,convertOperationId])).rows;
    assert.equal(convertedMarks.length,0,'changed-anchor rejection must not write a terminal conversion mark');
+   assert.equal(conversionOperations,1,'same-key reconnect must not create a duplicate conversion operation');
    assert.equal(operationLedger.length,0,'changed-anchor rejection must not write operation ledger or capital-out flows');
    assert.equal(operationAccounting.length,0,'changed-anchor rejection must not write V3 conversion accounting');
    const rows=await readDeploymentRows(admin),projected=rows.find(row=>row.id===campaignId);
@@ -324,6 +401,7 @@ async function main(){
    console.log(JSON.stringify({status:'canonical_static_convert_changed_anchor_blocked',checks,campaignId,
     convertOperationId,operationStatus:terminal.status,reason:terminal.reason,
     classification:'fault_injected_rpc_response_process_boundary',rpcFaults,
+    conversionOperations,
     convertedTerminalMarks:convertedMarks.length,operationLedgerRows:operationLedger.length,
     operationAccountingRows:operationAccounting.length,
     lifecycle:position.deployment.lifecycle,conversionAccountingStatus:position.deployment.conversionAccountingStatus,
