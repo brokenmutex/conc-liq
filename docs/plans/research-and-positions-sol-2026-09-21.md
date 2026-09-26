@@ -1443,6 +1443,45 @@ RangeKeeper confirmation replay matched all ten stages; `3f2b04a` and
 the exact saved URL, raw response hash, oracle rounds, model and full booked
 proof hash. These are source/replay checks, not HTTP action enablement.
 
+**September 26 continuation checkpoint:** three Luna agents continue in
+parallel at high reasoning effort, with independent ownership of static/manual
+V3 conversion, RangeKeeper paper booking, and setup/release evidence. Root
+coordinates shared PostgreSQL runs and dashboard integration.
+
+`a022824` adds distinct V3 provisional converted-close accounting, exact
+prestate gas/profile bindings, admission, worker replay and atomic terminal
+booking. `875a21c` adds a separate canonical audit and maintenance path; V2
+records retain their existing semantics. These implementations do not enable
+the HTTP acceptance callback. Positive V3 booking, restart/reorg and shared
+Positions evidence remain required before admission is enabled.
+
+`2b6ae06` and `9d92c8f` add canonical runtime identity and independent-reference
+checks to read-only live preflight. Live action and execution remain false.
+`a3c3941` extends the Chromium dashboard regression with conversion review,
+unknown-result same-key recovery, remount/retry and disabled-preview checks.
+The September 26 browser run passed all 42 checks with no browser exceptions
+or horizontal overflow in its desktop/mobile cases. Its command boundary is
+mocked; it is not an accepted-operation or chain-economics proof.
+
+The September 26 full isolated PostgreSQL integration suite passed migrations,
+Research candidate storage, all 44 existing deployment gates, prospective
+conversion gas import, legacy paper lifecycle and reference-evidence checks.
+The suite includes the migration-11 fixture correction in `1e522f8`; it does
+not include positive V3 or RangeKeeper booking. `c6e8d3b` adds an opt-in sealed
+release mode to the real command/worker process harness. Source mode passed
+authenticated profile/Positions reads, pause/resume, lease loss and worker
+restart, with no chain RPC, economic marks, ledger entries or signer. Sealed
+build/process verification is the next F5 gate and does not authorize unit
+installation or production cutover.
+
+The RangeKeeper positive fixture's measured failure was preview expiry:
+first-report replay took 38 seconds, while repeated full reference-frame
+reads during second-observation polling consumed the remaining budget.
+Polling confirmed headers instead obtained the required 30-second source gap
+in 30 seconds in an RPC-only diagnostic. The optimized booking/restart fixture
+must still pass with the original freshness, canonical-source and expiry
+rules. Do not relax those rules to admit expired evidence.
+
 Do not hold F1/F2 for the deferred historical candidate engine, saved Research
 replay jobs, custom/off-center ranges, range or strategy switching, a new alert
 center, or cosmetic redesign. Do not weaken the existing accounting, command,
