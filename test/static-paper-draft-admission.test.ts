@@ -7,6 +7,8 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import {pinnedExternalReferenceProofIdentityHash} from '../src/deployments/pinned-external-reference-proof.js';
 import {PAPER_STATIC_GAS_PATH} from '../src/deployments/paper-cost.js';
 import {createStaticPaperDraftFromSetup,staticPaperSetupReviewBinding} from '../src/deployments/static-paper-draft-admission.js';
+import {StaticPaperSetupReviewCache} from '../src/deployments/static-paper-setup-review-cache.js';
+import type {StaticPaperSetupReviewInput} from '../src/deployments/static-paper-setup-review-cache.js';
 
 const now=Date.now(),profileId='00000000-0000-4000-8000-000000000001';
 const token1='0x7000000000000000000000000000000000000001',hash=`0x${'a'.repeat(64)}`;
@@ -124,6 +126,19 @@ test('setup admission keeps the server-captured quote when the freshly observed 
  const result=await createStaticPaperDraftFromSetup(request,deps({runPreflight:async()=>({...lower,input:{...lower.input,limits:tighterLimits}})}));
  assert.equal(result.status,'unavailable');
  if(result.status==='unavailable')assert(result.missing.includes('provisional_cost_exceeds_static_limits'));
+});
+
+test('setup admission does not extend the cached review deadline across a slow source reread',async()=>{
+ let cacheNow=now,creates=0;const cache=new StaticPaperSetupReviewCache(()=>cacheNow),captured=cache.capture(preflight);
+ assert(captured);
+ const result=await createStaticPaperDraftFromSetup({...input(),reviewId:captured.setupReviewId},deps({
+  lookupCapturedReview:(request:StaticPaperSetupReviewInput)=>cache.lookup(request),
+  runPreflight:async()=>{cacheNow+=180_001;return preflight;},now:()=>cacheNow,
+  createDraftWithRequestId:async()=>{creates++;throw Error('expired review must not create');},
+ }));
+ assert.equal(result.status,'unavailable');
+ if(result.status==='unavailable')assert(result.missing.includes('setup_review_evidence_expired'));
+ assert.equal(creates,0);
 });
 
 test('legacy setup reviews remain bound to the exact full proof hash',async()=>{
