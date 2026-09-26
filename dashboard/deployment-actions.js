@@ -56,6 +56,46 @@ export function lifecycleAcceptPayload(preview, kind, idempotencyKey) {
     expectedRevision: preview.expectedRevision, idempotencyKey };
 }
 
+const pendingAcceptanceKey = (campaignId, kind) =>
+  `concliq.operator.paper-action.pending.v1.${campaignId}.${kind}`;
+function validPendingAcceptance(value, campaignId, kind) {
+  return Boolean(value && value.campaignId === campaignId && value.kind === kind &&
+    uuid.test(value.payload?.previewId ?? '') && digest.test(value.payload?.contentDigest ?? '') &&
+    Number.isSafeInteger(value.payload?.expectedRevision) && value.payload.expectedRevision > 0 &&
+    uuid.test(value.payload?.idempotencyKey ?? ''));
+}
+function readPendingAcceptance(campaignId, kind) {
+  try {
+    const raw = localStorage.getItem(pendingAcceptanceKey(campaignId, kind));
+    if (raw === null) return null;
+    let saved;
+    try { saved = JSON.parse(raw); } catch { return {campaignId,kind,invalid:true}; }
+    if (!validPendingAcceptance(saved, campaignId, kind)) return {campaignId,kind,invalid:true};
+    // Normalize to the request-only shape. Credentials and unrelated storage
+    // fields are never copied into the action's in-memory recovery record.
+    return {campaignId, kind, payload:{previewId:saved.payload.previewId,
+      contentDigest:saved.payload.contentDigest,expectedRevision:saved.payload.expectedRevision,
+      idempotencyKey:saved.payload.idempotencyKey}};
+  } catch { return null; }
+}
+function persistPendingAcceptance(campaignId, kind, payload) {
+  if (!validPendingAcceptance({campaignId,kind,payload},campaignId,kind)) return false;
+  try {
+    localStorage.setItem(pendingAcceptanceKey(campaignId, kind), JSON.stringify({campaignId,kind,
+      payload:{previewId:payload.previewId,contentDigest:payload.contentDigest,
+        expectedRevision:payload.expectedRevision,idempotencyKey:payload.idempotencyKey}}));
+    return true;
+  } catch { return false; }
+}
+function clearPendingAcceptance(campaignId, kind) {
+  try { localStorage.removeItem(pendingAcceptanceKey(campaignId, kind)); return true; }
+  catch { return false; }
+}
+function knownNoAcceptance(error) {
+  return error?.status === 503 && error?.data?.error === 'operation_worker_not_ready' ||
+    error?.status === 409;
+}
+
 const addFact = (list, label, value) => {
   const row = document.createElement('div'); row.className = 'retain-preview-fact';
   const name = document.createElement('span'); name.textContent = label;
@@ -190,17 +230,74 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
   previewButton.title = previewButton.disabled ? 'Sign in to request a fresh close preview' : '';
   const status = document.createElement('p'); status.className = 'retain-action-status';
   status.setAttribute('role', 'status');
-  status.textContent = authenticated?.() ? 'Static/manual paper retain-close only.' :
-    'Sign in on this loopback page to request a fresh retain-close preview.';
+  const storageKind = 'close_retain';
+  let pending = readPendingAcceptance(campaignId, storageKind);
+  status.textContent = pending ? 'A retain-close acceptance may already be queued. Reconcile the same request before requesting another preview.' :
+    authenticated?.() ? 'Static/manual paper retain-close only.' :
+      'Sign in on this loopback page to request a fresh retain-close preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
-  root.append(previewButton, status, review);
+  const retry = document.createElement('button'); retry.type = 'button';
+  retry.className = 'retain-reconcile-button'; retry.textContent = 'Retry same acceptance / reconcile';
+  retry.hidden = !pending; retry.disabled = !authenticated?.() || Boolean(pending?.invalid);
+  root.append(previewButton, status, review, retry);
+  if (pending?.invalid) status.textContent = 'A saved retain-close recovery record is invalid. Fresh previews are blocked; reconcile this campaign in Positions before continuing.';
 
-  let preview = null;
-  let idempotencyKey = null;
+  let preview = null, acceptedOperation = false;
   const setStatus = value => { status.textContent = value; };
+  const syncButtons = () => {
+    previewButton.disabled = Boolean(pending) || acceptedOperation || !authenticated?.();
+    retry.hidden = !pending; retry.disabled = !pending || Boolean(pending.invalid) || !authenticated?.();
+  };
+  const clearPending = () => {
+    if (!clearPendingAcceptance(campaignId, storageKind)) {
+      pending = {campaignId,kind:storageKind,invalid:true};
+      setStatus('The saved retain-close recovery key could not be cleared. Fresh previews remain blocked until the browser can reconcile it.');
+      syncButtons(); return false;
+    }
+    pending = null; syncButtons(); return true;
+  };
+  const submitPending = async button => {
+    if (!pending?.payload || !authenticated?.()) return;
+    button.disabled = true; previewButton.disabled = true;
+    setStatus('Submitting or reconciling the saved retain-close request…');
+    try {
+      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/operations`,
+        { method: 'POST', body: pending.payload });
+      const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
+      if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
+        throw new Error('operation_acceptance_response_invalid');
+      acceptedOperation = true;
+      if (!clearPending()) return;
+      setStatus(`Operation ${accepted.id} accepted · ${accepted.status}. Paid costs and final economics remain unavailable.`);
+      try { await onAccepted(accepted); } catch { /* status polling remains authoritative */ }
+      await pollOperation(accepted.id, request, setStatus, onAccepted);
+    } catch (error) {
+      const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+      if (knownNoAcceptance(error)) {
+        if (!clearPending()) return;
+        button.disabled = true; syncButtons();
+        setStatus(error?.data?.error === 'operation_worker_not_ready' ?
+          'Worker readiness expired before acceptance. The server found no saved operation for this request; request a fresh preview when readiness returns.' :
+          `Retain-close request rejected as stale or conflicting (${reason}). Request a fresh preview.`);
+      } else if (error?.status >= 400 && error?.status < 500 && error?.status !== 429) {
+        // Authentication and authorization failures do not prove that an
+        // earlier request was absent, so retain the key for a later reconcile.
+        retry.hidden = false; retry.disabled = !authenticated?.(); button.disabled = false;
+        button.textContent = 'Retry same acceptance / reconcile';
+        setStatus(`Acceptance outcome remains unknown (${reason}). Keep the saved request and retry it to reconcile; do not request a new preview.`);
+      } else {
+        retry.hidden = false; retry.disabled = !authenticated?.(); button.disabled = false;
+        button.textContent = 'Retry same acceptance / reconcile';
+        setStatus(`Acceptance outcome is unknown (${reason}). Retry the same saved request to reconcile; do not submit a new preview yet.`);
+      }
+    }
+  };
+  retry.addEventListener('click', () => { void submitPending(retry); });
+  if (pending && !pending.invalid) retry.disabled = !authenticated?.();
+  syncButtons();
   previewButton.addEventListener('click', async () => {
+    if (pending) return;
     previewButton.disabled = true;
-    idempotencyKey = null;
     review.hidden = true; preview = null;
     setStatus('Checking a fresh canonical retain-close source and provisional gas estimate…');
     try {
@@ -238,41 +335,19 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       accept.setAttribute('aria-label', 'Accept static/manual paper retain-close');
       review.append(accept);
       accept.addEventListener('click', async () => {
-        if (!idempotencyKey) idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
+        if (pending) { await submitPending(accept); return; }
+        const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
         const payload = retainAcceptPayload(preview, idempotencyKey);
         if (!payload || !authenticated?.()) {
           accept.disabled = true; setStatus('Preview expired or authentication ended. Review a fresh preview.'); return;
         }
-        accept.disabled = true; previewButton.disabled = true;
-        setStatus(idempotencyKey ? 'Submitting the reviewed retain-close operation…' : 'A browser idempotency key is unavailable; acceptance is disabled.');
-        if (!idempotencyKey) return;
-        try {
-          const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/operations`,
-            { method: 'POST', body: payload });
-          const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
-          if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
-            throw new Error('operation_acceptance_response_invalid');
-          idempotencyKey = null;
-          setStatus(`Operation ${accepted.id} accepted · ${accepted.status}. Paid costs and final economics remain unavailable.`);
-          try { await onAccepted(accepted); } catch { /* status polling remains authoritative */ }
-          await pollOperation(accepted.id, request, setStatus, onAccepted);
-        } catch (error) {
-          const reason = error?.data?.error ?? error?.message ?? 'command_failed';
-          if (error?.data?.error === 'operation_worker_not_ready') {
-            idempotencyKey = null; accept.disabled = true;
-            previewButton.disabled = !authenticated?.();
-            setStatus('Worker readiness expired before acceptance. The server did not accept an operation; request a fresh preview when readiness returns.');
-          } else if (error?.status >= 400 && error.status < 500) {
-            idempotencyKey = null;
-            accept.disabled = true;
-            setStatus(error.status === 409 ? `Preview rejected as stale or conflicting (${reason}). Request a fresh preview.` :
-              `Command service rejected acceptance (${reason}). Request a fresh preview before retrying.`);
-            previewButton.disabled = !authenticated?.();
-          } else {
-            accept.disabled = false; accept.textContent = 'Retry same acceptance / reconcile';
-            setStatus(`Acceptance outcome is unknown (${reason}). Retry with the same in-page idempotency key or refresh Positions to reconcile; do not submit a new preview yet.`);
-          }
+        if (!idempotencyKey) { accept.disabled = true; setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
+        if (!persistPendingAcceptance(campaignId, storageKind, payload)) {
+          accept.disabled = true; setStatus('This browser cannot retain the recovery key. No operation request was sent.'); return;
         }
+        pending = {campaignId,kind:storageKind,payload}; syncButtons();
+        retry.textContent = 'Retry same acceptance / reconcile';
+        await submitPending(accept);
       });
       review.hidden = false;
       setStatus(canAccept ? 'Review the retained lower bounds and provisional costs, then confirm once.' :
@@ -282,7 +357,7 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       setStatus(error?.status === 409 ? `Fresh preview rejected (${reason}); refresh the position and retry.` :
         `Retain-close preview unavailable (${reason}). No operation was submitted.`);
     } finally {
-      previewButton.disabled = !authenticated?.();
+      previewButton.disabled = Boolean(pending) || acceptedOperation || !authenticated?.();
     }
   });
 }
@@ -303,14 +378,67 @@ export function mountPaperLifecycleAction(root, { campaignId, kind, authenticate
   previewButton.title = previewButton.disabled ? 'Sign in to request a fresh lifecycle preview' : '';
   const status = document.createElement('p'); status.className = 'retain-action-status';
   status.setAttribute('role', 'status');
-  status.textContent = authenticated?.() ? `Static/manual paper ${kind} only.` :
-    'Sign in on this loopback page to request a fresh lifecycle preview.';
+  const storageKind = kind;
+  let pending = readPendingAcceptance(campaignId, storageKind);
+  status.textContent = pending ? `A ${kind} acceptance may already be queued. Reconcile the same request before requesting another preview.` :
+    authenticated?.() ? `Static/manual paper ${kind} only.` :
+      'Sign in on this loopback page to request a fresh lifecycle preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
-  root.append(previewButton, status, review);
-  let preview = null, idempotencyKey = null;
+  const retry = document.createElement('button'); retry.type = 'button';
+  retry.className = 'paper-lifecycle-reconcile-button';
+  retry.textContent = `Retry same ${kind} / reconcile`;
+  retry.hidden = !pending; retry.disabled = !authenticated?.() || Boolean(pending?.invalid);
+  root.append(previewButton, status, review, retry);
+  if (pending?.invalid) status.textContent = `A saved ${kind} recovery record is invalid. Fresh previews are blocked; reconcile this campaign in Positions before continuing.`;
+  let preview = null, acceptedOperation = false;
   const setStatus = value => { status.textContent = value; };
+  const syncButtons = () => {
+    previewButton.disabled = Boolean(pending) || acceptedOperation || !authenticated?.();
+    retry.hidden = !pending; retry.disabled = !pending || Boolean(pending.invalid) || !authenticated?.();
+  };
+  const clearPending = () => {
+    if (!clearPendingAcceptance(campaignId, storageKind)) {
+      pending = {campaignId,kind:storageKind,invalid:true};
+      setStatus(`The saved ${kind} recovery key could not be cleared. Fresh previews remain blocked until the browser can reconcile it.`);
+      syncButtons(); return false;
+    }
+    pending = null; syncButtons(); return true;
+  };
+  const submitPending = async button => {
+    if (!pending?.payload || !authenticated?.()) return;
+    button.disabled = true; previewButton.disabled = true;
+    setStatus(`Submitting or reconciling the saved ${kind} request…`);
+    try {
+      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/lifecycle-operations`,
+        { method: 'POST', body: pending.payload });
+      const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
+      if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
+        throw new Error('operation_acceptance_response_invalid');
+      acceptedOperation = true;
+      if (!clearPending()) return;
+      setStatus(`${actionName} operation ${accepted.id} accepted · ${accepted.status}. Economics remain unavailable.`);
+      try { await onAccepted(accepted); } catch { /* journal polling remains authoritative */ }
+      await pollOperation(accepted.id, request, setStatus, onAccepted, actionName);
+    } catch (error) {
+      const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+      if (knownNoAcceptance(error)) {
+        if (!clearPending()) return;
+        button.disabled = true; syncButtons();
+        setStatus(error?.data?.error === 'operation_worker_not_ready' ?
+          `Worker readiness expired before ${kind} acceptance. The server found no saved operation for this request; request a fresh preview when readiness returns.` :
+          `${actionName} request rejected as stale or conflicting (${reason}). Request a fresh preview.`);
+      } else {
+        retry.hidden = false; retry.disabled = !authenticated?.(); button.disabled = false;
+        button.textContent = `Retry same ${kind} / reconcile`;
+        setStatus(`${actionName} acceptance outcome remains unknown (${reason}). Keep the saved request and retry it to reconcile; do not request another preview.`);
+      }
+    }
+  };
+  retry.addEventListener('click', () => { void submitPending(retry); });
+  syncButtons();
   previewButton.addEventListener('click', async () => {
-    previewButton.disabled = true; idempotencyKey = null; preview = null; review.hidden = true;
+    if (pending) return;
+    previewButton.disabled = true; preview = null; review.hidden = true;
     setStatus(`Checking the saved ${kind} transition and operation worker readiness…`);
     try {
       const result = await request(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
@@ -337,38 +465,18 @@ export function mountPaperLifecycleAction(root, { campaignId, kind, authenticate
       accept.disabled = !canAccept; accept.setAttribute('aria-label', `Accept static/manual paper ${kind}`);
       review.append(accept);
       accept.addEventListener('click', async () => {
-        if (!idempotencyKey) idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
+        if (pending) { await submitPending(accept); return; }
+        const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
         const payload = lifecycleAcceptPayload(preview, kind, idempotencyKey);
         if (!payload || !authenticated?.()) {
           accept.disabled = true; setStatus('Preview expired or authentication ended. Review a fresh lifecycle preview.'); return;
         }
-        accept.disabled = true; previewButton.disabled = true;
-        if (!idempotencyKey) { setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
-        setStatus(`Submitting the reviewed ${kind} operation…`);
-        try {
-          const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/lifecycle-operations`,
-            { method: 'POST', body: payload });
-          const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
-          if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
-            throw new Error('operation_acceptance_response_invalid');
-          idempotencyKey = null;
-          setStatus(`${actionName} operation ${accepted.id} accepted · ${accepted.status}. Economics remain unavailable.`);
-          try { await onAccepted(accepted); } catch { /* journal polling remains authoritative */ }
-          await pollOperation(accepted.id, request, setStatus, onAccepted, actionName);
-        } catch (error) {
-          const reason = error?.data?.error ?? error?.message ?? 'command_failed';
-          if (error?.data?.error === 'operation_worker_not_ready') {
-            idempotencyKey = null; accept.disabled = true; previewButton.disabled = !authenticated?.();
-            setStatus('Worker readiness expired before acceptance. The server did not accept an operation; request a fresh lifecycle preview when readiness returns.');
-          } else if (error?.status >= 400 && error.status < 500) {
-            idempotencyKey = null; accept.disabled = true; previewButton.disabled = !authenticated?.();
-            setStatus(error.status === 409 ? `${actionName} preview rejected as stale or conflicting (${reason}). Request a fresh preview.` :
-              `${actionName} command rejected (${reason}). Request a fresh preview before retrying.`);
-          } else {
-            accept.disabled = false; accept.textContent = `Retry same ${kind} / reconcile`;
-            setStatus(`${actionName} acceptance outcome is unknown (${reason}). Retry with the same in-page idempotency key or reconcile in Positions; do not request another preview yet.`);
-          }
+        if (!idempotencyKey) { accept.disabled = true; setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
+        if (!persistPendingAcceptance(campaignId, storageKind, payload)) {
+          accept.disabled = true; setStatus('This browser cannot retain the recovery key. No operation request was sent.'); return;
         }
+        pending = {campaignId,kind:storageKind,payload}; syncButtons();
+        await submitPending(accept);
       });
       review.hidden = false;
       setStatus(canAccept ? `Review the saved ${kind} transition, then confirm once.` :
@@ -377,7 +485,7 @@ export function mountPaperLifecycleAction(root, { campaignId, kind, authenticate
       const reason = error?.data?.error ?? error?.message ?? 'command_failed';
       setStatus(error?.status === 409 ? `Fresh ${kind} preview rejected (${reason}); refresh the position and retry.` :
         `${actionName} preview unavailable (${reason}). No operation was submitted.`);
-    } finally { previewButton.disabled = !authenticated?.(); }
+    } finally { previewButton.disabled = Boolean(pending) || acceptedOperation || !authenticated?.(); }
   });
 }
 
