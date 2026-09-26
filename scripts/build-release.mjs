@@ -14,7 +14,9 @@ try {
  execFileSync(process.execPath,['node_modules/typescript/bin/tsc','-p','tsconfig.json','--outDir',join(scratch,'dist')],{stdio:'inherit'});
  // Tests are validated before release, not shipped into a runtime.
  rmSync(join(scratch,'dist/test'),{recursive:true,force:true});
- for(const path of ['dashboard','config','package.json','package-lock.json'])cpSync(join(source,path),join(scratch,path),{recursive:true});
+ const designDirectories=new Set(['prototype','preview'].map(name=>join(source,'dashboard',name)));
+ for(const path of ['dashboard','config','package.json','package-lock.json'])cpSync(join(source,path),join(scratch,path),{
+  recursive:true,filter:entry=>!designDirectories.has(entry)});
  cpSync(realpathSync(join(source,'node_modules')),join(scratch,'node_modules'),{recursive:true,verbatimSymlinks:true});
  for(const path of ['assets/evidence/canary-local-lifecycle.json','assets/evidence/paper-round-trip.json']) {
   mkdirSync(dirname(join(scratch,path)),{recursive:true});cpSync(join(source,path),join(scratch,path));

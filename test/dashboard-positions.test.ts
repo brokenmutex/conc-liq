@@ -110,6 +110,8 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
   assert.equal((await fetch(base+'/api/positions/paper-dep-not-a-uuid')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-999')).status,404);assert.equal((await fetch(base+'/api/positions',{method:'POST'})).status,405);
   const page=await fetch(base+'/');assert.match(await page.text(),/Positions/);assert.match(page.headers.get('Content-Security-Policy')??'',/script-src 'self'/);
-  assert.equal((await fetch(base+'/legacy')).status,200);assert.equal((await fetch(base+'/preview')).status,200);
+  assert.equal((await fetch(base+'/legacy')).status,200);
+  for(const path of ['/preview','/preview/','/preview/app.js','/preview/styles.css','/prototype','/prototype/app.js'])
+   assert.equal((await fetch(base+path)).status,404,'design fixtures must not be served by the runtime');
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
