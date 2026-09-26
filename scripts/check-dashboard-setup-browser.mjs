@@ -274,6 +274,59 @@ try{
  const ambiguousTest=await evaluate(`(async()=>{const {mountStaticRetainAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);const operation='90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',preview={kind:'close_retain',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:'7b2309a4-a301-4869-a385-995ef8d12344',contentDigest:'${'a'.repeat(64)}',expectedRevision:2,expiresAt:new Date(Date.now()+30000).toISOString()};const keys=[];let posts=0;mountStaticRetainAction(root,{campaignId:'${profileId}',authenticated:()=>true,request:async(path,options={})=>{if(path.endsWith('/previews'))return preview;if(path.endsWith('/operations')){posts++;keys.push(options.body.idempotencyKey);if(posts===1)throw Error('network_timeout');return{id:operation,status:'queued',replayed:true};}if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_retain_recorded'};throw Error('unexpected_path');},onAccepted:async info=>{if(info?.status==='reconcile_required')root.remove();}});root.querySelector('.retain-preview-button').click();for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<30&&!root.textContent.includes('outcome is unknown');i++)await new Promise(r=>setTimeout(r,10));const retryEnabled=root.querySelector('.retain-confirm-button')?.disabled===false,previewDisabled=root.querySelector('.retain-preview-button')?.disabled===true,rootMounted=root.isConnected;root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes('succeeded · paper_close_retain_recorded');i++)await new Promise(r=>setTimeout(r,20));const result={retryEnabled,previewDisabled,rootMounted,sameKey:keys.length===2&&keys[0]===keys[1],accepted:root.textContent.includes('succeeded · paper_close_retain_recorded'),posts};root.remove();return result;})()`);
  assert.deepEqual(ambiguousTest,{retryEnabled:true,previewDisabled:true,rootMounted:true,sameKey:true,accepted:true,posts:2},'Ambiguous acceptance must preserve the action UI and retry only with its retained idempotency key');
  checks.push('Ambiguous POST keeps idempotency key for safe reconcile retry');
+ const convertRecovery=await evaluate(`(async()=>{
+  const {mountStaticConvertAction}=await import('/deployment-actions.js');
+  const campaign='${profileId}',operation='e8b1d253-0b06-4a39-8342-71b9f134644e';
+  const storageKey='concliq.operator.paper-convert.pending.v1.'+campaign;
+  localStorage.removeItem(storageKey);
+  const preview={kind:'close_convert',terminalModelVersion:3,status:'indicative',trustedPreviewSaved:true,
+   actionAvailable:true,operationAcceptanceAvailable:true,id:'7b2309a4-a301-4869-a385-995ef8d12344',
+   contentDigest:'${'a'.repeat(64)}',modelHash:'${'b'.repeat(64)}',expectedRevision:2,
+   expiresAt:new Date(Date.now()+30000).toISOString(),paidCostsAvailable:false,feeAccrualAvailable:false,
+   quote:{inputAmountRaw:'123',minimumOutputRaw:'456',expectedOutputRaw:'470'},
+   costs:{status:'provisional',scope:'candidate_prestate_gas_only',
+    pathVersion:'paper_static_manual_close_convert_prestate_v1',paidGasAvailable:false,
+    expectedValue:'2000000000000000000',boundValue:'3000000000000000000'}};
+  const keys=[];let previewCalls=0,posts=0;
+  const request=async(path,options={})=>{
+   if(path.endsWith('/previews')){previewCalls++;return preview;}
+   if(path.endsWith('/close-convert-operations')){posts++;keys.push(options.body.idempotencyKey);
+    if(posts===1)throw Error('network_timeout');return{id:operation,status:'queued'};}
+   if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_convert_v3_reconciled'};
+   throw Error('unexpected_path');};
+  let root=document.createElement('div');document.body.append(root);
+  const mount=()=>mountStaticConvertAction(root,{campaignId:campaign,authenticated:()=>true,request});mount();
+  root.querySelector('button').click();
+  for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));
+  const facts=root.textContent.includes('456')&&root.textContent.includes('fork estimated')&&
+   root.textContent.includes('not earned')&&root.textContent.includes('Unavailable');
+  root.querySelector('.retain-confirm-button').click();
+  for(let i=0;i<30&&!root.textContent.includes('outcome unknown');i++)await new Promise(r=>setTimeout(r,10));
+  const persisted=!!localStorage.getItem(storageKey),previewBlocked=root.querySelector('button').disabled;
+  root.remove();root=document.createElement('div');document.body.append(root);mount();
+  const recoveryOnly=root.textContent.includes('may already be accepted')&&root.querySelector('button').disabled;
+  [...root.querySelectorAll('button')].find(b=>b.textContent==='Retry same request / reconcile').click();
+  for(let i=0;i<120&&!root.textContent.includes('paper_close_convert_v3_reconciled');i++)await new Promise(r=>setTimeout(r,20));
+  const result={facts,persisted,previewBlocked,recoveryOnly,sameKey:keys.length===2&&keys[0]===keys[1],
+   previewCalls,posts,reconciled:root.textContent.includes('paper_close_convert_v3_reconciled'),
+   cleared:localStorage.getItem(storageKey)===null};root.remove();return result;
+ })()`);
+ assert.deepEqual(convertRecovery,{facts:true,persisted:true,previewBlocked:true,recoveryOnly:true,
+  sameKey:true,previewCalls:1,posts:2,reconciled:true,cleared:true});
+ checks.push('Convert-close review preserves modeled labels and same-key recovery across remount');
+ const convertUnavailable=await evaluate(`(async()=>{
+  const {mountStaticConvertAction}=await import('/deployment-actions.js');
+  const root=document.createElement('div');document.body.append(root);let posts=0;
+  mountStaticConvertAction(root,{campaignId:'${profileId}',authenticated:()=>true,request:async(path)=>{
+   if(path.endsWith('/previews'))return{kind:'close_convert',terminalModelVersion:3,status:'indicative',
+    actionAvailable:false,operationAcceptanceAvailable:false};posts++;throw Error('must_not_accept');}});
+  root.querySelector('button').click();
+  for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));
+  const result={disabled:root.querySelector('.retain-confirm-button')?.disabled===true,
+   explained:root.textContent.includes('evidence gates'),posts};root.remove();return result;
+ })()`);
+ assert.deepEqual(convertUnavailable,{disabled:true,explained:true,posts:0});
+ checks.push('Non-actionable convert preview cannot submit acceptance');
  const lifecycleAccepted=await evaluate(`(async()=>{const {mountPaperLifecycleAction}=await import('/deployment-actions.js');const result=[];for(const kind of ['pause','resume']){const root=document.createElement('div');document.body.append(root);const operation=kind==='pause'?'b2e5d04a-cd93-4351-99d9-6e0618896a33':'0a2b4f04-e829-4314-8773-02fa098cc95e',previewId=kind==='pause'?'a9954e65-38b0-4084-8c0b-75b86136d729':'5638168a-0702-41b0-ab59-45d0f1c93c75';let previewCalls=0,acceptCalls=0,pollCalls=0;mountPaperLifecycleAction(root,{campaignId:'${profileId}',kind,authenticated:()=>true,request:async(path,options={})=>{if(path.endsWith('/previews')){previewCalls++;return{kind,status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:previewId,contentDigest:'${'a'.repeat(64)}',expectedRevision:3,expiresAt:new Date(Date.now()+30000).toISOString(),proposal:{from:kind==='pause'?'active':'paused',to:kind==='pause'?'paused':'active'}};}if(path.endsWith('/lifecycle-operations')){acceptCalls++;if(options.body.previewId!==previewId||!options.body.idempotencyKey)return{error:'bad_binding'};return{id:operation,status:'queued'};}if(path==='/api/operations/'+operation){pollCalls++;return{id:operation,status:'succeeded',stage:kind==='pause'?'paper_paused':'paper_resumed'};}throw Error('unexpected_path');},onAccepted:async()=>{}});root.querySelector('.paper-lifecycle-preview-button').click();for(let i=0;i<30&&!root.querySelector('.paper-lifecycle-confirm-button');i++)await new Promise(r=>setTimeout(r,10));const previewReady=!root.querySelector('.paper-lifecycle-confirm-button')?.disabled&&root.textContent.includes(kind==='pause'?'active → paused':'paused → active');root.querySelector('.paper-lifecycle-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes(kind==='pause'?'paper_paused':'paper_resumed');i++)await new Promise(r=>setTimeout(r,20));result.push({kind,previewReady,accepted:root.textContent.includes(kind==='pause'?'paper_paused':'paper_resumed'),previewCalls,acceptCalls,pollCalls});root.remove();}return result;})()`);
  assert.deepEqual(lifecycleAccepted,[{kind:'pause',previewReady:true,accepted:true,previewCalls:1,acceptCalls:1,pollCalls:1},{kind:'resume',previewReady:true,accepted:true,previewCalls:1,acceptCalls:1,pollCalls:1}], 'Pause and resume must use separate saved preview, lifecycle acceptance and journal stage routes');
  checks.push('Authenticated pause and resume previews accept and show journal stages');
