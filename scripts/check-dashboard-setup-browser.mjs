@@ -11,6 +11,11 @@ const profileId='67b2b303-e821-4450-bb7b-27171b12079f';
 const pool='0x1111111111111111111111111111111111111111';
 const token0='0x2222222222222222222222222222222222222222';
 const token1='0x3333333333333333333333333333333333333333';
+const policyLimitInputs=[['#limit-max-deployment','100000000000000000000'],['#limit-min-deployment','1000000000000000000'],
+  ['#limit-max-exposure','1000000'],['#limit-max-loss','1000000000000000000'],['#limit-max-drawdown','900000'],
+  ['#limit-max-action-cost','1000000000000000000'],['#limit-max-rolling-cost','2000000000000000000'],
+  ['#limit-max-campaign-cost','3000000000000000000'],['#limit-exit-reserve','1000000000000000'],
+  ['#limit-slippage-bps','50']];
 const counts={setup:[],operations:0,drafts:0,draftRequestIds:[],draftBodies:[],draftReconciliationResponses:0,openPreviews:0,openOperations:0,openOperationKeys:[],openReconciliationResponses:0,session:0};
 const profile={id:profileId,chainId:4663,pool,token0,token1,decimals0:18,decimals1:6,
  quoteToken:1,fee:3000,tickSpacing:60,draftAvailable:true,deploymentAvailable:false};
@@ -88,7 +93,7 @@ const server=createServer(async(req,res)=>{
   if(input.halfWidthTicks===480){json(200,{kind:'paper_setup_preflight',status:'unavailable',
    missing:['fresh_source_stale'],actionAvailable:false,draftCreated:false,operationCreated:false,
    costs:{status:'unavailable'},admissionLimits:{status:'not_evaluated'}});return;}
-  json(200,preview);return;
+  json(200,{...preview,input:{capitalQuoteRaw:input.capitalQuoteRaw,halfWidthTicks:input.halfWidthTicks,limits:input.limits}});return;
  }
  if(req.method==='POST'&&path==='/api/deployments/setup-drafts'){
   if(!session){json(401,{error:'authentication_required'});return;}
@@ -194,6 +199,7 @@ try{
  await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
  await waitFor('!document.querySelector("#operator-logout").hidden&&document.querySelector("#setup-pool").options.length>0');
  await check('Login loads authenticated pool and tier profile','document.querySelector("#setup-pool").options[0].textContent.includes("USDG")');
+ for(const [selector,value] of policyLimitInputs)await fill(selector,value);
  await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
  await check('Available preflight shows bounds, provisional estimate and unevaluated limits',
   'document.querySelector("#setup-preflight-facts").textContent.includes("-120 to 360")&&document.querySelector("#setup-preflight-facts").textContent.includes("Provisional fork estimate")&&document.querySelector("#setup-preflight-facts").textContent.includes("Not evaluated")&&document.querySelector("#setup-preflight-detail").textContent.includes("does not create a draft")');
@@ -203,11 +209,6 @@ try{
   'document.querySelector(".setup-limits-review").textContent.includes("reference USD (X18)")&&document.querySelector(".setup-limits-review").textContent.includes("PPM")&&document.querySelector(".setup-limits-review").textContent.includes("basis points")&&document.querySelector(".setup-limits-review").textContent.includes("wei")');
  await fill('#setup-wallet-address','0x4444444444444444444444444444444444444444');
  await fill('#setup-allocation-native','1000000000000000');
- for(const [selector,value] of [['#limit-max-deployment','100000000000000000000'],['#limit-min-deployment','1000000000000000000'],
-  ['#limit-max-exposure','1000000'],['#limit-max-loss','1000000000000000000'],['#limit-max-drawdown','900000'],
-  ['#limit-max-action-cost','1000000000000000000'],['#limit-max-rolling-cost','2000000000000000000'],
-  ['#limit-max-campaign-cost','3000000000000000000'],['#limit-exit-reserve','1000000000000000'],
-  ['#limit-slippage-bps','50']])await fill(selector,value);
  await check('Draft binding review stays local, marks funding unchecked and explains limits',
   'document.querySelector("#operator-draft-binding-status").textContent.includes("structurally complete")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Funding statusUnchecked")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Campaign revisionNone · no draft exists")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Native gas allocation · wei1000000000000000")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Policy admissionNot evaluated")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("Draft persistenceNot saved")&&document.querySelector("#save-paper-draft").disabled===false');
  assert.equal(counts.drafts,0,'Read-only draft binding attempted persistence');
@@ -354,6 +355,7 @@ try{
  const lifecycleStale=await evaluate(`(async()=>{const {mountPaperLifecycleAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);let accepts=0;mountPaperLifecycleAction(root,{campaignId:'${profileId}',kind:'pause',authenticated:()=>true,request:async(path)=>{if(path.endsWith('/previews'))return{kind:'pause',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:'a9954e65-38b0-4084-8c0b-75b86136d729',contentDigest:'${'a'.repeat(64)}',expectedRevision:3,expiresAt:new Date(Date.now()+30000).toISOString(),proposal:{from:'active',to:'paused'}};if(path.endsWith('/lifecycle-operations')){accepts++;throw Object.assign(new Error('stale_revision'),{status:409,data:{error:'stale_revision'}});}throw Error('unexpected_path');}});root.querySelector('.paper-lifecycle-preview-button').click();for(let i=0;i<30&&!root.querySelector('.paper-lifecycle-confirm-button');i++)await new Promise(r=>setTimeout(r,10));root.querySelector('.paper-lifecycle-confirm-button')?.click();for(let i=0;i<30&&!root.textContent.includes('stale or conflicting');i++)await new Promise(r=>setTimeout(r,10));const result={rejected:root.textContent.includes('stale or conflicting (stale_revision)'),disabled:root.querySelector('.paper-lifecycle-confirm-button')?.disabled===true,accepts};root.remove();return result;})()`);
  assert.deepEqual(lifecycleStale,{rejected:true,disabled:true,accepts:1},'Stale lifecycle previews cannot be retried without a fresh preview');
  checks.push('Stale pause/resume acceptance rejected and disabled');
+ for(const [selector,value] of policyLimitInputs)await fill(selector,value);
  await fill('#setup-width','480');await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight unavailable"');
  await check('Unavailable preflight shows fresh source reason','document.querySelector("#setup-preflight-detail").textContent.includes("fresh_source_stale")&&document.querySelector("#setup-preflight-detail").textContent.includes("No draft or operation")');
  const count=counts.setup.length;
@@ -368,8 +370,13 @@ try{
  assert.equal(counts.session,3);assert.equal(counts.setup.length,2);assert.equal(counts.operations,0);assert.equal(counts.drafts,2);
  assert.equal(counts.openPreviews,2);assert.equal(counts.openOperations,3);assert.equal(counts.openReconciliationResponses,1);
  assert.equal(counts.draftReconciliationResponses,1);
- assert.deepEqual(counts.setup,[{profileId,capitalQuoteRaw:'250000000',halfWidthTicks:240},
-  {profileId,capitalQuoteRaw:'250000000',halfWidthTicks:480}],'Setup payload must bind the registered profile, USDG budget and selected width');
+ const submittedLimits={maxDeploymentValue:'100000000000000000000',minDeploymentValue:'1000000000000000000',
+  maxExposurePpm:1000000,maxLossValue:'1000000000000000000',maxDrawdownPpm:900000,
+  maxActionCost:'1000000000000000000',maxRollingCost:'2000000000000000000',maxCampaignCost:'3000000000000000000',
+  exitReserveWei:'1000000000000000',maxSlippageBps:50};
+ assert.deepEqual(counts.setup,[{profileId,capitalQuoteRaw:'250000000',halfWidthTicks:240,limits:submittedLimits},
+  {profileId,capitalQuoteRaw:'250000000',halfWidthTicks:480,limits:submittedLimits}],
+  'Setup payload must bind the registered profile, USDG budget, selected width and explicit reviewed limits');
  assert.deepEqual(errors,[],'Browser errors');
  for(const [name,data] of shots)await writeFile(join(tmp,name),data);
  console.log(JSON.stringify({checks,setupRequests:counts.setup.length,draftSubmissions:counts.drafts,
