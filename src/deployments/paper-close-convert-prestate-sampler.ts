@@ -9,7 +9,7 @@ import {principalAmounts} from '../backtest/principal.js';
 import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {PAPER_ACCOUNT,PAPER_ROUTER,paperQuoterAbi,paperRouterAbi,paperTokenAbi} from '../paper/execution-abi.js';
 import {restorePaperPosition,type PaperExitInventory} from '../paper/execution-exit.js';
-import {openPaperFork} from '../paper/fork.js';
+import {openPaperFork,type ForkReadHint} from '../paper/fork.js';
 import {simulatePaperTransaction} from '../paper/execution-gas.js';
 import {USDG} from '../constants.js';
 import {contentHash} from './contracts.js';
@@ -202,7 +202,9 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
  verifyPersistedContext:()=>Promise<void>;
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
  beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;now?:number;
- deterministicClock?:boolean;sampledAt?:string}):Promise<PaperCloseConvertPrestateReport>{
+ deterministicClock?:boolean;sampledAt?:string;
+ prefetchHints?:readonly ForkReadHint[];
+ onReadHints?:(hints:readonly ForkReadHint[])=>void}):Promise<PaperCloseConvertPrestateReport>{
  const now=input.now??Date.now(),open=input.openModel,profile=marketProfileSchema.parse(input.profile),
   p=profile.pool,frame=input.frame,route=paperCloseConvertRouteSchema.parse(input.route),
   carry=input.feeCarry;
@@ -239,7 +241,8 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
   'paper_close_convert_prestate_sampler_share_cap_one_percent');
  const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
   maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,
-  deterministicClock:input.deterministicClock??false});
+  deterministicClock:input.deterministicClock??false,
+  prefetchHints:input.prefetchHints,onReadHints:input.onReadHints});
  try{
   const local=await import('../client.js').then(({createRobinhoodClient})=>
    createRobinhoodClient(fork.localUrl,60_000,{retryCount:0}));
