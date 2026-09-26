@@ -46,6 +46,18 @@ describe('RangeKeeper paper pinned quote cache',()=>{
   await assert.rejects(cache.quote(source,0,10n,1_000n,2_000n),/cached quote source changed/);
   assert.equal(fake.simulations(),1);
  });
+ it('coalesces simultaneous cache-hit anchors for one source and rejects the whole batch on reorg',async()=>{
+  const fake=fakeClient(),cache=new RangeKeeperPaperPinnedQuoteCache(fake.client,profile);
+  await cache.quote(source,0,10n,1_000n,2_000n);
+  const before=fake.anchors();
+  const batch=await Promise.all(Array.from({length:9},()=>cache.quote(source,0,10n,1_000n,2_000n)));
+  assert(batch.every(quote=>quote.amountOut===1_000n));
+  assert.equal(fake.anchors()-before,1,'Concurrent exact-source quote hits made redundant anchor reads');
+  assert.equal(cache.metrics().uncachedAnchors,1);
+  fake.setBlock(hash('2'),source.timestamp);
+  await assert.rejects(Promise.all(Array.from({length:9},()=>cache.quote(source,0,10n,1_000n,2_000n))),
+   /cached quote source changed/);
+ });
  it('keeps token, size, price, and source identity in the cache key',async()=>{
   const fake=fakeClient(),cache=new RangeKeeperPaperPinnedQuoteCache(fake.client,profile);
   await cache.quote(source,0,10n,1_000n,2_000n);

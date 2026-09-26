@@ -21,6 +21,7 @@ function deepFreeze<T>(value:T):T{
  * the canonical source header. Owned-fork simulation does not use this cache. */
 export class RangeKeeperPaperPinnedQuoteCache {
  private readonly entries=new Map<string,SwapQuote>();
+ private readonly pendingAnchors=new Map<string,Promise<void>>();
  private readonly chain:RangeKeeperChain;
  private readonly chainProfile:MarketProfile;
  private calls=0;private cacheHits=0;private uncachedAnchors=0;
@@ -48,9 +49,17 @@ export class RangeKeeperPaperPinnedQuoteCache {
     hash:source.hash.toLowerCase(),timestamp:source.timestamp},token,amountIn:String(amountIn),
    price0:String(price0),price1:String(price1)}),cached=this.entries.get(key);
   if(cached){
-   const block=await this.client.getBlock({blockNumber:source.block});this.uncachedAnchors++;
-   assert(block.hash&&block.hash.toLowerCase()===source.hash.toLowerCase()&&
-    Number(block.timestamp)===source.timestamp,'RangeKeeper cached quote source changed');
+   const anchorKey=`${source.block}:${source.hash.toLowerCase()}:${source.timestamp}`;
+   let anchor=this.pendingAnchors.get(anchorKey);
+   if(!anchor){
+    anchor=(async()=>{
+     const block=await this.client.getBlock({blockNumber:source.block});
+     assert(block.hash&&block.hash.toLowerCase()===source.hash.toLowerCase()&&
+      Number(block.timestamp)===source.timestamp,'RangeKeeper cached quote source changed');
+    })();
+    this.pendingAnchors.set(anchorKey,anchor);this.uncachedAnchors++;
+   }
+   try{await anchor;}finally{if(this.pendingAnchors.get(anchorKey)===anchor)this.pendingAnchors.delete(anchorKey);}
    this.cacheHits++;return {...cached};
   }
   const result=await this.chain.quote(source,token,amountIn,price0,price1);
