@@ -6,6 +6,8 @@ import {consumeTrustedRangeKeeperSimulation} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence} from
  '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {rangeKeeperPaperPreparedForkBindingHash} from
+ '../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {rangeKeeperPaperCandidateHash,RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,
  RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES} from '../src/deployments/rangekeeper-paper-cost.js';
 import {referenceProofHash} from '../src/deployments/market-profile.js';
@@ -74,5 +76,23 @@ describe('RangeKeeper owned-fork confirmation simulation evidence',()=>{
   assert.equal(consumeTrustedRangeKeeperSimulation({simulation:fake as never,context:{} as never}),null);
   const clone=structuredClone(fake);
   assert.equal(consumeTrustedRangeKeeperSimulation({simulation:clone as never,context:{} as never}),null);
+ });
+ it('binds a prewarmed fork to the full pinned frame, profile, policy, allocation, and upstream source',()=>{
+  const binding={profile:{profile:'fixture'},frame,configHash,allocation:{token0Raw:'10',token1Raw:'20',nativeWei:'3'},
+   limits:{maxSlippageBps:25},rpcUrl:'https://archive.invalid',maxRequests:1600,timeoutMs:180_000,
+   prefetchHints:[]};
+  const original=rangeKeeperPaperPreparedForkBindingHash(binding as never);
+  assert.equal(rangeKeeperPaperPreparedForkBindingHash(binding as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,
+   frame:{...frame,tick:frame.tick+1}} as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,
+   frame:{...frame,referenceProof:{fixture:'changed'}}} as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,
+   allocation:{...binding.allocation,token1Raw:'21'}} as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,
+   limits:{maxSlippageBps:26}} as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,
+   rpcUrl:'https://other.invalid'} as never),original);
+  assert.notEqual(rangeKeeperPaperPreparedForkBindingHash({...binding,maxRequests:1599} as never),original);
  });
 });

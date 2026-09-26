@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {keccak256,stringToHex} from 'viem';
 import {z} from 'zod';
 import type {RangeKeeperLimits,RangeKeeperCandidate} from '../strategy/rangekeeper/domain.js';
@@ -14,6 +15,7 @@ import type {RangeKeeperPaperConfirmationProbe,RangeKeeperPaperConfirmationSimul
  from './rangekeeper-paper-confirmation.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 import type {ForkReadDiagnostics,ForkReadHint} from '../paper/fork.js';
+import {openPaperFork,type PaperFork} from '../paper/fork.js';
 
 export interface RangeKeeperPaperOwnedForkConfirmationEvidence {
  schemaVersion:1;kind:'rangekeeper_paper_owned_fork_confirmation_simulation_v1';
@@ -32,8 +34,83 @@ export interface RangeKeeperPaperSimulationCapabilityContext {
  configHash:string;allocation:{token0Raw:string;token1Raw:string;nativeWei:string};limits:RangeKeeperLimits;
 }
 const trustedSimulationCapabilities=new WeakMap<object,{bindingHash:string;evidenceHash:string;consumed:boolean}>();
+const preparedForkCapabilities=new WeakMap<object,{fork:PaperFork;bindingHash:string;
+ beforeRead:()=>Promise<void>;onReadHints:((hints:readonly ForkReadHint[])=>void)|undefined}>();
 function canonicalHash(value:unknown){return contentHash(JSON.parse(JSON.stringify(value,(_key,item)=>
  typeof item==='bigint'?String(item):item)));}
+export function rangeKeeperPaperPreparedForkBindingHash(input:{profile:MarketProfile;frame:PaperOpenFrame;configHash:string;
+ allocation:{token0Raw:string;token1Raw:string;nativeWei:string};limits:RangeKeeperLimits;rpcUrl:string;
+ maxRequests:number;timeoutMs:number;prefetchHints:readonly ForkReadHint[]}){
+ return canonicalHash({profileHash:contentHash(input.profile),source:input.frame.source,configHash:input.configHash,
+  frame:{referenceEligible:input.frame.referenceEligible,referenceReasons:input.frame.referenceReasons,
+   referenceProofHash:input.frame.referenceProofHash,
+   referenceProof:input.frame.referenceProof?contentHash(input.frame.referenceProof):null,
+   tick:input.frame.tick,sqrtPriceX96:String(input.frame.sqrtPriceX96),
+   poolLiquidity:String(input.frame.poolLiquidity),price0:input.frame.price0===null?null:String(input.frame.price0),
+   price1:input.frame.price1===null?null:String(input.frame.price1),
+   nativePrice:input.frame.nativePrice===null?null:String(input.frame.nativePrice)},
+  allocation:input.allocation,limits:input.limits,rpcUrlHash:createHash('sha256').update(input.rpcUrl).digest('hex'),
+  maxRequests:input.maxRequests,timeoutMs:input.timeoutMs,deterministicClock:true,
+  prefetchHints:input.prefetchHints});
+}
+
+export interface RangeKeeperPaperPreparedForkCapability {readonly kind:'rangekeeper_prepared_owned_fork_v1'}
+
+/** Opens a fresh, source-pinned local fork before candidate planning so its
+ * bounded upstream prefetch/startup can overlap read-only planning. The opaque
+ * handle contains no RPC client and cannot be serialized or caller-forged. */
+export async function prepareRangeKeeperPaperConfirmationFork(input:{profile:MarketProfile;
+ frame:PaperOpenFrame;configHash:string;allocation:{token0Raw:string;token1Raw:string;nativeWei:string};
+ limits:RangeKeeperLimits;rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
+ prefetchHints?:readonly ForkReadHint[];onReadHints?:(hints:readonly ForkReadHint[])=>void
+}):Promise<RangeKeeperPaperPreparedForkCapability>{
+ assert(input.profile.pool.chainId===4663&&/^[a-f0-9]{64}$/.test(input.configHash)&&
+  input.rpcUrl.length>0,'RangeKeeper prepared fork context invalid');
+ assert(input.frame.referenceEligible&&input.frame.referenceProof&&
+  referenceProofHash(input.frame.referenceProof)===input.frame.referenceProofHash,
+  'RangeKeeper prepared fork reference proof invalid');
+ const maxRequests=input.maxRequests??1600,timeoutMs=input.timeoutMs??180_000,
+  prefetchHints=structuredClone(input.prefetchHints??[]),source={number:BigInt(input.frame.source.block),
+   hash:input.frame.source.hash as `0x${string}`,timestamp:BigInt(input.frame.source.timestamp)},
+  bindingHash=rangeKeeperPaperPreparedForkBindingHash({...input,maxRequests,timeoutMs,prefetchHints});
+ assert(Number.isSafeInteger(maxRequests)&&maxRequests>0&&maxRequests<=2000&&
+  Number.isSafeInteger(timeoutMs)&&timeoutMs>0&&timeoutMs<=300_000,
+  'RangeKeeper prepared fork budget invalid');
+ const fork=await openPaperFork({source,
+  rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,maxRequests,timeoutMs,deterministicClock:true,
+  prefetchHints,onReadHints:input.onReadHints});
+ const handle=Object.freeze({kind:'rangekeeper_prepared_owned_fork_v1' as const});
+ preparedForkCapabilities.set(handle,{fork,bindingHash,
+  beforeRead:input.beforeRead,onReadHints:input.onReadHints});
+ return handle;
+}
+
+/** Closes an unused prepared fork after a planning failure or expiry. */
+export async function discardRangeKeeperPaperConfirmationFork(handle:RangeKeeperPaperPreparedForkCapability){
+ const entry=preparedForkCapabilities.get(handle as object);
+ if(!entry)return;
+ preparedForkCapabilities.delete(handle as object);
+ await entry.fork.close();
+}
+
+async function consumePreparedFork(handle:RangeKeeperPaperPreparedForkCapability|undefined,input:{
+ profile:MarketProfile;frame:PaperOpenFrame;configHash:string;
+ allocation:{token0Raw:string;token1Raw:string;nativeWei:string};limits:RangeKeeperLimits;
+ rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests:number;timeoutMs:number;
+ prefetchHints:readonly ForkReadHint[];onReadHints:((hints:readonly ForkReadHint[])=>void)|undefined
+}):Promise<PaperFork|undefined>{
+ if(!handle)return undefined;
+ const entry=preparedForkCapabilities.get(handle as object);
+ if(!entry)throw Error('RangeKeeper prepared fork capability unavailable');
+ if(entry.beforeRead!==input.beforeRead||entry.onReadHints!==input.onReadHints||
+  entry.bindingHash!==rangeKeeperPaperPreparedForkBindingHash({...input,prefetchHints:input.prefetchHints})){
+  preparedForkCapabilities.delete(handle as object);
+  await entry.fork.close();
+  throw Error('RangeKeeper prepared fork context changed');
+ }
+ preparedForkCapabilities.delete(handle as object);
+ return entry.fork;
+}
 function capabilityBindingHash(context:RangeKeeperPaperSimulationCapabilityContext){
  const {probe,profile,frame,configHash,allocation,limits}=context;
  assert(frame.referenceEligible&&frame.referenceProof&&
@@ -191,6 +268,7 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
  onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
  prefetchHints?:readonly ForkReadHint[];onReadHints?:(hints:readonly ForkReadHint[])=>void;
+ preparedFork?:RangeKeeperPaperPreparedForkCapability;
 }):Promise<RangeKeeperPaperConfirmationSimulation&{
  ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}>{
  const {probe,profile,frame}=input;
@@ -207,13 +285,17 @@ export async function simulateRangeKeeperPaperConfirmationOnOwnedFork(input:{
  assert.equal(candidateHash,probe.candidateHash,'Confirmation candidate identity changed before fork simulation');
  const stages=[...(probe.candidate.swap?RANGEKEEPER_PAPER_OPEN_STAGES_SWAP:
   RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP),...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES];
+ const preparedFork=await consumePreparedFork(input.preparedFork,{profile,frame,configHash:input.configHash,
+  allocation:input.allocation,limits:input.limits,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??180_000,
+  prefetchHints:input.prefetchHints??[],onReadHints:input.onReadHints});
  const request:RangeKeeperPaperGasProbeRequest={kind:'open',profile,frame,candidate:probe.candidate,
   candidateSource:probe.source,candidateReferenceProofHash:frame.referenceProofHash,
   candidateHash,scope:probe.scope,pathVersion:probe.pathVersion,stages,openMarkId:null,openModelHash:null};
  const samples=await sampleRangeKeeperPaperGasStages(request,{rpcUrl:input.rpcUrl,
   beforeRead:input.beforeRead,maxRequests:input.maxRequests,timeoutMs:input.timeoutMs,
   onReadDiagnostics:input.onReadDiagnostics,prefetchHints:input.prefetchHints,onReadHints:input.onReadHints,
-  limits:input.limits,initialBalances:input.initialBalances});
+  limits:input.limits,initialBalances:input.initialBalances,preparedFork});
  const evidence=buildRangeKeeperPaperOwnedForkConfirmationEvidence({probe,frame,
   configHash:input.configHash,samples});
  const result={status:'success' as const,sourceBlock:frame.source.block,sourceHash:frame.source.hash,

@@ -15,7 +15,7 @@ import type {RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js'
 import type {RangeKeeperPaperLoadedExitContext} from './rangekeeper-paper-context.js';
 import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
-import {openPaperFork,type ForkReadDiagnostics,type ForkReadHint} from '../paper/fork.js';
+import {openPaperFork,type ForkReadDiagnostics,type ForkReadHint,type PaperFork} from '../paper/fork.js';
 import {localReceipt,prestateOverrides,simulatePaperTransaction,type PaperTransaction} from '../paper/execution-gas.js';
 import {PAPER_ACCOUNT,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
 import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';
@@ -192,9 +192,33 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
  onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void;
  prefetchHints?:readonly ForkReadHint[];onReadHints?:(hints:readonly ForkReadHint[])=>void;
+ /** Internal-only already-open fork capability consumed by the confirmation runner. */
+ preparedFork?:PaperFork;
  limits:RangeKeeperLimits;initialBalances?:readonly [bigint,bigint];
  terminalContext?:RangeKeeperPaperLoadedExitContext;
 }):Promise<readonly RangeKeeperPaperGasStageSample[]>{
+ if(input.preparedFork){
+  try{
+   assert(request.kind==='open'&&input.initialBalances,
+    'Prepared fork can only be consumed by a complete RangeKeeper open simulation');
+   assert(input.rpcUrl.length>0&&Number.isSafeInteger(input.maxRequests??1600)&&
+    (input.maxRequests??1600)>0&&(input.maxRequests??1600)<=2000&&
+    Number.isSafeInteger(input.timeoutMs??300_000)&&(input.timeoutMs??300_000)>0&&
+    (input.timeoutMs??300_000)<=300_000&&input.limits.maxSlippageBps>=1&&
+    input.limits.maxSlippageBps<=50,'RangeKeeper owned-fork probe budget or policy invalid');
+   assert.equal(request.profile.pool.chainId,4663);
+   assert(request.frame.referenceEligible&&request.frame.referenceProof&&
+    referenceProofHash(request.frame.referenceProof)===request.frame.referenceProofHash);
+   assert.equal(request.candidateSource.block,request.frame.source.block);
+   assert(same(request.candidateSource.hash,request.frame.source.hash));
+   assert.equal(input.preparedFork.source.number,BigInt(request.frame.source.block));
+   assert.equal(input.preparedFork.source.hash.toLowerCase(),request.frame.source.hash.toLowerCase());
+   assert.equal(input.preparedFork.source.timestamp,BigInt(request.frame.source.timestamp));
+  }catch(error){
+   try{await input.preparedFork.close();}catch{/* Preserve the rejected context. */}
+   throw error;
+  }
+ }
  if(request.kind==='convert_exit')throw new Error('Convert-exit sampling requires a persisted conversion quote contract');
  if(request.kind==='retain_exit'){
   assert(input.terminalContext,'Retain-exit sampling requires trusted persisted mark and kernel context');
@@ -216,10 +240,14 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
  assert(same(request.candidateSource.hash,frame.source.hash));
  const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,
   timestamp:BigInt(frame.source.timestamp)};
- const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+ const fork=input.preparedFork??await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
   maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true,
   prefetchHints:input.prefetchHints,onReadHints:input.onReadHints});
  try{
+  assert.equal(fork.source.number,source.number,'Prepared owned fork block differs from candidate source');
+  assert.equal(fork.source.hash.toLowerCase(),source.hash.toLowerCase(),
+   'Prepared owned fork hash differs from candidate source');
+  assert.equal(fork.source.timestamp,source.timestamp,'Prepared owned fork timestamp differs from candidate source');
   const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0});
   const chain=new RangeKeeperChain(local,p);
   await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});

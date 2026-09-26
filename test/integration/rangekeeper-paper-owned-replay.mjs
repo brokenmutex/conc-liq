@@ -9,6 +9,8 @@ import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPap
  from '../../src/deployments/rangekeeper-paper-cost.js';
 import {consumeTrustedRangeKeeperSimulation,simulateRangeKeeperPaperConfirmationOnOwnedFork}
  from '../../src/deployments/rangekeeper-paper-confirmation-simulation.js';
+import {prepareRangeKeeperPaperConfirmationFork}
+ from '../../src/deployments/rangekeeper-paper-confirmation-simulation.js';
 import {consumeRangeKeeperSimulationWithAnchors} from
  '../../src/deployments/rangekeeper-paper-confirmation-producer.js';
 import {isRangeKeeperPaperConfirmationReplayCapability,replayRangeKeeperPaperConfirmationOnOwnedFork}
@@ -160,12 +162,24 @@ try{
  const pathVersion=rangeKeeperPaperPathVersion(candidate),probe={status:'candidate',campaignId:draft.id,
   revision:draft.revision,firstModelHash:'0'.repeat(64),firstCandidateHash:'1'.repeat(64),source,
   candidate,candidateHash,scope,pathVersion,sizeBand:rangeKeeperPaperSizeBand(pathVersion,scope),actionAvailable:false};
- const simulate=(readDelayMs)=>simulateRangeKeeperPaperConfirmationOnOwnedFork({probe,profile,frame:evidenceFrame,
-  configHash:draft.configHash,initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
-  allocation:draft.allocation,
-  limits,rpcUrl:archive,beforeRead:async()=>{if(readDelayMs)await new Promise(resolve=>setTimeout(resolve,readDelayMs));},
-  timeoutMs:180_000});
- const firstReplay=await simulate(0),secondReplay=await simulate(17);
+ let replayHints=[];
+ const noDelay=async()=>{},captureHints=hints=>{replayHints=hints;};
+ const simulate=(readDelayMs,preparedFork,prefetchHints=[])=>simulateRangeKeeperPaperConfirmationOnOwnedFork({
+  probe,profile,frame:evidenceFrame,configHash:draft.configHash,
+  initialBalances:[BigInt(draft.allocation.token0Raw),BigInt(draft.allocation.token1Raw)],
+  allocation:draft.allocation,limits,rpcUrl:archive,
+  beforeRead:readDelayMs?async()=>new Promise(resolve=>setTimeout(resolve,readDelayMs)):noDelay,
+  timeoutMs:180_000,prefetchHints,onReadHints:captureHints,preparedFork});
+ const firstReplay=await simulate(0);
+ const preparedFork=await prepareRangeKeeperPaperConfirmationFork({profile,frame:evidenceFrame,
+  configHash:draft.configHash,allocation:draft.allocation,limits,rpcUrl:archive,beforeRead:noDelay,
+  maxRequests:1600,timeoutMs:180_000,prefetchHints:replayHints,onReadHints:captureHints});
+ const forgedFork=structuredClone(preparedFork);
+ await assert.rejects(simulate(0,forgedFork,replayHints),/capability unavailable/,
+  'Serialized prepared-fork handle was accepted');
+ const secondReplay=await simulate(0,preparedFork,replayHints);
+ await assert.rejects(simulate(0,preparedFork,replayHints),/capability unavailable/,
+  'Prepared fork capability was reusable more than once');
  const capabilityContext={probe,profile,frame:evidenceFrame,configHash,allocation:draft.allocation,limits};
  assert.equal(consumeTrustedRangeKeeperSimulation({simulation:structuredClone(firstReplay),
   context:capabilityContext}),null,'Serialized owned-fork capability was accepted');

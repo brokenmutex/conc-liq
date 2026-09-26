@@ -23,6 +23,8 @@ import {rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPap
 import {produceRangeKeeperPaperGasEvidence} from '../../src/deployments/rangekeeper-paper-gas-evidence.ts';
 import {simulateRangeKeeperPaperConfirmationOnOwnedFork} from
  '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
+import {prepareRangeKeeperPaperConfirmationFork,discardRangeKeeperPaperConfirmationFork} from
+ '../../src/deployments/rangekeeper-paper-confirmation-simulation.ts';
 import {createRangeKeeperPaperConfirmationProducer} from
  '../../src/deployments/rangekeeper-paper-confirmation-producer.ts';
 import {processOnePaperOperation} from '../../src/deployments/paper-operation-worker.ts';
@@ -72,7 +74,7 @@ try{
     [key,typeof value==='bigint'?String(value):value])),minDeploymentValue:'0'}}),
   configHash=contentHash({...parameters,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',stateSchemaVersion:1}),
   buildId='a'.repeat(64),runtimeIdentity={buildId,configHash:'f'.repeat(64),nodeVersion:process.version};
- const quoteCache=new RangeKeeperPaperPinnedQuoteCache(rpc,profile),forkReadMetrics=[];
+ const quoteCache=new RangeKeeperPaperPinnedQuoteCache(rpc,profile),forkReadMetrics=[],beforeForkRead=async()=>{};
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(runtimeIdentity);
  const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),admin=await adminPool.connect(),
   schema=`rk_open_test_${randomUUID().replaceAll('-','')}`;
@@ -140,7 +142,8 @@ try{
     deployedValue:candidate.deployedValue,sharePpm:candidate.liquidity*1_000_000n/denominator,
     range:candidate.range,swapKind:candidate.swap?'direct_pool_exact_input':'none'};
   };
-  const samplesFrom=async(frame,candidate,scope,firstCandidateHash='0'.repeat(64),prefetchHints,saveHints,saveSimulation)=>{
+  const samplesFrom=async(frame,candidate,scope,firstCandidateHash='0'.repeat(64),prefetchHints,saveHints,
+   saveSimulation,preparedFork)=>{
    const pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope),
     probe={status:'candidate',campaignId,revision:1,firstModelHash:'0'.repeat(64),firstCandidateHash,
      source:frame.source,candidate,candidateHash:scope.candidateHash,scope,pathVersion,sizeBand,
@@ -148,10 +151,10 @@ try{
     simulation=await simulateRangeKeeperPaperConfirmationOnOwnedFork({probe,profile,frame,
      configHash:draft.configHash,initialBalances:[BigInt(draft.allocation.token0Raw),
       BigInt(draft.allocation.token1Raw)],allocation:draft.allocation,limits:policy.policy.limits,rpcUrl:archive,
-     beforeRead:async()=>{},timeoutMs:180_000,onReadDiagnostics:metrics=>{
+     beforeRead:beforeForkRead,timeoutMs:180_000,onReadDiagnostics:metrics=>{
       forkReadMetrics.push(metrics);process.stdout.write(JSON.stringify({event:'rangekeeper_owned_fork_reads',
        source:{block:frame.source.block,hash:frame.source.hash},metrics})+'\n');
-     },prefetchHints,onReadHints:saveHints});
+     },prefetchHints,onReadHints:saveHints,preparedFork});
    saveSimulation?.(simulation);
    return simulation.ownedForkEvidence.stages.map(stage=>({action:stage.stage,to:stage.to,
     calldata:stage.calldata,returnData:stage.returnData,localHash:stage.localTransactionHash,
@@ -160,8 +163,9 @@ try{
     stateOverrideHash:stage.stateOverrideHash,stateOverrides:stage.stateOverrides}));
   };
   const makeReport=async(frame,candidate,scope,candidateSource,referenceProofHashValue,firstCandidateHash,
-   prefetchHints,saveHints,saveSimulation)=>{
-   const samples=await samplesFrom(frame,candidate,scope,firstCandidateHash,prefetchHints,saveHints,saveSimulation);
+   prefetchHints,saveHints,saveSimulation,preparedFork)=>{
+   const samples=await samplesFrom(frame,candidate,scope,firstCandidateHash,prefetchHints,saveHints,
+    saveSimulation,preparedFork);
    return produceRangeKeeperPaperGasEvidence({kind:'open',campaignId,revision:1,
     configHash:draft.configHash,buildId,profile,frame,candidateSource,
     candidateReferenceProofHash:referenceProofHashValue,candidate,openMarkId:null,openModelHash:null,
@@ -214,17 +218,40 @@ try{
     preparationStartedAt=Date.now(),preparationPromise=prepareRangeKeeperPaperConfirmation({draft,
     firstFrame,firstCandidate:firstPlan.candidate,frame:capturedSecondFrame,buildId,client:rpc,
     pinnedQuoteCache:quoteCache}),
-    [pinnedReread,preparation]=await Promise.all([pinnedFramePromise,preparationPromise]),
-    pinnedFrame=pinnedReread.frame,pinnedRereadFinishedAt=pinnedReread.finishedAt,
+    prewarmedForkStartedAt=Date.now(),prewarmedForkPromise=prepareRangeKeeperPaperConfirmationFork({
+     profile,frame:capturedSecondFrame,configHash:draft.configHash,allocation:draft.allocation,
+     limits:policy.policy.limits,rpcUrl:archive,beforeRead:beforeForkRead,maxRequests:1600,
+     timeoutMs:180_000,prefetchHints:primedReadHints}).then(handle=>({handle,finishedAt:Date.now()})),
+    [pinnedResult,preparationResult,forkResult]=await Promise.allSettled([
+     pinnedFramePromise,preparationPromise,prewarmedForkPromise]),
     preparationFinishedAt=Date.now();
-   assert.equal(preparation.status,'prepared_candidate',
-    `Speculative second observation unavailable: ${preparation.reason}`);
+   const prewarmedFork=forkResult.status==='fulfilled'?forkResult.value:null;
+   if(pinnedResult.status==='rejected'||preparationResult.status==='rejected'||forkResult.status==='rejected'){
+    if(prewarmedFork)await discardRangeKeeperPaperConfirmationFork(prewarmedFork.handle);
+    throw (pinnedResult.status==='rejected'?pinnedResult.reason:
+     preparationResult.status==='rejected'?preparationResult.reason:forkResult.status==='rejected'?
+      forkResult.reason:new Error('Second observation preparation failed'));
+   }
+   const pinnedReread=pinnedResult.value,preparation=preparationResult.value,
+    pinnedFrame=pinnedReread.frame,pinnedRereadFinishedAt=pinnedReread.finishedAt;
+   if(preparation.status!=='prepared_candidate'){
+    await discardRangeKeeperPaperConfirmationFork(prewarmedFork.handle);
+    throw Error(`Speculative second observation unavailable: ${preparation.reason}`);
+   }
    let simulation;
-   const speculativeScope=preparation.scope,reportStartedAt=Date.now(),report=await makeReport(pinnedFrame,
-    preparation.candidate,speculativeScope,pinnedFrame.source,pinnedFrame.referenceProofHash,
-    preparation.firstCandidateHash,primedReadHints,undefined,value=>{simulation=value;}),reportFinishedAt=Date.now();
-   return {frame:pinnedFrame,preparation,report,simulation,pinnedRereadStartedAt,
-    pinnedRereadFinishedAt,preparationStartedAt,preparationFinishedAt,reportStartedAt,reportFinishedAt};
+   const speculativeScope=preparation.scope,reportStartedAt=Date.now();
+   try{
+    const report=await makeReport(pinnedFrame,preparation.candidate,speculativeScope,pinnedFrame.source,
+     pinnedFrame.referenceProofHash,preparation.firstCandidateHash,primedReadHints,undefined,
+     value=>{simulation=value;},prewarmedFork.handle),reportFinishedAt=Date.now();
+    return {frame:pinnedFrame,preparation,report,simulation,pinnedRereadStartedAt,
+     pinnedRereadFinishedAt,preparationStartedAt,preparationFinishedAt,reportStartedAt,reportFinishedAt,
+     prewarmedForkStartedAt,prewarmedForkReadyAt:prewarmedFork.finishedAt};
+   }finally{
+    // If planning/report construction failed before the sampler consumed the
+    // one-shot handle, close its local fork before the fixture cleans its DB.
+    await discardRangeKeeperPaperConfirmationFork(prewarmedFork.handle);
+   }
   });
   const firstReport=await firstReportPromise;
   let firstImportFinishedAt=0,overlapTiming=null;
@@ -299,6 +326,7 @@ try{
     registrationParallel:overlapTiming?.registrationMs/1000,
     secondFramePinnedReread:(preparedSecond.pinnedRereadFinishedAt-preparedSecond.pinnedRereadStartedAt)/1000,
     speculativeSecondPlan:(preparedSecond.preparationFinishedAt-preparedSecond.preparationStartedAt)/1000,
+    secondForkPrefetchStartup:(preparedSecond.prewarmedForkReadyAt-preparedSecond.prewarmedForkStartedAt)/1000,
     speculativeSecondOwnedFork:(preparedSecond.reportFinishedAt-preparedSecond.reportStartedAt)/1000,
     secondProbe:(secondPlanFinishedAt-secondPlanStartedAt)/1000,
     secondReport:(secondReportFinishedAt-secondReportStartedAt)/1000,
