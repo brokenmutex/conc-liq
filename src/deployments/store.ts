@@ -2468,11 +2468,14 @@ export class DeploymentStore {
    const campaign=(await db.query<{mode:string;chain_id:number;lifecycle:string;
     current_revision:number;strategy_id:string;profile:unknown;profile_hash:string;
     profile_evidence:unknown;config:unknown;config_hash:string;open_mark_id:string|null}>(`
-    SELECT c.mode,c.chain_id,c.lifecycle,c.current_revision,c.open_mark_id,r.strategy_id,p.profile,
+    SELECT c.mode,c.chain_id,c.lifecycle,c.current_revision,o.id::text AS open_mark_id,r.strategy_id,p.profile,
      p.profile_hash,p.evidence AS profile_evidence,r.config,r.config_hash
     FROM deployment_campaigns c JOIN deployment_revisions r
      ON r.campaign_id=c.id AND r.revision=c.current_revision
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN LATERAL (SELECT (array_agg(id ORDER BY id))[1] AS id FROM deployment_marks
+     WHERE campaign_id=c.id AND provenance->>'classification'='paper_model_provisional'
+     HAVING count(*)=1) o ON TRUE
     WHERE c.id=$1 FOR UPDATE OF c`,[campaignId])).rows[0];
    if(!campaign||campaign.mode!=='paper'||campaign.strategy_id!=='static_manual_v1')
     throw new DeploymentConflict('paper_close_convert_v3_admission_unavailable');
@@ -2550,7 +2553,7 @@ export class DeploymentStore {
    if(Object.keys(request).length!==7||request.kind!=='close_convert'||
     request.strategyId!=='static_manual_v1'||request.profileHash!==campaign.profile_hash||
     request.openMarkId!==current.openMarkId||request.previousMarkId!==current.previousMarkId||
-    request.modelHash!==current.modelHash||request.scopeHash!==current.costs.scopeHash||
+    request.modelHash!==current.modelHash||request.scopeHash!==paperCloseConvertGasScopeHashV2(current.scope)||
     evidence.verificationClass!=='canonical_static_paper_close_convert_terminal_v3'||
     evidence.classification!=='paper_model_provisional'||evidence.profileHash!==campaign.profile_hash||
     evidence.modelHash!==current.modelHash||evidence.prestateReportHash!==current.prestateReport.reportHash||
@@ -4053,8 +4056,9 @@ export class DeploymentStore {
     FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
-    JOIN LATERAL (SELECT id FROM deployment_marks WHERE campaign_id=c.id
-     AND provenance->>'classification'='paper_model_provisional' ORDER BY id LIMIT 1) open_mark ON TRUE
+    JOIN LATERAL (SELECT (array_agg(id ORDER BY id))[1] AS id FROM deployment_marks
+     WHERE campaign_id=c.id AND provenance->>'classification'='paper_model_provisional'
+     HAVING count(*)=1) open_mark ON TRUE
     JOIN deployment_previews v ON v.id=o.preview_id WHERE o.id=$1 FOR UPDATE OF o,c`,
     [operationId])).rows[0];
    if(!row||row.mode!=='paper'||row.kind!=='close_convert')
@@ -4208,12 +4212,15 @@ export class DeploymentStore {
     evidence:Record<string,unknown>;content_digest:string;expected_revision:number;expires_at:Date}>(`
     SELECT o.campaign_id,o.preview_id,o.kind,o.status,o.claimed_by,
      (o.claim_until>=clock_timestamp()) AS claim_valid,c.mode,c.lifecycle,c.current_revision,
-     c.chain_id,c.open_mark_id::text,c.runtime_identity,p.profile,p.profile_hash,
+     c.chain_id,open_mark.id::text AS open_mark_id,c.runtime_identity,p.profile,p.profile_hash,
      p.evidence AS profile_evidence,r.config,r.config_hash,r.strategy_id,
      v.proposal,v.request,v.evidence,v.content_digest,v.expected_revision,v.expires_at
     FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN LATERAL (SELECT (array_agg(id ORDER BY id))[1] AS id FROM deployment_marks
+     WHERE campaign_id=c.id AND provenance->>'classification'='paper_model_provisional'
+     HAVING count(*)=1) open_mark ON TRUE
     JOIN deployment_previews v ON v.id=o.preview_id WHERE o.id=$1 FOR UPDATE OF o,c`,
     [input.operationId])).rows[0];
    if(!row||row.mode!=='paper'||row.kind!=='close_convert')

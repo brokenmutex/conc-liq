@@ -660,7 +660,7 @@ export function buildPaperConversionAccountingV3(open:PaperOpenModel,profile:Mar
    modeledSwapExpectedProceedsQuote:String(proceedsExpected),
    modeledSwapProceedsQuote:String(proceedsMinimum),modeledSwapCostQuote:signedText(modeledSwapCost)};
  return paperConversionAccountingV3Schema.parse({...baseV3,markKind:'close_convert',
-  closeModelHash:contentHash(model),gasProfiles,
+  closeModelHash:model.modelHash,gasProfiles,
   inventory:{...base.inventory,token0Raw:String(token0),token1Raw:String(token1),nativeWei:String(native),
    cumulativeGasWei:String(cumulativeGas),hasLiquidity:false},economics,
   conversion:{quoteHash:q.quoteHash,pathVersion:q.pathVersion,source:q.source,fromAsset,toAsset,

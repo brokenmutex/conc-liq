@@ -13,7 +13,7 @@ import {buildPaperCloseConvertModel,PAPER_STATIC_CONVERT_GAS_PATH,
  PAPER_STATIC_CONVERT_GAS_STAGES} from '../src/deployments/paper-close-convert-model.js';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
-import {advanceEphemeralStaticPaperFeeCarry} from
+import {advanceEphemeralStaticPaperFeeCarry,paperCloseConvertFeeRangeSchema} from
  '../src/deployments/paper-close-convert-ephemeral-fees.js';
 
 const campaignId='00000000-0000-4000-8000-000000000001',
@@ -61,6 +61,15 @@ function mockClient(output='999'){
   simulateContract:async()=>({result:[BigInt(output)]})} as never;
 }
 
+test('ephemeral fee replay preserves both persisted range schema forms',()=>{
+ const tickOnly={tickLower:lower,tickUpper:upper},full={...tickOnly,fullWidthTicks:upper-lower,
+  requestedLower:lower,requestedUpper:upper,rounded:false};
+ assert.deepEqual(paperCloseConvertFeeRangeSchema.parse(tickOnly),tickOnly);
+ assert.deepEqual(paperCloseConvertFeeRangeSchema.parse(full),full);
+ assert.equal(paperCloseConvertFeeRangeSchema.safeParse({tickLower:lower,fullWidthTicks:upper-lower,
+  requestedLower:lower,requestedUpper:upper,rounded:false}).success,false);
+});
+
 test('terminal preview rejects prestate data unless the exact report and prospective rows are supplied',async()=>{
  const principal=(await import('../src/backtest/principal.js')).principalAmounts({liquidity:1_000_000n,
   tickLower:lower,tickUpper:upper,sqrtPriceX96:frame.sqrtPriceX96});
@@ -91,9 +100,11 @@ test('terminal preview rejects prestate data unless the exact report and prospec
     evidenceClass:'fork_estimated',model,validation:{reportHash:'f'.repeat(64)},
     sourceHash:contentHash(source),observedUntil:new Date(sampleTime)};
   }),
+  feeRange={tickLower:lower,tickUpper:upper,fullWidthTicks:upper-lower,
+   requestedLower:lower,requestedUpper:upper,rounded:false},
   previousFeeCarry={kind:'paper_fee_carry_v1' as const,pool:profile.pool.pool,token0Address:profile.pool.token0,
    token1Address:profile.pool.token1,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
-   range:{tickLower:lower,tickUpper:upper},liquidity:openModel.candidate.liquidity,
+   range:feeRange,liquidity:openModel.candidate.liquidity,
    stream:'fixture',targetSetHash:'e'.repeat(64),from:{block:'100',hash:openModel.source.hash},
    through:{block:'110',hash:state.previous.sourceHash},token0:{
     lowerRawQ128:'340282366920938463463374607431768211456',
@@ -113,7 +124,7 @@ test('terminal preview rejects prestate data unless the exact report and prospec
   token0Address:profile.pool.token0,token1Address:profile.pool.token1,fee:profile.pool.fee,
   tickSpacing:profile.pool.tickSpacing,from:previousFeeCarry.through,
   to:{block:frame.source.block,hash:frame.source.hash},
-  range:{tickLower:lower,tickUpper:upper},liquidity:openModel.candidate.liquidity,
+  range:feeRange,liquidity:openModel.candidate.liquidity,
   token0:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},
   token1:{lowerRawQ128:'0',upperRawQ128:'0',lowerAmountRaw:'0',upperAmountRaw:'0'},
   events:0,segments:0,partialSegments:0,accounting:'modeled_hypothetical_fee_share' as const,

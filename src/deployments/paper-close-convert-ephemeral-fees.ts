@@ -18,9 +18,13 @@ export interface EphemeralStaticPaperCloseConvertFeeReplay {
 const decimal=z.string().regex(/^(0|[1-9][0-9]*)$/),hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/),
  address=z.string().regex(/^0x[0-9a-fA-F]{40}$/),sourceSchema=z.object({block:decimal,hash,
  timestamp:z.number().int().nonnegative()}).strict(),feeAnchorSchema=z.object({block:decimal,hash}).strict(),
- feeAmount=z.object({lowerRawQ128:decimal,
- upperRawQ128:decimal,lowerAmountRaw:decimal,upperAmountRaw:decimal}).strict(),
- rangeSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int()}).strict(),
+feeAmount=z.object({lowerRawQ128:decimal,
+ upperRawQ128:decimal,lowerAmountRaw:decimal,upperAmountRaw:decimal}).strict();
+const basicRangeSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int()}).strict(),
+ fullRangeSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+  fullWidthTicks:z.number().int(),requestedLower:z.number().int(),requestedUpper:z.number().int(),
+  rounded:z.boolean()}).strict(),
+rangeSchema=z.union([basicRangeSchema,fullRangeSchema]),
  carrySchema=z.object({kind:z.literal('paper_fee_carry_v1'),pool:address,token0Address:address,
  token1Address:address,fee:z.number().int().positive(),tickSpacing:z.number().int().positive(),
  range:rangeSchema,liquidity:decimal,stream:z.string().min(1),
@@ -45,6 +49,7 @@ const decimal=z.string().regex(/^(0|[1-9][0-9]*)$/),hash=z.string().regex(/^0x[0
  replayHash:z.string().regex(/^[0-9a-f]{64}$/)}).strict();
 
 export const ephemeralStaticPaperCloseConvertFeeReplaySchema=replaySchema;
+export const paperCloseConvertFeeRangeSchema=rangeSchema;
 
 /** Rechecks the complete ephemeral witness before it is persisted in a
  * terminal preview. The modeled carry remains hypothetical fee evidence. */
