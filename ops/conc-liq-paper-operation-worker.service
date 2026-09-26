@@ -1,5 +1,6 @@
 # Rendering template: use scripts/render-release-units.mjs; do not install directly.
-# Starting this unit opts the loopback command API into connected-worker readiness.
+# Set DEPLOYMENT_PAPER_OPERATION_WORKER=1 in the rendered private environment
+# file. launch.mjs strips inherited Environment= values before starting worker.
 [Unit]
 Description=conc-liq supervised static/manual and RangeKeeper paper operation worker
 After=network-online.target postgresql.service
