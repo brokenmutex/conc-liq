@@ -20,8 +20,6 @@ export type PaperSetupPreflightInput=z.infer<typeof paperSetupPreflightInput>;
 export interface PaperSetupProfile {id:string;profile:MarketProfile;profileHash:string}
 
 const ceilDiv=(n:bigint,d:bigint)=>n===0n?0n:(n+d-1n)/d;
-const ceilRefValueUsdX18=(amount:bigint,priceX18:bigint,decimals:number)=>
- ceilDiv(amount*priceX18,10n**BigInt(decimals));
 const ceilRefValueQuoteRaw=(amount:bigint,priceX18:bigint,decimals:number,
  quotePriceX18:bigint,quoteDecimals:number)=>
  ceilDiv(amount*priceX18*10n**BigInt(quoteDecimals),
@@ -114,8 +112,12 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  catch{return unavailable(input,'exact_mint_requirements_unavailable');}
  if(minted.liquidity<lower||needed.valueQuoteRaw>budget)
   return unavailable(input,'exact_mint_requirement_budget_mismatch');
- const deployedUsdX18=ceilRefValueUsdX18(needed.amount0,frame.price0,p!.decimals0)+
-  ceilRefValueUsdX18(needed.amount1,frame.price1,p!.decimals1),
+ // Cost calibration is scoped by the production static planner's exact minted
+ // inventory and floor-valued reference total. Keep the setup budget above
+ // independently rounded up in quote units; only this gas-profile identity
+ // must match the actual paper open candidate.
+ const deployedUsdX18=minted.amount0*frame.price0/10n**BigInt(p!.decimals0)+
+  minted.amount1*frame.price1/10n**BigInt(p!.decimals1),
   sharePpm=minted.liquidity*1_000_000n/(frame.poolLiquidity+minted.liquidity);
  let gasRows:PaperGasProfileRow[],gasPriceWei:bigint;
  try{[gasRows,gasPriceWei]=await Promise.all([
