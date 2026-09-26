@@ -1612,8 +1612,8 @@ this recovery-panel commit and do not establish an exact clean release identity.
 
 | Path | Available source behavior | Remaining acceptance boundary |
 | --- | --- | --- |
-| Static/manual paper setup, open, pause/resume, retain-close | Authenticated/idempotent source callbacks and shared Positions controls; 16 synthetic browser mechanics assertions include lost accepted-response recovery. After the four-connection worker-pool fix and browser-driver corrections, the canonical source UI completed setup/open/pause/resume/retain through actual command/worker processes. One terminal mark, first-session capital and persisted lower bounds, desktop/mobile chart/activity/history and explicit gaps matched saved evidence. | The new clean sealed artifact remains open. See section 12 for exact source, logs and delivery status. Retain exact balances, earned fees and paid gas remain unavailable; no production cutover. |
-| Static/manual paper convert-close | Saved V3 provisional preview, canonical indexed-fee HTTP acceptance, default-worker completion, atomic database completion, same-key readiness-loss replay and fresh-key readiness rejection passed in the September 26 isolated fixture. | Canonical browser and sealed command/worker conversion proof remain. Economic recovery and production cutover remain unavailable. |
+| Static/manual paper setup, open, pause/resume, retain-close | Canonical browser setup/open/valuation/pause/resume/retain passed through the actual sealed command/worker on clean runtime `609e68f`, build `b78c3f22…`. One terminal mark, first-session capital and persisted lower bounds, desktop/mobile chart/activity/history and explicit gaps matched saved evidence. | Retain exact balances, earned fees and paid gas remain unavailable. Economic conversion recovery and final static paper release review remain open; see section 12. Production cutover is not authorized. |
+| Static/manual paper convert-close | Canonical browser setup/open/later valuation/convert-close passed on the same sealed `609e68f` / `b78c3f22…` runtime. One terminal mark and V3 snapshot, exactly matched modeled capital-out records, post-conversion inventory and desktop/mobile history passed. | Actual interrupted-worker economic completion, canonical restore and changed-anchor rejection remain open. Costs and conversion outcomes are provisional modeled evidence; production cutover is not authorized. |
 | RangeKeeper paper | Planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. The newer attempt reached producer-receipt publication and failed there; see section 12. | No successful producer/worker booking is recorded. Reliable freshness, producer publication, lifecycle/management, both terminal exits and shared closure parity remain F3 gates. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
 | Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
@@ -1766,10 +1766,10 @@ platform is not needed to establish the cause.
 | Task | Current result | Remaining gate |
 | --- | --- | --- |
 | MVP-1 | Source check gate restored; final clean pinned `609e68f` passed repository/type checks and 876/876 tests. | Preserve this exact source/build identity through remaining sealed gates. |
-| MVP-2 | Connection-exhaustion cause measured and fixed; the complete source retain browser lifecycle passed through the actual command and worker, with one terminal mark. | Recheck the final clean sealed artifact under MVP-5. |
+| MVP-2 | Connection-exhaustion cause measured and fixed; the complete canonical retain browser lifecycle passed through the final sealed command/worker `609e68f` / `b78c3f22…`, with one terminal mark and desktop/mobile parity. | Complete; retain custody and paid-cost limitations remain explicit. |
 | MVP-3 | Both canonical browser exits passed on sealed `b78c3f22…` / source `609e68f`: setup/open/pause/resume/retain and setup/open/later valuation/V3 conversion, including first-session capital, terminal inventory, explicit gaps and desktop/mobile history. | Preserve the same artifact for economic restart and restore gates. |
 | MVP-4 | Real process suspension/kill helpers and lost-response/expired-preview reconnect path wired into the conversion harness. | Successful canonical default-worker restart with exactly-once economic completion and the applicable changed-evidence rejection proof. |
-| MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Both canonical lifecycles and economic recovery on this build, canonical restore and cutover review. Production authorization remains pending. |
+| MVP-5 | Runbook and concrete unexecuted cutover proposal prepared; synthetic restore mechanics passed. Clean `609e68f` passed 876 checks and produced verified candidate `b78c3f22…`; rendered units verified without installation. | Economic recovery on this build, canonical restore, changed-anchor rejection and final cutover review. Both ordinary canonical lifecycles passed. Production authorization remains pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
@@ -2113,9 +2113,9 @@ The proposed private environment remains absent. Logs:
 `/tmp/static-mvp-check-609e68f-20260926.log`,
 `/tmp/static-mvp-release-build-609e68f-20260926.log`,
 `/tmp/static-mvp-render-units-609e68f-20260926.log`.
-Both sealed browser exits, positive economic restart plus canonical restore,
-and changed-anchor rejection are being run serially against this exact build;
-MVP-4/MVP-5 remain open until their actual process evidence passes.
+Both ordinary sealed browser exits subsequently passed on this exact build.
+Positive economic restart plus canonical restore and changed-anchor rejection
+are being run serially; MVP-4/MVP-5 remain open until those process gates pass.
 
 **Sealed retain browser passed on the final candidate:** build `b78c3f22…`
 completed actual authenticated UI setup/open/later valuation/pause/resume/retain
@@ -2211,8 +2211,27 @@ readiness 1.622s, same suspension/kill/lease checks, relaunch readiness 1.820s,
 two worker passes, no stderr/errors and a clean SIGTERM exit. The owned database,
 runtime directory and script were removed. Evidence:
 `/tmp/sealed-worker-restart-diagnostic-owned-db-609e68f-20260926.json`.
-This rules out a general sealed-launcher restart failure; advisory contention
-was not established. The canonical timeout's cause remains unconfirmed. The
+These isolated empty-schema and owned-database runs demonstrate successful
+same-file sealed restarts; they do not explain the canonical-campaign timeout.
+Advisory contention was not established. Its cause remains unconfirmed. The
 external driver will capture PID/exit/error/process-state and startup timing
 without secrets before rerunning, keeping the 30-second bound and unchanged
 runtime artifact. MVP-4 and canonical restore remain open.
+
+
+**Fourth sealed recovery attempt captured startup evidence:** external harness
+`15eaf52` on the unchanged `609e68f` / `b78c3f22…` artifact again proved
+accepted-response loss, natural preview expiry, actual worker kill/lease release,
+and HTTP 202 reconciliation of the exact original request and operation.
+Campaign `aa4ca46f-89f4-4776-b324-b23a19236d11`, operation
+`324808e3-5110-4b09-8bf5-4aca41019387`, remained queued. Restart PID
+308923 had no spawn error or recorded exit, zero stdout/stderr, and process
+state `R` / wait channel `wait_on_page_bit_common` at the unchanged 30-second
+readiness deadline. The environment file SHA and runtime identity matched the
+initial worker; no readiness lock holder was present and diagnostic SQL passed.
+This localizes the failure before readiness acquisition but does not establish
+its cause. Processes, owned schema and temporary inputs were cleaned. Log:
+`/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-15eaf5-20260926.txt`.
+Recovery, canonical restore and changed-anchor rejection remain open. Diagnose
+the measured startup boundary before repeating the same full fixture; preserve
+the existing timeout, sealed verification and economic evidence gates.

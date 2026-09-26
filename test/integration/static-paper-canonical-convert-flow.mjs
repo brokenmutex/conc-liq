@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import {createHash,randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {once} from 'node:events';
 import {parseEnv} from 'node:util';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync,readlinkSync} from 'node:fs';
 import {mkdtemp,rm,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {createServer as createTcpServer} from 'node:net';
@@ -49,12 +49,40 @@ const waitFor=async(read,label,timeoutMs=360_000)=>{
  while(Date.now()<deadline){const value=await read();if(value)return value;await sleep(500);}
  throw Error(`Timed out waiting for ${label}`);
 };
-const procSnapshot=child=>{
+const procSnapshot=(child,reviewedReleaseRoot=null)=>{
  let state='unavailable',wchan='unavailable';
+ let userCpuTicks=null,systemCpuTicks=null,io={rchar:null,readBytes:null,syscr:null};
  try{const stat=readFileSync(`/proc/${child.pid}/stat`,'utf8');
-  state=stat.slice(stat.lastIndexOf(')')+1).trim().split(/\s+/)[0]??'unavailable';}catch{}
+  const fields=stat.slice(stat.lastIndexOf(')')+1).trim().split(/\s+/);
+  state=fields[0]??'unavailable';userCpuTicks=fields[11]??null;systemCpuTicks=fields[12]??null;
+ }catch{}
  try{wchan=readFileSync(`/proc/${child.pid}/wchan`,'utf8').trim()||'unavailable';}catch{}
- return {state,wchan};
+ try{const rows=readFileSync(`/proc/${child.pid}/io`,'utf8').split('\n');
+  for(const row of rows){const [key,value]=row.split(':').map(part=>part.trim());
+   if(key==='rchar')io.rchar=value??null;if(key==='read_bytes')io.readBytes=value??null;
+   if(key==='syscr')io.syscr=value??null;}
+ }catch{}
+ const openReleaseFiles=new Set(),otherFdKinds={socket:0,pipe:0,anon:0,external:0,other:0};
+ let fdCount=null,inspectedFdCount=0,fdInspectionTruncated=false;
+ if(reviewedReleaseRoot){
+  const root=`${resolve(reviewedReleaseRoot)}/`;
+  try{const descriptors=readdirSync(`/proc/${child.pid}/fd`).sort((a,b)=>Number(a)-Number(b));
+   fdCount=descriptors.length;inspectedFdCount=Math.min(fdCount,128);
+   fdInspectionTruncated=fdCount>inspectedFdCount;
+   for(const fd of descriptors.slice(0,inspectedFdCount)){
+   let target='';try{target=readlinkSync(`/proc/${child.pid}/fd/${fd}`);}catch{continue;}
+   const cleanTarget=target.endsWith(' (deleted)')?target.slice(0,-10):target;
+   if(cleanTarget.startsWith(root))openReleaseFiles.add(cleanTarget.slice(root.length).slice(0,240));
+   else if(cleanTarget.startsWith('socket:['))otherFdKinds.socket++;
+   else if(cleanTarget.startsWith('pipe:['))otherFdKinds.pipe++;
+   else if(cleanTarget.startsWith('anon_inode:'))otherFdKinds.anon++;
+   else if(cleanTarget.startsWith('/'))otherFdKinds.external++;
+   else otherFdKinds.other++;
+  }}catch{}
+ }
+ return {state,wchan,userCpuTicks,systemCpuTicks,io,
+  fdCount,inspectedFdCount,fdInspectionTruncated,
+  openReleaseFiles:[...openReleaseFiles].sort().slice(0,16),otherFdKinds};
 };
 const reservePort=async()=>{
  const server=createTcpServer();server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -231,7 +259,7 @@ async function main(){
    'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?true:null,
    runtimeIdentity:accountingIdentity});
   const workerReady=()=>store.paperOperationWorkerReady();
-  const workerReadinessFailure=async(child,startedAt)=>{
+  const workerReadinessFailure=async(child,startedAt,procSamples)=>{
    let lockRows=[],recentBackends=[],postgresDiagnosticError=null;
    try{
     lockRows=(await admin.query(`SELECT a.pid,a.state,a.wait_event_type,a.wait_event,l.mode,l.granted
@@ -248,18 +276,24 @@ async function main(){
    let readinessLease=null,readinessProbeError=null;
    try{readinessLease=await workerReady();}catch(error){readinessProbeError={name:error?.name??'Error',
     code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};}
-   return {process:{...child.__safeCapture,...procSnapshot(child),elapsedMs:Date.now()-startedAt},
+   return {process:{...child.__safeCapture,...procSnapshot(child,releaseRoot),elapsedMs:Date.now()-startedAt},
+    procSamples,
     readinessLease,readinessProbeError,
     postgres:{readinessLockHolders:lockRows,recentBackends,diagnosticError:postgresDiagnosticError}};
   };
   const waitForWorkerReady=async(child,label,timeoutMs=30_000)=>{
-   const startedAt=Date.now(),deadline=startedAt+timeoutMs;
+   const startedAt=Date.now(),deadline=startedAt+timeoutMs,procSamples=[];let nextProcSample=startedAt;
    while(Date.now()<deadline){
+    if(Date.now()>=nextProcSample){
+     if(procSamples.length>=16)procSamples.shift();
+     procSamples.push({elapsedMs:Date.now()-startedAt,...procSnapshot(child,releaseRoot)});
+     nextProcSample=Date.now()+2_000;
+    }
     let ready=false,probeError=null;
     try{ready=await workerReady();}catch(error){probeError={name:error?.name??'Error',
      code:typeof error?.code==='string'&&/^[A-Z0-9_]{1,60}$/i.test(error.code)?error.code:null};}
     if(child.__safeCapture?.spawnError||processExited(child)){
-     const diagnostics=await workerReadinessFailure(child,startedAt);
+     const diagnostics=await workerReadinessFailure(child,startedAt,procSamples);
      phase('worker_unavailable_before_readiness',{launcherEntry:sealed?'deployments-paper-worker':
       'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?
        runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,...diagnostics,
@@ -268,10 +302,10 @@ async function main(){
       `signal=${child.signalCode??'none'}, spawnError=${child.__safeCapture?.spawnError?.code??
        child.__safeCapture?.spawnError?.name??'none'}`);
     }
-    if(ready)return true;
+    if(ready)return {elapsedMs:Date.now()-startedAt,procSamples};
     await sleep(250);
    }
-   const diagnostics=await workerReadinessFailure(child,startedAt);
+   const diagnostics=await workerReadinessFailure(child,startedAt,procSamples);
    phase('worker_readiness_timeout',{launcherEntry:sealed?'deployments-paper-worker':
     'src/deployments-paper-worker.ts',runtimeEnvSha256,sameRuntimeEnvFile:sealed?
      runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,...diagnostics});
@@ -279,12 +313,11 @@ async function main(){
     `elapsedMs=${diagnostics.process.elapsedMs}, stdoutBytes=${diagnostics.process.stdoutBytes}, `+
     `stderrBytes=${diagnostics.process.stderrBytes}`);
   };
-  const initialWorkerStartedAt=Date.now();
-  await waitForWorkerReady(worker,'real paper worker readiness lease');phase('worker_ready',{
+  const initialWorkerReadiness=await waitForWorkerReady(worker,'real paper worker readiness lease');phase('worker_ready',{
    pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':'src/deployments-paper-worker.ts',
    runtimeEnvSha256,sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,
-   runtimeIdentity:accountingIdentity,process:{...worker.__safeCapture,...procSnapshot(worker),
-    elapsedMs:Date.now()-initialWorkerStartedAt}});
+   runtimeIdentity:accountingIdentity,process:{...worker.__safeCapture,...procSnapshot(worker,releaseRoot),
+    elapsedMs:initialWorkerReadiness.elapsedMs},procSamples:initialWorkerReadiness.procSamples});
   browser=await startCanonicalPaperBrowser({origin,password});
   const setup=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,capital:'2'});
   campaignId=setup.campaignId;phase('browser_setup_and_open_accepted',
@@ -503,11 +536,12 @@ async function main(){
     'src/deployments-paper-worker.ts',runtimeEnvSha256:restartEnvSha256,
     sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,
     process:{...worker.__safeCapture,elapsedMs:Date.now()-restartStartedAt}});
-   await waitForWorkerReady(worker,'restarted worker readiness lease',30_000);
+   const restartedWorkerReadiness=await waitForWorkerReady(worker,'restarted worker readiness lease',30_000);
    phase('worker_restarted',{pid:worker.pid,launcherEntry:sealed?'deployments-paper-worker':
     'src/deployments-paper-worker.ts',runtimeEnvSha256:restartEnvSha256,
     sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,runtimeIdentity:accountingIdentity,
-    process:{...worker.__safeCapture,...procSnapshot(worker),elapsedMs:Date.now()-restartStartedAt}});
+    process:{...worker.__safeCapture,...procSnapshot(worker,releaseRoot),elapsedMs:restartedWorkerReadiness.elapsedMs},
+    procSamples:restartedWorkerReadiness.procSamples});
   }
   const terminal=await waitFor(async()=>{const row=await store.operation(convertOperationId);
    return ['succeeded','blocked','rejected','failed','cancelled'].includes(row?.status)?row:null;},

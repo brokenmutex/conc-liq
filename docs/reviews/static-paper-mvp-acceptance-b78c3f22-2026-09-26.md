@@ -10,9 +10,10 @@ remain open. This review does not authorize a production cutover.
 - Build: `b78c3f22bd0ffa11f5bf7f72cbcd0388464a65aac4b4f3c0d2e2af80d94dc9f3`.
 - Artifact: `/tmp/conc-liq-static-mvp-releases-20260926/` plus the build ID.
 - Node: bundled `v24.20.0`; its own `launch.mjs --verify` passed.
-- External conversion harness: `633566a954e49e02e0c5833caa8ee4381ef240e6`.
-  This later commit changes only the plan and test drivers. Runtime code and
-  artifact bytes remain those of the clean reviewed runtime source.
+- Ordinary sealed conversion harness: `633566a954e49e02e0c5833caa8ee4381ef240e6`.
+- Current interrupted-conversion harness: `15eaf520c0cded6529436118bcfa69f19b00d907`.
+  Later commits change documentation and external test drivers only. Runtime
+  code and artifact bytes remain those of the clean reviewed runtime source.
 
 The harness supplies disposable PostgreSQL schemas, a verified supported profile,
 explicit paper allocation, operator authentication, local browser controls,
@@ -59,7 +60,7 @@ are insufficient evidence of correct economic booking.
 | Manifest and offline units | Passed; 13 units rendered, not installed; prototype/preview excluded | `/tmp/static-mvp-release-build-609e68f-20260926.log`; `/tmp/static-mvp-render-units-609e68f-20260926.log` |
 | Canonical sealed retain | Passed: actual browser setup/open/valuation/pause/resume/retain, one terminal mark, no paid gas | `/tmp/static-paper-retain-browser-609e68f-sealed-20260926.log` |
 | Canonical sealed conversion | Passed: one V3 terminal/snapshot, three exactly matched modeled capital-out records, no paid gas | `/tmp/conc-liq-review-evidence/canonical-convert-sealed-609e68f-633566a-20260926.txt` |
-| Canonical economic restart and same-key expiry recovery | Pending actual result | `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-633566a-20260926.txt` |
+| Canonical economic restart and same-key expiry recovery | Fourth run failed at restart readiness; same-key replay after expiry passed, economic completion remains unproved | `/tmp/conc-liq-review-evidence/canonical-convert-recovery-sealed-609e68f-15eaf5-20260926.txt` |
 | Restore of that restarted campaign | Pending actual result; synthetic mechanics do not substitute | Same recovery log |
 | Changed accepted anchor after restart | Pending actual result; injected RPC response, not observed chain reorg | Separate negative process gate |
 
