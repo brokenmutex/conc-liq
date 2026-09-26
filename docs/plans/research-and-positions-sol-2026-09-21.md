@@ -1474,6 +1474,33 @@ restart, with no chain RPC, economic marks, ledger entries or signer. Sealed
 build/process verification is the next F5 gate and does not authorize unit
 installation or production cutover.
 
+`0ca3707` fixes an observed browser failure where detail refreshes discarded
+pending action reviews. Matching campaign/revision/lifecycle/authentication
+widgets retain their state; changed or ineligible identities drop it.
+`7a13283` fixes terminal builders that rejected centered-width drafts, and
+`55351c0` proves retain and convert use the frozen saved-open geometry with
+both supported static/manual parameter forms. `cc9d6b6` adds the opt-in
+`test:integration:dashboard-paper-lifecycle-browser` command: its September 26
+run passed 14 assertions through actual authenticated HTTP, PostgreSQL, and
+bounded paper-worker passes for draft/open/pause/resume/retain-close, followed
+by closed-history desktop/mobile views. It recorded four operations and two
+marks, left pause/resume economic rows unchanged, and found no duplicate work
+after restart. Chain frames and anchors were synthetic; no signer loaded.
+The separate Chromium dashboard regression passed 43 checks after the
+conversion recovery fix in `76cf6c9`. These results do not prove canonical-RPC
+economics or the still-gated V3 convert-close and RangeKeeper paths.
+
+`382e24c` records the sealed review build and exact source identity in
+`docs/reviews/sealed-paper-command-review-2026-09-26.md`. Build
+`2b1b0c9a7c12b118a95a2037c17afc4aaa84e61da83a3ca28a8824bdacb015fe`
+from `fd86568de891c51654954881dc4e3bd7430653cb` passed manifest verification,
+rendered-unit validation and the opt-in sealed command/worker process harness.
+This verified pause/resume, lease loss and restart, real Positions reads and
+desktop/mobile stages with zero RPC calls, economic marks or ledger writes.
+The review record pins the ignored research inputs required for the clean
+806-test check. Later source changes are not included in this review artifact;
+it is not a production cutover or full economic-lifecycle release gate.
+
 The RangeKeeper positive fixture's measured failure was preview expiry:
 first-report replay took 38 seconds, while repeated full reference-frame
 reads during second-observation polling consumed the remaining budget.
