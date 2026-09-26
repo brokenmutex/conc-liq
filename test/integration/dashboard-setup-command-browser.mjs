@@ -1,7 +1,8 @@
 // Run with TEST_DATABASE_URL='postgresql://root@localhost/conc_liq?host=/var/run/postgresql' node --import tsx test/integration/dashboard-setup-command-browser.mjs
 // The only simulated boundary is canonical chain observation; PostgreSQL,
 // command HTTP routes, session/CSRF, dashboard assets, browser and saved state
-// are real. No paper worker or signer is started.
+// are real. Default mode starts no worker; the optional lifecycle mode runs
+// bounded in-process paper worker passes. Neither mode loads a signer.
 import assert from 'node:assert/strict';
 import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
 import {once} from 'node:events';
@@ -24,11 +25,19 @@ import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/constants.ts';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
+import {processOnePaperOperation} from '../../src/deployments/paper-operation-worker.ts';
+import {PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
+import {persistTrustedStaticPaperRetainPreview} from '../../src/deployments/paper-close-retain-preflight.ts';
+import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
+
+// Opt-in positive workflow mechanics. Chain frames/headers remain synthetic;
+// this mode does not establish owned-fork economics or production readiness.
+const completeLifecycle=process.argv.includes('--complete-static-lifecycle');
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:6}),admin=await adminPool.connect();
 const schema=`dashboard_command_${randomUUID().replaceAll('-','')}`,temp=await mkdtemp(`${tmpdir()}/conc-liq-command-browser-`);
-let store,server,chrome,ws;const errors=[],resourceFailures=[],checks=[];
+let store,server,chrome,ws,workerLease;const errors=[],resourceFailures=[],checks=[];
 const blockSource={block:'100',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 const sourceHash=`0x${'a'.repeat(64)}`,codeHash=`0x${'c'.repeat(64)}`;
 const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_FACTORY,
@@ -106,11 +115,22 @@ for(const stage of PAPER_STATIC_GAS_STAGES){
 assert.equal((await store.paperGasProfiles(poolAddress)).length,6);
 
 let lastOpenPreview=null,openPreviewRequests=0,openAcceptRequests=0;
+const previewAttempts=[];
 const verifySource=async(_chainId,sources)=>{
  for(const source of sources)if(source.block!==blockSource.block||source.hash!==sourceHash||
   source.timestamp!==blockSource.timestamp)throw Error('mock_source_not_canonical');
 };
 const paperPreview=async(campaignId,kind)=>{
+ previewAttempts.push(kind);
+ if(completeLifecycle&&(kind==='pause'||kind==='resume'))return store.recordPaperLifecyclePreview(campaignId,kind);
+ if(completeLifecycle&&kind==='close_retain'){
+  const state=await store.paperValuationState(campaignId),terminalFrame={...frame(),
+   source:{...blockSource,block:'101',hash:`0x${'b'.repeat(64)}`}};
+  const gasProfiles=await store.paperGasProfiles(poolAddress);
+  return persistTrustedStaticPaperRetainPreview({store,state,frame:terminalFrame,
+   gasProfiles,gasPriceWei:1_000_000_000n,
+   verifyAnchors:verifyWorkflowAnchors});
+ }
  if(kind!=='open')return {kind,status:'unavailable',reason:'not_in_harness',actionAvailable:false};
  openPreviewRequests++;
  const draft=await store.paperDraft(campaignId),freshFrame=frame();
@@ -131,10 +151,27 @@ const portProbe=createTcpServer();portProbe.listen(0,'127.0.0.1');await once(por
 const address=portProbe.address();assert(address&&typeof address!=='string');const port=address.port;
 await new Promise((resolve,reject)=>portProbe.close(error=>error?reject(error):resolve()));
 const origin=`http://127.0.0.1:${port}`;
+const chain={getChainId:async()=>4663,getBlock:async({blockNumber})=>{
+ const number=String(blockNumber);assert(['100','101'].includes(number),'synthetic header is explicitly bounded');
+ return {hash:number==='100'?sourceHash:`0x${'b'.repeat(64)}`,timestamp:BigInt(blockSource.timestamp)};
+}};
+const verifyWorkflowAnchors=async(chainId,sources)=>{
+ assert.equal(chainId,4663);
+ for(const source of sources){const header=await chain.getBlock({blockNumber:BigInt(source.block)});
+  assert.equal(header.hash,source.hash);assert.equal(Number(header.timestamp),source.timestamp);}
+};
 const dashboardRead=async(path)=>{
  if(path==='/api/dashboard')return {pools:[{registryEnabled:true,poolAddress,rwaSymbol:'TOKEN',fee:3000,tickSpacing:60}]};
  if(path==='/api/research')return {generatedAt:new Date().toISOString(),pools:[],windows:[]};
- if(path.startsWith('/api/positions'))return {positions:[],serverTime:new Date().toISOString()};
+ if(path.startsWith('/api/positions')){
+  const rows=completeLifecycle?await readDeploymentRows(admin):[];
+  const id=decodeURIComponent(path.split('?')[0].slice('/api/positions/'.length));
+  if(path.startsWith('/api/positions/')){
+   const row=rows.find(row=>`paper-dep-${row.id}`===id);
+   assert(row,'detail must come from persisted campaign');return readDeploymentDetail(admin,row,24);
+  }
+  return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString()};
+ }
  throw Error('unexpected_dashboard_path');
 };
 server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,
@@ -147,6 +184,10 @@ server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,
  paperOperationReplay:(id,input,kinds)=>store.acceptedOperationReplay(id,input,kinds),
  paperOpenAcceptance:async(id,input,actor)=>{openAcceptRequests++;
   return store.acceptStaticPaperOpenOperation(id,input,actor,verifySource);},
+ ...(completeLifecycle?{
+  paperLifecycleAcceptance:(id,input,actor)=>store.acceptStaticPaperLifecycleOperation(id,input,actor),
+  paperRetainAcceptance:(id,input,actor)=>store.acceptStaticPaperRetainOperation(id,input,actor,verifyWorkflowAnchors),
+ }:{}),
  paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
 server.listen(port,'127.0.0.1');await once(server,'listening');
 
@@ -182,7 +223,10 @@ const waitFor=async expression=>{for(let i=0;i<160;i++){if(await evaluate(expres
  binding:document.querySelector('#operator-draft-binding-status')?.textContent,button:document.querySelector('#save-paper-draft')?.disabled,
  auth:document.querySelector('#operator-auth-status')?.textContent,logoutHidden:document.querySelector('#operator-logout')?.hidden,
  savedStatus:document.querySelector('#saved-paper-drafts-status')?.textContent,savedHidden:document.querySelector('#saved-paper-drafts')?.hidden,
- recoveryHidden:document.querySelector('#pending-open-recovery')?.hidden,localOpen:localStorage.getItem('concliq.operator.paper-open.pending.v1')})`))+` errors=${JSON.stringify(errors)}`);};
+ recoveryHidden:document.querySelector('#pending-open-recovery')?.hidden,
+ actionStatus:[...document.querySelectorAll('.retain-action-status')].map(e=>e.textContent),
+ localOpen:localStorage.getItem('concliq.operator.paper-open.pending.v1')})`))+
+ ` errors=${JSON.stringify(errors)} previewAttempts=${JSON.stringify(previewAttempts)} responses=${JSON.stringify(resourceFailures)}`);};
 const check=async(name,expression)=>{assert(await evaluate(expression),name);checks.push(name);};
 const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
 const fill=(selector,value)=>evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.value=${JSON.stringify(value)};
@@ -238,11 +282,79 @@ await check('Real command API 503 preserves same-key open recovery and blocks an
 assert.equal((await admin.query('SELECT count(*)::int AS count FROM deployment_operations WHERE campaign_id=$1',[draftId])).rows[0].count,0);
 assert.equal(openAcceptRequests,0,'worker-not-ready never reaches the operation acceptance callback');
 assert.equal(openPreviewRequests,1,'one fresh open preview follows draft creation');
+if(completeLifecycle){
+ workerLease=await adminPool.connect();
+ assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
+  PAPER_OPERATION_READINESS_LOCK)).rows[0].acquired,true);
+ const waitOperation=async(kind)=>{
+  for(let attempt=0;attempt<100;attempt++){
+   const row=(await admin.query(`SELECT id::text,status FROM deployment_operations
+    WHERE campaign_id=$1 AND kind=$2 ORDER BY created_at DESC LIMIT 1`,[draftId,kind])).rows[0];
+   if(row)return row;
+   await new Promise(resolve=>setTimeout(resolve,100));
+  }
+  throw Error(`Browser did not submit ${kind}`);
+ };
+ const complete=async(kind,lifecycle)=>{
+  const operation=await waitOperation(kind);
+  const result=await processOnePaperOperation(store,chain,admin,`browser-${kind}`);
+  assert.equal(result.status,'completed',JSON.stringify(result));assert.equal(result.operationId,operation.id);
+  assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',[draftId])).rows[0].lifecycle,lifecycle);
+  assert.equal((await store.operation(operation.id)).status,'succeeded');
+  return operation;
+ };
+ await click('#retry-pending-open');
+ const opened=await complete('open','active');
+ await waitFor('localStorage.getItem("concliq.operator.paper-open.pending.v1")===null');
+ assert.equal(openAcceptRequests,1);
+ assert.equal((await admin.query('SELECT idempotency_key FROM deployment_operations WHERE id=$1',[opened.id])).rows[0].idempotency_key,openKey);
+ const rows=await readDeploymentRows(admin),row=rows.find(row=>row.id===draftId);
+ assert(row);assert.equal(deploymentPosition(row).status,'open');
+ assert.equal((await readDeploymentDetail(admin,row,24)).performance.timeline[0].action,'enter');
+ checks.push('Browser retries the same pending open key after lease readiness; real worker books one open');
+ const showPositions=async()=>{
+  await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+  await waitFor('!document.querySelector("#operator-logout").hidden');
+  await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
+  await waitFor('document.querySelector("#paper-chart title")!==null');
+  await waitFor('document.querySelector(".paper-lifecycle-preview-button")&&!document.querySelector(".paper-lifecycle-preview-button").disabled');
+ };
+ for(const [kind,lifecycle]of [['pause','paused'],['resume','active']]){
+  await showPositions();await click('.paper-lifecycle-preview-button');
+  await waitFor('document.querySelector(".paper-lifecycle-confirm-button")?.disabled===false');
+  await click('.paper-lifecycle-confirm-button');await complete(kind,lifecycle);
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',[draftId])).rows[0].n,1);
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE campaign_id=$1',[draftId])).rows[0].n,3);
+  checks.push(`Authenticated browser ${kind} completes through the durable paper worker`);
+ }
+ await showPositions();await click('.retain-preview-button');
+ await waitFor('document.querySelector(".retain-confirm-button")!==null||document.querySelector(".retain-action-root .retain-action-status")?.textContent.includes("unavailable")||document.querySelector(".retain-action-root .retain-action-status")?.textContent.includes("rejected")');
+ assert(await evaluate('document.querySelector(".retain-confirm-button")?.disabled===false'),
+  await evaluate('document.querySelector(".retain-action-root").textContent'));
+ checks.push('Retain preview is actionable at the authenticated boundary');
+ await click('.retain-confirm-button');await complete('close_retain','closed');
+ const closedRows=await readDeploymentRows(admin),closedRow=closedRows.find(row=>row.id===draftId);
+ assert.equal(deploymentPosition(closedRow).status,'closed');
+ assert.equal((await readDeploymentDetail(admin,closedRow,24)).performance.timeline.at(-1).action,'exit');
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1',[draftId])).rows[0].n,2);
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',[draftId])).rows[0].n,4);
+ assert.equal((await processOnePaperOperation(store,chain,admin,'browser-restarted')).status,'idle');
+ checks.push('Browser retain-close records one terminal mark; restarted worker has no duplicate action');
+ await navigate('/operator');
+ await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
+ await click('#paper [data-action="scope"][data-value="history"]');
+ await waitFor('document.querySelector("#paper").textContent.includes("Campaign closed")');
+ for(const [width,mobile]of [[1440,false],[390,true]]){
+  await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile});
+  await check(`Closed persisted workflow has no active controls or overflow at ${width}px`,
+   '!document.querySelector(".paper-lifecycle-preview-button")&&!document.querySelector(".retain-preview-button")&&document.documentElement.scrollWidth<=innerWidth');
+ }
+}
 assert.equal(errors.length,0,JSON.stringify(errors));
 assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/.test(item.url)).length,0,
  'dashboard script/style assets load without 404s: '+JSON.stringify(resourceFailures));
 console.log(JSON.stringify({checks,profileId,draftId,openPreviewId:lastOpenPreview?.id,
- openPreviewRequests,openAcceptRequests,operationsPersisted:0,workerStarted:false,signerLoaded:false,
+ openPreviewRequests,openAcceptRequests,operationsPersisted:completeLifecycle?4:0,workerStarted:completeLifecycle,signerLoaded:false,
  browserExceptions:errors,httpResponses:resourceFailures,sourceBoundary:'deterministic canonical frame and anchor verifier only'},null,2));
 
 }finally{
@@ -252,6 +364,8 @@ if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await new Promise(reso
  if(chrome.exitCode===null)chrome.kill('SIGKILL');}
 if(server?.listening)await new Promise(resolve=>server.close(resolve));
 await store?.close();await admin.query('SET search_path=public');
+if(workerLease){await workerLease.query('SELECT pg_advisory_unlock_shared($1::int,$2::int)',PAPER_OPERATION_READINESS_LOCK);
+ workerLease.release();}
 await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await adminPool.end();
 await rm(temp,{recursive:true,force:true});
 }
