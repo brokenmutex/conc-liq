@@ -35,27 +35,43 @@ function localConnection(testDatabaseUrl){
 }
 
 async function evidenceSnapshot(pool,schema){
- const rows=async query=>(await pool.query(query)).rows.map(row=>row.row),
+ // Keep row JSON as PostgreSQL text. Returning a json/jsonb value lets node-postgres
+ // parse numeric(78,0) and bigint fields into IEEE-754 Numbers before contentHash
+ // sees them; distinct chain amounts above MAX_SAFE_INTEGER can then collapse.
+ const snapshots=async query=>(await pool.query(query)).rows.map(({row_json})=>({rowJson:row_json})),
+  keyedSnapshots=async query=>(await pool.query(query)).rows.map(({row_json,...keys})=>
+   ({...keys,rowJson:row_json})),
   records=async (query,values)=>(await pool.query(query,values)).rows;
- const campaigns=await rows(`SELECT to_jsonb(c) AS row FROM ${schema}.deployment_campaigns c ORDER BY c.id`);
+ const campaigns=await keyedSnapshots(`SELECT to_jsonb(c)::text AS row_json,c.id::text AS id,c.lifecycle
+  FROM ${schema}.deployment_campaigns c ORDER BY c.id`);
  assert(campaigns.length>0,'canonical fixture schema contains no deployment campaigns');
  assert(campaigns.every(row=>row.lifecycle==='closed'),
   'stop the canonical worker and close every fixture campaign before restore rehearsal');
  const campaignIds=campaigns.map(row=>row.id);
- const migrations=await rows(`SELECT to_jsonb(m) AS row FROM ${schema}.schema_migrations m ORDER BY version`),
-  profiles=await rows(`SELECT to_jsonb(p) AS row FROM ${schema}.deployment_market_profiles p ORDER BY id`),
-  pools=await rows(`SELECT to_jsonb(i) AS row FROM ${schema}.indexer_pools i ORDER BY stream_key,pool_address`),
-  revisions=await rows(`SELECT to_jsonb(r) AS row FROM ${schema}.deployment_revisions r ORDER BY campaign_id,revision`),
-  previews=await rows(`SELECT to_jsonb(p) AS row FROM ${schema}.deployment_previews p ORDER BY campaign_id,created_at,id`),
-  operations=await rows(`SELECT to_jsonb(o) AS row FROM ${schema}.deployment_operations o ORDER BY campaign_id,created_at,id`),
-  intents=await rows(`SELECT to_jsonb(i) AS row FROM ${schema}.deployment_operation_intents i ORDER BY operation_id,stage`),
-  reservations=await rows(`SELECT to_jsonb(w) AS row FROM ${schema}.deployment_wallet_reservations w ORDER BY campaign_id`),
-  marks=await rows(`SELECT to_jsonb(m) AS row FROM ${schema}.deployment_marks m ORDER BY campaign_id,id`),
-  ledger=await rows(`SELECT to_jsonb(l) AS row FROM ${schema}.deployment_ledger l ORDER BY campaign_id,id`),
-  calibrations=await rows(`SELECT to_jsonb(p) AS row FROM ${schema}.deployment_calibration_profiles p ORDER BY id`),
-  accounting=await rows(`SELECT to_jsonb(a) AS row FROM ${schema}.deployment_paper_accounting a ORDER BY campaign_id,id`),
-  feeEvidence=await rows(`SELECT to_jsonb(f) AS row FROM ${schema}.deployment_paper_fee_evidence f ORDER BY campaign_id,id`),
-  invalidations=await rows(`SELECT to_jsonb(i) AS row FROM ${schema}.deployment_paper_accounting_invalidations i ORDER BY campaign_id,id`),
+ const migrations=await snapshots(`SELECT to_jsonb(m)::text AS row_json FROM ${schema}.schema_migrations m ORDER BY m.version`),
+  profiles=await snapshots(`SELECT to_jsonb(p)::text AS row_json FROM ${schema}.deployment_market_profiles p ORDER BY p.id`),
+  pools=await snapshots(`SELECT to_jsonb(i)::text AS row_json FROM ${schema}.indexer_pools i ORDER BY i.stream_key,i.pool_address`),
+  revisions=await keyedSnapshots(`SELECT to_jsonb(r)::text AS row_json,campaign_id::text AS campaign_id,
+   revision::text AS revision FROM ${schema}.deployment_revisions r ORDER BY r.campaign_id,r.revision`),
+  previews=await keyedSnapshots(`SELECT to_jsonb(p)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_previews p ORDER BY p.campaign_id,p.created_at,p.id`),
+  operations=await keyedSnapshots(`SELECT to_jsonb(o)::text AS row_json,id::text AS id,
+   campaign_id::text AS campaign_id,kind,status FROM ${schema}.deployment_operations o
+   ORDER BY o.campaign_id,o.created_at,o.id`),
+  intents=await snapshots(`SELECT to_jsonb(i)::text AS row_json FROM ${schema}.deployment_operation_intents i ORDER BY i.operation_id,i.stage`),
+  reservations=await snapshots(`SELECT to_jsonb(w)::text AS row_json FROM ${schema}.deployment_wallet_reservations w ORDER BY w.campaign_id`),
+  marks=await keyedSnapshots(`SELECT to_jsonb(m)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_marks m ORDER BY m.campaign_id,m.id`),
+  ledger=await keyedSnapshots(`SELECT to_jsonb(l)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_ledger l ORDER BY l.campaign_id,l.id`),
+  calibrations=await keyedSnapshots(`SELECT to_jsonb(p)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_calibration_profiles p ORDER BY p.id`),
+  accounting=await keyedSnapshots(`SELECT to_jsonb(a)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_paper_accounting a ORDER BY a.campaign_id,a.id`),
+  feeEvidence=await keyedSnapshots(`SELECT to_jsonb(f)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_paper_fee_evidence f ORDER BY f.campaign_id,f.id`),
+  invalidations=await keyedSnapshots(`SELECT to_jsonb(i)::text AS row_json,id::text AS id
+   FROM ${schema}.deployment_paper_accounting_invalidations i ORDER BY i.campaign_id,i.id`),
   triggers=await records(`SELECT c.relname AS table_name,t.tgname,t.tgenabled FROM pg_trigger t
    JOIN pg_class c ON c.oid=t.tgrelid JOIN pg_namespace n ON n.oid=c.relnamespace
    WHERE n.nspname=$1 AND c.relname=ANY($2::text[]) AND NOT t.tgisinternal ORDER BY c.relname,t.tgname`,
