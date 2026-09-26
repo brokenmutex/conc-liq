@@ -1,0 +1,51 @@
+{
+  "status": "passed",
+  "capturedAt": "2026-09-26T12:30:24.636Z",
+  "fixture": "test/integration/paper-close-convert-v3-canonical-worker.mjs",
+  "log": "/tmp/paper-close-convert-v3-http-exactsource-20260926.log",
+  "isolatedDeploymentSchema": true,
+  "sourceIndexerReadOnly": true,
+  "open": {
+    "gasSampleBlock": "73082480",
+    "gasImportedBlock": "73082480",
+    "costStatus": "provisional",
+    "gasProfileRows": 6,
+    "persistedOnSampledSource": true
+  },
+  "conversion": {
+    "latestMarkBeforePreviewBlock": "73082668",
+    "replaySourceBlock": "73082766",
+    "sourceAgeMs": {
+      "preview": 72933,
+      "acceptance": 96470,
+      "workerCompletion": 120636
+    },
+    "freshnessLimitMs": 180000,
+    "httpReviewActionAvailable": true,
+    "httpAcceptanceStatus": 202,
+    "sameKeyRetryReplayed": true,
+    "freshKeyAfterLeaseConsumptionStatus": 503,
+    "workerCompleted": true,
+    "terminalMarks": 1,
+    "modeledLedgerRows": 3,
+    "paidCostsAvailable": false
+  },
+  "executionBoundary": {
+    "signerLoaded": false,
+    "broadcasts": 0,
+    "schemaCleaned": true,
+    "productionWorkerProcessTested": false,
+    "browserHttpTested": false
+  },
+  "phaseTimes": {
+    "openGasSampled": "2026-09-26T12:28:24.719Z",
+    "openGasImported": "2026-09-26T12:28:28.144Z",
+    "openBooked": "2026-09-26T12:28:30.348Z",
+    "feeValuation": "2026-09-26T12:28:33.465Z",
+    "feeCarryReady": "2026-09-26T12:28:39.448Z",
+    "terminalReport": "2026-09-26T12:29:16.135Z",
+    "terminalPreview": "2026-09-26T12:29:36.933Z",
+    "terminalAccepted": "2026-09-26T12:30:00.470Z",
+    "workerCompleted": "2026-09-26T12:30:24.636Z"
+  }
+}
