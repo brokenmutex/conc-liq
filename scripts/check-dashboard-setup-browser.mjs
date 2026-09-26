@@ -381,5 +381,5 @@ try{
  if(child&&child.exitCode===null){child.kill('SIGTERM');await new Promise(resolve=>{const timer=setTimeout(resolve,2500);
   child.once('exit',()=>{clearTimeout(timer);resolve();});});if(child.exitCode===null)child.kill('SIGKILL');}
  if(server.listening)await new Promise(resolve=>server.close(resolve));
- await rm(tmp,{recursive:true,force:true});
+ await rm(tmp,{recursive:true,force:true,maxRetries:5,retryDelay:100});
 }
