@@ -50,6 +50,7 @@ test('read-only static paper setup sizes round-up mint inputs within fresh indep
  assert.equal(result.actionAvailable,false);
  assert.equal(result.draftCreated,false);
  assert.equal(result.operationCreated,false);
+ assert('profileHash' in result);
  assert.equal(result.profileHash,contentHash(profile),
   'cost-unavailable sizing still binds the verified profile needed for source-matched preparation');
  assert.equal(result.range?.tickLower,-60);
