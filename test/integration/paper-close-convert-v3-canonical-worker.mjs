@@ -36,10 +36,15 @@ import {buildProspectivePaperCloseConvertPrestateGasProfiles}
 import {selectPaperCloseConvertPrestateCostsV1} from '../../src/deployments/paper-close-convert-prestate-costs.ts';
 import {verifyPaperStaticCloseConvertTerminalForWorker} from
  '../../src/deployments/paper-close-convert-terminal-replay-verifier.ts';
+import {PAPER_CONVERSION_ACCOUNTING_POLICY_V3} from '../../src/deployments/paper-accounting.ts';
 import {readDeploymentRows,deploymentPosition} from '../../src/dashboard/deployment-position.ts';
 
+const phaseTimes={};
+const phase=(name,source)=>{phaseTimes[name]={at:new Date().toISOString(),sourceBlock:source?.block??null,
+ sourceAgeMs:source?Date.now()-Number(source.timestamp)*1000:null};};
 const fail=error=>{const msg=error instanceof Error?(error.stack??error.message):'canonical V3 worker fixture failed';
- process.stderr.write(`${msg.replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,1000)}\n`);
+ process.stderr.write(`${msg.replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,1000)}\n`+
+  `phase_timing=${JSON.stringify(phaseTimes)}\n`);
  process.exitCode=1;};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const assertLocalDb=()=>{
@@ -116,8 +121,10 @@ async function main(){
   let frame=await readCanonicalPaperOpenFrame(rpc,profile),indicative=buildIndicativePaperOpenPreview(draft,frame);
   assert.equal(indicative.status,'indicative',`open candidate unavailable: ${indicative.reason}`);
   const openReport=await sampleStaticPaperGas({rpcUrl:archive,draft,frame,beforeRead:async()=>{},
-   maxRequests:1600,timeoutMs:300_000}),attestation=await verifyPaperGasSource(rpc,openReport),
+   maxRequests:1600,timeoutMs:300_000});phase('openGasSampled',frame.source);
+  const attestation=await verifyPaperGasSource(rpc,openReport),
    imported=await store.registerPaperGasEvidence(openReport,attestation);
+  phase('openGasImported',frame.source);
   assert.equal(imported.created,true);
   draft=await store.paperDraft(draft.id);frame=await readCanonicalPaperOpenFrame(rpc,profile);
   indicative=buildIndicativePaperOpenPreview(draft,frame);
@@ -131,6 +138,7 @@ async function main(){
    openWorker=await processOnePaperOperation(store,rpc,indexer,'canonical-open-worker',
     {rpcUrl:archive});
   assert.equal(openWorker.status,'completed');assert.equal(openAcceptance.status,'queued');
+  phase('openBooked',frame.source);
 
   // Pin the prior principal valuation to the exact indexed replay cursor, then
   // let canonical fee replay/V2 projection establish the saved predecessor.
@@ -142,6 +150,7 @@ async function main(){
   const valuation=buildPaperPrincipalValuation(openingState.openModel,openingState.openMarkId,
    openingState.previous,replayFrame,profile);
   const valuationResult=await store.recordTrustedPaperPrincipalValuation(valuation);
+  phase('feeValuation',replayFrame.source);
   await recordCanonicalPaperFeeEvidence(store,rpc,indexer,draft.id);
   for(let n=0;n<8;n++){
    const next=await recordCanonicalNextPaperConversionAccountingV2(store,rpc,draft.id);
@@ -151,6 +160,7 @@ async function main(){
    revision:1,verifyAnchors:anchors});
   assert.equal(context.state.previous.markId,valuationResult.markId,
    'fixture latest mark changed before conversion preview');
+  phase('feeCarryReady',context.state.previous.source);
 
   // The candidate source must be a later, fresh replay cursor than the exact
   // persisted fee carry. No terminal mark is inserted by preview sampling.
@@ -165,6 +175,7 @@ async function main(){
     verifyPersistedContext:()=>context.verifyPersistedContext({state:context.state,
      feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
     verifyAnchors:anchors,beforeRead:async()=>{},deterministicClock:true});
+  phase('terminalReport',frame.source);
   await store.registerStaticPaperCloseConvertPrestateGas({report,verifyAnchors:anchors,
    verifyFeeReplay:async()=>{
     const current=await readStaticPaperCloseConvertFeeContext({store,campaignId:draft.id,
@@ -190,6 +201,7 @@ async function main(){
       sourceHash:stage.sourceHash,callHash:stage.callHash,
       gasUnitsExpected:stage.gasUnitsExpected,gasUnitsBound:stage.gasUnitsBound}))};
    }});
+  phase('terminalPreview',frame.source);
   assert.equal(preview.actionAvailable,false);assert.equal(preview.operationAcceptanceAvailable,false);
   assert.equal(preview.source.block,frame.source.block);
   const afterPreview=await store.paperValuationState(draft.id);
@@ -230,6 +242,7 @@ async function main(){
    draft.id,acceptRequest,'fixture_operator',verifyTerminal,anchors);}
   catch(error){if(sourceFrameMismatch&&error instanceof Error)
     error.message+=` (source-frame diagnostic: ${sourceFrameMismatch})`;throw error;}
+  phase('terminalAccepted',frame.source);
   await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1}),
    /paper_close_convert_fee_operation_pending/);
   const replayBinding=operation=>store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,
@@ -246,18 +259,19 @@ async function main(){
    {rpcUrl:archive});
   assert.equal(completed.status,'completed',JSON.stringify(completed));
   assert.equal(completed.operationId,accepted.id);
+  phase('workerCompleted',frame.source);
   const rows=await readDeploymentRows(admin),position=rows.map(deploymentPosition).find(row=>
    row.id===`paper-dep-${draft.id}`);
   assert(position);assert.equal(position.deployment.conversionAccountingStatus,'available');
   assert.equal(position.deployment.accounting?.policyVersion,
-   'paper_fixed_flow_convert_v3_prestate_v1');
+   PAPER_CONVERSION_ACCOUNTING_POLICY_V3);
   assert.equal(position.accounting,'provisional');
   const terminalRows=(await admin.query(`SELECT count(*)::int AS n FROM deployment_marks
    WHERE campaign_id=$1 AND provenance->>'operationId'=$2`,[draft.id,accepted.id])).rows[0].n,
    ledger=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
     WHERE campaign_id=$1 AND operation_id=$2`,[draft.id,accepted.id])).rows[0].n;
   assert.equal(terminalRows,1);assert.equal(ledger,3);
-  console.log(JSON.stringify({status:'canonical_v3_worker_fixture_passed',
+  console.log(JSON.stringify({status:'canonical_v3_worker_fixture_passed',phaseTiming:phaseTimes,
    latestMarkBeforePreview:context.state.previous.source.block,replaySource:frame.source.block,
    replayAgeMs:Date.now()-frame.source.timestamp*1000,openOperationId:openAcceptance.id,
    closeOperationId:accepted.id,completed:completed.stage,terminalMarks:terminalRows,
