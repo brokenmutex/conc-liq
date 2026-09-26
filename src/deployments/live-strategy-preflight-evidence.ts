@@ -189,6 +189,11 @@ export function composeLiveStrategyPreflightEvidence(input:unknown){
    /^0x[0-9a-f]{64}$/i.test(source.hash)&&typeof source.block==='string'&&raw.safeParse(source.block).success;
   checks.push(check('snapshot_source',sourceBound?'matched':'unavailable',sourceBound?undefined:'custody_snapshot_source_unconfirmed'));
   if(!sourceBound)addMissing('custody_snapshot_source_unconfirmed');
+  const nonce=record(snapshot.nonce),nonceBound=sourceBound&&fieldAvailable(nonce)&&typeof nonce.value==='string'&&
+   raw.safeParse(nonce.value).success;
+  checks.push(check('snapshot_nonce',nonceBound?'matched':'unavailable',nonceBound?undefined:
+   'wallet_nonce_unavailable_at_confirmed_source'));
+  if(!nonceBound)addMissing('wallet_nonce_unavailable_at_confirmed_source');
   if(profile){
    const expectedTokens=[profile.pool.token0,profile.pool.token1].map(x=>x.toLowerCase()).sort();
    const observedTokens=arrayField(snapshot.tokenBalances).map(item=>{

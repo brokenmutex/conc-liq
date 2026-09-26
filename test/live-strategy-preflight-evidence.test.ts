@@ -85,6 +85,21 @@ test('mismatched wallet, chain, token, manager or spender binding is surfaced ex
  assert(badWallet.missing.includes('custody_snapshot_wallet_mismatch'));
 });
 
+test('canonical wallet nonce is required and must be bound to the confirmed custody source',()=>{
+ const valid=compose();
+ assert.equal(valid.checks.find(item=>item.name==='snapshot_nonce')?.status,'matched');
+ for(const nonce of [{status:'unavailable',reason:'wallet_nonce_unavailable'},
+  {status:'available',value:'07'},{status:'available',value:'not-a-nonce'}]){
+  const result=compose(saved(),snapshot('static_manual_v1',{nonce}));
+  assert.equal(result.checks.find(item=>item.name==='snapshot_nonce')?.status,'unavailable');
+  assert(result.missing.includes('wallet_nonce_unavailable_at_confirmed_source'));
+  assert.equal(result.actionAvailable,false);assert.equal(result.executionEligible,false);
+ }
+ const unconfirmed=compose(saved(),snapshot('static_manual_v1',{source:{...snapshot().source,confirmed:false}}));
+ assert.equal(unconfirmed.checks.find(item=>item.name==='snapshot_nonce')?.status,'unavailable');
+ assert(unconfirmed.missing.includes('wallet_nonce_unavailable_at_confirmed_source'));
+});
+
 test('bad hashes, missing limits, unresolved legacy intents and positive NFT count stay unavailable',()=>{
  const badHash=compose(saved('static_manual_v1',{profileHash:'0'.repeat(64)}));
  assert(badHash.missing.includes('saved_profile_hash_mismatch'));
