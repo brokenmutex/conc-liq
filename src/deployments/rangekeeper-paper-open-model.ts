@@ -1,7 +1,6 @@
 import type {RobinhoodClient} from '../client.js';
 import {MAX_TICK,MIN_TICK,sqrtRatioAtTick} from '../backtest/principal.js';
 import type {RangeKeeperCandidate,RangeKeeperLimits,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
-import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {planRangeKeeper,rawValue} from '../strategy/rangekeeper/planner.js';
 import {contentHash,rangeKeeperParameters} from './contracts.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
@@ -11,7 +10,7 @@ import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,
  type RangeKeeperPaperCandidateScope,type RangeKeeperPaperGasProfileReader,
  type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
 import type {PaperGasProfileRow} from './paper-cost.js';
-import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
+import {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 
 const WAD=10n**18n;
 const PPM=1_000_000n;
@@ -239,14 +238,11 @@ export async function buildRangeKeeperPaperOpenModel(input:BuildRangeKeeperPaper
   lastEligible:null,exit:null,confirmation:null};
  const source={block:BigInt(frame.source.block),hash:frame.source.hash as `0x${string}`,
   timestamp:frame.source.timestamp};
- const chain=new RangeKeeperChain(input.client,p);
- if(input.pinnedQuoteCache) {
-  if(!input.pinnedQuoteCache.matches(input.client,draft.profile))
-   return emptyModel(draft,frame,['rangekeeper_quote_cache_context_mismatch'],policy);
- }
- const quote=async(token:0|1,amount:bigint)=>input.pinnedQuoteCache?
-  input.pinnedQuoteCache.quote(source,token,amount,frame.price0!,frame.price1!):
-  chain.quote(source,token,amount,frame.price0!,frame.price1!);
+ const pinnedQuoteCache=input.pinnedQuoteCache??new RangeKeeperPaperPinnedQuoteCache(input.client,draft.profile);
+ if(!pinnedQuoteCache.matches(input.client,draft.profile))
+  return emptyModel(draft,frame,['rangekeeper_quote_cache_context_mismatch'],policy);
+ const quote=async(token:0|1,amount:bigint)=>pinnedQuoteCache.quote(source,token,amount,
+  frame.price0!,frame.price1!);
  const observation={block:source.block,hash:source.hash,timestamp:source.timestamp,tick:frame.tick,
   sqrtPriceX96:frame.sqrtPriceX96,continuity:'canonical' as const,wallet0:token0,wallet1:token1,
   released0:0n,released1:0n,nativeWei:native,requiredExitReserveWei:limits.exitReserveWei,

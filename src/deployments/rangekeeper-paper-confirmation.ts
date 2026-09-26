@@ -1,7 +1,6 @@
 import {z} from 'zod';
 import type {RobinhoodClient} from '../client.js';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
-import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {planRangeKeeper,rawValue} from '../strategy/rangekeeper/planner.js';
 import {replayPaperMint} from '../v3/position-math.js';
 import {contentHash} from './contracts.js';
@@ -15,6 +14,7 @@ import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPape
  type RangeKeeperPaperGasProfileReader,type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
 import {verifyRangeKeeperPaperOwnedForkConfirmationEvidence,
  type RangeKeeperPaperOwnedForkConfirmationEvidence} from './rangekeeper-paper-confirmation-simulation.js';
+import {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 
 const PPM=1_000_000n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
@@ -109,7 +109,7 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
  readGasProfiles:RangeKeeperPaperGasProfileReader;marketGasPriceWei:bigint|null;
  marketGasPriceObservedAt:number|null;
  simulate:(candidate:RangeKeeperCandidate)=>Promise<RangeKeeperPaperConfirmationSimulation>;
- probeOnly?:boolean;now?:number}):Promise<RangeKeeperPaperConfirmationResult>{
+ pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;probeOnly?:boolean;now?:number}):Promise<RangeKeeperPaperConfirmationResult>{
  const {draft,firstModel:open,frame}=input,now=input.now??Date.now();
  const firstModelHash=contentHash(open),firstCandidateHash=open.candidateHash??'';
  let first:RangeKeeperCandidate;
@@ -132,10 +132,14 @@ export async function buildRangeKeeperPaperConfirmation(input:{draft:RangeKeeper
  if(!policy.policy||policy.unavailable.length||policy.policy.policyHash!==open.kernelPolicyHash||
   policy.policy.buildId!==open.kernelBuildId)
   return unavailable(draft,policy.unavailable.join(',')||'rangekeeper_confirmation_policy_mismatch');
- const p=draft.profile.pool,limits=policy.policy.limits,chain=new RangeKeeperChain(input.client,p),
-  quote=(token:0|1,amount:bigint)=>chain.quote({block:BigInt(frame.source.block),
-   hash:frame.source.hash as `0x${string}`,timestamp:frame.source.timestamp},token,amount,
-   frame.price0!,frame.price1!),
+ const p=draft.profile.pool,limits=policy.policy.limits,
+  pinnedQuoteCache=input.pinnedQuoteCache??new RangeKeeperPaperPinnedQuoteCache(input.client,draft.profile);
+ if(!pinnedQuoteCache.matches(input.client,draft.profile))
+  return unavailable(draft,'rangekeeper_confirmation_quote_cache_context_mismatch');
+ const source={block:BigInt(frame.source.block),hash:frame.source.hash as `0x${string}`,
+  timestamp:frame.source.timestamp},
+  quote=(token:0|1,amount:bigint)=>pinnedQuoteCache.quote(source,token,amount,frame.price0!,frame.price1!);
+ const
   strategyValue=BigInt(open.allocation.strategyInventoryValue??'0'),
   wallet0=BigInt(draft.allocation.token0Raw),wallet1=BigInt(draft.allocation.token1Raw),
   nativeWei=BigInt(draft.allocation.nativeWei);
