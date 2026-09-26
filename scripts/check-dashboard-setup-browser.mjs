@@ -27,6 +27,8 @@ const research={generatedAt:'2026-09-24T10:00:00.000Z',streamKey:'mock-stream',b
  swapAsOf:null,volumeQuote:null,feesQuote:null,validShare:null,references:[]}],depth:[],depthReferences:[]}]};
 const preview={schemaVersion:1,kind:'paper_setup_preflight',status:'available',mode:'paper',
  strategyId:'static_manual_v1',profileId,profileHash:'c'.repeat(64),input:{capitalQuoteRaw:'250000000',halfWidthTicks:240},
+ setupReviewId:'65911cee-cbfe-4ba7-97c0-1e58e4d87c78',
+ setupReviewExpiresAt:new Date(Date.now()+180000).toISOString(),
  source:{block:'100',hash:'0x'+'a'.repeat(64),timestamp:Math.floor(Date.now()/1000)},
  profile:{pool,fee:3000,tickSpacing:60,token0,token1,quoteToken:1},
  range:{centerTick:120,centerAnchorTick:120,halfWidthTicks:240,tickLower:-120,tickUpper:360,
@@ -100,6 +102,7 @@ const server=createServer(async(req,res)=>{
   if(req.headers.origin!=='http://'+req.headers.host||req.headers['x-csrf-token']!==csrf){json(403,{error:'csrf_mismatch'});return;}
   let body='';for await(const chunk of req)body+=chunk;
   const draft=JSON.parse(body);counts.drafts++;counts.draftRequestIds.push(draft.requestId);counts.draftBodies.push(draft);
+  assert.equal(draft.reviewId,preview.setupReviewId);
   assert.equal(draft.reviewed.profileHash,preview.profileHash);
   assert.equal(draft.reviewed.source.block,'100');
   assert.equal(draft.reviewed.costs.stages.length,6);

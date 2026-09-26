@@ -16,6 +16,7 @@ import {contentHash} from '../../src/deployments/contracts.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
 import {createStaticPaperDraftFromSetup} from '../../src/deployments/static-paper-draft-admission.ts';
+import {StaticPaperSetupReviewCache} from '../../src/deployments/static-paper-setup-review-cache.ts';
 import {buildStaticPaperSetupPreflight} from '../../src/deployments/paper-setup-preflight.ts';
 import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from '../../src/deployments/paper-cost.ts';
@@ -58,7 +59,9 @@ const referenceProof={fixture:'loopback-command-browser-source-boundary',
 const frame=()=>({source:blockSource,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),poolLiquidity:10n**24n,
  price0:10n**18n,price1:10n**18n,nativePrice:2000n*10n**18n,referenceEligible:true,
  referenceReasons:[],referenceProofHash:referenceProofHash(referenceProof),referenceProof});
-const readSetup=async(input,pinnedSource)=>buildStaticPaperSetupPreflight(input,{
+const setupReviewCache=new StaticPaperSetupReviewCache();
+const readSetup=async(input,pinnedSource)=>{
+ const result=await buildStaticPaperSetupPreflight(input,{
  loadProfile:id=>store.paperSetupProfile(id),readFrame:async(_profile,source)=>{
   if(source&&(source.block!==blockSource.block||source.hash!==blockSource.hash||source.timestamp!==blockSource.timestamp))
    throw Error('mock_source_not_canonical');
@@ -67,7 +70,12 @@ const readSetup=async(input,pinnedSource)=>buildStaticPaperSetupPreflight(input,
   if(source.block!==blockSource.block||source.hash!==blockSource.hash||source.timestamp!==blockSource.timestamp)
    throw Error('mock_source_not_canonical');},
  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
-},pinnedSource);
+ },pinnedSource);
+ if(pinnedSource||result.status!=='available')return result;
+ const captured=setupReviewCache.capture(result);
+ assert(captured,'Server must capture the exact setup costs before browser review');
+ return {...result,...captured};
+};
 
 async function chromiumPath(){
  if(process.env.CHROMIUM_PATH)return process.env.CHROMIUM_PATH;
@@ -182,6 +190,7 @@ server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,
  paperSetupPreflight:input=>readSetup(input),
  paperSetupDraftAdmission:input=>createStaticPaperDraftFromSetup(input,{
   runPreflight:(request,pinned)=>readSetup(request,pinned),loadProfile:id=>store.paperSetupProfile(id),
+  lookupCapturedReview:input=>setupReviewCache.lookup(input),
   findDraftRequest:(id,draft)=>store.findDraftRequest(id,draft),
   createDraftWithRequestId:(id,draft)=>store.createDraftWithRequestId(id,draft)}),
  paperSetupDraftList:()=>store.listStaticPaperDrafts(),paperPreview,
