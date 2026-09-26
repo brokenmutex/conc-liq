@@ -3481,11 +3481,34 @@ export class DeploymentStore {
   return rows;
  }
 
- async readStaticPaperCloseConvertFeeCarry(input:{campaignId:string;revision:number}){
+ async readStaticPaperCloseConvertFeeCarry(input:{campaignId:string;revision:number;
+  operation?:{id:string;workerId:string;modelHash:string}}){
   const db=await this.readPool.connect();
   try{
    await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
    try{
+   const pending=(await db.query<{id:string;kind:string;status:string;claimed_by:string|null;
+    claim_valid:boolean;preview_kind:string;expected_revision:number;model_hash:string|null;
+    request_model_hash:string|null}>(`
+    SELECT o.id::text,o.kind,o.status,o.claimed_by,(o.claim_until>=clock_timestamp()) AS claim_valid,
+     v.kind AS preview_kind,v.expected_revision,
+     v.proposal->'paperCloseConvertTerminalV3'->>'modelHash' AS model_hash,
+     v.request->>'modelHash' AS request_model_hash
+    FROM deployment_operations o JOIN deployment_previews v ON v.id=o.preview_id
+    WHERE o.campaign_id=$1 AND o.status IN ('queued','preflighting','executing','confirming',
+     'reconciling') ORDER BY o.id`,[input.campaignId])).rows;
+   const operationBound=input.operation!==undefined&&pending.length===1&&
+    pending[0]!.id===input.operation.id&&pending[0]!.kind==='close_convert'&&
+    pending[0]!.status==='reconciling'&&pending[0]!.claimed_by===input.operation.workerId&&
+    pending[0]!.claim_valid&&pending[0]!.preview_kind==='close_convert'&&
+    pending[0]!.expected_revision===input.revision&&
+    pending[0]!.model_hash===input.operation.modelHash&&
+    pending[0]!.request_model_hash===input.operation.modelHash;
+   if(input.operation&&!operationBound)
+    throw new DeploymentConflict('paper_close_convert_fee_operation_binding_invalid');
+   if(!input.operation&&pending.length)
+    throw new DeploymentConflict('paper_close_convert_fee_operation_pending');
+
    const campaign=(await db.query<{mode:string;lifecycle:string;current_revision:number;
     open_mark_id:string|null;strategy_id:string;strategy_version:string;state_schema_version:number;
     config:unknown;config_hash:string;profile:unknown;profile_hash:string;evidence:unknown}>(`
@@ -3501,7 +3524,8 @@ export class DeploymentStore {
     [input.campaignId])).rows[0];
    const profile=marketProfileSchema.safeParse(campaign?.profile),
     evidence=marketProfileEvidenceSchema.safeParse(campaign?.evidence);
-   if(!campaign||campaign.mode!=='paper'||!['active','paused'].includes(campaign.lifecycle)||
+   if(!campaign||campaign.mode!=='paper'||!['active','paused'].includes(campaign.lifecycle)&&
+    !(campaign.lifecycle==='closing'&&operationBound)||
     campaign.current_revision!==input.revision||!campaign.open_mark_id||
     campaign.strategy_id!=='static_manual_v1'||campaign.strategy_version!=='1.0.0'||
     campaign.state_schema_version!==1||!campaign.config||contentHash(campaign.config)!==campaign.config_hash||
@@ -3513,11 +3537,6 @@ export class DeploymentStore {
     'quoterCodeHash'] as const)
     if(profile.data.pool[key].toLowerCase()!==evidence.data.contractHashes[key].toLowerCase())
      throw new DeploymentConflict('paper_close_convert_fee_profile_integrity');
-   const pending=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM deployment_operations
-    WHERE campaign_id=$1 AND status IN ('queued','preflighting','executing','confirming',
-     'reconciling')) AS found`,[input.campaignId])).rows[0]?.found;
-   if(pending)throw new DeploymentConflict('paper_close_convert_fee_operation_pending');
-
    const latest=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
     WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[input.campaignId])).rows[0];
    if(!latest)throw new DeploymentConflict('paper_close_convert_fee_mark_sequence_invalid');

@@ -65,6 +65,7 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  store:Pick<DeploymentStore,'readStaticPaperCloseConvertFeeCarry'>;campaignId:string;revision:number;
  rawModel:unknown;client:RobinhoodClient;indexer:Pool;
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
+ operation?:{id:string;workerId:string;modelHash:string};
  replayGasStages:(input:{model:PaperStaticCloseConvertTerminalModel;frame:PaperOpenFrame})=>
   Promise<PaperCloseConvertTerminalGasReplay>;now?:number;
  onSourceFrameMismatch?:(reason:'reread_failed'|'source_anchor_changed'|'tick_changed'|
@@ -87,7 +88,8 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.prestateReport.frame.nativePrice!==model.reference.nativePrice)
   throw Error('paper_close_convert_terminal_candidate_binding_invalid');
  const context=await readStaticPaperCloseConvertFeeContext({store:input.store,
-  campaignId:input.campaignId,revision:input.revision,verifyAnchors:input.verifyAnchors}),
+  campaignId:input.campaignId,revision:input.revision,operation:input.operation,
+  verifyAnchors:input.verifyAnchors}),
   state=context.state,open=state.openModel,p=state.profile.pool;
  if(model.openMarkId!==state.openMarkId||model.previousMarkId!==state.previous.markId||
   model.openModelHash!==contentHash(open)||model.scope.profileHash!==state.profileHash||

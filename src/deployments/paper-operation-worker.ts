@@ -71,11 +71,12 @@ async function readClaimContext(indexer:Pool,claim:ClaimedOperation,workerId:str
 async function replayStaticCloseConvertV3Gas(input:{store:DeploymentStore;client:RobinhoodClient;
  indexer:Pool;model:ReturnType<typeof parsePaperStaticCloseConvertTerminalV3>;
  frame:import('./paper-preview.js').PaperOpenFrame;rpcUrl:string;
+ operation:{id:string;workerId:string};
  beforeRead:()=>Promise<void>;verifyAnchors:(chainId:number,
   sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
- const {store,client,indexer,model,frame,rpcUrl,beforeRead,verifyAnchors}=input,
+ const {store,client,indexer,model,frame,rpcUrl,operation,beforeRead,verifyAnchors}=input,
   context=await readStaticPaperCloseConvertFeeContext({store,campaignId:model.campaignId,
-   revision:model.revision,verifyAnchors}),
+   revision:model.revision,operation:{...operation,modelHash:model.modelHash},verifyAnchors}),
   feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
   sampled=await samplePaperCloseConvertPrestate({rpcUrl,openModel:context.state.openModel,
    openMarkId:context.state.openMarkId,profile:context.state.profile,frame,
@@ -211,8 +212,10 @@ export async function processOnePaperOperation(store:DeploymentStore,
     try{
      const verification=await verifyPaperStaticCloseConvertTerminalForWorker({store,campaignId:claim.campaign_id,
       revision:context.current_revision,rawModel:terminal,client:chain,indexer,verifyAnchors:verify,
+      operation:{id:claim.id,workerId,modelHash:terminal.modelHash},
       replayGasStages:({model,frame})=>replayStaticCloseConvertV3Gas({store,client:chain,indexer,
-       model,frame,rpcUrl:options.rpcUrl!,beforeRead:options.beforeForkRead??(async()=>{}),
+       model,frame,rpcUrl:options.rpcUrl!,operation:{id:claim.id,workerId},
+       beforeRead:options.beforeForkRead??(async()=>{}),
        verifyAnchors:verify})});
      const completed=await store.completeTrustedStaticPaperCloseConvertV3({operationId:claim.id,
       workerId,verification,verifyAnchors:verify});

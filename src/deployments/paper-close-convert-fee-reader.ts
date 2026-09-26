@@ -24,10 +24,11 @@ export interface StaticPaperCloseConvertFeeContext {
  * returned callback repeats the database replay before a preview is saved. */
 export async function readStaticPaperCloseConvertFeeContext(input:{store:Pick<DeploymentStore,
  'readStaticPaperCloseConvertFeeCarry'>;campaignId:string;revision:number;
+ operation?:{id:string;workerId:string;modelHash:string};
  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}):
  Promise<StaticPaperCloseConvertFeeContext>{
  const read=()=>input.store.readStaticPaperCloseConvertFeeCarry({campaignId:input.campaignId,
-  revision:input.revision});
+  revision:input.revision,operation:input.operation});
  const saved=await read(),state:PaperCloseConvertPreflightState={openModel:saved.openModel,
   openMarkId:saved.openMarkId,previous:saved.previous,profile:saved.profile,
   profileHash:saved.profileHash,configHash:saved.configHash,parameters:saved.parameters},

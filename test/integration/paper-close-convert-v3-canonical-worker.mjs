@@ -230,6 +230,18 @@ async function main(){
    draft.id,acceptRequest,'fixture_operator',verifyTerminal,anchors);}
   catch(error){if(sourceFrameMismatch&&error instanceof Error)
     error.message+=` (source-frame diagnostic: ${sourceFrameMismatch})`;throw error;}
+  await assert.rejects(store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,revision:1}),
+   /paper_close_convert_fee_operation_pending/);
+  const replayBinding=operation=>store.readStaticPaperCloseConvertFeeCarry({campaignId:draft.id,
+   revision:1,operation:{id:accepted.id,workerId:'canonical-v3-worker',modelHash:preview.modelHash,
+    ...operation}});
+  await assert.rejects(replayBinding({id:'00000000-0000-4000-8000-000000000001'}),
+   /paper_close_convert_fee_operation_binding_invalid/);
+  await assert.rejects(replayBinding({workerId:'wrong-worker'}),
+   /paper_close_convert_fee_operation_binding_invalid/);
+  await assert.rejects(replayBinding({modelHash:'f'.repeat(64)}),
+   /paper_close_convert_fee_operation_binding_invalid/);
+  await assert.rejects(replayBinding({}),/paper_close_convert_fee_operation_binding_invalid/);
   const completed=await processOnePaperOperation(store,rpc,indexer,'canonical-v3-worker',
    {rpcUrl:archive});
   assert.equal(completed.status,'completed',JSON.stringify(completed));
