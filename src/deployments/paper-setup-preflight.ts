@@ -132,7 +132,8 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
   return unavailable(input,'fresh_source_stale');
  const costs=costed.costs;
  if(costs.status!=='provisional')return {...unavailable(input,costs.reason),
-  source:frame.source,profile:{pool:p!.pool,fee:p!.fee,tickSpacing:p!.tickSpacing,
+  source:frame.source,profileHash:registered.profileHash,
+  profile:{pool:p!.pool,fee:p!.fee,tickSpacing:p!.tickSpacing,
    token0:p!.token0,token1:p!.token1,quoteToken:p!.quoteToken},
   range:{centerTick:frame.tick,centerAnchorTick:range.centerAnchorTick,
    halfWidthTicks:range.halfWidthTicks,tickLower:range.tickLower,tickUpper:range.tickUpper,
