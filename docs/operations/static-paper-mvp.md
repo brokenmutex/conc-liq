@@ -25,6 +25,15 @@ Anyone who can reach the Funnel URL can use the paper controls. Same-origin
 and CSRF checks protect requests but do not restrict access to selected users.
 The public read-only dashboard remains on its existing origin.
 
+The [freshness and release follow-up](../reviews/static-paper-freshness-followup-2026-09-27.md)
+records the subsequent application-only replacement: source `cfc8043`, sealed
+`bf4dcea9…` now runs command, paper worker and dashboard with one shared
+command/worker configuration. Canonical retain, conversion, interrupted
+recovery/restore and changed-anchor rejection gates passed on that artifact.
+Tail runs `cda961d0…`. The first human-operated AAPL paper retain-close campaign
+remains the next milestone; provider throttling can still make fresh-source
+preflight unavailable.
+
 ## Operator workflow
 
 Open the approved operator URL and its Positions page.

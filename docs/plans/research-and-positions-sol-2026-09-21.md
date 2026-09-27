@@ -1705,30 +1705,41 @@ records that artifact's terminal-replay rejection. The [terminal diagnostic
 follow-up](../reviews/static-paper-terminal-replay-followup-2026-09-27.md)
 tracks `9bb54a5` / sealed `55cc0120…`: 898 clean tests, ordinary conversion and
 retain browser gates passed. No unconfirmed functional repair was made.
-Recovery/restore acceptance remains
-pending after preparation-stage replay staleness and a separate fee-replay
-assertion; the changed-anchor restart rejection gate passed. The staged
-command and worker now share a private configuration because their
-runtime identities must match for V2/V3 accounting. The diagnostic follow-up
-`1819932` adds assertion codes and captured candidate bindings without changing
-replay/acceptance rules; clean check passed 900 tests and produced verified
-sealed `91ea6c41…`. Its recovery run passed expired-preview same-key replay
-and restarted the worker in 3.518s, then blocked at terminal gas replay:
-the accepted source was **216.359 seconds old against the unchanged 180-second
-limit**. Replaying the retained exact inputs at the failure time reproduced
-`Paper conversion source stale` before network/fork access. Restore was not
-reached. This proves this run's failure, not the earlier opaque failures.
-55cc gate results remain evidence only for 55cc. Production remains unchanged;
-the isolated fixture database was cleaned and removed.
+The diagnostic follow-up `1819932` / sealed `91ea6c41…` reproduced a terminal
+failure at accepted source age **216.359 seconds**, beyond the unchanged
+180-second limit. That establishes that run's cause, not earlier opaque errors;
+older gates remain evidence for their own artifacts.
 
-Next measure the freshness budget across replay-cursor lag, preparation,
-preview lifetime, restart and terminal replay. Repair only demonstrated latency
-or fresh-canonical-anchor selection while preserving the 180-second gate and
-current-time verification. Then rerun positive recovery plus canonical restore,
-ordinary conversion, retain and changed-anchor rejection on one verified
-artifact. Only after those gates pass, replace the command, worker and dashboard
-services together using the staged shared command/worker configuration.
-After those fixes, the next operator milestone is one actual AAPL/USDG paper
+The [freshness follow-up](../reviews/static-paper-freshness-followup-2026-09-27.md)
+records the measured repair: `9781d3d` routes tail event-header reads through the
+existing live client to reduce HyperSync request amplification; `cfc8043`
+requires conversion preparation to select a complete canonical source no older
+than 30 seconds. The existing wait budget, terminal 180-second limit,
+current-time verification and preview expiry remain. Opt-in bounded timings
+make preparation and terminal source ages inspectable. Shared provider quota
+still causes intermittent roughly 50-second tail pauses.
+
+The final clean source `cfc8043` passed **907 tests**, validators and typecheck.
+Verified artifact `bf4dcea9…` has passed canonical recovery plus backup/restore,
+ordinary conversion and browser retain-close with actual sealed command/worker
+processes. Recovery restarted the same worker/runtime after response loss,
+preview expiry and lease loss; terminal replay completed at source age
+**157.737 seconds**, with one terminal mark and no paid-gas rows. Desktop/mobile
+and restored append-only accounting checks passed. The changed-anchor restart
+test rejected the operation with zero conversion marks, ledger rows or
+accounting rows. All four gates passed against this one artifact.
+
+Command, worker and dashboard were replaced together on bf4 at **18:30 UTC**;
+command/worker now use the same private configuration so V2/V3 identities match.
+Tail remains on verified `cda961d0…`, preserving its private inputs. Actual
+process inputs, the worker readiness lease, local/public APIs, passwordless
+operator session and desktop/mobile views were checked after replacement.
+No production campaign was created; deployment campaign/operation/mark counts
+remained zero. The isolated fixture and restore databases were removed with
+logs and rollback inputs retained. The freshness review records the optional
+favicon 404 and initial dashboard request timeout separately from acceptance.
+
+The next operator milestone is one actual human-operated AAPL/USDG paper
 campaign through retain-close and a comparison with the harness expectations.
 RangeKeeper paper, new live capability and the operational cost-reduction
 programme remain deferred until that milestone is assessed. The current paper
