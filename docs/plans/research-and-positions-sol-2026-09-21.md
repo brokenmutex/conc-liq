@@ -1699,6 +1699,10 @@ runtime continuity. See that review's implementation follow-up for fresh validat
 Implementation is committed as `7c7f60b`; the [sealed candidate record](../reviews/sealed-paper-review-7c7f60b-2026-09-27.md)
 tracks clean-check evidence, exact-artifact acceptance and the staged service
 replacement separately from the currently deployed release.
+Canonical testing then exposed a maintenance catch-up issue, fixed in `4e8e286`.
+The [maintenance follow-up](../reviews/sealed-paper-maintenance-followup-2026-09-27.md)
+records the new sealed artifact and remaining conversion terminal-replay
+blocker; production remains on the preceding releases.
 After those fixes, the next operator milestone is one actual AAPL/USDG paper
 campaign through retain-close and a comparison with the harness expectations.
 RangeKeeper paper, new live capability and the operational cost-reduction

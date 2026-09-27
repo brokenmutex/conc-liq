@@ -1,7 +1,8 @@
 # September 27 review implementation: sealed release evidence
 
 Status: candidate blocked by conversion acceptance; production replacement has
-not been performed. A narrow maintenance-ordering follow-up is being prepared.
+not been performed. The [maintenance-ordering follow-up](sealed-paper-maintenance-followup-2026-09-27.md)
+records the subsequent fix and its separate artifact acceptance results.
 This follows the [implementation review](implementation-review-2026-09-27.md)
 and the operator's instruction to commit and proceed. The source implementation
 is committed; canonical acceptance remains a separate gate.
