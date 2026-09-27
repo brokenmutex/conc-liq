@@ -5,6 +5,14 @@ This runbook accompanies release preparation. Its presence does not establish
 MVP acceptance or authorize a production cutover. Record the exact reviewed
 source and build in the release evidence before using it operationally.
 
+The [September 27 rollout package](../reviews/static-paper-rollout-package-2026-09-27.md)
+contains the current staged commands, profile, backup and approval scope. Its
+measured compatibility findings supersede the earlier two-service-only proposal:
+seven existing consumers reject schema 11 on their installed builds, and the
+daily telemetry retention guard also needs its reviewed update. Preserve the
+existing service arguments, environments and timer schedules during that
+coordinated cutover. Old schema-3-only builds are not a rollback after migration.
+
 ## Operator workflow
 
 Connect privately to the loopback command server and open its Positions page.

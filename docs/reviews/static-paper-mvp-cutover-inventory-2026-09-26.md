@@ -1,5 +1,13 @@
 # Static paper MVP cutover inventory — 2026-09-26
 
+Historical snapshot. The [September 27 rollout package](static-paper-rollout-package-2026-09-27.md)
+and [fresh production inventory](static-paper-production-readiness-2026-09-27.md)
+supersede its proposed two-service-only cutover and outstanding inventory items.
+In particular, installed old readers reject schema 11: the current proposal
+includes seven compatible reader/collector replacements and a retention guard
+update, in addition to the two new paper services. No production cutover has
+been performed by either preparation record.
+
 Inventory finalized: **2026-09-26 14:52:19 UTC** (unit-state samples at
 14:48:35–14:52:19 UTC). Source checkout: `/root/conc-liq`,
 HEAD `caabeb7fc1b28e5ebade63ea03804a68943092bc`, with unrelated and in-flight

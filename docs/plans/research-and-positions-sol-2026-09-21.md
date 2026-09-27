@@ -10,7 +10,13 @@ See the [current follow-up](../reviews/static-paper-setup-preflight-reasons-2026
 and [prior candidate acceptance](../reviews/static-paper-mvp-acceptance-f75d6277-2026-09-26.md).
 Economic recovery, rejection and restore evidence remains attached to prior
 `5b22ce5` / `f75d6277…`; the new artifact changes only two setup-preparation
-modules. Next: operator review and concrete production cutover prerequisites.
+modules. Production preparation is now recorded in the
+[September 27 rollout package](../reviews/static-paper-rollout-package-2026-09-27.md):
+the public-schema upgrade rehearsed successfully, and seven existing database
+consumers require compatible builds alongside the two new paper services.
+The daily retention script has a separately staged compatibility repair.
+Next: review the exact migration, profile registration and coordinated service
+cutover in that package; then run one operator paper workflow after approval.
 No production activation is authorized or performed. Initial source review:
 `b38c839`. Recheck HEAD and working-tree changes before starting.
 The approved screen contract in
