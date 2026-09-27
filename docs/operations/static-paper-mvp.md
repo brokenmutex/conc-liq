@@ -15,14 +15,17 @@ coordinated cutover. Old schema-3-only builds are not a rollback after migration
 
 The operator approved and executed that cutover on September 27; see the
 [applied production record](../reviews/static-paper-production-cutover-2026-09-27.md).
-The private operator page is `http://127.0.0.1:4174/operator`; use a private
-connection to the host's loopback interface. The password handoff is the
+The operator is also available through the approved Tailscale Funnel at
+`https://dear-foxhound.tail106f9e.ts.net/operator`; the former `/prototype`
+route redirects there. The local page remains `http://127.0.0.1:4174/operator`.
+See the [Funnel rollout](../reviews/static-paper-operator-funnel-2026-09-27.md)
+for the exact trusted origin and command-service release. The password handoff is the
 root-only `data/static-paper-mvp-cutover-20260927/operator-password.txt` file.
 The public read-only dashboard remains on its existing origin.
 
 ## Operator workflow
 
-Connect privately to the loopback command server and open its Positions page.
+Open the approved operator URL and its Positions page.
 Use the same origin for the page, login and commands. The public dashboard
 remains read-only. Log in using the configured operator password.
 
