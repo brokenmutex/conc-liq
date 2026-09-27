@@ -15,9 +15,11 @@ modules. Production preparation is now recorded in the
 the public-schema upgrade rehearsed successfully, and seven existing database
 consumers require compatible builds alongside the two new paper services.
 The daily retention script has a separately staged compatibility repair.
-Next: review the exact migration, profile registration and coordinated service
-cutover in that package; then run one operator paper workflow after approval.
-No production activation is authorized or performed. Initial source review:
+The operator subsequently approved that exact package, and the paper cutover
+was executed: schema 11, registered AAPL profile, and supervised paper services.
+See the [production cutover record](../reviews/static-paper-production-cutover-2026-09-27.md).
+Next: the first operator static/manual paper workflow. No campaign was opened
+by the cutover, and live activation remains outside its scope. Initial source review:
 `b38c839`. Recheck HEAD and working-tree changes before starting.
 The approved screen contract in
 [section 11](#11-approved-prototype-contract-and-delivery-order) remains in force.

@@ -1,5 +1,10 @@
 # Static paper MVP rollout package — 2026-09-27
 
+Historical proposal, subsequently approved by the operator and executed.
+See the [production cutover record](static-paper-production-cutover-2026-09-27.md)
+for applied state and validation. The unexecuted wording below describes the
+package as it was presented for approval.
+
 This is the review package for a proposed cutover to the sealed static-paper
 MVP. It records prepared files and the required order; it is not authorization
 to migrate the production database, register the market profile, install units,
