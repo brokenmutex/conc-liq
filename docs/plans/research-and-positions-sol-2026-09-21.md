@@ -1704,13 +1704,30 @@ The [maintenance follow-up](../reviews/sealed-paper-maintenance-followup-2026-09
 records that artifact's terminal-replay rejection. The [terminal diagnostic
 follow-up](../reviews/static-paper-terminal-replay-followup-2026-09-27.md)
 tracks `9bb54a5` / sealed `55cc0120…`: 898 clean tests, ordinary conversion and
-retain browser gates passed. The earlier terminal rejection has not recurred;
-no unconfirmed functional repair was made. Recovery/restore acceptance remains
+retain browser gates passed. No unconfirmed functional repair was made.
+Recovery/restore acceptance remains
 pending after preparation-stage replay staleness and a separate fee-replay
 assertion; the changed-anchor restart rejection gate passed. The staged
 command and worker now share a private configuration because their
-runtime identities must match for V2/V3 accounting. Production remains on the
-preceding releases until the remaining exact-artifact gates pass.
+runtime identities must match for V2/V3 accounting. The diagnostic follow-up
+`1819932` adds assertion codes and captured candidate bindings without changing
+replay/acceptance rules; clean check passed 900 tests and produced verified
+sealed `91ea6c41…`. Its recovery run passed expired-preview same-key replay
+and restarted the worker in 3.518s, then blocked at terminal gas replay:
+the accepted source was **216.359 seconds old against the unchanged 180-second
+limit**. Replaying the retained exact inputs at the failure time reproduced
+`Paper conversion source stale` before network/fork access. Restore was not
+reached. This proves this run's failure, not the earlier opaque failures.
+55cc gate results remain evidence only for 55cc. Production remains unchanged;
+the isolated fixture database was cleaned and removed.
+
+Next measure the freshness budget across replay-cursor lag, preparation,
+preview lifetime, restart and terminal replay. Repair only demonstrated latency
+or fresh-canonical-anchor selection while preserving the 180-second gate and
+current-time verification. Then rerun positive recovery plus canonical restore,
+ordinary conversion, retain and changed-anchor rejection on one verified
+artifact. Only after those gates pass, replace the command, worker and dashboard
+services together using the staged shared command/worker configuration.
 After those fixes, the next operator milestone is one actual AAPL/USDG paper
 campaign through retain-close and a comparison with the harness expectations.
 RangeKeeper paper, new live capability and the operational cost-reduction

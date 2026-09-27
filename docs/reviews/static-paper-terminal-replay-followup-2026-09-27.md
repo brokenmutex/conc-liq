@@ -134,3 +134,93 @@ prepared and syntax-checked but has not been run against production. At
 16:29:24 UTC, production still had zero campaigns, operations and marks, with
 the existing worker's database-scoped readiness lease present. The retained
 pre-cutover backup checksum was reverified; no database rollback is planned.
+
+## Expanded preparation diagnostics candidate
+
+Source `1819932964e463bc88c387302615fec5cd5d0cab` adds only the preparation
+assertion codes and candidate binding capture described above. The clean full
+check passed **900/900 tests**, validators and typecheck. Pinned Node remained
+v24.20.0. New verified sealed build:
+`91ea6c419ccf12be8254060ad988cf63907f5a636556da6d3bcbb574e226462e`.
+
+Its separate logs, browser artifacts and staged units are under the private
+`prestate-diagnostics/` evidence subdirectory. The shared private command/worker
+file and its identity hash are unchanged. These units supersede the inactive
+55cc candidate; installed production fragments still match the original hashes.
+All earlier lifecycle passes retain their original 55cc build identity.
+
+| New exact-artifact gate | Result |
+| --- | --- |
+| Positive conversion restart and backup/restore | Blocked: same-key recovery passed and worker restarted in 3.518s, but terminal gas replay rejected a source aged 216.359s against the unchanged 180s limit. Restore not reached. |
+| Ordinary conversion | Not run on this artifact after the recovery blocker. |
+| Retain browser lifecycle | Not run on this artifact after the recovery blocker. |
+| Changed-anchor rejection after restart | Not run on this artifact after the recovery blocker. |
+
+### Confirmed terminal freshness rejection
+
+Campaign `893514a2-e082-4a03-89ae-2e9e1b7f524c` passed setup, open and
+fee/V2 catch-up through valuation mark 2 at block `74092842`. Conversion
+operation `69d51b67-dc3d-42d9-bcc1-4aaf8da557b7` was accepted, and lost-response
+reconciliation after preview expiry and worker lease loss returned HTTP 202
+with the same operation and `replayed: true`. The sealed worker restarted with
+identical environment bytes in **3.518 seconds**. Its first attempt then blocked
+at `paper_recovery_required`, reason
+`paper_close_convert_v3_terminal_replay_invalid`. No terminal conversion mark
+was written; canonical restore was not reached.
+
+The retained exact model and fee context identify a specific failure:
+
+- Source block `74093946`, canonical timestamp **16:49:03 UTC**, hash
+  `0x9d4175b15feea326f6bdb86e10130beed44b6b5abd77862cb4899b8b45a2ccea`.
+- Candidate captured at **16:50:30.308 UTC**; gas observed at **16:51:18.381 UTC**.
+- Preview created at **16:51:23.828 UTC**, acceptance persisted at
+  **16:51:42.627 UTC**, preview expired at **16:52:18.381 UTC**.
+- Failure diagnostic at **16:52:39.359 UTC**, stage
+  `terminal_gas_stage_replay`: source age **216,359ms**, gas observation age
+  **80,978ms**. Model hash
+  `c8b7d368b27af5b089d694268ee81caafe50d554c45f8b6bc6be8d83394fcf8a`.
+
+A pure diagnostic invocation of the prestate sampler with these retained exact
+inputs and the failure time reproduced **`Paper conversion source stale`**
+before any network, fork or callback access (zero callbacks). The source-age
+check is in `paper-close-convert-prestate-sampler.ts`; worker replay correctly
+uses the current time. This establishes the cause of this run, not the earlier
+opaque terminal rejection or the separate preparation fee-replay assertion.
+
+The timing evidence warrants a freshness-budget investigation. Tail cycles
+took roughly 59–63 seconds and then 117 seconds; at 16:49:10 the canonical
+cursor was still 72 blocks short of valuation mark 2. The eventual candidate
+was already 87 seconds old when captured, and preparation consumed another
+48 seconds before the gas observation. Preview expiry and recovery then
+crossed the 180-second boundary. Fast worker startup alone cannot resolve this
+run's timing constraint. Freshness limits, retry predicates and clock semantics
+were not changed.
+
+Private evidence under `prestate-diagnostics/` includes
+`canonical-recovery-restore-sealed.log` and campaign directory
+`sealed-browser/893514a2-e082-4a03-89ae-2e9e1b7f524c/`, containing
+`canonical-convert-failure.json` and `terminal-gas-staleness-probe.json` (0600).
+The independent metadata audit confirms only the three intended runtime
+diagnostic files changed relative to 55cc. Its historical gate passes do not
+qualify 91ea for release.
+
+### Checkpoint and next action
+
+Production rollout is blocked. Next measure replay-cursor lag, preparation,
+preview lifetime and terminal replay as one freshness budget; then make only
+a demonstrated latency or fresh-canonical-anchor repair that preserves the
+180-second gate. Do not substitute acceptance time for current time, extend
+the freshness limit or bypass replay to pass the fixture. Rerun positive
+recovery and canonical restore, plus ordinary conversion, retain and changed-
+anchor rejection on the same verified artifact, before replacing the three
+services. The first human AAPL/USDG paper retain-close remains outstanding;
+RangeKeeper and live follow-ups remain deferred.
+
+At **17:00:07 UTC**, all three original production unit files still matched
+their preserved hashes; all services were active with zero restarts, and the
+database-scoped worker readiness lease was present. Production had zero
+deployment campaigns, operations and marks. The isolated fixture database
+(verified OID `2300351`) had zero remaining fixture schemas and other backends,
+and was dropped without force; its five foreign tables did not own source
+data. Cleanup verification is retained in `checkpoint-cleanup.json`. No
+production service, configuration or database was changed by this follow-up.
