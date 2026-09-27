@@ -123,9 +123,6 @@ export function createDeploymentCommandServer(store:CommandStore,
   harden(response);
   try{
    const path=new URL(request.url??'/',options.origin).pathname;
-   if((request.method==='GET'||request.method==='HEAD')&&(path==='/prototype'||path==='/prototype/')){
-    response.writeHead(308,{'Location':'/operator','Cache-Control':'no-store'});response.end();return;
-   }
    if((request.method==='GET'||request.method==='HEAD')&&OPERATOR_ASSETS.has(path)){
     const asset=OPERATOR_ASSETS.get(path)!;
     if(path==='/operator'||path==='/operator/')

@@ -385,10 +385,6 @@ it('explicit HTTPS operator origin preserves authentication, CSRF and secure coo
   const login=(headers:Record<string,string>)=>fetch(url+'/api/session',{method:'POST',
    headers:{'content-type':'application/json',...headers},body:JSON.stringify({password})});
   try{
-   for(const path of ['/prototype','/prototype/']){
-    const response=await fetch(url+path,{redirect:'manual'});
-    assert.equal(response.status,308);assert.equal(response.headers.get('location'),'/operator');
-   }
    assert.equal((await fetch(url+'/api/market-profiles')).status,401);
    assert.equal((await login({'x-forwarded-host':'operator.example.test','x-forwarded-proto':'https'})).status,403);
    for(const bad of ['null','https://evil.example.test',publicOrigin+'.evil.test','http://operator.example.test']){
