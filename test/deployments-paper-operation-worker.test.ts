@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {EventEmitter} from 'node:events';
 import type {Pool} from 'pg';
 import type {RobinhoodClient} from '../src/client.js';
 import type {DeploymentStore} from '../src/deployments/store.js';
@@ -10,15 +11,52 @@ const operationId='11111111-1111-4111-8111-111111111111';
 const campaignId='22222222-2222-4222-8222-222222222222';
 
 test('readiness lease destroys its connection if unlock fails',async()=>{
- let destroyed=false,queries=0;
- const client={on(){return this;},release(value=false){destroyed=value;},async query(sql:string){
-  queries++;if(sql.includes('pg_try_advisory_lock_shared'))return {rows:[{acquired:true}]};
+ let destroyed=false;const queries:string[]=[];
+ const client={on(){return this;},removeListener(){return this;},
+  release(value=false){destroyed=value;},async query(sql:string){
+  queries.push(sql);if(sql.includes('pg_try_advisory_lock_shared'))return {rows:[{acquired:true}]};
+  if(sql.startsWith('LISTEN ')||sql.startsWith('UNLISTEN '))return {rows:[]};
   throw Error('database connection lost');
  }};
  const pool={async connect(){return client;}} as unknown as Pool;
  const lease=await acquirePaperOperationReadinessLease(pool);
  await assert.rejects(lease.release(),/database connection lost/);
- assert.equal(destroyed,true);assert.equal(queries,2);
+ assert.equal(destroyed,true);
+ assert(queries.some(sql=>sql===`LISTEN deployment_operation_accepted`));
+ assert(queries.some(sql=>sql===`UNLISTEN deployment_operation_accepted`));
+ assert(queries.some(sql=>sql.includes('pg_advisory_unlock_shared')));
+});
+
+test('readiness listener wakes on notification and safely releases on abort or connection loss',{timeout:2_000},async()=>{
+ const client=Object.assign(new EventEmitter(),{
+  releasedWithDestroy:false as boolean|undefined,
+  release(destroy=false){this.releasedWithDestroy=destroy;},
+  async query(sql:string){
+   if(sql.includes('pg_try_advisory_lock_shared'))return {rows:[{acquired:true}]};
+   if(sql.includes('pg_advisory_unlock_shared'))return {rows:[{unlocked:true}]};
+   return {rows:[]};
+  },
+ });
+ const pool={async connect(){return client;}} as unknown as Pool;
+ const lease=await acquirePaperOperationReadinessLease(pool);
+ const promptly=async<T>(promise:Promise<T>,label:string)=>{
+  let timer:ReturnType<typeof setTimeout>|undefined;
+  try{return await Promise.race([promise,new Promise<never>((_,reject)=>{
+   timer=setTimeout(()=>reject(Error(`${label} did not wake promptly`)),2_000);
+  })]);}
+  finally{if(timer)clearTimeout(timer);}
+ };
+ try{
+  const notified=lease.waitForOperation(10_000,new AbortController().signal);
+  client.emit('notification',{channel:'deployment_operation_accepted',payload:operationId});
+  await promptly(notified,'notification');
+  const controller=new AbortController(),aborted=lease.waitForOperation(10_000,controller.signal);
+  controller.abort();await promptly(aborted,'abort');
+  const lost=lease.waitForOperation(10_000,new AbortController().signal);
+  client.emit('error',Error('connection dropped'));await promptly(lost,'connection loss');
+  await assert.rejects(lease.assertHealthy(),/paper operation readiness lease lost/);
+ }finally{await lease.release();}
+ assert.equal(client.releasedWithDestroy,true);
 });
 
 const anchor={block:'100',hash:'0x'+'a'.repeat(64),timestamp:1_000};
@@ -58,6 +96,7 @@ function workerFixture({status='preflighting',kind='open',claimValid=true,
   advanceClaim:async(...args:unknown[])=>{calls.push(['advance',...args]);currentStatus=args[3] as string;},
   renewClaim:async(...args:unknown[])=>{calls.push(['renew',...args]);
    if(renewError)throw Error('lease renewal failed');},
+  releaseClaim:async(...args:unknown[])=>{calls.push(['release',...args]);},
   completeTrustedPaperOpen:async(...args:unknown[])=>{calls.push(['complete',...args.slice(0,2)]);
    if(completeError)throw Error('temporary database outage');return {markId:'1',replayed:false};},
   completeTrustedPaperCloseRetain:async(...args:unknown[])=>{calls.push(['retain',...args.slice(0,2)]);},
@@ -148,6 +187,7 @@ test('paper operation worker leaves transient RPC failure retryable without acco
  assert.deepEqual(await processOnePaperOperation(store as unknown as DeploymentStore,
   chain as unknown as RobinhoodClient,indexer as unknown as Pool,'paper-worker-1'),
   {status:'retry',operationId,reason:'paper_operation_transient_error'});
+ assert.deepEqual(calls.filter(call=>call[0]==='release'),[['release',operationId,'paper-worker-1']]);
  assert.equal(calls.some(call=>call[0]==='complete'),false);
  assert.equal(calls.some(call=>call[0]==='advance'&&call[4]==='blocked'),false);
 });

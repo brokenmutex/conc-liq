@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, preflightFacts, setupPreflightRequest } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -40,6 +40,31 @@ it('sends explicit limits with raw, PPM and bps units intact for preparation', (
   assert.deepEqual(request.payload.limits,{...limits,maxExposurePpm:950000,maxDrawdownPpm:100000,maxSlippageBps:50});
   assert.equal(setupPreflightRequest({pool:profile,capital:'250',halfWidthTicks:'240',
     strategyId:'static_manual_v1',mode:'paper',limits:{...limits,exitReserveWei:'0'}}).available,false);
+});
+
+it('converts human setup limits and native amounts to exact integer units', () => {
+  const human={maxDeploymentValue:'250',minDeploymentValue:'0.1',maxExposurePpm:'95',
+    maxLossValue:'12.5',maxDrawdownPpm:'10',maxActionCost:'12.5',maxRollingCost:'25',
+    maxCampaignCost:'37.5',exitReserveWei:'0.001',maxSlippageBps:'0.5'};
+  const raw=humanSetupLimitsToRaw(human);
+  assert.deepEqual(raw,{maxDeploymentValue:'250000000000000000000',minDeploymentValue:'100000000000000000',
+    maxExposurePpm:950000,maxLossValue:'12500000000000000000',maxDrawdownPpm:100000,
+    maxActionCost:'12500000000000000000',maxRollingCost:'25000000000000000000',
+    maxCampaignCost:'37500000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50});
+  assert.deepEqual(rawSetupLimitsToHuman(raw),human);
+  assert.equal(setupNativeAllocationToWei('0.001'),'1000000000000000');
+  assert.equal(setupNativeAllocationToWei('0.0000000000000000001'),null);
+  assert.equal(humanSetupLimitsToRaw({...human,maxDeploymentValue:'0.0000000000000000001'}),null);
+});
+
+it('scales editable defaults from capital and derives native allocation from exact reviewed bounds', () => {
+  assert.deepEqual(suggestedSetupLimits('250'),{maxDeploymentValue:'250',minDeploymentValue:'1',
+    maxExposurePpm:'95',maxLossValue:'12.5',maxDrawdownPpm:'10',maxActionCost:'12.5',
+    maxRollingCost:'25',maxCampaignCost:'37.5',exitReserveWei:'0.001',maxSlippageBps:'0.5'});
+  assert.equal(suggestedSetupLimits('0.5')?.minDeploymentValue,'0.05');
+  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'200'}),'350');
+  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'400'}),'500');
+  assert.equal(suggestedNativeAllocationWei({openBoundWei:'invalid',closeBoundWei:'1',exitReserveWei:'1'}),null);
 });
 
 it('shows fresh bounds and exact inventory facts without implying acceptance', () => {

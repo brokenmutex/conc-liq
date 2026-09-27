@@ -113,11 +113,11 @@ export async function processOnePaperOperation(store:DeploymentStore,
  const claim=await store.claimNext(workerId,LEASE_SECONDS,'paper','static_manual_v1')??
   await store.claimNext(workerId,LEASE_SECONDS,'paper','rangekeeper_v1');
  if(!claim)return {status:'idle' as const};
- let lost=false,renewing=false;
+ let lost=false,renewing=false,renewal:Promise<void>|undefined;
  const renew=setInterval(()=>{
   if(renewing||lost)return;
   renewing=true;
-  void store.renewClaim(claim.id,workerId,LEASE_SECONDS)
+  renewal=store.renewClaim(claim.id,workerId,LEASE_SECONDS)
    .catch(()=>{lost=true;}).finally(()=>{renewing=false;});
  },LEASE_SECONDS*1000/3);
  const block=async(reason:string)=>{
@@ -244,6 +244,14 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(error instanceof DeploymentConflict)return await block(error.code);
   if(error instanceof AssertionError)
    return await block('paper_operation_canonical_or_evidence_invalid');
+  clearInterval(renew);
+  await renewal;
+  if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+  try{await store.releaseClaim(claim.id,workerId);}
+  catch(error){
+   if(error instanceof DeploymentConflict&&error.code==='claim_lost')
+    return {status:'claim_lost' as const,operationId:claim.id};
+  }
   return {status:'retry' as const,operationId:claim.id,reason:'paper_operation_transient_error'};
  }finally{clearInterval(renew);}
 }

@@ -129,18 +129,22 @@ test('observed exit needs continuous five minutes; a return or gap restarts it',
  r=await planRangeKeeper({...input(observation({block:10n,timestamp:1660,position:p,continuity:'reorg'})),state:r.state});
  assert.equal(r.reason,'source_reorg');assert.equal(r.state.exit,null);
 });
-test('one-sided entry finds the minimum feasible raw swap without spending on rejection',async()=>{
- const o=observation({wallet0:200n*unit,wallet1:0n});const r=await planRangeKeeper(input(o));
+test('configured 98% floor accepts feasible deployment below the old 99.8% override',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const limits={...config.limits,minDeploymentPpm:980000};
+ const r=await planRangeKeeper({...input(o),limits});
  assert.equal(r.action,'confirm');assert.equal(r.candidate?.swap?.token,0);
  const amount=r.candidate!.swap!.amountIn;assert(amount>0n&&amount<=100n*unit);
  const range=r.candidate!.range;
  const prior=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
- const sizingTarget=200n*unit*998000n/1000000n;
+ const sizingTarget=200n*unit*BigInt(limits.minDeploymentPpm)/1000000n;
  assert(r.candidate!.deployedValue>=sizingTarget);
- assert(value<sizingTarget);
+ assert(r.candidate!.deployedValue<200n*unit*998000n/1000000n,
+  'The feasible mint should not be pushed to the old 99.8% target');
+ assert(value<sizingTarget,'The raw-unit predecessor must miss the configured floor');
 });
-test('minimum-swap solver finds a narrow feasible window before ratio overshoot',async()=>{
+test('minimum-swap solver finds a narrow feasible window before ratio overshoot at configured floor',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
  const limits={...config.limits,maxSwapInputValue:150n*unit,minDeploymentPpm:980000};
  const r=await planRangeKeeper({...input(o),limits});
@@ -149,9 +153,22 @@ test('minimum-swap solver finds a narrow feasible window before ratio overshoot'
  assert(amount<128n*unit,'The first exponential probe after the window would be infeasible');
  const previous=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
- const sizingTarget=200n*unit*998000n/1000000n;
+ const sizingTarget=200n*unit*BigInt(limits.minDeploymentPpm)/1000000n;
  assert(r.candidate.deployedValue>=sizingTarget);
- assert(value<sizingTarget,'Raw-unit predecessor must miss the buffered sizing target');
+ assert(r.candidate.deployedValue<200n*unit*998000n/1000000n);
+ assert(value<sizingTarget,'Raw-unit predecessor must miss the configured floor');
+});
+test('strict configured deployment floor is met exactly by the minimum feasible swap',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const limits={...config.limits,maxSwapInputValue:150n*unit,minDeploymentPpm:999000};
+ const r=await planRangeKeeper({...input(o),limits});
+ assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
+ const candidate=r.candidate,amount=candidate.swap!.amountIn;
+ const previous=replayPaperMint(o.sqrtPriceX96,candidate.range,200n*unit-(amount-1n),amount-1n,0n);
+ const previousValue=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
+ const floor=limits.maxDeploymentValue*BigInt(limits.minDeploymentPpm)/1000000n;
+ assert(candidate.deployedValue>=floor,'Candidate must meet the strict configured floor');
+ assert(previousValue<floor,'One raw input unit less must fail the strict configured floor');
 });
 test('minimum-swap search fits the confirmation window with bounded provider rounds',async()=>{
  const i=input(observation({wallet0:200n*unit,wallet1:0n})),base=i.quote;

@@ -4,7 +4,8 @@ import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
-import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_READINESS_LOCK} from './deployments/store.js';
+import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_NOTIFY_CHANNEL,
+ PAPER_OPERATION_READINESS_LOCK} from './deployments/store.js';
 import {log} from './logger.js';
 
 const envSchema=z.object({
@@ -22,36 +23,73 @@ const lockKey=[4663,18727];
 // The maintenance path can hold the process readiness lease, pass lock and
 // campaign preparation lease while fee replay borrows a fourth session.
 const PAPER_WORKER_INDEXER_POOL_MAX=4;
-export type PaperOperationReadinessLease={assertHealthy:()=>Promise<void>;release:()=>Promise<void>};
+const PAPER_OPERATION_SHORT_POLL_MS=2_000;
+export type PaperOperationReadinessLease={assertHealthy:()=>Promise<void>;
+ waitForOperation:(durationMs:number,signal:AbortSignal)=>Promise<void>;release:()=>Promise<void>};
 
 /** A process-lifetime session lease. PostgreSQL releases the shared advisory
  * lock automatically if this dedicated connection is lost. */
 export async function acquirePaperOperationReadinessLease(indexer:pg.Pool):Promise<PaperOperationReadinessLease>{
- const client:PoolClient=await indexer.connect();let lost=false,released=false;
- client.on('error',()=>{lost=true;});
+ const client:PoolClient=await indexer.connect();let lost=false,released=false,notificationPending=false;
+ const waiters=new Set<()=>void>();
+ const wake=(notification:boolean)=>{
+  if(notification)notificationPending=true;
+  for(const waiter of [...waiters])waiter();
+ };
+ const onError=()=>{lost=true;wake(false);};
+ const onNotification=(message:{channel?:string})=>{
+  if(message.channel===PAPER_OPERATION_NOTIFY_CHANNEL)wake(true);
+ };
+ client.on('error',onError);
+ client.on('notification',onNotification);
  try{
   const acquired=(await client.query<{acquired:boolean}>(
    'SELECT pg_try_advisory_lock_shared($1::int,$2::int) AS acquired',
    [...PAPER_OPERATION_READINESS_LOCK])).rows[0]?.acquired;
   if(!acquired)throw Error('could not acquire paper operation readiness lease');
- }catch(error){client.release(true);throw error;}
+  await client.query(`LISTEN ${PAPER_OPERATION_NOTIFY_CHANNEL}`);
+ }catch(error){
+  client.removeListener('error',onError);client.removeListener('notification',onNotification);
+  client.release(true);throw error;
+ }
  return {
   async assertHealthy(){
    if(lost||released)throw Error('paper operation readiness lease lost');
    try{await client.query('SELECT 1');}
    catch(error){lost=true;throw Error('paper operation readiness lease lost',{cause:error});}
   },
+  async waitForOperation(durationMs,signal){
+   if(!Number.isFinite(durationMs)||durationMs<=0||signal.aborted||lost||notificationPending){
+    notificationPending=false;return;
+   }
+   await new Promise<void>(resolve=>{
+    let settled=false;
+    const finish=()=>{
+     if(settled)return;settled=true;clearTimeout(timer);
+     signal.removeEventListener('abort',finish);waiters.delete(finish);
+     notificationPending=false;resolve();
+    };
+    const timer=setTimeout(finish,durationMs);
+    waiters.add(finish);signal.addEventListener('abort',finish,{once:true});
+    if(notificationPending||lost||signal.aborted)finish();
+   });
+  },
   async release(){
    if(released)return;released=true;
    try{
     if(!lost){
+     await client.query(`UNLISTEN ${PAPER_OPERATION_NOTIFY_CHANNEL}`);
      const unlocked=(await client.query<{unlocked:boolean}>(
       'SELECT pg_advisory_unlock_shared($1::int,$2::int) AS unlocked',
       [...PAPER_OPERATION_READINESS_LOCK])).rows[0]?.unlocked;
      if(!unlocked){lost=true;throw Error('paper operation readiness lease release failed');}
     }
    }catch(error){lost=true;throw error;}
-   finally{client.release(lost);}
+   finally{
+    for(const waiter of [...waiters])waiter();
+    client.removeListener('error',onError);client.removeListener('notification',onNotification);
+    client.release(lost);
+   }
   },
  };
 }
@@ -152,18 +190,9 @@ async function main(){
    env.DEPLOYMENT_RPC_TIMEOUT_MS),workerId=`paper-model:${randomUUID()}`;
   if(env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1')
    readinessLease=await acquirePaperOperationReadinessLease(indexer);
+  let nextMaintenanceAt=Date.now();
   while(!stop.signal.aborted){
    if(readinessLease)await readinessLease.assertHealthy();
-   try{
-    const result=await runPaperMaintenancePass(store,chain,indexer,
-     env.DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS,
-     env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS,diagnostics);
-    log('info','paper_worker_pass',result);
-   }catch(error){
-    log('error','paper_worker_pass_failed',{
-     reason:failureCode(error),
-    });
-   }
    if(env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1'){
     for(let n=0;n<env.DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS&&!stop.signal.aborted;n++){
      if(readinessLease)await readinessLease.assertHealthy();
@@ -172,13 +201,28 @@ async function main(){
        {rpcUrl:env.ROBINHOOD_READ_HTTP_URL});
       if(result.status==='idle')break;
       log(result.status==='blocked'?'error':'info','paper_operation_worker_pass',result);
+      if(result.status==='retry')break;
      }catch(error){
       log('error','paper_operation_worker_failed',{reason:failureCode(error)});
       break;
      }
     }
    }
-   await pause(env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS,stop.signal);
+   if(Date.now()>=nextMaintenanceAt){
+    try{
+     const result=await runPaperMaintenancePass(store,chain,indexer,
+      env.DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS,
+      env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS,diagnostics);
+     log('info','paper_worker_pass',result);
+    }catch(error){
+     log('error','paper_worker_pass_failed',{reason:failureCode(error)});
+    }
+    nextMaintenanceAt=Date.now()+env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS;
+   }
+   const untilMaintenance=Math.max(0,nextMaintenanceAt-Date.now());
+   if(readinessLease)await readinessLease.waitForOperation(
+    Math.min(PAPER_OPERATION_SHORT_POLL_MS,untilMaintenance),stop.signal);
+   else await pause(untilMaintenance,stop.signal);
  }
  }finally{
   try{await readinessLease?.release();}

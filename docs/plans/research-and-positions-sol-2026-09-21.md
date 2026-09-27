@@ -1692,6 +1692,16 @@ custody, independent-reference, recovery or release gates to move faster.
 
 ## 12. September 26 MVP review and Sol delivery order
 
+The [September 27 independent review](../reviews/implementation-review-2026-09-27.md)
+now bounds the immediate follow-up: simplify setup, wake the operation worker,
+respect the configured RangeKeeper sizing floor, expose cost / fees, and document
+runtime continuity. See that review's implementation follow-up for fresh validation.
+After those fixes, the next operator milestone is one actual AAPL/USDG paper
+campaign through retain-close and a comparison with the harness expectations.
+RangeKeeper paper, new live capability and the operational cost-reduction
+programme remain deferred until that milestone is assessed. The current paper
+session handshake does not meet the authentication gate for future live commands.
+
 Review source: `f087abc`, 2026-09-26. The operator requested this handoff after
 reviewing progress with the goal of reaching an MVP as soon as possible.
 This section sets the current delivery priority; older progress records remain

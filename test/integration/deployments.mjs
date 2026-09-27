@@ -6,7 +6,8 @@ import {readFileSync} from 'node:fs';
 import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
-import {DeploymentStore,DeploymentConflict,PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
+import {DeploymentStore,DeploymentConflict,PAPER_OPERATION_NOTIFY_CHANNEL,
+ PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {contentHash,previewDigest} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
@@ -58,7 +59,7 @@ if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a databa
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
 const admin=await pool.connect();
 const schema=`deployment_test_${randomUUID().replaceAll('-','')}`;
-let store,feePool,workerLease;
+let store,feePool,workerLease,operationNotifier;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
@@ -663,11 +664,26 @@ try{
   await blocker.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[`conc-liq-live:4663:${wallet.toLowerCase()}`]);
   blocker.release();
  }
+ operationNotifier=new pg.Client({connectionString:url.toString()});
+ await operationNotifier.connect();await operationNotifier.query(`LISTEN ${PAPER_OPERATION_NOTIFY_CHANNEL}`);
+ const operationNotifications=[];
+ operationNotifier.on('notification',message=>operationNotifications.push(message));
+ await admin.query('BEGIN');
+ await admin.query('SELECT pg_notify($1,$2)',[PAPER_OPERATION_NOTIFY_CHANNEL,'rolled-back-operation']);
+ await admin.query('ROLLBACK');
+ await new Promise(resolve=>setTimeout(resolve,50));
+ assert.deepEqual(operationNotifications,[],'notifications from rolled-back transactions stay hidden');
  const first=await store.acceptOperation(draft.id,command,'operator');
+ for(let i=0;i<20&&operationNotifications.length===0;i++)
+  await new Promise(resolve=>setTimeout(resolve,10));
+ assert.equal(operationNotifications.length,1,'accepted operation emits one notification after commit');
+ assert.equal(operationNotifications[0].channel,PAPER_OPERATION_NOTIFY_CHANNEL);
+ assert.equal(operationNotifications[0].payload,first.id);
  assert.equal(first.status,'queued');assert.equal(first.replayed,false);
  assert.equal((await store.operation(first.id)).status,'queued');
  const replay=await store.acceptOperation(draft.id,command,'operator');
  assert.equal(replay.id,first.id);assert.equal(replay.replayed,true);
+ assert.equal(operationNotifications.length,1,'idempotent acceptance replay does not notify twice');
  await assert.rejects(store.acceptOperation(draft.id,{...command,contentDigest:'f'.repeat(64)},'operator'),
   error=>error instanceof DeploymentConflict&&error.code==='idempotency_conflict');
  assert.equal(await store.claimNext('paper-worker',30,'paper'),null);
@@ -828,6 +844,11 @@ try{
  await store.close();store=new DeploymentStore(url.toString());await store.assertReady();
  const restartedPaperClaim=await store.claimNext('paper-restart',30,'paper');
  assert.equal(restartedPaperClaim.id,paperOperation.id);assert.equal(restartedPaperClaim.stage,'ready_to_record');
+ await assert.rejects(store.releaseClaim(paperOperation.id,'paper-stale-owner'),
+  error=>error instanceof DeploymentConflict&&error.code==='claim_lost');
+ assert.equal((await admin.query('SELECT claimed_by FROM deployment_operations WHERE id=$1',
+  [paperOperation.id])).rows[0].claimed_by,'paper-restart',
+  'a stale owner cannot release the current worker claim');
  await new Promise(resolve=>setTimeout(resolve,1700));
  accountingReorgDuringRead=true;accountingOpenReads=0;
  await assert.rejects(store.completeTrustedPaperOpen(paperOperation.id,'paper-restart',verifyPaperAnchors),
@@ -845,10 +866,28 @@ try{
  assert.deepEqual(await processOnePaperOperation(store,transientWorkerClient,admin,
   'paper-open-transient-worker'),{status:'retry',operationId:paperOperation.id,
    reason:'paper_operation_transient_error'});
+ const transientOperation=(await admin.query(`SELECT status,stage,reason,claimed_by,claim_until
+  FROM deployment_operations WHERE id=$1`,[paperOperation.id])).rows[0];
+ assert.equal(transientOperation.status,'reconciling');
+ assert.equal(transientOperation.stage,'ready_to_record');
+ assert.equal(transientOperation.reason,'paper_operation_transient_error');
+ assert.equal(transientOperation.claimed_by,null);
+ assert.equal(transientOperation.claim_until,null);
+ assert.equal(await store.claimNext('paper-open-too-soon',30,'paper'),null,
+  'the bounded transient backoff applies across workers and polls');
+ await admin.query(`UPDATE deployment_operations SET updated_at=clock_timestamp()-interval '31 seconds'
+  WHERE id=$1`,[paperOperation.id]);
+ const releasedClaim=await store.claimNext('paper-open-release-owner',30,'paper');
+ assert.equal(releasedClaim.id,paperOperation.id);
+ await assert.rejects(store.releaseClaim(paperOperation.id,'paper-open-stale-owner'),
+  error=>error instanceof DeploymentConflict&&error.code==='claim_lost');
+ assert.equal((await admin.query('SELECT claimed_by FROM deployment_operations WHERE id=$1',
+  [paperOperation.id])).rows[0].claimed_by,'paper-open-release-owner');
+ await store.releaseClaim(paperOperation.id,'paper-open-release-owner');
+ await admin.query(`UPDATE deployment_operations SET updated_at=clock_timestamp()-interval '31 seconds'
+  WHERE id=$1`,[paperOperation.id]);
  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,
   [paperDraft.id])).rows[0].n,0);
- await admin.query(`UPDATE deployment_operations SET claim_until=clock_timestamp()-interval '1 second'
-  WHERE id=$1`,[paperOperation.id]);
  const workerIds=['paper-open-worker-a','paper-open-worker-b'];
  const workerTakeoverResults=await Promise.all(workerIds.map(workerId=>
   processOnePaperOperation(store,accountingClient,admin,workerId)));
@@ -1830,6 +1869,7 @@ try{
  }
  console.log(JSON.stringify({passed:['explicit migration','indexed verified profile','profile integrity and idempotency','strategy allowlist','draft and trusted preview','fresh scoped provisional gas profile','atomic idempotent gas evidence ingestion','bounded asset-neutral indexed fee replay','adjacent hypothetical fee sampler state and immutable evidence','modeled retain-close fee interval and terminal carry','predecessor lock','idempotent operation','conflicting retry','single worker claim','restart resumes stage','wallet exclusivity','atomic failure','modeled paper open inventory and capital','paper operation worker transient RPC retry','paper operation worker open success after competing lease takeover','idempotent mark replay','invalid candidate writes nothing','canonical prior anchor check','concurrent principal-only valuation retry and same-block conflict','valuation replay after closure','rehash-resistant fee carry and stream checks','journal rejects changed and mid-read reorged anchors','journal resumes after store restart','concurrent fee and accounting step records one interval and snapshot','concurrent close projection records one snapshot','retain-close mark stays principal-only while provisional journal records scenario','static/manual paper pause resume journal and worker restart with no economic marks','paper operation worker retain-close success','idempotent close mark replay','stable current-history audit','append-only reorg revocation and dashboard fail-close','static/manual strategy-filtered claim','V2 close-convert reorg and zero-write checks','V2 seven-stage conversion accounting','pending close resumes after preview expiry','canonical quote mutation rejected without capital out','paper operation worker resumes pending conversion close','idempotent V2 close completion','paper operation worker blocks a canonical mismatch without writes']}));
 }finally{
+ if(operationNotifier)await operationNotifier.end();
  if(workerLease)workerLease.release(true);
  if(feePool)await feePool.end();
  if(store)await store.close();

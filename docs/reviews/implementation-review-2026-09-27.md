@@ -270,3 +270,88 @@ not open a campaign or submit any operation, did not migrate, install, register
 or restart anything, and did not inspect any credential. The production record
 counts, deployed build identities and endpoint behavior above were true at
 review time and can change with any service action.
+
+## Implementation follow-up — 2026-09-27
+
+The operator subsequently requested implementation with Luna agents in parallel.
+This follow-up records source changes separately from the independent findings
+above. The shared checkout started at `9fcdd8d`; unrelated hybrid/adaptive,
+manifest-validator and older review edits were preserved.
+
+The bounded implementation covers:
+
+- **F-3:** human-unit setup limits with editable suggestions before preflight.
+  Registered profiles currently have no risk-limit fields, so suggestions are
+  identified as UI defaults rather than profile policy. Exact decimal-to-integer
+  conversion preserves the existing server contract and freshness window.
+- **F-4:** transactional operation notifications, a listening worker with a
+  two-second polling fallback, operations before due maintenance, and owned transient
+  claim release with a persisted 30-second retry delay. Database claims remain authoritative; notifications are hints.
+  This reduces idle-worker latency, not the duration of in-flight fork work.
+- **Recommendation 1:** the RangeKeeper mint/swap search honors configured
+  `minDeploymentPpm` without the additional 99.8% sizing floor. Later simulation
+  and canonical rechecks still apply.
+- **Recommendation 4 / F-1 visibility:** cost / fees is shown per position/symbol
+  using cumulative gas plus swap costs and LP fees in the same quote units.
+  Paper is explicitly modeled; missing components, invalid accounting and stale
+  RangeKeeper valuation stay unavailable. Positive costs with zero fees are
+  flagged, and costs above fees are highlighted independently of inventory P&L.
+  This does not make paid gas observable in paper or establish net LP alpha.
+- **F-7 catalog:** `/api/strategies` reports installed static/manual paper
+  command support; actual readiness remains checked at admission. RangeKeeper
+  paper and live remain unavailable in this catalog.
+- **F-5 / F-2:** the [operator runbook](../operations/static-paper-mvp.md)
+  documents freezing the accounting runtime through campaign closure and
+  restoring operator authentication before any future live command capability.
+  No cross-runtime accounting adoption was added.
+- The unused adaptive path was removed only from an inactive private environment
+  candidate documented in that runbook. The active file and runtime identity
+  were preserved. The unchanged cost-reduction analysis moved to
+  [docs/research](../research/rangekeeper-operational-cost-reduction-2026-09-27.md),
+  with a link at its old location.
+
+Validation on the combined shared checkout (including the preserved unrelated
+edits), using pinned Node 24.20.0:
+
+| Check | Result |
+| --- | --- |
+| `npm run check` | Five repository validators, typecheck, **897/897 tests in 85 suites** passed |
+| `npm run test:integration` | All seven isolated PostgreSQL suites passed, including commit-only notification, idempotent replay, 30-second retry exclusion, stale-owner rejection, stage preservation and exactly-once accounting |
+| `dashboard-setup-command-browser.mjs --complete-static-lifecycle` | **21 browser checks**, four operations, no browser exceptions; human defaults/custom edits, fresh native suggestion, exact stored units, open/pause/resume/retain-close, desktop/mobile |
+| `npm run test:integration:paper-worker-process` | Real command/worker processes, one worker restart, released readiness lease, desktop/mobile operation activity; idle pause/resume accepted-to-terminal latency **119 ms / 115 ms** |
+| `git diff --check` | Passed |
+
+The browser and process fixtures use synthetic chain boundaries, disposable
+local databases and no signer. The latency measurements are for non-economic
+pause/resume operations with no chain RPC calls, not bounds on fork replay or
+maintenance duration. No sealed artifact or canonical-chain acceptance was run. Both disposable test
+databases, fixture schemas, browser processes and temporary fixture directories
+were cleaned up. Browser stdout was retained in the tool transcript rather than
+a separate log file.
+
+The first combined unit run caught a brittle listener-cleanup query-count
+assertion; final validation checks connection destruction and prompt wakeup
+semantics. The first new browser persistence assertion used the wrong table;
+it now joins the campaign's current revision. These test corrections did not
+relax source, accounting, claim or admission gates.
+
+Logs: `/tmp/conc-liq-review-check-20260927.log`,
+`/tmp/conc-liq-review-integration-20260927.log`,
+`/tmp/conc-liq-review-worker-unit-20260927.log`, and
+`/tmp/conc-liq-review-worker-process-20260927.log`.
+
+Default suggestions use capital as the deployment cap, minimum deployment of
+`min(1 USD, 10% of capital)`, 95% exposure, 5% loss, 10% drawdown, and
+5%/10%/15% per-action/rolling/campaign cost limits. Exit reserve is 0.001 native
+units and slippage 0.5%. These are editable setup suggestions, not measured
+profitability or registered profile policy. The native allocation is suggested
+only after review as `open bound + max(exit reserve, retain-close bound)`;
+custom edits are preserved and the server remains authoritative.
+
+The next acceptance milestone remains a human-operated AAPL/USDG paper campaign
+through retain-close, comparing recorded output with the harness expectations.
+These source changes do not establish that milestone or a new sealed release.
+No production migration, service replacement/restart, profile registration,
+campaign opening, signing or broadcast was performed in this implementation
+follow-up. Legacy accounting removal/store decomposition and schema capability
+compatibility are deferred; the operator-descoped cost programme stays deferred.

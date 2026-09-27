@@ -12,6 +12,80 @@ export function capitalToQuoteRaw(value) {
   return raw > 0n && raw <= 100_000n * 1_000_000n ? String(raw) : null;
 }
 
+const decimalUnits = Object.freeze({
+  maxDeploymentValue: 18, minDeploymentValue: 18, maxExposurePpm: 4,
+  maxLossValue: 18, maxDrawdownPpm: 4, maxActionCost: 18,
+  maxRollingCost: 18, maxCampaignCost: 18, exitReserveWei: 18,
+  maxSlippageBps: 2,
+});
+
+function decimalToRaw(value, decimals) {
+  const text = String(value ?? '').trim();
+  const match = /^(0|[1-9][0-9]*)(?:\.([0-9]+))?$/.exec(text);
+  if (!match || (match[2]?.length ?? 0) > decimals) return null;
+  const scale = 10n ** BigInt(decimals);
+  const fraction = (match[2] ?? '').padEnd(decimals, '0');
+  return String(BigInt(match[1]) * scale + BigInt(fraction || '0'));
+}
+
+function rawToDecimal(value, decimals) {
+  if (!/^(0|[1-9][0-9]*)$/.test(String(value ?? ''))) return '';
+  const scale = 10n ** BigInt(decimals), raw = BigInt(value);
+  const whole = String(raw / scale);
+  const fraction = String(raw % scale).padStart(decimals, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
+
+export function humanSetupLimitsToRaw(limits) {
+  if (!limits || typeof limits !== 'object') return null;
+  const result = {};
+  for (const [field, decimals] of Object.entries(decimalUnits)) {
+    const raw = decimalToRaw(limits[field], decimals);
+    if (raw === null || BigInt(raw) <= 0n) return null;
+    result[field] = ['maxExposurePpm', 'maxDrawdownPpm', 'maxSlippageBps'].includes(field)
+      ? Number(raw) : raw;
+  }
+  return normalizeSetupLimits(result);
+}
+
+export function rawSetupLimitsToHuman(limits) {
+  if (!limits || typeof limits !== 'object') return null;
+  const result = {};
+  for (const [field, decimals] of Object.entries(decimalUnits)) {
+    const value = String(limits[field] ?? '');
+    if (!/^(0|[1-9][0-9]*)$/.test(value)) return null;
+    result[field] = rawToDecimal(value, decimals);
+  }
+  return result;
+}
+
+export function suggestedSetupLimits(capital) {
+  const capitalQuoteRaw = capitalToQuoteRaw(capital);
+  if (!capitalQuoteRaw) return null;
+  const capitalUsdX18 = BigInt(capitalQuoteRaw) * 10n ** 12n;
+  const amount = (numerator, denominator) => rawToDecimal(String(capitalUsdX18 * BigInt(numerator) / BigInt(denominator)), 18);
+  return {
+    maxDeploymentValue: rawToDecimal(String(capitalUsdX18), 18),
+    minDeploymentValue: rawToDecimal(String(capitalUsdX18 / 10n < 10n ** 18n ? capitalUsdX18 / 10n : 10n ** 18n), 18),
+    maxExposurePpm: '95',
+    maxLossValue: amount(5, 100), maxDrawdownPpm: '10',
+    maxActionCost: amount(5, 100), maxRollingCost: amount(10, 100),
+    maxCampaignCost: amount(15, 100), exitReserveWei: '0.001', maxSlippageBps: '0.5',
+  };
+}
+
+export function setupNativeAllocationToWei(value) {
+  const raw = decimalToRaw(value, 18);
+  return raw && BigInt(raw) > 0n ? raw : null;
+}
+
+export function suggestedNativeAllocationWei({ openBoundWei, closeBoundWei, exitReserveWei }) {
+  const amounts = [openBoundWei, closeBoundWei, exitReserveWei].map(String);
+  if (amounts.some(value => !/^(0|[1-9][0-9]*)$/.test(value))) return null;
+  const [open, close, reserve] = amounts.map(BigInt);
+  return String(open + (close > reserve ? close : reserve));
+}
+
 function normalizeSetupLimits(limits) {
   const fields=['maxDeploymentValue','minDeploymentValue','maxExposurePpm','maxLossValue','maxDrawdownPpm',
     'maxActionCost','maxRollingCost','maxCampaignCost','exitReserveWei','maxSlippageBps'];
@@ -277,6 +351,7 @@ function bootDashboardTabs() {
     poolSelect.innerHTML = registeredPools.map((pool) =>
       `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
     poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
+    applySuggestedLimitValues();
   };
   function applyProfileIds() {
     registeredPools = marketProfiles.filter((profile) => profile.draftAvailable === true).map((profile) => {
@@ -290,6 +365,7 @@ function bootDashboardTabs() {
     poolSelect.innerHTML = registeredPools.map((pool) =>
       `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
     poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
+    applySuggestedLimitValues();
   }
   const loadResearch = async () => {
     const snapshot = await fetch('/api/research', { headers: { accept: 'application/json' } }).then((response) => {
@@ -363,7 +439,7 @@ function bootDashboardTabs() {
       setSetupStatus('Operator session is connecting. Retry the request after the connection is ready.');
       return;
     }
-    const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+    const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
     const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode,limits });
     if (!request.available) { setSetupStatus(`Preflight unavailable: ${request.reason}`); return; }
     setSetupStatus('Preparing estimated costs from a fresh confirmed source. This may take several minutes; no draft or operation will be created…', 'loading');
@@ -413,6 +489,15 @@ function bootDashboardTabs() {
     }));
     output.hidden = false;
     currentSetupPreflight = result;
+    if(result.status==='available'){
+      const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
+      const nativeWei=suggestedNativeAllocationWei({openBoundWei:result.costs?.open?.boundWei,
+        closeBoundWei:result.costs?.closeRetain?.boundWei,exitReserveWei:limits?.exitReserveWei});
+      const input=document.getElementById('setup-allocation-native');
+      const suggestion=nativeWei?rawToDecimal(nativeWei,18):'';
+      if(suggestion&&(!input.value||input.value===lastSuggestedNativeAllocation))input.value=suggestion;
+      if(suggestion)lastSuggestedNativeAllocation=suggestion;
+    }
     renderOperatorDraftBinding(result);
     const reviewExpiry=Date.parse(result.setupReviewExpiresAt??'');
     if(Number.isFinite(reviewExpiry))setTimeout(()=>{
@@ -424,13 +509,30 @@ function bootDashboardTabs() {
     maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
     maxActionCost:'limit-max-action-cost',maxRollingCost:'limit-max-rolling-cost',
     maxCampaignCost:'limit-max-campaign-cost',exitReserveWei:'limit-exit-reserve',maxSlippageBps:'limit-slippage-bps'};
-  const limitLabels={maxDeploymentValue:'Maximum deployment · raw reference USD (X18)',
-    minDeploymentValue:'Minimum deployment · raw reference USD (X18)',
-    maxExposurePpm:'Maximum exposure · PPM',maxLossValue:'Maximum loss · raw reference USD (X18)',
-    maxDrawdownPpm:'Maximum drawdown · PPM',maxActionCost:'Maximum action cost · raw reference USD (X18)',
-    maxRollingCost:'Maximum rolling cost · raw reference USD (X18)',
-    maxCampaignCost:'Maximum campaign cost · raw reference USD (X18)',
-    exitReserveWei:'Native exit reserve · wei',maxSlippageBps:'Maximum slippage · bps'};
+  const limitLabels={maxDeploymentValue:'Maximum deployment · USD',
+    minDeploymentValue:'Minimum deployment · USD',maxExposurePpm:'Maximum exposure · percent',
+    maxLossValue:'Maximum loss · USD',maxDrawdownPpm:'Maximum drawdown · percent',
+    maxActionCost:'Maximum action cost · USD',maxRollingCost:'Maximum rolling cost · USD',
+    maxCampaignCost:'Maximum campaign cost · USD',exitReserveWei:'Native exit reserve · native units',
+    maxSlippageBps:'Maximum slippage · percent'};
+  let lastSuggestedLimits = null;
+  let lastSuggestedNativeAllocation = null;
+  function readHumanLimitInputs(){
+    return Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+  }
+  function applySuggestedLimitValues(){
+    const capital=document.getElementById('setup-capital').value,suggestions=suggestedSetupLimits(capital);
+    if(!suggestions)return;
+    for(const [key,id]of Object.entries(limitInputIds)){
+      const input=document.getElementById(id),previous=lastSuggestedLimits?.[key];
+      if(!input.value||input.value===previous)input.value=suggestions[key];
+    }
+    lastSuggestedLimits=suggestions;
+  }
+  document.getElementById('setup-capital').addEventListener('input',applySuggestedLimitValues);
+  for(const id of Object.values(limitInputIds))document.getElementById(id).addEventListener('input',()=>{
+    const details=document.getElementById('setup-limits-review');if(details)details.open=true;
+  });
   function renderOperatorDraftBinding(result) {
     const section=document.getElementById('operator-draft-binding'),available=onOperatorOrigin&&
       result?.status==='available'&&result.kind==='paper_setup_preflight'&&
@@ -448,8 +550,8 @@ function bootDashboardTabs() {
   function updateDraftBinding() {
     if(!currentSetupPreflight||document.getElementById('operator-draft-binding').hidden)return;
     const wallet=document.getElementById('setup-wallet-address').value,
-      nativeWei=document.getElementById('setup-allocation-native').value,
-      limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value])),
+      nativeWei=setupNativeAllocationToWei(document.getElementById('setup-allocation-native').value),
+      limits=humanSetupLimitsToRaw(readHumanLimitInputs()),
       result=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits}),
       status=document.getElementById('operator-draft-binding-status');
     status.dataset.state=result.status==='reviewable'?'available':'unavailable';
@@ -470,8 +572,8 @@ function bootDashboardTabs() {
       ['Resolved tick bounds',`${currentSetupPreflight.range.tickLower} to ${currentSetupPreflight.range.tickUpper}`],
       [`${currentSetupPreflight.profile.token0} allocation · raw`,proposal.allocation.token0Raw],
       [`${currentSetupPreflight.profile.token1} allocation · raw`,proposal.allocation.token1Raw],
-      ['Native gas allocation · wei',proposal.allocation.nativeWei],
-      ...Object.entries(proposal.config.limits).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+      ['Native gas allocation · native units',rawToDecimal(proposal.allocation.nativeWei,18)],
+      ...Object.entries(rawSetupLimitsToHuman(proposal.config.limits)??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
       ['Policy admission',savedDraftId?'Passed at draft creation; fresh open preview required':'Not evaluated'],
       ['Draft persistence',savedDraftId?'Saved · '+savedDraftId:pendingDraftRequestId?'Pending · same request ID retained':'Not saved'],
     ];
@@ -516,8 +618,8 @@ function bootDashboardTabs() {
       !Number.isFinite(Date.parse(currentSetupPreflight.setupReviewExpiresAt??''))||
       Date.parse(currentSetupPreflight.setupReviewExpiresAt)<=Date.now())return null;
     const wallet=document.getElementById('setup-wallet-address').value.trim();
-    const nativeWei=document.getElementById('setup-allocation-native').value;
-    const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+    const nativeWei=setupNativeAllocationToWei(document.getElementById('setup-allocation-native').value);
+    const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
     const localReview=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits});
     if(localReview.status!=='reviewable')return null;
     const proposal=localReview.binding.proposedDraft;
@@ -690,8 +792,8 @@ function bootDashboardTabs() {
         ['Registered pool / fee',`${draft.pool} · ${draft.fee} · spacing ${draft.tickSpacing}`],
         ['Market profile ID / hash',`${draft.marketProfileId} · ${draft.profileHash}`],['Saved configuration hash',draft.configHash],
         ['Allocation · token0/token1 raw',`${draft.allocation.token0Raw??'Unavailable'} / ${draft.allocation.token1Raw??'Unavailable'}`],
-        ['Native allocation · wei',String(draft.allocation.nativeWei??'Unavailable')],[ 'Range configuration',range],
-        ...Object.entries(config.limits??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+        ['Native allocation · native units',rawToDecimal(draft.allocation.nativeWei??'',18)||'Unavailable'],[ 'Range configuration',range],
+        ...Object.entries(rawSetupLimitsToHuman(config.limits)??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
         ['Created',String(draft.createdAt??'Unavailable')],['Funding','Unchecked'],
         ['Current source / current costs','Unavailable · request a fresh preview']];
       for(const [label,value]of rows){const cell=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');
@@ -723,8 +825,9 @@ function bootDashboardTabs() {
     document.getElementById('setup-wallet-address').value=body.wallet??'';
     document.getElementById('setup-allocation-token0').value=body.allocation?.token0Raw??'';
     document.getElementById('setup-allocation-token1').value=body.allocation?.token1Raw??'';
-    document.getElementById('setup-allocation-native').value=body.allocation?.nativeWei??'';
-    for(const [key,id]of Object.entries(limitInputIds))document.getElementById(id).value=String(body.limits?.[key]??'');
+    document.getElementById('setup-allocation-native').value=rawToDecimal(body.allocation?.nativeWei??'',18);
+    const limits=rawSetupLimitsToHuman(body.limits)??{};
+    for(const [key,id]of Object.entries(limitInputIds))document.getElementById(id).value=String(limits[key]??'');
     document.getElementById('setup-allocation-token0-label').firstChild.textContent=`Token 0 (${body.reviewed.profile?.token0??'address unavailable'}) allocation · raw `;
     document.getElementById('setup-allocation-token1-label').firstChild.textContent=`Token 1 (${body.reviewed.profile?.token1??'address unavailable'}) allocation · raw `;
     document.getElementById('operator-draft-binding-status').textContent='Recovered pending request. Its previous source and costs are historical; retrying the same UUID first checks for an already-saved campaign, then server admission requires fresh evidence.';
@@ -737,8 +840,8 @@ function bootDashboardTabs() {
       ['Capital budget · raw USDG',body.capitalQuoteRaw],['Centered half-width · ticks',String(body.halfWidthTicks)],
       ['Previously reviewed bounds · not current',`${review.range?.tickLower??'Unavailable'} to ${review.range?.tickUpper??'Unavailable'}`],
       ['Token 0 allocation · raw',body.allocation?.token0Raw??'Unavailable'],
-      ['Token 1 allocation · raw',body.allocation?.token1Raw??'Unavailable'],['Native allocation · wei',body.allocation?.nativeWei??'Unavailable'],
-      ...Object.entries(config.limits??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
+      ['Token 1 allocation · raw',body.allocation?.token1Raw??'Unavailable'],['Native allocation · native units',rawToDecimal(body.allocation?.nativeWei??'',18)||'Unavailable'],
+      ...Object.entries(rawSetupLimitsToHuman(config.limits)??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
       ['Draft request ID',pendingDraftRequestId],['Admission state','Unknown · retry same request to reconcile']];
     facts.replaceChildren(...rows.map(([label,value])=>{const cell=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');
       dt.textContent=label;dd.textContent=value;cell.append(dt,dd);return cell;}));

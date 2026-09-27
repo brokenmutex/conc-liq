@@ -173,7 +173,14 @@ export function createDeploymentCommandServer(store:CommandStore,
     send(response,200,{status:'logged_out'});return;
    }
    if(path==='/api/strategies'&&request.method==='GET'){
-    send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',paper:false,live:false}))});return;
+    // This advertises installed paper support; worker readiness is checked
+    // independently when previews and operations are requested.
+    const staticPaperAvailable=Boolean(options.paperPreview&&options.paperSetupPreflight&&
+     options.paperSetupDraftAdmission&&options.paperSetupDraftList&&options.paperOpenAcceptance&&
+     options.paperRetainAcceptance&&options.paperLifecycleAcceptance&&options.paperOperationReplay&&
+     options.paperRetainWorkerReady);
+    send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',
+     paper:id==='static_manual_v1'&&staticPaperAvailable,live:false}))});return;
    }
    if(path==='/api/market-profiles'&&request.method==='GET'){
     send(response,200,{profiles:await store.listMarketProfiles()});return;

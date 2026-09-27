@@ -77,6 +77,44 @@ and exact-once marks/ledger rows. Canonical evidence changes block or invalidate
 economics. Never delete accounting, mutate source anchors or mark success by hand
 to unblock a campaign. An admission preview's expiry does not undo accepted work.
 
+## Runtime freeze during a campaign
+
+Freeze the accounting worker's sealed build, pinned Node version and private
+environment file from opening through terminal accounting and closure. Restart
+with those exact inputs. Changing any of them changes runtime identity and can
+block subsequent projections with `paper_accounting_prior_runtime_mismatch`;
+there is no supported cross-runtime adoption command. Keep the prior sealed
+artifact and private file available until every campaign using them is closed.
+Before upgrading, check for nonterminal campaigns and pending operations, finish
+or reconcile them on their original runtime, and retain their accounting history.
+Do not edit persisted identities or weaken the equality check to force adoption.
+
+The command and dashboard releases may have different identities from the worker;
+that does not authorize changing the identity responsible for economic booking.
+Any release replacement still needs the applicable browser and recovery gates.
+
+The September 27 review prepared an **inactive candidate** private worker file,
+`data/static-paper-mvp-runtime-review-2026-09-27.env`, with only the unused
+`ADAPTIVE_PAPER_STATE_PATH` removed. Its file SHA256 is
+`865c81ab5e49afbe5b1a610ceabac1ffc13f67ca90a6a05373211540a9495f3d`.
+This is a file checksum, not the launcher's runtime config hash. Select and verify
+it during the next approved release preparation, before opening a campaign;
+then record the actual sealed runtime identity. The deployed file is unchanged.
+
+## Economics and the live access gate
+
+Cost / fees divides the position's cumulative gas plus swap costs by cumulative
+LP fees in the same quote units. Above 1.0, execution costs exceed fee income,
+even if inventory gains make total P&L positive. It excludes unobserved future
+exit costs and is not a substitute for net alpha against passive inventory.
+Paper ratios are labeled modeled, not paid. A missing component stays unavailable;
+positive costs with zero fees show "No fees" instead of a finite ratio.
+
+Restore single-operator authentication and verify access denial before enabling
+any live command on these routes or extending them to a signer. The current
+passwordless session and CSRF handshake is not that access boundary. This is a
+live capability gate; it does not change the approved passwordless paper workflow.
+
 ## Review and cutover record
 
 Complete this record with measured results before a production approval request:

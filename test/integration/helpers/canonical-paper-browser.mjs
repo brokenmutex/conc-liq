@@ -156,6 +156,14 @@ const limitSelectors={maxDeploymentValue:'#limit-max-deployment',minDeploymentVa
  maxExposurePpm:'#limit-max-exposure',maxLossValue:'#limit-max-loss',maxDrawdownPpm:'#limit-max-drawdown',
  maxActionCost:'#limit-max-action-cost',maxRollingCost:'#limit-max-rolling-cost',
  maxCampaignCost:'#limit-max-campaign-cost',exitReserveWei:'#limit-exit-reserve',maxSlippageBps:'#limit-slippage-bps'};
+const uiLimitDecimals={maxExposurePpm:4,maxDrawdownPpm:4,maxSlippageBps:2};
+const rawToHuman=(raw,decimals)=>{
+ const value=BigInt(raw),scale=10n**BigInt(decimals),whole=String(value/scale),
+  fraction=String(value%scale).padStart(decimals,'0').replace(/0+$/,'');
+ return fraction?`${whole}.${fraction}`:whole;
+};
+const rawLimitsToHuman=limits=>Object.fromEntries(Object.entries(limits).map(([key,value])=>
+ [key,rawToHuman(value,uiLimitDecimals[key]??18)]));
 
 /** Start at the setup form and obtain a draft solely through operator UI.
  * profilePool is the registered pool address; all other values are operator inputs. */
@@ -175,7 +183,13 @@ export async function createDraftAndAcceptOpen(browser,{profilePool,capital='2',
  const selectedWidth=await browser.evaluate('document.querySelector("#setup-width").value');
  // The six-stage owned-fork sampler runs only when setup limits are part of
  // the authenticated preflight request. Enter them before reviewing.
- for(const [key,selector]of Object.entries(limitSelectors))await browser.fill(selector,limits[key]);
+ await browser.click('#setup-limits-review summary');
+ await browser.waitFor('document.querySelector("#setup-limits-review").open','expanded human-unit risk and cost limits');
+ const humanLimits=rawLimitsToHuman(limits);
+ for(const [key,selector]of Object.entries(limitSelectors))await browser.fill(selector,humanLimits[key]);
+ await browser.waitFor(`document.querySelector("#limit-max-exposure").value===${JSON.stringify(humanLimits.maxExposurePpm)}&&`+
+  `document.querySelector("#limit-slippage-bps").value===${JSON.stringify(humanLimits.maxSlippageBps)}`,
+  'human percentage units rendered in the setup form');
  await browser.click('#setup-review-button');
  await browser.waitFor(`['Sizing preflight available','Sizing preflight unavailable'].includes(
   document.querySelector("#setup-preflight-title")?.textContent?.trim())`,
@@ -190,7 +204,9 @@ export async function createDraftAndAcceptOpen(browser,{profilePool,capital='2',
   bindingHidden:document.querySelector('#operator-draft-binding').hidden,
   title:document.querySelector('#setup-preflight-title').textContent}))()`);
  assert.equal(review.bindingHidden,false,'available authenticated review must expose its exact draft binding');
- await browser.fill('#setup-wallet-address',wallet);await browser.fill('#setup-allocation-native',nativeWei);
+ await browser.fill('#setup-wallet-address',wallet);await browser.fill('#setup-allocation-native',rawToHuman(nativeWei,18));
+ await browser.waitFor(`document.querySelector("#setup-allocation-native").value===${JSON.stringify(rawToHuman(nativeWei,18))}`,
+  'human native allocation units');
  await browser.waitFor('document.querySelector("#save-paper-draft")?.disabled===false','reviewed setup binding');
  await browser.click('#save-paper-draft');
  await browser.waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Saved static/manual paper draft")',

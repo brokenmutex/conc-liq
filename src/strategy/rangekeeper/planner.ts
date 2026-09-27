@@ -66,10 +66,8 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  // the mint itself is separately capped below.
  const base0=wallet0*fraction/PPM,base1=wallet1*fraction/PPM;
  const floor=l.maxDeploymentValue*BigInt(l.minDeploymentPpm)/PPM;
- // A swap sized to the exact hard floor has no room for quote or pool movement
- // during the approval receipts. Target 99.8% of the LP cap when feasible;
- // the actual mint still scales down to the cap and enforces the hard floor.
- const sizingFloor=max(floor,l.maxDeploymentValue*998_000n/PPM);
+ // Respect the configured floor. Later canonical observations and exact
+ // simulation can still reject a candidate if pool state moves meanwhile.
  const evaluate=(a0:bigint,a1:bigint,price:bigint)=>{
   if(price<=sqrtRatioAtTick(range.tickLower)||price>=sqrtRatioAtTick(range.tickUpper))return null;
   const sized=sizeRangeKeeperMint(price,range,a0,a1,p0,p1,d0,d1,l.maxDeploymentValue);
@@ -78,7 +76,7 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  };
  const initial=evaluate(base0,base1,o.sqrtPriceX96);
  const make=(a0:bigint,a1:bigint,price:bigint,swap:RangeKeeperCandidate['swap']):RangeKeeperCandidate|null=>{
-  const r=evaluate(a0,a1,price);if(!r?.feasible||swap&&r.deployed<sizingFloor)return null;
+  const r=evaluate(a0,a1,price);if(!r?.feasible)return null;
   const haircut=10_000n-BigInt(l.maxSlippageBps);
   return {kind,range,swap,amount0Desired:r.desired0,amount1Desired:r.desired1,
    amount0Min:r.mint.amount0*haircut/10_000n,amount1Min:r.mint.amount1*haircut/10_000n,
@@ -145,12 +143,12 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
  for(let i=0;i<peakResults.length;i++)if(peakResults[i]!.deployed>peakValue){
   peak=peakPoints[i]!;peakValue=peakResults[i]!.deployed;
  }
- if(peakValue<sizingFloor)return null;
+ if(peakValue<floor)return null;
  lo=0n;hi=peak;
  while(hi-lo>1n&&evaluated.size<400){
   const span=hi-lo,points=Array.from({length:9},(_,i)=>lo+span*BigInt(i)/8n);
   const values=await Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
-  const first=values.findIndex(value=>value.deployed>=sizingFloor);
+  const first=values.findIndex(value=>value.deployed>=floor);
   if(first<=0)return null;
   lo=points[first-1]!;hi=points[first]!;
  }

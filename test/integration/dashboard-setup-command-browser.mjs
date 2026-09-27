@@ -60,6 +60,7 @@ const frame=()=>({source:blockSource,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),pool
  price0:10n**18n,price1:10n**18n,nativePrice:2000n*10n**18n,referenceEligible:true,
  referenceReasons:[],referenceProofHash:referenceProofHash(referenceProof),referenceProof});
 const setupReviewCache=new StaticPaperSetupReviewCache();
+let latestSetupPreflight=null;
 const readSetup=async(input,pinnedSource)=>{
  const result=await buildStaticPaperSetupPreflight(input,{
  loadProfile:id=>store.paperSetupProfile(id),readFrame:async(_profile,source)=>{
@@ -69,12 +70,14 @@ const readSetup=async(input,pinnedSource)=>{
  verifyCanonical:async(_chainId,source)=>{
   if(source.block!==blockSource.block||source.hash!==blockSource.hash||source.timestamp!==blockSource.timestamp)
    throw Error('mock_source_not_canonical');},
- readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
+  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
  },pinnedSource);
+ latestSetupPreflight=result;
  if(pinnedSource||result.status!=='available')return result;
  const captured=setupReviewCache.capture(result);
  assert(captured,'Server must capture the exact setup costs before browser review');
- return {...result,...captured};
+ latestSetupPreflight={...result,...captured};
+ return latestSetupPreflight;
 };
 
 async function chromiumPath(){
@@ -251,17 +254,31 @@ await check('Command origin serves the two-tab dashboard',
 await waitFor('window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#setup-width").options.length>1');
 await check('Automatic browser session loads the registered DB profile',
  'document.querySelector("#setup-pool").options[0].value==='+JSON.stringify(poolAddress));
-const limits=[['#limit-max-deployment','10000000000000000000000'],['#limit-min-deployment','1000000000000000000'],
- ['#limit-max-exposure','1000000'],['#limit-max-loss','10000000000000000000000'],['#limit-max-drawdown','1000000'],
- ['#limit-max-action-cost','10000000000000000000'],['#limit-max-rolling-cost','20000000000000000000'],
- ['#limit-max-campaign-cost','30000000000000000000'],['#limit-exit-reserve','1000000000000000'],
- ['#limit-slippage-bps','50']];
-for(const [selector,value]of limits)await fill(selector,value);
+await click('#setup-limits-review summary');
+await check('Risk and cost limits expand with human-readable units',
+ 'document.querySelector("#setup-limits-review").open&&document.querySelector("#setup-limits-review").textContent.includes("Maximum deployment · USD")&&document.querySelector("#setup-limits-review").textContent.includes("Maximum slippage · percent")');
+await fill('#setup-capital','250');
+await check('Capital fills editable human-unit suggestions',
+ 'document.querySelector("#limit-max-deployment").value==="250"&&document.querySelector("#limit-min-deployment").value==="1"&&document.querySelector("#limit-max-exposure").value==="95"&&document.querySelector("#limit-slippage-bps").value==="0.5"');
+await fill('#limit-max-action-cost','10');
+await fill('#setup-capital','300');
+await check('Capital changes preserve a custom human-unit limit',
+ 'document.querySelector("#limit-max-deployment").value==="300"&&document.querySelector("#limit-max-action-cost").value==="10"');
+await fill('#setup-capital','250');
+await check('Returning capital restores untouched suggestions and keeps the custom limit',
+ 'document.querySelector("#limit-max-deployment").value==="250"&&document.querySelector("#limit-max-action-cost").value==="10"');
 await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
 await check('Preflight binds the registered quote-token index for exact draft admission',
  'document.querySelector("#setup-preflight-facts").textContent.includes("USDG")');
 await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
-await fill('#setup-allocation-native','2000000000000000');
+const expectedNativeWei=BigInt(latestSetupPreflight.costs.open.boundWei)+
+ (BigInt(latestSetupPreflight.costs.closeRetain.boundWei)>BigInt(latestSetupPreflight.input.limits.exitReserveWei)?
+  BigInt(latestSetupPreflight.costs.closeRetain.boundWei):BigInt(latestSetupPreflight.input.limits.exitReserveWei));
+const nativeUnits=raw=>{const n=BigInt(raw),scale=10n**18n,whole=String(n/scale),fraction=String(n%scale).padStart(18,'0').replace(/0+$/,'');
+ return fraction?`${whole}.${fraction}`:whole;};
+await check('Preflight suggests exact native allocation in native units from reviewed bounds',
+ 'document.querySelector("#setup-allocation-native").value==='+JSON.stringify(nativeUnits(expectedNativeWei))+
+ '&&document.querySelector("#setup-allocation-native").labels[0].textContent.includes("native units")');
 await waitFor('document.querySelector("#save-paper-draft").disabled===false');
 await click('#save-paper-draft');await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Saved static/manual paper draft")');
 const draftId=await evaluate(`document.querySelector("#setup-draft-submit-status").textContent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]`);
@@ -269,6 +286,13 @@ assert(draftId,'browser shows a persisted draft ID');
 await waitFor('document.querySelector(".saved-paper-draft")!==null&&document.querySelector("#setup-open-status").textContent.includes("worker readiness")');
 assert.equal((await admin.query(`SELECT count(*)::int AS count FROM deployment_campaigns WHERE id=$1 AND lifecycle='draft'`,[draftId])).rows[0].count,1);
 assert.equal((await admin.query('SELECT count(*)::int AS count FROM deployment_previews WHERE campaign_id=$1',[draftId])).rows[0].count,1);
+const savedSetup=(await admin.query(`SELECT r.config,c.allocation FROM deployment_campaigns c
+ JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision WHERE c.id=$1`,[draftId])).rows[0];
+assert.deepEqual(savedSetup.config.limits,{maxDeploymentValue:'250000000000000000000',minDeploymentValue:'1000000000000000000',
+ maxExposurePpm:950000,maxLossValue:'12500000000000000000',maxDrawdownPpm:100000,
+ maxActionCost:'10000000000000000000',maxRollingCost:'25000000000000000000',
+ maxCampaignCost:'37500000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50});
+assert.equal(savedSetup.allocation.nativeWei,String(expectedNativeWei));
 await check('Browser draft POST persists one campaign and actual command list recovers it',
  'document.querySelector(".saved-paper-draft").textContent.includes('+JSON.stringify(draftId)+')&&document.querySelector("#setup-open-status").textContent.includes("worker readiness")');
 await check('Fresh open preview is persisted but acceptance stays disabled without worker lease',

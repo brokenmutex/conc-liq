@@ -191,7 +191,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(catalog.status,200);
   const body=await catalog.json() as {strategies:{id:string;paper:boolean;live:boolean}[]};
   assert.deepEqual(body.strategies.map(s=>s.id),['static_manual_v1','rangekeeper_v1']);
-  assert(body.strategies.every(s=>s.paper===false&&s.live===false));
+  assert.deepEqual(body.strategies.map(s=>[s.paper,s.live]),[[false,false],[false,false]],
+   'paper support is false when the complete static/manual callback set is not installed');
   const profiles=await fetch(url+'/api/market-profiles',{headers:{cookie}});
   assert.equal(profiles.status,200);
   const profileRows=(await profiles.json() as {profiles:{id:string;deploymentAvailable:boolean}[]}).profiles;
@@ -200,6 +201,30 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   const logout=await fetch(url+'/api/session',{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
   assert.equal(logout.status,200);
   assert.equal((await fetch(url+'/api/strategies',{headers:{cookie}})).status,401);
+ }finally{server.close();await once(server,'close');}
+});
+
+it('reports static/manual paper support only when its required command callbacks are installed',async()=>{
+ const origin='http://127.0.0.1:4175';
+ const store={async createDraft(){return {};},async acceptOperation(){return {};},
+  async operation(){return null;},async listMarketProfiles(){return [];}};
+ const server=createDeploymentCommandServer(store,{origin,
+  paperPreview:async()=>({}),paperSetupPreflight:async()=>({}),paperSetupDraftAdmission:async()=>({}),
+  paperSetupDraftList:async()=>[],paperOpenAcceptance:async()=>({}),paperRetainAcceptance:async()=>({}),
+  paperLifecycleAcceptance:async()=>({}),paperOperationReplay:async()=>null,paperRetainWorkerReady:async()=>false});
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address();assert(address&&typeof address!=='string');
+ const url=`http://127.0.0.1:${address.port}`;
+ try{
+  const login=await fetch(url+'/api/session',{method:'POST',headers:{origin,'content-type':'application/json'},body:'{}'});
+  assert.equal(login.status,200);
+  const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
+  const catalog=await fetch(url+'/api/strategies',{headers:{cookie}});
+  assert.equal(catalog.status,200);
+  const body=await catalog.json() as {strategies:{id:string;paper:boolean;live:boolean}[]};
+  assert.deepEqual(body.strategies.map(s=>s.id),['static_manual_v1','rangekeeper_v1']);
+  assert.deepEqual(body.strategies.map(s=>[s.paper,s.live]),[[true,false],[false,false]],
+   'catalog reports installed paper support while readiness remains transient');
  }finally{server.close();await once(server,'close');}
 });
 

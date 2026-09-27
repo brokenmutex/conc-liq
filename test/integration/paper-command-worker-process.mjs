@@ -158,6 +158,8 @@ try{
   worker.stdout.setEncoding('utf8');worker.stderr.setEncoding('utf8');
   worker.stdout.on('data',chunk=>workerOutput+=chunk);worker.stderr.on('data',chunk=>workerOutput+=chunk);
   await waitFor(async()=>await store.paperOperationWorkerReady(),'worker shared readiness lease');
+  await waitFor(async()=>workerOutput.includes('"event":"paper_worker_pass"'),
+   'initial maintenance completes before idle-worker latency check');
  };
  const stopWorker=async()=>{
   if(!worker)return;const current=worker;worker=null;
@@ -169,6 +171,7 @@ try{
   const previewResponse=await post(`/api/deployments/${campaign.id}/previews`,{kind},authHeaders);
   assert.equal(previewResponse.status,200);const preview=await previewResponse.json();
   assert.equal(preview.actionAvailable,true,JSON.stringify(preview));
+  const acceptedAt=performance.now();
   const acceptance=await post(`/api/deployments/${campaign.id}/lifecycle-operations`,
    {previewId:preview.id,contentDigest:preview.contentDigest,expectedRevision:preview.expectedRevision,
     idempotencyKey:`process-${kind}-${randomUUID()}`},authHeaders);
@@ -179,6 +182,9 @@ try{
    if(response.status!==200)return null;const row=await response.json();
    return row.status==='succeeded'&&row.stage===stage?row:null;
   },`${kind} process operation reaches ${stage}`);
+  const wakeLatencyMs=performance.now()-acceptedAt;
+  assert(wakeLatencyMs<5_000,
+   `idle worker should wake from accepted operation within five seconds; got ${wakeLatencyMs.toFixed(0)}ms`);
   assert.equal(journal.id,operation.id);
   const positionsResponse=await fetch(origin+'/api/positions?hours=24',{headers:{cookie}});
   assert.equal(positionsResponse.status,200);const listing=await positionsResponse.json();
@@ -187,7 +193,7 @@ try{
   assert.equal(position.deployment.operation.id,operation.id);
   assert.equal(position.deployment.operation.stage,stage);
   assert.equal(position.deployment.operation.status,'succeeded');
-  return {operationId:operation.id,stage,lifecycle};
+  return {operationId:operation.id,stage,lifecycle,wakeLatencyMs:Math.round(wakeLatencyMs)};
  };
  await startWorker();
  const paused=await runTransition('pause','paper_paused','paused');

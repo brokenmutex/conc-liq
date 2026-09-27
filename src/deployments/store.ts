@@ -254,6 +254,8 @@ async function matchDraftRequest(db:Pick<PoolClient,'query'>,id:string,raw:Draft
  * The command runtime reads the matching granted ShareLock in pg_locks.
  * Keep separate from maintenance lock 18727. */
 export const PAPER_OPERATION_READINESS_LOCK=[4663,18728] as const;
+export const PAPER_OPERATION_NOTIFY_CHANNEL='deployment_operation_accepted' as const;
+export const PAPER_OPERATION_TRANSIENT_RETRY_BACKOFF_SECONDS=30;
 
 export interface PaperAccountingAnchor {
  accountingId:string;markId:string;block:string;hash:string;timestamp:number;
@@ -2811,6 +2813,7 @@ export class DeploymentStore {
     (id,campaign_id,preview_id,actor,idempotency_key,request_digest,kind,status,stage)
     VALUES($1,$2,$3,$4,$5,$6,'close_convert','queued','accepted')`,
     [id,campaignId,input.previewId,actor,input.idempotencyKey,requestDigest]);
+   await db.query('SELECT pg_notify($1,$2)',[PAPER_OPERATION_NOTIFY_CHANNEL,id]);
    await db.query(`UPDATE deployment_campaigns SET lifecycle='closing',updated_at=clock_timestamp()
     WHERE id=$1`,[campaignId]);
    return {id,status:'queued',replayed:false};
@@ -3124,6 +3127,7 @@ export class DeploymentStore {
     (id,campaign_id,preview_id,actor,idempotency_key,request_digest,kind,status,stage)
     VALUES($1,$2,$3,$4,$5,$6,$7,'queued','accepted')`,
     [id,campaignId,input.previewId,actor,input.idempotencyKey,requestDigest,preview.kind]);
+   await db.query('SELECT pg_notify($1,$2)',[PAPER_OPERATION_NOTIFY_CHANNEL,id]);
    await db.query(`UPDATE deployment_campaigns SET lifecycle=$2,updated_at=clock_timestamp() WHERE id=$1`,
     [campaignId,preview.kind==='open'?'opening':preview.kind.startsWith('close_')?'closing':campaign.lifecycle]);
    return {id,status:'queued',replayed:false};
@@ -3147,6 +3151,8 @@ export class DeploymentStore {
       WHERE c.mode=$3 AND o.status IN ('queued','preflighting','executing','confirming','reconciling')
         AND ($4::text IS NULL OR r.strategy_id=$4)
         AND (o.claim_until IS NULL OR o.claim_until<clock_timestamp())
+        AND (o.claimed_by IS NOT NULL OR o.reason IS DISTINCT FROM 'paper_operation_transient_error'
+          OR o.updated_at<=clock_timestamp()-($5::integer*interval '1 second'))
       ORDER BY o.created_at,o.id FOR UPDATE OF o SKIP LOCKED LIMIT 1
     )
     UPDATE deployment_operations o SET
@@ -3154,7 +3160,8 @@ export class DeploymentStore {
       attempts=o.attempts+1,status=CASE WHEN o.status='queued' THEN 'preflighting' ELSE o.status END,
       updated_at=clock_timestamp()
     FROM candidate WHERE o.id=candidate.id
-    RETURNING o.id,o.campaign_id,o.status,o.stage,o.attempts`,[workerId,leaseSeconds,mode,strategyFilter??null]);
+    RETURNING o.id,o.campaign_id,o.status,o.stage,o.attempts`,
+   [workerId,leaseSeconds,mode,strategyFilter??null,PAPER_OPERATION_TRANSIENT_RETRY_BACKOFF_SECONDS]);
    return result.rows[0]??null;
   });
  }
@@ -3215,6 +3222,19 @@ export class DeploymentStore {
    WHERE id=$1 AND claimed_by=$2 AND claim_until>=clock_timestamp() AND
     status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
    [id,workerId,leaseSeconds]);
+  if(result.rowCount!==1)throw new DeploymentConflict('claim_lost');
+ }
+
+ /** Release only the current, unexpired owner claim after a transient failure.
+  * The persisted stage remains intact for another worker to resume safely. */
+ async releaseClaim(id:string,workerId:string){
+  if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
+  const result=await this.pool.query(`UPDATE deployment_operations SET
+   claimed_by=NULL,claim_until=NULL,reason='paper_operation_transient_error',
+   updated_at=clock_timestamp()
+   WHERE id=$1 AND claimed_by=$2 AND claim_until>=clock_timestamp() AND
+    status IN ('preflighting','executing','confirming','reconciling') RETURNING id`,
+   [id,workerId]);
   if(result.rowCount!==1)throw new DeploymentConflict('claim_lost');
  }
 

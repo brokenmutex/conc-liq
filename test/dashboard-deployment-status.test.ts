@@ -182,3 +182,33 @@ test('static deployment metrics show persisted starting capital or an unavailabl
  assert.match(run('deploymentMetrics(recorded)'),/Starting capital[\s\S]*2,000\.00[\s\S]*Persisted capital-in baseline/);
  assert.match(run('deploymentMetrics(missing)'),/Starting capital[\s\S]*>—<[\s\S]*Capital-in evidence unavailable/);
 });
+
+test('cost-to-fee ratio uses complete lifetime costs and distinguishes modeled values',()=>{
+ const p={mode:'live',accounting:'recorded',feesQuote:'1000000',gasQuote:'800000',swapQuote:'400000'};
+ Object.assign(context,{ratioPosition:p});
+ assert.equal(run('costToFee(ratioPosition).value'),'1.20×');
+ assert.equal(run('costToFee(ratioPosition).cls'),'negative');
+ assert.match(run('costToFeeMetric(ratioPosition)'),/costs exceed fees/);
+ p.swapQuote='200000';
+ assert.equal(run('costToFee(ratioPosition).value'),'1.00×');
+ assert.equal(run('costToFee(ratioPosition).cls'),'');
+ p.mode='paper';
+ assert.match(run('costToFeeMetric(ratioPosition)'),/Modeled cost \/ fees/);
+ assert.match(run('costToFeeMetric(ratioPosition)'),/not paid/);
+});
+
+test('cost-to-fee gaps, zero fees and stale RangeKeeper marks never imply zero costs',()=>{
+ for(const patch of [{feesQuote:null},{gasQuote:null},{swapQuote:null},{swapQuote:'-1'},
+  {accounting:'invalid'},{rangekeeper:{valuationCurrent:false}}]){
+  Object.assign(context,{ratioPosition:{mode:'live',accounting:'recorded',feesQuote:'100',gasQuote:'20',swapQuote:'0',...patch}});
+  assert.equal(run('costToFee(ratioPosition).value'),'—');
+ }
+ Object.assign(context,{ratioPosition:{mode:'live',feesQuote:'0',gasQuote:'1',swapQuote:'0'}});
+ assert.equal(run('costToFee(ratioPosition).value'),'No fees');
+ assert.equal(run('costToFee(ratioPosition).cls'),'negative');
+ Object.assign(context,{ratioPosition:{mode:'live',feesQuote:'0',gasQuote:'0',swapQuote:'0'}});
+ assert.equal(run('costToFee(ratioPosition).value'),'—');
+ Object.assign(context,{ratioPosition:{mode:'live',feesQuote:'1000000000000000000000000000000',gasQuote:'1000000000000000000000000000001',swapQuote:'0'}});
+ assert.equal(run('costToFee(ratioPosition).value'),'1.00×');
+ assert.equal(run('costToFee(ratioPosition).cls'),'negative');
+});
