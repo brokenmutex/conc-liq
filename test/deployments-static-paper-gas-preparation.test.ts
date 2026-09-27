@@ -52,6 +52,36 @@ test('exact-source gas preparation refuses stale source before invoking sampler'
  assert.equal(sampled,false);
 });
 
+test('exact-source gas preparation still rejects a non-null preview from a different anchor',async()=>{
+ let sampled=false;
+ const mismatched={status:'unavailable',source:{...frame.source,block:'101'}};
+ const result=await prepareStaticPaperGasForCandidate(draft,frame,{
+  now:()=>now,sample:async()=>{sampled=true;return report;},verify:async()=>attestation,
+  importEvidence:async()=>({created:true,reportHash:report.reportHash}),
+  rebuild:async()=>mismatched,isPrepared:()=>false,sourceOf:value=>value.source,
+ });
+ assert.deepEqual(result,{status:'unavailable',reason:'paper_cost_initial_preview_source_mismatch',value:mismatched});
+ assert.equal(sampled,false);
+});
+
+test('exact-source gas preparation preserves an allowlisted source-less failure after evidence import',async()=>{
+ let rebuilds=0,samples=0,imports=0;
+ type SetupPreview={status:string;source?:PaperOpenFrame['source']|null;costs?:{status?:string};missing?:string[]};
+ const failure:SetupPreview={status:'unavailable',source:null,missing:['fresh_source_not_canonical']},
+  unprepared:SetupPreview={status:'unavailable',source:frame.source};
+ const result=await prepareStaticPaperGasForCandidate(draft,frame,{
+  now:()=>now,sample:async()=>{samples++;return report;},verify:async()=>attestation,
+  importEvidence:async()=>{imports++;return {created:true,reportHash:report.reportHash};},
+  rebuild:async()=>++rebuilds===1?unprepared:failure,
+  isPrepared:value=>value.status==='available'&&value.costs?.status==='provisional',
+  sourceOf:value=>value.source??null,
+  unavailableReasonOf:value=>value.status==='unavailable'&&value.source===null&&
+   value.missing?.[0]==='fresh_source_not_canonical'?'fresh_source_not_canonical':null,
+ });
+ assert.deepEqual(result,{status:'unavailable',reason:'fresh_source_not_canonical',value:failure});
+ assert.equal(samples,1);assert.equal(imports,1);assert.equal(rebuilds,2);
+});
+
 test('exact-source gas preparation does not return a ready result if freshness expires during rebuild',async()=>{
  let clockReads=0,sampled=false,imports=0;
  const result=await prepareStaticPaperGasForCandidate(draft,frame,{

@@ -19,6 +19,7 @@ export async function prepareStaticPaperGasForCandidate<T>(draft:PaperDraft,fram
  rebuild:()=>Promise<T>;
  isPrepared:(value:T)=>boolean;
  sourceOf:(value:T)=>PaperOpenFrame['source']|null;
+ unavailableReasonOf?:(value:T)=>string|null;
  now?:()=>number;
 }):Promise<StaticPaperGasPreparationResult<T>>{
  const now=deps.now??Date.now,sourceAge=()=>now()-frame.source.timestamp*1000;
@@ -28,6 +29,10 @@ export async function prepareStaticPaperGasForCandidate<T>(draft:PaperDraft,fram
  let initial:T;
  try{initial=await deps.rebuild();}catch{return {status:'unavailable',reason:'paper_cost_preparation_rebuild_failed'};}
  const initialSource=deps.sourceOf(initial);
+ if(!initialSource){
+  const reason=deps.unavailableReasonOf?.(initial);
+  if(reason)return {status:'unavailable',reason,value:initial};
+ }
  if(!initialSource||initialSource.block!==frame.source.block||!same(initialSource.hash,frame.source.hash)||
   initialSource.timestamp!==frame.source.timestamp)
   return {status:'unavailable',reason:'paper_cost_initial_preview_source_mismatch',value:initial};
@@ -77,6 +82,10 @@ export async function prepareStaticPaperGasForCandidate<T>(draft:PaperDraft,fram
  let rebuilt:T;
  try{rebuilt=await deps.rebuild();}catch{return {status:'unavailable',reason:'paper_cost_prepared_preview_rebuild_failed',value:initial};}
  const rebuiltSource=deps.sourceOf(rebuilt);
+ if(!rebuiltSource){
+  const reason=deps.unavailableReasonOf?.(rebuilt);
+  if(reason)return {status:'unavailable',reason,value:rebuilt};
+ }
  if(!rebuiltSource||rebuiltSource.block!==frame.source.block||!same(rebuiltSource.hash,frame.source.hash)||
   rebuiltSource.timestamp!==frame.source.timestamp)
   return {status:'unavailable',reason:'paper_cost_prepared_preview_source_mismatch',value:rebuilt};

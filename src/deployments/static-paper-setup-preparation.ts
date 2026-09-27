@@ -8,6 +8,16 @@ type SetupResult={status?:string;source?:PaperOpenFrame['source']|null;profile?:
  range?:unknown;requirements?:{token0Raw:string;token1Raw:string}|null;costs?:{status?:string;reason?:string};
  missing?:string[];[key:string]:unknown};
 
+const setupPreflightUnavailableReasons=new Set([
+ 'registered_market_profile_unavailable','registered_market_profile_integrity','unsupported_usdg_quote_profile',
+ 'fresh_canonical_pool_frame_unavailable','reviewed_source_replay_mismatch','fresh_source_stale',
+ 'independent_reference_unavailable','independent_reference_proof_invalid',
+ 'independent_usdg_reference_unavailable','pool_independent_reference_deviation',
+ 'centered_range_unavailable_on_pool_grid','capital_below_one_liquidity_unit',
+ 'exact_mint_requirements_unavailable','exact_mint_requirement_budget_mismatch',
+ 'registered_cost_evidence_unavailable','fresh_source_not_canonical',
+]);
+
 /** Creates the setup review from one server-selected current source. If the
  * current candidate has no complete exact-scope gas rows, it samples and
  * imports provisional six-stage fork evidence, then rebuilds at that same
@@ -67,6 +77,11 @@ export async function prepareStaticPaperSetup(input:PaperSetupPreflightInput,dep
   isPrepared:value=>(value as SetupResult)?.status==='available'&&
    (value as SetupResult)?.costs?.status==='provisional',
   sourceOf:value=>(value as SetupResult)?.source??null,
+  unavailableReasonOf:value=>{
+   const result=value as SetupResult,reason=result?.missing?.[0];
+   return result?.status==='unavailable'&&result.source===null&&typeof reason==='string'&&
+    setupPreflightUnavailableReasons.has(reason)?reason:null;
+  },
  });
  if(prepared.status==='available')return prepared.value;
  const result=prepared.value??initial;

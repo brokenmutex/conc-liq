@@ -9,6 +9,7 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from '../src/deployments/paper-cost.js';
 import {buildStaticPaperSetupPreflight,paperSetupPreflightInput} from '../src/deployments/paper-setup-preflight.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame} from '../src/deployments/paper-preview.js';
+import {prepareStaticPaperSetup} from '../src/deployments/static-paper-setup-preparation.js';
 
 const token1='0x7000000000000000000000000000000000000001';
 const hash=`0x${'a'.repeat(64)}`;
@@ -134,6 +135,44 @@ test('setup replays the reviewed source and rejects a different returned frame',
   readFrame:async()=>({...frame,source:{...frame.source,block:'101'}})},frame.source);
  assert.equal(mismatched.status,'unavailable');
  assert(mismatched.missing.includes('reviewed_source_replay_mismatch'));
+});
+
+test('setup preparation preserves a specific pinned-preflight failure instead of reporting source mismatch',async()=>{
+ const limits=staticManualParameters.parse({halfWidthTicks:60,limits:{
+  maxDeploymentValue:'1000000000000000000000',minDeploymentValue:'1',maxExposurePpm:1_000_000,
+  maxLossValue:'1000000000000000000000',maxDrawdownPpm:1_000_000,
+  maxActionCost:'1000000000000000000000',maxRollingCost:'1000000000000000000000',
+  maxCampaignCost:'1000000000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50}});
+ assert(limits.limits);
+ const setupInput=paperSetupPreflightInput.parse({...input,limits:limits.limits});
+ let canonicalChecks=0,samples=0,imports=0;
+ const result=await prepareStaticPaperSetup(setupInput,{
+  runPreflight:(_input,pinnedSource)=>buildStaticPaperSetupPreflight(setupInput,{
+   loadProfile:async id=>({id,profile,profileHash:contentHash(profile)}),
+   readFrame:async(_profile,pinned)=>{
+    if(pinned)assert.deepEqual(pinned,frame.source);
+    return frame;
+   },
+   verifyCanonical:async()=>{
+    canonicalChecks++;
+    if(canonicalChecks===2)throw Error('fresh_source_not_canonical');
+   },
+   readGasProfiles:async()=>[],readGasPrice:async()=>1_000_000_000n,now:()=>now,
+  },pinnedSource),
+  loadProfile:async id=>({id,profile,profileHash:contentHash(profile)}),
+  readFrame:async(_profile,pinned)=>{assert.deepEqual(pinned,frame.source);return frame;},
+  forkRpcUrl:'http://127.0.0.1:8545',sample:async()=>{samples++;throw Error('must not sample');},
+  verify:async()=>({}),importEvidence:async()=>{imports++;return {created:true,reportHash:'d'.repeat(64)};},
+ });
+ const reviewed=result as {status:string;costs:{reason:string};missing:string[];source:null;
+  draftCreated:boolean;operationCreated:boolean};
+ assert.equal(canonicalChecks,2);
+ assert.equal(reviewed.status,'unavailable');
+ assert.equal(reviewed.costs.reason,'fresh_source_not_canonical');
+ assert.deepEqual(reviewed.missing,['fresh_source_not_canonical']);
+ assert.equal(reviewed.source,null);
+ assert.equal(reviewed.draftCreated,false);assert.equal(reviewed.operationCreated,false);
+ assert.equal(samples,0);assert.equal(imports,0);
 });
 
 test('setup sizing fails closed for stale source, bad independent references, or invalid profile',async()=>{
