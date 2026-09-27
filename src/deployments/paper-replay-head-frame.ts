@@ -55,19 +55,22 @@ export async function readCanonicalPaperReplayHeadFrame(input:{client:RobinhoodC
  return frame;
 }
 
-/** Waits on the cheap replay cursor only. It performs no full-frame RPC work
- * until indexed coverage advances beyond the frozen mark, then delegates once
- * to the exact canonical frame reader above. */
+/** Waits on the scoped replay cursor and checks a changed cursor's canonical
+ * header age before full-frame RPC work. A stale cursor is not polled for a
+ * younger timestamp; selection resumes when indexed coverage changes. */
 export async function waitCanonicalPaperReplayHeadFrame(input:{client:RobinhoodClient;indexer:Pool;
  profile:MarketProfile;stream:string;targetSetHash:string;
- previous:{sourceBlock:string;sourceHash:string};maxWaitMs?:number;pollMs?:number;
+ previous:{sourceBlock:string;sourceHash:string};maxWaitMs?:number;pollMs?:number;maxSourceAgeMs?:number;
  assertPreparationLeaseHealthy?:()=>Promise<void>;
  readFrame?:(source:PaperOpenFrame['source'])=>Promise<PaperOpenFrame>}):Promise<PaperOpenFrame>{
- const maxWaitMs=input.maxWaitMs??60_000,pollMs=input.pollMs??1_000;
+ const maxWaitMs=input.maxWaitMs??60_000,pollMs=input.pollMs??1_000,
+  maxSourceAgeMs=input.maxSourceAgeMs??180_000;
  if(!Number.isSafeInteger(maxWaitMs)||maxWaitMs<1_000||maxWaitMs>120_000||
-  !Number.isSafeInteger(pollMs)||pollMs<100||pollMs>5_000)
+  !Number.isSafeInteger(pollMs)||pollMs<100||pollMs>5_000||
+  !Number.isSafeInteger(maxSourceAgeMs)||maxSourceAgeMs<1||maxSourceAgeMs>180_000)
   throw Error('paper_replay_head_wait_budget_invalid');
  const p=input.profile.pool,deadline=Date.now()+maxWaitMs;
+ let checkedCursor:string|undefined,eligibleCursor:string|undefined;
  while(Date.now()<deadline){
   await input.assertPreparationLeaseHealthy?.();
   const row=(await input.indexer.query<{targetSetHash:string;block:string|null;hash:string|null;
@@ -86,11 +89,33 @@ export async function waitCanonicalPaperReplayHeadFrame(input:{client:RobinhoodC
   if(Date.now()>=deadline)throw Error('paper_replay_head_wait_timeout');
   if(!coverageIncomplete&&cursor.block!==null&&cursor.hash!==null&&
    BigInt(cursor.block)>BigInt(input.previous.sourceBlock)){
+   const key=`${cursor.block}:${cursor.hash.toLowerCase()}`;
+   if(key!==checkedCursor){
+    const header=await input.client.getBlock({blockNumber:BigInt(cursor.block)});
+    assert.equal(header.hash.toLowerCase(),cursor.hash.toLowerCase(),
+     'paper_replay_head_not_canonical');
+    const sourceTimestamp=Number(header.timestamp),age=Date.now()-sourceTimestamp*1000;
+    assert(Number.isSafeInteger(sourceTimestamp)&&sourceTimestamp>=0&&age>=0,
+     'paper_replay_head_future');
+    checkedCursor=key;
+    eligibleCursor=age<=maxSourceAgeMs?key:undefined;
+   }
+   if(eligibleCursor!==key){
+     await new Promise(resolve=>setTimeout(resolve,Math.min(pollMs,Math.max(1,deadline-Date.now()))));
+     continue;
+   }
    await input.assertPreparationLeaseHealthy?.();
    if(Date.now()>=deadline)throw Error('paper_replay_head_wait_timeout');
-   return readCanonicalPaperReplayHeadFrame({client:input.client,indexer:input.indexer,
+   const frame=await readCanonicalPaperReplayHeadFrame({client:input.client,indexer:input.indexer,
     profile:input.profile,stream:input.stream,targetSetHash:input.targetSetHash,previous:input.previous,
     readFrame:input.readFrame});
+   const frameAge=Date.now()-frame.source.timestamp*1000;
+   assert(frameAge>=0,'paper_replay_head_future');
+   if(frameAge>maxSourceAgeMs){
+    eligibleCursor=undefined;
+    continue;
+   }
+   return frame;
   }
   await new Promise(resolve=>setTimeout(resolve,Math.min(pollMs,Math.max(1,deadline-Date.now()))));
  }

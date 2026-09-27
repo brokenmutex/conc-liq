@@ -184,7 +184,9 @@ async function main(){
        const frame=await conversionStage('replay_head',async()=>{
         const selected=await waitCanonicalPaperReplayHeadFrame({client,indexer,
          profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
-         previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
+         // Keep anchor age low enough to leave time for fee replay and the terminal fork.
+         previous:context.state.previous,maxSourceAgeMs:30_000,
+         assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
         conversionFrameTimestamp=selected.source.timestamp;
         return selected;
        });
