@@ -1701,8 +1701,16 @@ tracks clean-check evidence, exact-artifact acceptance and the staged service
 replacement separately from the currently deployed release.
 Canonical testing then exposed a maintenance catch-up issue, fixed in `4e8e286`.
 The [maintenance follow-up](../reviews/sealed-paper-maintenance-followup-2026-09-27.md)
-records the new sealed artifact and remaining conversion terminal-replay
-blocker; production remains on the preceding releases.
+records that artifact's terminal-replay rejection. The [terminal diagnostic
+follow-up](../reviews/static-paper-terminal-replay-followup-2026-09-27.md)
+tracks `9bb54a5` / sealed `55cc0120…`: 898 clean tests, ordinary conversion and
+retain browser gates passed. The earlier terminal rejection has not recurred;
+no unconfirmed functional repair was made. Recovery/restore acceptance remains
+pending after preparation-stage replay staleness and a separate fee-replay
+assertion; the changed-anchor restart rejection gate passed. The staged
+command and worker now share a private configuration because their
+runtime identities must match for V2/V3 accounting. Production remains on the
+preceding releases until the remaining exact-artifact gates pass.
 After those fixes, the next operator milestone is one actual AAPL/USDG paper
 campaign through retain-close and a comparison with the harness expectations.
 RangeKeeper paper, new live capability and the operational cost-reduction

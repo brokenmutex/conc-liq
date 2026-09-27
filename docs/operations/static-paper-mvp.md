@@ -79,27 +79,38 @@ to unblock a campaign. An admission preview's expiry does not undo accepted work
 
 ## Runtime freeze during a campaign
 
-Freeze the accounting worker's sealed build, pinned Node version and private
-environment file from opening through terminal accounting and closure. Restart
-with those exact inputs. Changing any of them changes runtime identity and can
-block subsequent projections with `paper_accounting_prior_runtime_mismatch`;
+Freeze the command and accounting worker to the same sealed build, pinned Node
+version and runtime configuration identity before opening a campaign. The
+command records the campaign identity; the worker must match it when booking
+V2 accounting, and V3 acceptance and completion also compare against that
+identity. Different command and worker configuration hashes can therefore
+block booking or close-convert even when their feature sets appear compatible.
+Keep those exact inputs through terminal accounting and closure. Changing them
+can block subsequent projections with `paper_accounting_prior_runtime_mismatch`;
 there is no supported cross-runtime adoption command. Keep the prior sealed
 artifact and private file available until every campaign using them is closed.
 Before upgrading, check for nonterminal campaigns and pending operations, finish
 or reconcile them on their original runtime, and retain their accounting history.
 Do not edit persisted identities or weaken the equality check to force adoption.
 
-The command and dashboard releases may have different identities from the worker;
-that does not authorize changing the identity responsible for economic booking.
-Any release replacement still needs the applicable browser and recovery gates.
+The read-only dashboard may have a different runtime identity; it does not book
+campaign economics. Any command or worker release replacement still needs the
+applicable browser and recovery gates.
 
-The September 27 review prepared an **inactive candidate** private worker file,
-`data/static-paper-mvp-runtime-review-2026-09-27.env`, with only the unused
-`ADAPTIVE_PAPER_STATE_PATH` removed. Its file SHA256 is
-`865c81ab5e49afbe5b1a610ceabac1ffc13f67ca90a6a05373211540a9495f3d`.
-This is a file checksum, not the launcher's runtime config hash. Select and verify
-it during the next approved release preparation, before opening a campaign;
-then record the actual sealed runtime identity. The deployed file is unchanged.
+The September 27 review's worker-only candidate,
+`data/static-paper-mvp-runtime-review-2026-09-27.env`, is superseded because it
+would give the worker a different configuration identity from the command. Its
+historical file SHA256 is
+`865c81ab5e49afbe5b1a610ceabac1ffc13f67ca90a6a05373211540a9495f3d`; this is a
+file checksum, not the launcher's runtime config hash.
+
+A shared command/worker configuration is under review at
+`data/static-paper-mvp-shared-review-2026-09-27.env`. It combines their required
+settings and enables setup and worker diagnostics. Treat it only as a review
+candidate: it has not been established here as deployed. Before opening a
+campaign, verify the sealed command and worker resolve to the same runtime
+identity, complete the applicable release gates, and record the deployed
+identity. Do not infer production status from the candidate file's presence.
 
 ## Economics and the live access gate
 
