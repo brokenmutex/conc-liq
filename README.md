@@ -26,6 +26,7 @@ See:
 - [current research evidence](docs/research/current-evidence.md)
 - [research register](docs/research/index.md)
 - [runtime architecture](docs/architecture/runtime.md)
+- [static paper operator MVP runbook](docs/operations/static-paper-mvp.md)
 - [live-pilot runbook](docs/operations/live-pilot.md)
 - [telemetry retention](docs/operations/telemetry-retention.md)
 - [incident invariants](docs/incidents/index.md)
@@ -93,13 +94,17 @@ belongs under `test/fixtures/`.
 
 ## Current research boundary
 
-The active four-book paper experiment uses NVDA and GOOGL selected books, an
+The four-book adaptive paper experiment — NVDA and GOOGL selected books, an
 exploratory MSFT fee-3000 book with borrowed cost assumptions, and a QQQ
-holdout. Its persisted state remains execution-ineligible and
-broadcast-disabled. The source tree now implements a fixed-token passive
-benchmark and a separate fail-closed independent-reference series, but the
-deployed sealed paper release predates them. Do not interpret early P&L versus
-cash as LP alpha.
+holdout — was stopped on 2026-09-20. Its service is disabled and its persisted
+state was cleared. Its results are historical evidence: the fixed-token passive
+benchmark and fail-closed independent-reference series implemented afterwards
+were never deployed against it, so its reported return cannot be called LP alpha.
+
+The current deployed surface is the static/manual paper operator MVP on schema
+11 with one registered AAPL/USDG profile. No campaign has been opened. Its
+economics are principal-only — fees are a modeled fixed-flow scenario and paid
+gas is unavailable — so its output is not a net-alpha measurement either.
 
 The current strategy evidence requires at least three weeks spanning two
 weekends, complete action costs and holdout discipline before a promotion

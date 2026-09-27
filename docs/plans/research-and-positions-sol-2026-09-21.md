@@ -1,9 +1,15 @@
 # Research and Positions — Sol implementation plan
 
-Prepared: 2026-09-21. Revised: 2026-09-27 after the scoped setup-preflight
-repair. Static/manual paper remains the first operator MVP. Runtime `5905b47`,
-sealed build `d507e6d…`, passes 882 clean tests and the canonical browser
-setup-to-convert lifecycle with desktop/mobile captures. The diagnostic masking
+Prepared: 2026-09-21. Revised: 2026-09-27 after the executed production
+cutover, the passwordless operator change and an independent implementation
+review. Static/manual paper remains the first operator MVP. Source `c604cf3`
+passes 890 tests with the pinned Node. Production runs a split deployment: the
+paper worker on the reviewed sealed build `d507e6d…` (runtime `5905b47`), and
+the command and read-only dashboard services on the later `ddc543b9…` (runtime
+`d7ee27f`), which removed operator password sign-in. The earlier `d507e6d…`
+acceptance evidence — 882 clean tests and the canonical browser setup-to-convert
+lifecycle with desktop/mobile captures — keeps its original build identity and
+does not extend to the command service now deployed. The diagnostic masking
 behind the generic setup source-mismatch error is fixed; the earlier attempt's
 underlying unavailable condition cannot be reconstructed from its log.
 See the [current follow-up](../reviews/static-paper-setup-preflight-reasons-2026-09-27.md)
@@ -18,6 +24,11 @@ The daily retention script has a separately staged compatibility repair.
 The operator subsequently approved that exact package, and the paper cutover
 was executed: schema 11, registered AAPL profile, and supervised paper services.
 See the [production cutover record](../reviews/static-paper-production-cutover-2026-09-27.md).
+An [independent implementation review](../reviews/implementation-review-2026-09-27.md)
+records nine findings against this plan and the deployed state. Its F-2 makes
+restoring operator authentication a precondition for any live capability on the
+command routes; its F-5 records that a build or configuration change during a
+campaign blocks that campaign's accounting.
 Next: the first operator static/manual paper workflow. No campaign was opened
 by the cutover, and live activation remains outside its scope. Initial source review:
 `b38c839`. Recheck HEAD and working-tree changes before starting.
@@ -1786,7 +1797,7 @@ platform is not needed to establish the cause.
 | MVP-2 | Canonical retain lifecycle assertions passed on `f75d6277…`: setup/open/pause/resume/close, one terminal mark and desktop/mobile parity. Original command exited 1 only during Chromium profile cleanup; fix `2279e86` passed direct cleanup proof and the final conversion command. | Complete using explicitly composite evidence; retain lower-bound and paid-cost limitations remain. |
 | MVP-3 | Both canonical browser exits demonstrated on sealed `f75d6277…` / source `5b22ce5`, including first-session capital, exact terminal semantics, explicit gaps and desktop/mobile history. Ordinary conversion+restore exited 0 with harness `2279e86`; retain caveat is above. | Complete for this candidate; blocked recovery is visible in activity but its headline still says Close in progress, a narrow UX follow-up. |
 | MVP-4 | On `f75d6277…`, harness `3af131b` passed expired-preview same-key replay, restart in 16.085s with 236.7 MB physical reads, exactly-once V3 conversion and desktop/mobile parity. The later restore comparison failed separately on an unsafe JSON number. | Changed-anchor rejection passed: 18.853s restart, blocked operation, zero terminal conversion marks/ledger/V3 rows. MVP-4 is complete; retain the later restore failure separately under MVP-5. |
-| MVP-5 | Clean `5b22ce5` produced verified candidate `f75d6277…`; only launcher/verifier bytes differ from prior `b78c3f22…`. Manifest and 13 rendered units passed offline review without installation. Runbook and unexecuted cutover proposal remain available. | September 27 follow-up `5905b47` / `d507e6d…` preserves specific unavailable reasons, passes 882 clean tests and one canonical setup-to-convert run. Only two setup modules changed; previous recovery/restore evidence keeps its original build identity. Historical unavailable cause remains unknown; do not claim universal availability. Production configuration, compatibility, custody/ownership, backup and authorization remain pending. |
+| MVP-5 | Clean `5b22ce5` produced verified candidate `f75d6277…`; only launcher/verifier bytes differ from prior `b78c3f22…`. Manifest and 13 rendered units passed offline review without installation. Runbook and unexecuted cutover proposal remain available. | September 27 follow-up `5905b47` / `d507e6d…` preserves specific unavailable reasons, passes 882 clean tests and one canonical setup-to-convert run. Only two setup modules changed; previous recovery/restore evidence keeps its original build identity. Historical unavailable cause remains unknown; do not claim universal availability. The operator then approved that exact rollout package and the cutover was executed on September 27: schema 11, registered AAPL profile `a8e7096f…`, nine installed units and resumed timers, recorded in the [production cutover record](../reviews/static-paper-production-cutover-2026-09-27.md). MVP-5's release-review stop condition is met. Remaining: no campaign has been opened, and the command and dashboard services have since moved to `ddc543b9…` with password sign-in removed, so that deployed surface is no longer the reviewed `d507e6d…` artifact and needs its own acceptance before carrying any live capability. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
