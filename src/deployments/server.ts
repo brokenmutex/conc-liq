@@ -15,7 +15,7 @@ const paperPreviewInput=z.object({kind:z.enum([
 const SESSION_SECONDS=4*60*60;
 const BODY_BYTES=16*1024;
 
-export interface CommandServerOptions {origin:string;passwordHash:string;now?:()=>number;
+export interface CommandServerOptions {origin:string;publicOrigin?:string;passwordHash:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
@@ -29,7 +29,7 @@ export interface CommandServerOptions {origin:string;passwordHash:string;now?:()
  paperOperationReplay?:(campaignId:string,input:AcceptInput,
   allowedKinds:readonly ('open'|'pause'|'resume'|'close_retain'|'close_convert')[])=>Promise<unknown|null>;
  paperRetainWorkerReady?:()=>Promise<boolean>}
-interface Session {csrf:string;expires:number}
+interface Session {csrf:string;expires:number;secure:boolean}
 export interface CommandStore {
  createDraft(input:DraftInput):Promise<unknown>;
  acceptOperation(campaignId:string,input:AcceptInput,actor:string):Promise<unknown>;
@@ -101,9 +101,16 @@ export function createDeploymentCommandServer(store:CommandStore,
  const origin=new URL(options.origin);
  if(origin.protocol!=='http:'||!['127.0.0.1','[::1]'].includes(origin.hostname)||origin.pathname!=='/'||origin.search||origin.hash)
   throw Error('Command API must bind to an explicit loopback origin');
+ if(options.publicOrigin!==undefined){
+  const external=new URL(options.publicOrigin);
+  if(external.protocol!=='https:'||external.origin!==options.publicOrigin)
+   throw Error('Public operator origin must be an exact HTTPS origin');
+ }
  const verify=passwordVerifier(options.passwordHash),now=options.now??Date.now;
  const sessions=new Map<string,Session>(),attempts=new Map<string,{count:number;reset:number}>();
- const sameOrigin=(request:IncomingMessage)=>request.headers.origin===options.origin;
+ // Trust only explicit configuration, never proxy-supplied forwarding headers.
+ const sameOrigin=(request:IncomingMessage)=>request.headers.origin===options.origin||
+  (options.publicOrigin!==undefined&&request.headers.origin===options.publicOrigin);
  const authenticated=(request:IncomingMessage)=>{
   const token=cookie(request);
   if(!token||!/^[0-9a-f]{64}$/.test(token))return null;
@@ -116,6 +123,9 @@ export function createDeploymentCommandServer(store:CommandStore,
   harden(response);
   try{
    const path=new URL(request.url??'/',options.origin).pathname;
+   if((request.method==='GET'||request.method==='HEAD')&&(path==='/prototype'||path==='/prototype/')){
+    response.writeHead(308,{'Location':'/operator','Cache-Control':'no-store'});response.end();return;
+   }
    if((request.method==='GET'||request.method==='HEAD')&&OPERATOR_ASSETS.has(path)){
     const asset=OPERATOR_ASSETS.get(path)!;
     if(path==='/operator'||path==='/operator/')
@@ -156,8 +166,9 @@ export function createDeploymentCommandServer(store:CommandStore,
     attempts.delete(ip);
     const token=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');
     if(sessions.size>=32)sessions.delete(sessions.keys().next().value!);
-    sessions.set(tokenKey(token),{csrf,expires:now()+SESSION_SECONDS*1000});
-    response.setHeader('Set-Cookie',`cq_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_SECONDS}`);
+    const secure=request.headers.origin===options.publicOrigin;
+    sessions.set(tokenKey(token),{csrf,expires:now()+SESSION_SECONDS*1000,secure});
+    response.setHeader('Set-Cookie',`cq_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_SECONDS}${secure?'; Secure':''}`);
     send(response,200,{csrfToken:csrf,expiresInSeconds:SESSION_SECONDS});return;
    }
    const auth=authenticated(request);
@@ -167,7 +178,7 @@ export function createDeploymentCommandServer(store:CommandStore,
    }
    if(path==='/api/session'&&request.method==='DELETE'){
     sessions.delete(auth.key);
-    response.setHeader('Set-Cookie','cq_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+    response.setHeader('Set-Cookie',`cq_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${auth.session.secure?'; Secure':''}`);
     send(response,200,{status:'logged_out'});return;
    }
    if(path==='/api/strategies'&&request.method==='GET'){

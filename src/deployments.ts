@@ -43,6 +43,7 @@ const envSchema=z.object({
  DEPLOYMENT_OPERATOR_PASSWORD_HASH:z.string().min(1),
  DEPLOYMENT_HOST:z.enum(['127.0.0.1','::1']).default('127.0.0.1'),
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
+ DEPLOYMENT_PUBLIC_ORIGIN:z.string().optional(),
  ROBINHOOD_READ_HTTP_URL:z.url(),
  PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
@@ -348,7 +349,7 @@ async function main(){
  const paperConvertAcceptance=env.PAPER_FORK_RPC_URL?
   createStaticPaperCloseConvertAcceptance({store,client,indexer,rpcUrl:env.PAPER_FORK_RPC_URL,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)}):undefined;
- const server=createDeploymentCommandServer(store,{origin,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
+ const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,passwordHash:env.DEPLOYMENT_OPERATOR_PASSWORD_HASH,
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperConvertAcceptance,

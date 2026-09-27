@@ -365,3 +365,52 @@ it('requires a live preparation lease for V3 convert review and fresh acceptance
   assert.equal(acceptCalls,1);
  }finally{server.close();await once(server,'close');}
 });
+
+it('explicit HTTPS operator origin preserves authentication, CSRF and secure cookies',async()=>{
+ const salt=randomBytes(16),password='test-only-public-operator';
+ const passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+ const origin='http://127.0.0.1:4174',publicOrigin='https://operator.example.test';
+ const store={async createDraft(){throw Error('no draft expected');},
+  async acceptOperation(){throw Error('no operation expected');},async operation(){return null;},
+  async listMarketProfiles(){return [];}};
+ for(const invalid of ['', 'http://operator.example.test', publicOrigin+'/',publicOrigin+'/path',
+  'https://user:pass@operator.example.test',publicOrigin+'?query',publicOrigin+'#fragment']){
+  assert.throws(()=>createDeploymentCommandServer(store,{origin,publicOrigin:invalid,passwordHash}));
+ }
+ for(const enabled of [false,true]){
+  const server=createDeploymentCommandServer(store,{origin,passwordHash,...(enabled?{publicOrigin}:{})});
+  server.listen(0,'127.0.0.1');await once(server,'listening');
+  const address=server.address();assert(address&&typeof address!=='string');
+  const url=`http://127.0.0.1:${address.port}`;
+  const login=(headers:Record<string,string>)=>fetch(url+'/api/session',{method:'POST',
+   headers:{'content-type':'application/json',...headers},body:JSON.stringify({password})});
+  try{
+   for(const path of ['/prototype','/prototype/']){
+    const response=await fetch(url+path,{redirect:'manual'});
+    assert.equal(response.status,308);assert.equal(response.headers.get('location'),'/operator');
+   }
+   assert.equal((await fetch(url+'/api/market-profiles')).status,401);
+   assert.equal((await login({'x-forwarded-host':'operator.example.test','x-forwarded-proto':'https'})).status,403);
+   for(const bad of ['null','https://evil.example.test',publicOrigin+'.evil.test','http://operator.example.test']){
+    assert.equal((await login({origin:bad})).status,403);
+   }
+   const external=await login({origin:publicOrigin});
+   assert.equal(external.status,enabled?200:403);
+   if(enabled){
+    const setCookie=external.headers.get('set-cookie')??'';
+    assert.match(setCookie,/; Secure/);assert.match(setCookie,/HttpOnly; SameSite=Strict/);
+    const cookie=setCookie.split(';')[0]!;
+    const {csrfToken}=await external.json() as {csrfToken:string};
+    assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie}})).status,200);
+    const logout=(headers:Record<string,string>)=>fetch(url+'/api/session',{method:'DELETE',headers:{cookie,...headers}});
+    assert.equal((await logout({origin:publicOrigin})).status,403);
+    assert.equal((await logout({origin:'https://evil.example.test','x-csrf-token':csrfToken})).status,403);
+    const out=await logout({origin:publicOrigin,'x-csrf-token':csrfToken});
+    assert.equal(out.status,200);assert.match(out.headers.get('set-cookie')??'',/; Secure/);
+    assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie}})).status,401);
+   }
+   const local=await login({origin});assert.equal(local.status,200);
+   assert.doesNotMatch(local.headers.get('set-cookie')??'',/; Secure/);
+  }finally{server.close();await once(server,'close');}
+ }
+});

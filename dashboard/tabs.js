@@ -360,7 +360,7 @@ function bootDashboardTabs() {
     output.hidden = true;
     document.getElementById('setup-review').hidden = false;
     if (!onOperatorOrigin) {
-      setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the authenticated loopback operator dashboard to request it; no request was sent.');
+      setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the authenticated operator dashboard to request it; no request was sent.');
       return;
     }
     if (strategyId !== 'static_manual_v1' || mode !== 'paper') {
@@ -368,7 +368,7 @@ function bootDashboardTabs() {
       return;
     }
     if (!csrfToken) {
-      setSetupStatus('Sign in to the loopback operator dashboard before requesting a fresh preflight.');
+      setSetupStatus('Sign in to the operator dashboard before requesting a fresh preflight.');
       loginForm?.scrollIntoView({ block: 'nearest' });
       return;
     }
