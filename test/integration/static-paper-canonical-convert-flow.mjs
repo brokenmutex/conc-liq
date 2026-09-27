@@ -46,6 +46,7 @@ const phase=(name,details={})=>{
 };
 const clean=value=>String(value??'').replace(/https?:\/\/[^\s"']+/gi,'[redacted-url]');
 const setupDiagnosticEvents=[];let setupDiagnosticSequence=0;
+const replayHeadFrameEvents=[];
 const setupDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
  {DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1'}:{};
 const workerDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS==='1'?
@@ -72,13 +73,14 @@ const safeDiagnosticValue=value=>{
  return null;
 };
 async function preserveConvertFailureEvidence({admin,campaignId,error,operationId,
- runtimeIdentity,feeContext,previewAttempt,diagnostics}){
+ runtimeIdentity,feeContext,previewAttempt,replayHeadFrames,diagnostics}){
  const evidenceRoot=process.env.TEST_BROWSER_EVIDENCE_DIR;
  if(!evidenceRoot||!campaignId)return;
  const evidence={schemaVersion:1,capturedAt:new Date().toISOString(),campaignId,
   failure:{name:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error',
    code:safeDiagnosticValue(error?.code)},runtimeIdentity,previewAttempt,
   setupDiagnostics:diagnostics.slice(-32),stages:phaseHistory.slice(-64),
+  conversionCandidateFrame:replayHeadFrames.filter(frame=>frame.campaignId===campaignId).at(-1)??null,
   feeContext:null,feeContextOmittedReason:null,operationSnapshots:[],markSources:[],
   terminalPreviews:[]};
  if(feeContext){
@@ -368,6 +370,29 @@ async function main(){
        (/^paper_[a-z0-9_]{1,120}$/.test(row.reason)||/^[A-Za-z]+Error$/.test(row.reason))){
        setupDiagnosticEvents.push({sequence:++setupDiagnosticSequence,stage:row.stage,reason:row.reason});
        if(setupDiagnosticEvents.length>32)setupDiagnosticEvents.shift();
+      }
+      if(key==='command'&&row.event==='paper_conversion_prestate_frame'&&
+       typeof row.campaignId==='string'&&/^[0-9a-f-]{36}$/i.test(row.campaignId)&&
+       row.source&&typeof row.source.block==='string'&&row.source.block.length<=80&&
+       /^(0|[1-9][0-9]*)$/.test(row.source.block)&&typeof row.source.hash==='string'&&
+       /^0x[0-9a-f]{64}$/i.test(row.source.hash)&&Number.isSafeInteger(row.source.timestamp)&&
+       row.source.timestamp>=0&&Number.isSafeInteger(row.tick)&&
+       typeof row.sqrtPriceX96==='string'&&row.sqrtPriceX96.length<=80&&
+       /^[1-9][0-9]*$/.test(row.sqrtPriceX96)&&typeof row.poolLiquidity==='string'&&
+       row.poolLiquidity.length<=80&&/^(0|[1-9][0-9]*)$/.test(row.poolLiquidity)&&
+       typeof row.referenceProofHash==='string'&&/^[a-f0-9]{64}$/i.test(row.referenceProofHash)&&
+       typeof row.frameHash==='string'&&/^[a-f0-9]{64}$/i.test(row.frameHash)){
+       const frame={campaignId:row.campaignId,source:{block:row.source.block,
+        hash:row.source.hash,timestamp:row.source.timestamp},tick:row.tick,
+        sqrtPriceX96:row.sqrtPriceX96,poolLiquidity:row.poolLiquidity,
+        referenceProofHash:row.referenceProofHash,frameHash:row.frameHash};
+       const {campaignId:_,frameHash:__,...binding}=frame;
+       if(contentHash(binding)===frame.frameHash){
+        replayHeadFrameEvents.push({...frame,capturedAt:new Date().toISOString()});
+        if(replayHeadFrameEvents.length>16)replayHeadFrameEvents.shift();
+        phase('conversion_candidate_frame_captured',{campaignId:frame.campaignId,
+         sourceBlock:frame.source.block,frameHash:frame.frameHash});
+       }
       }
       if(key==='worker'&&row.event==='paper_operation_terminal_verifier_failure'&&
        typeof row.stage==='string'&&/^[a-z0-9_]{1,80}$/.test(row.stage)&&
@@ -1026,6 +1051,7 @@ async function main(){
   }
   try{await preserveConvertFailureEvidence({admin,campaignId,error,operationId:convertOperationId,
    runtimeIdentity:accountingIdentity,feeContext:feeContextAtReadiness,previewAttempt,
+   replayHeadFrames:replayHeadFrameEvents,
    diagnostics:[...setupDiagnosticEvents.map(({stage,reason})=>({source:'command',stage,reason})),
     ...workerDiagnosticEvents.map(item=>({source:'worker',...item}))]});}
   catch(evidenceError){phase('failure_evidence_capture_error',{

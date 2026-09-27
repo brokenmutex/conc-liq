@@ -111,3 +111,26 @@ staleness. Its exact assertion remains under investigation using the separately
 retained failure artifact. No terminal conversion model or operation was
 accepted. Restart/restore acceptance is still outstanding; staged services
 remain inactive.
+
+A bounded read-only historical probe subsequently replayed the retained previous
+mark `74076893` to failure-time cursor `74077136`. The cursor hash matched RPC;
+the interval produced two events/two segments, zero partial segments, and the
+saved fee carry advanced successfully. Captured open/profile/config/carry
+schemas, hashes and bindings also passed read-only checks. These results do not
+reproduce the failure: the exact selected `PaperOpenFrame` was not retained,
+and the original stage also rechecks persisted context. The cause remains
+unconfirmed. The diagnostic-only follow-up now preserves the selected
+source/pool state and reference-proof hash, verifies the normalized binding
+hash before retaining it, and records its capture time. Known assertion text
+maps to bounded internal codes; persisted-context assertions have explicit
+labels. Diagnostic logging errors cannot mask preparation outcomes. Predicates,
+replay retries, freshness and acceptance rules are unchanged. Fourteen focused
+tests and typecheck passed. The existing incomplete-cursor assertion text and
+15-second retry are unchanged.
+
+Checkpoint commit `b94ddb2` records the passed gates and correct shared runtime
+identity requirement. The private postrollout read-only browser verifier is
+prepared and syntax-checked but has not been run against production. At
+16:29:24 UTC, production still had zero campaigns, operations and marks, with
+the existing worker's database-scoped readiness lease present. The retained
+pre-cutover backup checksum was reverified; no database rollback is planned.

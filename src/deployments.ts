@@ -3,6 +3,8 @@ import {Pool} from 'pg';
 import {z} from 'zod';
 import {DeploymentStore} from './deployments/store.js';
 import {DeploymentConflict} from './deployments/store.js';
+import {contentHash} from './deployments/contracts.js';
+import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
 import {createDeploymentCommandServer} from './deployments/server.js';
 import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonicalPaperNextFrame,
  type PaperOpenFrame} from './deployments/paper-preview.js';
@@ -48,13 +50,6 @@ const envSchema=z.object({
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
 });
 
-const safePaperDiagnosticFailure=(error:unknown)=>{
- if(error instanceof DeploymentConflict&&/^paper_[a-z0-9_]+$/.test(error.code))return error.code;
- if(!(error instanceof Error))return 'unknown';
- const firstLine=error.message.split('\n',1)[0]??'';
- return /^paper_[a-z0-9_]+$/.test(firstLine)?firstLine:error.name||'unknown';
-};
-
 async function main(){
  const env=envSchema.parse(process.env);
  const store=new DeploymentStore(env.DATABASE_URL);
@@ -69,8 +64,19 @@ async function main(){
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
  let previewBusy=false,paperSetupBusy=false;
- const setupDiagnostic=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
-  (stage:string,reason:string)=>log('warn','paper_setup_preparation_diagnostic',{stage,reason}):undefined;
+ const setupDiagnosticsEnabled=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1',
+  setupDiagnostic=setupDiagnosticsEnabled?
+  (stage:string,reason:string)=>{try{log('warn','paper_setup_preparation_diagnostic',{stage,reason});}
+   catch{}}:undefined;
+ const setupFrameDiagnostic=(campaignId:string,frame:PaperOpenFrame)=>{
+  if(!setupDiagnosticsEnabled)return;
+  try{
+   const binding={source:{block:frame.source.block,hash:frame.source.hash,
+    timestamp:frame.source.timestamp},tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),
+    poolLiquidity:String(frame.poolLiquidity),referenceProofHash:frame.referenceProofHash};
+   log('info','paper_conversion_prestate_frame',{campaignId,...binding,frameHash:contentHash(binding)});
+  }catch{}
+ };
  const paperSetupReviewCache=new StaticPaperSetupReviewCache();
  const runStaticSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
   pinnedSource?:PaperOpenFrame['source'])=>buildStaticPaperSetupPreflight(input,{
@@ -152,6 +158,7 @@ async function main(){
        const frame=await waitCanonicalPaperReplayHeadFrame({client,indexer,
          profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
          previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
+       setupFrameDiagnostic(campaignId,frame);
        await preparationLease.assertHealthy();
        conversionPrestateStage='route';
        const route=buildStaticPaperCloseConvertRoute(context.state);

@@ -27,8 +27,21 @@ test('persisted close-convert fee context is rebound and source-anchor checked b
  await context.verifyPersistedContext({state:context.state,feeCarry:context.feeCarry,
   feeEvidence:context.feeEvidence,source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}});
  assert.equal(reads,2);assert.equal(anchorChecks,2);
+ await assert.rejects(context.verifyPersistedContext({state:{...context.state,openMarkId:'3'},
+  feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,
+  source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}}),
+ /paper_close_convert_persisted_state_changed/);
+ await assert.rejects(context.verifyPersistedContext({state:context.state,
+  feeCarry:{...context.feeCarry,intervals:2},feeEvidence:context.feeEvidence,
+  source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}}),
+ /paper_close_convert_persisted_fee_carry_changed/);
  await assert.rejects(context.verifyPersistedContext({state:context.state,feeCarry:context.feeCarry,
-  feeEvidence:context.feeEvidence,source:context.state.previous.source}));
+  feeEvidence:{...context.feeEvidence,proofHash:'f'.repeat(64)},
+  source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}}),
+ /paper_close_convert_persisted_fee_evidence_changed/);
+ await assert.rejects(context.verifyPersistedContext({state:context.state,feeCarry:context.feeCarry,
+  feeEvidence:context.feeEvidence,source:context.state.previous.source}),
+ /paper_close_convert_frame_source_not_later_than_fee_anchor/);
  const changed={...saved,feeCarry:{...saved.feeCarry,intervals:2}};
  let mutableReads=0;
  const mutableStore={readStaticPaperCloseConvertFeeCarry:async()=>mutableReads++===0?
@@ -37,6 +50,6 @@ test('persisted close-convert fee context is rebound and source-anchor checked b
   campaignId:saved.campaignId,revision:1,verifyAnchors:async()=>{}});
  await assert.rejects(stale.verifyPersistedContext({state:stale.state,feeCarry:stale.feeCarry,
   feeEvidence:stale.feeEvidence,source:{block:'101',hash:'0x'+'3'.repeat(64),timestamp:1010}}),
- /Persisted paper fee carry or source context changed/);
+ /paper_close_convert_persisted_context_digest_changed/);
  assert.notEqual(contentHash(saved),contentHash(changed));
 });

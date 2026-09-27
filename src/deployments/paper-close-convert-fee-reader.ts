@@ -37,13 +37,17 @@ export async function readStaticPaperCloseConvertFeeContext(input:{store:Pick<De
  const digest=contentHash(saved);
  await input.verifyAnchors(state.profile.pool.chainId,saved.sources);
  return {state,feeCarry,feeEvidence,stream,targetSetHash,verifyPersistedContext:async current=>{
-  assert.equal(contentHash(current.state),contentHash(state));
-  assert.equal(contentHash(current.feeCarry),contentHash(feeCarry));
-  assert.equal(contentHash(current.feeEvidence),contentHash(feeEvidence));
+  assert.equal(contentHash(current.state),contentHash(state),
+   'paper_close_convert_persisted_state_changed');
+  assert.equal(contentHash(current.feeCarry),contentHash(feeCarry),
+   'paper_close_convert_persisted_fee_carry_changed');
+  assert.equal(contentHash(current.feeEvidence),contentHash(feeEvidence),
+   'paper_close_convert_persisted_fee_evidence_changed');
   assert(BigInt(current.source.block)>BigInt(state.previous.source.block),
-   'Close-convert frame must advance the persisted fee-carry anchor');
+   'paper_close_convert_frame_source_not_later_than_fee_anchor');
   const replayed=await read();
-  assert.equal(contentHash(replayed),digest,'Persisted paper fee carry or source context changed');
+  assert.equal(contentHash(replayed),digest,
+   'paper_close_convert_persisted_context_digest_changed');
   await input.verifyAnchors(state.profile.pool.chainId,replayed.sources);
  }};
 }
