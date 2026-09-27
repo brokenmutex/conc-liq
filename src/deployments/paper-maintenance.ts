@@ -60,25 +60,9 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   conversionAudit,conversionV3Audit,steps:0,caughtUp:false};
  try{
 
- // Sampling is restricted to active and paused campaigns by the supervisor.
- // The store rechecks the prior mark and lifecycle under its campaign lock, so
- // a close that wins the race makes this stale append fail closed.
- if(options.sampleValuation){
-  try{await timed('principal_valuation',()=>
-   recordCanonicalPaperPrincipalValuation(store,client,campaignId));}
-  catch(error){
-   if(error instanceof Error&&error.message==='paper_next_source_not_later'){
-    // A fresh canonical head is not available yet; keep the existing marks
-    // eligible for projection and retry sampling on the next supervised pass.
-   }else if(!(error instanceof DeploymentConflict&&[
-    'paper_valuation_campaign_unavailable','paper_valuation_duplicate_source',
-    'paper_valuation_conflicting_source','paper_valuation_prior_mark_changed',
-    'paper_valuation_source_time_regressed','paper_valuation_state_unavailable',
-   ].includes(error.code)))throw error;
-  }
- }
-
  let conversionTerminal=false;
+ let projectionWork=false;
+ let samplingAttempted=false;
  let steps=0;
  for(;steps<maxSteps;steps++){
   if(!conversionTerminal){
@@ -86,12 +70,13 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
     const next=await timed('advance_accounting_projection',()=>
      advanceCanonicalPaperScenario(store,client,indexer,campaignId,options.progress));
     if(next.caughtUp){
+     if(next.accountingMarkId!==null||next.feeEvidenceId!==null)projectionWork=true;
      // V1 being caught up does not mean the independently versioned V2
      // predecessor journal is ready for a later close-convert admission.
      // Continue through the same bounded loop so the default worker projects
      // V2 without waiting for a V1-only unsupported terminal mark.
      conversionTerminal=true;
-    }else continue;
+    }else{projectionWork=true;continue;}
    }catch(error){
     if(!(error instanceof DeploymentConflict&&
      error.code==='paper_accounting_mark_unsupported'))throw error;
@@ -102,15 +87,42 @@ export async function maintainCanonicalPaperScenario(store:DeploymentStore,
   }
   try{
    const next=await recordCanonicalNextPaperConversionAccountingV2(store,client,campaignId);
-   if(next===null)return {status:'projection_current' as const,standardAudit,
-    legacyConversionAudit,conversionAudit,conversionV3Audit,
-    steps,caughtUp:true};
+   if(next!==null){projectionWork=true;continue;}
   }catch(error){
    if(!(error instanceof DeploymentConflict&&
     error.code==='paper_accounting_fee_evidence_unavailable'))throw error;
+   projectionWork=true;
    await recordCanonicalPaperFeeEvidence(store,client,indexer,campaignId);
    // The next pass retries the exact same mark. No later mark can skip it.
+   continue;
   }
+  // A pass that projected any existing work exposes a stable readiness window
+  // before sampling a newer valuation on a later pass.
+  if(projectionWork)return {status:'projection_current' as const,standardAudit,
+   legacyConversionAudit,conversionAudit,conversionV3Audit,steps,caughtUp:true};
+  if(!options.sampleValuation||samplingAttempted)
+   return {status:'projection_current' as const,standardAudit,
+    legacyConversionAudit,conversionAudit,conversionV3Audit,steps,caughtUp:true};
+  // Reserve one loop iteration to attempt projecting a sampled mark. A
+  // one-step budget can sample from a current starting state; its mark is
+  // projected on the next pass and this pass remains budget-exhausted.
+  if(maxSteps>1&&steps+1>=maxSteps)
+   return {status:'projection_current' as const,standardAudit,
+    legacyConversionAudit,conversionAudit,conversionV3Audit,steps,caughtUp:true};
+  samplingAttempted=true;
+  try{await timed('principal_valuation',()=>
+   recordCanonicalPaperPrincipalValuation(store,client,campaignId));}
+  catch(error){
+   if(error instanceof Error&&error.message==='paper_next_source_not_later'){
+    // A fresh canonical head is not available yet; retry sampling on the next
+    // supervised pass after existing marks have been projected.
+   }else if(!(error instanceof DeploymentConflict&&[
+    'paper_valuation_campaign_unavailable','paper_valuation_duplicate_source',
+    'paper_valuation_conflicting_source','paper_valuation_prior_mark_changed',
+    'paper_valuation_source_time_regressed','paper_valuation_state_unavailable',
+   ].includes(error.code)))throw error;
+  }
+  conversionTerminal=false;
  }
  return {status:'budget_exhausted' as const,standardAudit,legacyConversionAudit,
   conversionAudit,conversionV3Audit,
