@@ -7,6 +7,8 @@ import {paperCloseRetainModelSchema} from './paper-close-model.js';
 import {paperCloseConvertModelSchema,
  verifyCanonicalPaperCloseConvertQuote} from './paper-close-convert-model.js';
 import {parsePaperStaticCloseConvertTerminalV3} from './paper-close-convert-preflight.js';
+import {safePaperCloseConvertTerminalReplayFailure,
+ type PaperCloseConvertTerminalReplayStage} from './paper-close-convert-terminal-replay-verifier.js';
 import {readStaticPaperCloseConvertFeeContext} from './paper-close-convert-fee-reader.js';
 import {replayEphemeralStaticPaperCloseConvertFees} from './paper-close-convert-ephemeral-fees.js';
 import {samplePaperCloseConvertPrestate} from './paper-close-convert-prestate-sampler.js';
@@ -23,6 +25,7 @@ import {loadRangeKeeperPaperConfirmationContext} from './rangekeeper-paper-confi
 import {adaptRangeKeeperConfirmedOpenContext} from './rangekeeper-paper-confirmed-open-adapter.js';
 import {isRangeKeeperPaperConfirmationReplayCapability,
  replayRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-replay-verifier.js';
+import {log} from '../logger.js';
 
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
  attempts:number};
@@ -32,7 +35,26 @@ type OperationContext={id:string;campaign_id:string;kind:string;status:string;cl
  current_revision:number;expected_revision:number;preview_kind:string};
 const MAX_ATTEMPTS=5;
 const LEASE_SECONDS=120;
-export interface PaperOperationWorkerOptions {rpcUrl?:string;beforeForkRead?:()=>Promise<void>}
+export interface PaperOperationWorkerOptions {rpcUrl?:string;beforeForkRead?:()=>Promise<void>;diagnostics?:boolean}
+
+function logTerminalReplayFailure(input:{enabled:boolean;campaignId:string;operationId:string;
+ modelHash?:string;stage:string;reason:string;sourceFrameMismatch?:string;
+ source?:{block:string;timestamp:number};gasPriceObservedAt?:string}){
+ if(!input.enabled)return;
+ const observedAt=new Date(),observedMs=observedAt.getTime(),
+  sourceTimestamp=input.source?.timestamp,gasPriceObservedMs=input.gasPriceObservedAt?
+   Date.parse(input.gasPriceObservedAt):Number.NaN;
+ try{log('error','paper_operation_terminal_verifier_failure',{
+  campaignId:input.campaignId,operationId:input.operationId,
+  ...(input.modelHash?{modelHash:input.modelHash}:{}),stage:input.stage,
+  reason:input.reason,observedAt:observedAt.toISOString(),
+  ...(input.source?{sourceBlock:input.source.block,sourceTimestamp,
+   sourceAgeMs:observedMs-sourceTimestamp!*1000}:{}),
+  ...(input.gasPriceObservedAt?{gasPriceObservedAt:input.gasPriceObservedAt,
+   gasPriceAgeMs:Number.isFinite(gasPriceObservedMs)?observedMs-gasPriceObservedMs:null}:{}),
+  ...(input.sourceFrameMismatch?{sourceFrameMismatch:input.sourceFrameMismatch}:{})});}
+ catch{}
+}
 
 const sourceFor=(context:OperationContext):PaperCanonicalAnchor=>{
  if(!context.proposal||typeof context.proposal!=='object'||Array.isArray(context.proposal))
@@ -208,20 +230,35 @@ export async function processOnePaperOperation(store:DeploymentStore,
     let terminal;
     try{terminal=parsePaperStaticCloseConvertTerminalV3(
      context.proposal.paperCloseConvertTerminalV3);}
-    catch{return await block('paper_close_convert_v3_terminal_envelope_invalid');}
+    catch(error){logTerminalReplayFailure({enabled:options.diagnostics===true,
+     campaignId:claim.campaign_id,operationId:claim.id,stage:'terminal_model_parse',
+     reason:safePaperCloseConvertTerminalReplayFailure(error)});
+     return await block('paper_close_convert_v3_terminal_envelope_invalid');}
+    let verifierStage:PaperCloseConvertTerminalReplayStage='terminal_model_parse',
+     sourceFrameMismatch:string|undefined,workerStage='terminal_verification';
     try{
      const verification=await verifyPaperStaticCloseConvertTerminalForWorker({store,campaignId:claim.campaign_id,
       revision:context.current_revision,rawModel:terminal,client:chain,indexer,verifyAnchors:verify,
       operation:{id:claim.id,workerId,modelHash:terminal.modelHash},
+      onVerifierStage:stage=>{verifierStage=stage;},
+      onSourceFrameMismatch:reason=>{sourceFrameMismatch=reason;},
       replayGasStages:({model,frame})=>replayStaticCloseConvertV3Gas({store,client:chain,indexer,
        model,frame,rpcUrl:options.rpcUrl!,operation:{id:claim.id,workerId},
        beforeRead:options.beforeForkRead??(async()=>{}),
        verifyAnchors:verify})});
+     workerStage='terminal_booking';
      const completed=await store.completeTrustedStaticPaperCloseConvertV3({operationId:claim.id,
       workerId,verification,verifyAnchors:verify});
      return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
-    }catch(error){return await block(error instanceof DeploymentConflict?error.code:
-     'paper_close_convert_v3_terminal_replay_invalid');}
+    }catch(error){
+     logTerminalReplayFailure({enabled:options.diagnostics===true,campaignId:claim.campaign_id,
+      operationId:claim.id,modelHash:terminal.modelHash,
+      stage:workerStage==='terminal_booking'?workerStage:verifierStage,
+      reason:safePaperCloseConvertTerminalReplayFailure(error),sourceFrameMismatch,
+      source:terminal.source,gasPriceObservedAt:terminal.costs.gasPriceObservedAt});
+     return await block(error instanceof DeploymentConflict?error.code:
+      'paper_close_convert_v3_terminal_replay_invalid');
+    }
    }
    await store.prepareTrustedPaperCloseConvert(claim.id,workerId,verify);
    const projection=await maintainCanonicalPaperScenario(store,chain,indexer,

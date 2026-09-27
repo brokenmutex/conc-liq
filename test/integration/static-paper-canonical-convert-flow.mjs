@@ -9,7 +9,7 @@ import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {parseEnv} from 'node:util';
 import {readFileSync,readdirSync,readlinkSync} from 'node:fs';
-import {mkdtemp,rm,writeFile} from 'node:fs/promises';
+import {chmod,mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import {createServer as createTcpServer} from 'node:net';
 import {tmpdir} from 'node:os';
@@ -26,6 +26,8 @@ import {marketProfileSchema,verifyMarketProfile} from '../../src/deployments/mar
 import {contentHash} from '../../src/deployments/contracts.ts';
 import {PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
  paperConversionAccountingV2Schema} from '../../src/deployments/paper-accounting.ts';
+import {parsePaperStaticCloseConvertTerminalV3} from
+ '../../src/deployments/paper-close-convert-preflight.ts';
 import {readCanonicalPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 import {paperPreparationLockName} from '../../src/deployments/paper-preparation-lease.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
@@ -37,9 +39,113 @@ import {rehearseStaticPaperSchemaRestore} from './helpers/static-paper-schema-re
 import {startProxy} from './helpers/paper-anchor-rpc-proxy.mjs';
 
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-const phase=(name,details={})=>process.stdout.write(JSON.stringify({phase:name,...details})+'\n');
+const phaseHistory=[];
+const phase=(name,details={})=>{
+ phaseHistory.push({name,at:new Date().toISOString()});if(phaseHistory.length>100)phaseHistory.shift();
+ process.stdout.write(JSON.stringify({phase:name,...details})+'\n');
+};
 const clean=value=>String(value??'').replace(/https?:\/\/[^\s"']+/gi,'[redacted-url]');
 const setupDiagnosticEvents=[];let setupDiagnosticSequence=0;
+const setupDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
+ {DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1'}:{};
+const workerDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS==='1'?
+ {DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS:'1'}:{};
+const workerDiagnosticEvents=[];
+const secretBearingKey=/(?:private.?key|password|authorization|api.?key|mnemonic|seed.?phrase|secret|database.?url|connection.?string)/i;
+function containsSecretRisk(value,seen=new Set()){
+ if(typeof value==='string'){
+  if(/^https?:\/\//i.test(value))try{
+   const url=new URL(value);
+   if(url.username||url.password)return true;
+   for(const key of url.searchParams.keys())if(/(?:key|token|secret|password|auth|signature|credential)/i.test(key))return true;
+  }catch{return true;}
+  return false;
+ }
+ if(!value||typeof value!=='object'||seen.has(value))return false;
+ seen.add(value);
+ if(Array.isArray(value))return value.some(item=>containsSecretRisk(item,seen));
+ return Object.entries(value).some(([key,item])=>secretBearingKey.test(key)||containsSecretRisk(item,seen));
+}
+const safeDiagnosticValue=value=>{
+ if(typeof value==='string'&&/^[a-z0-9_]{1,120}$/i.test(value))return value;
+ if(typeof value==='number'&&Number.isFinite(value))return value;
+ return null;
+};
+async function preserveConvertFailureEvidence({admin,campaignId,error,operationId,
+ runtimeIdentity,feeContext,previewAttempt,diagnostics}){
+ const evidenceRoot=process.env.TEST_BROWSER_EVIDENCE_DIR;
+ if(!evidenceRoot||!campaignId)return;
+ const evidence={schemaVersion:1,capturedAt:new Date().toISOString(),campaignId,
+  failure:{name:/^[A-Za-z]+Error$/.test(error?.name??'')?error.name:'Error',
+   code:safeDiagnosticValue(error?.code)},runtimeIdentity,previewAttempt,
+  setupDiagnostics:diagnostics.slice(-32),stages:phaseHistory.slice(-64),
+  feeContext:null,feeContextOmittedReason:null,operationSnapshots:[],markSources:[],
+  terminalPreviews:[]};
+ if(feeContext){
+  if(containsSecretRisk(feeContext))evidence.feeContextOmittedReason='credential_bearing_reference_url';
+  else evidence.feeContext=feeContext;
+ }
+ if(admin){
+  try{
+   evidence.operationSnapshots=(await admin.query(`SELECT id::text,preview_id::text,kind,status,stage,reason,attempts,
+    created_at::text,updated_at::text FROM deployment_operations WHERE campaign_id=$1
+    ORDER BY created_at DESC LIMIT 20`,[campaignId])).rows.map(row=>({id:row.id,
+     previewId:row.preview_id,
+     kind:safeDiagnosticValue(row.kind),status:safeDiagnosticValue(row.status),
+     stage:safeDiagnosticValue(row.stage),reason:safeDiagnosticValue(row.reason),
+     attempts:Number.isInteger(row.attempts)?row.attempts:null,
+     createdAt:typeof row.created_at==='string'?row.created_at.slice(0,48):null,
+     updatedAt:typeof row.updated_at==='string'?row.updated_at.slice(0,48):null}));
+   evidence.markSources=(await admin.query(`SELECT id::text,source_block::text,source_hash,
+    provenance->>'classification' AS classification,provenance->>'operationId' AS operation_id,
+    provenance->>'terminalModelHash' AS terminal_model_hash
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 20`,[campaignId])).rows.map(row=>({
+     id:row.id,sourceBlock:row.source_block,sourceHash:row.source_hash,
+     classification:safeDiagnosticValue(row.classification),operationId:row.operation_id,
+     terminalModelHash:row.terminal_model_hash}));
+   const previews=(await admin.query(`SELECT id::text,content_digest,created_at::text,expires_at::text,
+    proposal FROM deployment_previews WHERE campaign_id=$1 AND kind='close_convert' AND
+     (id=(SELECT preview_id FROM deployment_operations WHERE id=$2 AND campaign_id=$1) OR
+      id IN (SELECT id FROM deployment_previews WHERE campaign_id=$1 AND kind='close_convert'
+       ORDER BY created_at DESC LIMIT 5))
+    ORDER BY (id=(SELECT preview_id FROM deployment_operations WHERE id=$2 AND campaign_id=$1)) DESC,
+     created_at DESC LIMIT 6`,[campaignId,operationId??null])).rows;
+   evidence.terminalPreviews=previews.map(row=>{
+    const raw=row.proposal?.paperCloseConvertTerminalV3;
+    if(!raw)return {previewId:row.id,contentDigest:row.content_digest,
+     createdAt:row.created_at,expiresAt:row.expires_at,terminalModelAvailable:false};
+    try{
+     const model=parsePaperStaticCloseConvertTerminalV3(raw);
+     if(containsSecretRisk(model))return {previewId:row.id,contentDigest:row.content_digest,
+      createdAt:row.created_at,expiresAt:row.expires_at,terminalModelAvailable:false,
+      omissionReason:'credential_bearing_reference_url',modelHash:model.modelHash,
+      source:{block:model.source.block,hash:model.source.hash,timestamp:model.source.timestamp}};
+     return {previewId:row.id,contentDigest:row.content_digest,createdAt:row.created_at,
+      expiresAt:row.expires_at,proposal:{paperCloseConvertTerminalV3:model},terminalModelAvailable:true,
+      source:{block:model.source.block,hash:model.source.hash,timestamp:model.source.timestamp},
+      hashes:{modelHash:model.modelHash,openModelHash:model.openModelHash,
+       referenceProofHash:model.referenceProofHash,quoteHash:model.quote.quoteHash,
+       feeReplayHash:model.feeReplay.replayHash,feeIntervalHash:model.feeReplay.intervalHash,
+       sourceReplayHash:model.prestateReport.sourceReplayHash,
+       postWithdrawReplayHash:model.postWithdraw.postWithdrawReplayHash}};
+    }catch{return {previewId:row.id,contentDigest:row.content_digest,
+     createdAt:row.created_at,expiresAt:row.expires_at,terminalModelAvailable:false,
+     omissionReason:'terminal_model_validation_failed'};}
+   });
+  }catch(queryError){evidence.captureError={name:/^[A-Za-z]+Error$/.test(queryError?.name??'')?
+    queryError.name:'Error',code:safeDiagnosticValue(queryError?.code)};}
+ }
+ if(operationId)evidence.operationId=operationId;
+ const serialized=JSON.stringify(evidence);
+ if(Buffer.byteLength(serialized,'utf8')>4_000_000){
+  evidence.terminalPreviews=evidence.terminalPreviews.map(({proposal,...rest})=>rest);
+  evidence.feeContext=null;evidence.feeContextOmittedReason='artifact_size_limit';
+ }
+ const directory=resolve(evidenceRoot,campaignId);
+ await mkdir(directory,{recursive:true,mode:0o700});await chmod(directory,0o700);
+ const output=join(directory,'canonical-convert-failure.json');
+ await writeFile(output,JSON.stringify(evidence,null,2)+'\n',{mode:0o600});await chmod(output,0o600);
+}
 const commandLineBuffer={command:{stdout:'',stderr:''},worker:{stdout:'',stderr:''}};
 const isLocalDb=raw=>{const url=new URL(raw),socket=url.searchParams.get('host');
  return ['localhost','127.0.0.1','[::1]','::1'].includes(url.hostname.toLowerCase())||
@@ -142,7 +248,8 @@ async function main(){
   admin=await adminPool.connect(),schema=`static_convert_browser_${randomUUID().replaceAll('-','')}`;
  let store,indexer,command,worker,browser,runtimeDir,campaignId,rpcProxy,proxyClient,
   runtimeApplicationName=null,runtimeDatabaseBackends=null,
-  openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null;
+  openOperationId,convertOperationId,interruption=null,runtimeEnvFile=null,accountingIdentity=null,
+  feeContextAtReadiness=null,previewAttempt=null;
  const checks=[];let runtimeEnvSha256=null,initialWorkerEnvFile=null,primaryFailure=null;
  try{
   await admin.query(`CREATE SCHEMA ${schema}`);await admin.query(`SET search_path=${schema}`);
@@ -212,7 +319,7 @@ async function main(){
    DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
    DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DASHBOARD_HOST:'127.0.0.1',
    DASHBOARD_PORT:String(dashboardPort),ADAPTIVE_PAPER_STATE_PATH:`${tmpdir()}/absent-${randomUUID()}.json`,
-   CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
+   CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity),...setupDiagnosticOptIn,...workerDiagnosticOptIn};
   if(changedRestartAnchor){rpcProxy=await startProxy({rpcUrl:archive});
    proxyClient=createRobinhoodClient(rpcProxy.url,20_000,{retryCount:0});
    phase('changed_anchor_proxy_started');}
@@ -234,8 +341,7 @@ async function main(){
     DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
     DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DASHBOARD_HOST:'127.0.0.1',
     DASHBOARD_PORT:String(dashboardPort),ADAPTIVE_PAPER_STATE_PATH:`${runtimeDir}/absent-adaptive.json`,
-    ...(process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
-     {DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1'}:{})};
+    ...setupDiagnosticOptIn,...workerDiagnosticOptIn};
    await writeFile(runtimeEnvFile,Object.entries(sealedRuntimeEnv).map(([key,value])=>
     `${key}=${JSON.stringify(value)}`).join('\n')+'\n',{mode:0o600});
    const parsedSealedRuntimeEnv=parseEnv(readFileSync(runtimeEnvFile,'utf8'));
@@ -253,16 +359,25 @@ async function main(){
    const append=(source,chunk)=>{
     child.__safeCapture[`${source}Bytes`]+=Buffer.byteLength(chunk,'utf8');
     processTail[key]=(processTail[key]+chunk).slice(-8000);
-    if(key!=='command')return;
-    const lines=(commandLineBuffer.command[source]+chunk).split('\n');
-    commandLineBuffer.command[source]=lines.pop()??'';
+    const lines=(commandLineBuffer[key][source]+chunk).split('\n');
+    commandLineBuffer[key][source]=lines.pop()??'';
     for(const line of lines){
      try{const row=JSON.parse(line);
-      if(row.event==='paper_setup_preparation_diagnostic'&&typeof row.stage==='string'&&
+      if(key==='command'&&row.event==='paper_setup_preparation_diagnostic'&&typeof row.stage==='string'&&
        /^[a-z0-9_]{1,80}$/.test(row.stage)&&typeof row.reason==='string'&&
        (/^paper_[a-z0-9_]{1,120}$/.test(row.reason)||/^[A-Za-z]+Error$/.test(row.reason))){
        setupDiagnosticEvents.push({sequence:++setupDiagnosticSequence,stage:row.stage,reason:row.reason});
        if(setupDiagnosticEvents.length>32)setupDiagnosticEvents.shift();
+      }
+      if(key==='worker'&&row.event==='paper_operation_terminal_verifier_failure'&&
+       typeof row.stage==='string'&&/^[a-z0-9_]{1,80}$/.test(row.stage)&&
+       typeof row.reason==='string'&&/^[a-z0-9_]{1,120}$/i.test(row.reason)){
+       workerDiagnosticEvents.push({operationId:typeof row.operationId==='string'&&
+        /^[0-9a-f-]{36}$/i.test(row.operationId)?row.operationId:null,
+        modelHash:typeof row.modelHash==='string'&&/^[a-f0-9]{64}$/.test(row.modelHash)?row.modelHash:null,
+        stage:row.stage,reason:row.reason,sourceBlock:safeDiagnosticValue(row.sourceBlock),
+        sourceFrameMismatch:safeDiagnosticValue(row.sourceFrameMismatch)});
+       if(workerDiagnosticEvents.length>32)workerDiagnosticEvents.shift();
       }
      }catch{}
     }
@@ -392,7 +507,8 @@ async function main(){
   let conversionDiagnosticSequence=setupDiagnosticSequence;
   const beforePreviewRequest=async({deadline})=>{
    conversionDiagnosticSequence=setupDiagnosticSequence;
-   await waitForFeeCarryAndAccounting({deadline});
+   const readiness=await waitForFeeCarryAndAccounting({deadline});
+   previewAttempt={at:new Date().toISOString(),...readiness};
   };
   const retryUnavailableReason=async({previewResponse,deadline})=>{
    if(previewResponse?.reason!=='static_manual_conversion_prestate_unavailable')return null;
@@ -446,7 +562,11 @@ async function main(){
        feeEvidenceId:feeEvidence?.id??null,feeEvidenceToMarkId:feeEvidence?.to_mark_id??null,
        accountingMarkId,priorV2FeeEvidenceId:priorV2.fee_evidence_id,
        throughBlock:carried.previous.source.block,intervals:carried.feeCarry.intervals});
-      return;
+      feeContextAtReadiness=carried;
+      return {latestMarkId,feeEvidenceId:feeEvidence?.id??null,accountingMarkId,
+       feeEvidenceProofHash:carried.feeEvidence.proofHash,feeCarryHash:contentHash(carried.feeCarry),
+       stream:carried.stream,targetSetHash:carried.targetSetHash,
+       throughBlock:carried.previous.source.block};
      }
     }catch(error){if(error?.code!=='paper_close_convert_fee_interval_gap')throw error;}
     await sleep(Math.min(1_000,Math.max(1,deadline-Date.now())));
@@ -904,6 +1024,13 @@ async function main(){
     code:typeof diagnosticError?.code==='string'&&
      /^[A-Z0-9_]{1,60}$/i.test(diagnosticError.code)?diagnosticError.code:null});}
   }
+  try{await preserveConvertFailureEvidence({admin,campaignId,error,operationId:convertOperationId,
+   runtimeIdentity:accountingIdentity,feeContext:feeContextAtReadiness,previewAttempt,
+   diagnostics:[...setupDiagnosticEvents.map(({stage,reason})=>({source:'command',stage,reason})),
+    ...workerDiagnosticEvents.map(item=>({source:'worker',...item}))]});}
+  catch(evidenceError){phase('failure_evidence_capture_error',{
+   name:/^[A-Za-z]+Error$/.test(evidenceError?.name??'')?evidenceError.name:'Error',
+   code:safeDiagnosticValue(evidenceError?.code)});}
   throw error;
  }finally{
   let browserCleanupError=null;

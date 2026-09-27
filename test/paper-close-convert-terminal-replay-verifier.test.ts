@@ -5,6 +5,31 @@ import {PAPER_STATIC_CONVERT_GAS_STAGES_V2} from
  '../src/deployments/paper-close-convert-model.js';
 import {verifyPaperCloseConvertTerminalGasReplay} from
  '../src/deployments/paper-close-convert-terminal-replay-verifier.js';
+import {safePaperCloseConvertTerminalReplayFailure,
+ type PaperCloseConvertTerminalReplayStage,
+ verifyPaperStaticCloseConvertTerminalForWorker} from
+ '../src/deployments/paper-close-convert-terminal-replay-verifier.js';
+
+test('terminal verifier diagnostics retain only safe machine codes or error classes',()=>{
+ assert.equal(safePaperCloseConvertTerminalReplayFailure(
+  Error('paper_close_convert_terminal_quote_replay_mismatch')),
+  'paper_close_convert_terminal_quote_replay_mismatch');
+ assert.equal(safePaperCloseConvertTerminalReplayFailure(
+  Error('request failed https://rpc.example/key?secret=abc\nresponse body')), 'Error');
+ assert.equal(safePaperCloseConvertTerminalReplayFailure(new TypeError('private detail')), 'TypeError');
+ assert.equal(safePaperCloseConvertTerminalReplayFailure('private detail'), 'unknown');
+});
+
+test('terminal verifier reports parse stage without allowing diagnostics to mask failure',async()=>{
+ const stages:string[]=[];
+ await assert.rejects(verifyPaperStaticCloseConvertTerminalForWorker({
+  store:{} as never,campaignId:'campaign',revision:1,rawModel:{},client:{} as never,
+  indexer:{} as never,verifyAnchors:async()=>{},replayGasStages:async()=>({} as never),
+  onVerifierStage:(stage:PaperCloseConvertTerminalReplayStage)=>{
+   stages.push(stage);throw Error('diagnostic callback failed');}
+ } as never));
+ assert.deepEqual(stages,['terminal_model_parse']);
+});
 
 test('terminal gas replay requires all seven source and profile bindings in order',()=>{
  const source={block:'120',hash:'0x'+'1'.repeat(64),timestamp:1_800_000_000},

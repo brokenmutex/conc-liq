@@ -24,6 +24,21 @@ export interface PaperCloseConvertTerminalGasReplay {
   stageIndex:number;stageCount:number;source:PaperStaticCloseConvertTerminalModel['costs']['stages'][number]['source']}[];
 }
 
+export type PaperCloseConvertTerminalReplayStage='terminal_model_parse'|
+ 'candidate_binding'|'saved_fee_context_load'|'saved_context_binding'|'source_frame_read'|
+ 'source_frame_binding'|'external_reference_proof_binding'|'fee_interval_replay'|
+ 'inventory_replay'|'terminal_quote_replay'|'terminal_gas_stage_replay'|
+ 'canonical_anchor_recheck'|'source_freshness';
+
+/** A diagnostic-safe code or error class. Raw provider and assertion messages
+ * can contain request URLs, response bodies, or persisted evidence. */
+export function safePaperCloseConvertTerminalReplayFailure(error:unknown){
+ if(!(error instanceof Error))return 'unknown';
+ const firstLine=error.message.split('\n',1)[0]??'';
+ if(/^paper_[a-z0-9_]{1,100}$/.test(firstLine))return firstLine;
+ return /^[A-Za-z][A-Za-z0-9]{0,30}Error$/.test(error.name)?error.name:'Error';
+}
+
 export function verifyPaperCloseConvertTerminalGasReplay(input:{
  costs:PaperStaticCloseConvertTerminalModel['costs'];
  gasReport:PaperStaticCloseConvertTerminalModel['gasReport'];source:PaperOpenFrame['source'];
@@ -68,11 +83,17 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  operation?:{id:string;workerId:string;modelHash:string};
  replayGasStages:(input:{model:PaperStaticCloseConvertTerminalModel;frame:PaperOpenFrame})=>
   Promise<PaperCloseConvertTerminalGasReplay>;now?:number;
+ onVerifierStage?:(stage:PaperCloseConvertTerminalReplayStage)=>void;
  onSourceFrameMismatch?:(reason:'reread_failed'|'source_anchor_changed'|'tick_changed'|
   'sqrt_price_changed'|'liquidity_changed'|'reference_price_changed'|'references_unavailable'|
-  'reference_proof_missing'|'external_reference_proof_changed')=>void;
+ 'reference_proof_missing'|'external_reference_proof_changed')=>void;
 }){
+ const reportStage=(stage:PaperCloseConvertTerminalReplayStage)=>{
+  try{input.onVerifierStage?.(stage);}catch{}
+ };
+ reportStage('terminal_model_parse');
  const model=parsePaperStaticCloseConvertTerminalV3(input.rawModel),now=input.now??Date.now();
+ reportStage('candidate_binding');
  if(model.campaignId!==input.campaignId||model.revision!==input.revision||
   model.feeReplay.to.block!==model.source.block||
   model.feeReplay.to.hash.toLowerCase()!==model.source.hash.toLowerCase()||
@@ -87,10 +108,12 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.prestateReport.frame.price1!==model.reference.price1||
   model.prestateReport.frame.nativePrice!==model.reference.nativePrice)
   throw Error('paper_close_convert_terminal_candidate_binding_invalid');
+ reportStage('saved_fee_context_load');
  const context=await readStaticPaperCloseConvertFeeContext({store:input.store,
   campaignId:input.campaignId,revision:input.revision,operation:input.operation,
   verifyAnchors:input.verifyAnchors}),
   state=context.state,open=state.openModel,p=state.profile.pool;
+ reportStage('saved_context_binding');
  if(model.openMarkId!==state.openMarkId||model.previousMarkId!==state.previous.markId||
   model.openModelHash!==contentHash(open)||model.scope.profileHash!==state.profileHash||
   model.conversionRoute.routeHash!==contentHash((({routeHash:_h,...body})=>body)(model.conversionRoute))||
@@ -109,10 +132,12 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   referenceReasons:sourceFrame.referenceReasons,referenceProofHash:sourceFrame.referenceProofHash,
   referenceProof:sourceFrame.referenceProof};
  let actual:PaperOpenFrame;
+ reportStage('source_frame_read');
  try{
   actual=await readCanonicalPaperOpenFrame(input.client,state.profile,model.source);
  }catch{input.onSourceFrameMismatch?.('reread_failed');
   throw Error('paper_close_convert_terminal_source_frame_changed');}
+ reportStage('source_frame_binding');
  if(contentHash(actual.source)!==contentHash(savedFrame.source))
   {input.onSourceFrameMismatch?.('source_anchor_changed');throw Error('paper_close_convert_terminal_source_frame_changed');}
  if(actual.tick!==savedFrame.tick){input.onSourceFrameMismatch?.('tick_changed');
@@ -129,12 +154,14 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
  if(!actual.referenceProof||!savedFrame.referenceProof){input.onSourceFrameMismatch?.('reference_proof_missing');
   throw Error('paper_close_convert_terminal_source_frame_changed');}
  let frame:PaperOpenFrame;
+ reportStage('external_reference_proof_binding');
  try{
   assertSamePinnedExternalReferenceProof(savedFrame.referenceProof,actual.referenceProof);
   frame={...actual,referenceProof:savedFrame.referenceProof,
    referenceProofHash:savedFrame.referenceProofHash};
  }catch{input.onSourceFrameMismatch?.('external_reference_proof_changed');
   throw Error('paper_close_convert_terminal_source_frame_changed');}
+ reportStage('fee_interval_replay');
  const replay=await replayEphemeralStaticPaperCloseConvertFees({context,client:input.client,
   indexer:input.indexer,frame});
  assert.equal(contentHash(replay),contentHash(model.feeReplay),
@@ -145,6 +172,7 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   fee1=BigInt(replay.feeCarry.token1.lowerAmountRaw),idle0=BigInt(open.candidate.idle0),
   idle1=BigInt(open.candidate.idle1),expected0=principal.amount0+idle0+fee0,
   expected1=principal.amount1+idle1+fee1;
+ reportStage('inventory_replay');
  if(model.inventory.principal0Raw!==String(principal.amount0)||
   model.inventory.principal1Raw!==String(principal.amount1)||
   model.inventory.idle0Raw!==String(idle0)||model.inventory.idle1Raw!==String(idle1)||
@@ -152,14 +180,18 @@ export async function verifyPaperStaticCloseConvertTerminalForWorker(input:{
   model.inventory.token0Raw!==String(expected0)||model.inventory.token1Raw!==String(expected1)||
   model.inventory.inputAmountRaw!==String(model.inventory.inputAsset==='token0'?expected0:expected1))
   throw Error('paper_close_convert_terminal_inventory_replay_mismatch');
+ reportStage('terminal_quote_replay');
  const quote=await quotePaperCloseConvertAtSource(input.client,model.conversionRoute,model.source,
   model.inventory.inputAmountRaw);
  if(contentHash(quote)!==contentHash(model.quote))
   throw Error('paper_close_convert_terminal_quote_replay_mismatch');
+ reportStage('terminal_gas_stage_replay');
  const gas=await input.replayGasStages({model,frame}),gasReportHash=
   verifyPaperCloseConvertTerminalGasReplay({costs:model.costs,gasReport:model.gasReport,
    source:model.source,replay:gas});
+ reportStage('canonical_anchor_recheck');
  await input.verifyAnchors(p.chainId,[open.source,state.previous.source,model.source]);
+ reportStage('source_freshness');
  if(now>model.source.timestamp*1000+180_000)
   throw Error('paper_close_convert_terminal_source_stale');
  return {status:'verified' as const,modelHash:model.modelHash,feeReplayHash:replay.replayHash,

@@ -198,7 +198,7 @@ async function main(){
      if(readinessLease)await readinessLease.assertHealthy();
      try{
       const result=await processOnePaperOperation(store,chain,indexer,workerId,
-       {rpcUrl:env.ROBINHOOD_READ_HTTP_URL});
+       {rpcUrl:env.ROBINHOOD_READ_HTTP_URL,diagnostics});
       if(result.status==='idle')break;
       log(result.status==='blocked'?'error':'info','paper_operation_worker_pass',result);
       if(result.status==='retry')break;
