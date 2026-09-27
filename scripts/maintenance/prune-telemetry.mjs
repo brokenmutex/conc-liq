@@ -36,6 +36,7 @@ import assert from "node:assert/strict";
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import pg from "pg";
+import { MIGRATION_CHECKSUMS } from "../../src/storage/migration-checksums.ts";
 
 const args = process.argv.slice(2);
 const flag = name => args.includes(`--${name}`);
@@ -89,10 +90,14 @@ const client = new pg.Client({ connectionString, application_name: "conc_liq_tel
 await client.connect();
 const report = { policy: "telemetry-retention-v1", startedAt: new Date().toISOString(), retainDays, dryRun, targets: [] };
 try {
-  // Refuse a database whose migration history is not the one these column
-  // names were read from.
-  const versions = (await client.query("SELECT version FROM schema_migrations ORDER BY version")).rows.map(row => row.version);
-  assert.deepEqual(versions, [1, 2, 3], "Unexpected migration history; review the retention targets before running");
+  // Both reviewed histories preserve these targets and their parent witnesses.
+  // Reject partial, modified, or future histories before touching telemetry.
+  const history = (await client.query("SELECT version, checksum FROM schema_migrations ORDER BY version")).rows;
+  assert(
+    [3, 11].includes(history.length) && history.every((row, index) =>
+      row.version === index + 1 && row.checksum === MIGRATION_CHECKSUMS[index]),
+    "Unexpected migration history; review the retention targets before running",
+  );
 
   for (const target of targets) {
     const cutoff = (await client.query(`SELECT now() - ($1 || ' days')::interval AS at`, [retainDays])).rows[0].at;
