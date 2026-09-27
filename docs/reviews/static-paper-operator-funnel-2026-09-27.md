@@ -1,5 +1,17 @@
 # Operator Funnel replacement — 2026-09-27
 
+Final update: the operator subsequently requested removing `/prototype`
+completely. Its Funnel mount and application redirect were removed. Public
+`/prototype` and `/prototype/` now return 404; `/operator` returns 200. Command
+source `d4eddd785fae46b2cfeb8a197334e6b1237763e0` is deployed as sealed build
+`2b50a18a772d9938e03d058aabc39e17750e9009f27a724b2784c95f81afa88e`.
+Only `dist/src/deployments/server.js` differs from the earlier Funnel build.
+The four command-server tests and sealed compilation passed. The command
+environment, password and remaining routes are unchanged. Final route evidence
+is `execution/funnel-operator-only.json`; the build log is
+`execution/operator-only-release-build.log`, both under the cutover directory.
+The rest of this record describes the initial redirect rollout and its checks.
+
 The operator explicitly requested replacing the obsolete public `/prototype`
 Funnel route with the real operator app. This supersedes the previous
 loopback-only access decision for this paper command surface. It does not
