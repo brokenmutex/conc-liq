@@ -1,5 +1,56 @@
 # Operator Funnel replacement — 2026-09-27
 
+## Current state: no password sign-in
+
+The operator explicitly requested removing the password feature. `/operator`
+now connects automatically; there are no password, sign-in or sign-out controls.
+Anyone who can reach the public Funnel URL can use the paper controls. The
+automatic HttpOnly/SameSite cookie and exact-origin/CSRF checks are request
+protection, not an access-control boundary. Live execution remains unavailable.
+
+Source `d7ee27fd7bd7f8d707efc89e17b6f713aabfa8f1` produced sealed build
+`ddc543b96077eb30aa791fc32e78e878133680ecaf0ba8f678dd6c7542d262f3`. Both the
+command and read-only dashboard services use this build so their shared UI
+assets agree. The command uses `data/static-paper-mvp-operator.env`, SHA-256
+`48f3e5ffda382ac7e8bb1131ba596a14f346b9d764c448613e435ee1ee3ea35b`, with no
+password setting. The dashboard keeps its previous environment. The worker,
+database schema, registered profile and Funnel route configuration are unchanged.
+`/prototype` remains removed (404); `/operator` and the session module return 200.
+
+Session bootstrap is an empty JSON POST and reuses a valid browser session,
+so another tab does not rotate its token. An expired session is renewed after
+an explicit 401, retrying the original serialized request once. Network errors,
+403s and 5xx responses are not automatically retried. The public root dashboard
+does not bootstrap an operator session. Profiles and saved drafts load after
+session readiness; connection failure offers a bounded manual retry.
+
+Validation: typecheck, four command-server tests (including origin/CSRF,
+session reuse and expiry), eleven focused dashboard/session checks, and 39
+mock-backend browser assertions passed. The clean full suite passed 885/886;
+its sole failure was an absent ignored historical competitor fixture. After
+linking that existing checksum-verified input into the isolated checkout, all
+four tests in the affected file passed without source changes. The sealed
+build passed and both deployed web processes were verified active with zero
+automatic restarts. Evidence includes `passwordless-unit-tests.log`,
+`passwordless-fixture-recheck.log`, `passwordless-release-build.log`, and
+`passwordless-runtime-identities.json` under the cutover execution directory.
+
+Public browser verification passed for fresh access, reload and a second tab
+without credentials or password/sign-in/sign-out controls. Profile reads returned
+200 with the registered profile; the session cookie was Secure, HttpOnly and
+SameSite=Strict. The root remained read-only with no session bootstrap, and
+`/prototype` returned 404. No browser exceptions or economic calls occurred.
+Completed evidence is `passwordless-public-operator-recheck-20260927.json` and
+the independent `passwordless-minimal-browser.json` in the same execution
+directory. The earlier partial report is preserved: its reporter failed while
+assembling evidence, with no observed application assertion failure. Browser
+processes and temporary profiles were cleaned up after verification.
+
+The earlier rollout history below preserves its original password/redirect
+checks; those descriptions are superseded by the current state above.
+
+## Earlier rollout history
+
 Final update: the operator subsequently requested removing `/prototype`
 completely. Its Funnel mount and application redirect were removed. Public
 `/prototype` and `/prototype/` now return 404; `/operator` returns 200. Command
