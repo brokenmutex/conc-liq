@@ -7,7 +7,7 @@
 //   node --import tsx test/integration/static-paper-canonical-flow.mjs --sealed-release
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {parseEnv} from 'node:util';
 import {readFileSync} from 'node:fs';
 import {access,mkdtemp,rm,writeFile} from 'node:fs/promises';
@@ -82,12 +82,12 @@ const rpc=createRobinhoodClient(readRpc,20_000,{retryCount:0}),
   referencePolicy:rawMarket.referencePolicy}),
  adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),admin=await adminPool.connect(),
  schema=`static_canonical_${randomUUID().replaceAll('-','')}`;
-let store,command,worker,chrome,chromeProfile,ws,browser,commandPort,workerOutput='',commandOutput='',password,runtimeTemp,campaign;
+let store,command,worker,chrome,chromeProfile,ws,browser,commandPort,workerOutput='',commandOutput='',runtimeTemp,campaign;
 const checks=[];let primaryGateError=null;
 const targetSetHash=`0x${'e'.repeat(64)}`;
 const operator='0x1111111111111111111111111111111111111111';
 
-async function runBrowserRetainLifecycle({origin,password,profile,parameters,operator,readRpc,scopedUrl,
+async function runBrowserRetainLifecycle({origin,profile,parameters,operator,readRpc,scopedUrl,
  identity,workerEnv,launchSealed}){
  worker=sealedReleaseMode?launchSealed('deployments-paper-worker'):
   spawn(process.execPath,['--import','tsx','src/deployments-paper-worker.ts'],
@@ -96,7 +96,7 @@ async function runBrowserRetainLifecycle({origin,password,profile,parameters,ope
  worker.stdout.on('data',chunk=>workerOutput+=chunk);worker.stderr.on('data',chunk=>workerOutput+=chunk);
  await waitFor(()=>store.paperOperationWorkerReady(),'paper worker readiness lease',30_000);
  phase('paper_worker_process_ready');
- browser=await startCanonicalPaperBrowser({origin,password,onTemp:path=>{chromeProfile=path;}});
+ browser=await startCanonicalPaperBrowser({origin,onTemp:path=>{chromeProfile=path;}});
  const created=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,
   capital:'2',halfWidthTicks:20,wallet:operator,nativeWei:'10000000000000000000',limits:parameters.limits});
  campaign={id:created.campaignId};
@@ -307,8 +307,6 @@ try{
  const portProbe=createTcpServer();portProbe.listen(0,'127.0.0.1');await once(portProbe,'listening');
  commandPort=portProbe.address().port;await new Promise((resolve,reject)=>portProbe.close(error=>error?reject(error):resolve()));
  const origin=`http://127.0.0.1:${commandPort}`;
- password=`canonical-paper-${randomUUID()}`;
- const salt=randomBytes(16),passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  let runtimeEnvFile=null;
  if(sealedReleaseMode){
   runtimeTemp=await mkdtemp(`${tmpdir()}/conc-liq-static-canonical-sealed-`);
@@ -316,7 +314,7 @@ try{
   const dashboardPort=dashboardProbe.address().port;
   await new Promise((resolve,reject)=>dashboardProbe.close(error=>error?reject(error):resolve()));
   runtimeEnvFile=join(runtimeTemp,'runtime.env');
-  const runtime={DATABASE_URL:scopedUrl.toString(),DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,
+  const runtime={DATABASE_URL:scopedUrl.toString(),
    DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:readRpc,
    PAPER_FORK_RPC_URL:archive,
    DEPLOYMENT_RPC_TIMEOUT_MS:'20000',DEPLOYMENT_PAPER_OPERATION_WORKER:'1',
@@ -338,7 +336,7 @@ try{
    'sealed command server health endpoint',30_000);
  }else{
   const commandEnv={...process.env,DATABASE_URL:scopedUrl.toString(),
-   DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,DEPLOYMENT_HOST:'127.0.0.1',
+   DEPLOYMENT_HOST:'127.0.0.1',
    DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:readRpc,
    PAPER_FORK_RPC_URL:archive,DEPLOYMENT_RPC_TIMEOUT_MS:'20000',
    DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1',
@@ -358,13 +356,13 @@ try{
    DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:'2',DEPLOYMENT_PAPER_WORKER_MAX_STEPS:'4',
    DEPLOYMENT_PAPER_OPERATION_MAX_PER_PASS:'4',DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS:'1',
    CONC_LIQ_RUNTIME_IDENTITY:JSON.stringify(identity)};
-  await runBrowserRetainLifecycle({origin,password,profile,parameters,operator,readRpc,
+  await runBrowserRetainLifecycle({origin,profile,parameters,operator,readRpc,
    scopedUrl,identity,workerEnv,launchSealed});
  }else{
  const post=(path,body,headers={},timeoutMs=60_000)=>fetch(origin+path,{method:'POST',headers:{'content-type':'application/json',...headers},
   body:JSON.stringify(body),signal:AbortSignal.timeout(timeoutMs)});
  assert.equal((await fetch(origin+'/api/market-profiles')).status,401);
- const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
+ const login=await post('/api/session',{}, {origin});assert.equal(login.status,200);
  const cookie=login.headers.get('set-cookie').split(';')[0],session=await login.json(),
   auth={origin,cookie,'x-csrf-token':session.csrfToken};
  const profiles=await fetch(origin+'/api/market-profiles',{headers:{cookie}}).then(response=>response.json());
@@ -553,7 +551,7 @@ try{
  assert(projected.deployment.unavailable.includes('paid_gas'));
  assert(projected.deployment.unavailable.includes('fee_capture'));
  checks.push('retain-close preview and accepted worker completion appear in real Positions with unavailable economics');
- await verifyClosedPositionsBrowser({origin,password,campaignId:campaign.id,
+ await verifyClosedPositionsBrowser({origin,campaignId:campaign.id,
   expectedStages:['paper_open_recorded','paper_close_retain_recorded']});
  checks.push('closed-history Positions view renders actual operation stages on desktop and mobile');
 
@@ -605,7 +603,7 @@ finally{
  }
 }
 
-async function verifyClosedPositionsBrowser({origin,password,campaignId,expectedStages}){
+async function verifyClosedPositionsBrowser({origin,campaignId,expectedStages}){
  const candidates=process.env.CHROMIUM_PATH?[process.env.CHROMIUM_PATH]:[
   '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome'];
  let binary=null;for(const candidate of candidates){try{await access(candidate);binary=candidate;break;}catch{}}
@@ -648,9 +646,7 @@ async function verifyClosedPositionsBrowser({origin,password,campaignId,expected
  await send('Page.navigate',{url:origin+'/operator'});
  await wait('document.readyState==="complete"','operator page');
  await wait('document.querySelectorAll("[role=tab]").length===2','two-tab dashboard');
- await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
- await wait('!document.querySelector("#operator-logout").hidden','operator login');
- assert.equal(await evaluate('document.querySelector("#operator-password").value'),'');
+ await wait('window.concliqOperatorAuthenticated?.()===true','automatic operator session');
  await click('#positions-tab');
  await wait('document.querySelector("#paper .positions-table tbody")!==null','Positions table');
  await click('#paper [data-action="scope"][data-value="history"]');

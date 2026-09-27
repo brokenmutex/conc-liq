@@ -5,7 +5,7 @@
 // Recovery: add --interrupt-conversion to suspend/kill/restart the real worker.
 // Sealed mode: --sealed-release requires TEST_SEALED_RELEASE_DIR and TEST_EXPECTED_RELEASE_COMMIT.
 import assert from 'node:assert/strict';
-import {createHash,randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {createHash,randomBytes,randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {parseEnv} from 'node:util';
 import {readFileSync,readdirSync,readlinkSync} from 'node:fs';
@@ -107,8 +107,6 @@ const formatAmount=(raw,decimals,digits=6)=>new Intl.NumberFormat('en-US',{
  minimumFractionDigits:digits,maximumFractionDigits:digits}).format(Number(BigInt(raw))/10**decimals);
 const formatUsd6=raw=>new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})
  .format(Number(BigInt(raw))/1e6);
-const passwordHash=password=>{const salt=randomBytes(16);
- return `scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;};
 const processTail={command:'',worker:''};
 
 async function main(){
@@ -203,12 +201,11 @@ async function main(){
   const registered=await store.registerVerifiedMarketProfile(verified);
   assert.equal(registered.created,true);assert.equal((await store.paperSetupProfile(registered.id)).profileHash,
    contentHash(profile));checks.push('real registered profile and canonical public replay identity bound in temporary schema');
-  const password=`static-convert-${randomUUID()}`,hash=passwordHash(password),
-   commandPort=await reservePort(),dashboardPort=await reservePort(),origin=`http://127.0.0.1:${commandPort}`,
+  const commandPort=await reservePort(),dashboardPort=await reservePort(),origin=`http://127.0.0.1:${commandPort}`,
    identity={buildId:contentHash({kind:'canonical-convert-browser',pid:process.pid}),
     configHash:contentHash({kind:'isolated-canonical-convert-browser'}),nodeVersion:process.version};
   accountingIdentity=identity;
-  const env={...process.env,DATABASE_URL:runtimeDatabaseUrl,DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,
+  const env={...process.env,DATABASE_URL:runtimeDatabaseUrl,
    DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:archive,
    PAPER_FORK_RPC_URL:archive,DEPLOYMENT_RPC_TIMEOUT_MS:'20000',INDEXER_STREAM_KEY:stream,
    DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
@@ -229,7 +226,7 @@ async function main(){
    runtimeDir=await mkdtemp(`${tmpdir()}/conc-liq-convert-runtime-`);
    runtimeEnvFile=join(runtimeDir,'runtime.env');
    const sealedRuntimeEnv={DATABASE_URL:runtimeDatabaseUrl,
-    DEPLOYMENT_OPERATOR_PASSWORD_HASH:hash,DEPLOYMENT_HOST:'127.0.0.1',
+    DEPLOYMENT_HOST:'127.0.0.1',
     DEPLOYMENT_PORT:String(commandPort),ROBINHOOD_READ_HTTP_URL:changedRestartAnchor?rpcProxy.url:archive,
     PAPER_FORK_RPC_URL:archive,
     DEPLOYMENT_RPC_TIMEOUT_MS:'20000',INDEXER_STREAM_KEY:stream,
@@ -341,7 +338,7 @@ async function main(){
    runtimeEnvSha256,sameRuntimeEnvFile:sealed?runtimeEnvFile===initialWorkerEnvFile:null,
    runtimeIdentity:accountingIdentity,process:{...worker.__safeCapture,...procSnapshot(worker,releaseRoot),
     elapsedMs:initialWorkerReadiness.elapsedMs},procSamples:initialWorkerReadiness.procSamples});
-  browser=await startCanonicalPaperBrowser({origin,password});
+  browser=await startCanonicalPaperBrowser({origin});
   const setup=await createDraftAndAcceptOpen(browser,{profilePool:profile.pool.pool,capital:'2'});
   campaignId=setup.campaignId;phase('browser_setup_and_open_accepted',
    {campaignId,capitalQuote:'2',halfWidthTicks:setup.halfWidthTicks});

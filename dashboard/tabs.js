@@ -1,5 +1,7 @@
 'use strict';
 
+import {createOperatorSession} from './operator-session.js';
+
 export const SETUP_PREFLIGHT_PATH = '/api/deployments/setup-preflight';
 
 export function capitalToQuoteRaw(value) {
@@ -200,17 +202,18 @@ function bootDashboardTabs() {
   const reviewButton = document.getElementById('setup-review-button');
   const setupNote = document.getElementById('setup-status');
   const authPanel = document.getElementById('operator-auth');
-  const loginForm = document.getElementById('operator-login-form');
-  const logoutButton = document.getElementById('operator-logout');
+  const connectionRetry = document.getElementById('operator-connect-retry');
   const onOperatorOrigin = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
   if (authPanel) authPanel.hidden = !onOperatorOrigin;
   document.getElementById('saved-paper-drafts').hidden=!onOperatorOrigin;
   const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let registeredPools = [];
   let marketProfiles = [];
+  let profilesLoaded = false;
+  let draftsLoaded = false;
+  let operatorDataLoadPromise = null;
   let researchPools = [];
   let currentSetupPreflight = null;
-  let csrfToken = null;
   let pendingDraftRequestId = null;
   let pendingDraftBody = null;
   let savedDraftId = null;
@@ -243,24 +246,13 @@ function bootDashboardTabs() {
     setupNote.dataset.state = kind;
     setupNote.setAttribute('role', 'status');
   };
-  const authRequest = async (path, { method = 'GET', body, csrf = false, signal } = {}) => {
-    const headers = { accept: 'application/json' };
-    if (body !== undefined) headers['content-type'] = 'application/json';
-    if (csrf) headers['x-csrf-token'] = csrfToken ?? '';
-    const response = await fetch(path, { method, credentials: 'same-origin', headers,...(signal?{signal}:{}),
-      ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      if (response.status === 401 && csrf) { csrfToken = null; setAuthState(false); }
-      throw Object.assign(new Error(data.error ?? `Request failed (${response.status})`), { status: response.status, data });
-    }
-    return data;
-  };
+  const operatorSession = createOperatorSession({onChange:setAuthState});
+  const authRequest = operatorSession.request;
   // Keep the CSRF value private to this module. Position actions receive only
   // a same-origin request function and a boolean authentication check.
-  window.concliqOperatorAuthenticated = () => onOperatorOrigin && csrfToken !== null;
+  window.concliqOperatorAuthenticated = () => onOperatorOrigin && operatorSession.isReady();
   window.concliqOperatorRequest = (path, options = {}) => {
-    if (!onOperatorOrigin || !csrfToken) throw new Error('operator_authentication_required');
+    if (!onOperatorOrigin || !operatorSession.isReady()) throw new Error('operator_session_required');
     return authRequest(path, { ...options, csrf: options.method === 'POST' || options.method === 'DELETE' });
   };
   const notifyAuthChanged = () => window.dispatchEvent(new Event('operator-auth-changed'));
@@ -360,16 +352,15 @@ function bootDashboardTabs() {
     output.hidden = true;
     document.getElementById('setup-review').hidden = false;
     if (!onOperatorOrigin) {
-      setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the authenticated operator dashboard to request it; no request was sent.');
+      setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the operator dashboard to request it; no request was sent.');
       return;
     }
     if (strategyId !== 'static_manual_v1' || mode !== 'paper') {
       setSetupStatus('Preflight unavailable: only static/manual paper setup is implemented. No request was sent.');
       return;
     }
-    if (!csrfToken) {
-      setSetupStatus('Sign in to the operator dashboard before requesting a fresh preflight.');
-      loginForm?.scrollIntoView({ block: 'nearest' });
+    if (!operatorSession.isReady()) {
+      setSetupStatus('Operator session is connecting. Retry the request after the connection is ready.');
       return;
     }
     const limits=Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
@@ -387,12 +378,11 @@ function bootDashboardTabs() {
       if(reviewSequence!==setupReviewSequence)return;
       reviewButton.disabled=false;
       const reason = cause.name==='TimeoutError'||cause.name==='AbortError' ? 'Cost review timed out or disconnected. No draft or operation was created. Review setup again to request a fresh result.' :
-        cause.status === 401 ? 'Operator session expired. Sign in again; no draft or operation was created.' :
+        cause.status === 401 ? 'Operator session expired. Retry the request; no draft or operation was created.' :
         cause.status === 404 ? 'Authenticated setup preflight route is not available on this command service.' :
         cause.data?.error === 'paper_setup_preflight_unavailable' ? 'Setup preflight service is unavailable.' :
         `Setup preflight failed (${cause.data?.error ?? 'command_failed'}). No draft or operation was created.`;
       setSetupStatus(reason);
-      if (cause.status === 401) { csrfToken = null; setAuthState(false); }
     }
   }
   function renderFacts(facts) {
@@ -718,11 +708,11 @@ function bootDashboardTabs() {
   }
   async function loadSavedPaperDrafts(){
     const section=document.getElementById('saved-paper-drafts'),status=document.getElementById('saved-paper-drafts-status');
-    if(!onOperatorOrigin||!window.concliqOperatorAuthenticated?.()){section.hidden=true;return;}
+    if(!onOperatorOrigin||!window.concliqOperatorAuthenticated?.()){section.hidden=true;return false;}
     section.hidden=false;status.textContent='Loading saved static/manual paper drafts…';
-    try{const result=await authRequest('/api/deployments/setup-drafts');renderSavedPaperDrafts(result.drafts);}
+    try{const result=await authRequest('/api/deployments/setup-drafts');renderSavedPaperDrafts(result.drafts);return true;}
     catch(error){section.hidden=false;status.textContent=`Saved paper drafts unavailable (${error?.data?.error??error?.message??'command_failed'}).`;
-      document.getElementById('saved-paper-drafts-list').replaceChildren();}
+      document.getElementById('saved-paper-drafts-list').replaceChildren();return false;}
   }
   function restorePendingDraftReview(){
     if(!pendingDraftRequestId||!pendingDraftBody||!window.concliqOperatorAuthenticated?.())return;
@@ -761,46 +751,56 @@ function bootDashboardTabs() {
   }
   window.addEventListener('operator-auth-changed',updateDraftBinding);
 
-  function setAuthState(signedIn) {
-    document.getElementById('operator-login-fields').hidden = signedIn;
-    logoutButton.hidden = !signedIn;
-    document.getElementById('operator-auth-status').textContent = signedIn ? 'Authenticated for this browser session.' : 'Not signed in. Session credentials stay in this page memory.';
+  function setAuthState(ready) {
+    const status=document.getElementById('operator-auth-status');
+    status.textContent=ready?'Operator connection ready.':'Operator connection unavailable.';
+    connectionRetry.hidden=ready;
+    connectionRetry.disabled=false;
     notifyAuthChanged();
   }
-  if (onOperatorOrigin && loginForm) {
-    loginForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const password = document.getElementById('operator-password');
-      const message = document.getElementById('operator-auth-status');
-      try {
-        const session = await authRequest('/api/session', { method: 'POST', body: { password: password.value } });
-        csrfToken = session.csrfToken; password.value = ''; setAuthState(true);
-        try {
+  async function loadOperatorDataOnce() {
+    if (!onOperatorOrigin || !operatorSession.isReady()) return;
+    if (!operatorDataLoadPromise) {
+      operatorDataLoadPromise = (async () => {
+        if (!profilesLoaded) {
           const response = await authRequest('/api/market-profiles');
           marketProfiles = response.profiles ?? [];
-          applyProfileIds();
-          setSetupStatus('Signed in. Verified, indexed profiles are available for static/manual paper preflight.');
-          restorePendingDraftReview();
-          await loadSavedPaperDrafts();
-        } catch (cause) {
-          poolSelect.disabled = true; reviewButton.disabled = true;
-          setSetupStatus(`Verified market profiles unavailable (${cause.data?.error ?? cause.message ?? 'command_failed'}); no preflight can be sent.`);
+          profilesLoaded = true;
         }
-      } catch (cause) {
-        message.textContent = cause.status === 401 ? 'Sign in failed. Check the operator password.' :
-          cause.status === 429 ? 'Sign in rate limit reached. Try again after the cooldown.' :
-          `Sign in unavailable (${cause.data?.error ?? 'command_failed'}).`;
-      }
-    });
-    logoutButton.addEventListener('click', async () => {
-      try { await authRequest('/api/session', { method: 'DELETE', csrf: true }); }
-      catch { /* Expired sessions are discarded locally as well. */ }
-      csrfToken = null; setAuthState(false); invalidateReview();
-      setSetupStatus('Signed out. No setup request can be sent until you sign in again.');
-    });
+        applyProfileIds();
+        setSetupStatus('Verified, indexed profiles are available for static/manual paper preflight.');
+        restorePendingDraftReview();
+        if (!draftsLoaded) {
+          const loaded = await loadSavedPaperDrafts();
+          if (!loaded) throw new Error('saved_paper_drafts_unavailable');
+          draftsLoaded = true;
+        }
+      })().catch(error => {
+        operatorDataLoadPromise = null;
+        throw error;
+      });
+    }
+    return operatorDataLoadPromise;
   }
-  function setAuthStateInitial() {
-    if (onOperatorOrigin) setAuthState(false);
+  async function connectOperator() {
+    if (!onOperatorOrigin) return;
+    connectionRetry.disabled=true;
+    document.getElementById('operator-auth-status').textContent='Connecting to the operator service…';
+    try {
+      await operatorSession.bootstrap();
+      await loadOperatorDataOnce();
+      document.getElementById('operator-auth-status').textContent='Operator connection ready.';
+      connectionRetry.hidden=true;
+    } catch (cause) {
+      poolSelect.disabled=true;reviewButton.disabled=true;
+      document.getElementById('operator-auth-status').textContent='Operator connection failed. Retry when the service is available.';
+      connectionRetry.hidden=false;connectionRetry.disabled=false;
+      setSetupStatus(`Operator data unavailable (${cause?.data?.error??cause?.message??'connection_failed'}); no new setup request was sent.`);
+    }
   }
-  setAuthStateInitial();
+  if (onOperatorOrigin) {
+    connectionRetry.addEventListener('click', () => { void connectOperator(); });
+    document.getElementById('operator-auth-status').textContent='Connecting to the operator service…';
+    void connectOperator();
+  }
 }

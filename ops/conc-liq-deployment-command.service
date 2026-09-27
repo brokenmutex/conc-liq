@@ -1,6 +1,6 @@
 # Rendering template: use scripts/render-release-units.mjs; do not install directly.
 [Unit]
-Description=conc-liq authenticated loopback deployment command API
+Description=conc-liq loopback paper deployment command API
 After=network-online.target postgresql.service
 Wants=network-online.target
 Requires=postgresql.service

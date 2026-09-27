@@ -1,12 +1,9 @@
 import assert from 'node:assert/strict';
-import {randomBytes,scryptSync} from 'node:crypto';
 import {once} from 'node:events';
 import {it} from 'node:test';
 import {createDeploymentCommandServer} from '../src/deployments/server.js';
 
-it('command API requires operator session, exact origin and CSRF before a draft is stored',async()=>{
- const salt=randomBytes(16),password='test-only-operator-secret';
- const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+it('command API requires operator session, exact origin and CSRF before a draft is stored without a password',async()=>{
  const origin='http://127.0.0.1:4174';
  const calls:unknown[]=[];
  const previewCalls:Array<{id:string;kind:string}>=[];
@@ -21,7 +18,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   async operation(){return null;},
   async listMarketProfiles(){return [{id:'aef5f51e-18ef-4e9c-952d-8d772970f708',draftAvailable:true,deploymentAvailable:false}];},
  };
- const server=createDeploymentCommandServer(store, {origin,passwordHash:hash,
+ const server=createDeploymentCommandServer(store, {origin,
  paperPreview:async(id,kind)=>{previewCalls.push({id,kind});
    // Preview producers cannot expose an actionable result until the separate
    // acceptance and worker admission path is ready.
@@ -57,6 +54,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.match(operatorPage.headers.get('content-security-policy')??'',/script-src 'self'/);
   assert.match(await operatorPage.text(),/id="setup-form"/);
   assert.equal((await fetch(url+'/tabs.js')).status,200);
+  assert.equal((await fetch(url+'/operator-session.js')).status,200);
   assert.equal((await fetch(url+'/research.css')).status,200);
   assert.deepEqual(await (await fetch(url+'/api/research')).json(),{path:'/api/research'});
   assert.deepEqual(await (await fetch(url+'/api/dashboard')).json(),{path:'/api/dashboard'});
@@ -74,9 +72,9 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal((await fetch(url+'/api/strategies')).status,401);
   assert.equal((await fetch(url+'/api/deployments/setup-drafts')).status,401,
    'saved draft recovery must require the loopback operator session');
-  assert.equal((await post('/api/session',{password})).status,403);
-  assert.equal((await post('/api/session',{password:'wrong'},{origin})).status,401);
-  const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
+  assert.equal((await post('/api/session',{})).status,403);
+  assert.equal((await post('/api/session',{password:'obsolete'},{origin})).status,400);
+  const login=await post('/api/session',{},{origin});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
   const draftList=await fetch(url+'/api/deployments/setup-drafts',{headers:{cookie}});
@@ -206,13 +204,11 @@ it('command API requires operator session, exact origin and CSRF before a draft 
 });
 
 it('exposes only ready, persisted retain-close acceptance on the guarded command origin',async()=>{
- const salt=randomBytes(16),password='test-only-operator-secret';
- const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const origin='http://127.0.0.1:4174',calls:unknown[]=[],lifecycleCalls:unknown[]=[],openCalls:unknown[]=[];
  let workerReady=true,probeFails=false;
  const store={async createDraft(){return {};},async acceptOperation(){throw Error('generic acceptance must stay unused');},
   async operation(){return null;},async listMarketProfiles(){return [];}};
- const server=createDeploymentCommandServer(store,{origin,passwordHash:hash,paperRetainWorkerReady:async()=>{
+ const server=createDeploymentCommandServer(store,{origin,paperRetainWorkerReady:async()=>{
    if(probeFails)throw Error('probe unavailable');return workerReady;},
   paperOperationReplay:async(_campaignId,input,allowedKinds)=>{
    if(input.idempotencyKey==='retain-close-request-1'&&allowedKinds.includes('close_retain')&&!workerReady)
@@ -242,7 +238,7 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
  const post=(path:string,body:unknown,headers:Record<string,string>={})=>fetch(url+path,{
   method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
  try{
-  const login=await post('/api/session',{password},{origin});
+  const login=await post('/api/session',{},{origin});
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
   const headers={origin,cookie,'x-csrf-token':csrfToken};
@@ -305,8 +301,6 @@ it('exposes only ready, persisted retain-close acceptance on the guarded command
 });
 
 it('requires a live preparation lease for V3 convert review and fresh acceptance, preserving same-key replay',async()=>{
- const salt=randomBytes(16),password='test-only-operator-secret';
- const hash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const origin='http://127.0.0.1:4174',campaign='67b2b303-e821-4450-bb7b-27171b12079f';
  const previewId='aef5f51e-18ef-4e9c-952d-8d772970f708',sourceHash='0x'+'a'.repeat(64);
  let workerReady=true,preparationReady=false,acceptedKey:string|null=null,acceptCalls=0;
@@ -315,7 +309,7 @@ it('requires a live preparation lease for V3 convert review and fresh acceptance
  const server=createDeploymentCommandServer({async createDraft(){return {};},
   async acceptOperation(){throw Error('generic acceptance must not be used');},
   async operation(){return null;},async listMarketProfiles(){return [];},
- },{origin,passwordHash:hash,
+ },{origin,
   paperRetainWorkerReady:async()=>workerReady,
   paperConvertPreparationReady:async()=>preparationReady,
   paperConvertAcceptance:async(_id,input)=>{acceptCalls++;acceptedKey=input.idempotencyKey;
@@ -336,7 +330,7 @@ it('requires a live preparation lease for V3 convert review and fresh acceptance
  const post=(path:string,body:unknown,headers:Record<string,string>={})=>fetch(url+path,{
   method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
  try{
-  const login=await post('/api/session',{password},{origin});
+  const login=await post('/api/session',{},{origin});
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
   const headers={origin,cookie,'x-csrf-token':csrfToken};
@@ -366,24 +360,23 @@ it('requires a live preparation lease for V3 convert review and fresh acceptance
  }finally{server.close();await once(server,'close');}
 });
 
-it('explicit HTTPS operator origin preserves authentication, CSRF and secure cookies',async()=>{
- const salt=randomBytes(16),password='test-only-public-operator';
- const passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
+it('explicit HTTPS operator origin preserves automatic sessions, CSRF and secure cookies',async()=>{
  const origin='http://127.0.0.1:4174',publicOrigin='https://operator.example.test';
  const store={async createDraft(){throw Error('no draft expected');},
   async acceptOperation(){throw Error('no operation expected');},async operation(){return null;},
   async listMarketProfiles(){return [];}};
  for(const invalid of ['', 'http://operator.example.test', publicOrigin+'/',publicOrigin+'/path',
   'https://user:pass@operator.example.test',publicOrigin+'?query',publicOrigin+'#fragment']){
-  assert.throws(()=>createDeploymentCommandServer(store,{origin,publicOrigin:invalid,passwordHash}));
+  assert.throws(()=>createDeploymentCommandServer(store,{origin,publicOrigin:invalid}));
  }
  for(const enabled of [false,true]){
-  const server=createDeploymentCommandServer(store,{origin,passwordHash,...(enabled?{publicOrigin}:{})});
+  let clock=0;
+  const server=createDeploymentCommandServer(store,{origin,now:()=>clock,...(enabled?{publicOrigin}:{})});
   server.listen(0,'127.0.0.1');await once(server,'listening');
   const address=server.address();assert(address&&typeof address!=='string');
   const url=`http://127.0.0.1:${address.port}`;
   const login=(headers:Record<string,string>)=>fetch(url+'/api/session',{method:'POST',
-   headers:{'content-type':'application/json',...headers},body:JSON.stringify({password})});
+   headers:{'content-type':'application/json',...headers},body:JSON.stringify({})});
   try{
    assert.equal((await fetch(url+'/api/market-profiles')).status,401);
    assert.equal((await login({'x-forwarded-host':'operator.example.test','x-forwarded-proto':'https'})).status,403);
@@ -397,6 +390,11 @@ it('explicit HTTPS operator origin preserves authentication, CSRF and secure coo
     assert.match(setCookie,/; Secure/);assert.match(setCookie,/HttpOnly; SameSite=Strict/);
     const cookie=setCookie.split(';')[0]!;
     const {csrfToken}=await external.json() as {csrfToken:string};
+    const reused=await login({origin:publicOrigin,cookie});
+    assert.equal(reused.status,200);
+    assert.equal((await reused.json() as {csrfToken:string}).csrfToken,csrfToken,
+     'another tab must preserve the current session and CSRF token');
+    assert.equal(reused.headers.get('set-cookie'),null);
     assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie}})).status,200);
     const logout=(headers:Record<string,string>)=>fetch(url+'/api/session',{method:'DELETE',headers:{cookie,...headers}});
     assert.equal((await logout({origin:publicOrigin})).status,403);
@@ -407,6 +405,13 @@ it('explicit HTTPS operator origin preserves authentication, CSRF and secure coo
    }
    const local=await login({origin});assert.equal(local.status,200);
    assert.doesNotMatch(local.headers.get('set-cookie')??'',/; Secure/);
+   const priorCookie=local.headers.get('set-cookie')!.split(';')[0]!;
+   const priorCsrf=(await local.json() as {csrfToken:string}).csrfToken;
+   clock=4*60*60*1000+1;
+   assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie:priorCookie}})).status,401);
+   const renewed=await login({origin,cookie:priorCookie});assert.equal(renewed.status,200);
+   assert.notEqual((await renewed.json() as {csrfToken:string}).csrfToken,priorCsrf);
+   assert.notEqual(renewed.headers.get('set-cookie')!.split(';')[0],priorCookie);
   }finally{server.close();await once(server,'close');}
  }
 });

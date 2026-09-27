@@ -258,7 +258,7 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
     setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
     retry.hidden = false;
   } else setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
-    'Sign in on this loopback page to review convert-close.');
+    'Operator connection is required to review convert-close.');
   button.addEventListener('click', async () => {
     if (pending || !authenticated?.()) return;
     button.disabled = true; review.hidden = true;
@@ -314,14 +314,14 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
   previewButton.type = 'button'; previewButton.className = 'retain-preview-button';
   previewButton.textContent = 'Review retain-close';
   previewButton.disabled = !authenticated?.();
-  previewButton.title = previewButton.disabled ? 'Sign in to request a fresh close preview' : '';
+  previewButton.title = previewButton.disabled ? 'Operator connection required for a fresh close preview' : '';
   const status = document.createElement('p'); status.className = 'retain-action-status';
   status.setAttribute('role', 'status');
   const storageKind = 'close_retain';
   let pending = readPendingAcceptance(campaignId, storageKind);
   status.textContent = pending ? 'A retain-close acceptance may already be queued. Reconcile the same request before requesting another preview.' :
     authenticated?.() ? 'Static/manual paper retain-close only.' :
-      'Sign in on this loopback page to request a fresh retain-close preview.';
+      'Operator connection required for a fresh retain-close preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
   const retry = document.createElement('button'); retry.type = 'button';
   retry.className = 'retain-reconcile-button'; retry.textContent = 'Retry same acceptance / reconcile';
@@ -426,7 +426,7 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
         const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? null;
         const payload = retainAcceptPayload(preview, idempotencyKey);
         if (!payload || !authenticated?.()) {
-          accept.disabled = true; setStatus('Preview expired or authentication ended. Review a fresh preview.'); return;
+          accept.disabled = true; setStatus('Preview expired or the operator session ended. Review a fresh preview.'); return;
         }
         if (!idempotencyKey) { accept.disabled = true; setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
         if (!persistPendingAcceptance(campaignId, storageKind, payload)) {
@@ -462,14 +462,14 @@ export function mountPaperLifecycleAction(root, { campaignId, kind, authenticate
   previewButton.type = 'button'; previewButton.className = 'paper-lifecycle-preview-button';
   previewButton.textContent = `Review ${actionName.toLowerCase()}`;
   previewButton.disabled = !authenticated?.();
-  previewButton.title = previewButton.disabled ? 'Sign in to request a fresh lifecycle preview' : '';
+  previewButton.title = previewButton.disabled ? 'Operator connection required for a fresh lifecycle preview' : '';
   const status = document.createElement('p'); status.className = 'retain-action-status';
   status.setAttribute('role', 'status');
   const storageKind = kind;
   let pending = readPendingAcceptance(campaignId, storageKind);
   status.textContent = pending ? `A ${kind} acceptance may already be queued. Reconcile the same request before requesting another preview.` :
     authenticated?.() ? `Static/manual paper ${kind} only.` :
-      'Sign in on this loopback page to request a fresh lifecycle preview.';
+      'Operator connection required for a fresh lifecycle preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
   const retry = document.createElement('button'); retry.type = 'button';
   retry.className = 'paper-lifecycle-reconcile-button';

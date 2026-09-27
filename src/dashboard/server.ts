@@ -18,6 +18,7 @@ const STATIC_FILES = new Map([
   ["/app.js", { contentType: "text/javascript; charset=utf-8", file: "app.js" }],
   ["/deployment-actions.js", { contentType: "text/javascript; charset=utf-8", file: "deployment-actions.js" }],
   ["/tabs.js", { contentType: "text/javascript; charset=utf-8", file: "tabs.js" }],
+  ["/operator-session.js", { contentType: "text/javascript; charset=utf-8", file: "operator-session.js" }],
   ["/styles.css", { contentType: "text/css; charset=utf-8", file: "styles.css" }],
   ["/research", { contentType: "text/html; charset=utf-8", file: "research.html" }],
   ["/research.js", { contentType: "text/javascript; charset=utf-8", file: "research.js" }],

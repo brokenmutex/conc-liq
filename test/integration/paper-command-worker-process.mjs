@@ -7,7 +7,7 @@
 // --sealed-release; both application processes use that verified release.
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {createServer as createHttpServer} from 'node:http';
 import {createServer as createTcpServer} from 'node:net';
@@ -75,8 +75,6 @@ try{
   references:{price0:'1000000000000000000',price1:'1000000000000000000',
    nativePrice:'2000000000000000000000',proofHash:referenceProofHash(referenceProof)},
   referenceProof,verifiedAt:new Date().toISOString()});
- const password='process-local-paper-operator',salt=randomBytes(16),passwordHash=
-  `scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
  const campaign=await store.createDraft({mode:'paper',chainId:4663,
   wallet:'0x1111111111111111111111111111111111111111',marketProfileId:registration.id,
   strategyId:'static_manual_v1',strategyVersion:'1.0.0',stateSchemaVersion:1,
@@ -95,13 +93,12 @@ try{
    error:{code:-32000,message:'chain RPC intentionally unavailable in lifecycle-only fixture'}}));
  });
  rpcServer.listen(0,'127.0.0.1');await once(rpcServer,'listening');rpcPort=rpcServer.address().port;rpc=rpcServer;
- const env={...process.env,DATABASE_URL:dbUrl.toString(),COMMAND_PORT:String(commandPort),
-  COMMAND_PASSWORD_HASH:passwordHash};
+ const env={...process.env,DATABASE_URL:dbUrl.toString(),COMMAND_PORT:String(commandPort)};
  let runtimeEnvFile=null;
  if(sealedReleaseMode){
   runtimeTemp=await mkdtemp(`${tmpdir()}/conc-liq-paper-release-process-`);
   runtimeEnvFile=join(runtimeTemp,'runtime.env');
-  const runtime={DATABASE_URL:dbUrl.toString(),DEPLOYMENT_OPERATOR_PASSWORD_HASH:passwordHash,
+  const runtime={DATABASE_URL:dbUrl.toString(),
    DEPLOYMENT_HOST:'127.0.0.1',DEPLOYMENT_PORT:String(commandPort),
    ROBINHOOD_READ_HTTP_URL:`http://127.0.0.1:${rpcPort}`,DEPLOYMENT_RPC_TIMEOUT_MS:'1000',
    DEPLOYMENT_PAPER_OPERATION_WORKER:'1',DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:'10000',
@@ -128,7 +125,7 @@ try{
  const post=async(path,body,headers={})=>fetch(origin+path,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
  const unauthenticatedProfiles=await fetch(origin+'/api/market-profiles');
  assert.equal(unauthenticatedProfiles.status,401,'profile reads require an authenticated operator session');
- const login=await post('/api/session',{password},{origin});assert.equal(login.status,200);
+ const login=await post('/api/session',{}, {origin});assert.equal(login.status,200);
  const cookie=login.headers.get('set-cookie').split(';')[0],session=await login.json();
  const authHeaders={origin,cookie,'x-csrf-token':session.csrfToken};
  const profilesResponse=await fetch(origin+'/api/market-profiles',{headers:{cookie}});
@@ -212,7 +209,7 @@ try{
   'pause/resume add no economic ledger entries');
  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,[campaign.id])).rows[0].n,0,
   'pause/resume add no valuation marks');
- await verifyPositionsBrowser({origin,password,expectedCampaign:campaign.id,expectedStage:'paper_resumed'});
+ await verifyPositionsBrowser({origin,expectedCampaign:campaign.id,expectedStage:'paper_resumed'});
  checks.push('desktop and mobile browser render real Positions operation activity and unavailable economics');
  console.log(JSON.stringify({checks,campaignId:campaign.id,paused,resumed,
   release:releaseManifest?{buildId:releaseManifest.buildId,sourceCommit:releaseManifest.sourceCommit,verified:true}:null,
@@ -242,7 +239,7 @@ async function waitFor(read,label){
  throw Error(`Timed out waiting for ${label}; worker=${workerOutput}; command=${commandOutput}`);
 }
 
-async function verifyPositionsBrowser({origin,password,expectedCampaign,expectedStage}){
+async function verifyPositionsBrowser({origin,expectedCampaign,expectedStage}){
  const candidates=process.env.CHROMIUM_PATH? [process.env.CHROMIUM_PATH]:[
   '/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome'];
  let binary=null;for(const candidate of candidates){try{await access(candidate);binary=candidate;break;}catch{}}
@@ -273,15 +270,12 @@ async function verifyPositionsBrowser({origin,password,expectedCampaign,expected
  const wait=async(expression,label)=>{for(let i=0;i<200;i++){if(await evaluate(expression))return;await sleep(100);}
   throw Error(`Browser timed out: ${label}; state=${JSON.stringify(await evaluate(`({connection:document.querySelector('#connection-status')?.textContent,
    paper:document.querySelector('#paper')?.innerText?.slice(0,1200),activity:document.querySelector('#paper-bottom')?.innerText})`))}`);};
- const fill=async(selector,value)=>evaluate(`(()=>{const input=document.querySelector(${JSON.stringify(selector)});input.value=${JSON.stringify(value)};
-  input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));})()`);
  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
  await send('Page.navigate',{url:origin+'/operator'});await wait('document.readyState==="complete"','operator document');
- await wait('document.querySelectorAll("[role=tab]").length===2&&!document.querySelector("#operator-auth").hidden',
-  'two-tab operator dashboard');
- await fill('#operator-password',password);await evaluate('document.querySelector("#operator-login-form button[type=submit]").click()');
- await wait('!document.querySelector("#operator-logout").hidden','operator login');
+ await wait('document.querySelectorAll("[role=tab]").length===2&&'+
+  'window.concliqOperatorAuthenticated?.()===true','two-tab dashboard with automatic operator session');
+ await wait('window.concliqOperatorAuthenticated?.()===true','automatic operator session');
  await evaluate('window.dispatchEvent(new Event("positions-refresh-requested"))');
  await wait('document.querySelector("#positions-tab").click(),document.querySelector("#paper .positions-table tbody tr")!==null',
   'paper position list');

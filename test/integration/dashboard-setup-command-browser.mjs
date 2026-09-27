@@ -4,7 +4,7 @@
 // are real. Default mode starts no worker; the optional lifecycle mode runs
 // bounded in-process paper worker passes. Neither mode loads a signer.
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {spawn} from 'node:child_process';
 import {access,mkdtemp,readdir,rm} from 'node:fs/promises';
@@ -157,8 +157,6 @@ const paperPreview=async(campaignId,kind)=>{
   actionAvailable:false,operationAcceptanceAvailable:false,economics:null};
 };
 
-const salt=randomBytes(16),password='local-integration-only-password',
- passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
 const portProbe=createTcpServer();portProbe.listen(0,'127.0.0.1');await once(portProbe,'listening');
 const address=portProbe.address();assert(address&&typeof address!=='string');const port=address.port;
 await new Promise((resolve,reject)=>portProbe.close(error=>error?reject(error):resolve()));
@@ -186,7 +184,7 @@ const dashboardRead=async(path)=>{
  }
  throw Error('unexpected_dashboard_path');
 };
-server=createDeploymentCommandServer(store,{origin,passwordHash,dashboardRead,
+server=createDeploymentCommandServer(store,{origin,dashboardRead,
  paperSetupPreflight:input=>readSetup(input),
  paperSetupDraftAdmission:input=>createStaticPaperDraftFromSetup(input,{
   runPreflight:(request,pinned)=>readSetup(request,pinned),loadProfile:id=>store.paperSetupProfile(id),
@@ -234,7 +232,6 @@ const waitFor=async expression=>{for(let i=0;i<160;i++){if(await evaluate(expres
  throw Error('Timed out waiting for '+expression+'; state='+JSON.stringify(await evaluate(`({draft:document.querySelector('#setup-draft-submit-status')?.textContent,
  setup:document.querySelector('#setup-status')?.textContent,preflight:document.querySelector('#setup-preflight-title')?.textContent,
  binding:document.querySelector('#operator-draft-binding-status')?.textContent,button:document.querySelector('#save-paper-draft')?.disabled,
- auth:document.querySelector('#operator-auth-status')?.textContent,logoutHidden:document.querySelector('#operator-logout')?.hidden,
  savedStatus:document.querySelector('#saved-paper-drafts-status')?.textContent,savedHidden:document.querySelector('#saved-paper-drafts')?.hidden,
  recoveryHidden:document.querySelector('#pending-open-recovery')?.hidden,
  actionStatus:[...document.querySelectorAll('.retain-action-status')].map(e=>e.textContent),
@@ -249,12 +246,11 @@ const navigate=async(path)=>{await send('Page.navigate',{url:origin+path});await
 await send('Page.enable');await send('Runtime.enable');await send('Log.enable');await send('Network.enable');
 await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
 await navigate('/operator');await waitFor('document.querySelectorAll("[role=tab]").length===2');
-await check('Authenticated command origin serves the existing two-tab dashboard and operator sign-in',
- '[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent.trim()).join(",")==="Research,Positions"&&!document.querySelector("#operator-auth").hidden');
-await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
-await waitFor('!document.querySelector("#operator-logout").hidden&&document.querySelector("#setup-width").options.length>1');
-await check('Real command server authenticates operator and loads registered DB profile',
- 'document.querySelector("#setup-pool").options[0].value==='+JSON.stringify(poolAddress)+'&&document.querySelector("#operator-password").value===""');
+await check('Command origin serves the two-tab dashboard',
+ '[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent.trim()).join(",")==="Research,Positions"');
+await waitFor('window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#setup-width").options.length>1');
+await check('Automatic browser session loads the registered DB profile',
+ 'document.querySelector("#setup-pool").options[0].value==='+JSON.stringify(poolAddress));
 const limits=[['#limit-max-deployment','10000000000000000000000'],['#limit-min-deployment','1000000000000000000'],
  ['#limit-max-exposure','1000000'],['#limit-max-loss','10000000000000000000000'],['#limit-max-drawdown','1000000'],
  ['#limit-max-action-cost','10000000000000000000'],['#limit-max-rolling-cost','20000000000000000000'],
@@ -278,14 +274,14 @@ await check('Browser draft POST persists one campaign and actual command list re
 await check('Fresh open preview is persisted but acceptance stays disabled without worker lease',
  'document.querySelector("#setup-open-status").textContent.includes("provisional, not paid")&&document.querySelector("#setup-open-status button").disabled===true');
 
-await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true');
 await waitFor('document.querySelector(".saved-paper-draft")!==null');
 await check('Reload lists DB-backed draft config without current source or costs',
  'document.querySelector("#saved-paper-drafts").textContent.includes("Saved configuration hash")&&document.querySelector("#saved-paper-drafts").textContent.includes("Current source / current costsUnavailable")');
 const openKey=randomUUID(),pendingRecord={campaignId:draftId,payload:{previewId:lastOpenPreview.id,
  contentDigest:lastOpenPreview.contentDigest,expectedRevision:lastOpenPreview.expectedRevision,idempotencyKey:openKey}};
 await evaluate(`localStorage.setItem('concliq.operator.paper-open.pending.v1',${JSON.stringify(JSON.stringify(pendingRecord))})`);
-await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true');
 await waitFor('document.querySelector("#pending-open-recovery").hidden===false');
 await click('#retry-pending-open');
 await waitFor('document.querySelector("#pending-open-recovery-detail").textContent.includes("earlier acceptance outcome remains unknown")');
@@ -326,8 +322,7 @@ if(completeLifecycle){
  assert.equal((await readDeploymentDetail(admin,row,24)).performance.timeline[0].action,'enter');
  checks.push('Browser retries the same pending open key after lease readiness; real worker books one open');
  const showPositions=async()=>{
-  await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
-  await waitFor('!document.querySelector("#operator-logout").hidden');
+  await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true');
   await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
   await waitFor('document.querySelector("#paper-chart title")!==null');
   await waitFor('document.querySelector(".paper-lifecycle-preview-button")&&!document.querySelector(".paper-lifecycle-preview-button").disabled');
@@ -383,8 +378,7 @@ if(completeLifecycle){
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',[draftId])).rows[0].n,4);
  assert.equal((await processOnePaperOperation(store,chain,admin,'browser-restarted')).status,'idle');
  checks.push('Browser retain-close records one terminal mark; restarted worker has no duplicate action');
- await navigate('/operator');await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
- await waitFor('!document.querySelector("#operator-logout").hidden');
+ await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true');
  await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
  await reconcileSaved('close_retain',pendingKey('close_retain'));
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1 AND kind=$2',[draftId,'close_retain'])).rows[0].n,1);

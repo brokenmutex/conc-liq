@@ -19,15 +19,17 @@ The operator is also available through the approved Tailscale Funnel at
 `https://dear-foxhound.tail106f9e.ts.net/operator`. The obsolete `/prototype`
 route has been removed and returns 404. The local page remains `http://127.0.0.1:4174/operator`.
 See the [Funnel rollout](../reviews/static-paper-operator-funnel-2026-09-27.md)
-for the exact trusted origin and command-service release. The password handoff is the
-root-only `data/static-paper-mvp-cutover-20260927/operator-password.txt` file.
+for the exact trusted origin and command-service release. Password sign-in has
+been removed at the operator's request; the page connects automatically.
+Anyone who can reach the Funnel URL can use the paper controls. Same-origin
+and CSRF checks protect requests but do not restrict access to selected users.
 The public read-only dashboard remains on its existing origin.
 
 ## Operator workflow
 
 Open the approved operator URL and its Positions page.
-Use the same origin for the page, login and commands. The public dashboard
-remains read-only. Log in using the configured operator password.
+Use the same origin for the page and commands. The public dashboard at `/`
+remains read-only. No password or sign-in action is required on `/operator`.
 
 1. In Positions setup, select a registered supported pool, static/manual paper,
    capital and centered tick half-width. Review the exact range, inventory,
@@ -106,7 +108,7 @@ application environment variables and hashes only values from that file into
 the runtime config identity, so a systemd `Environment=` override is ignored
 and cannot enable the worker. Keep the flag in the file and verify its
 mode/ownership without printing its contents. After startup, `/healthz` proves
-only command-server liveness; check authenticated `GET /api/market-profiles`
+only command-server liveness; check `GET /api/market-profiles` after the automatic browser session handshake
 for the registered profile and inspect the actual worker advisory lease in
 PostgreSQL before treating worker readiness as established.
 

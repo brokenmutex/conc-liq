@@ -2,7 +2,7 @@
 // replay. Deployment writes stay in a temporary schema; indexed replay reads
 // fall through to public in a read-only transaction/pool.
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {createServer as createNetServer} from 'node:net';
 import {parseEnv} from 'node:util';
@@ -63,7 +63,7 @@ const assertLocalDb=()=>{
 };
 const rawUsd=usd=>String(BigInt(usd)*10n**18n);
 
-async function inspectConvertedCloseHistory({origin,password,onChrome,onWebSocket,onTemp}){
+async function inspectConvertedCloseHistory({origin,onChrome,onWebSocket,onTemp}){
  let executable=process.env.CHROMIUM_PATH;
  if(!executable){
   const entries=await readdir('/root/.cache/ms-playwright',{withFileTypes:true});
@@ -114,16 +114,12 @@ async function inspectConvertedCloseHistory({origin,password,onChrome,onWebSocke
   throw Error(`Dashboard browser wait timed out: ${expression}`);
  };
  const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)})?.click()`);
- const fill=(selector,value)=>evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});
-  if(!e)throw Error('dashboard control missing');e.value=${JSON.stringify(value)};
-  e.dispatchEvent(new Event('input',{bubbles:true}));e.dispatchEvent(new Event('change',{bubbles:true}));})()`);
  const navigate=async path=>{await send('Page.navigate',{url:origin+path});
   await waitFor('document.readyState==="complete"');};
  await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
  await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
- await navigate('/operator');await fill('#operator-password',password);
- await click('#operator-login-form button[type=submit]');
- await waitFor('!document.querySelector("#operator-logout").hidden');
+ await navigate('/operator');
+ await waitFor('window.concliqOperatorAuthenticated?.()===true','automatic operator session');
  await evaluate('[...document.querySelectorAll("[role=tab]")].find(e=>e.textContent.trim()==="Positions").click()');
  await waitFor('document.querySelector("#paper .view-switch button[data-value=history]")!==null');
  await click('#paper .view-switch button[data-value="history"]');
@@ -351,8 +347,6 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
    idempotencyKey:`canonical-v3-${randomUUID()}`};
   const acceptStaticPaperCloseConvert=createStaticPaperCloseConvertAcceptance({store,
    client:rpc,indexer,rpcUrl:archive,verifyAnchors:anchors});
-  const password=randomBytes(24).toString('hex'),salt=randomBytes(16),
-   passwordHash=`scrypt:${salt.toString('hex')}:${scryptSync(password,salt,32).toString('hex')}`;
   operationReadyLease=await acquirePaperOperationReadinessLease(indexer);
   const reservation=createNetServer();reservation.listen(0,'127.0.0.1');await once(reservation,'listening');
   const reservedAddress=reservation.address();assert(reservedAddress&&typeof reservedAddress!=='string');
@@ -361,7 +355,7 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
    if(error)reject(error);else resolve(undefined);
   }));
   const commandOrigin=`http://127.0.0.1:${commandPort}`;
-  commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,passwordHash,
+  commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,
    paperPreview:async()=>preview,paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
    paperConvertPreparationReady:campaignId=>store.staticPaperCloseConvertPreparationReady(campaignId),
    paperConvertAcceptance:acceptStaticPaperCloseConvert,
@@ -380,7 +374,7 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
   commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
   const postCommand=(path,body,headers={})=>fetch(commandOrigin+path,{method:'POST',
    headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
-  const login=await postCommand('/api/session',{password},{origin:commandOrigin});
+  const login=await postCommand('/api/session',{}, {origin:commandOrigin});
   assert.equal(login.status,200);const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json(),commandHeaders={origin:commandOrigin,cookie,
    'x-csrf-token':csrfToken};
@@ -439,7 +433,7 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
    ledger=(await admin.query(`SELECT count(*)::int AS n FROM deployment_ledger
     WHERE campaign_id=$1 AND operation_id=$2`,[draft.id,accepted.id])).rows[0].n;
   assert.equal(terminalRows,1);assert.equal(ledger,3);
-  const browserChecks=await inspectConvertedCloseHistory({origin:commandOrigin,password,
+  const browserChecks=await inspectConvertedCloseHistory({origin:commandOrigin,
    onChrome:process=>{chrome=process;},onWebSocket:socket=>{ws=socket;},
    onTemp:path=>{browserTemp=path;}});
   commandServer.close();await once(commandServer,'close');commandServer=undefined;

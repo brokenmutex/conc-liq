@@ -20,7 +20,7 @@ export async function findChromium(){
  throw Error('Chromium not found; set CHROMIUM_PATH');
 }
 
-export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},timeoutMs=30_000}){
+export async function startCanonicalPaperBrowser({origin,onTemp=()=>{},timeoutMs=30_000}){
  const profile=await mkdtemp(`${tmpdir()}/conc-liq-canonical-browser-`);onTemp(profile);
  let debugPort=0,stderr='';
  const chrome=spawn(await findChromium(),['--headless=new','--no-sandbox','--disable-dev-shm-usage',
@@ -82,8 +82,8 @@ export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},
     path:new URL(message.params.response.url).pathname});
   else if(message.method==='Network.requestWillBeSent'&&message.params.request.method==='POST'){
    const path=new URL(message.params.request.url).pathname;
-   // Exclude /api/session entirely so the operator password never enters the
-   // helper's trace. Only accepted workflow requests are retained.
+   // Session bootstrap carries no credentials. Only accepted workflow requests
+   // are retained for this harness's side-effect audit.
    if(path.startsWith('/api/deployments/'))posts.push({path,
     postData:message.params.request.postData??null});
   }
@@ -117,13 +117,8 @@ export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},
  const navigate=async(path)=>{await send('Page.navigate',{url:origin+path});
   await waitFor('document.readyState==="complete"','page load');};
  const login=async()=>{
-  await navigate('/operator');await click('#positions-tab');
-  await waitFor('!document.querySelector("#operator-logout").hidden||'+
-   'document.querySelector("#operator-password")?.getClientRects().length>0','operator state');
-  if(await evaluate('!document.querySelector("#operator-logout").hidden'))return;
-  await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
-  await waitFor('!document.querySelector("#operator-logout").hidden','operator login');
-  assert.equal(await evaluate('document.querySelector("#operator-password").value'),'');
+  await navigate('/operator');
+  await waitFor('window.concliqOperatorAuthenticated?.()===true','automatic operator session');
  };
  const viewport=async(width,height=900)=>{
   await send('Emulation.setDeviceMetricsOverride',{width,height,deviceScaleFactor:1,mobile:width<600});
@@ -133,7 +128,7 @@ export async function startCanonicalPaperBrowser({origin,password,onTemp=()=>{},
  try{
   await send('Page.enable');await send('Runtime.enable');await send('Network.enable');
   await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
-  if(password)await login();
+  await login();
  }catch(error){try{ws.close();}catch{}await cleanup();throw error;}
  let closed=false;
  return {origin,chrome,ws,profile,posts,exceptions,httpFailures,send,evaluate,waitFor,click,fill,

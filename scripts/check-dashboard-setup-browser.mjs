@@ -6,7 +6,7 @@ import {access,mkdtemp,readFile,readdir,rm,writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 
-const root=process.cwd(),password='mock-only-password',csrf='mock-csrf-token';
+const root=process.cwd(),csrf='mock-csrf-token';
 const profileId='67b2b303-e821-4450-bb7b-27171b12079f';
 const pool='0x1111111111111111111111111111111111111111';
 const token0='0x2222222222222222222222222222222222222222';
@@ -49,6 +49,7 @@ const preview={schemaVersion:1,kind:'paper_setup_preflight',status:'available',m
  limitations:['read_only_no_draft_or_operation','does_not_claim_wallet_balances_or_funding_availability','costs_are_provisional_fork_estimates']};
 const mime={'/':'text/html; charset=utf-8','/operator':'text/html; charset=utf-8',
  '/app.js':'text/javascript; charset=utf-8','/tabs.js':'text/javascript; charset=utf-8',
+ '/operator-session.js':'text/javascript; charset=utf-8',
  '/deployment-actions.js':'text/javascript; charset=utf-8',
  '/research.js':'text/javascript; charset=utf-8','/styles.css':'text/css; charset=utf-8',
  '/research.css':'text/css; charset=utf-8'};
@@ -73,7 +74,7 @@ const server=createServer(async(req,res)=>{
   counts.session++;
   if(req.headers.origin!=='http://'+req.headers.host){json(403,{error:'origin_mismatch'});return;}
   let body='';for await(const chunk of req)body+=chunk;
-  if(JSON.parse(body).password!==password){json(401,{error:'invalid_credentials'});return;}
+  assert.deepEqual(JSON.parse(body),{},'automatic session bootstrap must not send credentials');
   json(200,{csrfToken:csrf,expiresInSeconds:60},{'set-cookie':'cq_session=mock-session; HttpOnly; SameSite=Strict; Path=/; Max-Age=60'});return;
  }
  if(req.method==='GET'&&path==='/api/market-profiles'){
@@ -180,7 +181,6 @@ try{
  await size(1440,1000,false);await nav('/');
  await waitFor('document.querySelectorAll("[role=tab]").length===2');
  await check('Public page renders Research and Positions tabs','[...document.querySelectorAll("[role=tab]")].map(x=>x.textContent.trim()).join(",")==="Research,Positions"');
- await check('Public page hides password entry','document.querySelector("#operator-auth").hidden&&getComputedStyle(document.querySelector("#operator-auth")).display==="none"');
  await check('Public page hides draft binding','document.querySelector("#operator-draft-binding").hidden');
  await check('Public desktop layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  await click('#research-tab');await check('Research tab remains renderable','!document.querySelector("#research-panel").hidden&&!!document.querySelector("#league")');
@@ -193,14 +193,13 @@ try{
  await check('Public page mounts no retain-close controls','window.publicRetainTest.empty&&window.publicRetainTest.calls===0');
  await size(390,844,true);await check('Public mobile layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  const pshot=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:true});shots.push(['public-mobile.png',Buffer.from(pshot.data,'base64')]);
- await size(1440,1000,false);await nav('/operator');await waitFor('!document.querySelector("#operator-auth").hidden');
- await check('Loopback operator page exposes sign in','document.querySelector("#operator-password").type==="password"');
+ await size(1440,1000,false);await nav('/operator');
+ await waitFor('window.concliqOperatorAuthenticated?.()===true');
  await check('Operator desktop layout has no horizontal overflow','document.documentElement.scrollWidth<=innerWidth');
  await click('#research-tab');await check('Operator Research tab remains renderable','!document.querySelector("#research-panel").hidden&&!!document.querySelector("#league")');
  await click('#positions-tab');
  await waitFor('!document.querySelector("#setup-pool").disabled');
- await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
- await waitFor('!document.querySelector("#operator-logout").hidden&&document.querySelector("#setup-pool").options.length>0');
+ await waitFor('document.querySelector("#setup-pool").options.length>0');
  await check('Login loads authenticated pool and tier profile','document.querySelector("#setup-pool").options[0].textContent.includes("USDG")');
  for(const [selector,value] of policyLimitInputs)await fill(selector,value);
  await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
@@ -220,12 +219,12 @@ try{
  await check('Ambiguous draft POST retains same-request retry and freezes reviewed inputs',
   'document.querySelector("#save-paper-draft").disabled===false&&document.querySelector("#setup-wallet-address").disabled&&document.querySelector("#setup-draft-submit-status").textContent.includes("retained request ID")');
  assert.equal(counts.drafts,1);
- await nav('/operator');await waitFor('!document.querySelector("#operator-auth").hidden');
- await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+ await nav('/operator');
+ await waitFor('window.concliqOperatorAuthenticated?.()===true');
  await waitFor('document.querySelector("#save-paper-draft").textContent.includes("Retry same")&&document.querySelector("#setup-wallet-address").value==="0x4444444444444444444444444444444444444444"');
  await check('Reload recovery restores visible wallet/config and historical-only source binding',
-  'document.querySelector("#operator-draft-binding-facts").textContent.includes("Admission stateUnknown")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("not current")&&document.querySelector("#operator-password").value===""&& !localStorage.getItem("concliq.operator.static-paper-draft.pending.v1").includes("mock-only-password")');
- checks.push('Ambiguous setup draft survives reload without storing credentials');
+  'document.querySelector("#operator-draft-binding-facts").textContent.includes("Admission stateUnknown")&&document.querySelector("#operator-draft-binding-facts").textContent.includes("not current")');
+ checks.push('Ambiguous setup draft survives reload without a password flow');
  await click('#save-paper-draft');
  await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Reconciled existing")&&document.querySelector("#setup-open-review").hidden===false');
  assert.equal(counts.drafts,2);
@@ -246,8 +245,8 @@ try{
  await waitFor('document.querySelector("#setup-open-status").textContent.includes("outcome unknown")');
  await check('Ambiguous open POST retains its key and blocks a fresh preview',
   'document.querySelector("#setup-open-status button")?.disabled===false&&document.querySelector("#refresh-open-preview").disabled&&document.querySelector("#setup-open-status").textContent.includes("same in-page key")');
- await nav('/operator');await waitFor('!document.querySelector("#operator-auth").hidden');
- await fill('#operator-password',password);await click('#operator-login-form button[type=submit]');
+ await nav('/operator');
+ await waitFor('window.concliqOperatorAuthenticated?.()===true');
  await waitFor('document.querySelector("#pending-open-recovery").hidden===false');
  await check('Open acceptance reload recovery keeps same payload key and hides stale preview costs',
   'document.querySelector("#pending-open-recovery-detail").textContent.includes("original idempotency key is retained")&&!document.querySelector("#pending-open-recovery-detail").textContent.includes("provisional")&&document.querySelector("#retry-pending-open").disabled===false');
@@ -262,7 +261,6 @@ try{
  assert.equal(counts.openOperations,3);
  assert.equal(new Set(counts.openOperationKeys).size,1,'Ambiguous open retries must reuse their idempotency key');
  checks.push('Saved draft followed by fresh action-gated open preview and acceptance');
- await check('Password input clears after login','document.querySelector("#operator-password").value===""');
  const actionTest=await evaluate(`(async()=>{const {mountStaticRetainAction}=await import('/deployment-actions.js');const root=document.createElement('div');document.body.append(root);const campaign='${profileId}',operation='90f0a8ba-b1ec-4fac-a8a3-cdfe28e7cb10',previewId='7b2309a4-a301-4869-a385-995ef8d12344';let accepts=0;const preview={kind:'close_retain',status:'indicative',actionAvailable:true,operationAcceptanceAvailable:true,id:previewId,contentDigest:'${'a'.repeat(64)}',expectedRevision:2,expiresAt:new Date(Date.now()+30000).toISOString(),retainedLowerBound:{token0Raw:'123',token1Raw:'456'},costs:{closeRetain:{expectedGasUnits:'90',boundGasUnits:'110',expectedValue:'2000000000000000000',boundValue:'3000000000000000000'}}};mountStaticRetainAction(root,{campaignId:campaign,authenticated:()=>true,request:async(path)=>{if(path.endsWith('/previews'))return preview;if(path.endsWith('/operations')){accepts++;return{id:operation,status:'queued'};}if(path==='/api/operations/'+operation)return{id:operation,status:'succeeded',stage:'paper_close_retain_recorded'};throw Error('unexpected_path');},onAccepted:async()=>{},now:Date.now});root.querySelector('.retain-preview-button').click();for(let i=0;i<30&&!root.querySelector('.retain-confirm-button');i++)await new Promise(r=>setTimeout(r,10));const enabled=root.querySelector('.retain-confirm-button')?.disabled===false;const facts=root.textContent.includes('123')&&root.textContent.includes('456')&&root.textContent.includes('2.000000 / 3.000000')&&root.textContent.includes('provisional, not paid');root.querySelector('.retain-confirm-button')?.click();for(let i=0;i<120&&!root.textContent.includes('succeeded · paper_close_retain_recorded');i++)await new Promise(r=>setTimeout(r,20));const accepted=root.textContent.includes('succeeded · paper_close_retain_recorded')&&accepts===1;root.remove();return{enabled,facts,accepted};})()`);
  assert.deepEqual(actionTest,{enabled:true,facts:true,accepted:true},'Reviewed retain-close preview should be confirmable only with complete action binding and then show journal stage');
  checks.push('Authenticated retain-close review and accepted operation stage');

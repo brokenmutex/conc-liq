@@ -4,8 +4,8 @@ import {DeploymentStore} from '../../src/deployments/store.ts';
 import {deploymentPosition,readDeploymentByKey,readDeploymentDetail,readDeploymentRows}
  from '../../src/dashboard/deployment-position.ts';
 
-const {DATABASE_URL,COMMAND_PORT,COMMAND_PASSWORD_HASH}=process.env;
-if(!DATABASE_URL||!COMMAND_PORT||!COMMAND_PASSWORD_HASH)throw Error('process fixture environment incomplete');
+const {DATABASE_URL,COMMAND_PORT}=process.env;
+if(!DATABASE_URL||!COMMAND_PORT)throw Error('process fixture environment incomplete');
 const store=new DeploymentStore(DATABASE_URL),dashboard=new pg.Pool({connectionString:DATABASE_URL,max:2});
 await store.assertReady();
 const dashboardRead=async(rawPath)=>{
@@ -21,7 +21,7 @@ const dashboardRead=async(rawPath)=>{
  }finally{client.release();}
 };
 const server=createDeploymentCommandServer(store,{origin:`http://127.0.0.1:${COMMAND_PORT}`,
- passwordHash:COMMAND_PASSWORD_HASH,dashboardRead,
+ dashboardRead,
  paperPreview:async(campaignId,kind)=>{
   if(kind==='pause'||kind==='resume')return store.recordPaperLifecyclePreview(campaignId,kind);
   return {kind,status:'unavailable',campaignId,reason:'process_harness_boundary',actionAvailable:false};

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {randomBytes,randomUUID,scryptSync} from 'node:crypto';
+import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';
 import {createServer as createTcpServer} from 'node:net';
 import {readFileSync} from 'node:fs';
@@ -719,9 +719,7 @@ try{
  const openProbeAddress=openPortProbe.address();assert(openProbeAddress&&typeof openProbeAddress!=='string');
  const openCommandPort=openProbeAddress.port;
  await new Promise((resolve,reject)=>openPortProbe.close(error=>error?reject(error):resolve()));
-  const openCommandOrigin='http://127.0.0.1:'+openCommandPort,openSalt=randomBytes(16),
-  openPassword='integration-paper-open-operator',openPasswordHash='scrypt:'+openSalt.toString('hex')+':'+
-  scryptSync(openPassword,openSalt,32).toString('hex'),
+  const openCommandOrigin='http://127.0.0.1:'+openCommandPort,
   openPreviewResponse={...costed,...paperPreview,status:'indicative',trustedPreviewSaved:true};
  assert.equal(openPreviewResponse.kind,'open');
  assert.equal(openPreviewResponse.status,'indicative');
@@ -734,7 +732,7 @@ try{
  assert.ok(openPreviewResponse.source.timestamp*1000<=Date.now());
  assert.ok(Date.now()-openPreviewResponse.source.timestamp*1000<=180_000);
  const openCommandServer=createDeploymentCommandServer(store,{origin:openCommandOrigin,
-  passwordHash:openPasswordHash,paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
+  paperRetainWorkerReady:()=>store.paperOperationWorkerReady(),
   paperOperationReplay:(campaignId,input,allowedKinds)=>store.acceptedOperationReplay(campaignId,input,allowedKinds),
   paperOpenAcceptance:(campaignId,input,actor)=>
    store.acceptStaticPaperOpenOperation(campaignId,input,actor,verifyPaperAnchors),
@@ -746,7 +744,7 @@ try{
  try{
   const post=(path,body,headers={})=>fetch(openCommandOrigin+path,{method:'POST',
    headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
-  const login=await post('/api/session',{password:openPassword},{origin:openCommandOrigin});
+  const login=await post('/api/session',{}, {origin:openCommandOrigin});
   assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie').split(';')[0],{csrfToken}=await login.json();
   const headers={origin:openCommandOrigin,cookie,'x-csrf-token':csrfToken};
@@ -1342,9 +1340,8 @@ try{
  const probeAddress=probe.address();assert(probeAddress&&typeof probeAddress!=='string');
  const commandPort=probeAddress.port;
  await new Promise((resolve,reject)=>probe.close(error=>error?reject(error):resolve()));
- const commandOrigin='http://127.0.0.1:'+commandPort,salt=randomBytes(16),password='integration-operator';
- const passwordHash='scrypt:'+salt.toString('hex')+':'+scryptSync(password,salt,32).toString('hex');
- const commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,passwordHash,
+ const commandOrigin='http://127.0.0.1:'+commandPort;
+ const commandServer=createDeploymentCommandServer(store,{origin:commandOrigin,
   paperRetainWorkerReady:async()=>true,paperRetainAcceptance:(campaignId,input,actor)=>
    store.acceptStaticPaperRetainOperation(campaignId,input,actor,verifyPaperAnchors)});
  commandServer.listen(commandPort,'127.0.0.1');await once(commandServer,'listening');
@@ -1352,7 +1349,7 @@ try{
  try{
   const post=(path,body,headers={})=>fetch(commandOrigin+path,{method:'POST',
    headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
-  const login=await post('/api/session',{password},{origin:commandOrigin});assert.equal(login.status,200);
+  const login=await post('/api/session',{}, {origin:commandOrigin});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie').split(';')[0],{csrfToken}=await login.json();
   const accepted=await post('/api/deployments/'+paperDraft.id+'/operations',closeCommand,
    {origin:commandOrigin,cookie,'x-csrf-token':csrfToken});

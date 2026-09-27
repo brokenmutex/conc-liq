@@ -24,7 +24,7 @@
         <section id="saved-paper-drafts" class="saved-paper-drafts" aria-labelledby="saved-paper-drafts-title" hidden>
           <h2 id="saved-paper-drafts-title">Saved static/manual paper drafts</h2>
           <p>Saved draft configuration only. Wallet funding, current source and current costs are not inferred; request a fresh open preview before any operation.</p>
-          <p id="saved-paper-drafts-status" role="status">Sign in on the operator dashboard to load saved drafts.</p>
+          <p id="saved-paper-drafts-status" role="status">Connecting to saved paper drafts…</p>
           <section id="pending-open-recovery" class="pending-open-recovery" hidden>
             <h3>Open acceptance needs reconciliation</h3>
             <p id="pending-open-recovery-detail"></p>
@@ -34,9 +34,8 @@
         </section>
         <section class="setup-panel" aria-labelledby="setup-title"><div class="setup-heading"><div><span class="eyebrow">NEW POSITION</span><h2 id="setup-title">Set up a position</h2><p>Choose a registered pool, capital, strategy and centered range.</p></div><span class="badge paper">Actions unavailable</span></div>
           <section id="operator-auth" class="operator-auth" aria-labelledby="operator-auth-title" hidden>
-            <div><h3 id="operator-auth-title">Loopback operator sign in</h3><p id="operator-auth-status" role="status">Not signed in. Session credentials stay in this page memory.</p></div>
-            <form id="operator-login-form"><div id="operator-login-fields" class="operator-login-fields"><label for="operator-password">Operator password</label><input id="operator-password" type="password" autocomplete="current-password" required><button type="submit">Sign in</button></div></form>
-            <button id="operator-logout" type="button" hidden>Sign out</button>
+            <div><h3 id="operator-auth-title">Operator connection</h3><p id="operator-auth-status" role="status">Waiting for the operator service…</p></div>
+            <button id="operator-connect-retry" type="button" hidden>Retry connection</button>
           </section>
           <form id="setup-form"><div class="form-grid">
             <label>Pool and fee tier<select id="setup-pool" required disabled><option value="">Loading registered pools…</option></select></label>

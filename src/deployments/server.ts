@@ -1,4 +1,4 @@
-import {createHash,randomBytes,scryptSync,timingSafeEqual} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {createServer,type IncomingMessage,type ServerResponse} from 'node:http';
 import {resolve} from 'node:path';
@@ -9,13 +9,13 @@ import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-se
 import {staticPaperDraftAdmissionInputSchema} from './static-paper-draft-admission.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const loginInput=z.object({password:z.string().min(1).max(1024)}).strict();
+const sessionInput=z.object({}).strict();
 const paperPreviewInput=z.object({kind:z.enum([
  'open','pause','resume','close_retain','close_convert'])}).strict();
 const SESSION_SECONDS=4*60*60;
 const BODY_BYTES=16*1024;
 
-export interface CommandServerOptions {origin:string;publicOrigin?:string;passwordHash:string;now?:()=>number;
+export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
@@ -57,6 +57,7 @@ const OPERATOR_ASSETS=new Map<string,{file:string;contentType:string}>([
  ['/app.js',{file:'app.js',contentType:'text/javascript; charset=utf-8'}],
  ['/deployment-actions.js',{file:'deployment-actions.js',contentType:'text/javascript; charset=utf-8'}],
  ['/tabs.js',{file:'tabs.js',contentType:'text/javascript; charset=utf-8'}],
+ ['/operator-session.js',{file:'operator-session.js',contentType:'text/javascript; charset=utf-8'}],
  ['/research.js',{file:'research.js',contentType:'text/javascript; charset=utf-8'}],
  ['/styles.css',{file:'styles.css',contentType:'text/css; charset=utf-8'}],
  ['/research.css',{file:'research.css',contentType:'text/css; charset=utf-8'}],
@@ -82,12 +83,6 @@ async function jsonBody(request:IncomingMessage){
  try{return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;}
  catch{throw new DeploymentConflict('invalid_json');}
 }
-function passwordVerifier(encoded:string){
- const match=/^scrypt:([0-9a-f]{32,128}):([0-9a-f]{64})$/.exec(encoded);
- if(!match)throw Error('Invalid operator password hash configuration');
- const salt=Buffer.from(match[1]!,'hex'),expected=Buffer.from(match[2]!,'hex');
- return (password:string)=>timingSafeEqual(scryptSync(password,salt,expected.length),expected);
-}
 const tokenKey=(token:string)=>createHash('sha256').update(token).digest('hex');
 const cookie=(request:IncomingMessage)=>{
  const parts=(request.headers.cookie??'').split(';').map(part=>part.trim());
@@ -106,8 +101,8 @@ export function createDeploymentCommandServer(store:CommandStore,
   if(external.protocol!=='https:'||external.origin!==options.publicOrigin)
    throw Error('Public operator origin must be an exact HTTPS origin');
  }
- const verify=passwordVerifier(options.passwordHash),now=options.now??Date.now;
- const sessions=new Map<string,Session>(),attempts=new Map<string,{count:number;reset:number}>();
+ const now=options.now??Date.now;
+ const sessions=new Map<string,Session>();
  // Trust only explicit configuration, never proxy-supplied forwarding headers.
  const sameOrigin=(request:IncomingMessage)=>request.headers.origin===options.origin||
   (options.publicOrigin!==undefined&&request.headers.origin===options.publicOrigin);
@@ -152,15 +147,14 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!sameOrigin(request)){send(response,403,{error:'origin_mismatch'});return;}
    }
    if(path==='/api/session'&&request.method==='POST'){
-    const ip=request.socket.remoteAddress??'unknown',entry=attempts.get(ip);
-    if(entry&&entry.reset>now()&&entry.count>=5){send(response,429,{error:'login_rate_limited'});return;}
-    const {password}=loginInput.parse(await jsonBody(request));
-    if(!verify(password)){
-     const fresh=entry&&entry.reset>now()?entry:{count:0,reset:now()+15*60*1000};
-     fresh.count++;attempts.set(ip,fresh);
-     send(response,401,{error:'invalid_credentials'});return;
+    sessionInput.parse(await jsonBody(request));
+    // This is an automatic CSRF handshake, not an access-control boundary.
+    // Reuse the browser session so opening another tab preserves its token.
+    const existing=authenticated(request);
+    if(existing){
+     send(response,200,{csrfToken:existing.session.csrf,
+      expiresInSeconds:Math.max(0,Math.floor((existing.session.expires-now())/1000))});return;
     }
-    attempts.delete(ip);
     const token=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');
     if(sessions.size>=32)sessions.delete(sessions.keys().next().value!);
     const secure=request.headers.origin===options.publicOrigin;
