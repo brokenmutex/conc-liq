@@ -355,3 +355,9 @@ No production migration, service replacement/restart, profile registration,
 campaign opening, signing or broadcast was performed in this implementation
 follow-up. Legacy accounting removal/store decomposition and schema capability
 compatibility are deferred; the operator-descoped cost programme stays deferred.
+
+The subsequent instruction to commit and proceed produced source commit
+`7c7f60b`. Its [sealed candidate record](sealed-paper-review-7c7f60b-2026-09-27.md)
+contains the later clean-check and canonical-gate results, artifact identity,
+backup and staged replacement. Those later results supplement the source-only
+validation above; preparation does not mean production replacement occurred.

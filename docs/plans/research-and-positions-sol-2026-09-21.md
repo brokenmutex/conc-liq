@@ -1696,6 +1696,9 @@ The [September 27 independent review](../reviews/implementation-review-2026-09-2
 now bounds the immediate follow-up: simplify setup, wake the operation worker,
 respect the configured RangeKeeper sizing floor, expose cost / fees, and document
 runtime continuity. See that review's implementation follow-up for fresh validation.
+Implementation is committed as `7c7f60b`; the [sealed candidate record](../reviews/sealed-paper-review-7c7f60b-2026-09-27.md)
+tracks clean-check evidence, exact-artifact acceptance and the staged service
+replacement separately from the currently deployed release.
 After those fixes, the next operator milestone is one actual AAPL/USDG paper
 campaign through retain-close and a comparison with the harness expectations.
 RangeKeeper paper, new live capability and the operational cost-reduction
