@@ -195,3 +195,13 @@ No production migration, profile registration, service installation,
 activation, signer use or broadcast is included in this work. The existing
 [cutover proposal](static-paper-mvp-cutover-inventory-2026-09-26.md) retains its
 production ownership, compatibility, backup and authorization requirements.
+
+
+## September 27 follow-up
+
+The setup diagnostic masking is repaired in `5905b47`; candidate `d507e6d…`
+passed clean checks and one canonical setup-to-convert browser run. See the
+[follow-up record](static-paper-setup-preflight-reasons-2026-09-27.md). The
+historical unavailable condition remains unrecoverable from this attempt's
+log. All recovery, restore and rejection evidence above retains its original
+`f75d6277…` identity.

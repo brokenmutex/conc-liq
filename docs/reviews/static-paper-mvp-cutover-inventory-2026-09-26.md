@@ -301,3 +301,19 @@ old-reader schema compatibility, private environment/profile configuration,
 backup identity and authorization for the exact migration/registration/service
 actions remain outstanding. No production migration, registration, activation,
 signer use or broadcast occurred in candidate acceptance.
+
+
+## September 27 candidate follow-up
+
+Reviewed successor source `5905b470999e139234a9d5ecd268ea131dde33f2`, build
+`d507e6dedb131a883cdeb5e23cc3fc220225eacf81b009d582545636e0772645`, preserves
+specific unavailable setup reasons. The clean build passed 882 tests and a
+canonical browser setup-to-convert campaign with desktop/mobile captures.
+[Exact evidence](static-paper-setup-preflight-reasons-2026-09-27.md) records the
+two-file runtime difference, original failure's unresolved historical cause,
+and prior-build provenance of recovery/restore gates. The artifact is under
+`/tmp/conc-liq-static-mvp-releases-20260926/` plus its build ID.
+
+This supersedes the outstanding diagnostic-masking investigation, not the
+production inventory or ownership/custody/configuration/schema-compatibility
+and authorization prerequisites. The cutover proposal remains unexecuted.

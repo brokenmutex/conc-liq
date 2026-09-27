@@ -1,14 +1,18 @@
 # Research and Positions — Sol implementation plan
 
-Prepared: 2026-09-21. Revised: 2026-09-26 after the MVP progress review at
-`f087abc`, with resumed Luna delivery recorded below. Static/manual paper is
-the first operator MVP. Candidate `5b22ce5` / `f75d6277…` has passed actual
-economic restart, changed-anchor rejection and canonical campaign restore.
-Static/manual paper candidate functionality is demonstrated, with the retain
-teardown caveat and a later setup-preflight source mismatch recorded. Narrow
-setup availability diagnosis and production cutover remain pending. See the [current acceptance record](../reviews/static-paper-mvp-acceptance-f75d6277-2026-09-26.md)
-and the section 12 status table. Initial source review: `b38c839`. Recheck HEAD
-and working-tree changes before starting.
+Prepared: 2026-09-21. Revised: 2026-09-27 after the scoped setup-preflight
+repair. Static/manual paper remains the first operator MVP. Runtime `5905b47`,
+sealed build `d507e6d…`, passes 882 clean tests and the canonical browser
+setup-to-convert lifecycle with desktop/mobile captures. The diagnostic masking
+behind the generic setup source-mismatch error is fixed; the earlier attempt's
+underlying unavailable condition cannot be reconstructed from its log.
+See the [current follow-up](../reviews/static-paper-setup-preflight-reasons-2026-09-27.md)
+and [prior candidate acceptance](../reviews/static-paper-mvp-acceptance-f75d6277-2026-09-26.md).
+Economic recovery, rejection and restore evidence remains attached to prior
+`5b22ce5` / `f75d6277…`; the new artifact changes only two setup-preparation
+modules. Next: operator review and concrete production cutover prerequisites.
+No production activation is authorized or performed. Initial source review:
+`b38c839`. Recheck HEAD and working-tree changes before starting.
 The approved screen contract in
 [section 11](#11-approved-prototype-contract-and-delivery-order) remains in force.
 The ordered Sol handoff in
@@ -1618,7 +1622,7 @@ this recovery-panel commit and do not establish an exact clean release identity.
 | Path | Available source behavior | Remaining acceptance boundary |
 | --- | --- | --- |
 | Static/manual paper setup, open, pause/resume, retain-close | Canonical browser lifecycle assertions passed on clean runtime `5b22ce5`, build `f75d6277…`. First-session capital, persisted lower bounds, one terminal mark and desktop/mobile chart/activity/history matched evidence. A post-success cleanup error and subsequent shared-helper repair are recorded as composite evidence. | Retain exact balances, earned fees and paid gas remain unavailable. Candidate acceptance is recorded in section 12; production cutover is not authorized. |
-| Static/manual paper convert-close | Canonical browser setup/open/later valuation/convert-close, actual economic restart and changed-anchor rejection passed on `5b22ce5` / `f75d6277…`. One terminal mark/V3 snapshot, matched modeled capital-out records, inventory and desktop/mobile history passed. Ordinary conversion plus canonical restore exited 0 with harness `2279e86`. | Costs and conversion outcomes remain provisional modeled evidence. Blocked recovery is visible in activity but its headline needs a narrow clarity follow-up. Production cutover is not authorized. |
+| Static/manual paper convert-close | Latest canonical browser setup/open/later valuation/convert-close passed on `5905b47` / `d507e6d…`, with one terminal mark/V3 snapshot, modeled capital-out records and desktop/mobile captures. Economic restart, changed-anchor rejection and canonical restore passed previously on `5b22ce5` / `f75d6277…` and retain that identity. | Costs and conversion outcomes remain provisional modeled evidence. Blocked recovery is visible in activity but its headline needs a narrow clarity follow-up. Production cutover is not authorized. |
 | RangeKeeper paper | Planner/confirmation foundations and matching ten-stage owned-fork evidence; bounded fresh-state prefetch measured. The newer attempt reached producer-receipt publication and failed there; see section 12. | No successful producer/worker booking is recorded. Reliable freshness, producer publication, lifecycle/management, both terminal exits and shared closure parity remain F3 gates. |
 | New live deployments | Read-only pool identity, independent reference, wallet nonce and custody-replay preflight foundations. | Intent/receipt execution, custody recovery, owned-fork stage gates and explicit activation authorization remain F4/F5 requirements; action and execution remain false. |
 | Predecessor live/paper positions | Existing shared dashboard adapters and history remain readable; positions without deployment metadata render correctly. | Their runtime/history evidence retains its original provenance and capability limitations. |
@@ -1770,11 +1774,11 @@ platform is not needed to establish the cause.
 
 | Task | Current result | Remaining gate |
 | --- | --- | --- |
-| MVP-1 | Source check gate restored; resumed clean candidate `5b22ce5` passed repository/type checks and 877/877 tests, including concurrent-verifier integrity checks. | Preserve runtime build `f75d6277…` and record external harness identity separately. |
+| MVP-1 | Source check gate restored; latest clean candidate `5905b47` passed repository/type checks and 882/882 tests, including setup reason preservation and concurrent-verifier integrity checks. | Preserve latest runtime build `d507e6d…`; earlier acceptance results retain their original build identities. |
 | MVP-2 | Canonical retain lifecycle assertions passed on `f75d6277…`: setup/open/pause/resume/close, one terminal mark and desktop/mobile parity. Original command exited 1 only during Chromium profile cleanup; fix `2279e86` passed direct cleanup proof and the final conversion command. | Complete using explicitly composite evidence; retain lower-bound and paid-cost limitations remain. |
 | MVP-3 | Both canonical browser exits demonstrated on sealed `f75d6277…` / source `5b22ce5`, including first-session capital, exact terminal semantics, explicit gaps and desktop/mobile history. Ordinary conversion+restore exited 0 with harness `2279e86`; retain caveat is above. | Complete for this candidate; blocked recovery is visible in activity but its headline still says Close in progress, a narrow UX follow-up. |
 | MVP-4 | On `f75d6277…`, harness `3af131b` passed expired-preview same-key replay, restart in 16.085s with 236.7 MB physical reads, exactly-once V3 conversion and desktop/mobile parity. The later restore comparison failed separately on an unsafe JSON number. | Changed-anchor rejection passed: 18.853s restart, blocked operation, zero terminal conversion marks/ledger/V3 rows. MVP-4 is complete; retain the later restore failure separately under MVP-5. |
-| MVP-5 | Clean `5b22ce5` produced verified candidate `f75d6277…`; only launcher/verifier bytes differ from prior `b78c3f22…`. Manifest and 13 rendered units passed offline review without installation. Runbook and unexecuted cutover proposal remain available. | Required candidate demonstrations passed, including actual campaign restore. An extra screenshot attempt failed before draft/open with `paper_cost_initial_preview_source_mismatch`; characterize that setup availability result before claiming consistent availability. Production configuration, compatibility, custody/ownership, backup and authorization remain pending; no activation performed. |
+| MVP-5 | Clean `5b22ce5` produced verified candidate `f75d6277…`; only launcher/verifier bytes differ from prior `b78c3f22…`. Manifest and 13 rendered units passed offline review without installation. Runbook and unexecuted cutover proposal remain available. | September 27 follow-up `5905b47` / `d507e6d…` preserves specific unavailable reasons, passes 882 clean tests and one canonical setup-to-convert run. Only two setup modules changed; previous recovery/restore evidence keeps its original build identity. Historical unavailable cause remains unknown; do not claim universal availability. Production configuration, compatibility, custody/ownership, backup and authorization remain pending. |
 
 The operator authorized proceeding with Luna agents in parallel. Three Luna
 workstreams are assigned within the static/manual milestone: MVP-2 retain
@@ -2348,3 +2352,27 @@ project is needed to deliver this milestone.
 Do not expand RangeKeeper, live execution, Research replay or infrastructure
 before the static paper operator milestone. Production migration, registration,
 service installation and activation remain separate from disposable paper acceptance.
+
+
+### September 27 — setup-preflight reason preservation
+
+The scoped investigation reproduced diagnostic masking: an unavailable pinned
+preflight with `source:null` lost its specific missing reason and was reported
+as a generic source mismatch. Runtime `5905b47` preserves only allowlisted
+reasons on explicitly unavailable, null-source results. Genuine anchor changes,
+malformed results, freshness limits and all admission checks remain fail-closed;
+no retry or new source selection was introduced.
+
+The clean `d507e6d…` artifact passed 882 tests and one actual canonical browser
+setup/open/later-valuation/convert run (exit zero), with desktop/mobile captures.
+The first invocation failed its argument guard before any runtime/fixture
+started and is recorded separately. Independent manifest comparison found
+exactly two changed setup-preparation JavaScript files; launcher, accounting,
+worker and browser assets are unchanged. Full evidence and the original
+failure's retrospective limits are in the
+[setup-preflight follow-up](../reviews/static-paper-setup-preflight-reasons-2026-09-27.md).
+
+The diagnostic repair is complete. Proceed to operator review and the existing
+concrete cutover prerequisites, keeping all production actions pending their
+exact authorization. Preserve the blocked-recovery headline as a narrow UX
+follow-up. No new architecture or repeated green-run campaign is needed.
