@@ -94,12 +94,14 @@ async function replayStaticCloseConvertV3Gas(input:{store:DeploymentStore;client
  indexer:Pool;model:ReturnType<typeof parsePaperStaticCloseConvertTerminalV3>;
  frame:import('./paper-preview.js').PaperOpenFrame;rpcUrl:string;
  operation:{id:string;workerId:string};
+ diagnostics?:boolean;
  beforeRead:()=>Promise<void>;verifyAnchors:(chainId:number,
   sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
- const {store,client,indexer,model,frame,rpcUrl,operation,beforeRead,verifyAnchors}=input,
+ const {store,client,indexer,model,frame,rpcUrl,operation,diagnostics,beforeRead,verifyAnchors}=input,
   context=await readStaticPaperCloseConvertFeeContext({store,campaignId:model.campaignId,
    revision:model.revision,operation:{...operation,modelHash:model.modelHash},verifyAnchors}),
   feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame}),
+  samplerStartedAt=diagnostics?Date.now():0,
   sampled=await samplePaperCloseConvertPrestate({rpcUrl,openModel:context.state.openModel,
    openMarkId:context.state.openMarkId,profile:context.state.profile,frame,
    previous:{markId:context.state.previous.markId,source:context.state.previous.source},
@@ -107,7 +109,15 @@ async function replayStaticCloseConvertV3Gas(input:{store:DeploymentStore;client
    verifyPersistedContext:()=>context.verifyPersistedContext({state:context.state,
     feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
    verifyAnchors,beforeRead,deterministicClock:true,
-   sampledAt:model.prestateReport.gasStages[0]!.source.estimatedAt});
+   sampledAt:model.prestateReport.gasStages[0]!.source.estimatedAt,
+   onPhaseTiming:diagnostics?event=>{
+    const observedAt=Date.now(),boundedMs=(value:number)=>Number.isFinite(value)?
+     Math.min(86_400_000,Math.max(0,Math.trunc(value))):null;
+    try{log('info','paper_conversion_prestate_stage_timing',{campaignId:model.campaignId,
+     operationId:operation.id,stage:`terminal_${event.stage}`,state:event.state,
+     durationMs:event.durationMs,elapsedMs:boundedMs(observedAt-samplerStartedAt),
+     sourceAgeMs:boundedMs(observedAt-frame.source.timestamp*1000)});}catch{}
+   }:undefined});
  if(sampled.reportHash!==model.prestateReport.reportHash)
   throw new DeploymentConflict('paper_close_convert_terminal_prestate_replay_changed');
  const sizeBand=buildProspectivePaperCloseConvertPrestateGasProfiles(sampled).sizeBand,
@@ -244,6 +254,7 @@ export async function processOnePaperOperation(store:DeploymentStore,
       onSourceFrameMismatch:reason=>{sourceFrameMismatch=reason;},
       replayGasStages:({model,frame})=>replayStaticCloseConvertV3Gas({store,client:chain,indexer,
        model,frame,rpcUrl:options.rpcUrl!,operation:{id:claim.id,workerId},
+       diagnostics:options.diagnostics===true,
        beforeRead:options.beforeForkRead??(async()=>{}),
        verifyAnchors:verify})});
      workerStage='terminal_booking';

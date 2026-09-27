@@ -14,6 +14,8 @@ import { verifyHistoryBoundary } from "../history/verify.js";
 
 export interface BackfillOptions {
   readonly liveClient?: RobinhoodClient;
+  /** Optional canonical source for event-block headers when bulk logs use history transport. */
+  readonly eventHeaderClient?: RobinhoodClient;
   readonly beforeRpc?: () => Promise<void>;
   readonly dryRun: boolean;
   readonly explicitFromBlock?: bigint;
@@ -211,7 +213,7 @@ export async function runBackfill(
           fromCheckpoint = await fetchCheckpoint(client, nextBlock);
         }
         eventBlocks = await fetchEventBlockHeaders(
-          client,
+          options.eventHeaderClient ?? client,
           events,
           [checkpoint, fromCheckpoint!],
           options.beforeRpc,

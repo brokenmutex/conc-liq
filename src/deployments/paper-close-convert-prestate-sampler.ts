@@ -25,6 +25,11 @@ import type {PaperCanonicalAnchor} from './paper-canonical-anchors.js';
 import type {PaperCloseConvertPostWithdrawEvidence} from './paper-close-convert-preflight.js';
 import type {EphemeralStaticPaperCloseConvertFeeReplay} from './paper-close-convert-ephemeral-fees.js';
 
+export type PaperCloseConvertPrestatePhase='owned_fork_open'|'restore'|'final_anchor'|
+ typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number];
+export type PaperCloseConvertPrestatePhaseTiming={stage:PaperCloseConvertPrestatePhase;
+ state:'completed'|'failed';durationMs:number};
+
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/),hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/),
  address=z.string().regex(/^0x[0-9a-fA-F]{40}$/),hex=z.string().regex(/^0x(?:[0-9a-fA-F]{2})+$/);
 const inventorySchema=z.object({principal0Raw:raw,principal1Raw:raw,idle0Raw:raw,idle1Raw:raw,
@@ -204,10 +209,21 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
  beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;now?:number;
  deterministicClock?:boolean;sampledAt?:string;
  prefetchHints?:readonly ForkReadHint[];
- onReadHints?:(hints:readonly ForkReadHint[])=>void}):Promise<PaperCloseConvertPrestateReport>{
+ onReadHints?:(hints:readonly ForkReadHint[])=>void;
+ onPhaseTiming?:(event:PaperCloseConvertPrestatePhaseTiming)=>void}):Promise<PaperCloseConvertPrestateReport>{
  const now=input.now??Date.now(),open=input.openModel,profile=marketProfileSchema.parse(input.profile),
   p=profile.pool,frame=input.frame,route=paperCloseConvertRouteSchema.parse(input.route),
   carry=input.feeCarry;
+ const measurePhase=async<T>(stage:PaperCloseConvertPrestatePhase,run:()=>Promise<T>):Promise<T>=>{
+  if(!input.onPhaseTiming)return run();
+  const startedAt=Date.now();let state:PaperCloseConvertPrestatePhaseTiming['state']='completed';
+  try{return await run();}
+  catch(error){state='failed';throw error;}
+  finally{
+   const durationMs=Math.min(86_400_000,Math.max(0,Math.trunc(Date.now()-startedAt)));
+   try{input.onPhaseTiming?.({stage,state,durationMs});}catch{/* Diagnostics must not affect sampling. */}
+  }
+ };
  assert.equal(input.feeReplay.kind,'paper_close_convert_ephemeral_fee_replay_v1');
  assert.equal(input.feeReplay.classification,'fork_estimated');
  assert.equal(input.feeReplay.to.block,frame.source.block);
@@ -239,15 +255,18 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
     {token:p.token1 as Address,spender:p.router as Address,amount:'0'}]};
  assert(BigInt(open.candidate.dilutedSharePpm)<=10_000n,
   'paper_close_convert_prestate_sampler_share_cap_one_percent');
- const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+ const fork=await measurePhase('owned_fork_open',()=>openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
   maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,
   deterministicClock:input.deterministicClock??false,
-  prefetchHints:input.prefetchHints,onReadHints:input.onReadHints});
+  prefetchHints:input.prefetchHints,onReadHints:input.onReadHints}));
  try{
   const local=await import('../client.js').then(({createRobinhoodClient})=>
    createRobinhoodClient(fork.localUrl,60_000,{retryCount:0}));
-  await new RangeKeeperChain(local,p).verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});
-  const {context,tokenId,position}=await restorePaperPosition(fork,policy,exitInventory);
+  const {context,tokenId,position}=await measurePhase('restore',async()=>{
+   await new RangeKeeperChain(local,p).verify({block:source.number,hash:source.hash,
+    timestamp:frame.source.timestamp});
+   return restorePaperPosition(fork,policy,exitInventory);
+  });
   assert.equal(position.liquidity,BigInt(open.candidate.liquidity));
   assert.equal(position.tickLower,open.candidate.range.tickLower);
   assert.equal(position.tickUpper,open.candidate.range.tickUpper);
@@ -267,7 +286,7 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
    allowancesBefore:Awaited<ReturnType<typeof allowances>>;allowancesAfter:Awaited<ReturnType<typeof allowances>>;
    balancesBefore:Awaited<ReturnType<typeof balances>>;balancesAfter:Awaited<ReturnType<typeof balances>>}[]=[];
   const send=async(stage:typeof PAPER_STATIC_CONVERT_GAS_STAGES_V2[number],to:Address,
-   calldata:`0x${string}`)=>{
+   calldata:`0x${string}`)=>measurePhase(stage,async()=>{
    const allowancesBefore=await allowances(),balancesBefore=await balances(),
     tx=await simulatePaperTransaction(fork,{action:stage,to,calldata},PAPER_ACCOUNT),
     allowancesAfter=await allowances(),balancesAfter=await balances();
@@ -276,7 +295,7 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
    assert(BigInt(tx.estimate.gas)>0n&&BigInt(tx.estimate.parentGas)<=BigInt(tx.estimate.gas));
    stageRows.push({stage,tx,allowancesBefore,allowancesAfter,balancesBefore,balancesAfter});
    return tx;
-  };
+  });
   const principal=principalAmounts({liquidity:BigInt(open.candidate.liquidity),
    tickLower:open.candidate.range.tickLower,tickUpper:open.candidate.range.tickUpper,
    sqrtPriceX96:frame.sqrtPriceX96}),deadline=source.timestamp+300n,bps=BigInt(route.slippageBps),
@@ -397,7 +416,8 @@ export async function samplePaperCloseConvertPrestate(input:{rpcUrl:string;openM
    sourceReplayHash=contentHash({kind:'paper_close_convert_prestate_source_replay_v1',reportHash,
     source:frame.source,openModelHash:contentHash(open),feeCarryHash:contentHash(carry),
     postWithdrawReplayHash:replay.replayHash,quoteHash:quote.quoteHash});
-  await input.verifyAnchors(p.chainId,[open.source,input.previous.source,frame.source]);
+  await measurePhase('final_anchor',()=>input.verifyAnchors(p.chainId,
+   [open.source,input.previous.source,frame.source]));
   return verifyPaperCloseConvertPrestateReport({...body,reportHash,postWithdraw,sourceReplayHash});
  }finally{await fork.close();}
 }

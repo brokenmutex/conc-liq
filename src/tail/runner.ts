@@ -119,6 +119,7 @@ export async function runTailCycle(input: {
             await input.rpcHealthGate!.assertBulkAllowed();
           },
         dryRun: false,
+        eventHeaderClient: input.historyClient === undefined ? undefined : input.client,
         liveClient: input.historyClient === undefined ? undefined : input.client,
         toBlock: safeHead,
       },

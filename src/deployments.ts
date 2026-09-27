@@ -68,6 +68,17 @@ async function main(){
   setupDiagnostic=setupDiagnosticsEnabled?
   (stage:string,reason:string)=>{try{log('warn','paper_setup_preparation_diagnostic',{stage,reason});}
    catch{}}:undefined;
+ const reportConversionStageTiming=(campaignId:string,stage:string,state:'completed'|'failed',
+  durationMs:number,preparationStartedAt:number,sourceTimestamp:number|null)=>{
+  if(!setupDiagnosticsEnabled)return;
+  const boundedMs=(value:number)=>Number.isFinite(value)?
+   Math.min(86_400_000,Math.max(0,Math.trunc(value))):null,
+   now=Date.now(),sourceAgeMs=sourceTimestamp===null?null:
+    boundedMs(now-sourceTimestamp*1000);
+  try{log('info','paper_conversion_prestate_stage_timing',{campaignId,stage,state,
+   durationMs:boundedMs(durationMs),elapsedMs:boundedMs(now-preparationStartedAt),sourceAgeMs});}
+  catch{/* Opt-in timing diagnostics never affect conversion preparation. */}
+ };
  const setupFrameDiagnostic=(campaignId:string,frame:PaperOpenFrame)=>{
   if(!setupDiagnosticsEnabled)return;
   try{
@@ -148,48 +159,75 @@ async function main(){
         'static_manual_conversion_preparation_busy'};}
       let previewLeaseRetained=false;
       let conversionPrestateStage='saved_state';
+      const conversionPreparationStartedAt=Date.now();
+      let conversionFrameTimestamp:number|null=null;
+      const conversionStage=async<T>(stage:string,run:()=>Promise<T>):Promise<T>=>{
+       const startedAt=Date.now();
+       try{
+        const result=await run();
+        reportConversionStageTiming(campaignId,stage,'completed',Date.now()-startedAt,
+         conversionPreparationStartedAt,conversionFrameTimestamp);
+        return result;
+       }catch(error){
+        reportConversionStageTiming(campaignId,stage,'failed',Date.now()-startedAt,
+         conversionPreparationStartedAt,conversionFrameTimestamp);
+        throw error;
+       }
+      };
       try{
        const valuation=await store.paperValuationState(campaignId);
        conversionPrestateStage='fee_context';
-       const context=await readStaticPaperCloseConvertFeeContext({store,campaignId,
+       const context=await conversionStage('fee_context',()=>readStaticPaperCloseConvertFeeContext({store,campaignId,
          revision:valuation.openModel.revision,verifyAnchors:(chainId,sources)=>
-          verifyCanonicalPaperAnchors(client,chainId,sources)});
+          verifyCanonicalPaperAnchors(client,chainId,sources)}));
        conversionPrestateStage='replay_head';
-       const frame=await waitCanonicalPaperReplayHeadFrame({client,indexer,
+       const frame=await conversionStage('replay_head',async()=>{
+        const selected=await waitCanonicalPaperReplayHeadFrame({client,indexer,
          profile:context.state.profile,stream:context.stream,targetSetHash:context.targetSetHash,
          previous:context.state.previous,assertPreparationLeaseHealthy:()=>preparationLease.assertHealthy()});
+        conversionFrameTimestamp=selected.source.timestamp;
+        return selected;
+       });
        setupFrameDiagnostic(campaignId,frame);
        await preparationLease.assertHealthy();
        conversionPrestateStage='route';
        const route=buildStaticPaperCloseConvertRoute(context.state);
        conversionPrestateStage='fee_replay';
-       const feeReplay=await replayEphemeralStaticPaperCloseConvertFees({context,client,indexer,frame});
+       const feeReplay=await conversionStage('fee_replay',()=>replayEphemeralStaticPaperCloseConvertFees(
+        {context,client,indexer,frame}));
        conversionPrestateStage='owned_fork_sample';
-       const report=await samplePaperCloseConvertPrestate({rpcUrl:env.PAPER_FORK_RPC_URL,
+       const report=await conversionStage('owned_fork_sample',()=>samplePaperCloseConvertPrestate({
+        rpcUrl:env.PAPER_FORK_RPC_URL!,
          openModel:context.state.openModel,openMarkId:context.state.openMarkId,
          profile:context.state.profile,frame,previous:{markId:context.state.previous.markId,
           source:context.state.previous.source},route,feeCarry:feeReplay.feeCarry,feeReplay,
          verifyPersistedContext:()=>context.verifyPersistedContext({state:context.state,
           feeCarry:context.feeCarry,feeEvidence:context.feeEvidence,source:frame.source}),
          verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
-         beforeRead:async()=>{},deterministicClock:true});
+         beforeRead:async()=>{},deterministicClock:true,
+         ...(setupDiagnosticsEnabled?{onPhaseTiming:(event:{stage:string;state:'completed'|'failed';
+          durationMs:number})=>reportConversionStageTiming(campaignId,event.stage,event.state,event.durationMs,
+           conversionPreparationStartedAt,conversionFrameTimestamp)}:{})}));
        await preparationLease.assertHealthy();
        conversionPrestateStage='gas_registration';
-       await store.registerStaticPaperCloseConvertPrestateGas({report,
+       await conversionStage('gas_registration',()=>store.registerStaticPaperCloseConvertPrestateGas({report,
         verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources),
         verifyFeeReplay:async()=>{
          const current=await readStaticPaperCloseConvertFeeContext({store,campaignId,
           revision:context.state.openModel.revision,verifyAnchors:(chainId,sources)=>
-           verifyCanonicalPaperAnchors(client,chainId,sources)});
+          verifyCanonicalPaperAnchors(client,chainId,sources)});
          return replayEphemeralStaticPaperCloseConvertFees({context:current,client,indexer,frame});
-        }});
+        }}));
        conversionPrestateStage='cost_profiles';
-        const gasPriceWei=await client.getGasPrice(),sizeBand=
-        buildProspectivePaperCloseConvertPrestateGasProfiles(report).sizeBand,prestateCostProfiles=
-        await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
-         poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:report.reportHash});
+        const {gasPriceWei,prestateCostProfiles}=await conversionStage('cost_profiles',async()=>{
+         const gasPriceWei=await client.getGasPrice(),sizeBand=
+          buildProspectivePaperCloseConvertPrestateGasProfiles(report).sizeBand,prestateCostProfiles=
+          await store.staticPaperCloseConvertPrestateGasProfiles({chainId:context.state.profile.pool.chainId,
+           poolAddress:context.state.profile.pool.pool,sizeBand,reportHash:report.reportHash});
+         return {gasPriceWei,prestateCostProfiles};
+        });
        conversionPrestateStage='preview_persistence';
-       const saved=await persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
+       const saved=await conversionStage('preview_persistence',()=>persistStaticPaperCloseConvertPreviewFromPersistedFees({store,campaignId,
         expectedRevision:context.state.openModel.revision,client,indexer,frame,
         postWithdraw:report.postWithdraw,prestateReport:report,prestateCostProfiles,gasPriceWei,
         verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
@@ -210,7 +248,7 @@ async function main(){
           gasStages:report.gasStages.map(stage=>({stage:stage.stage,source:stage.source,
            sourceHash:stage.sourceHash,callHash:stage.callHash,
            gasUnitsExpected:stage.gasUnitsExpected,gasUnitsBound:stage.gasUnitsBound}))};
-        }});
+        }}));
        await preparationLease.assertHealthy();
        preparationLease.retainUntil(new Date(saved.expiresAt));previewLeaseRetained=true;
        return saved;

@@ -287,6 +287,83 @@ describe("historical data verification", () => {
     assert.equal(mutations, 0);
   });
 
+  async function headerRouting(input: {
+    eventBlock?: bigint;
+    eventHeaderClient?: boolean;
+    liveEventHash?: Hash;
+  }) {
+    const loaded = await loadPoolManifest("config/indexer-pools.json");
+    const pool = loaded.pools[0]!;
+    const eventBlock = input.eventBlock ?? 101n;
+    const eventHash = blockHash;
+    const manifest = { ...loaded, pools: loaded.pools.map((item) => ({ ...item, createdBlock: 100n })) };
+    const indexerConfig = loadIndexerConfig({
+      INDEXER_INITIAL_CHUNK_SIZE: "100", INDEXER_MAX_CHUNK_SIZE: "100",
+      INDEXER_MIN_CHUNK_SIZE: "100", INDEXER_REORG_OVERLAP: "0",
+    });
+    const historyReads: bigint[] = [];
+    const liveReads: bigint[] = [];
+    const chunkSaves: unknown[] = [];
+    const hashAt = (number: bigint): Hash => number === eventBlock ? eventHash : `0x${"44".repeat(32)}` as Hash;
+    const block = (number: bigint, hash: Hash) => ({
+      number, hash, parentHash: `0x${"55".repeat(32)}` as Hash, timestamp: number,
+    });
+    const historical = {
+      async getBlock({ blockNumber }: { blockNumber: bigint }) {
+        historyReads.push(blockNumber);return block(blockNumber, hashAt(blockNumber));
+      },
+      async getLogs() { return [{ ...event, address: pool.address, blockNumber: eventBlock,
+        blockHash: eventHash, removed: false }]; },
+    } as unknown as RobinhoodClient;
+    const live = {
+      async getBlock({ blockNumber }: { blockNumber: bigint }) {
+        liveReads.push(blockNumber);
+        return block(blockNumber, blockNumber === eventBlock ? input.liveEventHash ?? eventHash : hashAt(blockNumber));
+      },
+    } as unknown as RobinhoodClient;
+    const store = {
+      async assertReady() {}, async registerManifest() {}, async getCursor() { return null; },
+      async rewind() {}, async saveChunk(chunk: unknown) { chunkSaves.push(chunk); },
+    } as unknown as PostgresEventStore;
+    let failure: unknown;
+    try {
+      await runBackfill(historical, manifest, indexerConfig, {
+        dryRun: false, toBlock: 103n, liveClient: live,
+        ...(input.eventHeaderClient ? { eventHeaderClient: live } : {}),
+      }, store);
+    } catch (error) { failure = error; }
+    return { historyReads, liveReads, chunkSaves, failure };
+  }
+
+  it("uses the historical provider for event headers by default", async () => {
+    const result = await headerRouting({});
+    assert(result.historyReads.includes(101n));
+    assert(!result.liveReads.includes(101n));
+    assert.equal(result.chunkSaves.length, 1);
+    assert.equal(result.failure, undefined);
+  });
+
+  it("uses the explicit live header client and rejects a mismatched event hash", async () => {
+    const success = await headerRouting({ eventHeaderClient: true });
+    assert(success.liveReads.includes(101n));
+    assert(!success.historyReads.includes(101n));
+    assert.equal(success.chunkSaves.length, 1);
+    assert.equal(success.failure, undefined);
+
+    const mismatch = await headerRouting({ eventHeaderClient: true, liveEventHash: event.transactionHash as Hash });
+    assert(mismatch.liveReads.includes(101n));
+    assert.equal(mismatch.chunkSaves.length, 0);
+    assert.match(String(mismatch.failure), /event block header does not match indexed logs/i);
+  });
+
+  it("reuses a known chunk-end header without a redundant event-header request", async () => {
+    const result = await headerRouting({ eventBlock: 103n, eventHeaderClient: true });
+    assert.equal(result.liveReads.filter((number) => number === 103n).length, 2,
+      "only the pre/post history-boundary checks should read the live chunk end");
+    assert.equal(result.chunkSaves.length, 1);
+    assert.equal(result.failure, undefined);
+  });
+
   it("rejects removed, out-of-range, and duplicate provider logs", async () => {
     const manifest = await loadPoolManifest("config/indexer-pools.json");
     const entry = { ...event, address: manifest.pools[0]!.address, removed: false };

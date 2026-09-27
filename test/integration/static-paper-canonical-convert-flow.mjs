@@ -47,6 +47,11 @@ const phase=(name,details={})=>{
 const clean=value=>String(value??'').replace(/https?:\/\/[^\s"']+/gi,'[redacted-url]');
 const setupDiagnosticEvents=[];let setupDiagnosticSequence=0;
 const replayHeadFrameEvents=[];
+const conversionStageTimings=[];
+const conversionTimingStages=new Set(['fee_context','replay_head','fee_replay','owned_fork_sample',
+ 'gas_registration','cost_profiles','preview_persistence','owned_fork_open','restore','withdraw_collect',
+ 'approve_swap_input','swap','cleanup_manager_token0','cleanup_manager_token1',
+ 'cleanup_router_token0','cleanup_router_token1','final_anchor']);
 const setupDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1'?
  {DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS:'1'}:{};
 const workerDiagnosticOptIn=process.env.DEPLOYMENT_PAPER_WORKER_DIAGNOSTICS==='1'?
@@ -73,7 +78,7 @@ const safeDiagnosticValue=value=>{
  return null;
 };
 async function preserveConvertFailureEvidence({admin,campaignId,error,operationId,
- runtimeIdentity,feeContext,previewAttempt,replayHeadFrames,diagnostics}){
+ runtimeIdentity,feeContext,previewAttempt,replayHeadFrames,stageTimings,diagnostics}){
  const evidenceRoot=process.env.TEST_BROWSER_EVIDENCE_DIR;
  if(!evidenceRoot||!campaignId)return;
  const evidence={schemaVersion:1,capturedAt:new Date().toISOString(),campaignId,
@@ -81,6 +86,7 @@ async function preserveConvertFailureEvidence({admin,campaignId,error,operationI
    code:safeDiagnosticValue(error?.code)},runtimeIdentity,previewAttempt,
   setupDiagnostics:diagnostics.slice(-32),stages:phaseHistory.slice(-64),
   conversionCandidateFrame:replayHeadFrames.filter(frame=>frame.campaignId===campaignId).at(-1)??null,
+  conversionStageTimings:stageTimings.filter(item=>item.campaignId===campaignId).slice(-64),
   feeContext:null,feeContextOmittedReason:null,operationSnapshots:[],markSources:[],
   terminalPreviews:[]};
  if(feeContext){
@@ -393,6 +399,24 @@ async function main(){
         phase('conversion_candidate_frame_captured',{campaignId:frame.campaignId,
          sourceBlock:frame.source.block,frameHash:frame.frameHash});
        }
+      }
+      if(['command','worker'].includes(key)&&row.event==='paper_conversion_prestate_stage_timing'&&
+       typeof row.campaignId==='string'&&/^[0-9a-f-]{36}$/i.test(row.campaignId)&&
+       typeof row.stage==='string'&&conversionTimingStages.has(
+        row.stage.startsWith('terminal_')?row.stage.slice('terminal_'.length):row.stage)&&
+       ['completed','failed'].includes(row.state)&&
+       Number.isSafeInteger(row.durationMs)&&row.durationMs>=0&&row.durationMs<=86_400_000&&
+       Number.isSafeInteger(row.elapsedMs)&&row.elapsedMs>=0&&row.elapsedMs<=86_400_000&&
+       (row.sourceAgeMs===null||(Number.isSafeInteger(row.sourceAgeMs)&&
+        row.sourceAgeMs>=0&&row.sourceAgeMs<=86_400_000))&&
+       (row.operationId===undefined||(typeof row.operationId==='string'&&
+        /^[0-9a-f-]{36}$/i.test(row.operationId)))){
+       const timing={campaignId:row.campaignId,stage:row.stage,state:row.state,
+        durationMs:row.durationMs,elapsedMs:row.elapsedMs,sourceAgeMs:row.sourceAgeMs};
+       if(row.operationId)timing.operationId=row.operationId;
+       conversionStageTimings.push(timing);
+       if(conversionStageTimings.length>128)conversionStageTimings.shift();
+       phase('conversion_prestate_stage_timing',timing);
       }
       if(key==='worker'&&row.event==='paper_operation_terminal_verifier_failure'&&
        typeof row.stage==='string'&&/^[a-z0-9_]{1,80}$/.test(row.stage)&&
@@ -951,6 +975,7 @@ async function main(){
   }
   console.log(JSON.stringify({status:'canonical_static_convert_browser_passed',checks,campaignId,
    openOperationId,convertOperationId,openStage:openTerminal.stage,convertStage:terminal.stage,
+   conversionStageTimings:conversionStageTimings.filter(item=>item.campaignId===campaignId).slice(-64),
    terminalMarks:markCount,modeledLedgerRows:ledgerCount,paidGasRows:paid,
    conversionAccountingStatus:position.deployment.conversionAccountingStatus,
    terminalInventory:position.inventory,provisionalConversion:position.deployment.accounting.conversion,
@@ -1051,7 +1076,7 @@ async function main(){
   }
   try{await preserveConvertFailureEvidence({admin,campaignId,error,operationId:convertOperationId,
    runtimeIdentity:accountingIdentity,feeContext:feeContextAtReadiness,previewAttempt,
-   replayHeadFrames:replayHeadFrameEvents,
+   replayHeadFrames:replayHeadFrameEvents,stageTimings:conversionStageTimings,
    diagnostics:[...setupDiagnosticEvents.map(({stage,reason})=>({source:'command',stage,reason})),
     ...workerDiagnosticEvents.map(item=>({source:'worker',...item}))]});}
   catch(evidenceError){phase('failure_evidence_capture_error',{
