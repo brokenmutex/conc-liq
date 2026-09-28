@@ -302,9 +302,107 @@ P&L is -1.186705 and the comparison against holding is -1.178417. The campaign
 lost money net of costs and the interface says so without softening it. Modeled
 and paid values stay labelled distinctly. D5 and D7 remain open.
 
+### D7 passes: the accounting reconciles
+
+Reconciled the one closed live RangeKeeper campaign's session attribution
+against its lifetime totals at the one-week window, in raw six-decimal units:
+
+| Quantity | Lifetime | Sum of session rows | Difference |
+| --- | --- | --- | --- |
+| Net P&L | -1,186,705 | -1,186,705 | 0 |
+| Swap cost | 1,135,344 | 1,135,341 | 3 |
+| Paid gas | 912,659 | 912,633 | 26 |
+| LP fees | 1,857,850 | 1,848,727 | 9,123 |
+
+Net P&L reconciles exactly. Gas and swap differ by 26 and 3 raw units, which is
+0.0026 and 0.0003 of a cent. Fees differ by 9,123 raw units, about nine tenths
+of a cent, which is worth one follow-up but is immaterial to any decision.
+Covered hours reconcile exactly at 30.864 against a campaign duration of
+30.864, with no recorded gaps across 3,338 marks.
+
+The reconciliation only closes when the `mixed_boundary` bucket is included. It
+carries zero hours but a net P&L of 197,537 and fees of 18,857, and it exists
+precisely so that movement across a session boundary is not silently dropped.
+A first reading here filtered it out and manufactured a 0.198 discrepancy that
+does not exist; the design is correct and the earlier reading was not.
+
+That bucket does expose a latent inconsistency between the two table renderers.
+`renderBottom` includes a zero-hour bucket whenever any value is non-zero or
+null, so the boundary interval appears. `renderDeploymentBottom` filters on
+`b.hours>0||b.activeHours>0||modeled&&(...)`, so for a deployment position that
+is not modeled the third clause never runs and a zero-hour bucket carrying real
+P&L is dropped from the table. Today this is masked, because a non-modeled
+deployment renders every economic column as an em dash anyway. It becomes a
+live defect the moment paid-cost evidence lands for deployments while `modeled`
+remains false.
+
+### D5 fails: recorded evidence is unreachable past one week
+
+The detail endpoint windows both marks and events to the selected chart period,
+and the selector offers only 1, 6, 24 and 168 hours. Measured against the three
+closed live positions in production:
+
+| Position | Ended | Events at 24h | Events at 168h |
+| --- | --- | --- | --- |
+| `live-rk-31802d63` | 2026-09-23 | 0 | 54 |
+| `live-rk-470e5f84` | 2026-09-22 | 0 | 20 |
+| `live-f8affe19` | 2026-09-15 | 0 | 0 |
+
+Two consequences, both current. First, at the default 24-hour window every
+closed position in production opens to an empty Activity tab, an empty session
+table and an empty chart, directly beside a row that displays complete
+economics. The operator is shown a number and, one click later, nothing that
+substantiates it. Second, `live-f8affe19` ended thirteen days ago, so its
+evidence is unreachable at every window the interface offers, while its row
+still reports 276.295 of initial capital and a closed lifecycle. The
+RangeKeeper receipts panel compounds this by capping its list at the latest
+five of fifty-four.
+
+For a system whose entire discipline is retained, replayable evidence, the
+interface cannot answer what happened for anything older than a week. This is
+the D5 verdict and it is a defect, not an altitude question.
+
+### Track 1a results
+
+Sixteen unit cases landed in `test/dashboard-usability-format.test.ts`,
+integrated onto main and verified independently here: `npm run check` passes
+936 tests, 85 suites, zero failures, exit 0.
+
+U7 is confirmed as suspected. Every recognised server error reaches the caller
+as a bare identifier, because `rawRequest` returns `data.error` with no
+translation layer; only the unrecognised fallback produces a sentence. A 503
+`dashboard_read_source_unavailable` and a 403 `csrf_mismatch` are
+indistinguishable in shape to any caller, so severity is not conveyed.
+
+Two further findings came out of that work. `preflight_source_expired` is
+emitted both for a stale source and for a future, clock-skewed source, so the
+operator cannot tell old evidence from a wrong clock. And
+`formatSetupTokenAmount` maps a negative raw amount to the same "Unavailable"
+string as a genuinely absent one, so a corrupt server value and missing data
+read identically.
+
+U6 is substantially blocked rather than complete. The only staleness rule
+reachable from an exported module is the 180-second preflight freshness window
+inside `reviewStaticPaperDraftBinding`, which is not the live-data staleness
+indicator U6 is about. `dashboard/app.js` has zero exports, so `money`, `units`,
+`condition`, `costToFee`, `ageLabel`, `date`, `normalize` and `needsAttention`
+are unreachable from unit tests. Completing U6 needs either the browser harness
+or an export change, and the export change must be owned by one track rather
+than raced.
+
 ### Consequence for the plan
 
 D3 becomes the first implementation candidate, and it is cheap: the evidence,
 the query and the rendering precedent all exist. P3 is reversed, because the
 441 ms `/api/dashboard` payload is not dead weight to delete but the carrier of
 the missing signal.
+
+D5 joins D3 as a first-rank candidate and is the more surprising of the two,
+because the evidence is retained and replayable in the database while the
+interface cannot reach it. The fix is a window selector that admits a campaign
+lifetime rather than a fixed 168-hour ceiling, plus a default window that
+accounts for a closed campaign's end date instead of the present moment.
+
+D7 passing is what makes the other verdicts worth acting on: the figures the
+interface reports do reconcile to the canonical record, so a gap in the
+interface is a presentation gap rather than an accounting one.
