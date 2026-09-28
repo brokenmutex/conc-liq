@@ -20,6 +20,8 @@ export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:(
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
  paperSetupDraftList?:()=>Promise<unknown>;
+ paperSetupDraftDelete?:(campaignId:string)=>Promise<unknown>;
+ setupDefaults?:()=>{walletAddress:string|null};
  dashboardRead?:(path:string)=>Promise<unknown>;
  paperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperRetainAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
@@ -182,6 +184,9 @@ export function createDeploymentCommandServer(store:CommandStore,
     send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',
      paper:id==='static_manual_v1'&&staticPaperAvailable,live:false}))});return;
    }
+   if(path==='/api/deployments/setup-defaults'&&request.method==='GET'){
+    send(response,200,options.setupDefaults?.()??{walletAddress:null});return;
+   }
    if(path==='/api/market-profiles'&&request.method==='GET'){
     send(response,200,{profiles:await store.listMarketProfiles()});return;
    }
@@ -189,6 +194,18 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!options.paperSetupDraftList){send(response,503,{error:'paper_setup_draft_list_unavailable'});return;}
     try{send(response,200,{drafts:await options.paperSetupDraftList()});}
     catch{send(response,503,{error:'paper_setup_draft_list_unavailable'});}
+    return;
+   }
+   const deleteSetupDraft=path.match(/^\/api\/deployments\/setup-drafts\/([^/]+)$/);
+   if(deleteSetupDraft&&request.method==='DELETE'){
+    if(!options.paperSetupDraftDelete){send(response,503,{error:'paper_setup_draft_delete_unavailable'});return;}
+    try{send(response,200,await options.paperSetupDraftDelete(z.uuid().parse(deleteSetupDraft[1])));}
+    catch(error){
+     if(error instanceof DeploymentConflict&&error.code==='campaign_not_found'){
+      send(response,404,{error:error.code});return;
+     }
+     throw error;
+    }
     return;
    }
    if(path==='/api/deployments/setup-preflight'&&request.method==='POST'){

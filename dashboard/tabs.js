@@ -36,6 +36,21 @@ function rawToDecimal(value, decimals) {
   return fraction ? `${whole}.${fraction}` : whole;
 }
 
+export function formatSetupTokenAmount(raw, decimals, symbol) {
+  const name = typeof symbol === 'string' && symbol.trim() ? symbol.trim() : 'token';
+  if (decimals === null || decimals === undefined || String(decimals).trim() === '') return `${String(raw ?? 'Unavailable')} raw ${name} (decimals unavailable)`;
+  const places = Number(decimals);
+  if (!Number.isSafeInteger(places) || places < 0 || places > 36) return `${String(raw ?? 'Unavailable')} raw ${name} (decimals unavailable)`;
+  const amount = rawToDecimal(raw, places);
+  return amount ? `${amount} ${name}` : `Unavailable ${name}`;
+}
+
+export function formatSetupCreatedAt(value) {
+  const timestamp = Date.parse(String(value ?? ''));
+  if (!Number.isFinite(timestamp)) return 'Unavailable';
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' }).format(timestamp);
+}
+
 export function humanSetupLimitsToRaw(limits) {
   if (!limits || typeof limits !== 'object') return null;
   const result = {};
@@ -269,7 +284,8 @@ function bootDashboardTabs() {
       (current + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length;
     tabs[index].focus(); selectTab(tabs[index]); event.preventDefault();
   });
-  tabs.forEach((tab, index) => { tab.tabIndex = index === 0 ? 0 : -1; });
+  tabs.forEach((tab) => { tab.tabIndex = tab.getAttribute('aria-selected') === 'true' ? 0 : -1; });
+  selectTab(tabs.find((tab) => tab.getAttribute('aria-selected') === 'true') ?? tabs[0]);
 
   const poolSelect = document.getElementById('setup-pool');
   const widthSelect = document.getElementById('setup-width');
@@ -298,6 +314,8 @@ function bootDashboardTabs() {
   const pendingDraftStorageKey='concliq.operator.static-paper-draft.pending.v1';
   const pendingOpenStorageKey='concliq.operator.paper-open.pending.v1';
   let pendingDraftPersistenceAvailable=true;
+  let walletAddressManuallyEdited=false;
+  let setupDefaultsLoaded=false;
   let pendingOpenAcceptance=null;
   try{
     const saved=JSON.parse(localStorage.getItem(pendingDraftStorageKey)??'null');
@@ -342,29 +360,37 @@ function bootDashboardTabs() {
     }).join('');
     widthSelect.value = String(spacing * 4); widthSelect.disabled = false;
   }
+  function replacePoolOptions() {
+    const selectedPool = poolSelect.value;
+    const selectedWidth = widthSelect.value;
+    poolSelect.innerHTML = registeredPools.map((pool) =>
+      `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
+    if (registeredPools.some((pool) => pool.poolAddress.toLowerCase() === selectedPool.toLowerCase())) poolSelect.value = selectedPool;
+    poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
+    if ([...widthSelect.options].some((option) => option.value === selectedWidth)) widthSelect.value = selectedWidth;
+  }
   const renderPools = (snapshot) => {
     researchPools = (snapshot.pools ?? []).filter((pool) => pool.registryEnabled === true);
     registeredPools = researchPools
       .sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
     if (marketProfiles.length) applyProfileIds();
     if (!registeredPools.length) throw new Error('No enabled registered pools are available');
-    poolSelect.innerHTML = registeredPools.map((pool) =>
-      `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
-    poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
+    replacePoolOptions();
     applySuggestedLimitValues();
   };
   function applyProfileIds() {
     registeredPools = marketProfiles.filter((profile) => profile.draftAvailable === true).map((profile) => {
       const pool = researchPools.find((candidate) => candidate.poolAddress?.toLowerCase() === profile.pool?.toLowerCase() && candidate.fee === profile.fee);
-      const tokenAddress = profile.quoteToken === 0 ? profile.token1 : profile.token0;
+      const rwaReference = profile.quoteToken === 0 ? profile.reference1 : profile.reference0;
+      const rwaName = String(rwaReference ?? '').split('/')[0];
       return { ...(pool ?? {}), poolAddress: profile.pool, fee: profile.fee, tickSpacing: profile.tickSpacing,
         marketProfileId: profile.id, registryEnabled: true,
-        rwaSymbol: pool?.rwaSymbol ?? `${String(tokenAddress ?? 'Pool').slice(0, 8)}…` };
+        rwaSymbol: pool?.rwaSymbol ?? (rwaName || `Pool ${String(profile.pool).slice(0, 8)}…`),
+        token0: profile.token0, token1: profile.token1, decimals0: profile.decimals0, decimals1: profile.decimals1,
+        reference0: profile.reference0, reference1: profile.reference1, quoteToken: profile.quoteToken };
     }).sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
     if (!registeredPools.length) throw new Error('No verified, indexed market profiles are available for setup.');
-    poolSelect.innerHTML = registeredPools.map((pool) =>
-      `<option value="${esc(pool.poolAddress)}">${esc(pool.rwaSymbol)} / USDG · ${pool.fee / 10000}% fee tier · spacing ${pool.tickSpacing}</option>`).join('');
-    poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
+    replacePoolOptions();
     applySuggestedLimitValues();
   }
   const loadResearch = async () => {
@@ -594,6 +620,7 @@ function bootDashboardTabs() {
     document.getElementById(id).addEventListener('input',updateDraftBinding);
     document.getElementById(id).addEventListener('change',updateDraftBinding);
   }
+  document.getElementById('setup-wallet-address').addEventListener('input',()=>{walletAddressManuallyEdited=true;});
   document.getElementById('setup-form').addEventListener('submit', runSetupReview);
 
   const draftStatus=document.getElementById('setup-draft-submit-status');
@@ -783,18 +810,28 @@ function bootDashboardTabs() {
     if(!rows.length){status.textContent='No saved static/manual paper drafts are available.';return;}
     status.textContent=`${rows.length} saved draft${rows.length===1?'':'s'} · configuration only; source and cost evidence must be refreshed.`;
     for(const draft of rows){
-      const card=document.createElement('article');card.className='saved-paper-draft';
-      const heading=document.createElement('h3');heading.textContent=`Draft ${draft.id} · revision ${draft.revision}`;card.append(heading);
+      const card=document.createElement('article');card.className='saved-paper-draft';card.dataset.campaignId=draft.id;
+      const profile=marketProfiles.find((candidate)=>candidate.id===draft.marketProfileId)??draft;
+      const pool=researchPools.find((candidate)=>candidate.poolAddress?.toLowerCase()===draft.pool.toLowerCase()&&candidate.fee===draft.fee);
+      const token0Symbol=String(profile?.reference0??'').split('/')[0]||shortToken(profile?.token0);
+      const token1Symbol=String(profile?.reference1??'').split('/')[0]||shortToken(profile?.token1);
+      const quoteToken=profile?.quoteToken;
+      const riskSymbol=String((quoteToken===0?profile?.reference1:profile?.reference0)??'').split('/')[0]||
+        (pool?.rwaSymbol??(quoteToken===0?token1Symbol:token0Symbol));
+      const pairName=`${riskSymbol} / USDG`;
+      const decimals0=profile?.decimals0??draft.decimals0;
+      const decimals1=profile?.decimals1??draft.decimals1;
+      const heading=document.createElement('h3');heading.textContent=`${pairName} · ${(draft.fee/10000).toFixed(2)}% fee · draft ${draft.id} · revision ${draft.revision}`;card.append(heading);
       const facts=document.createElement('dl');
       const config=draft.config,range=Number.isSafeInteger(config.halfWidthTicks)?`Centered half-width · ${config.halfWidthTicks} ticks`:
         Number.isSafeInteger(config.tickLower)&&Number.isSafeInteger(config.tickUpper)?`Saved tick bounds · ${config.tickLower} to ${config.tickUpper}`:'Saved range unavailable';
       const rows=[['Lifecycle','Draft · no operation accepted'],['Wallet identity',draft.wallet],
-        ['Registered pool / fee',`${draft.pool} · ${draft.fee} · spacing ${draft.tickSpacing}`],
+        ['Registered pool / fee',`${pairName} · ${draft.fee/10000}% fee tier · spacing ${draft.tickSpacing}`],
         ['Market profile ID / hash',`${draft.marketProfileId} · ${draft.profileHash}`],['Saved configuration hash',draft.configHash],
-        ['Allocation · token0/token1 raw',`${draft.allocation.token0Raw??'Unavailable'} / ${draft.allocation.token1Raw??'Unavailable'}`],
+        ['Simulated allocation',`${formatSetupTokenAmount(draft.allocation.token0Raw,decimals0,token0Symbol)} · ${formatSetupTokenAmount(draft.allocation.token1Raw,decimals1,token1Symbol)}`],
         ['Native allocation · native units',rawToDecimal(draft.allocation.nativeWei??'',18)||'Unavailable'],[ 'Range configuration',range],
         ...Object.entries(rawSetupLimitsToHuman(config.limits)??{}).map(([key,value])=>[limitLabels[key]??key,String(value)]),
-        ['Created',String(draft.createdAt??'Unavailable')],['Funding','Unchecked'],
+        ['Created · New York time',formatSetupCreatedAt(draft.createdAt)],['Funding','Unchecked'],
         ['Current source / current costs','Unavailable · request a fresh preview']];
       for(const [label,value]of rows){const cell=document.createElement('div'),dt=document.createElement('dt'),dd=document.createElement('dd');
         dt.textContent=label;dd.textContent=value;cell.append(dt,dd);facts.append(cell);}
@@ -805,7 +842,34 @@ function bootDashboardTabs() {
       const actionStatus=document.createElement('p');actionStatus.className='draft-action-status';actionStatus.setAttribute('role','status');
       actionStatus.textContent='No open operation is submitted until a fresh preview is explicitly actionable and confirmed.';
       button.addEventListener('click',()=>{if(window.concliqOperatorAuthenticated?.())void requestFreshOpenPreview(draft.id,actionStatus,button);});
-      actions.append(button,actionStatus);card.append(actions);list.append(card);
+      const deleteButton=document.createElement('button');deleteButton.type='button';deleteButton.className='delete-paper-draft';deleteButton.textContent='Delete draft';
+      const deleteConfirm=document.createElement('span');deleteConfirm.className='delete-draft-confirm';deleteConfirm.hidden=true;
+      const confirmText=document.createElement('span');confirmText.textContent='Delete this unaccepted draft? Its audit history will be retained.';
+      const confirmButton=document.createElement('button');confirmButton.type='button';confirmButton.className='confirm-delete-paper-draft';confirmButton.textContent='Confirm delete';
+      const cancelButton=document.createElement('button');cancelButton.type='button';cancelButton.textContent='Cancel';
+      const deleteStatus=document.createElement('p');deleteStatus.className='draft-action-status delete-draft-status';deleteStatus.setAttribute('role','status');
+      deleteButton.disabled=!window.concliqOperatorAuthenticated?.();
+      deleteButton.addEventListener('click',()=>{deleteConfirm.hidden=false;deleteStatus.textContent='';});
+      cancelButton.className='cancel-delete-paper-draft';cancelButton.addEventListener('click',()=>{deleteConfirm.hidden=true;});
+      confirmButton.addEventListener('click',async()=>{
+        if(!window.concliqOperatorAuthenticated?.())return;
+        confirmButton.disabled=true;cancelButton.disabled=true;deleteButton.disabled=true;deleteStatus.textContent='Deleting draft and retaining its audit history…';
+        try{
+          const result=await authRequest(`/api/deployments/setup-drafts/${encodeURIComponent(draft.id)}`,{method:'DELETE',csrf:true});
+          if(result?.status!=='deleted'||result.campaignId!==draft.id)throw new Error('draft_delete_response_invalid');
+          if(pendingOpenAcceptance?.campaignId===draft.id)clearPendingOpen();
+          if(savedDraftId===draft.id){
+            invalidateReview();
+            setSetupStatus('Draft deleted. Review setup again to create a new draft.');
+          }
+          deleteStatus.textContent='Draft deleted. Its audit history was retained.';
+          await loadSavedPaperDrafts();
+        }catch(error){
+          confirmButton.disabled=false;cancelButton.disabled=false;deleteButton.disabled=false;
+          deleteStatus.textContent=`Draft could not be deleted (${error?.data?.error??error?.message??'command_failed'}).`;
+        }
+      });
+      deleteConfirm.append(confirmText,confirmButton,cancelButton);actions.append(button,deleteButton,deleteConfirm,actionStatus,deleteStatus);card.append(actions);list.append(card);
     }
   }
   async function loadSavedPaperDrafts(){
@@ -861,6 +925,18 @@ function bootDashboardTabs() {
     connectionRetry.disabled=false;
     notifyAuthChanged();
   }
+  async function loadSetupDefaults() {
+    if (setupDefaultsLoaded || !operatorSession.isReady() || !onOperatorOrigin) return;
+    try {
+      const defaults = await authRequest('/api/deployments/setup-defaults');
+      setupDefaultsLoaded = true;
+      const walletInput = document.getElementById('setup-wallet-address');
+      if (!walletAddressManuallyEdited && !pendingDraftRequestId && !walletInput.value.trim() && EVM_ADDRESS.test(defaults?.walletAddress ?? '')) {
+        walletInput.value = defaults.walletAddress;
+        updateDraftBinding();
+      }
+    } catch { /* An unavailable optional default leaves the operator's form untouched. */ }
+  }
   async function loadOperatorDataOnce() {
     if (!onOperatorOrigin || !operatorSession.isReady()) return;
     if (!operatorDataLoadPromise) {
@@ -883,6 +959,8 @@ function bootDashboardTabs() {
         throw error;
       });
     }
+    await operatorDataLoadPromise;
+    await loadSetupDefaults();
     return operatorDataLoadPromise;
   }
   async function connectOperator() {

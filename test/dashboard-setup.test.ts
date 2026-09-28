@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -55,6 +55,14 @@ it('converts human setup limits and native amounts to exact integer units', () =
   assert.equal(setupNativeAllocationToWei('0.001'),'1000000000000000');
   assert.equal(setupNativeAllocationToWei('0.0000000000000000001'),null);
   assert.equal(humanSetupLimitsToRaw({...human,maxDeploymentValue:'0.0000000000000000001'}),null);
+});
+
+it('formats saved token allocations with registered decimals and creation time in New York time', () => {
+  assert.equal(formatSetupTokenAmount('123456789', 6, 'AAPL'), '123.456789 AAPL');
+  assert.equal(formatSetupTokenAmount('250000000', 6, 'USDG'), '250 USDG');
+  assert.equal(formatSetupTokenAmount('123456789', undefined, 'AAPL'), '123456789 raw AAPL (decimals unavailable)');
+  assert.match(formatSetupCreatedAt('2026-07-01T16:00:00.000Z'), /Jul 1, 2026.*12:00 PM EDT/);
+  assert.equal(formatSetupCreatedAt('not-a-date'), 'Unavailable');
 });
 
 it('scales editable defaults from capital and derives native allocation from exact reviewed bounds', () => {

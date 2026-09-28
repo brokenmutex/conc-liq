@@ -159,6 +159,8 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
  if(!present)return [];
  const hasAccounting=(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
+ const hasFeeEvidence=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_paper_fee_evidence')::text AS present")).rows[0]?.present;
  const hasInvalidations=hasAccounting&&(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
  const rows=(await db.query<DeploymentRow>(`
@@ -196,7 +198,16 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
    WHERE i.campaign_id=c.id AND bad.source_mark_id<=m.id
    ORDER BY bad.source_mark_id LIMIT 1) invalidated ON TRUE`:''}
-  WHERE c.lifecycle<>'draft' ORDER BY c.created_at DESC,c.id LIMIT 1001`)).rows;
+  WHERE c.lifecycle<>'draft' AND NOT (c.mode='paper' AND c.lifecycle='closed'
+   AND c.predecessor_campaign_id IS NULL AND c.predecessor_schema IS NULL
+   AND r.strategy_id='static_manual_v1'
+   AND r.revision=1 AND NOT EXISTS(SELECT 1 FROM deployment_operations o WHERE o.campaign_id=c.id)
+   AND NOT EXISTS(SELECT 1 FROM deployment_marks dm WHERE dm.campaign_id=c.id)
+   AND NOT EXISTS(SELECT 1 FROM deployment_ledger dl WHERE dl.campaign_id=c.id)
+   AND NOT EXISTS(SELECT 1 FROM deployment_wallet_reservations wr WHERE wr.campaign_id=c.id)
+   AND ${hasAccounting?'NOT EXISTS(SELECT 1 FROM deployment_paper_accounting pa WHERE pa.campaign_id=c.id)':'TRUE'}
+   AND ${hasFeeEvidence?'NOT EXISTS(SELECT 1 FROM deployment_paper_fee_evidence fe WHERE fe.campaign_id=c.id)':'TRUE'})
+   ORDER BY c.created_at DESC,c.id LIMIT 1001`)).rows;
  if(rows.length>1000)throw Error('Deployment position overview exceeds bounded row limit');
  return rows;
 }

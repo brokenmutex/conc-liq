@@ -194,7 +194,9 @@ server=createDeploymentCommandServer(store,{origin,dashboardRead,
   lookupCapturedReview:input=>setupReviewCache.lookup(input),
   findDraftRequest:(id,draft)=>store.findDraftRequest(id,draft),
   createDraftWithRequestId:(id,draft)=>store.createDraftWithRequestId(id,draft)}),
- paperSetupDraftList:()=>store.listStaticPaperDrafts(),paperPreview,
+ paperSetupDraftList:()=>store.listStaticPaperDrafts(),
+ paperSetupDraftDelete:id=>store.deleteStaticPaperDraft(id),
+ setupDefaults:()=>({walletAddress:'0x2222222222222222222222222222222222222222'}),paperPreview,
  paperOperationReplay:(id,input,kinds)=>store.acceptedOperationReplay(id,input,kinds),
  paperOpenAcceptance:async(id,input,actor)=>{openAcceptRequests++;
   return store.acceptStaticPaperOpenOperation(id,input,actor,verifySource);},
@@ -254,6 +256,10 @@ await check('Command origin serves the two-tab dashboard',
 await waitFor('window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#setup-width").options.length>1');
 await check('Automatic browser session loads the registered DB profile',
  'document.querySelector("#setup-pool").options[0].value==='+JSON.stringify(poolAddress));
+await check('Positions is the initial selected and visible tab',
+ 'document.querySelector("#positions-tab").getAttribute("aria-selected")==="true"&&!document.querySelector("#positions-panel").hidden&&document.querySelector("#research-panel").hidden');
+await waitFor('document.querySelector("#setup-wallet-address").value==="0x2222222222222222222222222222222222222222"');
+await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
 await click('#setup-limits-review summary');
 await check('Risk and cost limits expand with human-readable units',
  'document.querySelector("#setup-limits-review").open&&document.querySelector("#setup-limits-review").textContent.includes("Maximum deployment · USD")&&document.querySelector("#setup-limits-review").textContent.includes("Maximum slippage · percent")');
@@ -268,6 +274,8 @@ await fill('#setup-capital','250');
 await check('Returning capital restores untouched suggestions and keeps the custom limit',
  'document.querySelector("#limit-max-deployment").value==="250"&&document.querySelector("#limit-max-action-cost").value==="10"');
 await click('#setup-review-button');await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
+await check('Review preserves the named pool and manually edited wallet',
+ 'document.querySelector("#setup-pool").selectedOptions[0].textContent.includes("TOKEN / USDG")&&document.querySelector("#setup-wallet-address").value==="0x1111111111111111111111111111111111111111"');
 await check('Preflight binds the registered quote-token index for exact draft admission',
  'document.querySelector("#setup-preflight-facts").textContent.includes("USDG")');
 await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
@@ -295,6 +303,8 @@ assert.deepEqual(savedSetup.config.limits,{maxDeploymentValue:'25000000000000000
 assert.equal(savedSetup.allocation.nativeWei,String(expectedNativeWei));
 await check('Browser draft POST persists one campaign and actual command list recovers it',
  'document.querySelector(".saved-paper-draft").textContent.includes('+JSON.stringify(draftId)+')&&document.querySelector("#setup-open-status").textContent.includes("worker readiness")');
+await check('Saved draft has named tokens, decimal allocation, explicit timezone and delete control',
+ '(()=>{const c=document.querySelector(".saved-paper-draft"),t=c.textContent;return c.querySelector("h3").textContent.includes("TOKEN / USDG")&&t.includes('+JSON.stringify(`${Number(savedSetup.allocation.token0Raw)/1e6} USDG`)+')&&t.includes('+JSON.stringify(`${Number(savedSetup.allocation.token1Raw)/1e6} TOKEN`)+')&&t.includes("New York time")&&/EDT|EST/.test(t)&&!!c.querySelector(".delete-paper-draft")})()');
 await check('Fresh open preview is persisted but acceptance stays disabled without worker lease',
  'document.querySelector("#setup-open-status").textContent.includes("provisional, not paid")&&document.querySelector("#setup-open-status button").disabled===true');
 
@@ -415,6 +425,31 @@ if(completeLifecycle){
    '!document.querySelector(".paper-lifecycle-preview-button")&&!document.querySelector(".retain-preview-button")&&document.documentElement.scrollWidth<=innerWidth');
  }
 }
+// Delete a separate untouched draft; retain the lifecycle campaign and its history.
+await send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
+await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#setup-width").options.length>1');
+await fill('#setup-capital','250');await click('#setup-review-button');
+await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
+await waitFor('document.querySelector("#save-paper-draft").disabled===false');await click('#save-paper-draft');
+await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Saved static/manual paper draft")');
+const deletedId=await evaluate(`document.querySelector("#setup-draft-submit-status").textContent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]`);
+assert(deletedId&&deletedId!==draftId);
+const deletedSelector=`.saved-paper-draft[data-campaign-id="${deletedId}"]`;
+await waitFor(`document.querySelector(${JSON.stringify(deletedSelector)})!==null`);
+await click(`${deletedSelector} .delete-paper-draft`);
+await check('Delete requires inline confirmation',`!document.querySelector(${JSON.stringify(deletedSelector+' .delete-draft-confirm')}).hidden`);
+await click(`${deletedSelector} .cancel-delete-paper-draft`);
+assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',[deletedId])).rows[0].lifecycle,'draft');
+await click(`${deletedSelector} .delete-paper-draft`);await click(`${deletedSelector} .confirm-delete-paper-draft`);
+await waitFor(`document.querySelector(${JSON.stringify(deletedSelector)})===null`);
+assert.equal((await admin.query('SELECT lifecycle FROM deployment_campaigns WHERE id=$1',[deletedId])).rows[0].lifecycle,'closed');
+assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_revisions WHERE campaign_id=$1',[deletedId])).rows[0].n,1);
+assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',[deletedId])).rows[0].n,0);
+assert(!(await readDeploymentRows(admin)).some(row=>row.id===deletedId));
+await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.()===true');
+await waitFor('document.querySelector("#saved-paper-drafts-status").textContent.includes("No saved static/manual paper drafts")||/\\d+ saved draft/.test(document.querySelector("#saved-paper-drafts-status").textContent)');
+await check('Deleted draft stays absent after reload',`document.querySelector(${JSON.stringify(deletedSelector)})===null`);
+checks.push('Confirmed draft deletion retains audit revision, creates no operation, and stays out of position history');
 assert.equal(errors.length,0,JSON.stringify(errors));
 assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/.test(item.url)).length,0,
  'dashboard script/style assets load without 404s: '+JSON.stringify(resourceFailures));

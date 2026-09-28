@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {once} from 'node:events';
 import {it} from 'node:test';
+import {DeploymentConflict} from '../src/deployments/store.js';
 import {createDeploymentCommandServer} from '../src/deployments/server.js';
 
 it('command API requires operator session, exact origin and CSRF before a draft is stored without a password',async()=>{
@@ -9,6 +10,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
  const previewCalls:Array<{id:string;kind:string}>=[];
  const setupCalls:unknown[]=[];
  const setupDraftCalls:unknown[]=[];
+ const setupDraftDeletes:string[]=[];
  let setupDraftListCalls=0;
  const dashboardReads:string[]=[];
  let acceptCalls=0;
@@ -41,6 +43,8 @@ it('command API requires operator session, exact origin and CSRF before a draft 
    return {status:'request_conflict',requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',
    profileId:'aef5f51e-18ef-4e9c-952d-8d772970f708',missing:['draft_request_id_conflict']};},
   paperSetupDraftList:async()=>{setupDraftListCalls++;return [{id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1}];},
+  paperSetupDraftDelete:async(id:string)=>{if(id==='00000000-0000-4000-8000-000000000000')throw new DeploymentConflict('campaign_not_found');setupDraftDeletes.push(id);return {status:'deleted',campaignId:id,idempotent:setupDraftDeletes.length>1};},
+  setupDefaults:()=>({walletAddress:'0x1111111111111111111111111111111111111111'}),
   dashboardRead:async(path)=>{dashboardReads.push(path);
    return path.startsWith('/api/positions/paper-dep-')&&!path.includes('?')?null:{path};}});
  server.listen(0,'127.0.0.1');await once(server,'listening');
@@ -72,11 +76,16 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal((await fetch(url+'/api/strategies')).status,401);
   assert.equal((await fetch(url+'/api/deployments/setup-drafts')).status,401,
    'saved draft recovery must require the loopback operator session');
+  assert.equal((await fetch(url+'/api/deployments/setup-defaults')).status,401,
+   'setup defaults require the operator session');
   assert.equal((await post('/api/session',{})).status,403);
   assert.equal((await post('/api/session',{password:'obsolete'},{origin})).status,400);
   const login=await post('/api/session',{},{origin});assert.equal(login.status,200);
   const cookie=login.headers.get('set-cookie')?.split(';')[0];assert(cookie);
   const {csrfToken}=await login.json() as {csrfToken:string};
+  const setupDefaults=await fetch(url+'/api/deployments/setup-defaults',{headers:{cookie}});
+  assert.equal(setupDefaults.status,200);
+  assert.deepEqual(await setupDefaults.json(),{walletAddress:'0x1111111111111111111111111111111111111111'});
   const draftList=await fetch(url+'/api/deployments/setup-drafts',{headers:{cookie}});
   assert.equal(draftList.status,200);
   assert.deepEqual(await draftList.json(),{drafts:[{id:'67b2b303-e821-4450-bb7b-27171b12079f',revision:1}]});
@@ -95,6 +104,17 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(calls.length,0);
   assert.equal(acceptCalls,0);
   const setupDraftPath='/api/deployments/setup-drafts';
+  const setupDraftId='67b2b303-e821-4450-bb7b-27171b12079f';
+  assert.equal((await fetch(`${url}${setupDraftPath}/00000000-0000-4000-8000-000000000000`,{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}})).status,404);
+  assert.equal((await fetch(`${url}${setupDraftPath}/${setupDraftId}`,{method:'DELETE',headers:{cookie}})).status,403);
+  assert.equal((await fetch(`${url}${setupDraftPath}/${setupDraftId}`,{method:'DELETE',headers:{origin,cookie}})).status,403);
+  const deletedDraft=await fetch(`${url}${setupDraftPath}/${setupDraftId}`,{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
+  assert.equal(deletedDraft.status,200);
+  assert.deepEqual(await deletedDraft.json(),{status:'deleted',campaignId:setupDraftId,idempotent:false});
+  const repeatedDelete=await fetch(`${url}${setupDraftPath}/${setupDraftId}`,{method:'DELETE',headers:{origin,cookie,'x-csrf-token':csrfToken}});
+  assert.equal(repeatedDelete.status,200);
+  assert.deepEqual(await repeatedDelete.json(),{status:'deleted',campaignId:setupDraftId,idempotent:true});
+  assert.deepEqual(setupDraftDeletes,[setupDraftId,setupDraftId]);
   const setupDraftInput={requestId:'aef5f51e-18ef-4e9c-952d-8d772970f709',reviewId:'aef5f51e-18ef-4e9c-952d-8d772970f710',profileId:setupInput.profileId,
    capitalQuoteRaw:setupInput.capitalQuoteRaw,halfWidthTicks:setupInput.halfWidthTicks,
    wallet:'0x1111111111111111111111111111111111111111',

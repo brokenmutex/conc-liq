@@ -411,8 +411,42 @@ export class DeploymentStore {
    const savedConfig=parameters.success?parameters.data:absolute!.data;
    return {id:row.id,revision:row.revision,wallet:row.wallet,marketProfileId:row.market_profile_id,
     profileHash:row.profile_hash,pool:profile.data.pool.pool,fee:profile.data.pool.fee,
-    tickSpacing:profile.data.pool.tickSpacing,allocation:allocation.data,configHash:row.config_hash,
+    tickSpacing:profile.data.pool.tickSpacing,token0:profile.data.pool.token0,token1:profile.data.pool.token1,
+    decimals0:profile.data.pool.decimals0,decimals1:profile.data.pool.decimals1,
+    quoteToken:profile.data.pool.quoteToken,reference0:profile.data.pool.reference0,
+    reference1:profile.data.pool.reference1,allocation:allocation.data,configHash:row.config_hash,
     config:savedConfig,createdAt:row.created_at.toISOString()};
+  });
+ }
+
+ /** Logically remove only an untouched static/manual setup draft. The campaign
+  * row lock serializes this transition with operation acceptance and mark
+  * writers; retained revisions, previews, and request idempotency remain intact. */
+ async deleteStaticPaperDraft(campaignId:string){
+  const id=z.uuid().parse(campaignId);
+  return this.transaction(async db=>{
+   const row=(await db.query<{mode:string;strategy_id:string|null;current_revision:number;
+    lifecycle:string;predecessor_campaign_id:string|null;predecessor_schema:string|null}>(`
+    SELECT c.mode,c.lifecycle,c.current_revision,c.predecessor_campaign_id,c.predecessor_schema,
+     (SELECT r.strategy_id FROM deployment_revisions r WHERE r.campaign_id=c.id AND r.revision=1) AS strategy_id
+    FROM deployment_campaigns c WHERE c.id=$1 FOR UPDATE`,[id])).rows[0];
+   if(!row)throw new DeploymentConflict('campaign_not_found');
+   if(row.mode!=='paper'||row.strategy_id!=='static_manual_v1'||row.current_revision!==1||
+    row.predecessor_campaign_id!==null||row.predecessor_schema!==null)
+    throw new DeploymentConflict('static_paper_draft_not_deletable');
+   const pristine=(await db.query<{pristine:boolean}>(`SELECT
+    NOT EXISTS(SELECT 1 FROM deployment_operations WHERE campaign_id=$1) AND
+    NOT EXISTS(SELECT 1 FROM deployment_marks WHERE campaign_id=$1) AND
+    NOT EXISTS(SELECT 1 FROM deployment_ledger WHERE campaign_id=$1) AND
+    NOT EXISTS(SELECT 1 FROM deployment_wallet_reservations WHERE campaign_id=$1) AND
+    NOT EXISTS(SELECT 1 FROM deployment_paper_accounting WHERE campaign_id=$1) AND
+    NOT EXISTS(SELECT 1 FROM deployment_paper_fee_evidence WHERE campaign_id=$1) AS pristine`,[id])).rows[0]?.pristine;
+   if(!pristine)throw new DeploymentConflict('static_paper_draft_not_deletable');
+   if(row.lifecycle==='closed')return {status:'deleted' as const,campaignId:id,idempotent:true};
+   if(row.lifecycle!=='draft')throw new DeploymentConflict('static_paper_draft_not_deletable');
+   await db.query(`UPDATE deployment_campaigns SET lifecycle='closed',closed_at=clock_timestamp(),
+    updated_at=clock_timestamp() WHERE id=$1 AND lifecycle='draft'`,[id]);
+   return {status:'deleted' as const,campaignId:id,idempotent:false};
   });
  }
 

@@ -2,6 +2,7 @@ import {once} from 'node:events';
 import {Pool} from 'pg';
 import {z} from 'zod';
 import {DeploymentStore} from './deployments/store.js';
+import {deploymentSetupDefaults} from './deployments/setup-defaults.js';
 import {DeploymentConflict} from './deployments/store.js';
 import {contentHash} from './deployments/contracts.js';
 import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
@@ -45,6 +46,7 @@ const envSchema=z.object({
  DEPLOYMENT_HOST:z.enum(['127.0.0.1','::1']).default('127.0.0.1'),
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
  DEPLOYMENT_PUBLIC_ORIGIN:z.string().optional(),
+ DEPLOYMENT_OPERATOR_WALLET_ADDRESS:z.string().optional(),
  ROBINHOOD_READ_HTTP_URL:z.url(),
  PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
@@ -396,7 +398,9 @@ async function main(){
   createStaticPaperCloseConvertAcceptance({store,client,indexer,rpcUrl:env.PAPER_FORK_RPC_URL,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)}):undefined;
  const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,
+  setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
+  paperSetupDraftDelete:campaignId=>store.deleteStaticPaperDraft(campaignId),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperConvertAcceptance,
   paperConvertPreparationReady:campaignId=>store.staticPaperCloseConvertPreparationReady(campaignId),
