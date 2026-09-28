@@ -1756,6 +1756,18 @@ and error-reporting issue and test realistic native allocations. Final productio
 state is one closed campaign, one unopened draft, no active/paused campaigns,
 no wallet reservations and no paid-gas rows. Preserve both records.
 
+The operator subsequently tried the dashboard and reported five usability
+issues. The [September 28 feedback implementation](../reviews/dashboard-feedback-2026-09-28.md)
+used three parallel Luna assignments and deployed source `27690c9`, sealed
+`376dc50b…`: Positions default, stable named pool labels, configured public
+wallet default, protected draft deletion and timezone, and human token amounts.
+Clean checks passed 909 tests, the browser/deletion integrations passed, and all
+four canonical artifact gates passed. The application-only rollout preserved
+the two existing drafts and one closed campaign. Command and worker now share
+config hash `efd838c07c244bfd827909093ca3333e82dc928d4aa4a1a88c453d652f19e1c4`.
+These requested usability fixes do not close the separate MVP-6 native headroom
+and error-reporting work above.
+
 RangeKeeper paper, new live capability and the operational cost-reduction
 programme remain deferred through this bounded usability follow-up and review.
 The current paper session handshake does not meet the authentication gate for

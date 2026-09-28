@@ -27,7 +27,7 @@ The public read-only dashboard remains on its existing origin.
 
 The [freshness and release follow-up](../reviews/static-paper-freshness-followup-2026-09-27.md)
 records the subsequent application-only replacement: source `cfc8043`, sealed
-`bf4dcea9…` now runs command, paper worker and dashboard with one shared
+`bf4dcea9…` ran command, paper worker and dashboard with one shared
 command/worker configuration. Canonical retain, conversion, interrupted
 recovery/restore and changed-anchor rejection gates passed on that artifact.
 Tail runs `cda961d0…`. The [first production browser campaign](../reviews/static-paper-first-production-campaign-2026-09-28.md)
@@ -37,6 +37,16 @@ independent human usability assessment remains separate. It used 250 USDG and
 an explicitly entered 0.0011 native allocation after the exact default gas
 suggestion proved sensitive to repricing. One earlier unopened draft is retained.
 Provider throttling can still make fresh-source preflight unavailable.
+
+The [September 28 dashboard feedback update](../reviews/dashboard-feedback-2026-09-28.md)
+deployed source `27690c9`, sealed `376dc50b…`, to command, worker and dashboard
+after clean checks and all four canonical lifecycle/recovery gates. Positions
+is the default tab. Setup and drafts retain named pools; allocations use token
+units; creation times include EDT/EST. The configured public wallet is prefilled
+and editable. Delete draft removes only an untouched static/manual paper draft
+from the dashboard, with inline confirmation and audit history retained. Both
+existing drafts and the closed campaign were preserved during this rollout.
+
 
 ## Operator workflow
 
@@ -118,11 +128,11 @@ historical file SHA256 is
 file checksum, not the launcher's runtime config hash.
 
 The shared command/worker configuration is deployed at
-`data/static-paper-mvp-shared-review-2026-09-27.env`. It combines their required
-settings and enables setup and worker diagnostics. Its runtime config hash is
-`4a67b9777fff565e6cd352f2997016e5836d71e43190b401d1122e9f63124e91`;
-the September 27 rollout and September 28 production run independently checked
-its process/file inputs. Before another campaign, recheck that both services
+`data/static-paper-mvp-dashboard-feedback-2026-09-28.env`. It preserves the
+prior shared settings and diagnostics, adding the public setup wallet address.
+Its runtime config hash is
+`efd838c07c244bfd827909093ca3333e82dc928d4aa4a1a88c453d652f19e1c4`;
+the September 28 dashboard rollout checked its process/file inputs. Before another campaign, recheck that both services
 still use the same reviewed identity; the file's presence alone is insufficient.
 
 The current native allocation suggestion is the exact opening bound plus the
