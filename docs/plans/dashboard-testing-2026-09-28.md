@@ -524,6 +524,129 @@ replay reconciles rather than duplicating, and the harness now asserts that
 invariant instead of a literal acceptance count, so a change in replay behaviour
 becomes visible rather than being absorbed into a hand-tuned number.
 
+### Track 3 results, 2026-09-29
+
+Run serially on a quiet host: load average 0.52, 4 GB available, no other agent
+or harness, five conc-liq services active, 13 database connections. All
+measurements are read-only. The timing work used the production database through
+read-only transactions; the browser work used a private dashboard server
+instance on an ephemeral port so the live service on 4173 was never loaded.
+
+**P3: one query is 82 percent of the snapshot.** `snapshot()` issues 34
+queries, not the seventeen top-level awaits suggest, and is 99 percent
+in-query. Warm wall time is 446 ms, of which 368 ms is the single activity
+histogram over `DASHBOARD_ACTIVITY_WINDOW_BLOCKS`. Three redundant
+`information_schema.columns` probes also run per call for the coverage-column
+check. Cold wall time is 691 ms.
+
+**P2: the research build takes 44 seconds, and one missing index explains 83
+percent of it.** Measured twice in separate processes at 44.7 s and 44.2 s, so
+it is reproducible rather than a cold-cache artifact. The dominant query is
+36.9 s:
+
+```
+SELECT DISTINCT ON (lower(pool_address)) ... (event_args->>'feeProtocol0New')
+  FROM v3_pool_events WHERE stream_key = $1 AND event_name = 'SetFeeProtocol'
+```
+
+`EXPLAIN (ANALYZE, BUFFERS)` shows a Parallel Seq Scan over the whole table,
+removing 2,084,283 rows per worker and reading 907,011 shared buffers, roughly
+7 GB of I/O, to return 15 rows. `v3_pool_events` is 11 GB across 6.25 M rows and
+has three indexes, all leading on `(stream_key, pool_address|block_number, …)`;
+**there is no index on `event_name` at all.** `SetFeeProtocol` is 16 rows, and
+every non-Swap event together is about 183,000 rows against 6,069,696 Swaps.
+
+A partial index confined to non-Swap events would serve this lookup and several
+others from a small structure. Creating it is a production DDL write and is not
+part of this read-only testing; it needs its own authorization and a
+`CREATE INDEX CONCURRENTLY`. The projected gain is stated as a projection, not a
+measurement: an index lookup for 16 rows replaces a 7 GB scan.
+
+The second query, 4.3 s, bucket-aggregates checkpoints and is a weaker case. It
+seq-scans `v3_strategy_pool_checkpoints` (680,015 rows) and
+`v3_strategy_checkpoint_runs` (29,229 of about 72,000 rows matched the seven-day
+filter). Because the filter matches roughly 40 percent of runs and the join
+yields 301,641 of 680,015 checkpoints, the scans are defensible. What is missing
+is an index supporting the `block_timestamp` filter — the runs table is indexed
+on `(stream_key, block_number DESC, id DESC)` — so the cheaper change may be to
+filter on `block_number`, which is already indexed, rather than to add an index.
+This one should be tested, not assumed.
+
+The 300-second cache sits in front of a 44-second build with no
+stale-while-revalidate, so one request per cache cycle waits the full rebuild.
+The single-flight guard does work: a second concurrent caller shares the build,
+and a cached read returns in 0.1 ms.
+
+**P1: the research payload is transfer-bound, not CPU-bound.** The page is
+interactive with all fifteen league rows at:
+
+| Condition | Interactive | `/api/research` fetch | Transfer |
+| --- | --- | --- | --- |
+| Unthrottled, local | 141 ms | 34 ms | 2,660 KiB |
+| 4x CPU, local network | 397 ms | 70 ms | 2,660 KiB |
+| 4x CPU, 4G (9 Mbps, 170 ms) | 3,310 ms | 2,543 ms | 2,660 KiB |
+| 4x CPU, slow 4G (1.6 Mbps) | 14,642 ms | 13,599 ms | 2,660 KiB |
+
+Parsing and rendering 2.6 MiB costs only about 330 ms of throttled CPU, so the
+plan's three-second budget is missed at 3.31 s almost entirely on transfer, and
+missed by a factor of five on slow 4G. Trimming the payload is therefore the
+only lever that matters; faster rendering would buy nothing. This compounds the
+recorded research defect: a mobile operator on a weak link waits about fifteen
+seconds for a blank league table, and if the request fails there is no retry.
+
+**R6: the four-connection pool queues gracefully and starves nothing.**
+Against a private instance with the same `max: 4`:
+
+| Path | c=1 | c=2 | c=4 | c=8 |
+| --- | --- | --- | --- | --- |
+| `/api/positions` p50 | 12.5 ms | 16.7 ms | 20.4 ms | 30.4 ms |
+| `/api/positions` p95 | 76.2 ms | 29.0 ms | 29.1 ms | 38.2 ms |
+| `/api/dashboard` p50 | 413 ms | 429 ms | 466 ms | 819 ms |
+| `/api/dashboard` p95 | 490 ms | 605 ms | 697 ms | 1,443 ms |
+
+Zero failures at every level, and the worst single response of 1.48 s is far
+under the browser's 20-second abort. Latency degrades roughly linearly once
+concurrency exceeds the pool, which is the expected queueing behaviour. The pool
+size is adequate; R6 is a pass.
+
+**P5: operator state mostly survives the ten-second rebuild.** The
+disqualifying case does not occur. Focus and a typed value in the setup form
+both survive, because that form sits outside the two sections `renderSection`
+rebuilds; after a full refresh cycle `#setup-capital` still held focus and the
+typed `375`. The selected chart period also survives, being application state
+rather than DOM state.
+
+Destroyed by each rebuild: any text selection inside a portfolio section, which
+vanished from "Campaign ended" to empty, so an operator highlighting a value to
+copy loses it every ten seconds; and any DOM state not re-created by the
+template, confirmed with a marker attribute that did not survive.
+
+One result is unresolved and recorded as such. The RangeKeeper receipts
+`<details>` was closed after the refresh although `renderSection` contains
+explicit logic to capture and restore `rkReceiptsOpen`. The element existed and
+read `false`. Whether the preservation path failed or an intermediate re-render
+from the period change reset it first was not determined, and asserting a defect
+here would outrun the evidence. It needs a targeted follow-up.
+
+**Incidental finding: five concurrent queries share one client.**
+`src/dashboard/research.ts:906` runs `Promise.all` over the five
+`RESEARCH_WINDOW_HOURS`, each calling `readExactSwapCounts` on the same
+`PoolClient`. Node prints `Calling client.query() when the client is already
+executing a query is deprecated and will be removed in pg@9.0` on every research
+build. Because pg serialises them on one connection, the `Promise.all` buys no
+parallelism; it is the appearance of concurrency only. The `^8.16.3` range
+excludes pg@9, so this is a blocker for a future major upgrade rather than an
+imminent break, and the fix is to await them in sequence or to use separate
+clients deliberately.
+
+**Not run.** P4 campaign-count scaling needs seeded campaigns in an isolated
+schema and was not attempted; production has three closed positions and no
+active ones, so scaling cannot be observed against it. P6, the hour-long
+footprint measurement beside the worker, and R2, the two-to-four-hour uptime
+soak, are long-duration and remain outstanding. P5 was measured against closed
+positions in the History scope because the Current scope is empty, so the
+fifty-position render cost is also still unmeasured.
+
 ### Consequence for the plan
 
 D3 becomes the first implementation candidate, and it is cheap: the evidence,
@@ -555,3 +678,15 @@ operator explicitly asks to reconnect.
 R3 is the one reliability finding that is not a presentation problem. Evicting
 the longest-lived session is the wrong policy for a surface whose longest-lived
 session is always the operator's, and no amount of interface work fixes it.
+
+The missing `event_name` index is the single highest-leverage change found by any
+track. It is one index against 83 percent of a 44-second rebuild, it needs no
+interface work, and it also removes the window in which a freshly restarted
+dashboard cannot answer a research request. It should be sequenced first among
+the performance items, under its own authorization as a production DDL change.
+
+The research payload is second and is a product decision rather than a bug: 2.6
+MiB for fifteen pools is 99 percent per-pool bucket series that the league table
+never shows until a pool is selected. Sending the table's own columns first and
+the series on selection would bring the 4G path inside budget without touching
+rendering.
