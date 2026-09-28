@@ -452,6 +452,78 @@ status while believing it was retain's, because all three roots publish status
 through `retain-action-status`, and had to rescope every read per root and
 re-run. The trap caught someone working carefully and deliberately.
 
+### Track 2 results
+
+`test/integration/dashboard-reliability-browser.mjs` runs 40 checks at exit 0,
+registered as `npm run test:integration:dashboard-reliability-browser`. The
+authoring agent stopped at a session limit before committing; its file survived
+intact and two of its own assertions needed correction before it passed. Both
+corrections are recorded in the commit message and neither changed product code.
+
+Four defects are confirmed, two of them serious.
+
+**R3: public traffic evicts the operator, and eviction targets the operator by
+construction.** Thirty-four unauthenticated handshakes from other clients evict
+the operator's session server-side. Reading `src/deployments/server.ts`, the
+eviction is `sessions.delete(sessions.keys().next().value)`, which removes the
+oldest inserted entry, and `authenticated()` only reads the map and never
+re-inserts. Activity therefore does not protect a session, so the operator — who
+has been connected longest — is systematically the first evicted whenever the
+32-slot cap is reached. Sessions otherwise last four hours. Because the operator
+surface is reachable over a public Funnel by recorded decision, the traffic that
+does this need not be hostile or even aware of the operator.
+
+The single renew-and-retry path does cover the common case: a silent eviction
+during a pending draft save is renewed, the retry succeeds and the reviewed
+inputs survive. But when unrelated traffic arrives during the renewal window
+itself, the operator is logged out mid-flow. The interface degrades well from
+there — typed form values are kept and an explicit reconnect is offered, and the
+reconnect restores the session without a reload.
+
+**R1: the reconnect control reports success while the service is down.** With
+the command service stopped, pressing Retry connection sets "Operator connection
+ready." Verified in source: `bootstrap()` returns `Promise.resolve(true)`
+without any network call whenever a CSRF token is already held, and
+`loadOperatorDataOnce` awaits an `operatorDataLoadPromise` that is only recreated
+after a failure, so a previously settled load resolves instantly. A retry that
+performs no I/O cannot fail, so it always reports readiness. The operator is told
+the connection is fine and discovers otherwise on their next real action.
+
+**R1: the research surface never recovers without a reload.** `research.js`
+calls `load()` once at module scope with no interval, no retry and no visibility
+listener, so a 503 leaves "Research unavailable" until the page is reloaded. The
+failure copy makes this worse by inviting the operator to wait: it says the
+snapshot "is built in the background and takes a few seconds after the dashboard
+starts", which is true of the server and false of the page. The same absence
+means a successful snapshot is frozen at page-load time; the server refreshes its
+cache every 300 seconds but the page never asks again, and the only cue is an
+absolute "Built" timestamp rather than the relative age Positions uses.
+
+**R1, working correctly:** an unreachable read database names the fault, keeps
+the last received rows, states they are historical, and both the banner and the
+poll recover without a reload. A slow database behind the delaying proxy keeps
+the page readable and unbannered. A stale source frame degrades the row
+condition and the age label together and clears without a reload. A stopped
+command service names the fault, keeps recorded rows on screen, and an operator
+request against it reports failure and creates nothing.
+
+**R4 and R5 pass throughout.** A double-clicked acceptance submits exactly one
+operation because the control disables inside its own handler. The losing tab of
+a two-tab race is told its preview was rejected and offered a fresh one rather
+than left with a stuck control, and both tabs leave the shared pending record
+cleared. A double-clicked delete sends exactly one DELETE and the losing tab
+converges on the deleted state. An interrupted acceptance followed by a reload
+and three retry presses leaves exactly one operation under the original key, and
+three reconcile presses reach the service under one distinct key while creating
+no operation.
+
+One behaviour is worth recording as neither pass nor defect: after the command
+service restarts, the browser replays a pending acceptance under its original
+request key. The `(campaign_id, idempotency_key)` unique constraint means the
+replay reconciles rather than duplicating, and the harness now asserts that
+invariant instead of a literal acceptance count, so a change in replay behaviour
+becomes visible rather than being absorbed into a hand-tuned number.
+
 ### Consequence for the plan
 
 D3 becomes the first implementation candidate, and it is cheap: the evidence,
@@ -473,3 +545,13 @@ The U4 class-identity defect is the cheapest high-consequence fix on this list
 and should be taken before the cosmetic half of U4. Giving the convert mount its
 own classes costs a few lines, removes a trap that has already misled a careful
 reader, and is a precondition for testing the two close paths separately at all.
+
+The reconnect control that cannot fail is the other cheap fix and should be
+taken with it. A retry that performs no network call and reports readiness is
+worse than no retry at all, because it converts a visible outage into a silent
+one. Both `bootstrap` and the operator data load need a forced path when the
+operator explicitly asks to reconnect.
+
+R3 is the one reliability finding that is not a presentation problem. Evicting
+the longest-lived session is the wrong policy for a surface whose longest-lived
+session is always the operator's, and no amount of interface work fixes it.
