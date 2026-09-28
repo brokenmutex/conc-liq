@@ -11,6 +11,25 @@
 // Position payloads come from the real readDeploymentRows/deploymentPosition
 // projection over rows seeded into an isolated schema, so the rendered contract
 // is the production one.
+//
+// IMPORTANT — several checks here pin CURRENT DEFECTIVE behaviour so that it is
+// documented and cannot regress further silently. They are expected to FAIL
+// when the defect is fixed, and the correct response is to invert the check,
+// not to loosen it. Those checks are:
+//   U1 · genuinely-empty Positions still renders the filtered-to-empty message
+//   U1 · empty state offers Clear filters although no filter was ever applied
+//   U1 · nothing ... directs a first-run operator to Set up a position
+//   U1 · filtered-empty and genuinely-empty states are textually indistinguishable
+//   U1 · zero positions render a $0.00 managed value rather than an absent one
+//   U3 · close-control names are identical between two different campaigns
+//   U3 · no close-control accessible name identifies its asset
+//   U3 · no close-control accessible name identifies its campaign
+//   U3 · the accessibility tree exposes close controls without asset or campaign context
+//   U4 · retain and convert differ by a single word and no other affordance
+//   U4 · the convert preview control carries no class of its own
+//   U4 · the retain-action-status class is shared by three distinct action roots
+//   U4 · the reachable retain copy names neither the asset nor the campaign
+// Every other check asserts behaviour that is correct and must keep holding.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';

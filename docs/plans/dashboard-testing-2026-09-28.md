@@ -390,6 +390,68 @@ are unreachable from unit tests. Completing U6 needs either the browser harness
 or an export change, and the export change must be owned by one track rather
 than raced.
 
+### Track 1b results
+
+`test/integration/dashboard-usability-browser.mjs` runs 31 checks at exit 0,
+re-verified here independently: `npm run check` holds at 936 tests and the
+harness leaves the public campaign count at zero with no leaked schemas and no
+browser exceptions. It is registered as
+`npm run test:integration:dashboard-usability-browser`. Thirteen of its checks
+deliberately pin current defective behaviour and are listed in the file header
+as checks to invert, not loosen, when each defect is fixed.
+
+U1 is confirmed. With zero campaigns, zero drafts and both filters at `all`,
+both portfolio sections render "No matching current positions / Try another
+asset or status / Clear filters", byte-identical to the genuine filter-miss copy
+verified by setting a status filter and comparing. Nothing mentions setting up a
+position. The totals read "Managed value · available 0.00" and "Net P&L · since
+start +0.00" from a reduce over an empty list, so a portfolio that does not
+exist is presented with real-looking figures. The remedy is cheap: the setup
+heading already sits 105 px above the fold at 1440 by 900, so the empty state
+only has to point at what is already on screen.
+
+The windowed-evidence case from D5 renders honestly, which is worth recording
+as a non-defect. A position whose only mark is eight days old, viewed at 24
+hours, reports zero marks, a null covered start, "No covered intervals in this
+window", and a chart carrying axes and gridlines with zero data paths. It draws
+no phantom series.
+
+U2 records an identical interaction cost at both widths: two clicks, two fields
+touched, 45 keystrokes and four interactions that begin off screen. The page is
+4,396 px at 1440 and 9,034 px at 390 against a 900 px viewport, so the mobile
+path is about ten screens of scrolling, with no horizontal overflow at either
+width. The four off-screen interactions are the real cost, not the click count.
+The harness's elapsed milliseconds are scripted automation time and are not a
+human budget.
+
+U3 is confirmed but narrower than this plan assumed, and the assumption is
+corrected here. `lifecycleControls` renders only inside the selected position's
+detail panel, so two campaigns never expose close controls at the same time and
+there is no same-screen duplication. What is true is that the control names are
+byte-identical across two campaigns on different assets — "Review pause",
+"Review retain-close", "Review convert-close" — and the accessibility tree
+exposes them with no asset and no campaign. Disambiguation exists only in the
+detail heading. Keyboard behaviour is correct: the first retain control is
+reached in eleven tab stops, the tablist keeps a single roving tab stop and
+responds to arrow keys, and the dialog traps focus, closes on Escape and returns
+focus to its opener.
+
+U4 is confirmed, and the class-identity half is worse than the report stated.
+Retain and convert previews sit adjacent on the same row at y 763, differ by one
+word, and differ by 9 px in width, so they are separable only by reading a
+single word. Reading `dashboard/deployment-actions.js` directly: the convert
+mount gives its preview button and its reconcile button no class at all, and
+takes `retain-action-status`, `retain-action-review` and `retain-confirm-button`
+for everything else. The two opposite close semantics therefore share DOM class
+identity, and the convert path — the one that irreversibly swaps the operator's
+tokens to USDG — has no CSS identity of its own anywhere. A selector or style
+intended for retain reaches convert as well.
+
+That defect is not theoretical. The agent writing these tests read the lifecycle
+status while believing it was retain's, because all three roots publish status
+through `retain-action-status`, and had to rescope every read per root and
+re-run. The trap caught someone working carefully and deliberately.
+
 ### Consequence for the plan
 
 D3 becomes the first implementation candidate, and it is cheap: the evidence,
@@ -406,3 +468,8 @@ accounts for a closed campaign's end date instead of the present moment.
 D7 passing is what makes the other verdicts worth acting on: the figures the
 interface reports do reconcile to the canonical record, so a gap in the
 interface is a presentation gap rather than an accounting one.
+
+The U4 class-identity defect is the cheapest high-consequence fix on this list
+and should be taken before the cosmetic half of U4. Giving the convert mount its
+own classes costs a few lines, removes a trap that has already misled a careful
+reader, and is a precondition for testing the two close paths separately at all.
