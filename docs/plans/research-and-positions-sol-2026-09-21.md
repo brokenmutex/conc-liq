@@ -1739,11 +1739,27 @@ remained zero. The isolated fixture and restore databases were removed with
 logs and rollback inputs retained. The freshness review records the optional
 favicon 404 and initial dashboard request timeout separately from acceptance.
 
-The next operator milestone is one actual human-operated AAPL/USDG paper
-campaign through retain-close and a comparison with the harness expectations.
+The [September 28 production browser run](../reviews/static-paper-first-production-campaign-2026-09-28.md)
+completed one 250 USDG AAPL/USDG paper campaign through open, a later canonical
+valuation, pause/resume and retain-close, with all four operations succeeding
+on their first worker attempt. Its terminal inventory, three marks, five
+activity events and explicit economic gaps matched desktop/mobile and
+local/public APIs. This was assistant-operated under the user's instruction;
+it does not claim an independent human usability session.
+
+The default native gas suggestion proved too tight when gas was repriced
+between setup and open. An initial draft stayed unopened with zero operations;
+a replacement using the editable UI field for 0.0011 simulated native units
+completed under unchanged capital, range, risk/cost limits and runtime. The
+immediate next task is **MVP-6**, below: fix that demonstrated default allocation
+and error-reporting issue and test realistic native allocations. Final production
+state is one closed campaign, one unopened draft, no active/paused campaigns,
+no wallet reservations and no paid-gas rows. Preserve both records.
+
 RangeKeeper paper, new live capability and the operational cost-reduction
-programme remain deferred until that milestone is assessed. The current paper
-session handshake does not meet the authentication gate for future live commands.
+programme remain deferred through this bounded usability follow-up and review.
+The current paper session handshake does not meet the authentication gate for
+future live commands.
 
 Review source: `f087abc`, 2026-09-26. The operator requested this handoff after
 reviewing progress with the goal of reaching an MVP as soon as possible.
@@ -1797,9 +1813,11 @@ signer use or broadcast was performed.
 
 ### Ordered tasks for Sol
 
-Start with MVP-1 and MVP-2. Keep changes scoped to a demonstrated blocker or an
-acceptance criterion below. Record the exact source/build, result and remaining
-boundary after each task; a growing test count is not milestone completion.
+MVP-1 through MVP-5 retain their acceptance criteria below; their current sealed
+and production evidence is recorded above. Continue with MVP-6, the measured
+September 28 default-setup follow-up. Keep changes scoped to a demonstrated
+blocker or acceptance criterion. Record the exact source/build, result and
+remaining boundary; a growing test count is not milestone completion.
 
 | Task | Concrete work | Acceptance / stop condition |
 | --- | --- | --- |
@@ -1808,6 +1826,7 @@ boundary after each task; a growing test count is not milestone completion.
 | MVP-3 — Complete both browser exit paths | Extend/reuse the existing canonical harnesses to drive setup and operation acceptance through the real browser UI. Run one campaign through pause/resume and retain-close, and a separate campaign through convert-close. Use real canonical frames, supported references and owned-fork evidence. | No manually seeded draft or routine source/config edits/restarts. At desktop/mobile widths, pending stages, first-session values, available economics, explicit gaps, activity and closed history match persisted evidence. Both terminal inventories match their respective exit semantics. Preserve provisional labels and unavailable paid costs. |
 | MVP-4 — Prove economic recovery | Exercise accepted static economic operations across a worker interruption/restart, including pending conversion; reuse the existing same-key lost-response and database recovery coverage. Add only missing tests for the actual process boundary. | Recovery completes the same operation without duplicate marks, ledger rows or completed conversion stages. Expired admission previews do not cause a fresh acceptance for already accepted work; changed canonical evidence blocks or invalidates rather than creating false success. Browser reconnect retrieves the persisted outcome. |
 | MVP-5 — Review the static paper release | Build one clean, pinned artifact containing MVP-1 through MVP-4. Run the applicable section 8/W7 migration/restore, manifest/unit and desktop/mobile process gates against that artifact. Include server-owned setup/cost preparation and the actual command/worker code in the recorded runtime identity. Prepare the operator runbook and concrete cutover record. | Demonstrate both static/manual paper lifecycles on the exact reviewed build with canonical evidence. Clearly record what the harness supplies versus what the sealed runtime executes. No design fixtures in runtime assets. Report this as the static paper MVP only; F3/F4 and full W2 remain open. Production cutover requires the applicable existing authorization boundary and is not implied by a passing rehearsal. |
+| MVP-6 — Make the native suggestion usable across repricing | Add clearly labeled native-allocation headroom between setup and open without changing the exit reserve, policy limits or fresh checks. Return a specific safe insufficient-reserve reason. Capture a non-actionable open-preview response immediately in the harness. | A focused regression covers a gas increase after setup; the browser lifecycle uses realistic suggested native allocation rather than 10 native units. Show successful open within the stated headroom and fail-closed rejection beyond it. Review the clean sealed candidate and applicable lifecycle/recovery gates before deployment; retain both September 28 records and do not adopt old runtime identities by editing storage. |
 | NEXT-1 — Finish RangeKeeper paper | After the static paper MVP review, diagnose the producer-receipt failure at its exact failing stage before adding further caching/prefetch/overlap mechanisms. Complete confirmed-open booking, persisted kernel/management, pause/resume, both exits and shared UI parity under F3. | Positive owned-fork producer/default-worker booking and economic restart recovery pass under the existing freshness rules, followed by the same complete browser/release lifecycle gates. An optimized timing measurement or successful open alone does not complete F3. |
 | NEXT-2 — Finish guarded live operations | After paper milestones, continue F4 using the existing intent/receipt journal, reservations, custody preflight and recovery. | Owned-fork stage/recovery and capability-specific release gates pass. Funding, signing, broadcast and activation remain subject to the established authorization boundaries. |
 

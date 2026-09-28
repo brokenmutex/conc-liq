@@ -30,9 +30,13 @@ records the subsequent application-only replacement: source `cfc8043`, sealed
 `bf4dcea9…` now runs command, paper worker and dashboard with one shared
 command/worker configuration. Canonical retain, conversion, interrupted
 recovery/restore and changed-anchor rejection gates passed on that artifact.
-Tail runs `cda961d0…`. The first human-operated AAPL paper retain-close campaign
-remains the next milestone; provider throttling can still make fresh-source
-preflight unavailable.
+Tail runs `cda961d0…`. The [first production browser campaign](../reviews/static-paper-first-production-campaign-2026-09-28.md)
+completed on September 28 through open, later valuation, pause/resume and
+retain-close. The assistant operated it under the operator's instruction;
+independent human usability assessment remains separate. It used 250 USDG and
+an explicitly entered 0.0011 native allocation after the exact default gas
+suggestion proved sensitive to repricing. One earlier unopened draft is retained.
+Provider throttling can still make fresh-source preflight unavailable.
 
 ## Operator workflow
 
@@ -113,13 +117,23 @@ historical file SHA256 is
 `865c81ab5e49afbe5b1a610ceabac1ffc13f67ca90a6a05373211540a9495f3d`; this is a
 file checksum, not the launcher's runtime config hash.
 
-A shared command/worker configuration is under review at
+The shared command/worker configuration is deployed at
 `data/static-paper-mvp-shared-review-2026-09-27.env`. It combines their required
-settings and enables setup and worker diagnostics. Treat it only as a review
-candidate: it has not been established here as deployed. Before opening a
-campaign, verify the sealed command and worker resolve to the same runtime
-identity, complete the applicable release gates, and record the deployed
-identity. Do not infer production status from the candidate file's presence.
+settings and enables setup and worker diagnostics. Its runtime config hash is
+`4a67b9777fff565e6cd352f2997016e5836d71e43190b401d1122e9f63124e91`;
+the September 27 rollout and September 28 production run independently checked
+its process/file inputs. Before another campaign, recheck that both services
+still use the same reviewed identity; the file's presence alone is insufficient.
+
+The current native allocation suggestion is the exact opening bound plus the
+larger of the close bound and exit reserve. Gas repricing before open can make
+that allocation insufficient. The successful 250 USDG demonstration explicitly
+entered 0.0011 simulated native units; this is measured run evidence, not a
+universal allocation requirement. The saved-draft UI cannot edit allocation:
+a new reviewed draft is needed to change it. Preserve earlier unopened drafts
+and never replace an uncertain accepted operation with another draft/key.
+A bounded follow-up will improve the suggestion and insufficient-reserve error
+while keeping current acceptance checks intact.
 
 ## Economics and the live access gate
 

@@ -208,3 +208,14 @@ setup through retain-close and comparison with these harness expectations.
 This rollout did not perform that campaign or complete RangeKeeper/live gates.
 Shared provider throttling remains an availability risk; source freshness still
 fails closed when a sufficiently young complete cursor cannot be obtained.
+
+
+## September 28 production follow-up
+
+The [first production paper browser run](static-paper-first-production-campaign-2026-09-28.md)
+completed the retain lifecycle on this deployed artifact. It also found that
+the suggested native allocation has no repricing headroom: the original draft
+remained unopened, while a replacement using 0.0011 simulated native units
+completed with unchanged policy limits. The linked record distinguishes this
+assistant-operated production demonstration from independent human usability
+assessment and defines the bounded default-setup follow-up.
