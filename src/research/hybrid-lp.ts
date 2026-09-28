@@ -251,6 +251,8 @@ export interface HybridReplayOptions {
   costs:HybridStageCosts;
   gasBudgetQuote:bigint;
   cooldownMs:number;
+  /** Continuous observed time outside the current range before recentering. */
+  exitCooldownMs?:number;
   confirmations:number;
   stageTtlMs:number;
   stageDelayMs:Readonly<Record<HybridStage,number>>;
@@ -270,7 +272,8 @@ export class HybridLpReplay extends AdaptiveLpReplay {
   hybridPending:PendingHybrid|null=null;
   hybridCandidate:{key:string;count:number;at:number}|null=null;
   lastHybridMove:number|null=null;
-  nextHybridEvaluationAt=0;
+  rangeExitedAt:number|null=null;
+  lastRangeObservationAt:number|null=null;
   hybridAdverseSelectionQuote=0n;
   hybridDecisions:Record<string,unknown>[]=[];
   hybridStages:Record<string,unknown>[]=[];
@@ -278,6 +281,10 @@ export class HybridLpReplay extends AdaptiveLpReplay {
     super(market,costs,policy);validateGrid(hybrid.grid);
     assert(policy.economicGate,'Hybrid policy requires the economic gate');assert(!policy.residualRange,'Hybrid owns residual choices');
     assert(hybrid.gasBudgetQuote>0n&&Number.isSafeInteger(hybrid.cooldownMs)&&hybrid.cooldownMs>=0);
+    if(hybrid.exitCooldownMs!==undefined){
+      assert(Number.isSafeInteger(hybrid.exitCooldownMs)&&hybrid.exitCooldownMs>=0);
+      assert(hybrid.cooldownMs===0,'Hybrid exit cooldown replaces the post-move cooldown');
+    }
     assert(Number.isSafeInteger(hybrid.confirmations)&&hybrid.confirmations>=1&&hybrid.confirmations<=10);
     assert(Number.isSafeInteger(hybrid.stageTtlMs)&&hybrid.stageTtlMs>=policy.decisionMs);
     for(const stage of ['approval','withdraw_collect','swap','mint'] as const)assert(Number.isSafeInteger(hybrid.stageDelayMs[stage])&&hybrid.stageDelayMs[stage]>=0);
@@ -285,6 +292,34 @@ export class HybridLpReplay extends AdaptiveLpReplay {
   override cost(kind:keyof ResearchLpCosts){
     if(kind==='exit')return this.hybrid.costs.exit*BigInt(this.policy.gasMultiplier);
     return super.cost(kind);
+  }
+  private sourceAvailable(m:ResearchSource){
+    const source=m as ResearchSource&{canonical?:boolean;coverageComplete?:boolean};
+    return source.canonical!==false&&source.coverageComplete!==false;
+  }
+  private resetRangeObservations(){
+    this.rangeExitedAt=null;this.lastRangeObservationAt=null;this.hybridCandidate=null;
+  }
+  private observeRangeExit(m:ResearchSource){
+    if(this.hybrid.exitCooldownMs===undefined)return;
+    // A saved timer alone is not proof of continuous observations. This also
+    // resets older snapshots that predate lastRangeObservationAt.
+    if(this.lastRangeObservationAt===null||m.at-this.lastRangeObservationAt>this.policy.decisionMs)
+      this.resetRangeObservations();
+    assert(this.lastRangeObservationAt===null||m.at>=this.lastRangeObservationAt,'hybrid_observation_time_reversed');
+    this.lastRangeObservationAt=m.at;
+    const p=this.position,outside=!!p&&(m.tick<p.tickLower||m.tick>=p.tickUpper);
+    if(outside&&this.rangeExitedAt===null){this.rangeExitedAt=m.at;this.hybridCandidate=null;}
+    else if(!outside&&this.rangeExitedAt!==null){this.rangeExitedAt=null;this.hybridCandidate=null;}
+  }
+  private waitingForRangeExit(at:number){
+    return this.rangeExitedAt!==null&&at-this.rangeExitedAt<(this.hybrid.exitCooldownMs??0);
+  }
+  override mark(m:ResearchSource){
+    if(!this.sourceAvailable(m)){
+      this.resetRangeObservations();throw Error('hybrid_mark_source_unavailable');
+    }
+    const nav=super.mark(m);this.observeRangeExit(m);return nav;
   }
   private planner(m:ResearchSource,stats:ForecastStats,fixed?:HybridPlannerInput['fixed']){
     const c=this.hybrid.costs,multiplier=BigInt(this.policy.gasMultiplier);
@@ -311,8 +346,13 @@ export class HybridLpReplay extends AdaptiveLpReplay {
   }
   async advanceHybrid(m:ResearchSource,stats:ForecastStats|null,receiptId=`${m.block}:${this.hybridPending?.stage??'none'}`,forceRevert=false){
     const p=this.hybridPending;if(!p)return;
-    if((m as ResearchSource&{canonical?:boolean;coverageComplete?:boolean}).canonical===false||
-      (m as ResearchSource&{canonical?:boolean;coverageComplete?:boolean}).coverageComplete===false){this.reject('hybrid_stage_source_unavailable');return;}
+    if(!this.sourceAvailable(m)){
+      this.resetRangeObservations();this.reject('hybrid_stage_source_unavailable');return;
+    }
+    this.observeRangeExit(m);
+    if(p.kind==='recenter'&&p.completedReceiptIds.length===0&&this.waitingForRangeExit(m.at)){
+      this.cancelPending('hybrid_exit_cooldown');return;
+    }
     if(p.completedReceiptIds.includes(receiptId))return;
     if(m.at-p.stageStartedAt<this.hybrid.stageDelayMs[p.stage])return;
     if(m.at-p.stageStartedAt>this.hybrid.stageTtlMs){this.cancelPending('hybrid_stage_expired');return;}
@@ -345,6 +385,7 @@ export class HybridLpReplay extends AdaptiveLpReplay {
       this.position={tickLower:p.plan.tickLower,tickUpper:p.plan.tickUpper,liquidity:mint.liquidity,fee0:0n,fee1:0n};
       if(p.kind==='entry')this.entries++;else this.recenters++;
       this.lastHybridMove=m.at;
+      this.rangeExitedAt=null;
       this.actions.push({at:m.at,block:m.block,quoteAt:p.quotedAt,quoteBlock:p.quotedBlock,kind:p.kind,staged:true,before:p.before,
         afterSwap:p.afterSwap??p.before,idle:record({amount0:this.cash0,amount1:this.cash1}),token:p.plan.token,
         amountIn:String(p.plan.amountIn),amountOut:p.actualSwap?.amountOut??String(p.plan.amountOut),
@@ -358,16 +399,21 @@ export class HybridLpReplay extends AdaptiveLpReplay {
     const next=this.nextStage(p);if(next){p.stage=next;p.stageStartedAt=m.at;}else{this.hybridPending=null;this.hybridCandidate=null;}
   }
   override async step(m:ResearchSource,stats:ForecastStats|null){
-    if(this.invalid)return;if(stats)assert(stats.asOf<=m.at,'Future forecast input');this.mark(m);if(this.invalid)return;
+    if(this.invalid)return;
+    if(!this.sourceAvailable(m)){
+      this.resetRangeObservations();this.reject('hybrid_source_unavailable');return;
+    }
+    if(stats)assert(stats.asOf<=m.at,'Future forecast input');this.mark(m);if(this.invalid)return;
     if(this.hybridPending){await this.advanceHybrid(m,stats);this.mark(m);return;}
     if(this.lastDecision!==null&&m.at-this.lastDecision<this.policy.decisionMs)return;this.lastDecision=m.at;
-    if(m.at<this.nextHybridEvaluationAt)return;
+    // Legacy configurations wait after moves; exit cooldowns replace that wait.
     if(this.lastHybridMove!==null&&m.at-this.lastHybridMove<this.hybrid.cooldownMs)return;
+    if(this.waitingForRangeExit(m.at)){this.hybridCandidate=null;this.reject('hybrid_exit_cooldown');return;}
     if(!stats){this.hybridCandidate=null;this.reject('hybrid_forecast_unavailable');return;}
     const result=planHybridAction(this.planner(m,stats));for(const [reason,count] of Object.entries(result.rejected))this.rejected[reason]=(this.rejected[reason]??0)+count;
     const selected=result.selected;this.hybridDecisions.push({at:m.at,block:m.block,asOf:stats.asOf,keepTerminalQuote:result.keepTerminalQuote===null?null:String(result.keepTerminalQuote),
       evaluated:result.evaluated,feasible:result.feasible,selected:selected?{id:selected.id,benefitQuote:String(selected.benefitQuote),bufferQuote:String(selected.bufferQuote),accepted:selected.accepted}:null});
-    if(!selected?.accepted){this.hybridCandidate=null;this.nextHybridEvaluationAt=m.at+this.hybrid.cooldownMs;return;}
+    if(!selected?.accepted){this.hybridCandidate=null;return;}
     const key=selected.id,prior=this.hybridCandidate;
     this.hybridCandidate={key,count:prior?.key===key&&m.at-prior.at<=90000?prior.count+1:1,at:m.at};
     if(this.hybridCandidate.count<this.hybrid.confirmations)return;

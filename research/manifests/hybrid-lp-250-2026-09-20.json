@@ -15,6 +15,7 @@
     },
     {
       "path": "config/hybrid-lp-250-paper.json",
+      "gitCommit": "273b75b46f10419b557cfef5c6a7891bf9fd6393",
       "sha256": "1d60177b6b200e0f3e9dbda67fc021faf8a2af10044a929b8b6149fb8e0caace",
       "bytes": 2093,
       "role": "config"
@@ -135,6 +136,7 @@
     },
     {
       "path": "src/adaptive-paper.ts",
+      "gitCommit": "273b75b46f10419b557cfef5c6a7891bf9fd6393",
       "sha256": "e4995be3f2b38ff333eba9ca5cffdacb4bf001ef408b4149d34a3ef0fcd61899",
       "bytes": 29568,
       "role": "code"
@@ -147,6 +149,7 @@
     },
     {
       "path": "src/research/hybrid-lp.ts",
+      "gitCommit": "273b75b46f10419b557cfef5c6a7891bf9fd6393",
       "sha256": "579f04beb5bde75b4f35cb65427d2f62e18033fe68c64366e1c5c572b5f1dd28",
       "bytes": 23540,
       "role": "code"
@@ -177,6 +180,7 @@
     },
     {
       "path": "test/hybrid-lp.test.ts",
+      "gitCommit": "273b75b46f10419b557cfef5c6a7891bf9fd6393",
       "sha256": "e8bb72e6f44ecbca3bb3df64266a1db88ae4641e7f2adf1199cf0f98dd8730bd",
       "bytes": 13220,
       "role": "code"
@@ -190,7 +194,7 @@
   ],
   "reproduction": {
     "mode": "original_checkout",
-    "checkoutCommit": "4e72f355ac07d47473087fce6e02503da73c829c",
+    "checkoutCommit": "273b75b46f10419b557cfef5c6a7891bf9fd6393",
     "nodeVersion": "v24.20.0",
     "postLayoutVerified": true,
     "limitation": "The tracked compact result pins ignored full replay outputs retained on this host. Development dates were previously inspected; independent historical marks, complete validation data, and measured hybrid-stage costs are unavailable. No hybrid candidate entered, so no service activation package was prepared.",

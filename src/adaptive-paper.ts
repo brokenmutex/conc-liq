@@ -68,11 +68,12 @@ export const configSchema = z.object({
     deploymentPpm:z.array(z.number().int().min(1).max(1000000)).min(1).max(8),
     swapInputPpm:z.array(z.number().int().min(1).max(1000000)).max(16),
     maxSwapInputPpm:z.number().int().min(1).max(1000000),minLiquidity:z.string().regex(/^[1-9]\d*$/),
-    cooldownMs:z.number().int().min(60000),confirmations:z.number().int().min(2).max(10),
+    cooldownMs:z.number().int().min(0),exitCooldownMs:z.number().int().min(0).optional(),confirmations:z.number().int().min(2).max(10),
     gasBudgetQuote:z.string().regex(/^[1-9]\d*$/),stageTtlMs:z.number().int().min(30000).max(600000),
     stageDelayMs:z.object({approval:z.number().int().min(0).max(600000),withdraw_collect:z.number().int().min(0).max(600000),
       swap:z.number().int().min(0).max(600000),mint:z.number().int().min(0).max(600000)}).strict()}).strict()
-    .refine(h=>h.swapInputPpm.every(n=>n<=h.maxSwapInputPpm),'Swap grid exceeds its input cap').optional(),
+    .refine(h=>h.swapInputPpm.every(n=>n<=h.maxSwapInputPpm),'Swap grid exceeds its input cap')
+    .refine(h=>h.exitCooldownMs===undefined||h.cooldownMs===0,'Exit cooldown replaces the post-move cooldown').optional(),
   assets:z.array(z.object({market:marketSchema,costs:costsSchema,evidence:z.record(z.string(),z.string()),
     hybridCosts:hybridCostsSchema.optional(),
     budgetQuote:z.string().regex(/^[1-9]\d*$/).optional(),

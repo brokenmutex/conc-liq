@@ -99,6 +99,161 @@ const policy:AdaptivePolicy={name:'hybrid_test',halfWidthsTicks:[10,20],adaptive
 const replayOptions={grid,costs:stageCosts,gasBudgetQuote:10000000n,cooldownMs:60000,confirmations:2,stageTtlMs:180000,
   stageDelayMs:{approval:30000,withdraw_collect:30000,swap:30000,mint:30000}};
 
+test('rejected decisions retry at the decision interval; only completed moves start the cooldown',async()=>{
+  const model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,{...replayOptions,cooldownMs:600000});
+  const candidateCount=()=>model.hybridCandidate?.count;
+  await model.step(source(222003,0),stats(0,0n));
+  assert.equal(model.rejected.hybrid_economic_gate,1);assert.equal(model.hybridCandidate,null);
+  await model.step(source(222003,29999),stats(29999));
+  assert.equal(model.hybridDecisions.length,1);assert.equal(model.hybridCandidate,null);
+  await model.step(source(222003,30000),stats(30000));
+  assert.equal(model.hybridDecisions.length,2);assert.equal(candidateCount(),1);
+  await model.step(source(222003,60000),stats(60000,0n));
+  assert.equal(model.hybridCandidate,null);assert.equal(model.hybridPending,null);
+  await model.step(source(222003,90000),stats(90000));
+  assert.equal(candidateCount(),1);assert.equal(model.hybridPending,null);
+  await model.step(source(222003,120000),stats(120000));assert(model.hybridPending);
+  await model.step(source(222003,150000),stats(150000));
+  await model.step(source(222003,180000),stats(180000));
+  assert.equal(model.entries,1);assert.equal(model.lastHybridMove,180000);assert.equal(model.hybridPending,null);
+  const decisions=model.hybridDecisions.length;
+  await model.step(source(222003,210000),stats(210000));
+  assert.equal(model.hybridDecisions.length,decisions);
+  await model.step(source(222003,780000),stats(780000));
+  assert.equal(model.hybridDecisions.length,decisions+1);
+});
+
+const exitCooldownOptions={...replayOptions,cooldownMs:0,exitCooldownMs:300000};
+async function enteredExitCooldownModel(){
+  const model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,exitCooldownOptions);
+  await model.step(source(222003,0),stats(0));await model.step(source(222003,30000),stats(30000));
+  await model.step(source(222003,60000),stats(60000));await model.step(source(222003,90000),stats(90000));
+  assert(model.position);assert.equal(model.entries,1);return model;
+}
+
+test('range exit waits five minutes once, then retries rejected economics every 30 seconds',async()=>{
+  const model=await enteredExitCooldownModel(),upper=model.position!.tickUpper,decisions=model.hybridDecisions.length,gas=model.gas;
+  await model.step(source(upper,120000),stats(120000,0n));
+  assert.equal(model.rangeExitedAt,120000);assert.equal(model.hybridDecisions.length,decisions);
+  for(let at=150000;at<=390000;at+=30000)await model.step(source(upper,at),stats(at,0n));
+  assert.equal(model.hybridDecisions.length,decisions);assert.equal(model.gas,gas);
+  await model.step(source(upper,420000),stats(420000,0n));
+  assert.equal(model.hybridDecisions.length,decisions+1);assert.equal(model.hybridPending,null);
+  const rejected=model.rejected.hybrid_economic_gate??0;assert(rejected>0);
+  await model.step(source(upper,450000),stats(450000,0n));
+  assert.equal(model.hybridDecisions.length,decisions+2);assert.equal(model.rejected.hybrid_economic_gate,rejected+1);
+  assert.equal(model.rangeExitedAt,120000);assert.equal(model.gas,gas);
+});
+
+test('returning inside resets the exit timer between decisions and snapshot reload preserves a new exit',async()=>{
+  const model=await enteredExitCooldownModel(),p=model.position!,decisions=model.hybridDecisions.length;
+  await model.step(source(p.tickLower-1,120000),stats(120000,0n));assert.equal(model.rangeExitedAt,120000);
+  // The lower boundary is in range; observe the return before another decision is due.
+  model.mark(source(p.tickLower,130000));assert.equal(model.rangeExitedAt,null);
+  model.mark(source(p.tickUpper,140000));assert.equal(model.rangeExitedAt,140000);
+  const saved=Object.fromEntries(Object.entries(model).filter(([key])=>!['market','costs','policy','hybrid'].includes(key)));
+  const restored=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,exitCooldownOptions);Object.assign(restored,structuredClone(saved));
+  for(let at=170000;at<=410000;at+=30000)await restored.step(source(p.tickUpper,at),stats(at,0n));
+  assert.equal(restored.hybridDecisions.length,decisions);assert.equal(restored.rangeExitedAt,140000);
+  await restored.step(source(p.tickUpper,440000),stats(440000,0n));
+  assert.equal(restored.hybridDecisions.length,decisions+1);
+});
+
+for(const flag of ['canonical','coverageComplete'] as const){
+  test(`${flag}=false cannot start or extend the exit timer or advance a stage`,async()=>{
+    const model=await enteredExitCooldownModel(),upper=model.position!.tickUpper;
+    const position=structuredClone(model.position),gas=model.gas,decisions=model.hybridDecisions.length;
+    const unavailable=(at:number)=>({...source(upper,at),[flag]:false});
+    await model.step(unavailable(120000),stats(120000));
+    assert.equal(model.rangeExitedAt,null);assert.equal(model.last!.at,90000);
+    assert.equal(model.hybridDecisions.length,decisions);
+    await model.step(source(upper,150000),stats(150000,0n));
+    assert.equal(model.rangeExitedAt,150000);
+    model.hybridCandidate={key:'prior',count:1,at:150000};
+    await model.step(unavailable(180000),stats(180000));
+    assert.equal(model.rangeExitedAt,null);assert.equal(model.hybridCandidate,null);
+    await model.step(source(upper,210000),stats(210000,0n));
+    assert.equal(model.rangeExitedAt,210000);
+    assert.throws(()=>model.mark(unavailable(220000)),/hybrid_mark_source_unavailable/);
+    assert.equal(model.rangeExitedAt,null);assert.equal(model.last!.at,210000);
+    model.hybridPending={plan:planHybridAction(planner()).selected!,kind:'recenter',quotedAt:210000,
+      quotedBlock:'210001',stage:'withdraw_collect',stageStartedAt:210000,completedReceiptIds:[],
+      afterSwap:null,actualSwap:null,before:{amount0:String(model.cash0),amount1:String(model.cash1)}};
+    model.mark(source(upper,230000));assert.equal(model.rangeExitedAt,230000);
+    await model.advanceHybrid(unavailable(240000),stats(240000),'invalid-withdraw');
+    assert.equal(model.rangeExitedAt,null);assert(model.hybridPending);
+    await model.advanceHybrid(source(upper,270000),stats(270000),'valid-withdraw');
+    assert.equal(model.rangeExitedAt,270000);assert.equal(model.hybridPending,null);
+    assert.deepEqual(model.position,position);assert.equal(model.gas,gas);
+  });
+}
+
+for(const restored of [false,true]){
+  test(`an observation gap restarts the full wait${restored?' after snapshot reload':''}`,async()=>{
+    let model=await enteredExitCooldownModel();const upper=model.position!.tickUpper;
+    await model.step(source(upper,120000),stats(120000,0n));
+    const decisions=model.hybridDecisions.length,gas=model.gas;
+    if(restored){
+      const saved=Object.fromEntries(Object.entries(model).filter(([key])=>!['market','costs','policy','hybrid'].includes(key)));
+      model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,exitCooldownOptions);
+      Object.assign(model,structuredClone(saved));
+    }
+    await model.step(source(upper,1920000),stats(1920000,0n));
+    assert.equal(model.rangeExitedAt,1920000);assert.equal(model.hybridDecisions.length,decisions);
+    for(let at=1950000;at<2220000;at+=30000)await model.step(source(upper,at),stats(at,0n));
+    assert.equal(model.hybridDecisions.length,decisions);assert.equal(model.gas,gas);
+    await model.step(source(upper,2220000),stats(2220000,0n));
+    assert.equal(model.hybridDecisions.length,decisions+1);
+  });
+}
+
+test('a snapshot without observation continuity starts a fresh exit wait',async()=>{
+  const prior=await enteredExitCooldownModel(),upper=prior.position!.tickUpper;
+  await prior.step(source(upper,120000),stats(120000,0n));
+  const saved=Object.fromEntries(Object.entries(prior).filter(([key])=>
+    !['market','costs','policy','hybrid','lastRangeObservationAt'].includes(key)));
+  const model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,exitCooldownOptions);
+  Object.assign(model,structuredClone(saved));
+  await model.step(source(upper,150000),stats(150000,0n));
+  assert.equal(model.rangeExitedAt,150000);
+});
+
+test('a gap beyond one decision interval cancels an unstarted recenter without gas',async()=>{
+  const model=await enteredExitCooldownModel(),position=structuredClone(model.position!),gas=model.gas;
+  for(let at=120000;at<=420000;at+=30000)await model.step(source(position.tickUpper,at),stats(at,0n));
+  assert.equal(model.rangeExitedAt,120000);
+  model.hybridPending={plan:planHybridAction(planner()).selected!,kind:'recenter',quotedAt:420000,
+    quotedBlock:'420001',stage:'withdraw_collect',stageStartedAt:420000,completedReceiptIds:[],
+    afterSwap:null,actualSwap:null,before:{amount0:String(model.cash0),amount1:String(model.cash1)}};
+  await model.advanceHybrid(source(position.tickUpper,450001),stats(450001),'gap-withdraw');
+  assert.equal(model.rangeExitedAt,450001);assert.equal(model.hybridPending,null);
+  assert.deepEqual(model.position,position);assert.equal(model.gas,gas);
+});
+
+test('invalid observations and a gap preserve completed swap custody for mint recovery',async()=>{
+  const model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,exitCooldownOptions);
+  await model.step(source(222003,0),stats(0));await model.step(source(222003,30000),stats(30000));
+  await model.advanceHybrid(source(222003,60000),stats(60000),'completed-swap');
+  assert.equal(model.hybridPending?.stage,'mint');
+  const wallet={amount0:model.cash0,amount1:model.cash1},gas=model.gas;
+  await model.step({...source(222003,90000),coverageComplete:false} as ResearchSource,stats(90000));
+  assert.equal(model.hybridPending?.stage,'mint');assert.equal(model.gas,gas);
+  assert.deepEqual({amount0:model.cash0,amount1:model.cash1},wallet);
+  await model.step(source(222003,120000),stats(120000));
+  assert(model.position);assert.equal(model.entries,1);
+  assert.equal(model.hybridStages.filter(stage=>stage.stage==='swap').length,1);
+});
+
+test('an exit before the first recenter stage cancels the quote without withdrawing or spending gas',async()=>{
+  const model=await enteredExitCooldownModel(),position=structuredClone(model.position!),gas=model.gas;
+  const plan=planHybridAction(planner()).selected!;
+  model.hybridPending={plan,kind:'recenter',quotedAt:90000,quotedBlock:'90001',stage:'withdraw_collect',stageStartedAt:90000,
+    completedReceiptIds:[],afterSwap:null,actualSwap:null,before:{amount0:String(model.cash0),amount1:String(model.cash1)}};
+  await model.advanceHybrid(source(position.tickUpper,120000),stats(120000),'withdraw');
+  assert.equal(model.hybridPending,null);assert.equal(model.rangeExitedAt,120000);
+  assert.deepEqual(model.position,position);assert.equal(model.gas,gas);assert.equal(model.rejected.hybrid_exit_cooldown,1);
+});
+
 test('staged replay retains a completed swap across mint revert and recovery',async()=>{
   const model=new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,replayOptions);
   await model.step(source(222003,0),stats(0));await model.step(source(222003,30000),stats(30000));assert(model.hybridPending);
@@ -158,6 +313,9 @@ test('cancellation before withdrawal preserves LP; cancellation after withdrawal
 test('inactive hybrid paper config is isolated, fully costed, and reserves exactly $10 gas',()=>{
   const config=configSchema.parse(JSON.parse(readFileSync('config/hybrid-lp-250-paper.json','utf8')));
   assert(config.hybridRange);assert.equal(config.assets.length,1);assert(config.assets[0]!.hybridCosts);
+  assert.equal(config.hybridRange.exitCooldownMs,300000);assert.equal(config.hybridRange.cooldownMs,0);
+  assert.throws(()=>configSchema.parse({...config,hybridRange:{...config.hybridRange,cooldownMs:600000}}),/Exit cooldown replaces/);
+  assert.throws(()=>new HybridLpReplay(NVDA_PAPER_MARKET,replayCosts,policy,{...exitCooldownOptions,cooldownMs:600000}),/exit cooldown replaces/);
   assert.equal(BigInt(config.budgetQuote)+BigInt(config.hybridRange.gasBudgetQuote),250000000n);
   const mixed=structuredClone(config) as Record<string,unknown>;mixed.inventoryRange={kind:'inventory_preserving_v1',spanSpacings:[1],cooldownMs:60000,confirmations:2,gasBudgetQuote:'1'};
   assert.throws(()=>configSchema.parse(mixed),/mutually exclusive/);

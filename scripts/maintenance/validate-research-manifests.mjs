@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { execFileSync } from "node:child_process";
 
 const root = process.cwd();
 const directory = join(root, "research/manifests");
@@ -25,9 +26,17 @@ for (const name of manifests) {
     assert(Number.isSafeInteger(file.bytes) && file.bytes >= 0, `${name}: ${file.path} has invalid byte length`);
     assert(["config", "conclusion", "code", "manifest", "compact_evidence", "archive_manifest", "archive_receipt"].includes(file.role),
       `${name}: ${file.path} has invalid role`);
-    const absolute = join(root, file.path);
-    assert(existsSync(absolute) && statSync(absolute).isFile(), `${name}: ${file.path} is not retrievable`);
-    const bytes = readFileSync(absolute);
+    let bytes;
+    if (file.gitCommit !== undefined) {
+      assert.equal(manifest.reproduction.mode, "original_checkout", `${name}: Git pins require original-checkout reproduction`);
+      assert(["code", "config"].includes(file.role), `${name}: only historical code or config may use a Git pin`);
+      assert.match(file.gitCommit, /^[a-f0-9]{40}$/, `${name}: invalid historical code commit`);
+      bytes = execFileSync("git", ["show", `${file.gitCommit}:${file.path}`], { cwd: root, maxBuffer: 2 ** 24 });
+    } else {
+      const absolute = join(root, file.path);
+      assert(existsSync(absolute) && statSync(absolute).isFile(), `${name}: ${file.path} is not retrievable`);
+      bytes = readFileSync(absolute);
+    }
     assert.equal(bytes.length, file.bytes, `${name}: ${file.path} byte length changed`);
     assert.equal(createHash("sha256").update(bytes).digest("hex"), file.sha256, `${name}: ${file.path} digest changed`);
   }
