@@ -119,3 +119,23 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
    assert.equal((await fetch(base+path)).status,404,'design fixtures must not be served by the runtime');
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
+test('research endpoints enforce bounded capital and bind pool detail to summary snapshot',async()=>{
+ const requests:any[]=[];const snapshotId='research:stream:2026-09-29T10:00:00.000Z';
+ const server=createDashboardServer({snapshot:async()=>({} as any),
+  research:async(capitalQuoteRaw='250000000')=>({snapshotId,capitalQuoteRaw}),
+  researchDetails:async(input)=>{requests.push(input);return input.snapshotId===snapshotId?
+   {snapshotId,pool:{poolAddress:input.poolAddress}}:{error:'research_snapshot_changed'};}},
+  {...loadDashboardConfig({DATABASE_URL:'postgresql://unused/test'}),port:0});
+ await once(server,'listening');const address=server.address();assert(address&&typeof address==='object');const base=`http://127.0.0.1:${address.port}`;
+ const pool='0x'+'1'.repeat(40);const query=new URLSearchParams({pool,capitalQuoteRaw:'250000000',hours:'24',width:'2',snapshotId});
+ try{
+  const summary=await fetch(base+'/api/research');assert.equal(summary.status,200);
+  assert.deepEqual(await summary.json(),{snapshotId,capitalQuoteRaw:'250000000'});
+  assert.equal((await fetch(base+'/api/research?capitalQuoteRaw=100000000001')).status,400);
+  const detail=await fetch(base+'/api/research/details?'+query.toString());assert.equal(detail.status,200);
+  assert.deepEqual(requests[0],{poolAddress:pool,capitalQuoteRaw:'250000000',hours:24,width:2,snapshotId});
+  const changed=await fetch(base+'/api/research/details?'+new URLSearchParams({...Object.fromEntries(query),snapshotId:'research:old'}));
+  assert.equal(changed.status,409);assert.deepEqual(await changed.json(),{error:'research_snapshot_changed'});
+  assert.equal((await fetch(base+'/api/research?capitalQuoteRaw=1&capitalQuoteRaw=2')).status,400);
+ }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
+});

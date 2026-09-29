@@ -70,8 +70,8 @@ it('scales editable defaults from capital and derives native allocation from exa
     maxExposurePpm:'95',maxLossValue:'12.5',maxDrawdownPpm:'10',maxActionCost:'12.5',
     maxRollingCost:'25',maxCampaignCost:'37.5',exitReserveWei:'0.001',maxSlippageBps:'0.5'});
   assert.equal(suggestedSetupLimits('0.5')?.minDeploymentValue,'0.05');
-  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'200'}),'350');
-  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'400'}),'500');
+  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'200'}),'420');
+  assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'250',exitReserveWei:'400'}),'600');
   assert.equal(suggestedNativeAllocationWei({openBoundWei:'invalid',closeBoundWei:'1',exitReserveWei:'1'}),null);
 });
 

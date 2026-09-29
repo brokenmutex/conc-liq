@@ -9,11 +9,15 @@ import {
   quoteValueOfRwa,
   RESEARCH_BUCKET_MINUTES,
   RESEARCH_BUCKETS_PER_HOUR,
+  RESEARCH_BUDGET_QUOTE,
   RESEARCH_HALF_WIDTH_FRACTIONS,
   RESEARCH_RETAINED_BUCKETS,
   RESEARCH_RETAINED_HOURS,
   RESEARCH_WINDOW_HOURS,
+  repriceResearchSnapshot,
+  sizeResearchCapitalForRange,
 } from "../src/dashboard/research.js";
+import { USDG } from "../src/constants.js";
 
 describe("research read model", () => {
   it("values an 18-decimal RWA amount in six-decimal USDG", () => {
@@ -100,6 +104,76 @@ describe("research read model", () => {
     assert.equal(RESEARCH_RETAINED_BUCKETS, 672);
   });
 
+  it("defaults to the setup form's 250 USDG capital",()=>{
+    assert.equal(RESEARCH_BUDGET_QUOTE,250_000_000n);
+  });
+
+  it("recalculates exact V3 fee share and net from cached buckets at the selected capital",()=>{
+    const sqrtPriceX96='79228162514264337593543950336';
+    const series=Array.from({length:4},(_unused,index)=>({bucket:new Date(index*900_000).toISOString(),
+      swaps:1,volumeQuote:'2000000',feesQuote:'100000000',meanLiquidity:'100000000',
+      priceX18:'1000000000000000000',sqrtPriceX96,tickLast:0,
+      tickMin:index===2?-1000:-1,tickMax:index===2?1000:1,
+      validShare:index===1?null:1,deviationPpm:'0'}));
+    const window={hours:1,windowSeconds:null,coveredSeconds:null,freshnessSeconds:null,
+      maxGapSeconds:null,asOf:null,swapWindowSeconds:null,swapAsOf:null,swapAvailability:'available',
+      observedBuckets:4,swaps:4,volumeQuote:'8000000',feesQuote:'400000000',meanLiquidity:'100000000',
+      priceChangePpm:0,validShare:1,references:[],limitation:null};
+    const base={snapshotId:'research:test:stable',generatedAt:'2026-09-29T00:00:00.000Z',
+      asOf:'2026-09-29T00:00:00.000Z',sourceFreshness:{status:'fresh',asOf:'2026-09-29T00:00:00.000Z',
+        ageSeconds:0,maxAgeSeconds:90},capitalQuoteRaw:'1000000000',streamKey:'test',budgetQuote:'1000000000',
+      quoteDecimals:6,bucketMinutes:15,buckets:series.map(row=>row.bucket),
+      costs:{mintBundleQuote:'1000000',exitBundleQuote:'1320000',roundTripQuote:'2320000'},
+      pools:[{poolAddress:'0x1111111111111111111111111111111111111111',rwaSymbol:'AAA',fee:500,
+        token0:USDG,token1:'0x2222222222222222222222222222222222222222',feeProtocol0:0,feeProtocol1:0,
+        tickSpacing:10,quoteIsToken0:true,rwaDecimals:18,tick:0,sqrtPriceX96,priceX18:'1000000000000000000',
+        liquidity:'100000000',observedAt:'2026-09-29T00:00:00.000Z',registryEnabled:true,
+        stateStatus:'current',series,windows:[window],depth:[{tick:-10,liquidity:'1'},{tick:10,liquidity:'1'}],
+        depthReferences:[]}]} as const;
+    const fixedNow=Date.parse('2026-09-29T00:01:30.000Z');
+    const baseCapital=repriceResearchSnapshot(base,RESEARCH_BUDGET_QUOTE,fixedNow);
+    assert.deepEqual(baseCapital.sourceFreshness,{status:'fresh',asOf:base.asOf,ageSeconds:90,maxAgeSeconds:90});
+    assert.equal(baseCapital.pools[0]!.windows[0]!.references[0]!.inRangeBuckets,2,
+      'missing checkpoints and observed tick extremes remain excluded');
+    const reference=repriceResearchSnapshot(base,1_000_000_000n,fixedNow).pools[0]!.windows[0]!.references[0]!;
+    const selected=repriceResearchSnapshot(base,'250000000',fixedNow);
+    const selectedReference=selected.pools[0]!.windows[0]!.references[0]!;
+    assert.equal(selected.snapshotId,base.snapshotId);
+    assert.equal(selected.capitalQuoteRaw,'250000000');
+    assert.equal(selected.budgetQuote,'250000000');
+    const expectedSizing=sizeResearchCapitalForRange({capitalQuoteRaw:250_000_000n,token0:USDG,
+      token1:'0x2222222222222222222222222222222222222222',decimals0:6,decimals1:18,
+      quoteToken:USDG,quoteDecimals:6,fee:500,currentTick:0,
+      sqrtPriceX96:BigInt(sqrtPriceX96),tickLower:-10,tickUpper:10});
+    assert.equal(selectedReference.liquidity,expectedSizing.liquidity);
+    const poolLiquidity=100_000_000n,positionLiquidity=BigInt(expectedSizing.liquidity);
+    const independentlyModeledFees=2n*(100_000_000n*positionLiquidity/(positionLiquidity+poolLiquidity));
+    assert.equal(BigInt(selectedReference.modeledFeesQuote),independentlyModeledFees,
+      'each eligible bucket uses Lposition/(Lposition+Lpool) with integer division');
+    assert.notEqual(BigInt(selectedReference.modeledFeesQuote)*4n,BigInt(reference.modeledFeesQuote),
+      'fee share is nonlinear because pool liquidity is in the denominator');
+    assert.equal(BigInt(selectedReference.modeledNetQuote!),BigInt(selectedReference.modeledFeesQuote)-2_320_000n);
+    assert.equal(BigInt(selectedReference.sharePpm!),positionLiquidity*1_000_000n/(positionLiquidity+poolLiquidity));
+    assert.equal(selectedReference.aprPpm,
+      Number(BigInt(selectedReference.modeledNetQuote!)*1_000_000n/250_000_000n)*8_760);
+    assert.notEqual(selected.pools[0]!.depthReferences[0]!.liquidity,
+      repriceResearchSnapshot(base,1_000_000_000n,fixedNow).pools[0]!.depthReferences[0]!.liquidity);
+
+    const scenarioPool=(symbol:string,poolLiquidity:string,feePerBucket:string)=>({...base.pools[0]!,
+      poolAddress:`0x${symbol}`,rwaSymbol:symbol,
+      series:series.map(bucket=>({...bucket,validShare:1,meanLiquidity:poolLiquidity,
+        feesQuote:feePerBucket,tickMin:-1,tickMax:1}))});
+    const rankingBase={...base,pools:[scenarioPool('AAA','1000000000','10000000'),
+      scenarioPool('BBB','1000000000000','40000000')]};
+    const ranked=(capital:bigint)=>repriceResearchSnapshot(rankingBase,capital,fixedNow).pools.map(pool=>({
+      symbol:pool.rwaSymbol,net:BigInt(pool.windows[0]!.references[0]!.modeledNetQuote!),
+    })).sort((left,right)=>left.net>right.net?-1:left.net<right.net?1:0).map(row=>row.symbol);
+    assert.deepEqual(ranked(250_000_000n),['AAA','BBB']);
+    assert.deepEqual(ranked(1_000_000_000n),['BBB','AAA']);
+    assert.equal(repriceResearchSnapshot(base,250_000_000n,fixedNow+1).sourceFreshness.status,'stale');
+    assert.equal(repriceResearchSnapshot(base,250_000_000n,Date.parse(base.asOf)-1).sourceFreshness.status,'unavailable');
+  });
+
   it("spans the half-widths in ascending order from a near-spacing range", () => {
     const fractions = [...RESEARCH_HALF_WIDTH_FRACTIONS];
     assert.deepEqual(fractions, [...fractions].sort((a, b) => a - b));
@@ -118,9 +192,12 @@ describe("research view semantics", () => {
   ).replace(/^load\(\);\s*$/m, "");
   const ui = runInNewContext(
     `const document = { addEventListener() {} };\n${source}\n` +
-      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, MAX_BARS, protocolCut, WINDOWS });"
+      "({ leagueRows, sortRows, priceAtTick, si, yAxis, depthQuote, condense, capitalQuoteRaw, formatCapitalRaw, freshnessLabel, MAX_BARS, protocolCut, WINDOWS });"
   ) as {
     MAX_BARS: number;
+    capitalQuoteRaw(value: string): string | null;
+    formatCapitalRaw(value: string): string;
+    freshnessLabel(envelope: unknown, now?: number): string;
     WINDOWS: readonly (readonly [number, string])[];
     protocolCut(pool: { feeProtocol0: number; feeProtocol1: number }): string;
     condense(
@@ -210,6 +287,32 @@ describe("research view semantics", () => {
     assert.equal(rows[0]!.net, null);
     // 48 of the 24-hour window's 96 quarter-hour buckets held the range.
     assert.equal(rows[0]!.inRange, 0.5);
+  });
+
+  it("parses Research capital as exact six-decimal USDG raw units within the setup bound",()=>{
+    assert.equal(ui.capitalQuoteRaw('250'),'250000000');
+    assert.equal(ui.capitalQuoteRaw('1'),'1000000');
+    assert.equal(ui.capitalQuoteRaw('1.000001'),'1000001');
+    assert.equal(ui.capitalQuoteRaw('1.5'),'1500000');
+    assert.equal(ui.capitalQuoteRaw('100000'),'100000000000');
+    assert.equal(ui.capitalQuoteRaw('0'),null);
+    assert.equal(ui.capitalQuoteRaw('0.5'),null);
+    assert.equal(ui.capitalQuoteRaw('100000.000001'),null);
+    assert.equal(ui.capitalQuoteRaw('1.0000001'),null);
+  });
+
+  it("displays the full selected capital precision without rounding",()=>{
+    assert.equal(ui.formatCapitalRaw('1250000'),'1.25');
+    assert.equal(ui.formatCapitalRaw('375750000'),'375.75');
+    assert.equal(ui.formatCapitalRaw('250000000'),'250');
+  });
+
+  it("ages canonical research evidence instead of leaving a cached fresh label frozen",()=>{
+    const asOf='2026-09-29T00:00:00.000Z',stamp=Date.parse(asOf);
+    const envelope={asOf,sourceFreshness:{status:'fresh',asOf,maxAgeSeconds:90}};
+    assert.match(ui.freshnessLabel(envelope,stamp+90_000),/fresh · 1m 30s old/);
+    assert.match(ui.freshnessLabel(envelope,stamp+91_000),/stale · 1m 31s old/);
+    assert.match(ui.freshnessLabel({sourceFreshness:{status:'unavailable',asOf:null}},stamp),/unavailable/);
   });
 
   it("keeps exact swap availability separate from bucket economics", () => {

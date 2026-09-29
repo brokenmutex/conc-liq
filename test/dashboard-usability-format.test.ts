@@ -84,13 +84,14 @@ test('setupNativeAllocationToWei rejects an exact zero allocation but accepts a 
  assert.equal(setupNativeAllocationToWei('0.000000000000000001'),'1');
 });
 
-test('suggestedNativeAllocationWei sums to zero when every bound is zero, to one wei when only the open bound is nonzero, and uses the reserve when it exactly equals the close bound',()=>{
+test('suggestedNativeAllocationWei adds a rounded-up 20% cushion to the current open and exit requirement',()=>{
  assert.equal(suggestedNativeAllocationWei({openBoundWei:'0',closeBoundWei:'0',exitReserveWei:'0'}),'0');
- assert.equal(suggestedNativeAllocationWei({openBoundWei:'1',closeBoundWei:'0',exitReserveWei:'0'}),'1');
- // The close/reserve comparison is a strict ">"; when they are exactly equal
- // the reserve branch is taken, which is the same numeric result either way
- // but is worth pinning so a future change to the comparison is caught.
- assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'200',exitReserveWei:'200'}),'300');
+ assert.equal(suggestedNativeAllocationWei({openBoundWei:'1',closeBoundWei:'0',exitReserveWei:'0'}),'2');
+ assert.equal(suggestedNativeAllocationWei({openBoundWei:'4',closeBoundWei:'0',exitReserveWei:'0'}),'5');
+ assert.equal(suggestedNativeAllocationWei({openBoundWei:'100',closeBoundWei:'200',exitReserveWei:'200'}),'360');
+ const huge=10n**100n;
+ assert.equal(suggestedNativeAllocationWei({openBoundWei:huge.toString(),closeBoundWei:'0',exitReserveWei:'0'}),
+  String(huge+(huge+4n)/5n),'native headroom arithmetic stays exact beyond Number precision');
 });
 
 test('suggestedSetupLimits derives limits that already satisfy every normalizeSetupLimits invariant, from a sub-millionth capital up to the 100,000 USDG ceiling',()=>{

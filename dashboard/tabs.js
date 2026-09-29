@@ -98,7 +98,11 @@ export function suggestedNativeAllocationWei({ openBoundWei, closeBoundWei, exit
   const amounts = [openBoundWei, closeBoundWei, exitReserveWei].map(String);
   if (amounts.some(value => !/^(0|[1-9][0-9]*)$/.test(value))) return null;
   const [open, close, reserve] = amounts.map(BigInt);
-  return String(open + (close > reserve ? close : reserve));
+  const currentBounds = open + (close > reserve ? close : reserve);
+  // Add a transparent 20% sizing cushion, rounded up in raw native units.
+  // Fresh preflight remains mandatory: this cannot cover arbitrary repricing.
+  const headroom = (currentBounds + 4n) / 5n;
+  return String(currentBounds + headroom);
 }
 
 function normalizeSetupLimits(limits) {
@@ -274,6 +278,7 @@ function bootDashboardTabs() {
     }
     document.getElementById('status').hidden = tab.id !== 'research-tab';
     document.getElementById('connection-status').hidden = tab.id !== 'positions-tab';
+    window.dispatchEvent(new CustomEvent('dashboard-tab-change',{detail:{tabId:tab.id}}));
     if (tab.id === 'positions-tab') window.dispatchEvent(new Event('resize'));
   }
   for (const tab of tabs) tab.addEventListener('click', () => selectTab(tab));
@@ -369,17 +374,10 @@ function bootDashboardTabs() {
     poolSelect.disabled = false; renderWidths(); reviewButton.disabled = false;
     if ([...widthSelect.options].some((option) => option.value === selectedWidth)) widthSelect.value = selectedWidth;
   }
-  const renderPools = (snapshot) => {
-    researchPools = (snapshot.pools ?? []).filter((pool) => pool.registryEnabled === true);
-    registeredPools = researchPools
-      .sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
-    if (marketProfiles.length) applyProfileIds();
-    if (!registeredPools.length) throw new Error('No enabled registered pools are available');
-    replacePoolOptions();
-    applySuggestedLimitValues();
-  };
-  function applyProfileIds() {
-    registeredPools = marketProfiles.filter((profile) => profile.draftAvailable === true).map((profile) => {
+  function poolsWithProfiles() {
+    if (!marketProfiles.length) return researchPools
+      .slice().sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
+    return marketProfiles.filter((profile) => profile.draftAvailable === true).map((profile) => {
       const pool = researchPools.find((candidate) => candidate.poolAddress?.toLowerCase() === profile.pool?.toLowerCase() && candidate.fee === profile.fee);
       const rwaReference = profile.quoteToken === 0 ? profile.reference1 : profile.reference0;
       const rwaName = String(rwaReference ?? '').split('/')[0];
@@ -389,6 +387,16 @@ function bootDashboardTabs() {
         token0: profile.token0, token1: profile.token1, decimals0: profile.decimals0, decimals1: profile.decimals1,
         reference0: profile.reference0, reference1: profile.reference1, quoteToken: profile.quoteToken };
     }).sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
+  }
+  const renderPools = (snapshot) => {
+    researchPools = (snapshot.pools ?? []).filter((pool) => pool.registryEnabled === true);
+    registeredPools = poolsWithProfiles();
+    if (!registeredPools.length) throw new Error('No enabled registered pools are available');
+    replacePoolOptions();
+    applySuggestedLimitValues();
+  };
+  function applyProfileIds() {
+    registeredPools = poolsWithProfiles();
     if (!registeredPools.length) throw new Error('No verified, indexed market profiles are available for setup.');
     replacePoolOptions();
     applySuggestedLimitValues();
@@ -401,6 +409,16 @@ function bootDashboardTabs() {
     renderPools(snapshot);
   };
   void loadResearch().catch((error) => { poolSelect.innerHTML = `<option value="">${esc(error.message)}</option>`; });
+  window.addEventListener('research-summary-updated', (event) => {
+    const pools = Array.isArray(event.detail?.pools) ? event.detail.pools : null;
+    if (!pools) return;
+    researchPools = pools.filter((pool) => pool.registryEnabled === true);
+    registeredPools = poolsWithProfiles();
+    if (!registeredPools.length) return;
+    const setupInProgress = currentSetupPreflight || savedDraftId || pendingDraftRequestId || openPreview ||
+      pendingOpenAcceptance || !document.getElementById('setup-review').hidden;
+    if (!setupInProgress) replacePoolOptions();
+  });
   poolSelect.addEventListener('change', () => { renderWidths(); invalidateReview(); });
 
   function invalidateReview() {
@@ -529,7 +547,9 @@ function bootDashboardTabs() {
     if(Number.isFinite(reviewExpiry))setTimeout(()=>{
       if(currentSetupPreflight===result)updateDraftBinding();
     },Math.max(0,reviewExpiry-Date.now()+1));
-    setSetupStatus(isAvailable ? 'Preflight completed. Review the exact bounds and provisional estimates below; admission limits were not evaluated.' : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
+    setSetupStatus(isAvailable
+      ? 'Preflight completed. The suggested native allocation adds 20% headroom over open cost plus the greater of close bound or exit reserve. Gas can reprice beyond this cushion; request a fresh open preview before accepting. Admission limits were not evaluated.'
+      : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
   }
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
     maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
@@ -558,6 +578,29 @@ function bootDashboardTabs() {
   document.getElementById('setup-capital').addEventListener('input',applySuggestedLimitValues);
   for(const id of Object.values(limitInputIds))document.getElementById(id).addEventListener('input',()=>{
     const details=document.getElementById('setup-limits-review');if(details)details.open=true;
+  });
+  window.addEventListener('research-setup-handoff',(event)=>{
+    const selection=event.detail??{},capital=String(selection.capital??''),poolAddress=String(selection.poolAddress??'');
+    const target=document.getElementById('positions-tab');
+    const reviewed=currentSetupPreflight||savedDraftId||pendingDraftRequestId||openPreview||pendingOpenAcceptance||
+      !document.getElementById('setup-review').hidden;
+    if(reviewed){
+      target.click();
+      setSetupStatus('Research selection was not applied because a setup review, saved draft, or pending request exists. Its capital and pool were left unchanged; finish or reconcile that setup first.');
+      return;
+    }
+    if(!capitalToQuoteRaw(capital)||!EVM_ADDRESS.test(poolAddress)){
+      target.click();setSetupStatus('Research selection was not applied because its capital or registered pool identity is unavailable.');return;
+    }
+    const matchingPool=registeredPools.find((pool)=>pool.poolAddress?.toLowerCase()===poolAddress.toLowerCase());
+    document.getElementById('setup-capital').value=capital;
+    document.getElementById('setup-capital').dispatchEvent(new Event('input',{bubbles:true}));
+    if(matchingPool){
+      poolSelect.value=matchingPool.poolAddress;
+      poolSelect.dispatchEvent(new Event('change',{bubbles:true}));
+    }
+    target.click();
+    setSetupStatus(`Research selection applied${matchingPool?'':' for capital only; selected pool is not available in setup'}: ${capital} USDG. Request a new setup review; no Research snapshot or preflight was reused.`);
   });
   function renderOperatorDraftBinding(result) {
     const section=document.getElementById('operator-draft-binding'),available=onOperatorOrigin&&

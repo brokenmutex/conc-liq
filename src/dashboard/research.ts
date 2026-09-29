@@ -63,8 +63,8 @@ export const RESEARCH_RETAINED_HOURS = 168;
 export const RESEARCH_RETAINED_BUCKETS = RESEARCH_RETAINED_HOURS *
   RESEARCH_BUCKETS_PER_HOUR;
 
-/** Reference position budget: 1,000 USDG at six decimals. */
-export const RESEARCH_BUDGET_QUOTE = 1_000_000_000n;
+/** Operator-selected capital default: 250 USDG at six decimals. */
+export const RESEARCH_BUDGET_QUOTE = 250_000_000n;
 
 const QUOTE_DECIMALS = 6;
 const MAX_RESEARCH_CAPITAL_QUOTE = 100_000n * 10n ** BigInt(QUOTE_DECIMALS);
@@ -80,6 +80,8 @@ export interface ResearchBucket {
   readonly feesQuote: string | null;
   readonly meanLiquidity: string;
   readonly priceX18: string | null;
+  /** Exact Q64.96 source price, retained for capital-specific replay. */
+  readonly sqrtPriceX96: string | null;
   readonly tickLast: number | null;
   readonly tickMin: number | null;
   readonly tickMax: number | null;
@@ -260,6 +262,8 @@ export interface ResearchPool {
   readonly poolAddress: string;
   readonly rwaSymbol: string;
   readonly fee: number;
+  readonly token0: string | null;
+  readonly token1: string | null;
   /** Protocol fee divisors, per leg. Zero means the whole fee reaches LPs. */
   readonly feeProtocol0: number;
   readonly feeProtocol1: number;
@@ -267,6 +271,7 @@ export interface ResearchPool {
   readonly quoteIsToken0: boolean;
   readonly rwaDecimals: number;
   readonly tick: number | null;
+  readonly sqrtPriceX96: string | null;
   readonly priceX18: string | null;
   readonly liquidity: string | null;
   readonly observedAt: string | null;
@@ -285,7 +290,17 @@ export interface ResearchCosts {
 }
 
 export interface ResearchSnapshot {
+  /** Stable across capital repricing of the same canonical build. */
+  readonly snapshotId: string;
   readonly generatedAt: string;
+  readonly asOf: string | null;
+  readonly sourceFreshness: {
+    readonly status: "fresh" | "stale" | "unavailable";
+    readonly asOf: string | null;
+    readonly ageSeconds: number | null;
+    readonly maxAgeSeconds: number;
+  };
+  readonly capitalQuoteRaw: string;
   readonly streamKey: string;
   readonly budgetQuote: string;
   readonly quoteDecimals: number;
@@ -293,6 +308,97 @@ export interface ResearchSnapshot {
   readonly buckets: readonly string[];
   readonly costs: ResearchCosts;
   readonly pools: readonly ResearchPool[];
+}
+
+/** Reprice a cached canonical snapshot without repeating its research queries. */
+export function repriceResearchSnapshot(
+  base: ResearchSnapshot,
+  capitalQuoteRaw: bigint | string,
+  nowMilliseconds = Date.now(),
+): ResearchSnapshot {
+  const capital = typeof capitalQuoteRaw === "bigint"
+    ? capitalQuoteRaw
+    : /^(0|[1-9][0-9]*)$/.test(capitalQuoteRaw) ? BigInt(capitalQuoteRaw) : 0n;
+  if (capital < 1_000_000n || capital > MAX_RESEARCH_CAPITAL_QUOTE) {
+    throw new Error("research_capital_out_of_bounds");
+  }
+  const costs = base.costs.roundTripQuote === null
+    ? null
+    : BigInt(base.costs.roundTripQuote);
+  const sourceTimestamp = base.asOf === null ? NaN : Date.parse(base.asOf);
+  const maxAgeSeconds = base.sourceFreshness?.maxAgeSeconds ?? 90;
+  const ageMilliseconds = Number.isFinite(sourceTimestamp)
+    ? nowMilliseconds - sourceTimestamp : NaN;
+  const sourceFreshness = !Number.isFinite(ageMilliseconds) || ageMilliseconds < 0
+    ? {status:"unavailable" as const,asOf:base.asOf,ageSeconds:null,maxAgeSeconds}
+    : {status:ageMilliseconds <= maxAgeSeconds * 1_000 ? "fresh" as const : "stale" as const,
+      asOf:base.asOf,ageSeconds:Math.floor(ageMilliseconds / 1_000),maxAgeSeconds};
+  const pools = base.pools.map((pool) => {
+    const referencesFor = (hours: number): readonly ResearchReference[] => {
+      if (hours === 0.25 || pool.tick === null || pool.tickSpacing <= 0 ||
+          pool.token0 === null || pool.token1 === null) return [];
+      const from = Math.max(0, pool.series.length - hours * RESEARCH_BUCKETS_PER_HOUR);
+      const slice = pool.series.slice(from);
+      const entry = pool.series[Math.max(0, from - 1)] ?? slice[0];
+      if (entry?.tickLast == null || entry.sqrtPriceX96 == null) return [];
+      const centre = Math.floor(entry.tickLast / pool.tickSpacing) * pool.tickSpacing;
+      const meanLiquidity = slice.filter((bucket) => bucket.validShare !== null)
+        .reduce((sum, bucket) => sum + BigInt(bucket.meanLiquidity), 0n) /
+        BigInt(Math.max(1, slice.filter((bucket) => bucket.validShare !== null).length));
+      return RESEARCH_HALF_WIDTH_FRACTIONS.map((fraction) => {
+        const sized = referenceSizing(
+          { token0: pool.token0!, token1: pool.token1! }, pool.tickSpacing,
+          entry.tickLast!, BigInt(entry.sqrtPriceX96!), fraction, capital,
+        );
+        let inRangeBuckets = 0;
+        let modeledFeesQuote = 0n;
+        for (const bucket of slice) {
+          if (bucket.validShare === null) continue;
+          const low = bucket.tickMin ?? bucket.tickLast;
+          const high = bucket.tickMax ?? bucket.tickLast;
+          if (low === null || high === null || low < centre - sized.halfWidthTicks ||
+              high > centre + sized.halfWidthTicks) continue;
+          inRangeBuckets += 1;
+          const poolLiquidity = BigInt(bucket.meanLiquidity);
+          const shared = sized.liquidity + poolLiquidity;
+          if (shared > 0n && bucket.feesQuote !== null) {
+            modeledFeesQuote += BigInt(bucket.feesQuote) * sized.liquidity / shared;
+          }
+        }
+        const modeledNetQuote = costs === null ? null : modeledFeesQuote - costs;
+        return {
+          halfWidthTicks: sized.halfWidthTicks,
+          halfWidthPercent: sized.halfWidthPercent,
+          liquidity: sized.liquidity.toString(),
+          sharePpm: sized.liquidity + meanLiquidity > 0n
+            ? Number(sized.liquidity * 1_000_000n / (sized.liquidity + meanLiquidity))
+            : null,
+          inRangeBuckets,
+          modeledFeesQuote: modeledFeesQuote.toString(),
+          modeledNetQuote: modeledNetQuote?.toString() ?? null,
+          aprPpm: modeledNetQuote === null ? null
+            : Number(modeledNetQuote * 1_000_000n / capital) * (8_760 / hours),
+        };
+      });
+    };
+    const windows = pool.windows.map((window) => ({
+      ...window,
+      references: referencesFor(window.hours),
+    }));
+    const depthReferences = pool.tick === null || pool.sqrtPriceX96 === null
+      ? pool.depthReferences
+      : RESEARCH_HALF_WIDTH_FRACTIONS.map((fraction) => {
+        if (pool.token0 === null || pool.token1 === null) return null;
+        const sized = referenceSizing(
+          { token0: pool.token0, token1: pool.token1 }, pool.tickSpacing,
+          pool.tick!, BigInt(pool.sqrtPriceX96!), fraction, capital,
+        );
+        return {halfWidthTicks:sized.halfWidthTicks,halfWidthPercent:sized.halfWidthPercent,
+          liquidity:sized.liquidity.toString()};
+      }).filter((entry): entry is ResearchDepthReference => entry !== null);
+    return {...pool,windows,depthReferences};
+  });
+  return {...base,sourceFreshness,capitalQuoteRaw:capital.toString(),budgetQuote:capital.toString(),pools};
 }
 
 /**
@@ -339,11 +445,12 @@ function referenceSizing(
   centreTick: number,
   sqrtPriceX96: bigint,
   fraction: number,
+  capitalQuoteRaw: bigint = RESEARCH_BUDGET_QUOTE,
 ): { halfWidthTicks: number; halfWidthPercent: number; liquidity: bigint } {
   const halfWidthTicks = halfWidthTicksForFraction(fraction, tickSpacing);
   const base = Math.floor(centreTick / tickSpacing) * tickSpacing;
   const size = sizeLiquidityForQuoteBudget({
-    budgetQuote: RESEARCH_BUDGET_QUOTE,
+    budgetQuote: capitalQuoteRaw,
     quoteToken: USDG,
     sqrtPriceX96,
     tickLower: base - halfWidthTicks,
@@ -1089,7 +1196,8 @@ export async function readResearch(
       return {
         poolAddress: pool.poolAddress, rwaSymbol: pool.rwaSymbol, fee: pool.fee,
         feeProtocol0: protocol.fee0, feeProtocol1: protocol.fee1, tickSpacing,
-        quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, priceX18: null,
+        token0: pool.token0, token1: pool.token1,
+        quoteIsToken0, rwaDecimals: pool.rwaDecimals, tick: null, sqrtPriceX96: null, priceX18: null,
         liquidity: null, observedAt: null, registryEnabled: pool.registryEnabled,
         stateStatus: pool.stateStatus, series: [], windows: RESEARCH_WINDOW_HOURS.map((hours) =>
           hours === 0.25 ? exactWindow : withExactSwapCount({
@@ -1128,6 +1236,7 @@ export async function readResearch(
         feesQuote: entry.checkpoints > 0 ? value(fee0, fee1).toString() : null,
         meanLiquidity: entry.meanLiquidity.toString(),
         priceX18: entry.priceX18?.toString() ?? null,
+        sqrtPriceX96: entry.sqrtPriceX96?.toString() ?? null,
         tickLast: entry.tickLast,
         tickMin: entry.tickMin,
         tickMax: entry.tickMax,
@@ -1144,10 +1253,13 @@ export async function readResearch(
       fee: pool.fee,
       feeProtocol0: protocol.fee0,
       feeProtocol1: protocol.fee1,
+      token0: pool.token0,
+      token1: pool.token1,
       tickSpacing,
       quoteIsToken0,
       rwaDecimals: pool.rwaDecimals,
       tick: pool.tick,
+      sqrtPriceX96: pool.sqrtPriceX96.toString(),
       priceX18: pool.priceX18.toString(),
       liquidity: pool.liquidity.toString(),
       observedAt: pool.observedAt.toISOString(),
@@ -1177,8 +1289,21 @@ export async function readResearch(
     };
   });
 
-  return {
+  const snapshot: ResearchSnapshot = {
+    snapshotId: `research:${streamKey}:${now.toISOString()}`,
     generatedAt: now.toISOString(),
+    asOf: candidateAsOf?.toISOString() ?? null,
+    sourceFreshness: {
+      status: candidateAsOf === null ? "unavailable"
+        : coverageAgeMs !== null && coverageAgeMs >= 0 && coverageAgeMs <= 90_000
+          ? "fresh" : coverageAgeMs !== null && coverageAgeMs < 0
+            ? "unavailable" : "stale",
+      asOf: candidateAsOf?.toISOString() ?? null,
+      ageSeconds: coverageAgeMs === null || coverageAgeMs < 0
+        ? null : Math.floor(coverageAgeMs / 1_000),
+      maxAgeSeconds: 90,
+    },
+    capitalQuoteRaw: RESEARCH_BUDGET_QUOTE.toString(),
     streamKey,
     budgetQuote: RESEARCH_BUDGET_QUOTE.toString(),
     quoteDecimals: QUOTE_DECIMALS,
@@ -1189,4 +1314,5 @@ export async function readResearch(
       left.rwaSymbol.localeCompare(right.rwaSymbol) || left.fee - right.fee
     ),
   };
+  return repriceResearchSnapshot(snapshot, RESEARCH_BUDGET_QUOTE, now.getTime());
 }

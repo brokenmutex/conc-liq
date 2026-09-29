@@ -6,7 +6,13 @@ import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
 import { readPaperDashboard } from "./paper.js";
 import { readDashboardFocus } from "./focus.js";
-import { readResearch, type ResearchSnapshot } from "./research.js";
+import {
+  readResearch,
+  repriceResearchSnapshot,
+  type ResearchSnapshot,
+} from "./research.js";
+import {researchPoolDetailProjection,researchSummaryProjection,
+  type ResearchDetailsRequest} from "./research-api.js";
 import type {
   ActivityBucket,
   AssetRiskRow,
@@ -1196,6 +1202,8 @@ export class DashboardRepository {
    */
   private researchCache: { at: number; value: ResearchSnapshot } | null = null;
   private researchInFlight: Promise<ResearchSnapshot> | null = null;
+  /** Four entries bound retained capital variants while avoiding repeat CPU work. */
+  private readonly researchCapitalCache = new Map<string, ResearchSnapshot>();
 
   public constructor(private readonly config: DashboardConfig) {
     this.pool = new Pool({
@@ -1220,7 +1228,7 @@ export class DashboardRepository {
     } catch(error) {await client.query("ROLLBACK");throw error;} finally {client.release();}
   }
 
-  public async research(): Promise<ResearchSnapshot> {
+  private async researchBase(): Promise<ResearchSnapshot> {
     const cached = this.researchCache;
     if (
       cached !== null &&
@@ -1234,6 +1242,41 @@ export class DashboardRepository {
     return this.researchInFlight;
   }
 
+  /** Compact per-pool league data; bucket and depth vectors stay server-side. */
+  public async research(capitalQuoteRaw = "250000000"): Promise<unknown> {
+    const base = await this.researchBase();
+    const repriced = this.repricedResearch(base, capitalQuoteRaw);
+    return researchSummaryProjection(repriced);
+  }
+
+  /** One selected pool's chart vectors, tied to the summary's canonical build. */
+  public async researchDetails(input: ResearchDetailsRequest): Promise<unknown> {
+    const base = await this.researchBase();
+    if (base.snapshotId !== input.snapshotId) {
+      return { error: "research_snapshot_changed" };
+    }
+    const repriced = this.repricedResearch(base, input.capitalQuoteRaw);
+    return researchPoolDetailProjection(repriced, input);
+  }
+
+  private repricedResearch(base: ResearchSnapshot, capitalQuoteRaw: string): ResearchSnapshot {
+    const key = `${base.snapshotId}:${capitalQuoteRaw}`;
+    const cached = this.researchCapitalCache.get(key);
+    if (cached !== undefined) {
+      this.researchCapitalCache.delete(key);
+      this.researchCapitalCache.set(key, cached);
+      return cached;
+    }
+    const repriced = repriceResearchSnapshot(base, capitalQuoteRaw);
+    this.researchCapitalCache.set(key, repriced);
+    while (this.researchCapitalCache.size > 4) {
+      const oldest = this.researchCapitalCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.researchCapitalCache.delete(oldest);
+    }
+    return repriced;
+  }
+
   private async buildResearch(): Promise<ResearchSnapshot> {
     const client = await this.pool.connect();
     try {
@@ -1242,6 +1285,7 @@ export class DashboardRepository {
       );
       const value = await readResearch(client, this.config.streamKey);
       await client.query("COMMIT");
+      this.researchCapitalCache.clear();
       this.researchCache = { at: Date.now(), value };
       return value;
     } catch (error) {

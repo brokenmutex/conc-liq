@@ -40,6 +40,7 @@ import {createRobinhoodClient} from './client.js';
 import {log} from './logger.js';
 import {loadDashboardConfig} from './dashboard/config.js';
 import {DashboardRepository} from './dashboard/repository.js';
+import {parseResearchDetailsRequest,parseResearchSummaryRequest} from './dashboard/research-api.js';
 
 const envSchema=z.object({
  DATABASE_URL:z.string().min(1),
@@ -378,9 +379,18 @@ async function main(){
  }finally{previewBusy=false;}
  };
  const dashboardRead=async(path:string)=>{
-  if(path==='/api/research')return dashboard.research();
-  if(path==='/api/dashboard')return dashboard.snapshot();
   const url=new URL(path,'http://localhost');
+  if(url.pathname==='/api/research'){
+   const capitalQuoteRaw=parseResearchSummaryRequest(url.searchParams);
+   if(capitalQuoteRaw===null)throw new DeploymentConflict('invalid_research_request');
+   return dashboard.research(capitalQuoteRaw);
+  }
+  if(url.pathname==='/api/research/details'){
+   const input=parseResearchDetailsRequest(url.searchParams);
+   if(input===null)throw new DeploymentConflict('invalid_research_request');
+   return dashboard.researchDetails(input);
+  }
+  if(path==='/api/dashboard')return dashboard.snapshot();
   const match=/^\/api\/positions(?:\/(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|(paper|live)-dep-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|live-(rk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}))?$/.exec(url.pathname);
   if(!match)throw new DeploymentConflict('dashboard_read_path_unavailable');
   const hours=Number(url.searchParams.get('hours')??24);

@@ -3,11 +3,17 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { resolve } from "node:path";
 import type { DashboardConfig } from "./config.js";
 import type { DashboardSnapshot } from "./domain.js";
+import {
+  parseResearchDetailsRequest,
+  parseResearchSummaryRequest,
+  type ResearchDetailsRequest,
+} from "./research-api.js";
 
 export interface DashboardDataSource {
   snapshot(): Promise<DashboardSnapshot>;
   positions?(id?:string,hours?:number): Promise<unknown>;
-  research?(): Promise<unknown>;
+  research?(capitalQuoteRaw?: string): Promise<unknown>;
+  researchDetails?(input: ResearchDetailsRequest): Promise<unknown>;
 }
 
 const STATIC_FILES = new Map([
@@ -85,8 +91,17 @@ export function createDashboardServer(
         const result=await dataSource.positions(id,hours);
         sendJson(response,result===null?404:200,result??{error:"position_not_found"});return;
       }
-      if (pathname === "/api/research") {
-        if (!dataSource.research) {
+      if (pathname === "/api/research" || pathname === "/api/research/details") {
+        const url = new URL(request.url ?? "/", "http://localhost");
+        const detail = pathname.endsWith("/details");
+        const requestData = detail
+          ? parseResearchDetailsRequest(url.searchParams)
+          : parseResearchSummaryRequest(url.searchParams);
+        if (requestData === null) {
+          sendJson(response, 400, { error: "invalid_research_request" });
+          return;
+        }
+        if (detail ? !dataSource.researchDetails : !dataSource.research) {
           sendJson(response, 503, { error: "research_source_unavailable" });
           return;
         }
@@ -96,7 +111,19 @@ export function createDashboardServer(
           response.end();
           return;
         }
-        sendJson(response, 200, await dataSource.research());
+        const result = detail
+          ? await dataSource.researchDetails!(requestData as ResearchDetailsRequest)
+          : await dataSource.research!(requestData as string);
+        if (result !== null && typeof result === "object" &&
+            "error" in result && result.error === "research_snapshot_changed") {
+          sendJson(response, 409, result);
+          return;
+        }
+        if (result === null) {
+          sendJson(response, 404, { error: "research_pool_not_found" });
+          return;
+        }
+        sendJson(response, 200, result);
         return;
       }
       if (pathname === "/api/dashboard") {

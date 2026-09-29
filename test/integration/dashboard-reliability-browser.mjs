@@ -32,11 +32,13 @@ import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {processOnePaperOperation} from '../../src/deployments/paper-operation-worker.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
+import {setupNativeAllocationToWei,suggestedNativeAllocationWei} from '../../dashboard/tabs.js';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:6}),admin=await adminPool.connect();
 const schema=`track2_${randomUUID().replaceAll('-','')}`,temp=await mkdtemp(`${tmpdir()}/conc-liq-reliability-browser-`);
 let store,server,chrome,readPool,pgProxy,workerLease;
+let gasPriceWei=1_000_000_000n,latestSetupPreflight=null;
 const tabs=[],errors=[],resourceFailures=[],checks=[],findings=[],liveSockets=new Set();
 const blockSource={block:'100',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 // The canonical observation boundary: the command service admits a fresh open
@@ -69,9 +71,10 @@ const readSetup=async(input,pinnedSource)=>{
   return frame();},
  verifyCanonical:async(_chainId,source)=>{
   if(source.block!==blockSource.block||source.hash!==blockSource.hash)throw Error('mock_source_not_canonical');},
-  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
+  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>gasPriceWei,
  },pinnedSource);
  if(pinnedSource||result.status!=='available')return result;
+ latestSetupPreflight=result;
  const captured=setupReviewCache.capture(result);
  assert(captured,'Server must capture the exact setup costs before browser review');
  return {...result,...captured};
@@ -159,8 +162,13 @@ const faults={research:false,staleSourceSeconds:0};
 const counters={admission:0,draftDelete:0,openPreview:0,openAccept:0,openReplay:0,retainAccept:0,
  positionsRead:0,positionsServed:0};
 const retainKeys=[];
-const research=()=>({generatedAt:new Date().toISOString(),streamKey:'browser-fixture',bucketMinutes:60,
- buckets:[],budgetQuote:'250000000',costs:{roundTripQuote:'1000000'},pools:[]});
+const research=(capitalQuoteRaw='250000000')=>{
+ const generatedAt=new Date().toISOString();
+ return {snapshotId:'reliability-research-fixture',generatedAt,asOf:generatedAt,
+  sourceFreshness:{status:'fresh',asOf:generatedAt,ageSeconds:0,maxAgeSeconds:90},
+  capitalQuoteRaw,streamKey:'browser-fixture',bucketMinutes:60,bucketCount:0,retainedHours:168,
+  budgetQuote:capitalQuoteRaw,quoteDecimals:6,costs:{roundTripQuote:'1000000'},pools:[]};
+};
 // Ageing the observed source timestamp is the simulated canonical-observation
 // boundary for R1's stale-source case; every other field stays the real row.
 const agePosition=position=>{
@@ -172,9 +180,10 @@ const agePosition=position=>{
 };
 const dashboardRead=async(path)=>{
  if(path==='/api/dashboard')return {pools:[{registryEnabled:true,poolAddress,rwaSymbol:'TOKEN',fee:3000,tickSpacing:60}]};
- if(path==='/api/research'){
+ if(path.startsWith('/api/research')){
   if(faults.research)throw Error('research_source_unavailable');
-  return research();
+  const requested=new URL(path,'http://127.0.0.1').searchParams.get('capitalQuoteRaw')??'250000000';
+  return research(requested);
  }
  if(!path.startsWith('/api/positions'))throw Error('unexpected_dashboard_path');
  counters.positionsRead++;
@@ -214,7 +223,7 @@ const paperPreview=async(campaignId,kind)=>{
  const draft=await store.paperDraft(campaignId),freshFrame=frame();
  const indicative=buildIndicativePaperOpenPreview(draft,freshFrame);
  const costed=costIndicativePaperOpenPreview(indicative,await store.paperGasProfiles(draft.profile.pool.pool),
-  draft.profile.pool.pool,freshFrame.nativePrice,1_000_000_000n);
+  draft.profile.pool.pool,freshFrame.nativePrice,gasPriceWei);
  if(costed.status!=='indicative'||costed.costs.status!=='provisional')return costed;
  const saved=await persistTrustedPaperOpenPreview({store,draft,frame:freshFrame,preview:costed,
   verifyAnchors:verifySource});
@@ -339,23 +348,21 @@ faults.research=true;
 await navigate('/operator');
 await waitFor('document.querySelectorAll("[role=tab]").length===2');
 await click('#research-tab');
-await waitFor('document.querySelector("#status").textContent==="Research unavailable"');
+await waitFor('document.querySelector("#status").textContent.includes("Research snapshot unavailable")');
 await check('R1 research 503 names the fault on the research surface without blanking the page',
- 'document.querySelector("#status").textContent==="Research unavailable"&&'+
- 'document.querySelector("#league tbody").textContent.includes("Research snapshot unavailable")&&'+
+ 'document.querySelector("#status").textContent.includes("Research snapshot unavailable")&&'+
+ 'document.querySelector("#league tbody").textContent.includes("Research is unavailable")&&'+
  '!document.querySelector("#research-panel").hidden');
 faults.research=false;
-assert.equal((await fetch(`${origin}/api/research`)).status,200,'research read recovered at the service');
-await wait(12_000);
-await check('R1 DEFECT: a recovered research source stays "Research unavailable" until a reload, because research.js calls load() once and never polls',
- 'document.querySelector("#status").textContent==="Research unavailable"');
-findings.push('R1: dashboard/research.js load() runs once at module evaluation with no retry and no poll, '+
- 'so a transient /api/research failure is permanent for the tab; only a reload recovers it.');
-await navigate('/operator');
+assert.equal((await fetch(`${origin}/api/research?capitalQuoteRaw=250000000`)).status,200,
+ 'research read recovered at the service');
+await click('#positions-tab');
 await click('#research-tab');
 await waitFor('document.querySelector("#status").textContent.startsWith("Built ")');
-await check('R1 research recovers only across a reload',
- 'document.querySelector("#status").textContent.startsWith("Built ")');
+await check('R1 research recovers after the injected 503 when the operator revisits the tab, without reload',
+ 'document.querySelector("#status").textContent.startsWith("Built ")&&'+
+ '!document.querySelector("#league tbody").textContent.includes("Research snapshot unavailable")&&'+
+ 'document.querySelector("#research-panel").hidden===false');
 
 // ------------------------------------------------------------- R3 contention
 phase('R3 contention');
@@ -366,10 +373,22 @@ await waitFor('document.querySelector("#setup-wallet-address").value==="0x222222
 await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
 await fill('#setup-capital','250');
 await fill('#limit-max-action-cost','10');
+// Keep the fixture reserve below the close bound so the 20% cushion is tested
+// against open + close gas, rather than a larger fixed reserve.
+await fill('#limit-exit-reserve','0.0001');
 refreshSource();
 await click('#setup-review-button');
 await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"');
 await waitFor('document.querySelector("#save-paper-draft").disabled===false');
+const expectedNative=suggestedNativeAllocationWei({
+ openBoundWei:latestSetupPreflight.costs.open.boundWei,
+ closeBoundWei:latestSetupPreflight.costs.closeRetain.boundWei,
+ exitReserveWei:latestSetupPreflight.input.limits.exitReserveWei});
+const enteredNative=setupNativeAllocationToWei(await evaluate('document.querySelector("#setup-allocation-native").value'));
+assert(expectedNative,'fresh preflight must provide an exact native allocation recommendation');
+assert.equal(enteredNative,expectedNative,
+ 'setup recommendation must include rounded-up 20% over open bound plus max(close bound, reserve)');
+checks.push('setup native allocation adds the documented rounded-up 20% headroom over open + max(close, reserve)');
 const operatorCookie=await a.cookie();
 assert(operatorCookie,'operator holds a session cookie');
 assert.equal(await rawStatus('/api/deployments/setup-drafts',operatorCookie),200);
@@ -437,9 +456,37 @@ assert.equal((await workerLease.query('SELECT pg_try_advisory_lock_shared($1::in
 await readyOperator();
 await waitFor(`document.querySelector('.saved-paper-draft[data-campaign-id="${draftA}"]')!==null`);
 refreshSource();
+gasPriceWei=1_100_000_000n;
 await a.click(`.saved-paper-draft[data-campaign-id="${draftA}"] .saved-open-preview`);
 await waitFor('document.querySelector(".draft-action-status button")!==null');
-await check('A fresh saved open preview is actionable once worker readiness is proven',
+await check('A modest 10% gas reprice fits the saved 20% headroom and previews remain provisional',
+ 'document.querySelector(".draft-action-status button").disabled===false&&'+
+ 'document.querySelector(".draft-action-status").textContent.includes("provisional, not paid")');
+const savedBeforeReprice=await store.paperDraft(draftA);
+gasPriceWei=1_300_000_000n;refreshSource();
+await a.click(`.saved-paper-draft[data-campaign-id="${draftA}"] .saved-open-preview`);
+await waitFor('(()=>{const status=document.querySelector(".draft-action-status");return status&&'+
+ '(/Fresh open preview unavailable|Open preview unavailable|Saved open preview/.test(status.textContent))})()');
+const repricedPreviewStatus=await evaluate('document.querySelector(".draft-action-status").textContent');
+const repricedPreviewButton=await evaluate('(()=>{const button=document.querySelector(".draft-action-status button");'+
+ 'return button?{disabled:button.disabled,text:button.textContent}:null})()');
+await check('A 30% gas reprice beyond native headroom is rejected by fresh preview and submits no operation',
+ '(!document.querySelector(".draft-action-status button")||document.querySelector(".draft-action-status button").disabled)&&'+
+ '!document.querySelector(".draft-action-status").textContent.includes("provisional, not paid")');
+assert.match(repricedPreviewStatus,/Fresh open preview unavailable|Open preview unavailable|Saved open preview/,
+ 'a repriced preview must report its unavailable or non-actionable state');
+assert.equal(counters.openAccept,0,'an unactionable repriced preview must not reach open acceptance');
+assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_operations WHERE campaign_id=$1',[draftA])).rows[0].n,0,
+ 'a rejected repriced preview must not create an operation');
+const savedAfterReprice=await store.paperDraft(draftA);
+assert.equal(savedAfterReprice.allocation.nativeWei,savedBeforeReprice.allocation.nativeWei);
+assert.equal(savedAfterReprice.parameters.limits.maxActionCost,savedBeforeReprice.parameters.limits.maxActionCost,
+ 'fresh preview repricing must not rewrite saved allocation or admission limits');
+gasPriceWei=1_000_000_000n;refreshSource();
+await a.click(`.saved-paper-draft[data-campaign-id="${draftA}"] .saved-open-preview`);
+await waitFor('document.querySelector(".draft-action-status button")!==null&&'+
+ 'document.querySelector(".draft-action-status button").disabled===false');
+await check('A new fresh preview restores after rejected gas repricing',
  'document.querySelector(".draft-action-status button").disabled===false&&'+
  'document.querySelector(".draft-action-status").textContent.includes("provisional, not paid")');
 // Hold the acceptance response so the reload below happens with the POST in flight.

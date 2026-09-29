@@ -12,19 +12,8 @@
 // projection over rows seeded into an isolated schema, so the rendered contract
 // is the production one.
 //
-// IMPORTANT — several checks here pin CURRENT DEFECTIVE behaviour so that it is
-// documented and cannot regress further silently. They are expected to FAIL
-// when the defect is fixed, and the correct response is to invert the check,
-// not to loosen it. Those checks are:
-//   U1 · genuinely-empty Positions still renders the filtered-to-empty message
-//   U1 · empty state offers Clear filters although no filter was ever applied
-//   U1 · nothing ... directs a first-run operator to Set up a position
-//   U1 · filtered-empty and genuinely-empty states are textually indistinguishable
-//   U1 · zero positions render a $0.00 managed value rather than an absent one
-//   U6 DEFECT: an age past 180s alone degrades only the age label ...
-//   U6 DEFECT: a server stale reason beside a fresh timestamp ...
-// (The third U6 check is a weak positive, not a pinned defect; see its comment.)
-// Every other check asserts behaviour that is correct and must keep holding.
+// Finding checks are inverted when repaired: empty states are distinct,
+// missing totals remain unavailable, and independent freshness failures agree.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
 import {once} from 'node:events';
@@ -35,6 +24,7 @@ import {createServer as createTcpServer} from 'node:net';
 import pg from 'pg';
 import {contentHash} from '../../src/deployments/contracts.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
+import {createDashboardServer} from '../../src/dashboard/server.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
 import {createStaticPaperDraftFromSetup} from '../../src/deployments/static-paper-draft-admission.ts';
 import {StaticPaperSetupReviewCache} from '../../src/deployments/static-paper-setup-review-cache.ts';
@@ -48,11 +38,14 @@ import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../../src/co
 import {PAPER_QUOTER,PAPER_ROUTER} from '../../src/paper/execution-abi.ts';
 import {sqrtRatioAtTick} from '../../src/backtest/principal.ts';
 import {readDeploymentRows,deploymentPosition,readDeploymentDetail} from '../../src/dashboard/deployment-position.ts';
+import {buildDashboardAccountingFixture} from './helpers/dashboard-accounting-fixture.mjs';
 
 if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:6}),admin=await adminPool.connect();
+const publicCampaignCountBefore=(await admin.query(
+ 'SELECT count(*)::int AS n FROM public.deployment_campaigns')).rows[0].n;
 const schema=`track1b_${randomUUID().replaceAll('-','')}`,temp=await mkdtemp(`${tmpdir()}/conc-liq-usability-`);
-let store,server,chrome,ws;const errors=[],resourceFailures=[],checks=[],detailErrors=[];
+let store,server,rootServer,chrome,ws;const errors=[],resourceFailures=[],checks=[],detailErrors=[];
 const findings={U1:{},U2:{},U3:{},U4:{},D3:{},D5:{}};
 const blockSource={block:'100',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 const sourceHash=`0x${'a'.repeat(64)}`,codeHash=`0x${'c'.repeat(64)}`;
@@ -151,7 +144,8 @@ for(const entry of profiles)for(const stage of PAPER_STATIC_GAS_STAGES){
 
 // Seeds an active static/manual paper campaign whose projection comes from the
 // real dashboard reader. No operation, worker or accounting record is created.
-async function seedActiveCampaign({profileEntry,rangeState,wallet,markAgeSeconds=0}){
+async function seedActiveCampaign({profileEntry,rangeState,wallet,markAgeSeconds=0,
+ initialCapitalRaw='250000000000000000000'}){
  const id=randomUUID(),p=profileEntry.profile.pool;
  const markSource={...blockSource,timestamp:blockSource.timestamp-markAgeSeconds};
  const allocation={token0Raw:'125000000',token1Raw:'125000000',nativeWei:'2000000000000000'};
@@ -168,7 +162,7 @@ async function seedActiveCampaign({profileEntry,rangeState,wallet,markAgeSeconds
  [id,JSON.stringify(config),contentHash(config)]);
  await admin.query(`INSERT INTO deployment_ledger(campaign_id,entry_key,kind,value_raw,source)
   VALUES($1,'capital_in:1','capital_in',$2,$3)`,
- [id,'250000000000000000000',JSON.stringify({source:blockSource})]);
+ [id,initialCapitalRaw,JSON.stringify({source:blockSource})]);
  const inventory={token0Raw:'120000000',token1Raw:'130000000',
   position:{liquidity:'1000000000000',tickLower:-240,tickUpper:240}};
  const provenance={classification:'paper_model_provisional',source:markSource,
@@ -204,21 +198,20 @@ const paperPreview=async(campaignId,kind)=>{
  return {...costed,...saved,kind:'open',status:'indicative',trustedPreviewSaved:true,
   actionAvailable:false,operationAcceptanceAvailable:false,economics:null};
 };
-// U6 needs the two staleness mechanisms moved independently. condition() appends
-// "source stale / unavailable" from the server's p.reasons, while the
-// .row-sub.negative age label is derived in the browser from age(sourceAt)>180.
-// Moving them together — as a single "stale" fault would — cannot show whether
-// they ever disagree, which is the question U6 exists to answer.
-const staleness={ageSeconds:0,reason:false,calls:0,lastSourceAt:null,overviewServed:0};
+// U6 moves server stale evidence, timestamp age, and timestamp validity
+// independently. The row also carries persisted paper accounting so the
+// freshness state can be checked without replacing modeled NAV/P&L/fees.
+const staleness={ageSeconds:0,reason:false,invalidTime:false,calls:0,lastSourceAt:null,overviewServed:0};
 const riskState={aaplPaused:true};
 const degrade=position=>{
  staleness.calls++;
- if(!staleness.ageSeconds&&!staleness.reason)return position;
+ if(!staleness.ageSeconds&&!staleness.reason&&!staleness.invalidTime)return position;
  const next={...position};
- if(staleness.ageSeconds){
+ if(Number.isFinite(staleness.ageSeconds)){
   const at=new Date(Date.now()-staleness.ageSeconds*1000).toISOString();
   next.sourceAt=at;next.heartbeatAt=at;
  }
+ if(staleness.invalidTime)next.sourceAt='invalid-source-time';
  if(staleness.reason)next.reasons=[...new Set([...(position.reasons??[]),'source_stale'])];
  staleness.lastSourceAt=next.sourceAt;
  return next;
@@ -227,7 +220,14 @@ const dashboardRead=async(path)=>{
  if(path==='/api/dashboard')return {pools:profiles.map(entry=>({registryEnabled:true,
   poolAddress:entry.profile.pool.pool,rwaSymbol:entry.profile.pool.reference1.split('/')[0],
   fee:3000,tickSpacing:60}))};
- if(path==='/api/research')return {generatedAt:new Date().toISOString(),pools:[],windows:[]};
+ if(path.startsWith('/api/research')){
+  const requested=new URL(path,'http://127.0.0.1').searchParams.get('capitalQuoteRaw')??'250000000';
+  const generatedAt=new Date().toISOString();
+  return {snapshotId:'usability-research-fixture',generatedAt,asOf:generatedAt,
+   sourceFreshness:{status:'fresh',asOf:generatedAt,ageSeconds:0,maxAgeSeconds:90},
+   capitalQuoteRaw:requested,streamKey:'usability-fixture',budgetQuote:requested,quoteDecimals:6,
+   bucketMinutes:60,bucketCount:0,retainedHours:168,costs:{roundTripQuote:'1000000'},pools:[]};
+ }
  if(path.startsWith('/api/positions')){
   const rows=await readDeploymentRows(admin);
   if(path.startsWith('/api/positions/')){
@@ -268,6 +268,17 @@ server=createDeploymentCommandServer(store,{origin,dashboardRead,
  paperLifecycleAcceptance:(id,input,actor)=>store.acceptStaticPaperLifecycleOperation(id,input,actor),
  paperRetainWorkerReady:()=>store.paperOperationWorkerReady()});
 server.listen(port,'127.0.0.1');await once(server,'listening');
+rootServer=createDashboardServer({
+ snapshot:()=>dashboardRead('/api/dashboard'),
+ positions:(id,hours)=>dashboardRead(id?`/api/positions/${encodeURIComponent(id)}?hours=${hours}`:'/api/positions'),
+ research:capital=>dashboardRead(`/api/research?capitalQuoteRaw=${capital}`),
+ researchDetails:input=>dashboardRead(`/api/research/details?capitalQuoteRaw=${input.capitalQuoteRaw}`),
+},{fullAccountingEnabled:false,historySource:'legacy',canaryMaxCheckpointAgeSeconds:180,
+ activityBucketBlocks:500,activityWindowBlocks:20_000,
+ adaptivePaperStatePath:'/tmp/conc-liq-usability-no-adaptive-state.json',databaseUrl:'fixture',
+ host:'127.0.0.1',port:0,refreshMs:10_000,researchRefreshMs:60_000,
+ riskGateMaxSnapshotAgeSeconds:180,riskGateMaxCanonicalityAgeSeconds:180,streamKey:'usability-fixture'});
+await once(rootServer,'listening');
 
 let debugPort=0,stderr='';
 chrome=spawn(await chromiumPath(),['--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu',
@@ -358,31 +369,44 @@ findings.U1.setupHeadingOffscreen=await offscreen('#setup-title');
 findings.U1.setupDistanceBelowFold=await evaluate(
  '(()=>{const r=document.querySelector("#setup-title").getBoundingClientRect();return Math.round(r.top-innerHeight);})()');
 
-await check('U1 · genuinely-empty Positions still renders the filtered-to-empty message',
- '/No matching current positions/.test(document.querySelector("#paper .empty").textContent)');
-await check('U1 · empty state offers Clear filters although no filter was ever applied',
+await check('U1 · first-run empty state identifies no paper positions and offers setup navigation',
+ '/No paper positions yet/.test(document.querySelector("#paper .empty").textContent)&&'+
+ 'document.querySelector("#paper .empty a[href=\\"#setup-title\\"]")?.textContent.trim()==="Set up a position"');
+await check('U1 · untouched filters do not offer Clear filters and missing totals stay unavailable',
  'document.querySelector("#asset-filter").value==="all"&&document.querySelector("#status-filter").value==="all"'+
- '&&!!document.querySelector("#paper .empty [data-action=reset]")');
-await check('U1 · nothing in the empty state directs a first-run operator to Set up a position',
- '!/set up a position/i.test(document.querySelector("#paper .empty").textContent)');
+ '&&!document.querySelector("#paper .empty [data-action=reset]")&&'+
+ '/Managed value · unavailable/.test(document.querySelector("#paper .section-totals").textContent)&&'+
+ '!/0\\.00/.test(document.querySelector("#paper .section-totals").textContent)');
 
-// Distinguish the genuinely-empty case from a real filter miss: the copy is identical.
+// A real filter miss has different copy and offers a reset action.
 await evaluate(`(()=>{const s=document.querySelector("#status-filter");s.value="paused";
  s.dispatchEvent(new Event("change",{bubbles:true}));})()`);
 await waitFor('document.querySelector("#paper .empty")!==null');
 findings.U1.filteredEmptyText=await evaluate('document.querySelector("#paper .empty").textContent.trim()');
 findings.U1.emptyCopyIdenticalWhenFiltered=findings.U1.filteredEmptyText===findings.U1.paperEmptyText;
-await check('U1 · filtered-empty and genuinely-empty states are textually indistinguishable',
- JSON.stringify(findings.U1.emptyCopyIdenticalWhenFiltered)+'===true');
+await check('U1 · filtered-empty state says no positions match and offers Clear filters',
+ '/No positions match these filters/.test(document.querySelector("#paper .empty").textContent)&&'+
+ '!!document.querySelector("#paper .empty [data-action=reset]")&&'+
+ JSON.stringify(findings.U1.emptyCopyIdenticalWhenFiltered)+'===false');
 await evaluate(`(()=>{const s=document.querySelector("#status-filter");s.value="all";
  s.dispatchEvent(new Event("change",{bubbles:true}));})()`);
 await waitFor('document.querySelector("#paper .empty")!==null');
 
-// Zero positions still produce a currency figure from a reduce over an empty list.
 findings.U1.zeroPositionsShowCurrencyTotal=await evaluate(
- '/\\$?0\\.00/.test(document.querySelector("#paper .section-totals").textContent)');
-await check('U1 · zero positions render a $0.00 managed value rather than an absent one',
  '/0\\.00/.test(document.querySelector("#paper .section-totals").textContent)');
+await check('U1 · returning to all positions restores the unavailable totals label',
+ '/Managed value · unavailable/.test(document.querySelector("#paper .section-totals").textContent)&&'+
+ `${JSON.stringify(!findings.U1.zeroPositionsShowCurrencyTotal)}`);
+
+const rootOrigin=`http://127.0.0.1:${rootServer.address().port}`;
+await send('Page.navigate',{url:rootOrigin+'/'});
+await waitFor('document.readyState==="complete"');
+await waitFor('document.querySelector("#paper .empty")!==null');
+await click('#paper .empty-setup-link');
+await check('U1 · root empty-state setup link reaches read-only setup without operator authentication',
+ 'location.pathname==="/"&&location.hash==="#setup-title"&&'+
+ 'document.querySelector("#setup-title")!==null&&'+
+ '/Setup preflight is read-only/.test(document.querySelector("#positions-panel .setup-panel").textContent)');
 
 // ── U2 · instrumented task cost, load → review setup → saved draft ───────────
 const draftIds=[];
@@ -705,15 +729,28 @@ assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/
 // U1b's campaign is deliberately eight days stale, so it can never serve as a
 // fresh baseline. U6 seeds its own campaign with a recent mark.
 const u6Id=await seedActiveCampaign({profileEntry:profiles[0],rangeState:'inside',
- wallet:'0x1111111111111111111111111111111111111111',markAgeSeconds:30});
+ wallet:'0x1111111111111111111111111111111111111111',markAgeSeconds:30,
+ initialCapitalRaw:'254000000000000000000'});
+const u6Mark=(await admin.query(`SELECT id::text,source_block::text,source_hash,
+ floor(extract(epoch FROM at))::int AS timestamp FROM deployment_marks
+ WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[u6Id])).rows[0];
+const u6Accounting=buildDashboardAccountingFixture({campaignId:u6Id,sourceMarkId:u6Mark.id,
+ source:{block:u6Mark.source_block,hash:u6Mark.source_hash,timestamp:u6Mark.timestamp},
+ profile:profiles[0].profile});
+await admin.query(`INSERT INTO deployment_paper_accounting
+ (campaign_id,source_mark_id,policy_version,snapshot,snapshot_hash) VALUES($1,$2,$3,$4,$5)`,
+ [u6Id,u6Mark.id,u6Accounting.snapshot.policyVersion,JSON.stringify(u6Accounting.snapshot),u6Accounting.snapshotHash]);
 await navigate('/operator');
 await waitFor('window.concliqOperatorAuthenticated?.()===true');
 await waitFor(`document.querySelector(${JSON.stringify(rowSelector(u6Id))})!==null`);
 const u6Row=rowSelector(u6Id);
+await evaluate(`document.querySelector(${JSON.stringify(u6Row)}+' .position-select').click()`);
+await waitFor('document.querySelector("#paper .position-detail .metrics")?.textContent.includes("256.00")');
 const readRow=async()=>JSON.parse(await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(u6Row)});
  if(!row)return JSON.stringify(null);
  return JSON.stringify({status:row.querySelector('.status-sub')?.textContent?.replace(/\\s+/g,' ').trim()??null,
   ageLabel:row.querySelector('.row-sub.negative')?.textContent?.trim()??null,
+  sourceLabel:row.querySelector('td:nth-child(3) .row-sub:last-child')?.textContent?.trim()??null,
   // The source-age sub-label sits inside a td.num, so comparing whole cells
   // would always differ once the age changes. Split the headline values from
   // the sub-labels: U6 asks whether the VALUES stay confident beside a stale
@@ -721,7 +758,9 @@ const readRow=async()=>JSON.parse(await evaluate(`(()=>{const row=document.query
   values:[...row.querySelectorAll('td.num')].map(cell=>{const clone=cell.cloneNode(true);
    for(const sub of clone.querySelectorAll('.row-sub'))sub.remove();
    return clone.textContent.replace(/\\s+/g,' ').trim();}),
-  subs:[...row.querySelectorAll('td.num .row-sub')].map(sub=>sub.textContent.replace(/\\s+/g,' ').trim())});})()`));
+  subs:[...row.querySelectorAll('td.num .row-sub')].map(sub=>sub.textContent.replace(/\\s+/g,' ').trim()),
+  detailWarning:document.querySelector('#paper .position-detail .alert small')?.textContent.replace(/\\s+/g,' ').trim()??null,
+  totalLabels:[...document.querySelectorAll('#paper .section-totals .label')].map(label=>label.textContent.trim())});})()`));
 // The browser only observes a change on its next ten-second poll, so these
 // waits get a longer budget than the default sixteen seconds. The server
 // payload is asserted first, so a failure says which layer is at fault.
@@ -735,9 +774,10 @@ const applyStaleness=async(next,expectation)=>{
  assert(served,'the U6 campaign must still be served');
  assert.equal(Boolean(served.reasons?.includes('source_stale')),Boolean(staleness.reason),
   `server reasons must reflect the injected reason: ${JSON.stringify(served.reasons)}`);
- const servedAge=Math.round((Date.now()-Date.parse(served.sourceAt))/1000);
- assert(staleness.ageSeconds?servedAge>=180:servedAge<180,
-  `server source age must reflect the injected age: ${servedAge}s for ${staleness.ageSeconds}`);
+ if(staleness.invalidTime)assert.equal(served.sourceAt,'invalid-source-time');
+ else{const servedAge=Math.round((Date.now()-Date.parse(served.sourceAt))/1000);
+  assert(staleness.ageSeconds?servedAge>=180:servedAge<180,
+   `server source age must reflect the injected age: ${servedAge}s for ${staleness.ageSeconds}`);}
  try{await waitForPoll(expectation);}
  catch(cause){throw Error(`${cause.message}\n  served=${JSON.stringify({
   id:served.id,history:served.history,status:served.status,reasons:served.reasons,
@@ -764,59 +804,57 @@ const both=await applyStaleness({ageSeconds:1_200,reason:true},
  `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
 findings.U6.ageAndReason=both;
 await check('U6 age past 180s together with a server stale reason degrades the condition and the age label',
- `${JSON.stringify(both.ageLabel!==null&&(both.status??'').includes(suffix))}===true`);
+ `${JSON.stringify(both.ageLabel!==null&&(both.status??'').includes(suffix)&&
+  both.detailWarning?.includes('Displayed recorded-source values are stale')&&
+  both.totalLabels.some(label=>label.includes('stale source')))}===true`);
 
 // Age only: the browser sees an old timestamp, the server claims nothing.
 const ageOnly=await applyStaleness({ageSeconds:1_200,reason:false},
- `!document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+ `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
 findings.U6.ageOnly=ageOnly;
-await check('U6 DEFECT: an age past 180s alone degrades only the age label, and the condition still reads as normal',
- `${JSON.stringify(ageOnly.ageLabel!==null&&!(ageOnly.status??'').includes(suffix))}===true`);
+await check('U6 an age past 180s alone degrades both condition and source-age label',
+ `${JSON.stringify(ageOnly.ageLabel!==null&&(ageOnly.status??'').includes(suffix))}===true`);
 
 // Reason only: the server declares staleness while the timestamp is fresh.
-// Observed behaviour, recorded rather than predicted: the row surfaces NOTHING.
-// The payload the browser fetches carries reasons ["net_economics_unavailable",
-// "source_stale"] with history false, which by dashboard/app.js:36 should append
-// " · source stale / unavailable" to the condition; it does not, and the age
-// label is correctly absent because the timestamp really is fresh. So a server
-// that declares its source stale is invisible to the operator unless the
-// timestamp is also old. The mechanism was not isolated and needs a product
-// follow-up; this check pins the behaviour so the follow-up cannot regress it
-// unnoticed. Waiting a full poll budget first so this is a settled state, not a
-// race.
 const reasonOnly=await applyStaleness({ageSeconds:0,reason:true},
- `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+ `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})&&`+
+ `/Source \\d+s ago/.test(document.querySelector(${JSON.stringify(u6Row)}+' td:nth-child(3) .row-sub:last-child')?.textContent??'')`);
 findings.U6.reasonOnly=reasonOnly;
-await check('U6 DEFECT: a server stale reason beside a fresh timestamp shows the stale condition with an undegraded age label',
- `${JSON.stringify(reasonOnly.ageLabel===null&&(reasonOnly.status??'').includes(suffix))}===true`);
+await check('U6 a server stale reason beside a fresh timestamp degrades both condition and source-age label',
+ `${JSON.stringify(reasonOnly.ageLabel!==null&&(reasonOnly.status??'').includes(suffix))}===true`);
+
+const invalidTime=await applyStaleness({ageSeconds:0,reason:false,invalidTime:true},
+ `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})&&`+
+ `document.querySelector(${JSON.stringify(u6Row)}+' td:nth-child(3) .row-sub:last-child')?.textContent.includes('unavailable')`);
+findings.U6.invalidTime=invalidTime;
+await check('U6 invalid source time degrades condition and labels age unavailable',
+ `${JSON.stringify(invalidTime.ageLabel?.includes('unavailable')&&(invalidTime.status??'').includes(suffix))}===true`);
 
 // The central U6 question: are derived figures degraded beside a stale source?
 findings.U6.valuesUnchangedWhileStale=
  JSON.stringify(both.values)===JSON.stringify(fresh.values);
 findings.U6.freshValues=fresh.values;findings.U6.staleValues=both.values;
 findings.U6.freshSubs=fresh.subs;findings.U6.staleSubs=both.subs;
-// LIMITATION, stated so this check cannot be misread as proof: this fixture has
-// no recorded economics, so every headline value is an em dash and the
-// comparison below is true but weak. It establishes that the age sub-label is
-// the ONLY cell content that changes when the source goes stale; it does NOT
-// establish what a real NAV, P&L or fee figure would do. Closing that half of
-// U6 needs a fixture carrying persisted paper accounting.
-await check('U6 the age sub-label is the only cell content that changes when the source goes stale (fixture has no recorded economics, so real figures are untested)',
- `${JSON.stringify(findings.U6.valuesUnchangedWhileStale)}===true`);
+await check('U6 persisted modeled NAV, P&L and fees are present and unchanged beside stale evidence',
+ `${JSON.stringify(findings.U6.valuesUnchangedWhileStale&&fresh.values.some(v=>v.includes('256.00'))&&fresh.values.some(v=>v.includes('+2.00'))&&fresh.values.some(v=>v.includes('3.00')))}===true`);
 
 // Recovery without a reload.
-const recovered=await applyStaleness({ageSeconds:0,reason:false},
+const recovered=await applyStaleness({ageSeconds:0,reason:false,invalidTime:false},
  `!document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
 findings.U6.recovered=recovered;
 await check('U6 the stale condition and the degraded age label both clear without a reload',
  `${JSON.stringify(recovered.ageLabel===null&&!(recovered.status??'').includes(suffix))}===true`);
+await check('U6 detail warning clears on recovery while persisted figures remain identical',
+ `${JSON.stringify(JSON.stringify(recovered.values)===JSON.stringify(fresh.values)&&
+  !recovered.detailWarning?.includes('Displayed recorded-source values are stale'))}===true`);
 
 const productionCampaigns=(await adminPool.query(
  'SELECT count(*)::int AS n FROM public.deployment_campaigns')).rows[0].n;
-assert.equal(productionCampaigns,0,'public deployment tables stay empty');
+assert.equal(productionCampaigns,publicCampaignCountBefore,
+ 'the usability fixture must leave pre-existing public deployment rows unchanged');
 console.log(JSON.stringify({checks,findings,draftIds,campaigns:{appleId,nvidiaId},
  openPreviewId:lastOpenPreview?.id,workerStarted:false,signerLoaded:false,
- publicDeploymentCampaigns:productionCampaigns,
+ publicDeploymentCampaigns:{before:publicCampaignCountBefore,after:productionCampaigns},
  browserExceptions:errors,httpResponses:resourceFailures,
  sourceBoundary:'deterministic canonical frame and seeded marks only'},null,2));
 
@@ -826,6 +864,7 @@ if(chrome&&chrome.exitCode===null){chrome.kill('SIGTERM');await new Promise(reso
  const timer=setTimeout(resolve,2000);chrome.once('exit',()=>{clearTimeout(timer);resolve();});});
  if(chrome.exitCode===null)chrome.kill('SIGKILL');}
 if(server?.listening)await new Promise(resolve=>server.close(resolve));
+if(rootServer?.listening)await new Promise(resolve=>rootServer.close(resolve));
 await store?.close();await admin.query('SET search_path=public');
 await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await adminPool.end();
 await rm(temp,{recursive:true,force:true});

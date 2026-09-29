@@ -7,6 +7,7 @@ import {acceptInput,draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} fr
 import {DeploymentConflict} from './store.js';
 import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-setup-preflight.js';
 import {staticPaperDraftAdmissionInputSchema} from './static-paper-draft-admission.js';
+import {parseResearchDetailsRequest,parseResearchSummaryRequest} from '../dashboard/research-api.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sessionInput=z.object({}).strict();
@@ -131,20 +132,27 @@ export function createDeploymentCommandServer(store:CommandStore,
      response.setHeader('Content-Security-Policy',"default-src 'self'; base-uri 'none'; connect-src 'self'; frame-ancestors 'none'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self'");
     await sendOperatorAsset(request,response,asset);return;
    }
-   if(request.method==='GET'&&(path==='/api/research'||path==='/api/dashboard'||
+   const researchPath=path==='/api/research'||path==='/api/research/details';
+   if(request.method==='GET'&&(researchPath||path==='/api/dashboard'||
     path==='/api/positions'||
     /^\/api\/positions\/(paper-[1-9]\d*|paper-adaptive-[a-z0-9.]+|(paper|live)-dep-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|live-(rk-)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.test(path))){
     const query=new URL(request.url??'/',options.origin).searchParams;
     const hours=query.get('hours')??'24';
     const positionsPath=path==='/api/positions'||path.startsWith('/api/positions/');
+    const researchRequest=path==='/api/research'
+     ? parseResearchSummaryRequest(query)
+     : path==='/api/research/details'?parseResearchDetailsRequest(query):undefined;
     if((positionsPath&&(query.size>1||![0,1,6,24,168,720].includes(Number(hours))))||
-     (!positionsPath&&query.size>0)){
-     send(response,400,{error:'invalid_position_request'});return;
+     (researchPath&&researchRequest===null)||(!positionsPath&&!researchPath&&query.size>0)){
+     send(response,400,{error:researchPath?'invalid_research_request':'invalid_position_request'});return;
     }
     if(!options.dashboardRead){send(response,503,{error:'dashboard_read_source_unavailable'});return;}
     try{
      const result=await options.dashboardRead(path+(query.size?`?${query.toString()}`:''));
-     send(response,result===null?404:200,result??{error:'position_not_found'});
+     const snapshotChanged=result!==null&&typeof result==='object'&&
+      'error' in result&&result.error==='research_snapshot_changed';
+     send(response,snapshotChanged?409:result===null?404:200,
+      result??{error:researchPath?'research_pool_not_found':'position_not_found'});
     }
     catch{send(response,503,{error:'dashboard_read_source_unavailable'});}
     return;

@@ -61,6 +61,17 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal((await fetch(url+'/operator-session.js')).status,200);
   assert.equal((await fetch(url+'/research.css')).status,200);
   assert.deepEqual(await (await fetch(url+'/api/research')).json(),{path:'/api/research'});
+  const researchPool='0x'+'1'.repeat(40);
+  const researchId='research:stream:2026-09-29T10:00:00.000Z';
+  const researchDetailPath='/api/research/details?'+new URLSearchParams({
+   pool:researchPool,capitalQuoteRaw:'250000000',hours:'24',width:'2',snapshotId:researchId,
+  }).toString();
+  assert.deepEqual(await (await fetch(url+researchDetailPath)).json(),{path:researchDetailPath});
+  const invalidResearch=await fetch(url+'/api/research?capitalQuoteRaw=100000000001');
+  assert.equal(invalidResearch.status,400);
+  assert.deepEqual(await invalidResearch.json(),{error:'invalid_research_request'});
+  assert.equal((await fetch(url+'/api/research/details?pool='+researchPool+'&capitalQuoteRaw=250000000&hours=24&width=2')).status,400,
+   'details must identify the snapshot used by the visible league');
   assert.deepEqual(await (await fetch(url+'/api/dashboard')).json(),{path:'/api/dashboard'});
   assert.deepEqual(await (await fetch(url+'/api/positions?hours=6')).json(),
    {path:'/api/positions?hours=6'});
@@ -75,7 +86,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.equal(missing.status,404);
   assert.deepEqual(await missing.json(),{error:'position_not_found'});
   assert.equal((await fetch(url+'/api/positions?hours=2')).status,400);
-  assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6',
+  assert.deepEqual(dashboardReads,['/api/research',researchDetailPath,'/api/dashboard','/api/positions?hours=6',
    '/api/positions?hours=0','/api/positions?hours=720',
    `/api/positions/${detailId}?hours=24`,`/api/positions/${detailId}`]);
   assert.equal((await fetch(url+'/api/strategies')).status,401);

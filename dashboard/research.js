@@ -1,12 +1,27 @@
 'use strict';
-// Read-only research view over recorded RWA pool flow. No signing, no controls.
+// Read-only research view over recorded RWA pool flow. No signing or execution controls.
 let snapshot = null;
-const state = { hours: 24, width: 2, pool: null, sort: 'net', descending: true };
+let detailSnapshot = null;
+let refreshError = null;
+let detailError = null;
+let detailFailedKey = null;
+let automaticMismatchRefreshUsed = false;
+let summaryRequest = 0;
+let detailRequest = 0;
+let detailRequestKey = null;
+let refreshTimer = null;
+const state = { hours: 24, width: 2, pool: null, capital: '250', sort: 'net', descending: true };
 
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const usdg = (raw) => raw == null ? null : Number(raw) / 1e6;
 const money = (value, digits = 2) => value == null ? '—' : new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value);
+function formatCapitalRaw(raw) {
+  if (!/^(0|[1-9][0-9]*)$/.test(String(raw ?? ''))) return '—';
+  const value = BigInt(raw), whole = (value / 1_000_000n).toLocaleString('en-US');
+  const fraction = String(value % 1_000_000n).padStart(6, '0').replace(/0+$/, '');
+  return fraction ? `${whole}.${fraction}` : whole;
+}
 const compact = (value) => value == null ? '—' : new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 const percent = (fraction, digits = 1) => fraction == null ? '—' : `${(fraction * 100).toFixed(digits)}%`;
 const SI_UNITS = [[1e18, 'E'], [1e15, 'P'], [1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'k']];
@@ -33,6 +48,28 @@ const MAX_BARS = 200;
 const stride = (count) => Math.max(1, Math.ceil(count / MAX_BARS));
 const barGrain = (source, count) => minutesLabel(source.bucketMinutes * stride(count));
 const clock = (iso) => new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+
+function capitalQuoteRaw(value) {
+  const match = /^(0|[1-9][0-9]*)(?:\.([0-9]{1,6}))?$/.exec(String(value ?? '').trim());
+  if (!match) return null;
+  const raw = BigInt(match[1]) * 1_000_000n + BigInt((match[2] ?? '').padEnd(6, '0') || '0');
+  return raw >= 1_000_000n && raw <= 100_000n * 1_000_000n ? String(raw) : null;
+}
+
+function freshnessLabel(envelope, now = Date.now()) {
+  const source = envelope?.sourceFreshness;
+  if (source?.status === 'unavailable' && !source?.asOf && !envelope?.asOf) return 'source unavailable · age unavailable';
+  const asOf = source?.asOf ?? envelope?.asOf;
+  const timestamp = Date.parse(String(asOf ?? ''));
+  if (!Number.isFinite(timestamp) || timestamp > now) return 'source age unavailable';
+  const seconds = Math.max(0, Math.floor((now - timestamp) / 1000));
+  const stated = source?.status;
+  const maxAge = Number.isSafeInteger(source?.maxAgeSeconds) ? source.maxAgeSeconds : 90;
+  const status = stated === 'unavailable' ? 'unavailable'
+    : stated === 'stale' || seconds > maxAge ? 'stale' : 'fresh';
+  const age = seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return `source ${status} · ${age} old`;
+}
 
 const WINDOWS = [[0.25, '15m'], [1, '1h'], [6, '6h'], [24, '24h'], [168, '7d']];
 const COLUMNS = [
@@ -94,6 +131,7 @@ function leagueRows(source, hours, widthIndex) {
   return source.pools.map((pool) => {
     const window = pool.windows.find((entry) => entry.hours === hours) ?? null;
     const reference = window?.references[widthIndex] ?? null;
+    const bucketCount = source.bucketCount ?? source.buckets?.length ?? 0;
     return {
       pool,
       window,
@@ -103,7 +141,8 @@ function leagueRows(source, hours, widthIndex) {
       volume: usdg(window?.volumeQuote),
       fees: usdg(window?.feesQuote),
       share: reference?.sharePpm == null ? null : reference.sharePpm / 1e6,
-      inRange: reference == null || window == null ? null : reference.inRangeBuckets / Math.min(hours * perHour(source), source.buckets.length),
+      inRange: reference == null || window == null || bucketCount <= 0 ? null : reference.inRangeBuckets /
+        Math.min(hours * perHour(source), bucketCount),
       gross: usdg(reference?.modeledFeesQuote),
       net: usdg(reference?.modeledNetQuote),
       apr: reference?.aprPpm == null ? null : reference.aprPpm / 1e6,
@@ -141,12 +180,13 @@ function renderTable(rows) {
   const roundTrip = usdg(snapshot.costs.roundTripQuote);
   const selectedWindow = rows[0]?.window;
   $('#assumptions').textContent = `${swapCountAvailability(selectedWindow)} ` +
-    `Volume, LP fees, and candidate economics remain based on retained ${grain(snapshot)} buckets and are not exact-window values. ` +
+    `Selected capital: ${formatCapitalRaw(snapshot.capitalQuoteRaw)} USDG. The input starts at the same 250 USDG default as setup; V3 token mix and liquidity share are recomputed for the selected amount using exact integer math. ` +
+    `Volume, LP fees, and candidate economics use retained ${grain(snapshot)} buckets and are not exact-window values. ` +
     (state.hours === 0.25 ? '' :
-    `Reference position: ${money(budget, 0)} USDG entered at the window's opening price and never rebalanced. ` +
+    `Reference position enters at the window's opening price and is never rebalanced. ` +
     `Fees are the LP side only: the protocol's cut of each pool's fee is already removed. ` +
     `Modeled fees credit the position's liquidity share of recorded flow for the ${grain(snapshot)} buckets price stayed inside the range. ` +
-    (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG mint + exit round trip.`));
+    (roundTrip == null ? 'Round-trip action cost unavailable.' : `Net subtracts one ${money(roundTrip)} USDG recorded mint + exit cost estimate; actual costs can reprice.`));
 
   $('#league thead').innerHTML = `<tr>${COLUMNS.map(([key, title, numeric]) => {
     const sorted = state.sort === key ? (state.descending ? 'descending' : 'ascending') : null;
@@ -272,9 +312,19 @@ function flowChart(pool, buckets) {
 }
 
 function renderDetail(rows) {
-  const row = rows.find((entry) => entry.pool.poolAddress === state.pool) ?? rows[0];
-  if (row === undefined) { $('#detail').innerHTML = ''; return; }
-  const pool = row.pool, reference = row.reference;
+  const summaryPool = snapshot?.pools.find((entry) => entry.poolAddress === state.pool);
+  if (!summaryPool) { $('#detail').innerHTML = ''; return; }
+  const matches = detailSnapshot?.snapshotId === snapshot.snapshotId &&
+    detailSnapshot?.capitalQuoteRaw === snapshot.capitalQuoteRaw &&
+    detailSnapshot?.pool?.poolAddress === state.pool &&
+    detailSnapshot?.hours === state.hours && detailSnapshot?.width === state.width;
+  const pool = matches ? detailSnapshot.pool : null;
+  if (!pool) {
+    const stateMessage = detailError ? `Selected-pool detail refresh failed (${esc(detailError)}). The summary snapshot is retained; detail values remain unavailable until a matching snapshot arrives.` : 'Loading selected-pool history for this snapshot…';
+    $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(summaryPool.rwaSymbol)} · ${(summaryPool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(stateMessage)}</span></div>`;
+    return;
+  }
+  const reference = pool.windows.find((window) => window.hours === state.hours)?.references?.[state.width] ?? null;
   if (pool.tick == null || pool.priceX18 == null) {
     const exact = pool.windows.find((window) => window.hours === state.hours);
     $('#detail').innerHTML = `<div class="section-heading"><h2>${esc(pool.rwaSymbol)} · ${(pool.fee / 10000).toFixed(2)}% pool</h2><span class="badge">${esc(pool.stateStatus)}</span></div>
@@ -319,9 +369,17 @@ function render() {
   const coverage = selectedWindow?.swapAvailability === 'available'
     ? ` · exact swaps as of ${clock(selectedWindow.swapAsOf)}`
     : ' · exact swaps unavailable';
-  $('#status').textContent = `Built ${clock(snapshot.generatedAt)} ET`;
+  const sourceAge = freshnessLabel(snapshot);
+  const selectedRaw = capitalQuoteRaw(state.capital);
+  const amountStatus = selectedRaw && selectedRaw !== snapshot.capitalQuoteRaw
+    ? ` · showing ${formatCapitalRaw(snapshot.capitalQuoteRaw)} USDG while updating for ${state.capital} USDG`
+    : '';
+  const failureStatus = refreshError ? ` · refresh failed; showing last snapshot (${sourceAge})` : '';
+  $('#status').textContent = `Built ${clock(snapshot.generatedAt)} ET · ${sourceAge}${amountStatus}${failureStatus}`;
   $('#window-label').textContent = `${WINDOWS.find(([hours]) => hours === state.hours)[1]}${coverage}`;
-  $('#footnote').textContent = `${snapshot.pools.length} pools · ${snapshot.buckets.length / perHour(snapshot)}h retained in ${grain(snapshot)} buckets · stream ${snapshot.streamKey}`;
+  const retainedHours = snapshot.retainedHours ?? ((snapshot.bucketCount ?? snapshot.retainedBucketCount ?? snapshot.buckets?.length ?? 0) / perHour(snapshot));
+  $('#footnote').textContent = `${snapshot.pools.length} pools · ${retainedHours}h retained in ${grain(snapshot)} buckets · stream ${snapshot.streamKey}`;
+  if (!$('#research-panel').hidden) void loadSelectedDetail();
 }
 
 function swapCountAvailability(window) {
@@ -360,16 +418,143 @@ document.addEventListener('keydown', (event) => {
   render();
 });
 
-async function load() {
+async function loadSelectedDetail() {
+  if (!snapshot || !state.pool) return;
+  const raw = capitalQuoteRaw(state.capital);
+  if (!raw || raw !== snapshot.capitalQuoteRaw) return;
+  const key = `${snapshot.snapshotId}:${state.pool}:${raw}:${state.hours}:${state.width}`;
+  if (detailFailedKey === key) return;
+  if (detailRequestKey === key || (detailSnapshot?.snapshotId === snapshot.snapshotId &&
+      detailSnapshot?.capitalQuoteRaw === raw && detailSnapshot?.pool?.poolAddress === state.pool &&
+      detailSnapshot?.hours === state.hours && detailSnapshot?.width === state.width)) return;
+  detailRequestKey = key;
+  const request = ++detailRequest;
   try {
-    const response = await fetch('/api/research', { headers: { accept: 'application/json' } });
-    if (!response.ok) throw new Error(`research ${response.status}`);
-    snapshot = await response.json();
+    const query = new URLSearchParams({pool:state.pool,capitalQuoteRaw:raw,
+      hours:String(state.hours),width:String(state.width),snapshotId:snapshot.snapshotId});
+    const response = await fetch(`/api/research/details?${query}`, {headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(20_000)});
+    if (response.status === 409) {
+      if (request === detailRequest) {
+        detailRequestKey = null;
+        if (automaticMismatchRefreshUsed) {
+          detailFailedKey = key;
+          detailError = 'snapshot changed repeatedly; refresh the Research summary to retry';
+          render();
+        } else {
+          automaticMismatchRefreshUsed = true;
+          detailFailedKey = key;
+          void refreshSummary();
+        }
+      }
+      return;
+    }
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const result = await response.json();
+    if (request !== detailRequest) return;
+    if (result.snapshotId !== snapshot?.snapshotId || result.capitalQuoteRaw !== raw ||
+        result.pool?.poolAddress !== state.pool || result.hours !== state.hours || result.width !== state.width) {
+      detailRequestKey = null;
+      detailFailedKey = key;
+      detailError = 'detail did not match the current Research selection';
+      render();
+      return;
+    }
+    detailSnapshot = result;
+    detailError = null;
+    detailFailedKey = null;
+    automaticMismatchRefreshUsed = false;
     render();
   } catch {
-    $('#status').textContent = 'Research unavailable';
-    $('#league tbody').innerHTML = '<tr><td colspan="10" class="empty">Research snapshot unavailable. It is built in the background and takes a few seconds after the dashboard starts.</td></tr>';
+    if (request !== detailRequest) return;
+    detailRequestKey = null;
+    detailFailedKey = key;
+    detailError = 'the selected pool history is unavailable';
+    render();
   }
 }
 
-load();
+async function refreshSummary() {
+  const raw = capitalQuoteRaw(state.capital);
+  if (!raw) {
+    refreshError = null;
+    $('#status').textContent = 'Enter USDG capital from 1 to 100,000, with at most six decimal places.';
+    $('#detail').innerHTML = '<p>Capital is outside the supported range. Existing results remain labeled with their original amount.</p>';
+    return;
+  }
+  const request = ++summaryRequest;
+  const refreshButton = $('#research-refresh');
+  if (refreshButton) { refreshButton.disabled = true; refreshButton.textContent = 'Refreshing…'; }
+  try {
+    const response = await fetch(`/api/research?capitalQuoteRaw=${raw}`, {
+      headers:{accept:'application/json'},cache:'no-store',signal:AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const next = await response.json();
+    if (request !== summaryRequest) return;
+    if (!Array.isArray(next.pools) || next.capitalQuoteRaw !== raw ||
+        typeof next.snapshotId !== 'string' || !next.snapshotId || !next.generatedAt) {
+      throw new Error('research response did not match the selected capital or snapshot contract');
+    }
+    const identityChanged = snapshot?.snapshotId !== next.snapshotId ||
+      snapshot?.capitalQuoteRaw !== next.capitalQuoteRaw;
+    snapshot = next;
+    refreshError = null;
+    detailError = null;
+    detailFailedKey = null;
+    if (identityChanged) { detailSnapshot = null; detailRequestKey = null; }
+    render();
+    window.dispatchEvent(new CustomEvent('research-summary-updated', {detail:{
+      snapshotId:snapshot.snapshotId,capitalQuoteRaw:snapshot.capitalQuoteRaw,pools:snapshot.pools,
+    }}));
+  } catch {
+    if (request !== summaryRequest) return;
+    refreshError = 'refresh unavailable';
+    if (snapshot === null) {
+      $('#status').textContent = 'Research snapshot unavailable. Use Refresh to retry; no current research data has been received.';
+      $('#league tbody').innerHTML = '<tr><td colspan="10" class="empty">Research is unavailable. Retrying will request a new snapshot.</td></tr>';
+    } else {
+      render();
+    }
+  } finally {
+    if (request === summaryRequest && refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = 'Refresh research';
+    }
+  }
+}
+
+if (typeof document !== 'undefined' && typeof document.querySelector === 'function' && document.querySelector('#research-panel')) {
+  const capitalInput = $('#research-capital');
+  let capitalTimer = null;
+  if (capitalInput) {
+    capitalInput.addEventListener('input', () => {
+      state.capital = capitalInput.value;
+      clearTimeout(capitalTimer);
+      capitalTimer = setTimeout(() => void refreshSummary(), 300);
+      if (snapshot) render();
+    });
+    capitalInput.addEventListener('change', () => void refreshSummary());
+  }
+  $('#research-refresh')?.addEventListener('click', () => void refreshSummary());
+  $('#research-use-in-setup')?.addEventListener('click', () => {
+    const raw = capitalQuoteRaw(state.capital);
+    const selected = snapshot?.pools.find((pool) => pool.poolAddress === state.pool);
+    if (!raw || !selected || snapshot?.capitalQuoteRaw !== raw) {
+      $('#status').textContent = 'Choose valid USDG capital and a pool before sending this setup selection.';
+      return;
+    }
+    window.dispatchEvent(new CustomEvent('research-setup-handoff', {detail:{
+      capital:state.capital,poolAddress:selected.poolAddress,snapshotId:snapshot.snapshotId,
+    }}));
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !$('#research-panel').hidden) void refreshSummary();
+  });
+  window.addEventListener('dashboard-tab-change', (event) => {
+    if (event.detail?.tabId === 'research-tab') void refreshSummary();
+  });
+  refreshTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && !$('#research-panel').hidden) void refreshSummary();
+  }, 60_000);
+  void refreshSummary();
+}
