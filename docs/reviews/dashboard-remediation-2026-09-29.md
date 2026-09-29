@@ -72,7 +72,14 @@ remained, and the public deployment campaign count was zero.
 ## Remaining scope
 
 Findings 6–12, the backlog and outstanding coverage in the original report are
-separate follow-up work. This checkpoint changes source and tests; it does not
-deploy a sealed release or change production services, execution policy or
-production database indexes. Deployment still requires both web services to
-serve coherent assets and verification against the sealed build.
+separate follow-up work. The authorized release checkpoint adds the R7 asset
+coherence gate: `npm run test:integration:dashboard-release-coherence -- RELEASE
+DASHBOARD_URL COMMAND_URL [PUBLIC_URL]`. It verifies the manifest and compares
+each service's supported document routes and shared JS/CSS dependencies against
+the sealed bytes. Its `--self-test` must reject a mismatched module.
+
+The command service and paper worker must move together: close-convert V3
+completion requires the worker runtime identity to match the campaign's saved
+identity. The checkpoint preserves configuration and execution policy, requires
+empty production campaign/operation tables before cutover, and does not migrate
+production data. Sealed and deployed acceptance evidence will be recorded below.
