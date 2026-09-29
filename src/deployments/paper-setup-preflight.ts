@@ -100,22 +100,39 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  const budget=BigInt(input.capitalQuoteRaw),quoteValue=(amount0:bigint,amount1:bigint)=>
   ceilRefValueQuoteRaw(amount0,frame.price0!,p!.decimals0,quotePriceX18,quoteDecimals)+
   ceilRefValueQuoteRaw(amount1,frame.price1!,p!.decimals1,quotePriceX18,quoteDecimals);
+ // The quote budget and the operator's maxDeploymentValue are different
+ // numeraires, and USDG is not exactly one dollar. Size under both, rounding
+ // each up, so the funded allocation is admissible on its USD value and the
+ // open planner has no reason to rescale it. Sizing under the quote budget
+ // alone hands the planner an allocation worth more USD than its own cap; it
+ // then mints less than this preflight sized, and the gas evidence sampled
+ // for that candidate no longer matches what this preflight looks up.
+ const deploymentCap=input.limits?BigInt(input.limits.maxDeploymentValue):null;
  const requirements=(liquidity:bigint)=>{
   const amounts=positionAmounts(frame.sqrtPriceX96,range,liquidity,true);
-  return {...amounts,valueQuoteRaw:quoteValue(amounts.amount0,amounts.amount1)};
+  return {...amounts,valueQuoteRaw:quoteValue(amounts.amount0,amounts.amount1),
+   valueUsdX18:ceilDiv(amounts.amount0*frame.price0!,10n**BigInt(p!.decimals0))+
+    ceilDiv(amounts.amount1*frame.price1!,10n**BigInt(p!.decimals1))};
+ };
+ const affordable=(liquidity:bigint)=>{
+  const candidate=requirements(liquidity);
+  return candidate.valueQuoteRaw<=budget&&
+   (deploymentCap===null||candidate.valueUsdX18<=deploymentCap);
  };
  let lower=0n,upper=UINT128_MAX-1n;
  while(lower<upper){
   const middle=lower+(upper-lower+1n)/2n;
-  if(requirements(middle).valueQuoteRaw<=budget)lower=middle;
+  if(affordable(middle))lower=middle;
   else upper=middle-1n;
  }
- if(lower===0n)return unavailable(input,'capital_below_one_liquidity_unit');
+ if(lower===0n)return unavailable(input,
+  deploymentCap===null?'capital_below_one_liquidity_unit':'capital_or_deployment_limit_below_one_liquidity_unit');
  const needed=requirements(lower);
  let minted;
  try{minted=replayPaperMint(frame.sqrtPriceX96,range,needed.amount0,needed.amount1,0n);}
  catch{return unavailable(input,'exact_mint_requirements_unavailable');}
- if(minted.liquidity<lower||needed.valueQuoteRaw>budget)
+ if(minted.liquidity<lower||needed.valueQuoteRaw>budget||
+  (deploymentCap!==null&&needed.valueUsdX18>deploymentCap))
   return unavailable(input,'exact_mint_requirement_budget_mismatch');
  // Cost calibration is scoped by the production static planner's exact minted
  // inventory and floor-valued reference total. Keep the setup budget above
