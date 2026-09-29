@@ -55,3 +55,15 @@ prepared index and current campaign/runtime compatibility before any authorized
 DDL or coordinated cutover. Production now has an existing campaign, so the
 previous zero-campaign deployment procedure cannot be reused without review.
 Text selection/chart focus and hidden Positions polling remain recorded backlog.
+
+
+## Subsequent rollout review
+
+The user requested the next review after the completed checkpoint. The
+[rollout review](../reviews/dashboard-rollout-review-2026-09-29.md) confirms the
+index matches the production query and records prepared replacement units.
+Direct cutover is blocked: the active static/manual campaign and conversion V2
+predecessor accounting remain pinned to `463e2eef…`; changing the running build
+would fail their exact identity gates. No service restart, DDL, or campaign
+identity rewrite occurred. The review orders independent index maintenance,
+a proven campaign runtime transition, and only then coordinated release.
