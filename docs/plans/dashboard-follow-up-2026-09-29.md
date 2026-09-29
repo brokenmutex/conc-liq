@@ -38,3 +38,20 @@ reviewable, with measured evidence and rollback, before asking to apply it.
 Preserve the public operator boundary and all unrelated `.claude/` work. No
 funding, signing, broadcasts, or production campaigns are part of acceptance.
 Stop at the completed checkpoint; broader strategy work remains deferred.
+
+
+## Completed checkpoint
+
+Source `aa64bd9` produced sealed candidate `ec686132…`. Repository/type checks
+and 948 units passed, followed by sealed risk integration, 46 usability checks,
+42 reliability checks, nine Research browser cases and 17 asset comparisons.
+The real 120.003-minute soak completed at 14:14:54 UTC with both duration gates
+qualified, 50-position scaling measured, bounded heap/DOM/listener samples and
+fixture cleanup verified. Detailed measurements and limits are in the
+[follow-up review](../reviews/dashboard-follow-up-2026-09-29.md).
+
+Stop here. Production remains on `463e2eef…`. Next scoped work is review of the
+prepared index and current campaign/runtime compatibility before any authorized
+DDL or coordinated cutover. Production now has an existing campaign, so the
+previous zero-campaign deployment procedure cannot be reused without review.
+Text selection/chart focus and hidden Positions polling remain recorded backlog.

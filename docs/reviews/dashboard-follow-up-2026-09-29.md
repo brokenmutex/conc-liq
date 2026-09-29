@@ -32,9 +32,23 @@ defines the acceptance boundary. The original report remains the baseline.
 
 ## Verification and evidence boundary
 
-Repository checks, typecheck and 948 unit tests passed. Browser acceptance,
-sealed identity and duration-qualified results will be recorded below after the
-candidate completes verification. Private evidence is under
+Repository checks, typecheck and 948 unit tests passed. Source commit
+`aa64bd9779113c0d7da52a70896e5bed240cb1d2` produced sealed build
+`ec686132c49fe1cef8ef0ce31dfb16e23ba6e3159ea3d5886ed8c60868ba7274`.
+The manifest verifies; its private dashboard/command route gate passed all 17
+asset comparisons. Against the sealed compiled modules and assets, risk
+integration, 46 usability checks, 42 reliability checks and nine populated
+Research browser cases passed with no browser exceptions. Fault-injection
+503/409 responses are intentional; favicon 404s remain incidental.
+
+The native-preview fixture holds its cost-dominated reserve, saved allocation
+and admission limits fixed: +10% gas stays actionable, +30% is rejected without
+an operation, and returning to baseline permits a new preview. This is a bounded
+fixture result, not a promise about every reserve/gas configuration.
+
+Harness copies replace only source TypeScript and dashboard JavaScript imports
+with sealed artifact URLs. Original/derived hashes are recorded with the release
+path. Private logs and preparation provenance are under
 `data/dashboard-follow-up-2026-09-29/`.
 
 The scaling fixture uses real PostgreSQL projections, HTTP and Chromium with
@@ -44,10 +58,61 @@ are filtered out of fixture responses. The concurrent worker calls the actual
 operation worker's idle polling path; it does not execute economic operations or
 maintenance. Database timings are client wall time, not server CPU usage.
 
-Short smoke runs have passed but do not qualify R2 or P6. The duration gate
-requires actual elapsed time of at least 120 minutes and both qualification
-flags, plus memory/listener/DOM bounds and cleanup. Production has not moved to
-this candidate, and no production DDL is part of this batch.
+The sealed run started at 12:13:10 UTC and finished at 14:14:54 UTC on
+September 29. After fixture preparation, worker baseline and scaling, the actual
+soak lasted **120.003 minutes**, with 121 samples, including 30 hidden-tab
+samples. Both `r2Qualified` and `p6DurationQualified` are true; the process exited
+0 with no recorded failures. The sealed manifest still verifies after the run.
+Short smoke runs were not counted toward these duration gates.
+
+After the first ten minutes, retained JS heap ranged from 1.32–1.85 MiB and
+ended at 1.43 MiB (baseline 1.33 MiB). DOM nodes ranged from 2,544–4,614 and
+ended at 2,544; listeners ranged from 86–90 and ended at 86. Every sample passed
+the declared baseline-relative limits: 34,945,348 heap bytes, 4,935 nodes and
+208 listeners. This is bounded two-hour evidence, not a claim that leaks are
+impossible.
+
+| Active fixture campaigns | Overview p95 | Detail p95 | Initial render | Minimum detail marks |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 51 ms | 198 ms | 766 ms | 168 |
+| 10 | 37 ms | 354 ms | 763 ms | 168 |
+| 50 | 67 ms | 375 ms | 602 ms | 168 |
+
+Each overview distribution has five calls; detail distributions have one call
+per campaign. At 50 campaigns, the slowest detail was 404 ms. Desktop and 390px
+mobile pages had no horizontal overflow. A measured eleven-second polling
+interval used three layouts / four style recalculations (12.7 ms layout,
+4.7 ms style and 55.6 ms total task time). Scroll position and expanded setup
+limits survived. Chart focus and selected text did not; setup capital `375` and
+its input focus did survive the separate input-preservation check.
+
+The soak made 1,479 dashboard reads: 1,151 while visible and 328 while hidden.
+Their server-side response p95s were 91 ms and 83 ms respectively. Positions
+continues polling while hidden—roughly eleven reads per minute in this fixture.
+That cost remains an optimization opportunity; no hidden-tab pause is claimed.
+Across the soak, instrumented dashboard connections executed 17,657 statements,
+with 74.4 seconds aggregate statement wall time and 100.5 seconds aggregate
+connection-held time, zero database errors and at most two checked-out clients.
+These are summed client-side timings, not PostgreSQL CPU utilization.
+
+There were 3,593 concurrent idle-worker polls. Poll latency p95 was 2.96 ms
+against 4.79 ms across 31 baseline polls; maximum latency increased from
+12.2 ms to 277.2 ms. The instrumented worker pool had zero errors and at most
+one checked-out client. These results do not establish latency under active
+operation execution.
+
+The fixture schema was removed, and a separate catalog check found no matching
+soak/risk/browser fixture schemas. Public campaign count was 1 before and after
+(the existing campaign was not a fixture). The dashboard, command service and
+paper worker remain active with zero automatic restarts on the prior production
+build `463e2eef…`. No production cutover or production DDL occurred.
+
+Raw evidence: `sealed-soak/report.json`, `samples.jsonl`, `requests.json`,
+`worker.json`, `heap-before.heapsnapshot`, `heap-after.heapsnapshot`,
+`cleanup.json`, and the derived `summary.json` under the private evidence root.
+The harness is reproducible with `TEST_DATABASE_URL` and
+`npm run test:integration:dashboard-scale-soak`; acceptance requires both
+qualification flags, not merely process success.
 
 ## Index candidate and remaining limits
 
