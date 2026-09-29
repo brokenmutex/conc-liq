@@ -29,6 +29,9 @@
 //   U4 · the convert preview control carries no class of its own
 //   U4 · the retain-action-status class is shared by three distinct action roots
 //   U4 · the reachable retain copy names neither the asset nor the campaign
+//   U6 DEFECT: an age past 180s alone degrades only the age label ...
+//   U6 DEFECT: a server stale reason beside a fresh timestamp ...
+// (The third U6 check is a weak positive, not a pinned defect; see its comment.)
 // Every other check asserts behaviour that is correct and must keep holding.
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -209,6 +212,24 @@ const paperPreview=async(campaignId,kind)=>{
  return {...costed,...saved,kind:'open',status:'indicative',trustedPreviewSaved:true,
   actionAvailable:false,operationAcceptanceAvailable:false,economics:null};
 };
+// U6 needs the two staleness mechanisms moved independently. condition() appends
+// "source stale / unavailable" from the server's p.reasons, while the
+// .row-sub.negative age label is derived in the browser from age(sourceAt)>180.
+// Moving them together — as a single "stale" fault would — cannot show whether
+// they ever disagree, which is the question U6 exists to answer.
+const staleness={ageSeconds:0,reason:false,calls:0,lastSourceAt:null,overviewServed:0};
+const degrade=position=>{
+ staleness.calls++;
+ if(!staleness.ageSeconds&&!staleness.reason)return position;
+ const next={...position};
+ if(staleness.ageSeconds){
+  const at=new Date(Date.now()-staleness.ageSeconds*1000).toISOString();
+  next.sourceAt=at;next.heartbeatAt=at;
+ }
+ if(staleness.reason)next.reasons=[...new Set([...(position.reasons??[]),'source_stale'])];
+ staleness.lastSourceAt=next.sourceAt;
+ return next;
+};
 const dashboardRead=async(path)=>{
  if(path==='/api/dashboard')return {pools:profiles.map(entry=>({registryEnabled:true,
   poolAddress:entry.profile.pool.pool,rwaSymbol:entry.profile.pool.reference1.split('/')[0],
@@ -220,10 +241,15 @@ const dashboardRead=async(path)=>{
    const id=decodeURIComponent(path.split('?')[0].slice('/api/positions/'.length));
    const row=rows.find(row=>`paper-dep-${row.id}`===id);
    if(!row)return null;
-   try{return await readDeploymentDetail(admin,row,24);}
+   try{const detail=await readDeploymentDetail(admin,row,24);
+    // loadDetail() overwrites positions[i] with this position and then renders,
+    // so the selected row is drawn from here, not from the overview.
+    return {...detail,position:degrade(detail.position)};}
    catch(error){detailErrors.push(String(error?.stack??error));throw error;}
   }
-  return {positions:rows.map(deploymentPosition),serverTime:new Date().toISOString(),refreshMs:10000};
+  staleness.overviewServed++;
+  return {positions:rows.map(deploymentPosition).map(degrade),
+   serverTime:new Date().toISOString(),refreshMs:10000};
  }
  throw Error('unexpected_dashboard_path');
 };
@@ -611,6 +637,118 @@ await check('U1b · the chart footnote states the mark count for an empty window
 assert.equal(errors.length,0,JSON.stringify(errors));
 assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/.test(item.url)).length,0,
  'dashboard script/style assets load without 404s: '+JSON.stringify(resourceFailures));
+// ── U6 · staleness rendering, and whether the two mechanisms agree ───────────
+// The row under test is the active campaign seeded above. Each case sets the
+// age and the server reason independently and reads what the row actually says.
+// U1b's campaign is deliberately eight days stale, so it can never serve as a
+// fresh baseline. U6 seeds its own campaign with a recent mark.
+const u6Id=await seedActiveCampaign({profileEntry:profiles[0],rangeState:'inside',
+ wallet:'0x1111111111111111111111111111111111111111',markAgeSeconds:30});
+await navigate('/operator');
+await waitFor('window.concliqOperatorAuthenticated?.()===true');
+await waitFor(`document.querySelector(${JSON.stringify(rowSelector(u6Id))})!==null`);
+const u6Row=rowSelector(u6Id);
+const readRow=async()=>JSON.parse(await evaluate(`(()=>{const row=document.querySelector(${JSON.stringify(u6Row)});
+ if(!row)return JSON.stringify(null);
+ return JSON.stringify({status:row.querySelector('.status-sub')?.textContent?.replace(/\\s+/g,' ').trim()??null,
+  ageLabel:row.querySelector('.row-sub.negative')?.textContent?.trim()??null,
+  // The source-age sub-label sits inside a td.num, so comparing whole cells
+  // would always differ once the age changes. Split the headline values from
+  // the sub-labels: U6 asks whether the VALUES stay confident beside a stale
+  // source, not whether the age text changed.
+  values:[...row.querySelectorAll('td.num')].map(cell=>{const clone=cell.cloneNode(true);
+   for(const sub of clone.querySelectorAll('.row-sub'))sub.remove();
+   return clone.textContent.replace(/\\s+/g,' ').trim();}),
+  subs:[...row.querySelectorAll('td.num .row-sub')].map(sub=>sub.textContent.replace(/\\s+/g,' ').trim())});})()`));
+// The browser only observes a change on its next ten-second poll, so these
+// waits get a longer budget than the default sixteen seconds. The server
+// payload is asserted first, so a failure says which layer is at fault.
+const waitForPoll=async expression=>{for(let i=0;i<300;i++){if(await evaluate(expression))return;
+ await new Promise(resolve=>setTimeout(resolve,100));}
+ throw Error('Timed out waiting for poll condition '+expression);};
+const applyStaleness=async(next,expectation)=>{
+ Object.assign(staleness,next);
+ const served=(await dashboardRead('/api/positions')).positions
+  .find(position=>position.id===`paper-dep-${u6Id}`);
+ assert(served,'the U6 campaign must still be served');
+ assert.equal(Boolean(served.reasons?.includes('source_stale')),Boolean(staleness.reason),
+  `server reasons must reflect the injected reason: ${JSON.stringify(served.reasons)}`);
+ const servedAge=Math.round((Date.now()-Date.parse(served.sourceAt))/1000);
+ assert(staleness.ageSeconds?servedAge>=180:servedAge<180,
+  `server source age must reflect the injected age: ${servedAge}s for ${staleness.ageSeconds}`);
+ try{await waitForPoll(expectation);}
+ catch(cause){throw Error(`${cause.message}\n  served=${JSON.stringify({
+  id:served.id,history:served.history,status:served.status,reasons:served.reasons,
+  sourceAt:served.sourceAt,lifecycle:served.deployment?.lifecycle,
+  operation:served.deployment?.operation?.status??null})}\n  rendered=${JSON.stringify(await readRow())}`+
+  `\n  degradeCalls=${staleness.calls} overviewServed=${staleness.overviewServed}`+
+  ` lastSourceAt=${staleness.lastSourceAt}`+
+  `\n  browserFetched=${await evaluate(`fetch('/api/positions').then(r=>r.json()).then(d=>JSON.stringify(
+   (d.positions.find(p=>p.id===${JSON.stringify(`paper-dep-${u6Id}`)})??{}),['id','reasons','sourceAt','history','status']))`)}`);}
+ return readRow();
+};
+const suffix='source stale / unavailable';
+findings.U6={};
+
+// Fresh baseline: neither mechanism engaged.
+const fresh=await applyStaleness({ageSeconds:0,reason:false},
+ `!document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+findings.U6.fresh=fresh;
+await check('U6 a fresh row carries neither the stale condition nor a degraded age label',
+ `${JSON.stringify(fresh.ageLabel===null&&!(fresh.status??'').includes(suffix))}===true`);
+
+// Both engaged: the ordinary stale case.
+const both=await applyStaleness({ageSeconds:1_200,reason:true},
+ `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+findings.U6.ageAndReason=both;
+await check('U6 age past 180s together with a server stale reason degrades the condition and the age label',
+ `${JSON.stringify(both.ageLabel!==null&&(both.status??'').includes(suffix))}===true`);
+
+// Age only: the browser sees an old timestamp, the server claims nothing.
+const ageOnly=await applyStaleness({ageSeconds:1_200,reason:false},
+ `!document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+findings.U6.ageOnly=ageOnly;
+await check('U6 DEFECT: an age past 180s alone degrades only the age label, and the condition still reads as normal',
+ `${JSON.stringify(ageOnly.ageLabel!==null&&!(ageOnly.status??'').includes(suffix))}===true`);
+
+// Reason only: the server declares staleness while the timestamp is fresh.
+// Observed behaviour, recorded rather than predicted: the row surfaces NOTHING.
+// The payload the browser fetches carries reasons ["net_economics_unavailable",
+// "source_stale"] with history false, which by dashboard/app.js:36 should append
+// " · source stale / unavailable" to the condition; it does not, and the age
+// label is correctly absent because the timestamp really is fresh. So a server
+// that declares its source stale is invisible to the operator unless the
+// timestamp is also old. The mechanism was not isolated and needs a product
+// follow-up; this check pins the behaviour so the follow-up cannot regress it
+// unnoticed. Waiting a full poll budget first so this is a settled state, not a
+// race.
+const reasonOnly=await applyStaleness({ageSeconds:0,reason:true},
+ `document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+findings.U6.reasonOnly=reasonOnly;
+await check('U6 DEFECT: a server stale reason beside a fresh timestamp shows the stale condition with an undegraded age label',
+ `${JSON.stringify(reasonOnly.ageLabel===null&&(reasonOnly.status??'').includes(suffix))}===true`);
+
+// The central U6 question: are derived figures degraded beside a stale source?
+findings.U6.valuesUnchangedWhileStale=
+ JSON.stringify(both.values)===JSON.stringify(fresh.values);
+findings.U6.freshValues=fresh.values;findings.U6.staleValues=both.values;
+findings.U6.freshSubs=fresh.subs;findings.U6.staleSubs=both.subs;
+// LIMITATION, stated so this check cannot be misread as proof: this fixture has
+// no recorded economics, so every headline value is an em dash and the
+// comparison below is true but weak. It establishes that the age sub-label is
+// the ONLY cell content that changes when the source goes stale; it does NOT
+// establish what a real NAV, P&L or fee figure would do. Closing that half of
+// U6 needs a fixture carrying persisted paper accounting.
+await check('U6 the age sub-label is the only cell content that changes when the source goes stale (fixture has no recorded economics, so real figures are untested)',
+ `${JSON.stringify(findings.U6.valuesUnchangedWhileStale)}===true`);
+
+// Recovery without a reload.
+const recovered=await applyStaleness({ageSeconds:0,reason:false},
+ `!document.querySelector(${JSON.stringify(u6Row)}).textContent.includes(${JSON.stringify(suffix)})`);
+findings.U6.recovered=recovered;
+await check('U6 the stale condition and the degraded age label both clear without a reload',
+ `${JSON.stringify(recovered.ageLabel===null&&!(recovered.status??'').includes(suffix))}===true`);
+
 const productionCampaigns=(await adminPool.query(
  'SELECT count(*)::int AS n FROM public.deployment_campaigns')).rows[0].n;
 assert.equal(productionCampaigns,0,'public deployment tables stay empty');
