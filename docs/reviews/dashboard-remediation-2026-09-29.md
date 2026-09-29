@@ -82,4 +82,55 @@ The command service and paper worker must move together: close-convert V3
 completion requires the worker runtime identity to match the campaign's saved
 identity. The checkpoint preserves configuration and execution policy, requires
 empty production campaign/operation tables before cutover, and does not migrate
-production data. Sealed and deployed acceptance evidence will be recorded below.
+production data.
+
+## Release checkpoint
+
+On September 29 at 08:55:30 UTC, the dashboard, deployment-command service and
+paper-operation worker moved together to sealed build
+`463e2eef44ff5ab5d29fc0ed864013e8a16a0a751758701c0344f797af9ba22b`, built from
+source `905c8e91766bd29a2415f565fc27c3590008adde` (fixes commit `56fea67`).
+Only the release paths in the three systemd units changed. Both environment
+file hashes and the public Funnel mapping match their captured baseline.
+
+The isolated checkout passed repository checks, typecheck and 939 tests.
+Its fixture directory links were removed before the clean release build.
+The sealed manifest verifies. Risk integration and the 44-check usability and
+40-check reliability browser suites also passed against the sealed compiled
+modules and dashboard assets, with no browser exceptions. Their harness copies
+replace only TypeScript source imports with sealed JavaScript URLs; original
+and derived hashes are recorded. Isolated schema fixtures simulate the chain
+observation boundary; these runs do not claim new canonical economic evidence.
+
+The R7 gate passed 17 private route/asset comparisons against the sealed server
+factories before cutover, then 27 comparisons across the installed dashboard,
+command service and public Funnel after cutover. The gate's negative fixture
+rejects mismatched JavaScript and checks discovery of imported dependencies.
+The persisted-policy compatibility check passed; there were no matching paper
+policies and no paper snapshot, so this is not additional paper-history coverage.
+
+Post-cutover inspection confirmed the actual processes' build, executable and
+working directory, unchanged configuration hashes, zero automatic restarts,
+schema readiness, and the worker's PostgreSQL readiness lease. Production
+deployment campaigns and operations remained empty, and the isolated test
+schemas were removed. The tail and RPC-health services stayed active. No
+production migration or economic operation was performed.
+
+The public Chromium check reached both `/` and `/operator`, displayed all seven
+asset risk rows, observed automatic session creation and a second real session
+handshake on Retry, and returned to the ready state. A retained closed
+RangeKeeper campaign selected All by default and exposed all 54 recorded
+receipts. Desktop 1440px and mobile 390px had no page horizontal overflow; the
+mobile risk table scrolls within its own panel. There were no browser exceptions
+or failed network transfers. The one console resource error was the existing
+`/favicon.ico` 404, retained explicitly in the evidence. The only browser POSTs
+were two empty-body `/api/session` requests; no campaign or operation was created.
+Public close actions could not be exercised with an empty deployment table;
+their acceptance is covered by the isolated sealed browser suite above.
+
+Private evidence, exact previous units for rollback, candidate units, harness
+provenance and verification logs are retained in
+`data/dashboard-remediation-release-2026-09-29/`. Rollback requires restoring all
+three saved unit files together; their previous sealed build remains available.
+Work stops at this release checkpoint. Findings 6–12 and the remaining report
+coverage are unchanged follow-up scope.
