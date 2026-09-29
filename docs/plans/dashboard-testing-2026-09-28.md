@@ -5,6 +5,10 @@ a test plan and an observation record, not an acceptance, a cutover or a
 authorization to change the dashboard. Nothing here was executed against
 production write paths.
 
+The consolidated findings are reported separately in
+[`dashboard-test-report-2026-09-29.md`](../reviews/dashboard-test-report-2026-09-29.md).
+This document remains the plan and the full observation record behind it.
+
 ## Observed baseline
 
 `npm run check` passed from this checkout: 920 tests, 85 suites, zero failures,
@@ -179,7 +183,13 @@ against the public deployment tables, and no command that starts or restarts a
 service. After any parallel phase the deployment campaign count is verified to
 be unchanged.
 
-## Expected findings
+## Expected findings, recorded before execution
+
+Retained as written so the predictions can be compared against what was found;
+see the report for the outcome. Two of these were wrong: D2 was substantially
+already implemented, and the suggestion to remove `/api/dashboard` was reversed.
+
+
 
 Wave 0 has since been executed and is recorded below; it confirmed D3, partly
 refuted D2 and reversed the P3 recommendation. The remaining expectations,
