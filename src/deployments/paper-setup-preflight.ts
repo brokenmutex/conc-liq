@@ -2,6 +2,7 @@ import {z} from 'zod';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
 import {USDG} from '../constants.js';
 import type {RobinhoodClient} from '../client.js';
+import {decideStaticManual} from '../strategy/static-manual/planner.js';
 import {positionAmounts,replayPaperMint} from '../v3/position-math.js';
 import {contentHash,staticPaperLimitsSchema} from './contracts.js';
 import {resolveCenteredManualRange} from './centered-manual-range.js';
@@ -119,10 +120,33 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  // Cost calibration is scoped by the production static planner's exact minted
  // inventory and floor-valued reference total. Keep the setup budget above
  // independently rounded up in quote units; only this gas-profile identity
- // must match the actual paper open candidate.
- const deployedUsdX18=minted.amount0*frame.price0/10n**BigInt(p!.decimals0)+
-  minted.amount1*frame.price1/10n**BigInt(p!.decimals1),
+ // must match the actual paper open candidate. Resolve it through the planner
+ // itself: it rescales the funded allocation whenever the floor-valued USD
+ // total exceeds maxDeploymentValue, which a quote-budget sizing above can
+ // exceed whenever the USDG reference is not exactly one dollar. Recomputing
+ // the candidate here instead would key gas evidence to inventory the open
+ // path never mints, and no sampled band could ever match.
+ let deployedUsdX18:bigint,sharePpm:bigint;
+ if(input.limits){
+  let decision;
+  try{decision=decideStaticManual({continuity:'canonical',tick:frame.tick,
+   sqrtPriceX96:frame.sqrtPriceX96,amount0:needed.amount0,amount1:needed.amount1,
+   price0:frame.price0,price1:frame.price1,decimals0:p!.decimals0,decimals1:p!.decimals1,
+   quoteToken:p!.quoteToken,position:null,pending:false,entryAllowed:true,safetyExitRequired:false,
+   expiryReached:input.limits.expiryAt?Date.parse(input.limits.expiryAt)<=now():false},
+   {tickLower:range.tickLower,tickUpper:range.tickUpper},
+   {maxDeploymentValue:BigInt(input.limits.maxDeploymentValue),
+    minDeploymentValue:BigInt(input.limits.minDeploymentValue),
+    maxExposurePpm:input.limits.maxExposurePpm});}
+  catch{return unavailable(input,'static_manual_planner_candidate_invalid');}
+  if(decision.action!=='entry')return unavailable(input,`static_manual_entry_unavailable:${decision.reason}`);
+  deployedUsdX18=decision.candidate.deployedValue;
+  sharePpm=decision.candidate.liquidity*1_000_000n/(frame.poolLiquidity+decision.candidate.liquidity);
+ }else{
+  deployedUsdX18=minted.amount0*frame.price0/10n**BigInt(p!.decimals0)+
+   minted.amount1*frame.price1/10n**BigInt(p!.decimals1);
   sharePpm=minted.liquidity*1_000_000n/(frame.poolLiquidity+minted.liquidity);
+ }
  let gasRows:PaperGasProfileRow[],gasPriceWei:bigint;
  try{[gasRows,gasPriceWei]=await Promise.all([
   deps.readGasProfiles(p!.pool),deps.readGasPrice()]);}

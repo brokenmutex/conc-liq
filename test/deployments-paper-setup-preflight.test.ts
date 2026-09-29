@@ -122,6 +122,49 @@ test('setup gas scope matches the production planner minted floor value, not bud
  assert.equal(prepared.costs.status,'provisional');
 });
 
+test('setup gas scope follows the planner rescale when quote budget exceeds the USD deployment limit',async()=>{
+ // A USDG reference above one dollar makes the quote-sized allocation worth
+ // more USD than maxDeploymentValue, so the open planner scales the funded
+ // inventory down. The setup scope must follow that rescale; otherwise the
+ // evidence sampled for this candidate can never match the band it looks up.
+ const scopedFrame={...frame,tick:15,sqrtPriceX96:sqrtRatioAtTick(15),
+  price0:10n**18n+11_330_000_000_000n,price1:10n**18n};
+ const limits=staticManualParameters.parse({halfWidthTicks:60,limits:{
+  maxDeploymentValue:'100000000000000000000',minDeploymentValue:'1',maxExposurePpm:1_000_000,
+  maxLossValue:'1000000000000000000000',maxDrawdownPpm:1_000_000,
+  maxActionCost:'1000000000000000000000',maxRollingCost:'1000000000000000000000',
+  maxCampaignCost:'1000000000000000000000',exitReserveWei:'1000000000000000',maxSlippageBps:50}});
+ assert(limits.limits);
+ const scopedInput=paperSetupPreflightInput.parse({...input,limits:limits.limits});
+ const read=async(gasRows:ReturnType<typeof completeGasProfiles>)=>buildStaticPaperSetupPreflight(scopedInput,{
+  loadProfile:async id=>({id,profile,profileHash:contentHash(profile)}),readFrame:async()=>scopedFrame,
+  verifyCanonical:async()=>{},readGasProfiles:async()=>gasRows,readGasPrice:async()=>1_000_000_000n,now:()=>now});
+ const sizing=await read([]);
+ assert(sizing.requirements);
+ const parameters={halfWidthTicks:scopedInput.halfWidthTicks,limits:limits.limits};
+ const draft={id:'00000000-0000-4000-8000-000000000003',revision:1,profile,
+  profileHash:contentHash(profile),configHash:'0'.repeat(64),strategyId:'static_manual_v1' as const,
+  strategyVersion:'1.0.0' as const,stateSchemaVersion:1 as const,parameters,
+  allocation:{token0Raw:sizing.requirements.token0Raw,token1Raw:sizing.requirements.token1Raw,
+   nativeWei:limits.limits.exitReserveWei}};
+ const actual=buildIndicativePaperOpenPreview(draft,scopedFrame);
+ assert.equal(actual.status,'indicative');assert(actual.candidate);
+ const floor=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
+ const unscaled=floor(BigInt(sizing.requirements.token0Raw),scopedFrame.price0,profile.pool.decimals0)+
+  floor(BigInt(sizing.requirements.token1Raw),scopedFrame.price1,profile.pool.decimals1);
+ assert(unscaled>BigInt(limits.limits.maxDeploymentValue),
+  'fixture must exceed the USD deployment limit so the planner rescales the allocation');
+ assert.notEqual(unscaled,BigInt(actual.candidate.deployedValue),
+  'fixture must distinguish the unscaled setup valuation from the rescaled planner candidate');
+ const rows=completeGasProfiles().map(row=>({...row,model:{...row.model,
+  sizeMinValue:actual.candidate!.deployedValue,sizeMaxValue:actual.candidate!.deployedValue,
+  shareMinPpm:actual.candidate!.dilutedSharePpm,shareMaxPpm:actual.candidate!.dilutedSharePpm,
+  tickLower:actual.candidate!.range.tickLower,tickUpper:actual.candidate!.range.tickUpper}}));
+ const prepared=await read(rows);
+ assert.equal(prepared.status,'available');
+ assert.equal(prepared.costs.status,'provisional');
+});
+
 test('setup replays the reviewed source and rejects a different returned frame',async()=>{
  let received:unknown;
  const deps={loadProfile:async(id:string)=>({id,profile,profileHash:contentHash(profile)}),
