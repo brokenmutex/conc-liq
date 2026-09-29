@@ -79,6 +79,7 @@ export interface AssetRiskRow {
   readonly corporateActionPending: boolean | null;
   readonly currentMultiplier: string | null;
   readonly executionEligible: boolean;
+  readonly snapshotAt: string | null;
   readonly feedDecimals: number | null;
   readonly marketHours: string | null;
   readonly multiplierConsistent: boolean | null;

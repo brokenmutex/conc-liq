@@ -251,7 +251,7 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   acceptPath:'/lifecycle-operations'},
   close_retain:{preview:'.retain-action-root .retain-preview-button',confirm:'.retain-action-root .retain-confirm-button',
   acceptPath:'/operations'},
-  close_convert:{preview:'.convert-action-root button',confirm:'.convert-action-root .retain-confirm-button',
+  close_convert:{preview:'.convert-action-root .convert-preview-button',confirm:'.convert-action-root .convert-confirm-button',
   acceptPath:'/close-convert-operations'}};
  const spec=specs[kind];assert(spec,`unsupported action ${kind}`);
  if(kind==='resume')await browser.waitFor('document.querySelector(".paper-lifecycle-preview-button")?.textContent.includes("resume")',
@@ -293,7 +293,7 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   if(kind==='close_convert'){
    await browser.waitFor(`window.__canonicalConvertPreviewCount>${previousPreviewCount}`,
     `${kind} API preview response`,remaining);
-   await browser.waitFor('document.querySelector(".convert-action-root .retain-action-review")?.hidden===false',
+   await browser.waitFor('document.querySelector(".convert-action-root .convert-action-review")?.hidden===false',
     `${kind} rendered preview response`,remaining);
   }else await browser.waitFor(`document.querySelector(${JSON.stringify(spec.confirm)})!==null`,
    `${kind} preview response`,remaining);

@@ -937,8 +937,9 @@ function bootDashboardTabs() {
       }
     } catch { /* An unavailable optional default leaves the operator's form untouched. */ }
   }
-  async function loadOperatorDataOnce() {
+  async function loadOperatorDataOnce({refresh=false}={}) {
     if (!onOperatorOrigin || !operatorSession.isReady()) return;
+    if(refresh){profilesLoaded=false;draftsLoaded=false;operatorDataLoadPromise=null;}
     if (!operatorDataLoadPromise) {
       operatorDataLoadPromise = (async () => {
         if (!profilesLoaded) {
@@ -963,13 +964,15 @@ function bootDashboardTabs() {
     await loadSetupDefaults();
     return operatorDataLoadPromise;
   }
-  async function connectOperator() {
+  async function connectOperator({retry=false}={}) {
     if (!onOperatorOrigin) return;
     connectionRetry.disabled=true;
     document.getElementById('operator-auth-status').textContent='Connecting to the operator service…';
     try {
-      await operatorSession.bootstrap();
-      await loadOperatorDataOnce();
+      // Retry proves the command service is reachable even when this tab still
+      // holds a CSRF token, then reloads its operator-owned data.
+      await operatorSession.bootstrap({force:retry});
+      await loadOperatorDataOnce({refresh:retry});
       document.getElementById('operator-auth-status').textContent='Operator connection ready.';
       connectionRetry.hidden=true;
     } catch (cause) {
@@ -980,7 +983,7 @@ function bootDashboardTabs() {
     }
   }
   if (onOperatorOrigin) {
-    connectionRetry.addEventListener('click', () => { void connectOperator(); });
+    connectionRetry.addEventListener('click', () => { void connectOperator({retry:true}); });
     document.getElementById('operator-auth-status').textContent='Connecting to the operator service…';
     void connectOperator();
   }

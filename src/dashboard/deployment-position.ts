@@ -364,7 +364,9 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
 };
 
 export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours:number){
- const position=deploymentPosition(row),cutoff=Math.floor((Date.now()-hours*3600000)/1000),
+ const position=deploymentPosition(row),now=Date.now(),ended=position.endedAt?Date.parse(position.endedAt):NaN,
+  windowEnd=hours===0&&Number.isFinite(ended)&&ended<=now?ended:now,
+  cutoff=hours===0?0:Math.floor((windowEnd-hours*3600000)/1000),cutoffAt=hours===0?new Date(0):new Date(windowEnd-hours*3600000),
   profile=marketProfileSchema.parse(row.profile),allocation=allocationSchema.parse(row.allocation);
  const hasAccounting=(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting')::text AS present")).rows[0]?.present;
@@ -395,10 +397,12 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   ORDER BY m.id LIMIT 30001`,[row.id,cutoff])).rows;
  if(marks.length>30000)throw Error('Deployment mark history exceeds bounded window limit');
  const points=marks.map(mark=>point(mark,profile,allocation,row.id,row.runtime_identity));
+ const start=points.reduce((earliest,p)=>{const at=Date.parse(p.sourceAt);return Number.isFinite(at)?Math.min(earliest,at):earliest;},Date.parse(position.createdAt)),
+  windowHours=hours===0?Math.max(1,(windowEnd-start)/3600000):hours;
  const baseline=position.initialQuote??'0';
  // A window beginning after entry has no opening capital flow in its selected
  // marks. Let the first visible mark establish the interval baseline.
- const window=positionWindow(points,hours,Date.now(),baseline,
+ const window=positionWindow(points,windowHours,windowEnd,baseline,
   points[0]?.action==='enter'?position.createdAt:new Date(0).toISOString());
  const performance=points.some(point=>point.economicNavQuote!==null)?window:
   {...window,rows:window.rows.map(row=>({...row,netPnlQuote:null,alphaQuote:null,
@@ -410,7 +414,7 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
     (SELECT source_block FROM deployment_marks WHERE campaign_id=o.campaign_id
      AND provenance->>'operationId'=o.id::text ORDER BY id DESC LIMIT 1) m ON TRUE
   WHERE o.campaign_id=$1 AND o.created_at>=$2 ORDER BY o.created_at DESC,o.id LIMIT 1001`,
-  [row.id,new Date(Date.now()-hours*3600000)])).rows;
+  [row.id,cutoffAt])).rows;
  if(events.length>1000)throw Error('Deployment activity exceeds bounded window limit');
  const activity=[...events.map(event=>({id:event.id,
   at:event.at.toISOString(),action:event.kind,status:event.status,stage:event.stage,

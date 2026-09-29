@@ -1,7 +1,7 @@
 import {readPositionOverview,readPositionDetail} from "./positions.js";
 import { assertSchemaReady } from "../storage/compatibility.js";
 import pg, { type PoolClient } from "pg";
-import { USDG } from "../constants.js";
+import { DEFAULT_RWA_SYMBOLS, USDG } from "../constants.js";
 import { readRiskGate } from "../risk/gate.js";
 import type { DashboardConfig } from "./config.js";
 import { readPaperDashboard } from "./paper.js";
@@ -109,6 +109,7 @@ interface RiskDbRow {
   oracle_age_seconds: string | null;
   oracle_paused: boolean | null;
   reasons: unknown;
+  snapshot_at: Date;
   registry_status: string | null;
   rwa_symbol: string;
   trading_tradable: boolean | null;
@@ -1084,9 +1085,9 @@ async function positions(
 
 async function riskAssets(client: PoolClient): Promise<AssetRiskRow[]> {
   const result = await client.query<RiskDbRow>(
-    `WITH latest AS (SELECT id FROM risk_snapshot_runs ORDER BY id DESC LIMIT 1)
-     SELECT a.symbol AS rwa_symbol, a.oracle_address, a.execution_eligible,
-            a.reasons,
+    `WITH latest AS (SELECT id, observed_at FROM risk_snapshot_runs ORDER BY id DESC LIMIT 1)
+      SELECT a.symbol AS rwa_symbol, a.oracle_address, a.execution_eligible,
+            a.reasons, latest.observed_at AS snapshot_at,
             (a.snapshot->'registry'->>'status') AS registry_status,
             (a.snapshot->'registry'->>'currentMultiplier') AS current_multiplier,
             (a.snapshot->'onchain'->>'uiMultiplier') AS ui_multiplier,
@@ -1105,11 +1106,12 @@ async function riskAssets(client: PoolClient): Promise<AssetRiskRow[]> {
      JOIN latest ON latest.id = a.run_id
      ORDER BY a.symbol`,
   );
-  return result.rows.map((row) => ({
+  const rows=result.rows.map((row) => ({
     answer: row.answer,
     corporateActionPending: row.corporate_action_pending,
     currentMultiplier: row.current_multiplier,
     executionEligible: row.execution_eligible,
+    snapshotAt: row.snapshot_at.toISOString(),
     feedDecimals: row.feed_decimals,
     marketHours: row.market_hours,
     multiplierConsistent: row.multiplier_consistent,
@@ -1121,6 +1123,14 @@ async function riskAssets(client: PoolClient): Promise<AssetRiskRow[]> {
     rwaSymbol: row.rwa_symbol,
     tradingTradable: row.trading_tradable,
     uiMultiplier: row.ui_multiplier,
+  }));
+  const bySymbol=new Map(rows.map(row=>[row.rwaSymbol,row]));
+  const symbols=[...new Set([...DEFAULT_RWA_SYMBOLS,...rows.map(row=>row.rwaSymbol)])];
+  return symbols.map(symbol=>bySymbol.get(symbol)??({
+    answer:null,corporateActionPending:null,currentMultiplier:null,executionEligible:false,
+    feedDecimals:null,marketHours:null,multiplierConsistent:null,oracleAddress:null,
+    oracleAgeSeconds:null,oraclePaused:null,reasons:['risk_snapshot_missing_asset'],
+    registryStatus:null,rwaSymbol:symbol,tradingTradable:null,uiMultiplier:null,snapshotAt:null,
   }));
 }
 
@@ -1201,7 +1211,11 @@ export class DashboardRepository {
     const client=await this.pool.connect();
     try {
       await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      const result=id?await readPositionDetail(client,this.config.streamKey,id,hours,this.config.adaptivePaperStatePath):await readPositionOverview(client,this.config.streamKey,this.config.adaptivePaperStatePath);
+      const result=id?await readPositionDetail(client,this.config.streamKey,id,hours,this.config.adaptivePaperStatePath):{
+        ...(await readPositionOverview(client,this.config.streamKey,this.config.adaptivePaperStatePath)),
+        riskAssets:await riskAssets(client),
+        riskFreshnessSeconds:this.config.riskGateMaxSnapshotAgeSeconds,
+      };
       await client.query("COMMIT");return result;
     } catch(error) {await client.query("ROLLBACK");throw error;} finally {client.release();}
   }

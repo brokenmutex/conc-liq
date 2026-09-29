@@ -19,6 +19,17 @@ const price=(sqrt:string)=>String((1n<<192n)*10n**30n/BigInt(sqrt)**2n);
 const range=(p:any)=>p&&BigInt(p.liquidity)>0n?[price(String(sqrtRatioAtTick(p.tickUpper))),price(String(sqrtRatioAtTick(p.tickLower)))]:null;
 const iso=(v:any)=>v?new Date(v).toISOString():null;
 const sub=(a:string|null,b:string|null)=>a===null||b===null?null:String(BigInt(a)-BigInt(b));
+const historyWindow=(hours:number,createdAt:string,endedAt:string|null=null,now=Date.now())=>{
+ const end=hours===0&&endedAt&&Date.parse(endedAt)<=now?Date.parse(endedAt):now;
+ const start=hours===0?Date.parse(createdAt):end-hours*3600000;
+ const span=Math.max(1,(end-start)/3600000);
+ return {hours:span,from:end-span*3600000,to:end};
+};
+const extendHistoryWindow=(window:{hours:number;from:number;to:number},hours:number,points:PositionPoint[])=>{
+ if(hours!==0||!points.length)return window;
+ const start=points.reduce((earliest,point)=>{const at=Date.parse(point.sourceAt);return Number.isFinite(at)?Math.min(earliest,at):earliest;},window.from),span=Math.max(1,(window.to-start)/3600000);
+ return {hours:span,from:window.to-span*3600000,to:window.to};
+};
 function inventory(p:any,sqrt:string,idle0:string,idle1:string,fee0='0',fee1='0',market:PaperMarket=NVDA_PAPER_MARKET) {
  const a=p?principalAmounts({liquidity:BigInt(p.liquidity),tickLower:p.tickLower,tickUpper:p.tickUpper,sqrtPriceX96:BigInt(sqrt)}):{amount0:0n,amount1:0n};
  const total0=a.amount0+BigInt(idle0)+BigInt(fee0),total1=a.amount1+BigInt(idle1)+BigInt(fee1);
@@ -114,7 +125,7 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
  }
  if(id.startsWith('paper-adaptive-')){
   const state=await adaptiveState(adaptivePath),asset=state?.assets?.find((item:any)=>`paper-adaptive-${String(item.symbol).toLowerCase()}`===id);if(!state||!asset)return null;
-  const position=adaptiveSummary(state,asset),a=position.adaptive,allMarks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];
+  const position=adaptiveSummary(state,asset),a=position.adaptive,allMarks=adaptivePath?await readAdaptivePaperMarks(adaptivePath,asset.symbol):[];let window=historyWindow(hours,position.createdAt,position.endedAt,now);
   // Marks written before benchmark provenance was introduced reported budget
   // as holding NAV. Preserve them on disk, but exclude them from alpha.
   const marks=allMarks.filter(mark=>mark.benchmarkKind!==undefined);
@@ -122,29 +133,32 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
   if(!points.length)points.push({sourceAt:position.sourceAt,observedAt:position.heartbeatAt,block:'0',action:'mark',status:position.status,
    economicNavQuote:position.navQuote,holdQuote:position.holdQuote,priceQuoteX18:position.priceQuoteX18,usdg:position.inventory.usdg,nvda:position.inventory.nvda,exposurePpm:position.inventory.exposurePpm,
    inRange:position.status==='open',tickLower:a.currentRange?.tickLower??null,tickUpper:a.currentRange?.tickUpper??null,feesThisIntervalQuote:null,gasThisMarkQuote:null,swapThisMarkQuote:null,swapsThisMark:0,drawdownPpm:position.drawdownPpm??'0'});
-  const events=(a.actions??[]).filter((event:any)=>event.at>=now-hours*3600000).map((event:any,index:number)=>({id:String(index+1),at:new Date(event.at).toISOString(),action:event.kind,status:'accepted_model',block:event.block,scope:'adaptive_width_model',gasQuote:event.gasQuote??null,trade:{token:event.token,amountIn:event.amountIn,amountOut:event.amountOut},range:{tickLower:event.tickLower,tickUpper:event.tickUpper}})).reverse();
-  return {position,performance:positionWindow(points,hours,now,position.initialQuote,position.createdAt),events,counts:{recenters:a.recenters,recenterAttempts:a.recenterAttempts,swaps:(a.actions??[]).filter((event:any)=>event.token!==null).length},
+  window=extendHistoryWindow(window,hours,points);
+  const events=(a.actions??[]).filter((event:any)=>event.at>=window.from).map((event:any,index:number)=>({id:String(index+1),at:new Date(event.at).toISOString(),action:event.kind,status:'accepted_model',block:event.block,scope:'adaptive_width_model',gasQuote:event.gasQuote??null,trade:{token:event.token,amountIn:event.amountIn,amountOut:event.amountOut},range:{tickLower:event.tickLower,tickUpper:event.tickUpper}})).reverse();
+  return {position,performance:positionWindow(points,window.hours,window.to,position.initialQuote,position.createdAt),events,counts:{recenters:a.recenters,recenterAttempts:a.recenterAttempts,swaps:(a.actions??[]).filter((event:any)=>event.token!==null).length},
    limitations:['Forward modeled adaptive-width campaign; no wallet signing or chain broadcasts.','Pool NAV uses the canonical pool path, hypothetical fee dilution and frozen fork-cost estimates.','Independent-reference NAV and its fixed-token comparator remain separate from pool-marked NAV and fail closed when the reference is unavailable.','History before the first persisted adaptive baseline remains explicitly unobserved.']};
  }
  if(id.startsWith('paper-')){
   const rows=await paperRows(db,stream),group=paperGroups(rows).find(g=>`paper-${g.latest.id}`===id);if(!group)return null;
   const position=paperSummary(group.latest,group.chain,rows.find(r=>r.stream_key===group.latest.stream_key)?.id??'');
+  let window=historyWindow(hours,position.createdAt,position.endedAt,now);
   if(position.status==='invalid')return {position,performance:null,events:[],limitations:['Invalidated campaign; original reason and timestamp retained.']};
   try {
    const chain=await readPaperChain(db,group.latest),report=await readSessionPerformance(db,chain,true);
    const points=report.timeline as PositionPoint[];
+   window=extendHistoryWindow(window,hours,points);
    position.navQuote=report.economicNavQuote;position.holdQuote=report.holdPnlQuote===null?null:String(BigInt(report.initialBudgetQuote)+BigInt(report.holdPnlQuote));
    position.gasQuote=report.gasQuote;position.feesQuote=String(report.grouped.reduce((n,b)=>n+BigInt(b.feeIncomeQuote),0n));
    position.swapQuote=String(report.grouped.reduce((n,b)=>n+BigInt(b.swapCostVsSpotQuote),0n)) as any;
    position.drawdownPpm=String(points.reduce((n,p)=>p.drawdownPpm!==null&&BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n));
-   const performance=positionWindow(points,hours,now,report.initialBudgetQuote,position.createdAt);
+   const performance=positionWindow(points,window.hours,window.to,report.initialBudgetQuote,position.createdAt);
    const runIds=chain.flatMap(s=>[s.state.execution?.entryRunId,...(s.state.execution?.recenterRunIds??[]),s.state.execution?.exitRunId].filter(Boolean));
    const events=runIds.length?(await db.query(`SELECT id::text,action,source_block::text AS block,observed_at AS at,
     snapshot->'result'->>'scope' AS scope,snapshot->'result'->'range' AS range,
     CASE WHEN snapshot->'result'->>'scope'='paper_inventory_recenter' THEN snapshot->'result'->'trade'
      WHEN action='entry' THEN snapshot->'result'->'entrySwap' ELSE snapshot->'result'->'exitSwap' END AS trade,
     snapshot->'result'->>'entryGasWei' AS entry_gas_wei,snapshot->'result'->>'exitGasWei' AS exit_gas_wei FROM paper_execution_runs WHERE id=ANY($1::bigint[]) ORDER BY paper_execution_runs.id DESC`,[runIds])).rows:[];
-   return {position,performance,events:events.filter(e=>Date.parse(e.at)>=now-hours*3600000),
+   return {position,performance,events:events.filter(e=>Date.parse(e.at)>=window.from),
     counts:{recenters:report.grouped.reduce((n,b)=>n+b.recenters,0),swaps:report.tradeCount},limitations:report.limitations};
   }catch {
    return {position:{...position,accounting:'unavailable',navQuote:null,holdQuote:null,feesQuote:null,gasQuote:null,swapQuote:null,
@@ -152,7 +166,7 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
   }
  }
  const row=(await liveRows(db)).find(r=>`live-${r.id}`===id);if(!row)return null;
- const position=liveSummary(row),s=row.state;
+ const position=liveSummary(row),s=row.state;let window=historyWindow(hours,position.createdAt,position.endedAt,now);
  const recenterAttempts=Number((await db.query(`WITH phases AS (
   SELECT state->>'phase' AS phase,lag(state->>'phase') OVER (ORDER BY id) AS previous
   FROM live_pilot_v1.transitions WHERE campaign_id=$1)
@@ -197,10 +211,11 @@ export async function readPositionDetail(db:PoolClient,stream:string,id:string,h
  }
  position.swapQuote=String(totalSwap) as any;position.feesQuote=feesValid?String(feeIncome):null;
  position.drawdownPpm=points.length?String(points.reduce((n,p)=>p.drawdownPpm!==null&&BigInt(p.drawdownPpm)>n?BigInt(p.drawdownPpm):n,0n)) as any:null;
- const events=actions.filter(a=>Date.parse(a.source_time?new Date(Number(a.source_time)*1000).toISOString():a.at)>=now-hours*3600000)
+ window=extendHistoryWindow(window,hours,points);
+ const events=actions.filter(a=>Date.parse(a.source_time?new Date(Number(a.source_time)*1000).toISOString():a.at)>=window.from)
   .map(a=>({id:a.id,at:a.source_time?new Date(Number(a.source_time)*1000).toISOString():iso(a.at),action:a.action,status:a.status,hash:a.hash,
    block:a.facts?.block??null,gasQuote:a.gas??null,walletDeltas:a.facts?.walletDeltas??null,plan:a.plan})).reverse();
- return {position,performance:positionWindow(points,hours,now,s.initialCapitalQuote,s.createdAt),events,
+ return {position,performance:positionWindow(points,window.hours,window.to,s.initialCapitalQuote,s.createdAt),events,
   counts:{recenters,recenterAttempts,swaps:actions.filter(a=>a.action==='swap'&&a.status==='confirmed').length},
   limitations:['Live NAV includes wallet inventory, NFT principal and claimable fees, less receipt-valued gas. Reserved USDG is excluded.',
    'Swap shortfall is measured from receipt token deltas against pre-transaction spot and is already included in NAV.',

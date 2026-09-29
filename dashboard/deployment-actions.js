@@ -199,18 +199,23 @@ function formatX18(value) {
 /** The convert command is exposed only after the server returns a saved V3
  * preview with explicit worker readiness. A pending acceptance keeps its exact
  * request key across a page reload until the server reconciles its outcome. */
-export function mountStaticConvertAction(root, {campaignId, authenticated, request,
+export function mountStaticConvertAction(root, {campaignId, positionLabel, authenticated, request,
   onAccepted = () => {}, now = Date.now} = {}) {
   root.replaceChildren();
   const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
   if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  root.setAttribute('role', 'group');
+  root.setAttribute('aria-label', `Close ${positionLabel || `campaign ${campaignId}`} · convert tokens to USDG`);
   const storageKey = `concliq.operator.paper-convert.pending.v1.${campaignId}`;
   const button = document.createElement('button'); button.type = 'button';
+  button.className = 'convert-preview-button';
   button.textContent = 'Review convert-close'; button.disabled = !authenticated?.();
-  const status = document.createElement('p'); status.className = 'retain-action-status';
+  button.setAttribute('aria-label', `Review close · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
+  const status = document.createElement('p'); status.className = 'convert-action-status';
   status.setAttribute('role', 'status');
-  const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
+  const review = document.createElement('div'); review.className = 'convert-action-review'; review.hidden = true;
   const retry = document.createElement('button'); retry.type = 'button';
+  retry.className = 'convert-reconcile-button';
   retry.textContent = 'Retry same request / reconcile'; retry.hidden = true;
   retry.disabled = !authenticated?.();
   root.append(button, status, review, retry);
@@ -257,7 +262,7 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
     button.disabled = true;
     setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
     retry.hidden = false;
-  } else setStatus(authenticated?.() ? 'Static/manual paper convert-close only.' :
+  } else setStatus(authenticated?.() ? 'Paper close · convert the position tokens to USDG. The token balances will not be retained.' :
     'Operator connection is required to review convert-close.');
   button.addEventListener('click', async () => {
     if (pending || !authenticated?.()) return;
@@ -267,7 +272,11 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
       const preview = await request(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
         {method: 'POST', body: {kind: 'close_convert'}});
       review.replaceChildren();
-      const heading = document.createElement('h4'); heading.textContent = 'Convert-close preview'; review.append(heading);
+      const heading = document.createElement('h4'); heading.textContent =
+        `${positionLabel ? `${positionLabel} · ` : ''}Close · convert tokens to USDG`; review.append(heading);
+      const consequence = document.createElement('p'); consequence.className = 'convert-action-consequence';
+      consequence.textContent = 'This paper close models swapping the position tokens into USDG. It does not retain the token balances.';
+      review.append(consequence);
       const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
       addFact(facts, 'Swap input · raw', preview.quote?.inputAmountRaw ?? 'Unavailable');
       addFact(facts, 'Minimum USDG output · raw', preview.quote?.minimumOutputRaw ?? 'Unavailable');
@@ -283,7 +292,8 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
         'Operation acceptance is unavailable until the saved V3 preview and supervised worker pass their evidence gates.';
       review.append(detail);
       const accept = document.createElement('button'); accept.type = 'button';
-      accept.className = 'retain-confirm-button'; accept.textContent = 'Accept convert-close';
+      accept.className = 'convert-confirm-button'; accept.textContent = 'Confirm close · convert to USDG';
+      accept.setAttribute('aria-label', `Confirm close · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
       accept.disabled = !canAccept; review.append(accept);
       accept.addEventListener('click', () => {
         const key = globalThis.crypto?.randomUUID?.() ?? null;
@@ -305,14 +315,17 @@ export function mountStaticConvertAction(root, {campaignId, authenticated, reque
 /** Mounts the one currently eligible browser action. Caller supplies the
  * in-memory authenticated request function; the CSRF token stays private. */
 export function mountStaticRetainAction(root, { campaignId, authenticated, request,
-  onAccepted = () => {}, now = Date.now } = {}) {
+  positionLabel, onAccepted = () => {}, now = Date.now } = {}) {
   root.replaceChildren();
   const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
   if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  root.setAttribute('role', 'group');
+  root.setAttribute('aria-label', `Close ${positionLabel || `campaign ${campaignId}`} · retain token balances`);
 
   const previewButton = document.createElement('button');
   previewButton.type = 'button'; previewButton.className = 'retain-preview-button';
   previewButton.textContent = 'Review retain-close';
+  previewButton.setAttribute('aria-label', `Review close · retain ${positionLabel || `campaign ${campaignId}`} token balances`);
   previewButton.disabled = !authenticated?.();
   previewButton.title = previewButton.disabled ? 'Operator connection required for a fresh close preview' : '';
   const status = document.createElement('p'); status.className = 'retain-action-status';
@@ -320,7 +333,7 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
   const storageKind = 'close_retain';
   let pending = readPendingAcceptance(campaignId, storageKind);
   status.textContent = pending ? 'A retain-close acceptance may already be queued. Reconcile the same request before requesting another preview.' :
-    authenticated?.() ? 'Static/manual paper retain-close only.' :
+    authenticated?.() ? 'Paper close · retain the position token balances in their current assets; no USDG swap.' :
       'Operator connection required for a fresh retain-close preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
   const retry = document.createElement('button'); retry.type = 'button';
@@ -393,8 +406,12 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       preview = result;
       review.replaceChildren();
       const heading = document.createElement('h4');
-      heading.textContent = result.status === 'indicative' ? 'Retain-close preview' : 'Retain-close unavailable';
+      heading.textContent = `${positionLabel ? `${positionLabel} · ` : ''}${result.status === 'indicative' ?
+        'Close · retain token balances' : 'Retain-close unavailable'}`;
       review.append(heading);
+      const consequence = document.createElement('p'); consequence.className = 'retain-action-consequence';
+      consequence.textContent = 'This paper close keeps the token balances in their current assets. It does not swap them into USDG.';
+      review.append(consequence);
       if (result.retainedLowerBound) {
         const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
         addFact(facts, 'Token 0 retained lower bound · raw', result.retainedLowerBound.token0Raw ?? 'Unavailable');
@@ -419,7 +436,7 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       const accept = document.createElement('button'); accept.type = 'button';
       accept.className = 'retain-confirm-button'; accept.textContent = 'Accept retain-close';
       accept.disabled = !canAccept;
-      accept.setAttribute('aria-label', 'Accept static/manual paper retain-close');
+      accept.setAttribute('aria-label', `Confirm close · retain ${positionLabel || `campaign ${campaignId}`} token balances`);
       review.append(accept);
       accept.addEventListener('click', async () => {
         if (pending) { await submitPending(accept); return; }

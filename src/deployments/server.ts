@@ -13,6 +13,7 @@ const sessionInput=z.object({}).strict();
 const paperPreviewInput=z.object({kind:z.enum([
  'open','pause','resume','close_retain','close_convert'])}).strict();
 const SESSION_SECONDS=4*60*60;
+const MAX_SESSIONS=32;
 const BODY_BYTES=16*1024;
 
 export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:()=>number;
@@ -105,6 +106,10 @@ export function createDeploymentCommandServer(store:CommandStore,
  }
  const now=options.now??Date.now;
  const sessions=new Map<string,Session>();
+ const removeExpiredSessions=()=>{
+  const current=now();
+  for(const [key,session] of sessions)if(session.expires<=current)sessions.delete(key);
+ };
  // Trust only explicit configuration, never proxy-supplied forwarding headers.
  const sameOrigin=(request:IncomingMessage)=>request.headers.origin===options.origin||
   (options.publicOrigin!==undefined&&request.headers.origin===options.publicOrigin);
@@ -132,7 +137,7 @@ export function createDeploymentCommandServer(store:CommandStore,
     const query=new URL(request.url??'/',options.origin).searchParams;
     const hours=query.get('hours')??'24';
     const positionsPath=path==='/api/positions'||path.startsWith('/api/positions/');
-    if((positionsPath&&(query.size>1||![1,6,24,168].includes(Number(hours))))||
+    if((positionsPath&&(query.size>1||![0,1,6,24,168,720].includes(Number(hours))))||
      (!positionsPath&&query.size>0)){
      send(response,400,{error:'invalid_position_request'});return;
     }
@@ -157,8 +162,15 @@ export function createDeploymentCommandServer(store:CommandStore,
      send(response,200,{csrfToken:existing.session.csrf,
       expiresInSeconds:Math.max(0,Math.floor((existing.session.expires-now())/1000))});return;
     }
+    // Public session handshakes are not an access-control boundary, so an
+    // unauthenticated caller must never be able to evict an existing operator.
+    // Expired entries are reclaimed before applying the fixed memory bound;
+    // when all slots are live, reject new sessions instead of churning them.
+    removeExpiredSessions();
+    if(sessions.size>=MAX_SESSIONS){
+     send(response,503,{error:'operator_session_capacity'});return;
+    }
     const token=randomBytes(32).toString('hex'),csrf=randomBytes(32).toString('hex');
-    if(sessions.size>=32)sessions.delete(sessions.keys().next().value!);
     const secure=request.headers.origin===options.publicOrigin;
     sessions.set(tokenKey(token),{csrf,expires:now()+SESSION_SECONDS*1000,secure});
     response.setHeader('Set-Cookie',`cq_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_SECONDS}${secure?'; Secure':''}`);

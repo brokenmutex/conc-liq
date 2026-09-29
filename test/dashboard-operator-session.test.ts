@@ -16,6 +16,25 @@ test('operator bootstrap is empty, same-origin, and deduplicated',async()=>{
  assert.equal(calls[0].options.credentials,'same-origin');assert.equal(session.isReady(),true);
 });
 
+test('forced reconnect performs a fresh command-session handshake',async()=>{
+ const calls:string[]=[];let available=true;
+ const session=createOperatorSession({fetchImpl:async(path:string)=>{
+  calls.push(path);
+  if(!available)return response(503,{error:'command_unavailable'});
+  return response(200,{csrfToken:`csrf-${calls.length}`,expiresInSeconds:14_400});
+ }});
+ await session.bootstrap();
+ assert.deepEqual(calls,['/api/session']);
+ available=false;
+ await assert.rejects(session.bootstrap({force:true}),{status:503});
+ assert.deepEqual(calls,['/api/session','/api/session']);
+ assert.equal(session.isReady(),false,'a failed forced check must not leave operator controls enabled');
+ available=true;
+ await session.bootstrap({force:true});
+ assert.deepEqual(calls,['/api/session','/api/session','/api/session']);
+ assert.equal(session.isReady(),true);
+});
+
 test('explicit 401 renews once and retries the exact original body and idempotency key',async()=>{
  const calls:any[]=[];let sessionCount=0,operationCount=0;
  const payload={requestId:'3f178b18-d942-40c9-9723-498795285f44',idempotencyKey:'5c1f91f5-d99b-42c9-a66a-038a7ac0c02b',amount:'250'};

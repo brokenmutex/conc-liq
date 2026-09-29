@@ -64,6 +64,10 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.deepEqual(await (await fetch(url+'/api/dashboard')).json(),{path:'/api/dashboard'});
   assert.deepEqual(await (await fetch(url+'/api/positions?hours=6')).json(),
    {path:'/api/positions?hours=6'});
+  assert.deepEqual(await (await fetch(url+'/api/positions?hours=0')).json(),
+   {path:'/api/positions?hours=0'});
+  assert.deepEqual(await (await fetch(url+'/api/positions?hours=720')).json(),
+   {path:'/api/positions?hours=720'});
   const detailId='paper-dep-67b2b303-e821-4450-bb7b-27171b12079f';
   assert.deepEqual(await (await fetch(url+`/api/positions/${detailId}?hours=24`)).json(),
    {path:`/api/positions/${detailId}?hours=24`});
@@ -72,6 +76,7 @@ it('command API requires operator session, exact origin and CSRF before a draft 
   assert.deepEqual(await missing.json(),{error:'position_not_found'});
   assert.equal((await fetch(url+'/api/positions?hours=2')).status,400);
   assert.deepEqual(dashboardReads,['/api/research','/api/dashboard','/api/positions?hours=6',
+   '/api/positions?hours=0','/api/positions?hours=720',
    `/api/positions/${detailId}?hours=24`,`/api/positions/${detailId}`]);
   assert.equal((await fetch(url+'/api/strategies')).status,401);
   assert.equal((await fetch(url+'/api/deployments/setup-drafts')).status,401,
@@ -459,4 +464,33 @@ it('explicit HTTPS operator origin preserves automatic sessions, CSRF and secure
    assert.notEqual(renewed.headers.get('set-cookie')!.split(';')[0],priorCookie);
   }finally{server.close();await once(server,'close');}
  }
+});
+
+it('public handshakes cannot evict live operator sessions and expired slots are reclaimed',async()=>{
+ let clock=1_000_000;
+ const origin='http://127.0.0.1:4174';
+ const store={async createDraft(){return {};},async acceptOperation(){return {};},
+  async operation(){return null;},async listMarketProfiles(){return [{id:'profile'}];}};
+ const server=createDeploymentCommandServer(store,{origin,now:()=>clock});
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address();assert(address&&typeof address!=='string');
+ const url=`http://127.0.0.1:${address.port}`;
+ const handshake=async(headers:Record<string,string>={})=>fetch(url+'/api/session',{method:'POST',
+  headers:{origin,'content-type':'application/json',...headers},body:'{}'});
+ try{
+  const operator=await handshake();assert.equal(operator.status,200);
+  const cookie=operator.headers.get('set-cookie')!.split(';')[0]!;
+  const csrf=(await operator.json() as {csrfToken:string}).csrfToken;
+  for(let index=0;index<31;index++)assert.equal((await handshake()).status,200);
+  const overflow=await handshake();assert.equal(overflow.status,503);
+  assert.deepEqual(await overflow.json(),{error:'operator_session_capacity'});
+  const reused=await handshake({cookie});assert.equal(reused.status,200);
+  assert.equal((await reused.json() as {csrfToken:string}).csrfToken,csrf,
+   'the existing operator handshake remains available at capacity');
+  assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie}})).status,200,
+   'unrelated handshakes cannot evict a live operator');
+  clock+=4*60*60*1000;
+  assert.equal((await handshake()).status,200,'expired sessions are reclaimed before admission');
+  assert.equal((await fetch(url+'/api/market-profiles',{headers:{cookie}})).status,401);
+ }finally{server.closeAllConnections?.();server.close();await once(server,'close');}
 });

@@ -75,16 +75,22 @@ export function rangeKeeperPosition(row:RangeKeeperRow){
 }
 
 export async function rangeKeeperDetail(db:PoolClient,row:RangeKeeperRow,hours:number){
- const position=rangeKeeperPosition(row),cutoff=new Date(Date.now()-hours*3600000);
+ const position=rangeKeeperPosition(row),now=Date.now(),ended=position.endedAt?Date.parse(position.endedAt):NaN,
+  windowEnd=hours===0&&Number.isFinite(ended)&&ended<=now?ended:now,
+  cutoff=hours===0?new Date(0):new Date(windowEnd-hours*3600000);
  const s=parseRangeKeeperJson<RangeKeeperLiveState>(row.state),pool=(row.config as any).pool;
  const actions=(await db.query(`SELECT created_at,nonce,status,hash,plan FROM rangekeeper_v1.actions
-  WHERE campaign_id=$1 AND created_at>=$2 ORDER BY nonce DESC LIMIT 100`,[row.id,cutoff])).rows;
+  WHERE campaign_id=$1 AND created_at>=$2 ORDER BY nonce DESC LIMIT 10001`,[row.id,cutoff])).rows;
+ if(actions.length>10000)throw new Error('RangeKeeper receipt history exceeds bounded action limit');
  const lastMint=(await db.query(`SELECT plan FROM rangekeeper_v1.actions WHERE campaign_id=$1
   AND status='confirmed' AND plan->>'kind'='mint' ORDER BY nonce DESC LIMIT 1`,[row.id])).rows[0];
  const mint=lastMint?parseRangeKeeperJson<RangeKeeperTxPlan>(lastMint.plan):null;
  const marks=(await db.query(`SELECT id::text,at,snapshot FROM rangekeeper_v1.marks
   WHERE campaign_id=$1 AND kind='valuation' AND at>=$2 ORDER BY rangekeeper_v1.marks.id LIMIT 100001`,[row.id,cutoff])).rows;
  if(marks.length>100000)throw new Error('RangeKeeper history exceeds bounded mark limit');
+ const firstSource=row.first_source_timestamp?Number(row.first_source_timestamp)*1000:Date.parse(position.createdAt),
+  windowStart=Math.min(Date.parse(position.createdAt),Number.isFinite(firstSource)?firstSource:Date.parse(position.createdAt)),
+  windowHours=hours===0?Math.max(1,(windowEnd-windowStart)/3600000):hours;
  const prior=(await db.query(`SELECT id::text,at,snapshot FROM rangekeeper_v1.marks
   WHERE campaign_id=$1 AND kind='valuation' AND at<$2 ORDER BY rangekeeper_v1.marks.id DESC LIMIT 1`,[row.id,cutoff])).rows[0];
  if(prior)marks.unshift(prior);
@@ -122,7 +128,8 @@ export async function rangeKeeperDetail(db:PoolClient,row:RangeKeeperRow,hours:n
   priorFee0=m.grossFee0;priorFee1=m.grossFee1;if(gas!==null)priorGas=gas;if(swap!==null)priorSwap=swap;
   priorToken=m.activeTokenId;
  }
- const performance=positionWindow(points,hours,Date.now(),position.initialQuote!,position.createdAt);
+ const start=points.reduce((earliest,p)=>{const at=Date.parse(p.sourceAt);return Number.isFinite(at)?Math.min(earliest,at):earliest;},windowStart);
+ const performance=positionWindow(points,hours===0?Math.max(1,(windowEnd-start)/3600000):windowHours,windowEnd,position.initialQuote!,position.createdAt);
  return {position,performance,events:actions.map(a=>({at:a.created_at.toISOString(),nonce:a.nonce,
   action:a.plan.kind,status:a.status,hash:a.hash})),
   mintedValueQuote:mint?.kind==='mint'?String(mint.candidate.deployedValue/1_000_000_000_000n):null,

@@ -21,14 +21,6 @@
 //   U1 · nothing ... directs a first-run operator to Set up a position
 //   U1 · filtered-empty and genuinely-empty states are textually indistinguishable
 //   U1 · zero positions render a $0.00 managed value rather than an absent one
-//   U3 · close-control names are identical between two different campaigns
-//   U3 · no close-control accessible name identifies its asset
-//   U3 · no close-control accessible name identifies its campaign
-//   U3 · the accessibility tree exposes close controls without asset or campaign context
-//   U4 · retain and convert differ by a single word and no other affordance
-//   U4 · the convert preview control carries no class of its own
-//   U4 · the retain-action-status class is shared by three distinct action roots
-//   U4 · the reachable retain copy names neither the asset nor the campaign
 //   U6 DEFECT: an age past 180s alone degrades only the age label ...
 //   U6 DEFECT: a server stale reason beside a fresh timestamp ...
 // (The third U6 check is a weak positive, not a pinned defect; see its comment.)
@@ -61,7 +53,7 @@ if(!process.env.TEST_DATABASE_URL)throw Error('TEST_DATABASE_URL is required');
 const adminPool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:6}),admin=await adminPool.connect();
 const schema=`track1b_${randomUUID().replaceAll('-','')}`,temp=await mkdtemp(`${tmpdir()}/conc-liq-usability-`);
 let store,server,chrome,ws;const errors=[],resourceFailures=[],checks=[],detailErrors=[];
-const findings={U1:{},U2:{},U3:{},U4:{}};
+const findings={U1:{},U2:{},U3:{},U4:{},D3:{},D5:{}};
 const blockSource={block:'100',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 const sourceHash=`0x${'a'.repeat(64)}`,codeHash=`0x${'c'.repeat(64)}`;
 
@@ -218,6 +210,7 @@ const paperPreview=async(campaignId,kind)=>{
 // Moving them together — as a single "stale" fault would — cannot show whether
 // they ever disagree, which is the question U6 exists to answer.
 const staleness={ageSeconds:0,reason:false,calls:0,lastSourceAt:null,overviewServed:0};
+const riskState={aaplPaused:true};
 const degrade=position=>{
  staleness.calls++;
  if(!staleness.ageSeconds&&!staleness.reason)return position;
@@ -241,15 +234,22 @@ const dashboardRead=async(path)=>{
    const id=decodeURIComponent(path.split('?')[0].slice('/api/positions/'.length));
    const row=rows.find(row=>`paper-dep-${row.id}`===id);
    if(!row)return null;
-   try{const detail=await readDeploymentDetail(admin,row,24);
+   const hours=Number(new URL(path,origin).searchParams.get('hours')??24);
+   try{const detail=await readDeploymentDetail(admin,row,hours);
     // loadDetail() overwrites positions[i] with this position and then renders,
     // so the selected row is drawn from here, not from the overview.
     return {...detail,position:degrade(detail.position)};}
    catch(error){detailErrors.push(String(error?.stack??error));throw error;}
   }
   staleness.overviewServed++;
+  const riskAssets=[
+   {rwaSymbol:'AAPL',executionEligible:!riskState.aaplPaused,snapshotAt:new Date().toISOString(),reasons:riskState.aaplPaused?['oracle_paused']:[],marketHours:'latest_equity_session',corporateActionPending:false,tradingTradable:true,oraclePaused:riskState.aaplPaused,oracleAgeSeconds:'18'},
+   {rwaSymbol:'NVDA',executionEligible:true,snapshotAt:new Date(Date.now()-600000).toISOString(),reasons:[],marketHours:'latest_equity_session',corporateActionPending:false,tradingTradable:true,oraclePaused:false,oracleAgeSeconds:'22'},
+   {rwaSymbol:'GLD',executionEligible:false,snapshotAt:null,reasons:['risk_snapshot_missing_asset'],marketHours:null,corporateActionPending:null,tradingTradable:null,oraclePaused:null,oracleAgeSeconds:null},
+   ...['SPY','QQQ','GOOGL','MSFT'].map(rwaSymbol=>({rwaSymbol,executionEligible:false,snapshotAt:new Date().toISOString(),reasons:['sequencer_feed_unavailable'],marketHours:'latest_equity_session',corporateActionPending:false,tradingTradable:true,oraclePaused:false,oracleAgeSeconds:'12'})),
+  ];
   return {positions:rows.map(deploymentPosition).map(degrade),
-   serverTime:new Date().toISOString(),refreshMs:10000};
+   riskAssets,riskFreshnessSeconds:180,serverTime:new Date().toISOString(),refreshMs:10000};
  }
  throw Error('unexpected_dashboard_path');
 };
@@ -415,12 +415,34 @@ const appleId=await seedActiveCampaign({profileEntry:profiles[0],rangeState:'ins
  wallet:'0x1111111111111111111111111111111111111111'});
 const nvidiaId=await seedActiveCampaign({profileEntry:profiles[1],rangeState:'outside',
  wallet:'0x1111111111111111111111111111111111111111'});
+const historyAgeSeconds=13*86400;
+const historyId=await seedActiveCampaign({profileEntry:profiles[0],rangeState:'inside',
+ wallet:'0x1111111111111111111111111111111111111111',markAgeSeconds:historyAgeSeconds});
+// The first source observation precedes DB campaign creation by one second,
+// matching normal block-time versus persistence-time ordering.
+const historyStartedAt=new Date((blockSource.timestamp-historyAgeSeconds+1)*1000).toISOString();
+await admin.query('UPDATE deployment_campaigns SET created_at=$2 WHERE id=$1',[historyId,historyStartedAt]);
 await navigate('/operator');
 await waitFor('window.concliqOperatorAuthenticated?.()===true');
 const rowSelector=id=>`#paper tbody tr[data-position="paper-dep-${id}"]`;
 await waitFor(`document.querySelector(${JSON.stringify(rowSelector(appleId))})!==null`);
 await waitFor(`document.querySelector(${JSON.stringify(rowSelector(nvidiaId))})!==null`);
 await waitFor('document.querySelectorAll("#paper .retain-preview-button").length>=1');
+findings.D3=await evaluate(`(()=>{
+ const row=s=>document.querySelector('#asset-risk [data-risk-asset="'+s+'"]');
+ return {count:document.querySelectorAll('#asset-risk tbody tr').length,
+  freshBlocked:row('AAPL')?.textContent.replace(/\\s+/g,' ').trim()??null,
+  staleFormerlyEligible:row('NVDA')?.textContent.replace(/\\s+/g,' ').trim()??null,
+  missing:row('GLD')?.textContent.replace(/\\s+/g,' ').trim()??null,
+  note:document.querySelector('#asset-risk .inline-note')?.textContent??null};})()`);
+await check('D3 · latest asset risk is visible with a fresh ineligible result and its reason',
+ JSON.stringify(findings.D3.freshBlocked?.includes('Ineligible in latest snapshot')&&findings.D3.freshBlocked.includes('oracle_paused'))+'===true');
+await check('D3 · stale former eligibility is shown as unavailable, not current eligibility',
+ JSON.stringify(findings.D3.staleFormerlyEligible?.includes('Current eligibility unavailable')&&findings.D3.staleFormerlyEligible.includes('snapshot stale'))+'===true');
+await check('D3 · an asset without a snapshot is explicitly unavailable and the whole tracked set remains visible',
+ JSON.stringify(findings.D3.missing?.includes('no recorded asset snapshot')&&findings.D3.count===7)+'===true');
+await check('D3 · asset snapshot eligibility is not presented as action authorization',
+ JSON.stringify(findings.D3.note?.includes('each action is checked again'))+'===true');
 findings.U3.renderedRows=await evaluate(
  '[...document.querySelectorAll("#paper tbody tr")].length');
 findings.U3.seededAssets=await evaluate(
@@ -463,23 +485,31 @@ findings.U3.anyActionNameCarriesCampaign=[...appleControls,...nvidiaControls]
  .some(b=>/[0-9a-f]{8}-[0-9a-f]{4}/i.test(accessibleName(b)||''));
 await check('U3 · only the selected campaign exposes close controls',
  'document.querySelectorAll("#paper .lifecycle-controls").length===1');
-await check('U3 · close-control names are identical between two different campaigns',
- JSON.stringify(findings.U3.namesIdenticalAcrossCampaigns)+'===true');
-await check('U3 · no close-control accessible name identifies its asset',
- JSON.stringify(findings.U3.anyActionNameCarriesAsset)+'===false');
-await check('U3 · no close-control accessible name identifies its campaign',
- JSON.stringify(findings.U3.anyActionNameCarriesCampaign)+'===false');
+await check('U3 · close-control names identify their selected campaign and differ across assets',
+ JSON.stringify(!findings.U3.namesIdenticalAcrossCampaigns)+'===true');
+await check('U3 · close-control accessible names identify the asset',
+ JSON.stringify(findings.U3.anyActionNameCarriesAsset)+'===true');
+await check('U3 · close-control accessible names identify the campaign',
+ JSON.stringify(findings.U3.anyActionNameCarriesCampaign)+'===true');
 
 // Full AX tree cross-check: what a flat button list exposes to assistive tech.
 const axTree=await send('Accessibility.getFullAXTree');
 findings.U3.axCloseControlNames=axTree.nodes
  .filter(n=>n.role?.value==='button'&&n.name?.value&&
-  /retain-close|convert-close|management/i.test(n.name.value))
+  /review close|confirm close/i.test(n.name.value))
  .map(n=>n.name.value.trim());
-findings.U3.axCloseNamesLackContext=findings.U3.axCloseControlNames
- .every(name=>!/AAPL|NVDA|[0-9a-f]{8}-[0-9a-f]{4}/i.test(name));
-await check('U3 · the accessibility tree exposes close controls without asset or campaign context',
- JSON.stringify(findings.U3.axCloseControlNames.length>0&&findings.U3.axCloseNamesLackContext)+'===true');
+findings.U3.axCloseNamesHaveContext=findings.U3.axCloseControlNames
+ .every(name=>/AAPL|NVDA/i.test(name)&&/[0-9a-f]{8}-[0-9a-f]{4}/i.test(name));
+await check('U3 · the accessibility tree exposes close controls with asset and campaign context',
+ JSON.stringify(findings.U3.axCloseControlNames.length>0&&findings.U3.axCloseNamesHaveContext)+'===true');
+const selectedBeforeRiskPoll=await evaluate('document.querySelector("#paper tbody tr.selected")?.dataset.position??null');
+riskState.aaplPaused=false;
+await waitFor('document.querySelector("#asset-risk [data-risk-asset=AAPL]")?.textContent.includes("Eligible in latest snapshot")');
+findings.D3.refreshWithSelection={before:selectedBeforeRiskPoll,
+ after:await evaluate('document.querySelector("#paper tbody tr.selected")?.dataset.position??null')};
+await check('D3 · the risk snapshot refreshes while a position remains selected',
+ JSON.stringify(findings.D3.refreshWithSelection.before===findings.D3.refreshWithSelection.after&&
+  findings.D3.refreshWithSelection.after!==null)+'===true');
 
 // Keyboard reachability of the rendered action controls.
 await evaluate('document.querySelector("#positions-tab").focus()');
@@ -529,60 +559,68 @@ await check('U3 · Escape closes the details dialog',
  'document.querySelector("#detail-dialog").open===false');
 
 // ── U4 · destructive-action distinguishability ───────────────────────────────
-const geometry=await evaluate(`(()=>{
- const root=document.querySelector("#paper tbody tr.selected")?.nextElementSibling??document;
- const all=[...document.querySelectorAll("#paper .lifecycle-controls button")];
- return all.map(b=>{const r=b.getBoundingClientRect();return {text:(b.textContent||"").trim(),
-  cls:b.className||null,label:b.getAttribute("aria-label"),
-  x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height)};});})()`);
+const geometry=await evaluate(`(()=>[...document.querySelectorAll("#paper .retain-action-root,#paper .convert-action-root")]
+ .map(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e),b=e.querySelector('button');return {
+  root:e.className,text:(b?.textContent||"").trim(),buttonClass:b?.className||null,
+  label:b?.getAttribute("aria-label")||null,groupLabel:e.getAttribute('aria-label'),
+  border:s.borderColor,background:s.backgroundColor,
+  x:Math.round(r.x),y:Math.round(r.y),w:Math.round(r.width),h:Math.round(r.height)};}))()`);
 findings.U4.controls=geometry;
-const retain=geometry.find(b=>/Review retain-close/.test(b.text));
-const convert=geometry.find(b=>/Review convert-close/.test(b.text));
+const retain=geometry.find(b=>b.root==='retain-action-root');
+const convert=geometry.find(b=>b.root==='convert-action-root');
 findings.U4.retain=retain??null;findings.U4.convert=convert??null;
 if(retain&&convert){
  findings.U4.adjacent=Math.abs(retain.y-convert.y)<retain.h;
- findings.U4.widthDifferencePx=Math.abs(retain.w-convert.w);
- findings.U4.sharedConfirmClass=true;
- findings.U4.textEditDistanceWords=retain.text.split(/\s+/)
-  .filter(word=>!convert.text.split(/\s+/).includes(word)).length;
- await check('U4 · retain and convert previews sit adjacent on one row',
-  JSON.stringify(findings.U4.adjacent)+'===true');
- await check('U4 · retain and convert differ by a single word and no other affordance',
-  JSON.stringify(findings.U4.textEditDistanceWords===1)+'===true');
+ findings.U4.distinctVisualTreatment=retain.border!==convert.border&&retain.background!==convert.background;
+ findings.U4.distinctButtonIdentity=retain.buttonClass==='retain-preview-button'&&convert.buttonClass==='convert-preview-button';
+ await check('U4 · retain and convert panels have distinct visual treatments',
+  JSON.stringify(findings.U4.distinctVisualTreatment)+'===true');
+ await check('U4 · retain and convert preview controls have distinct DOM identities',
+  JSON.stringify(findings.U4.distinctButtonIdentity)+'===true');
 }
-findings.U4.convertPreviewHasNoClass=await evaluate(
- '[...document.querySelectorAll("#paper .lifecycle-controls button")]'+
- '.some(b=>/Review convert-close/.test(b.textContent)&&b.className==="")');
-await check('U4 · the convert preview control carries no class of its own',
- JSON.stringify(findings.U4.convertPreviewHasNoClass)+'===true');
-
-// Three different action controls share the class `retain-action-status`, so a
-// selector cannot address one of them. Scope every read to its own root.
-findings.U4.statusClassSharedBy=await evaluate(`(()=>{
- const roots=['.paper-lifecycle-action-root','.retain-action-root','.convert-action-root'];
- return roots.filter(r=>!!document.querySelector(r+' .retain-action-status'));})()`);
-await check('U4 · the retain-action-status class is shared by three distinct action roots',
- JSON.stringify(findings.U4.statusClassSharedBy.length===3)+'===true');
-
-// The copy an operator reads before an irreversible close, read per root.
-await click('.retain-action-root .retain-preview-button');
-await waitFor('document.querySelector(".retain-action-root .retain-action-status").textContent.length>0');
+// Read the copy before opening either preview, then verify distinct status and
+// review identities after both review panels render.
 findings.U4.retainStatusText=await evaluate(
  'document.querySelector(".retain-action-root .retain-action-status").textContent.trim()');
+findings.U4.convertStatusText=await evaluate(
+ 'document.querySelector(".convert-action-root .convert-action-status").textContent.trim()');
+findings.U4.convertGroupLabel=await evaluate(
+ 'document.querySelector(".convert-action-root").getAttribute("aria-label")');
+findings.U4.retainGroupLabel=await evaluate(
+ 'document.querySelector(".retain-action-root").getAttribute("aria-label")');
+await click('.retain-action-root .retain-preview-button');
+await waitFor('document.querySelector(".retain-action-root .retain-action-review")?.hidden===false');
+await click('.convert-action-root .convert-preview-button');
+await waitFor('document.querySelector(".convert-action-root .convert-action-review")?.hidden===false');
+findings.U4.statusIdentities=await evaluate(`({retain:document.querySelector('.retain-action-root .retain-action-status')?.className,
+ convert:document.querySelector('.convert-action-root .convert-action-status')?.className,
+ retainReview:document.querySelector('.retain-action-root .retain-action-review')?.className,
+ convertReview:document.querySelector('.convert-action-root .convert-action-review')?.className})`);
+await check('U4 · close action statuses and reviews have action-specific classes',
+ JSON.stringify(findings.U4.statusIdentities.retain==='retain-action-status'&&
+ findings.U4.statusIdentities.convert==='convert-action-status'&&
+ findings.U4.statusIdentities.retainReview==='retain-action-review'&&
+ findings.U4.statusIdentities.convertReview==='convert-action-review')+'===true');
+// The copy an operator reads before an irreversible close, read per root.
 findings.U4.retainReviewText=await evaluate(
  '(document.querySelector(".retain-action-root .retain-action-review")?.textContent??"").replace(/\\s+/g," ").trim().slice(0,400)');
 findings.U4.lifecycleStatusText=await evaluate(
  'document.querySelector(".paper-lifecycle-action-root .retain-action-status").textContent.trim()');
 findings.U4.retainConfirmRendered=await evaluate(
  '!!document.querySelector(".retain-action-root .retain-confirm-button")');
-const retainCopy=`${findings.U4.retainReviewText} ${findings.U4.retainStatusText}`;
+const retainCopy=`${findings.U4.retainReviewText} ${findings.U4.retainStatusText} ${findings.U4.retainGroupLabel}`;
 findings.U4.retainCopyNamesAsset=/AAPL|NVDA/.test(retainCopy);
 findings.U4.retainCopyNamesCampaign=/[0-9a-f]{8}-[0-9a-f]{4}/i.test(retainCopy);
+findings.U4.distinctOutcomes=/retain.*token balances/i.test(findings.U4.retainStatusText)&&
+ /convert.*tokens to USDG/i.test(findings.U4.convertStatusText)&&
+ /no USDG swap/i.test(findings.U4.retainStatusText)&&/will not be retained/i.test(findings.U4.convertStatusText);
 // Scope note: an accepted retain preview needs persisted paper accounting state,
 // which this harness does not seed, so the post-preview confirm copy is out of
 // reach here. What is asserted is the copy the operator actually reaches.
-await check('U4 · the reachable retain copy names neither the asset nor the campaign',
- JSON.stringify(!findings.U4.retainCopyNamesAsset&&!findings.U4.retainCopyNamesCampaign)+'===true');
+await check('U4 · the retain copy names the asset and campaign',
+ JSON.stringify(findings.U4.retainCopyNamesAsset&&findings.U4.retainCopyNamesCampaign)+'===true');
+await check('U4 · visible pre-preview copy clearly distinguishes retained balances from USDG conversion',
+ JSON.stringify(findings.U4.distinctOutcomes)+'===true');
 await check('U4 · retain and lifecycle roots show different text through the same class',
  JSON.stringify(findings.U4.retainStatusText!==findings.U4.lifecycleStatusText)+'===true');
 
@@ -590,6 +628,9 @@ for(const [width,mobile] of [[1440,false],[390,true]]){
  await send('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile});
  await new Promise(resolve=>setTimeout(resolve,150));
  findings.U4[`overflow${width}`]=await evaluate('document.documentElement.scrollWidth>innerWidth');
+ findings.U4[`layout${width}`]=await evaluate(`(()=>Object.fromEntries(
+  ['.retain-action-root','.convert-action-root'].map(s=>{const e=document.querySelector('#paper '+s),r=e.getBoundingClientRect();
+   return [s,{x:Math.round(r.x),y:Math.round(r.y),width:Math.round(r.width),height:Math.round(r.height)}]})))()`);
  await check(`U4 · two campaigns with action controls do not overflow at ${width}px`,
   'document.documentElement.scrollWidth<=innerWidth');
 }
@@ -633,6 +674,27 @@ await check('U1b · the empty window reports zero marks rather than a misleading
   findings.U1.staleWindow.timelinePoints===0)+'===true');
 await check('U1b · the chart footnote states the mark count for an empty window',
  '/0 marks/.test(document.querySelector("#paper .chart-footnote").textContent)');
+
+// ── D5 · retained campaign history uses an explicit all-recorded window ─────
+await waitFor(`document.querySelector(${JSON.stringify(rowSelector(historyId))})!==null`);
+await selectRow(historyId);
+await waitFor(`document.querySelector('#paper .periods button[data-value="0"]')!==null`);
+await evaluate(`document.querySelector('#paper .periods button[data-value="0"]').click()`);
+await waitFor('document.querySelector("#paper .chart-footnote")?.textContent.includes("1 marks")');
+const allHistory=await dashboardRead(`/api/positions/paper-dep-${historyId}?hours=0`);
+const thirtyDayHistory=await dashboardRead(`/api/positions/paper-dep-${historyId}?hours=720`);
+findings.D5={allMarkCount:allHistory.performance.markCount,
+ allWindowHours:Math.round(allHistory.performance.hours),
+ allSourceThrough:allHistory.performance.sourceThrough,
+ expectedSourceAt:new Date((blockSource.timestamp-historyAgeSeconds)*1000).toISOString(),
+ thirtyDayMarkCount:thirtyDayHistory.performance.markCount,
+ renderedWindow:await evaluate('document.querySelector("#paper .chart-toolbar .periods button[aria-pressed=true]")?.textContent.trim()??null'),
+ renderedFootnote:await evaluate('document.querySelector("#paper .chart-footnote")?.textContent.replace(/\\s+/g," ").trim()??null')};
+await check('D5 · a 13-day-old recorded mark is reachable through the 30-day window',
+ JSON.stringify(findings.D5.thirtyDayMarkCount===1)+'===true');
+await check('D5 · All shows campaign history through its retained source mark',
+ JSON.stringify(findings.D5.allMarkCount===1&&findings.D5.renderedWindow==='All'&&
+  findings.D5.allSourceThrough===findings.D5.expectedSourceAt)+'===true');
 
 assert.equal(errors.length,0,JSON.stringify(errors));
 assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/.test(item.url)).length,0,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 // Browser module is intentionally plain JavaScript and has no TypeScript declarations.
 // @ts-expect-error JavaScript browser module has no declaration file.
-import {mountPaperLifecycleAction,mountStaticRetainAction,mountPendingPaperAcceptanceRecovery} from '../dashboard/deployment-actions.js';
+import {mountPaperLifecycleAction,mountStaticConvertAction,mountStaticRetainAction,mountPendingPaperAcceptanceRecovery} from '../dashboard/deployment-actions.js';
 
 const campaignId='67b2b303-e821-4450-bb7b-27171b12079f';
 const operationId='da00e8f8-35e5-455f-8e5b-8b13a7f5fadb';
@@ -76,6 +76,47 @@ test('retain-close saves before POST and replays the same payload after remount'
  assert.equal(button(restored,'Review retain-close')?.disabled,true);
  await button(restored,'Retry same acceptance / reconcile')?.click();
  assert.equal((globalThis as any).localStorage.getItem(storageKey('close_retain')),null);
+}));
+
+test('retain and convert reviews have distinct accessible identities and state their different outcomes',async()=>withBrowser(async()=>{
+ const retainRoot=new ElementMock(),convertRoot=new ElementMock(),positionLabel='AAPL / USDG · Paper campaign';
+ const retainPreview={...preview('close_retain'),retainedLowerBound:{token0Raw:'10',token1Raw:'20'}};
+ const convertPreview={id:previewId,kind:'close_convert',terminalModelVersion:3,status:'indicative',
+  trustedPreviewSaved:true,actionAvailable:true,operationAcceptanceAvailable:true,contentDigest:digest,
+  modelHash:'b'.repeat(64),expectedRevision:2,expiresAt:new Date(Date.now()+60_000).toISOString(),
+  paidCostsAvailable:false,feeAccrualAvailable:false,costs:{status:'provisional',scope:'candidate_prestate_gas_only',
+   pathVersion:'paper_static_manual_close_convert_prestate_v1',paidGasAvailable:false},
+  quote:{inputAmountRaw:'100',minimumOutputRaw:'90',expectedOutputRaw:'95'}};
+ // Each action has its own handler because both preview routes share a URL.
+ mountStaticRetainAction(retainRoot,{campaignId,positionLabel,authenticated:()=>true,
+  request:async(path:string,options:any={})=>path.endsWith('/previews')?retainPreview:null});
+ mountStaticConvertAction(convertRoot,{campaignId,positionLabel,authenticated:()=>true,
+  request:async(path:string,options:any={})=>path.endsWith('/previews')?convertPreview:null});
+ assert.equal(retainRoot.attributes['aria-label'],`Close ${positionLabel} · retain token balances`);
+ assert.equal(convertRoot.attributes['aria-label'],`Close ${positionLabel} · convert tokens to USDG`);
+ assert.equal(button(retainRoot,'Review retain-close')?.attributes['aria-label'],
+  `Review close · retain ${positionLabel} token balances`);
+ assert.equal(button(convertRoot,'Review convert-close')?.attributes['aria-label'],
+  `Review close · convert ${positionLabel} tokens to USDG`);
+ assert.match(retainRoot.children.find(item=>item.className==='retain-action-status')?.textContent??'',/retain the position token balances.*no USDG swap/i);
+ assert.match(convertRoot.children.find(item=>item.className==='convert-action-status')?.textContent??'',/convert the position tokens to USDG.*will not be retained/i);
+ await button(retainRoot,'Review retain-close')?.click();
+ await button(convertRoot,'Review convert-close')?.click();
+ const retainReview=find(retainRoot,item=>item.className==='retain-action-review');
+ const convertReview=find(convertRoot,item=>item.className==='convert-action-review');
+ assert.ok(retainReview&&!retainReview.hidden);assert.ok(convertReview&&!convertReview.hidden);
+ assert.match(retainReview.children.map(item=>item.textContent).join(' '),/keeps the token balances in their current assets/i);
+ assert.match(retainReview.children.map(item=>item.textContent).join(' '),/does not swap them into USDG/i);
+ assert.match(convertReview.children.map(item=>item.textContent).join(' '),/swapping the position tokens into USDG/i);
+ assert.match(convertReview.children.map(item=>item.textContent).join(' '),/does not retain the token balances/i);
+ assert.match(retainReview.children[0]?.textContent??'',/AAPL \/ USDG · Paper campaign · Close · retain token balances/);
+ assert.match(convertReview.children[0]?.textContent??'',/AAPL \/ USDG · Paper campaign · Close · convert tokens to USDG/);
+ assert.ok(button(retainRoot,'Accept retain-close')?.className==='retain-confirm-button');
+ assert.ok(button(convertRoot,'Confirm close · convert to USDG')?.className==='convert-confirm-button');
+ assert.equal(button(retainRoot,'Accept retain-close')?.attributes['aria-label'],
+  `Confirm close · retain ${positionLabel} token balances`);
+ assert.equal(button(convertRoot,'Confirm close · convert to USDG')?.attributes['aria-label'],
+  `Confirm close · convert ${positionLabel} tokens to USDG`);
 }));
 
 test('pause and resume recovery keeps exact keys for ambiguous errors and clears only proven conflict/readiness failures',async()=>withBrowser(async()=>{

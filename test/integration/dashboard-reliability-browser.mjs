@@ -257,10 +257,10 @@ server=await startServer();
 const handshake=async()=>{
  const response=await fetch(`${origin}/api/session`,{method:'POST',
   headers:{'content-type':'application/json',origin},body:'{}'});
- assert.equal(response.status,200);
- const cookies=response.headers.getSetCookie?.()??[];
  const body=await response.json();
- return {token:/cq_session=([0-9a-f]{64})/.exec(cookies.join(';'))?.[1]??null,csrf:body.csrfToken};
+ if(response.status!==200)return {status:response.status,error:body.error??null,token:null,csrf:null};
+ const cookies=response.headers.getSetCookie?.()??[];
+ return {status:response.status,error:null,token:/cq_session=([0-9a-f]{64})/.exec(cookies.join(';'))?.[1]??null,csrf:body.csrfToken};
 };
 const floodSessions=async count=>{const out=[];for(let i=0;i<count;i++)out.push(await handshake());return out;};
 const rawStatus=async(path,token)=>(await fetch(`${origin}${path}`,
@@ -373,14 +373,16 @@ await waitFor('document.querySelector("#save-paper-draft").disabled===false');
 const operatorCookie=await a.cookie();
 assert(operatorCookie,'operator holds a session cookie');
 assert.equal(await rawStatus('/api/deployments/setup-drafts',operatorCookie),200);
-await floodSessions(34);
-assert.equal(await rawStatus('/api/deployments/setup-drafts',operatorCookie),401,
- 'the operator session must be gone from the 32-entry map after unrelated handshakes');
-checks.push('R3 CONFIRMED: 34 unauthenticated handshakes from other clients evict the operator session server-side');
-findings.push('R3: src/deployments/server.ts:161 evicts the first-inserted session once the map reaches 32. '+
- 'The operator authenticates first, so it is always the first entry evicted by unrelated traffic, and '+
- 'POST /api/session is reachable unauthenticated from the recorded public Funnel origin.');
-await check('Operator keeps its in-progress reviewed form state while its session is already evicted',
+const firstFlood=await floodSessions(34);
+assert.equal(firstFlood.filter(item=>item.status===200).length,31,
+ 'the fixed session limit admits only the remaining slots');
+assert(firstFlood.slice(31).every(item=>item.status===503&&item.error==='operator_session_capacity'),
+ 'overflow handshakes must fail explicitly instead of evicting the operator');
+assert.equal(await rawStatus('/api/deployments/setup-drafts',operatorCookie),200,
+ 'unrelated handshakes must never evict the operator');
+checks.push('R3 operator session survives public handshake churn');
+findings.push('R3 fixed: live sessions are retained at the bounded capacity; new unauthenticated handshakes are rejected with operator_session_capacity until a slot expires or is explicitly released.');
+await check('Operator keeps its in-progress reviewed form state while public handshakes continue',
  'document.querySelector("#setup-wallet-address").value==="0x1111111111111111111111111111111111111111"&&'+
  'document.querySelector("#limit-max-action-cost").value==="10"&&'+
  'window.concliqOperatorAuthenticated?.()===true');
@@ -389,46 +391,43 @@ await waitFor('document.querySelector("#setup-draft-submit-status").textContent.
 const draftA=await evaluate(`document.querySelector("#setup-draft-submit-status").textContent.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0]`);
 assert(draftA,'browser shows a persisted draft ID');
 assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_campaigns WHERE id=$1 AND lifecycle='draft'`,[draftA])).rows[0].n,1);
-assert.equal(counters.admission,1,'the evicted session cost exactly one draft admission POST');
+assert.equal(counters.admission,1,'the retained session submits exactly one draft admission POST');
 const renewedCookie=await a.cookie();
-assert.notEqual(renewedCookie,operatorCookie);
-await check('R3 renew-and-retry covers a pending draft save across silent eviction, with the reviewed inputs intact',
+assert.equal(renewedCookie,operatorCookie);
+await check('R3 a pending draft save succeeds under public handshake pressure, with reviewed inputs intact',
  'document.querySelector("#setup-draft-submit-status").textContent.includes("Saved static/manual paper draft")&&'+
  'document.querySelector("#setup-wallet-address").value==="0x1111111111111111111111111111111111111111"');
-checks.push('R3 the silently renewed session issues a new cookie, so eviction is invisible to the operator');
+checks.push('R3 no renewal is needed because public traffic cannot evict the live session');
 
-// A second eviction inside the single renew-and-retry window logs the operator out.
+// Reconnect must perform network I/O even with a token, refresh command data,
+// and stay valid when public handshakes arrive while its request is pending.
 await evaluate(`(()=>{window.__renewSeen=false;window.__renewHold=true;
  const original=window.fetch.bind(window);
  window.fetch=async(input,init)=>{
   const path=new URL(typeof input==='string'?input:input.url,location.href).pathname;
+  if(path==='/api/market-profiles')window.__profileRefreshes=(window.__profileRefreshes??0)+1;
+  if(path==='/api/deployments/setup-drafts')window.__draftRefreshes=(window.__draftRefreshes??0)+1;
   const response=await original(input,init);
   if(init?.method==='POST'&&path==='/api/session'){window.__renewSeen=true;
    while(window.__renewHold)await new Promise(resolve=>setTimeout(resolve,25));}
   return response;
  };})()`);
-await floodSessions(34);
-assert.equal(await rawStatus('/api/deployments/setup-drafts',renewedCookie),401);
-await evaluate(`void(window.__probe=window.concliqOperatorRequest('/api/deployments/setup-drafts').then(()=>'ok',error=>'err:'+error?.status+':'+(error?.data?.error??error?.message)))`);
+await evaluate(`window.__profileRefreshes=0;window.__draftRefreshes=0;
+ document.querySelector('#operator-connect-retry').hidden=false;
+ document.querySelector('#operator-connect-retry').click()`);
 await waitFor('window.__renewSeen===true');
-await floodSessions(34);
+const renewalFlood=await floodSessions(34);
+assert(renewalFlood.every(item=>item.status===503&&item.error==='operator_session_capacity'),
+ 'public handshake churn during reconnect must be rejected without evicting the operator');
 await evaluate('window.__renewHold=false');
-const probe=await evaluate('window.__probe');
-await check('R3 CONFIRMED: unrelated public traffic during the single renewal window logs the operator out mid-flow',
- `${JSON.stringify(probe)}==="err:401:authentication_required"&&window.concliqOperatorAuthenticated?.()===false&&`+
- 'document.querySelector("#operator-auth-status").textContent==="Operator connection unavailable."&&'+
- '!document.querySelector("#operator-connect-retry").hidden');
-findings.push('R3: dashboard/operator-session.js renews once and retries once. A second eviction inside that '+
- 'window leaves the operator unauthenticated with a raw authentication_required, so unrelated public '+
- 'handshakes can log an operator out mid-flow; only the Retry connection control recovers it.');
-await check('Logged-out operator keeps its typed form values and is offered an explicit reconnect',
+await waitFor('document.querySelector("#operator-auth-status").textContent==="Operator connection ready."');
+await check('Reconnect performs a session handshake, refreshes command data and succeeds during public churn',
+ 'window.__renewSeen===true&&window.__profileRefreshes===1&&window.__draftRefreshes===1&&'+
+ 'window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#operator-connect-retry").hidden');
+checks.push('R3 reconnect makes a fresh session request and reloads operator data; capacity pressure during the request cannot evict the session');
+await check('Reconnect keeps typed setup values intact',
  'document.querySelector("#setup-wallet-address").value==="0x1111111111111111111111111111111111111111"&&'+
  'document.querySelector("#operator-connect-retry").disabled===false');
-await evaluate('window.__renewHold=false;window.fetch=window.fetch');
-await click('#operator-connect-retry');
-await waitFor('window.concliqOperatorAuthenticated?.()===true');
-await check('The reconnect control restores the operator session without a reload',
- 'window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#operator-auth-status").textContent==="Operator connection ready."');
 
 // -------------------------------------------- R4 and R5 open acceptance paths
 phase('R4 and R5 open acceptance paths');
@@ -672,26 +671,21 @@ await check('R1 an operator request against the stopped service reports a failur
  'document.querySelector("#setup-status").textContent.includes("Setup preflight failed")&&'+
  'document.querySelector("#setup-status").textContent.includes("No draft or operation was created")');
 await click('#operator-connect-retry');
-await wait(500);
-const retryWhileDown=await evaluate('document.querySelector("#operator-auth-status").textContent');
-if(retryWhileDown==='Operator connection ready.'){
- checks.push('R1 DEFECT: the Retry connection control reports "Operator connection ready." while the command service is stopped, because bootstrap and the operator data load are both memoized');
- findings.push('R1: dashboard/tabs.js connectOperator() reuses a non-null CSRF token and the already resolved '+
-  'operatorDataLoadPromise, so Retry connection reports readiness without any request reaching the service.');
-}else{
- await check('R1 the reconnect control reports the stopped service',
-  'document.querySelector("#operator-auth-status").textContent==="Operator connection failed. Retry when the service is available."');
-}
+await waitFor('document.querySelector("#operator-auth-status").textContent==="Operator connection failed. Retry when the service is available."');
+await check('R1 retry performs a real command request, reports the stopped service and disables operator actions',
+ 'document.querySelector("#operator-auth-status").textContent==="Operator connection failed. Retry when the service is available."&&'+
+ 'window.concliqOperatorAuthenticated?.()===false&&!document.querySelector("#operator-connect-retry").hidden&&'+
+ 'document.querySelector("#setup-capital").value==="250"');
 server=await startServer();
 await waitFor('document.querySelector("#connection-banner").hidden===true',260);
 await check('R1 the position poll recovers without a reload once the command service returns',
  'document.querySelector("#connection-banner").hidden===true&&'+
  'document.querySelector("#connection-status").textContent.startsWith("API connected")');
-await evaluate(`void(window.__afterRestart=window.concliqOperatorRequest('/api/deployments/setup-drafts').then(r=>'ok:'+r.drafts.length,e=>'err:'+e?.status))`);
-await waitFor('window.__afterRestart!==undefined');
-const afterRestart=await evaluate('window.__afterRestart');
-await check('R1 an authenticated request re-establishes a session across the restart without a reload',
- `${JSON.stringify(afterRestart)}==="ok:0"&&window.concliqOperatorAuthenticated?.()===true`);
+await click('#operator-connect-retry');
+await waitFor('document.querySelector("#operator-auth-status").textContent==="Operator connection ready."');
+await check('R1 retry reconnects and refreshes operator data after the service returns, without a reload',
+ 'window.concliqOperatorAuthenticated?.()===true&&document.querySelector("#operator-connect-retry").hidden&&'+
+ 'document.querySelector("#setup-capital").value==="250"');
 
 assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_campaigns')).rows[0].n,3);
 // The open-acceptance POST count is an observation, not a fixed expectation:

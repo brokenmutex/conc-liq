@@ -41,10 +41,14 @@ export function createOperatorSession({ fetchImpl = (...args) => fetch(...args),
     return session;
   }
 
-  function bootstrap() {
-    if (csrfToken !== null) return Promise.resolve(true);
+  function bootstrap({ force = false } = {}) {
+    if (csrfToken !== null && !force) return Promise.resolve(true);
     if (!bootstrapPromise) {
-      bootstrapPromise = establishSession().then(() => true).finally(() => { bootstrapPromise = null; });
+      const previousToken=csrfToken;
+      bootstrapPromise = establishSession().then(() => true).catch(error=>{
+        if(force&&csrfToken===previousToken)setCsrfToken(null);
+        throw error;
+      }).finally(() => { bootstrapPromise = null; });
     }
     return bootstrapPromise;
   }

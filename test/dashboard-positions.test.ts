@@ -106,6 +106,10 @@ test('HTTP position endpoint validates identifiers and permits 168 hours; legacy
   assert.equal((await fetch(base+'/api/positions/paper-dep-470e5f84-ab82-4735-92f9-57e96c05b344?hours=168')).status,200);
   assert.deepEqual(requests[3],{id:'paper-dep-470e5f84-ab82-4735-92f9-57e96c05b344',hours:168});
   assert.equal((await fetch(base+'/api/positions/live-dep-470e5f84-ab82-4735-92f9-57e96c05b344')).status,200);
+  assert.equal((await fetch(base+'/api/positions/paper-60?hours=0')).status,200);
+  assert.deepEqual(requests[5],{id:'paper-60',hours:0});
+  assert.equal((await fetch(base+'/api/positions/paper-60?hours=720')).status,200);
+  assert.deepEqual(requests[6],{id:'paper-60',hours:720});
   assert.equal((await fetch(base+'/api/positions/paper-60?hours=169')).status,400);assert.equal((await fetch(base+'/api/positions/nope')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-dep-not-a-uuid')).status,400);
   assert.equal((await fetch(base+'/api/positions/paper-999')).status,404);assert.equal((await fetch(base+'/api/positions',{method:'POST'})).status,405);
