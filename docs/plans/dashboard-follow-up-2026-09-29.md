@@ -67,3 +67,16 @@ predecessor accounting remain pinned to `463e2eef…`; changing the running buil
 would fail their exact identity gates. No service restart, DDL, or campaign
 identity rewrite occurred. The review orders independent index maintenance,
 a proven campaign runtime transition, and only then coordinated release.
+
+
+## Authorized cleanup and deployment
+
+The user subsequently chose “clean those campaigns and deploy”, superseding the
+active-campaign migration path for this release. The sole reviewed paper campaign
+and its 13-table evidence closure were backed up and erased under exact scope
+and count guards. Fourteen protected-table fingerprints matched. All three
+services then moved together to `ec686132…`, with worker/web readiness, empty
+campaign/operation tables and 27 local/public asset comparisons passing.
+The [cleanup/deployment record](../reviews/dashboard-clean-deploy-2026-09-29.md)
+contains the archive identity, exact removed counts and verification evidence.
+The Research index is still a separate, unapplied maintenance item.

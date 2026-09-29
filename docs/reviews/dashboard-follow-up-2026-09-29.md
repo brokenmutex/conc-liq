@@ -135,3 +135,13 @@ other backlog remain outside this batch. Idle-worker footprint evidence cannot
 establish active economic execution isolation. A future production cutover must
 also review current campaign/runtime identity compatibility; the old empty-state
 cutover assumption must not be reused.
+
+
+## Subsequent production deployment
+
+After the user explicitly authorized campaign cleanup, the backed-up paper
+campaign was removed and the accepted candidate was deployed to dashboard,
+command and worker together. See the [cleanup/deployment record](dashboard-clean-deploy-2026-09-29.md)
+for the fresh production acceptance. This resolves the earlier nonempty-state
+cutover blocker without rewriting historical runtime identities. The index
+remains unapplied.

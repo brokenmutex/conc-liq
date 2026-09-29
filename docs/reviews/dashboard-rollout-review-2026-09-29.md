@@ -1,5 +1,10 @@
 # Dashboard rollout review — September 29, 2026
 
+Subsequent resolution: the user authorized clearing the reviewed paper campaign
+and deploying. The [cleanup/deployment record](dashboard-clean-deploy-2026-09-29.md)
+documents the backup, scoped reset and completed cutover. The analysis below
+records the earlier decision while the campaign still existed.
+
 The follow-up candidate passes its implementation and two-hour acceptance gates,
 but **the direct production cutover is blocked by the existing campaign's pinned
 runtime identity**. Preserve the running campaign and its original accounting;
