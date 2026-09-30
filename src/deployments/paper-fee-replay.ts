@@ -19,6 +19,7 @@ const allowedEvents=new Set(['Swap','Flash','Mint','Burn','SetFeeProtocol','Coll
 const feeGrowthAbi=parseAbi(['function feeGrowthGlobal0X128() view returns (uint256)',
  'function feeGrowthGlobal1X128() view returns (uint256)']);
 const INCOMPLETE_LATER_BLOCK='Paper fee replay cursor has an incomplete later block';
+const INCOMPLETE_INTERVAL_END='Paper fee replay cursor has not covered the interval end';
 
 /** Cheap read-only cursor polling outside fee replay transactions. The exact
  * sample block remains fixed; callers still rerun the full interval query and
@@ -168,9 +169,15 @@ export async function readIndexedPaperFeeInterval(pool:Pool,stream:string,target
     FROM v3_replay_pools p JOIN v3_replay_cursors c USING(stream_key)
     WHERE p.stream_key=$1 AND lower(p.pool_address)=lower($2)`,[stream,p.pool])).rows[0];
    assert(row&&row.initialized&&Number(row.chain_id)===p.chainId&&row.fee===p.fee&&
-    row.target_set_hash===targetSetHash&&row.complete_through_block!==null&&
-    BigInt(row.complete_through_block)>=BigInt(after.source.block),
+    row.target_set_hash===targetSetHash&&row.complete_through_block!==null,
     'Paper fee replay coverage unavailable');
+   // The cursor reaching the interval end is a timing condition, not a broken
+   // one: the indexer is still catching up to a mark the scenario just wrote.
+   // Keep it separate from the structural checks above so the settle loop can
+   // wait it out instead of failing the whole maintenance pass, which would
+   // leave the newest mark without fee evidence and block a convert close.
+   assert(BigInt(row.complete_through_block)>=BigInt(after.source.block),
+    INCOMPLETE_INTERVAL_END);
    assert(row.last_block_number===null||
     BigInt(row.last_block_number)<=BigInt(row.complete_through_block),
     'Paper fee replay cursor has an incomplete later block');
@@ -254,7 +261,8 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
    proof=await readIndexedPaperFeeInterval(db,stream,targetSetHash,profile,start,end,range,liquidity);
    break;
   }catch(error){
-   if(!(error instanceof AssertionError)||error.message!==INCOMPLETE_LATER_BLOCK||
+   if(!(error instanceof AssertionError)||
+    ![INCOMPLETE_LATER_BLOCK,INCOMPLETE_INTERVAL_END].includes(error.message)||
     Date.now()>=settleDeadline)throw error;
    await waitForCompletePaperFeeCursor(db,stream,targetSetHash,profile,after.source.block,
     Math.min(15_000,Math.max(1,settleDeadline-Date.now())));

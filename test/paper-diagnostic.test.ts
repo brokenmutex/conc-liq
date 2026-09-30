@@ -19,6 +19,8 @@ test('paper diagnostics map exact fee replay assertion first lines to bounded co
   ['Paper fee replay coverage unavailable','paper_fee_replay_coverage_unavailable'],
   ['Paper fee replay cursor has an incomplete later block',
    'paper_fee_replay_cursor_incomplete_later_block'],
+  ['Paper fee replay cursor has not covered the interval end',
+   'paper_fee_replay_cursor_interval_end_uncovered'],
   ['Paper fee replay cursor hash mismatch','paper_fee_replay_cursor_hash_mismatch'],
   ['Paper fee replay cursor settle timeout','paper_fee_replay_cursor_settle_timeout'],
   ['Paper fee interval coverage invalid','paper_fee_interval_coverage_invalid'],

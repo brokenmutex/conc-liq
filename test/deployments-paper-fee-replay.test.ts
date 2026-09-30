@@ -6,9 +6,9 @@ import {ExperimentMarket,type MarketSeed} from '../src/experiment/market.js';
 import {historicalSwapQuote} from '../src/research/portfolio-math.js';
 import type {RobinhoodClient} from '../src/client.js';
 import type {MarketProfile} from '../src/deployments/market-profile.js';
-import {advancePaperFeeCarry,readAnchoredPaperFeeFrame,replayPaperFeeInterval,
- waitForCompletePaperFeeCursor,type CanonicalPaperFeeInterval,type PaperFeeFrame}
- from '../src/deployments/paper-fee-replay.js';
+import {advancePaperFeeCarry,readAnchoredPaperFeeFrame,readIndexedPaperFeeInterval,
+ replayPaperFeeInterval,waitForCompletePaperFeeCursor,type CanonicalPaperFeeInterval,
+ type PaperFeeFrame} from '../src/deployments/paper-fee-replay.js';
 
 const hashA='0x'+'a'.repeat(64),hashB='0x'+'b'.repeat(64),hashC='0x'+'f'.repeat(64),Q128=1n<<128n;
 const pool={address:'0x'+'c'.repeat(40),token0:'0x'+'d'.repeat(40),
@@ -56,6 +56,35 @@ test('fee cursor settle waits for an in-flight later block, then accepts complet
  const db={query:async()=>({rows:[rows[Math.min(polls++,rows.length-1)]]})} as unknown as Pool;
  await waitForCompletePaperFeeCursor(db,'stream','set',cursorProfile,'105',2_000);
  assert.equal(polls,2);
+});
+
+test('a cursor short of the interval end is a distinct, waitable failure',async()=>{
+ // The settle loop matches these two messages exactly. A cursor that has not
+ // yet reached the interval end is the indexer catching up to a mark that was
+ // just written, so it must stay distinguishable from a structurally broken
+ // cursor: collapsing them aborts the maintenance pass instead of waiting,
+ // which strands the newest mark without fee evidence and blocks convert close.
+ const cursorRow=(over:Record<string,unknown>)=>({pool_address:pool.address,chain_id:'1',
+  fee:pool.fee,initialized:true,fee_protocol0:0,fee_protocol1:0,last_block_number:'110',
+  complete_through_block:'110',complete_through_hash:hashB,target_set_hash:'set',...over});
+ const stub=(row:Record<string,unknown>)=>({connect:async()=>({
+  query:async(text:string)=>text.includes('v3_replay_pools')?{rows:[row]}:{rows:[]},
+  release(){},
+ })}) as unknown as Pool;
+ const before=({source:{block:'100',hash:hashA}} as PaperFeeFrame);
+ const after=({source:{block:'120',hash:hashB}} as PaperFeeFrame);
+ const read=(row:Record<string,unknown>)=>readIndexedPaperFeeInterval(stub(row),'stream','set',
+  cursorProfile,before,after,{tickLower:-60,tickUpper:60},1n);
+ await assert.rejects(read(cursorRow({})),
+  /^AssertionError.*Paper fee replay cursor has not covered the interval end/s,
+  'coverage short of the interval end must report its own waitable message');
+ await assert.rejects(read(cursorRow({initialized:false})),
+  /Paper fee replay coverage unavailable/,
+  'a structurally unusable cursor must keep failing fast');
+ await assert.rejects(read(cursorRow({complete_through_block:null})),
+  /Paper fee replay coverage unavailable/);
+ await assert.rejects(read(cursorRow({target_set_hash:'other'})),
+  /Paper fee replay coverage unavailable/);
 });
 
 test('fee cursor settle rejects target-set changes and bounded timeout',async()=>{
