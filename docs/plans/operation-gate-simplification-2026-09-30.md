@@ -169,6 +169,25 @@ Accordingly, every removal proposed here must name the incident the check was
 added for and argue that another gate now covers it. A count alone is not an
 argument for removal.
 
+## 3b. Implemented: the fee-cursor settle budget
+
+`CURSOR_SETTLE_BUDGET_MS` in `paper-fee-replay.ts` was raised from 15,000 to
+30,000 ms, the maximum `waitForCompletePaperFeeCursor` accepts, and both the
+deadline and the per-wait cap now read from that one constant instead of two
+copies of a literal.
+
+The measurement is recorded next to it. One caveat is recorded with it too:
+nothing succeeded between 10 s and the old 15 s ceiling, so the successes and
+the failures look like two regimes rather than one distribution cut in half.
+Raising the budget may therefore convert all, some or none of the failures. The
+stage duration the worker already logs makes the change self-measuring — if
+failures still pin, now at ~32 s, the constraint is indexer throughput and not
+the budget, and the next step is the indexer rather than another increase.
+
+A maintenance pass can now spend up to 30 s per campaign awaiting catch-up
+against a 60 s worker interval, which is fine at one or two campaigns and would
+need revisiting as that count grows.
+
 ## 4. Measured: the gas banding error bound
 
 This is the only section that has been executed. It exists to decide whether
@@ -275,25 +294,6 @@ maximum rather than a single sample, or re-sampling when a fresh estimate
 deviates beyond a stated threshold. Widening the bands without addressing this
 would trade a slow open for an under-bounded one.
 
-## 3b. Implemented: the fee-cursor settle budget
-
-`CURSOR_SETTLE_BUDGET_MS` in `paper-fee-replay.ts` was raised from 15,000 to
-30,000 ms, the maximum `waitForCompletePaperFeeCursor` accepts, and both the
-deadline and the per-wait cap now read from that one constant instead of two
-copies of a literal.
-
-The measurement is recorded next to it. One caveat is recorded with it too:
-nothing succeeded between 10 s and the old 15 s ceiling, so the successes and
-the failures look like two regimes rather than one distribution cut in half.
-Raising the budget may therefore convert all, some or none of the failures. The
-stage duration the worker already logs makes the change self-measuring — if
-failures still pin, now at ~32 s, the constraint is indexer throughput and not
-the budget, and the next step is the indexer rather than another increase.
-
-A maintenance pass can now spend up to 30 s per campaign awaiting catch-up
-against a 60 s worker interval, which is fine at one or two campaigns and would
-need revisiting as that count grows.
-
 ## 4b. Implemented, and what it actually bought
 
 Banding was implemented on 2026-09-30: `paperGasBand` in `paper-cost.ts` is the
@@ -342,6 +342,106 @@ If that latency is the goal, the lever is how the range anchor is chosen — a
 product decision about range selection, which the calibration measurement does
 not speak to and which must not be inferred from it.
 
+## 4c. Where the fork simulation earns its cost, and where it does not
+
+The same question the plan started with — is a check over-engineered — has
+opposite answers in the two halves of the system, because the owned-fork
+simulation does a different job in each.
+
+### Live: it is not gas estimation, and it is not redundant
+
+`src/strategy/rangekeeper/fork-simulator.ts` is 119 lines and only one of its
+assertions concerns gas. The rest assert **outcomes over a sequence**:
+
+```
+:41   assert(same(first.hash,source.hash),'Fork source differs from canonical observation')
+:61   assert(receipt.status==='success',`Fork ${plan.kind} reverted`)
+:104  assert(plan?.kind==='mint','Post-swap fork mint is infeasible or missing a preapproval')
+:112  assert(current.position?.liquidity>=mintPlan.candidate.liquidity)
+```
+
+It executes approve → swap → approve → mint against the exact canonical block
+and checks every stage succeeds and that the resulting position carries the
+liquidity the plan claimed.
+
+`eth_estimateGas` cannot answer that. It validates one transaction against
+current state. It cannot establish whether a mint will be feasible *after* a
+swap that has not happened yet — and the swap is the irreversible step. By the
+time an estimate could report the mint failing, the inventory is already
+converted and the exposure is already taken.
+
+This is not hypothetical. Per the [activation record](../operations/rangekeeper-activation-2026-09-21.md),
+the first 40-tick live attempt completed its swap and then missed the mint
+floor. That is exactly the failure the sequence rehearsal exists to catch, and
+the remedy was reordering so both mint legs are preapproved before the swap.
+
+The per-submission `estimateGas` at `live-controller.ts:464` and `:667`, and
+the signed-approval recheck at `live-pilot/controller.ts:193`, answer a
+different question — will this one transaction succeed now, and cost what. The
+two are complementary, not duplicated.
+
+### The economics are inverted between the two halves
+
+| | Paper | Live |
+| --- | --- | --- |
+| Runs on | every interactive setup review | `start()`, `rearmUntraded()`, `resumeCosted()` only |
+| Frequency | every operator click | about three economic actions per 12-hour scope |
+| Share of latency | ~35 s of a 43–47 s wait | negligible, off the interactive path |
+| What the number authorizes | a displayed estimate and an admission limit | a real broadcast of real funds |
+
+Same mechanism, opposite cost-benefit. In paper it dominates an interactive
+wait and gates nothing that moves value. In live it is cheap and gates
+everything.
+
+### The cheaper substitute, and its real limit
+
+`eth_simulateV1` is available on the configured provider; `debug_traceCall` is
+not (paid tier). A single request with a state override and two sequenced calls
+returned:
+
+```
+call 0: status=0x1  gasUsed=57,976   (cold slot)
+call 1: status=0x1  gasUsed=38,076   (warm slot)
+```
+
+That demonstrates per-call gas attribution, execution over evolving state — the
+~20k delta is the cold-slot cost — state overrides, and sequencing, in under a
+second against roughly 35 s for anvil. The cold figure is within **1.4%** of the
+fork's 58,801 for the same stage.
+
+For context, the fork's estimates are conservative against realized on-chain
+gas from the live pilot (NVDA/USDG, so indicative rather than like-for-like):
+
+| Stage | Realized avg | Realized max | Fork estimate |
+| --- | ---: | ---: | ---: |
+| approve | 48,129 | 63,649 | 58,801 |
+| mint | 435,008 | 465,940 | 490,249 |
+| withdraw | 212,820 | 227,811 | 290,863 |
+
+Always above realized, before `gasUnitsBound` adds a further 30%.
+
+**What a substitution would actually cost is evidence ownership.** The fork
+asserts `first.hash===source.hash`, proving it executed against the exact block
+observed. A provider simulation can be told which block to use but cannot prove
+which state it used, and it would mean asking the same provider used for
+broadcasting to validate the check that protects the broadcast. The fork is a
+second, independent execution of the plan, and that independence is worth most
+exactly where value moves.
+
+### Position
+
+- **Live: keep it.** It is the only check that establishes whole-sequence
+  feasibility before an irreversible step, it costs nothing on the interactive
+  path, and its independence from the broadcast provider is a feature.
+- **Paper: test replacing it.** There it produces attested provenance for a
+  number that authorizes nothing, on an interactive path, at 90% of the wait.
+
+Untested and required before any paper substitution: `mint` needs storage
+overrides for token balances and `withdraw` needs the NFT created by the
+preceding call. Only `approve` was demonstrated. The validation is to simulate
+all six stages and compare per-stage against the existing bands, which is
+evidence the repository already holds.
+
 ## 5. Proposed order
 
 1. ~~**Band size and share; keep the tick range pinned exactly**~~ (category 4).
@@ -355,7 +455,11 @@ not speak to and which must not be inferred from it.
    **Done, and half of it retracted** — see sections 3 and 3b. The fee-cursor
    budget is raised and self-measuring; the preview-TTL proposal was inert and
    is withdrawn.
-4. **Leave close and convert until last.** 223 failure codes across 13 modules,
+4. **Validate `eth_simulateV1` against the existing bands** (section 4c), and
+   if it reproduces them, use it for the paper gas sample only. Keep the live
+   fork. This is the remaining attack on setup-review latency now that banding
+   has been shown not to reduce it.
+5. **Leave close and convert until last.** 223 failure codes across 13 modules,
    for an operation that has never once completed, is not a tuning problem. Its
    contract needs restating before its gates can be pruned safely, and it is
    the one path where removing a check is most likely to lose something real.
@@ -365,6 +469,7 @@ not speak to and which must not be inferred from it.
 - Any change to the commit-time recheck, idempotency binding, append-only
   guards or anchor verification (category 1).
 - Any change that widens a bound without a measurement behind it.
-- Any change to the live RangeKeeper controller's custody rules.
+- Any change to the live RangeKeeper controller's custody rules, or to its
+  fork simulation, which section 4c concludes should stay.
 - Route or authentication changes to the operator surface, which stays at
   `/operator` per the September 30 decision.
