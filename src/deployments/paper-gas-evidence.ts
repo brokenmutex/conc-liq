@@ -18,6 +18,13 @@ import {PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
 
 const positive=z.string().regex(/^[1-9][0-9]*$/);
 const nonnegative=z.string().regex(/^(0|[1-9][0-9]*)$/);
+/** What a provider-simulated stage records in place of a node estimate: the gas
+ * the call actually consumed, its success status, and the parent hash of the
+ * simulated block, which is what ties the measurement to a specific canonical
+ * state. */
+const simulationSchema=z.object({gasUsed:positive,status:z.literal('0x1'),
+ parentHash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),
+ basis:z.literal('provider_eth_simulateV1_sequenced_calls')}).strict();
 const estimateSchema=z.object({gas:positive,parentGas:nonnegative,baseFeeWei:positive,
  parentBaseFeeWei:nonnegative,totalFeeWei:nonnegative,parentFeeWei:nonnegative,
  executionFeeWei:nonnegative,
@@ -119,12 +126,26 @@ export function verifyPaperGasEvidence(raw:unknown){
    assert.equal(collect.args[0].amount1Max,(1n<<128n)-1n);
   }
   assert(BigInt(model.gasUnitsExpected)>0n&&BigInt(model.gasUnitsBound)>=BigInt(model.gasUnitsExpected));
-  const estimate=estimateSchema.parse(evidence.estimate);
-  assert.equal(model.gasUnitsExpected,estimate.gas);
-  assert(BigInt(estimate.parentGas)<=BigInt(estimate.gas));
-  assert.equal(BigInt(estimate.totalFeeWei),BigInt(estimate.gas)*BigInt(estimate.baseFeeWei));
-  assert.equal(BigInt(estimate.parentFeeWei),BigInt(estimate.parentGas)*BigInt(estimate.baseFeeWei));
-  assert.equal(BigInt(estimate.executionFeeWei),BigInt(estimate.totalFeeWei)-BigInt(estimate.parentFeeWei));
+  // Each method records a different quantity and so carries different evidence.
+  // The fork records the node's two-component estimate; the provider simulation
+  // records the gas the sequence actually consumed. Both are checked against the
+  // units the model claims, and neither shape is accepted for the other method.
+  if(model.source.method==='provider_simulate_v1_exact_call_v1'){
+   const simulated=simulationSchema.parse(evidence.simulation);
+   assert.equal(evidence.estimate,undefined,'Simulated stage must not carry a node estimate');
+   assert.equal(model.gasUnitsExpected,simulated.gasUsed);
+   // The provenance check the owned fork makes with first.hash===source.hash:
+   // the simulated block must be a child of the exact pinned canonical source.
+   assert.equal(simulated.parentHash.toLowerCase(),source.hash.toLowerCase(),
+    'Simulated stage did not build on the pinned canonical source');
+  }else{
+    const estimate=estimateSchema.parse(evidence.estimate);
+    assert.equal(model.gasUnitsExpected,estimate.gas);
+    assert(BigInt(estimate.parentGas)<=BigInt(estimate.gas));
+    assert.equal(BigInt(estimate.totalFeeWei),BigInt(estimate.gas)*BigInt(estimate.baseFeeWei));
+    assert.equal(BigInt(estimate.parentFeeWei),BigInt(estimate.parentGas)*BigInt(estimate.baseFeeWei));
+    assert.equal(BigInt(estimate.executionFeeWei),BigInt(estimate.totalFeeWei)-BigInt(estimate.parentFeeWei));
+  }
   assert.equal(evidence.stateOverrideHash,createHash('sha256')
    .update(JSON.stringify(evidence.stateOverrides)).digest('hex'));
  }

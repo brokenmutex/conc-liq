@@ -16,6 +16,7 @@ import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {prepareStaticPaperGasForCandidate} from './deployments/static-paper-gas-preparation.js';
 import {prepareStaticPaperSetup} from './deployments/static-paper-setup-preparation.js';
 import {sampleStaticPaperGas} from './deployments/paper-gas-sampler.js';
+import {sampleStaticPaperGasViaSimulation} from './deployments/paper-gas-simulation-sampler.js';
 import {safePaperGasVerifyFailure,verifyPaperGasSource} from './deployments/paper-gas-source.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
@@ -110,8 +111,19 @@ async function main(){
     loadProfile:id=>store.paperSetupProfile(id),
     readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
     forkRpcUrl:env.PAPER_FORK_RPC_URL??null,
-    sample:(draft,frame)=>sampleStaticPaperGas({rpcUrl:env.PAPER_FORK_RPC_URL!,draft,frame,
-     beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000}),
+    // Simulate first and fall back to the owned fork. The simulation is two
+    // provider round trips against roughly twenty seconds of anvil, but it has
+    // to locate each token's balance slot by scanning, because the tracer the
+    // fork uses for that is not available to us on the read provider. A token
+    // layout that defeats the scan therefore costs latency, not an open.
+    sample:async(draft,frame)=>{
+     try{return await sampleStaticPaperGasViaSimulation({client,draft,frame});}
+     catch(error){
+      setupDiagnostic?.('paper_gas_simulation_sample',safePaperGasVerifyFailure(error));
+      return await sampleStaticPaperGas({rpcUrl:env.PAPER_FORK_RPC_URL!,draft,frame,
+       beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000});
+     }
+    },
     verify:async report=>{
      try{return await verifyPaperGasSource(client,report);}
      catch(error){setupDiagnostic?.('paper_gas_sample_source_verify',safePaperGasVerifyFailure(error));throw error;}

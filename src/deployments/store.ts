@@ -9,7 +9,8 @@ import {acceptInput,allocationSchema,contentHash,draftInput,parseStrategyParamet
  staticManualParameters,strategyId,type AcceptInput,type DraftInput,type PreviewInput} from './contracts.js';
 import {marketProfileEvidenceSchema,marketProfileSchema,referenceProofHash,verifiedMarketProfileSchema,
  type VerifiedMarketProfile} from './market-profile.js';
-import {PAPER_STATIC_GAS_PATH,costIndicativePaperOpenPreview,type PaperGasProfileRow} from './paper-cost.js';
+import {PAPER_STATIC_GAS_PATH,costIndicativePaperOpenPreview,paperGasEvidenceClassFor,
+ paperGasModelSchema,type PaperGasProfileRow} from './paper-cost.js';
 import {PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {RANGEKEEPER_PAPER_NO_SWAP_PATH,RANGEKEEPER_PAPER_DIRECT_SWAP_PATH,
  RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH} from './rangekeeper-paper-cost.js';
@@ -2562,13 +2563,18 @@ export class DeploymentStore {
     const validation={validationPolicy:'calibration_v1',statusReason:'one_owned_fork_sample',
      sampleCount:1,distinctCampaigns:0,reportHash:report.reportHash,
      canonicalAttestation:attestation,localEvidence:rawStage.evidence};
+    // The class is derived from the method the stage's own model records, never
+    // assumed: the resolver refuses a row whose class and method disagree, so
+    // writing a fixed class here would silently make simulated stages uncostable.
+    const evidenceClass=paperGasEvidenceClassFor(
+     paperGasModelSchema.parse(rawStage.model).source.method);
     await db.query(`INSERT INTO deployment_calibration_profiles
      (id,version,chain_id,pool_address,path_version,stage,allowance_state,size_band,
       component,status,evidence_class,model,validation,source_hash,observed_until)
-     VALUES($1,$2,4663,$3,$4,$5,'zero',$6,'gas_units','provisional','fork_estimated',
+     VALUES($1,$2,4663,$3,$4,$5,'zero',$6,'gas_units','provisional',$11,
       $7,$8,$9,$10)`,[id,version,profile.pool.pool.toLowerCase(),PAPER_STATIC_GAS_PATH,
       stage,sizeBand,JSON.stringify(rawStage.model),JSON.stringify(validation),rawStage.sourceHash,
-      report.sampledAt]);
+      report.sampledAt,evidenceClass]);
     profileIds.push(id);
    }
    return {created:true,version,profileIds,reportHash:report.reportHash,sizeBand};
