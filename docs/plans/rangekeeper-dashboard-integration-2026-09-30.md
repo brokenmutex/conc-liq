@@ -103,14 +103,50 @@ Both are one-line gates once what they guard actually works. They should be the
 
 ### 2d. Gas evidence is needed per pool and per path
 
-`rangeKeeperPaperGasProfiles(poolAddress, pathVersion, sizeBand)` takes three
-path versions — `paper_rangekeeper_v1_no_swap_v1`,
-`..._direct_swap_v1`, `..._direct_convert_exit_v1` — against `rk_` size bands,
-which are a different scoping scheme from the static path's. Twelve registered
-pools times three paths is a lot of sampling if each is single-use; the banding
-work done for the static path on 2026-09-30 does not carry over automatically
-and the same question — which dimensions actually drive the gas — has not been
-asked here.
+**Measured 2026-10-01.** See [the banding review](../reviews/rangekeeper-gas-banding-2026-09-30.md).
+The answer is worse than the static path's was, and for a structural reason
+found before any gradient was run.
+
+`rangeKeeperPaperSizeBand` hashes `candidateHash` into the band identity, and
+`rangeKeeperPaperCandidateHash` covers `campaignId`, `revision`, `sourceBlock`,
+`sourceHash`, `expiresAt` and the exact swap quote. **So the band key changes on
+every open attempt**, whatever drives the gas. Releasing size and share from the
+key — the fix that worked for the static path — would achieve nothing here
+unless `candidateHash` comes out too. There are currently **zero** RangeKeeper
+rows in `deployment_calibration_profiles`, so nothing is broken today; this path
+has simply never run.
+
+Three pinned-frame gradients establish what actually drives gas:
+
+| Gradient | Span held constant against | Total spread |
+| --- | --- | ---: |
+| No-swap open + retain exit | 40× capital, 40× share | **0.04%** |
+| Direct-swap open + retain exit | 40× capital, 40× share | **0.72%** |
+| Range width, fixed capital | `fullWidthSpacings` 20/100/400 | **11.11%** |
+
+Same shape as the static path: size and share drive nothing, the range drives
+everything — `open_mint` 18.58% and `exit_withdraw_collect` 10.53% across the
+width gradient, with approvals and cleanups flat. One new wrinkle the static
+path had no analogue for: `open_swap` moves 4.97% with size, but as a step
+between 25 and 100 USDG and then flat to 1,000, which looks like a tick-crossing
+threshold rather than a continuous dependence. Everything stays inside the 30%
+`gasUnitsBound` margin.
+
+The recommended scheme therefore mirrors the static v1→v2 fix, plus the extra
+step: drop `candidateHash`, `deployedValue` and `sharePpm` from the `rk_` hash
+and key on `{pool, pathVersion, tickLower, tickUpper}`; band size and share as a
+stored range; keep the tick range pinned. That needs a model schema version bump
+and a resolver change from exact match to range containment, exactly as the
+static path took.
+
+Sampling then bounds to distinct (pool, path, range) triples across **two**
+paths, not three — convert exit has no sampler at all, per §2a.
+
+Limits stated in the review: only AAPL-500 was sampled, and other fee tiers have
+different tick spacing; only the `open`-kind probe was exercised, so the
+standalone terminal retain-exit path is inference; and RangeKeeper's
+range-recurrence rate is unmeasured, because no history exists to measure it
+against.
 
 ## 3. Proposed order
 
@@ -118,10 +154,10 @@ asked here.
    **Done** — it does, for the `direct_swap` open path and the retain exit. The
    retain exit can be unblocked on this evidence. Convert exit needs an
    owned-fork sampler built first before it can even be compared.
-2. **Ask the banding question for the RangeKeeper paths** before sampling twelve
-   pools three ways. The static path's answer — that size and share do not drive
-   gas and the tick range does — was worth an order of magnitude and took under
-   an hour to establish.
+2. ~~**Ask the banding question for the RangeKeeper paths**~~ **Done** — see
+   §2d. Size and share drive nothing, the range drives everything, and the band
+   key additionally embeds `candidateHash`, so it must be re-keyed before any
+   reuse is possible at all. Implementing that re-key is now the work item.
 3. **Build the RangeKeeper setup preflight and draft admission**, mirroring the
    static contract: size to a capital budget, price from banded evidence, bind a
    reviewed source, and admit against limits. This is the bulk of the work.
