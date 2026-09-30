@@ -1,7 +1,9 @@
 # Operation gate simplification — September 30, 2026
 
-Status: proposal. Nothing here is applied. No item below authorizes execution,
-and the measurement in section 4 is the only part that has been carried out.
+Status: proposal. No source change is applied and no item below authorizes
+execution. Section 4 is the only part carried out: two measurements, one over
+the historical calibration set and one a purpose-run size-gradient experiment
+on an owned fork, which together decide whether category 4 can proceed.
 
 The operator asked whether the safety checks guarding drafting, opening,
 closing and pausing still make sense, or whether repetition and over-engineering
@@ -164,23 +166,63 @@ Across those 26 bands, holding the outlier out:
 - **Diluted share varied 3,317–5,847 ppm, a 1.76× range, while
   `approve_token0` stayed at exactly 58,801 units in 19 of 27 samples.** Gas is
   insensitive to share over the observed range.
-- **Multiple distinct tick ranges** (217970, 217980, 218070, 218200–218300)
-  produced identical approval gas.
+- The **fixed-cost stages** (both approvals, both cleanups) are insensitive to
+  tick range as well: they move under 10% across all 11 ranges in the set.
 
-So two of the three dimensions the band key pins to the wei — share and tick
-range — demonstrably do not drive the gas they are pinning.
+The 25.9% mint spread and the 17.8% withdraw spread are therefore the residue,
+and the size-gradient experiment below identifies the tick range as their
+driver: with the range pinned, both collapse to 0%.
 
-### What this does not establish
+### What the historical set could not establish
 
-**Size never meaningfully varied.** Every sample sits between 239.95 and 250.00
-USD, a 4% range, because every campaign used 250 USDG of capital. This dataset
-therefore **cannot** bound the error of reusing a band across materially
-different position sizes. Claiming otherwise from this data would be invention.
+**Size never meaningfully varied in it.** Every historical sample sits between
+239.95 and 250.00 USD, a 4% range, because every campaign used 250 USDG. That
+dataset therefore could not bound the error of reusing a band across materially
+different position sizes, and the size-gradient experiment below was run to
+settle it rather than extrapolate.
 
-To band by size, deliberate samples at distinct sizes are required — 100, 250,
-500 and 1,000 USDG against the same pool and range. `sampleStaticPaperGas`
-already does this, takes roughly 40 s per sample, touches no economic state,
-and needs a fork RPC only. That is a bounded experiment of well under an hour.
+### Measured: the size gradient
+
+Executed 2026-09-30 against pinned source block 76,499,708, tick 218,338, with
+the canonical frame, pool state and tick range (218280/218400) **held constant
+across every sample**, so any spread is attributable to size alone. Sampled on
+an owned fork; nothing was imported and no draft, preview or operation was
+created.
+
+| Stage | 25 USDG | 100 | 250 | 500 | 1,000 | Spread |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| approve_token0 | 58,789 | 58,801 | 58,801 | 58,801 | 58,801 | **0.0%** |
+| approve_token1 | 64,472 | 64,484 | 64,484 | 64,484 | 64,484 | **0.0%** |
+| mint | 490,200 | 490,249 | 490,249 | 490,249 | 490,249 | **0.0%** |
+| withdraw_collect | 290,826 | 290,863 | 290,863 | 290,863 | 290,863 | **0.0%** |
+| cleanup_token0 | 38,406 | 38,406 | 38,406 | 38,406 | 38,406 | **0.0%** |
+| cleanup_token1 | 44,030 | 44,030 | 44,030 | 44,030 | 44,030 | **0.0%** |
+| **Total** | 986,723 | 986,833 | 986,833 | 986,833 | 986,833 | **0.0%** |
+
+Across a **40× capital range** and a **39× share range** (369 → 14,570 ppm),
+total gas moved by **110 units, or 0.011%** — and only for the smallest sample,
+where the difference is calldata zero-byte encoding of smaller amounts, not
+execution. Gas for this path is independent of position size and of diluted
+share.
+
+### What this changes
+
+The three dimensions the band key pins now decompose cleanly:
+
+| Dimension | Effect on gas | Evidence |
+| --- | --- | --- |
+| Deployed size | **none** (0.011% over 40×) | size-gradient experiment above |
+| Diluted share | **none** (0% over 39×) | size-gradient, and 19/27 historical samples identical across 1.76× |
+| Tick range | **material** — the 25.9% mint spread | historical set; 0% once range is pinned |
+
+So the band key pins three things and only one of them matters. Releasing size
+and share while keeping the exact tick range is therefore not a precision
+trade at all on this evidence — it is removing two keys that control nothing.
+
+The historical set is **27 bands across 11 distinct tick ranges**. Banding size
+and share would have collapsed it to 11, and would make every repeat open at a
+recurring range reuse existing evidence instead of sampling. The ~40 s fork
+sample becomes necessary only when the range itself is new.
 
 ### The reuse caveat the outlier exposes
 
@@ -194,20 +236,19 @@ would trade a slow open for an under-bounded one.
 
 ## 5. Proposed order
 
-1. **Band share and tick range only** (category 4, partial). Measured above as
-   safe: neither drives gas, and the residual spread is inside the existing 30%
-   bound. Leave size pinned until section 4's size experiment is run. Removes
-   most fork sampling from repeat reviews at the same capital.
-2. **Run the size-gradient experiment**, then decide on size banding with a
-   real number. Under an hour, no economic state touched.
-3. **Split replay-from-pinned versus verify-now** (category 2). Mechanical, and
+1. **Band size and share; keep the tick range pinned exactly** (category 4).
+   The size-gradient experiment settles this: both released dimensions measure
+   at 0% effect, and the retained one carries the entire 25.9% spread. Collapses
+   the historical 27 bands to 11 and removes the fork sample from every repeat
+   open at a recurring range.
+2. **Split replay-from-pinned versus verify-now** (category 2). Mechanical, and
    where the remaining latency lives. Each converted site must state which of
    the two questions it is asking.
-4. **Derive freshness windows from measured latency** (category 3). Start with
+3. **Derive freshness windows from measured latency** (category 3). Start with
    decoupling preview TTL from the source window, and raising the fee-cursor
    settle budget to the already-validated 30,000 ms with a re-measurement
    against the next campaign.
-5. **Leave close and convert until last.** 223 failure codes across 13 modules,
+4. **Leave close and convert until last.** 223 failure codes across 13 modules,
    for an operation that has never once completed, is not a tuning problem. Its
    contract needs restating before its gates can be pruned safely, and it is
    the one path where removing a check is most likely to lose something real.
