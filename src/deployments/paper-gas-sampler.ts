@@ -20,7 +20,7 @@ import {paperCloseConvertRouteSchema,type PaperCloseConvertRoute,
 import {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
 import {USDG} from '../constants.js';
 import {contentHash,staticManualParameters} from './contracts.js';
-import {PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
+import {paperGasBand,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {verifyPaperGasEvidence} from './paper-gas-evidence.js';
 import type {PaperDraft,PaperOpenFrame} from './paper-preview.js';
 import {buildIndicativePaperOpenPreview} from './paper-preview.js';
@@ -131,10 +131,9 @@ export async function sampleStaticPaperGas(input:{rpcUrl:string;draft:PaperDraft
    const stageSource={block:tx.sourceBlock,hash:tx.sourceHash,estimatedAt:sampledAt,
     callHash:keccak256(tx.calldata),method:'owned_fork_nitro_exact_call_v1' as const};
    const expected=BigInt(tx.estimate.gas);
-   return {stage:tx.action,sourceHash:contentHash(stageSource),model:{schemaVersion:1 as const,
+   return {stage:tx.action,sourceHash:contentHash(stageSource),model:{schemaVersion:2 as const,
     source:stageSource,gasUnitsExpected:String(expected),gasUnitsBound:String(ceil(expected*13n,10n)),
-    sizeMinValue:preview.candidate!.deployedValue,sizeMaxValue:preview.candidate!.deployedValue,
-    shareMinPpm:preview.candidate!.dilutedSharePpm,shareMaxPpm:preview.candidate!.dilutedSharePpm,
+    ...paperGasBand(preview.candidate!),
     tickLower:preview.candidate!.range.tickLower,tickUpper:preview.candidate!.range.tickUpper},
     evidence:{to:tx.to,calldata:tx.calldata,returnData:tx.returnData,localHash:tx.localHash,
      localGasUsed:tx.localGasUsed,localEffectiveGasPriceWei:tx.localEffectiveGasPriceWei,

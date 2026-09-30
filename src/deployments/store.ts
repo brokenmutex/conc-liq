@@ -2505,8 +2505,12 @@ export class DeploymentStore {
    throw new DeploymentConflict('paper_gas_evidence_stale');
   const candidate=report.candidate as {deployedValue:string;dilutedSharePpm:string;
    range:{tickLower:number;tickUpper:number}};
-  const sizeBand=`exact_${contentHash({pool:profile.pool.pool.toLowerCase(),
-   value:candidate.deployedValue,share:candidate.dilutedSharePpm,
+  // Keyed on the pool and the exact tick range only. Size and share are banded
+  // in the model itself because they do not move this path's gas, so keeping
+  // them in the key would mint a fresh single-use band per sample and grow the
+  // table without buying any precision. Re-sampling the same range now appends
+  // a new version of one band, which the resolver already prefers, instead.
+  const sizeBand=`range_${contentHash({pool:profile.pool.pool.toLowerCase(),
    lower:candidate.range.tickLower,upper:candidate.range.tickUpper}).slice(0,32)}`;
   return this.transaction(async db=>{
    await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',

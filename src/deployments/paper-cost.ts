@@ -9,7 +9,12 @@ export const PAPER_STATIC_GAS_STAGES=[
 ] as const;
 const sourceSchema=z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:true}),
  callHash:hash,method:z.literal('owned_fork_nitro_exact_call_v1')}).strict();
-export const paperGasModelSchema=z.object({schemaVersion:z.literal(1),source:sourceSchema,
+export const PAPER_GAS_MODEL_BANDED_VERSION=2;
+/** Version 1 pinned size and share to the sampled point; version 2 bands them
+ * per paperGasBand below. Both remain readable: the resolver's size/share
+ * checks are range comparisons either way, and a version 1 row is simply a
+ * band of width zero. Retained fork evidence stays verifiable as version 1. */
+export const paperGasModelSchema=z.object({schemaVersion:z.union([z.literal(1),z.literal(2)]),source:sourceSchema,
  gasUnitsExpected:raw,gasUnitsBound:raw,sizeMinValue:raw,sizeMaxValue:raw,
  shareMinPpm:raw,shareMaxPpm:raw,
  tickLower:z.number().int().min(-887272).max(887272),
@@ -20,6 +25,31 @@ export interface PaperGasProfileRow {
  model:unknown;sourceHash:string;observedUntil:Date|null;
 }
 type CostCandidate={range:{tickLower:number;tickUpper:number};deployedValue:string;dilutedSharePpm:string};
+/** Deployed size and diluted share do not move this path's gas. A gradient
+ * sampled on one pinned frame and one pinned tick range over 25-1000 USDG
+ * (40x capital, 39x share) moved total gas by 110 units, 0.011%, and only for
+ * the smallest sample where the difference is calldata zero-byte encoding
+ * rather than execution. The tick range carries the whole variance instead:
+ * the 25.9% mint spread across historical bands collapses to 0% once it is
+ * held fixed. So the range stays pinned exactly and these two are banded,
+ * which lets one sample serve every candidate at that range.
+ *
+ * The envelope is a quarter to four times the sampled point: far inside the
+ * 40x the experiment covered, and wide enough that ordinary price drift at a
+ * constant capital always reuses. Widening it beyond what was measured would
+ * be asserting evidence that does not exist. See
+ * docs/plans/operation-gate-simplification-2026-09-30.md section 4. */
+export const PAPER_GAS_BAND_DIVISOR=4n;
+export function paperGasBand(candidate:Pick<CostCandidate,'deployedValue'|'dilutedSharePpm'>){
+ const size=BigInt(candidate.deployedValue),share=BigInt(candidate.dilutedSharePpm);
+ // shareMaxPpm above one million is rejected by the resolver below, so a large
+ // sampled share saturates rather than producing an unusable band.
+ const shareMax=share*PAPER_GAS_BAND_DIVISOR;
+ return {sizeMinValue:String(size/PAPER_GAS_BAND_DIVISOR),
+  sizeMaxValue:String(size*PAPER_GAS_BAND_DIVISOR),
+  shareMinPpm:String(share/PAPER_GAS_BAND_DIVISOR),
+  shareMaxPpm:String(shareMax>1_000_000n?1_000_000n:shareMax)};
+}
 const ceil=(a:bigint,b:bigint)=>(a+b-1n)/b;
 
 /** Resolves complete, fresh exact-call stage evidence. No AAPL fork safety

@@ -8,7 +8,7 @@ import {PAPER_ACCOUNT,PAPER_ROUTER,paperQuoterAbi,paperRouterAbi,paperTokenAbi} 
 import {principalAmounts} from '../backtest/principal.js';
 import {allocationSchema,contentHash,staticManualParameters} from './contracts.js';
 import {marketProfileSchema,referenceProofHash} from './market-profile.js';
-import {paperGasModelSchema,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
+import {paperGasBand,paperGasModelSchema,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from './paper-cost.js';
 import {paperOpenModelSchema} from './paper-open-model.js';
 import {PAPER_STATIC_CONVERT_GAS_PATH_V2,PAPER_STATIC_CONVERT_GAS_STAGES_V2,
  paperCloseConvertGasScopeV2Schema,paperCloseConvertGasScopeHashV2,
@@ -63,10 +63,18 @@ export function verifyPaperGasEvidence(raw:unknown){
   assert.equal(model.source.estimatedAt,report.sampledAt);
   assert.equal(model.tickLower,candidate.range.tickLower);
   assert.equal(model.tickUpper,candidate.range.tickUpper);
-  assert.equal(model.sizeMinValue,candidate.deployedValue);
-  assert.equal(model.sizeMaxValue,candidate.deployedValue);
-  assert.equal(model.shareMinPpm,candidate.dilutedSharePpm);
-  assert.equal(model.shareMaxPpm,candidate.dilutedSharePpm);
+  // Verify the exact documented band, not merely that the candidate falls
+  // inside one: a sampler that widened its own envelope would otherwise be
+  // able to import evidence covering candidates it never measured. Version 1
+  // evidence predates banding and pinned both to the sampled point.
+  const band=model.schemaVersion===1
+   ?{sizeMinValue:candidate.deployedValue,sizeMaxValue:candidate.deployedValue,
+     shareMinPpm:candidate.dilutedSharePpm,shareMaxPpm:candidate.dilutedSharePpm}
+   :paperGasBand(candidate);
+  assert.equal(model.sizeMinValue,band.sizeMinValue);
+  assert.equal(model.sizeMaxValue,band.sizeMaxValue);
+  assert.equal(model.shareMinPpm,band.shareMinPpm);
+  assert.equal(model.shareMaxPpm,band.shareMaxPpm);
   assert.equal(model.source.callHash,keccak256(evidence.calldata as `0x${string}`));
   const stage=PAPER_STATIC_GAS_STAGES[index]!,to=String(evidence.to);
   const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();

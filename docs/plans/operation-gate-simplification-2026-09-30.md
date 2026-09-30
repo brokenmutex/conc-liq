@@ -234,13 +234,60 @@ maximum rather than a single sample, or re-sampling when a fresh estimate
 deviates beyond a stated threshold. Widening the bands without addressing this
 would trade a slow open for an under-bounded one.
 
+## 4b. Implemented, and what it actually bought
+
+Banding was implemented on 2026-09-30: `paperGasBand` in `paper-cost.ts` is the
+single contract, the sampler applies it, the importer verifies the exact
+documented envelope rather than merely that the candidate falls inside one, and
+the band key in `registerPaperGasEvidence` drops size and share to become
+`range_<hash(pool, tickLower, tickUpper)>`. The stage model is now versioned:
+version 1 is the retained point-scoped evidence, version 2 is banded, and both
+stay verifiable, so the retained fork artifact in `research/calibration/` did
+not have to be regenerated or its guard weakened.
+
+Four live preparation runs at 250, 500 and 100 USDG then measured what it buys,
+and the answer is narrower than section 4 projected.
+
+| Sampled | Tick range | Band | Outcome |
+| --- | --- | --- | --- |
+| 15:30:29 | 218260/218380 | `range_c049c1b4` v1 | sampled |
+| 15:32:00 | 218250/218370 | `range_97d5cb86` v1 | sampled |
+| 15:32:42 | 218240/218360 | `range_d454a247` v1 | sampled |
+| 15:33:23 | 218240/218360 | `range_d454a247` **v2** | re-sampled |
+
+**What it did buy.** Re-sampling at a range that already has evidence now
+appends a *version* of the existing band instead of minting a new one, as the
+last row shows. Band count is therefore bounded by distinct tick ranges rather
+than by sample count, which is exactly the growth that drove the calibration
+table toward the 200-row resolver bound. Evidence is also genuinely reusable
+within the envelope at a recurring range.
+
+**What it did not buy.** It does not remove the ~35 s fork sample from most
+opens. The tick range moved on three of four consecutive runs inside three
+minutes, and the range must stay pinned because it carries the entire measured
+variance. Reuse therefore only occurs when the pool tick happens to stay inside
+the same anchored bucket between opens. The earlier projection that this would
+remove sampling from "every repeat open" was wrong: recurring ranges are common
+over days, as the historical 27-bands-over-11-ranges shows, but rare between
+consecutive opens.
+
+The 100 USDG run also fell outside the 500 USDG run's size envelope (125–2000
+USD) and so re-sampled. That is the ±4× band working as specified. The
+measurement would support widening toward a 36× span and still sit inside the
+40× it covered, but the binding constraint is the range, not the envelope, so
+widening was not done — it would buy little and cost evidence support.
+
+**Consequence for the plan.** Setup-review latency is not addressed by banding.
+If that latency is the goal, the lever is how the range anchor is chosen — a
+product decision about range selection, which the calibration measurement does
+not speak to and which must not be inferred from it.
+
 ## 5. Proposed order
 
-1. **Band size and share; keep the tick range pinned exactly** (category 4).
-   The size-gradient experiment settles this: both released dimensions measure
-   at 0% effect, and the retained one carries the entire 25.9% spread. Collapses
-   the historical 27 bands to 11 and removes the fork sample from every repeat
-   open at a recurring range.
+1. ~~**Band size and share; keep the tick range pinned exactly**~~ (category 4).
+   **Done** — see section 4b. Bounds band growth to distinct tick ranges, which
+   was the lockout driver. It does not reduce setup-review latency; that needs
+   the range-anchor question, which is out of this plan's scope.
 2. **Split replay-from-pinned versus verify-now** (category 2). Mechanical, and
    where the remaining latency lives. Each converted site must state which of
    the two questions it is asking.
