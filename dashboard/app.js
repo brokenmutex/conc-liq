@@ -58,14 +58,62 @@ function renderPendingRecovery(){mountPendingPaperAcceptanceRecovery($('#pending
 function riskPanel(){
  let section=$('#asset-risk');if(!section){section=document.createElement('section');section.id='asset-risk';section.className='portfolio';section.setAttribute('aria-label','Asset execution eligibility');$('#pending-paper-acceptance-recovery').after(section);}
  const rows=lastOverview?.riskAssets??[],limit=Number(lastOverview?.riskFreshnessSeconds),now=Date.now();
- const value=(v)=>v==null?'Unavailable':String(v),truth=(v)=>v===true?'Yes':v===false?'No':'Unavailable';
- const table=rows.length?`<div class="table-scroll"><table class="session-table"><thead><tr><th>Asset</th><th>Snapshot result</th><th>Captured</th><th>Market hours</th><th>Corporate action</th><th>Tradable</th><th>Oracle paused</th><th>Oracle age</th><th>Reasons</th></tr></thead><tbody>${rows.map(r=>{
-  const at=Date.parse(r.snapshotAt),ageSeconds=Number.isFinite(at)&&at<=now?Math.floor((now-at)/1000):null,fresh=ageSeconds!==null&&Number.isFinite(limit)&&limit>0&&ageSeconds<=limit;
-  const result=!r.snapshotAt?'Current eligibility unavailable · no recorded asset snapshot':ageSeconds===null?'Current eligibility unavailable · invalid or future snapshot':!fresh?`Current eligibility unavailable · snapshot stale; last recorded ${r.executionEligible===true?'eligible':'ineligible'}`:r.executionEligible===true?'Eligible in latest snapshot':'Ineligible in latest snapshot';
-  const why=r.reasons?.length?r.reasons.join(' · '):r.executionEligible?'None recorded':'Reason unavailable';
-  return `<tr data-risk-asset="${esc(r.rwaSymbol)}"><td>${esc(r.rwaSymbol)}</td><td>${esc(result)}</td><td>${ageSeconds===null?'Unavailable':`${ageSeconds}s ago · limit ${limit}s`}</td><td>${esc(value(r.marketHours))}</td><td>${esc(truth(r.corporateActionPending))}</td><td>${esc(truth(r.tradingTradable))}</td><td>${esc(truth(r.oraclePaused))}</td><td>${r.oracleAgeSeconds==null?'Unavailable':`${esc(r.oracleAgeSeconds)}s`}</td><td>${esc(why)}</td></tr>`;
- }).join('')}</tbody></table></div>`:'<p class="muted">Current asset risk snapshot unavailable. Do not infer eligibility.</p>';
- section.innerHTML=`<div class="section-heading"><h2>Asset execution eligibility</h2><span class="badge">Recorded risk snapshot</span></div><div class="portfolio-box"><p class="inline-note">Latest per-asset assessment. “Eligible” describes this snapshot only; each action is checked again before it can proceed.</p>${table}</div>`;
+ // A stale or missing snapshot never becomes a current verdict; it reports what
+ // was last recorded and says the current answer is unavailable. Keep those
+ // four outcomes distinct, and never let the colour alone carry the meaning.
+ const verdict=(r,ageSeconds,fresh)=>!r.snapshotAt?{tone:'unknown',label:'Unavailable',
+   detail:'No recorded asset snapshot'}:ageSeconds===null?{tone:'unknown',label:'Unavailable',
+   detail:'Invalid or future snapshot'}:!fresh?{tone:'unknown',label:'Unavailable',
+   detail:`Snapshot stale · last recorded ${r.executionEligible===true?'eligible':'ineligible'}`}:
+  r.executionEligible===true?{tone:'open',label:'Eligible',detail:'In the latest snapshot'}:
+   {tone:'blocked',label:'Ineligible',detail:'In the latest snapshot'};
+ // Only surface a check that is failing or unknown. An unrecorded flag is not
+ // a passing one, so it stays visible rather than being folded into "all pass".
+ const checks=r=>{
+  const out=[],flag=(value,failed,failText,unknownText)=>{
+   if(value==null)out.push({tone:'unknown',text:unknownText});
+   else if(failed)out.push({tone:'blocked',text:failText});
+  };
+  flag(r.corporateActionPending,r.corporateActionPending===true,'Corporate action pending','Corporate action unrecorded');
+  flag(r.tradingTradable,r.tradingTradable===false,'Not tradable','Tradability unrecorded');
+  flag(r.oraclePaused,r.oraclePaused===true,'Oracle paused','Oracle pause state unrecorded');
+  if(r.oracleAgeSeconds==null)out.push({tone:'unknown',text:'Oracle age unrecorded'});
+  return out;
+ };
+ const assessed=rows.map(r=>{
+  const at=Date.parse(r.snapshotAt),ageSeconds=Number.isFinite(at)&&at<=now?Math.floor((now-at)/1000):null;
+  const fresh=ageSeconds!==null&&Number.isFinite(limit)&&limit>0&&ageSeconds<=limit;
+  return {row:r,ageSeconds,fresh,state:verdict(r,ageSeconds,fresh),problems:checks(r)};
+ });
+ const tally=['Eligible','Ineligible','Unavailable'].map(label=>({label,
+  count:assessed.filter(a=>a.state.label===label).length,
+  tone:label==='Eligible'?'open':label==='Ineligible'?'blocked':'unknown'}))
+  .filter(entry=>entry.count>0);
+ const summary=tally.map(entry=>`<span class="badge ${entry.tone}">${entry.count} ${esc(entry.label.toLowerCase())}</span>`).join('');
+ const body=assessed.length?`<ul class="risk-assets">${assessed.map(a=>{
+  const r=a.row,problems=a.problems.length?
+   `<ul class="risk-checks">${a.problems.map(p=>`<li class="risk-check ${p.tone}">${esc(p.text)}</li>`).join('')}</ul>`:
+   // Not an endorsement: these are the flags this record carries, and the
+   // record itself may be stale. The verdict above says whether it counts.
+   '<p class="risk-checks-clear">No failing checks in this record</p>';
+  // An ineligible verdict with no reason recorded is itself worth stating; an
+  // unavailable one is already explained by its own detail line.
+  const why=r.reasons?.length?`<p class="risk-reasons"><span>Reasons</span> ${esc(r.reasons.join(' · '))}</p>`:
+   a.state.label==='Ineligible'?'<p class="risk-reasons"><span>Reasons</span> Not recorded</p>':'';
+  const captured=a.ageSeconds===null?'Captured: unavailable':
+   `Captured ${a.ageSeconds}s ago · limit ${Number.isFinite(limit)&&limit>0?`${limit}s`:'unavailable'}`;
+  return `<li class="risk-asset" data-risk-asset="${esc(r.rwaSymbol)}">
+   <div class="risk-asset-head">
+    <span class="risk-symbol">${esc(r.rwaSymbol)}</span>
+    <span class="badge ${a.state.tone}">${esc(a.state.label)}</span>
+    <span class="risk-detail">${esc(a.state.detail)}</span>
+    <span class="risk-captured${a.fresh?'':' stale'}">${esc(captured)}</span>
+   </div>
+   ${problems}${why}
+   <p class="risk-context">Market hours ${esc(r.marketHours??'unavailable')} · oracle age ${r.oracleAgeSeconds==null?'unavailable':`${esc(r.oracleAgeSeconds)}s`}</p>
+  </li>`;
+ }).join('')}</ul>`:'<p class="muted risk-empty">Current asset risk snapshot unavailable. Do not infer eligibility.</p>';
+ section.innerHTML=`<div class="section-heading"><h2>Asset execution eligibility</h2><span class="badge">Recorded risk snapshot</span><span class="risk-tally">${summary}</span></div><div class="portfolio-box"><p class="inline-note">Latest per-asset assessment. \u201cEligible\u201d describes this snapshot only; each action is checked again before it can proceed.</p>${body}</div>`;
 }
 function renderAll(){riskPanel();renderSection('live');renderSection('paper');renderPendingRecovery();}
 function renderSection(mode){

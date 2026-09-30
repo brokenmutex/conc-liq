@@ -91,9 +91,15 @@ function clearPendingAcceptance(campaignId, kind) {
   try { localStorage.removeItem(pendingAcceptanceKey(campaignId, kind)); return true; }
   catch { return false; }
 }
+// Each of these is sent before the route reaches an acceptance call and after
+// its idempotent replay lookup, so the saved request neither created an
+// operation nor matches an existing one. Anything else leaves the outcome
+// genuinely unknown and the record must survive for another reconcile.
+const noAcceptanceUnavailable = new Set(['operation_worker_not_ready',
+  'paper_close_convert_acceptance_unavailable','paper_close_convert_preparation_unavailable']);
 function knownNoAcceptance(error) {
-  return error?.status === 503 && error?.data?.error === 'operation_worker_not_ready' ||
-    error?.status === 409;
+  return error?.status === 409 ||
+    (error?.status === 503 && noAcceptanceUnavailable.has(error?.data?.error));
 }
 
 const recoveryInFlight = new Set();
@@ -139,19 +145,37 @@ export function mountPendingPaperAcceptanceRecovery(root, {authenticated, reques
   if (!records.length) return;
   const heading = document.createElement('h2'); heading.textContent = 'Pending paper request recovery';
   root.append(heading);
+  const rendered = [];
   for (const record of records) {
     const row = document.createElement('div'), status = document.createElement('p');
     row.className = 'paper-acceptance-recovery-row';
     const label = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Convert-close'}[record.kind];
     status.setAttribute('role','status');
-    status.textContent = record.invalid ? `${label} · ${record.campaignId}: saved recovery record is invalid.` :
+    status.textContent = record.invalid ?
+      `${label} · ${record.campaignId}: the saved request is unreadable, so its outcome cannot be reconciled. Check Positions for this campaign before discarding it.` :
       `${label} · ${record.campaignId}: reconcile the saved request to learn its outcome.`;
     const button = document.createElement('button'); button.type = 'button';
-    button.className = 'paper-acceptance-reconcile-button';
     button.dataset.campaignId = record.campaignId; button.dataset.kind = record.kind;
-    button.textContent = 'Reconcile saved acceptance';
-    button.disabled = Boolean(record.invalid) || !authenticated?.() || recoveryInFlight.has(record.key);
-    row.append(status,button); root.append(row);
+    // An unreadable record holds no request to replay, so reconciling it is
+    // impossible and keeping it only repeats a warning the operator has read.
+    // Discarding is therefore the only available action, and it is explicit.
+    button.className = record.invalid ? 'paper-acceptance-discard-button' : 'paper-acceptance-reconcile-button';
+    button.textContent = record.invalid ? 'Discard unreadable record' : 'Reconcile saved acceptance';
+    // Discarding touches only this browser's storage, so it does not wait on an
+    // operator session the way reconciling does.
+    button.disabled = record.invalid ? false : !authenticated?.() || recoveryInFlight.has(record.key);
+    row.append(status,button); root.append(row); rendered.push(row);
+    if (record.invalid) {
+      button.addEventListener('click',()=>{
+        try { localStorage.removeItem(record.key); }
+        catch { status.textContent = `${label} · ${record.campaignId}: browser storage is unavailable, so the record could not be discarded.`; return; }
+        // Drop the cached identity so the next render rebuilds from storage.
+        // Hide rather than detach, to stay on the DOM surface this module uses.
+        root.dataset.recoveryIdentity = ''; row.hidden = true; button.disabled = true;
+        if (rendered.every(item => item.hidden)) { root.replaceChildren(); root.hidden = true; }
+      });
+      continue;
+    }
     button.addEventListener('click',async()=>{
       if (!record.payload || !authenticated?.() || recoveryInFlight.has(record.key) || typeof request !== 'function') return;
       recoveryInFlight.add(record.key); button.disabled = true;

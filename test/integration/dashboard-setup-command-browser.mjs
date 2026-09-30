@@ -279,9 +279,12 @@ await check('Review preserves the named pool and manually edited wallet',
 await check('Preflight binds the registered quote-token index for exact draft admission',
  'document.querySelector("#setup-preflight-facts").textContent.includes("USDG")');
 await fill('#setup-wallet-address','0x1111111111111111111111111111111111111111');
-const expectedNativeWei=BigInt(latestSetupPreflight.costs.open.boundWei)+
+const expectedNativeBounds=BigInt(latestSetupPreflight.costs.open.boundWei)+
  (BigInt(latestSetupPreflight.costs.closeRetain.boundWei)>BigInt(latestSetupPreflight.input.limits.exitReserveWei)?
   BigInt(latestSetupPreflight.costs.closeRetain.boundWei):BigInt(latestSetupPreflight.input.limits.exitReserveWei));
+// The suggestion adds the documented rounded-up 20% sizing cushion over those
+// bounds; assert the cushion rather than the bare bounds it is applied to.
+const expectedNativeWei=expectedNativeBounds+(expectedNativeBounds+4n)/5n;
 const nativeUnits=raw=>{const n=BigInt(raw),scale=10n**18n,whole=String(n/scale),fraction=String(n%scale).padStart(18,'0').replace(/0+$/,'');
  return fraction?`${whole}.${fraction}`:whole;};
 await check('Preflight suggests exact native allocation in native units from reviewed bounds',

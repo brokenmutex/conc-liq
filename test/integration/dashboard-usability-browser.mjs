@@ -452,19 +452,29 @@ const rowSelector=id=>`#paper tbody tr[data-position="paper-dep-${id}"]`;
 await waitFor(`document.querySelector(${JSON.stringify(rowSelector(appleId))})!==null`);
 await waitFor(`document.querySelector(${JSON.stringify(rowSelector(nvidiaId))})!==null`);
 await waitFor('document.querySelectorAll("#paper .retain-preview-button").length>=1');
+// Read the verdict from its own element rather than substring-matching the
+// whole row: "last recorded eligible" legitimately contains "eligible", so
+// only the badge can prove a stale snapshot is not presented as current.
 findings.D3=await evaluate(`(()=>{
  const row=s=>document.querySelector('#asset-risk [data-risk-asset="'+s+'"]');
- return {count:document.querySelectorAll('#asset-risk tbody tr').length,
-  freshBlocked:row('AAPL')?.textContent.replace(/\\s+/g,' ').trim()??null,
-  staleFormerlyEligible:row('NVDA')?.textContent.replace(/\\s+/g,' ').trim()??null,
-  missing:row('GLD')?.textContent.replace(/\\s+/g,' ').trim()??null,
+ const read=s=>{const el=row(s);return el?{verdict:el.querySelector('.badge')?.textContent??null,
+  detail:el.querySelector('.risk-detail')?.textContent??null,
+  text:el.textContent.replace(/\\s+/g,' ').trim()}:null;};
+ return {count:document.querySelectorAll('#asset-risk .risk-asset').length,
+  freshBlocked:read('AAPL'),staleFormerlyEligible:read('NVDA'),missing:read('GLD'),
   note:document.querySelector('#asset-risk .inline-note')?.textContent??null};})()`);
 await check('D3 · latest asset risk is visible with a fresh ineligible result and its reason',
- JSON.stringify(findings.D3.freshBlocked?.includes('Ineligible in latest snapshot')&&findings.D3.freshBlocked.includes('oracle_paused'))+'===true');
+ JSON.stringify(findings.D3.freshBlocked?.verdict==='Ineligible'&&
+  findings.D3.freshBlocked.detail==='In the latest snapshot'&&
+  findings.D3.freshBlocked.text.includes('oracle_paused'))+'===true');
 await check('D3 · stale former eligibility is shown as unavailable, not current eligibility',
- JSON.stringify(findings.D3.staleFormerlyEligible?.includes('Current eligibility unavailable')&&findings.D3.staleFormerlyEligible.includes('snapshot stale'))+'===true');
+ JSON.stringify(findings.D3.staleFormerlyEligible?.verdict==='Unavailable'&&
+  findings.D3.staleFormerlyEligible.verdict!=='Eligible'&&
+  findings.D3.staleFormerlyEligible.detail?.includes('Snapshot stale')&&
+  findings.D3.staleFormerlyEligible.detail.includes('last recorded eligible'))+'===true');
 await check('D3 · an asset without a snapshot is explicitly unavailable and the whole tracked set remains visible',
- JSON.stringify(findings.D3.missing?.includes('no recorded asset snapshot')&&findings.D3.count===7)+'===true');
+ JSON.stringify(findings.D3.missing?.verdict==='Unavailable'&&
+  findings.D3.missing.detail==='No recorded asset snapshot'&&findings.D3.count===7)+'===true');
 await check('D3 · asset snapshot eligibility is not presented as action authorization',
  JSON.stringify(findings.D3.note?.includes('each action is checked again'))+'===true');
 findings.U3.renderedRows=await evaluate(
@@ -528,7 +538,7 @@ await check('U3 · the accessibility tree exposes close controls with asset and 
  JSON.stringify(findings.U3.axCloseControlNames.length>0&&findings.U3.axCloseNamesHaveContext)+'===true');
 const selectedBeforeRiskPoll=await evaluate('document.querySelector("#paper tbody tr.selected")?.dataset.position??null');
 riskState.aaplPaused=false;
-await waitFor('document.querySelector("#asset-risk [data-risk-asset=AAPL]")?.textContent.includes("Eligible in latest snapshot")');
+await waitFor('document.querySelector("#asset-risk [data-risk-asset=AAPL] .badge")?.textContent==="Eligible"');
 findings.D3.refreshWithSelection={before:selectedBeforeRiskPoll,
  after:await evaluate('document.querySelector("#paper tbody tr.selected")?.dataset.position??null')};
 await check('D3 · the risk snapshot refreshes while a position remains selected',

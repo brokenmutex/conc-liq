@@ -194,6 +194,57 @@ test('pending acceptance recovery remains available independently of lifecycle w
  }
 }));
 
+test('a reconcile refused before any acceptance clears its saved record',async()=>withBrowser(async()=>{
+ // These are returned after the route's idempotent replay lookup and before it
+ // calls an acceptance, so no operation was created and none exists to find.
+ // Treating them as unknown left a convert record that could never be cleared.
+ const payload={previewId,contentDigest:digest,expectedRevision:2,idempotencyKey:operationId};
+ const storage=(globalThis as any).localStorage;
+ const cases:[string,number,string][]=[
+  [`concliq.operator.paper-convert.pending.v1.${campaignId}`,503,'paper_close_convert_preparation_unavailable'],
+  [`concliq.operator.paper-convert.pending.v1.${campaignId}`,503,'paper_close_convert_acceptance_unavailable'],
+  [storageKey('pause'),503,'operation_worker_not_ready'],
+  [storageKey('close_retain'),409,'campaign_not_found'],
+ ];
+ for(const [key,status,code] of cases){
+  const kind=key.includes('paper-convert')?'close_convert':key.endsWith('pause')?'pause':'close_retain';
+  storage.setItem(key,JSON.stringify({campaignId,kind,payload}));
+  const root=new ElementMock();
+  mountPendingPaperAcceptanceRecovery(root,{authenticated:()=>true,
+   request:async()=>{throw error(status,code);}});
+  await button(root,'Reconcile saved acceptance')?.click();
+  assert.equal(storage.getItem(key),null,`${code} must clear the saved record`);
+ }
+ // A refusal that leaves the outcome genuinely unknown must still be retained.
+ const key=storageKey('pause');
+ storage.setItem(key,JSON.stringify({campaignId,kind:'pause',payload}));
+ const kept=new ElementMock();
+ mountPendingPaperAcceptanceRecovery(kept,{authenticated:()=>true,
+  request:async()=>{throw error(503,'dashboard_read_source_unavailable');}});
+ await button(kept,'Reconcile saved acceptance')?.click();
+ assert.deepEqual(JSON.parse(storage.getItem(key)).payload,payload);
+}));
+
+test('an unreadable saved record can be discarded without sending a request',async()=>withBrowser(async()=>{
+ const storage=(globalThis as any).localStorage,key=storageKey('close_retain');
+ storage.setItem(key,'{not valid json');
+ let calls=0;
+ const root=new ElementMock();
+ mountPendingPaperAcceptanceRecovery(root,{authenticated:()=>true,
+  request:async()=>{calls++;return {id:operationId,status:'succeeded'};}});
+ assert.equal(root.hidden,false);
+ assert.equal(button(root,'Reconcile saved acceptance'),undefined,
+  'an unreadable record has no request to replay, so reconciling must not be offered');
+ const discard=button(root,'Discard unreadable record');
+ assert(discard&&discard.disabled===false);
+ assert.match(find(root,item=>item.textContent.includes('unreadable'))?.textContent??'',
+  /cannot be reconciled\. Check Positions/);
+ discard.click();
+ assert.equal(calls,0,'discarding must never submit an acceptance');
+ assert.equal(storage.getItem(key),null);
+ assert.equal(root.hidden,true);
+}));
+
 test('recovery panel preserves unknown outcomes and never clears a replaced recovery key',async()=>withBrowser(async()=>{
  const payload={previewId,contentDigest:digest,expectedRevision:2,idempotencyKey:operationId},
   storage=(globalThis as any).localStorage,key=storageKey('pause');
