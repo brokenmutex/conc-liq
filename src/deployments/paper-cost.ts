@@ -7,8 +7,22 @@ export const PAPER_STATIC_GAS_PATH='paper_static_manual_no_swap_v1';
 export const PAPER_STATIC_GAS_STAGES=[
  'approve_token0','approve_token1','mint','withdraw_collect','cleanup_token0','cleanup_token1',
 ] as const;
+/** How a stage's gas was produced. The owned fork executes locally in anvil on
+ * state it fetched itself; the provider simulation executes remotely and is
+ * checked against an independently read canonical block hash. They are kept as
+ * separate literals, and separate evidence classes below, so simulated gas can
+ * never be read back as fork gas — the whole point of an evidence class is that
+ * it names how the number was obtained. */
+export const PAPER_GAS_METHODS=['owned_fork_nitro_exact_call_v1',
+ 'provider_simulate_v1_exact_call_v1'] as const;
+/** The evidence class each method writes, and the only classes the resolver
+ * will cost. `fork_estimated` is the historical value and stays first so an
+ * existing row keeps its meaning unchanged. */
+export const PAPER_GAS_EVIDENCE_CLASSES=['fork_estimated','provider_simulated'] as const;
+export const paperGasEvidenceClassFor=(method:typeof PAPER_GAS_METHODS[number])=>
+ method==='owned_fork_nitro_exact_call_v1'?'fork_estimated' as const:'provider_simulated' as const;
 const sourceSchema=z.object({block:raw,hash,estimatedAt:z.iso.datetime({offset:true}),
- callHash:hash,method:z.literal('owned_fork_nitro_exact_call_v1')}).strict();
+ callHash:hash,method:z.enum(PAPER_GAS_METHODS)}).strict();
 export const PAPER_GAS_MODEL_BANDED_VERSION=2;
 /** Version 1 pinned size and share to the sampled point; version 2 bands them
  * per paperGasBand below. Both remain readable: the resolver's size/share
@@ -71,10 +85,15 @@ export function costIndicativePaperOpenPreview<T extends {status:string;candidat
   groups.set(row.sizeBand,group);
  }
  const valid=(row:PaperGasProfileRow)=>{
-  if(!['provisional','validated'].includes(row.status)||row.evidenceClass!=='fork_estimated'||
+  if(!['provisional','validated'].includes(row.status)||
+   !(PAPER_GAS_EVIDENCE_CLASSES as readonly string[]).includes(row.evidenceClass)||
    !row.observedUntil)return false;
   const parsed=paperGasModelSchema.safeParse(row.model);
-  if(!parsed.success||row.sourceHash!==contentHash(parsed.data.source))return false;
+  if(!parsed.success||row.sourceHash!==contentHash(parsed.data.source)||
+   // The stored class must be the one its own method implies. A row claiming
+   // fork provenance for a simulated stage, however it got written, is not
+   // costed.
+   row.evidenceClass!==paperGasEvidenceClassFor(parsed.data.source.method))return false;
   const m=parsed.data,min=BigInt(m.sizeMinValue),max=BigInt(m.sizeMaxValue),
    shareMin=BigInt(m.shareMinPpm),shareMax=BigInt(m.shareMaxPpm);
   if(min>size||size>max||min>max||shareMin>share||share>shareMax||shareMin>shareMax||

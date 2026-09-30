@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {contentHash} from '../src/deployments/contracts.js';
-import {PAPER_GAS_BAND_DIVISOR,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES,
+import {PAPER_GAS_BAND_DIVISOR,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES,paperGasEvidenceClassFor,
  costIndicativePaperOpenPreview,paperGasBand,paperGasModelSchema,
  type PaperGasProfileRow} from '../src/deployments/paper-cost.js';
 
@@ -77,4 +77,19 @@ test('version 1 point evidence still resolves and is not widened by the new band
  // version 2 band would cover must not resolve against it.
  assert.equal(cost({...sampled,deployedValue:'62500000000000000000',dilutedSharePpm:'920'},
   rows).costs.status,'unavailable');
+});
+
+test('a stored evidence class must match the method its own model claims',()=>{
+ // The class names how a number was obtained, so a row claiming fork
+ // provenance for a simulated stage — however it came to be written — must not
+ // be costed. Without this the two methods would be interchangeable at rest.
+ const rows=bandRows(sampled);
+ assert.equal(cost(sampled,rows).costs.status,'provisional');
+ const mislabelled=rows.map(row=>({...row,model:{...(row.model as Record<string,unknown>),
+  source:{...((row.model as {source:Record<string,unknown>}).source),
+   method:'provider_simulate_v1_exact_call_v1'}}}));
+ assert.equal(cost(sampled,mislabelled).costs.status,'unavailable',
+  'fork_estimated rows carrying a simulation method must not resolve');
+ assert.equal(paperGasEvidenceClassFor('owned_fork_nitro_exact_call_v1'),'fork_estimated');
+ assert.equal(paperGasEvidenceClassFor('provider_simulate_v1_exact_call_v1'),'provider_simulated');
 });

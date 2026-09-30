@@ -471,6 +471,51 @@ account, and a timer that included the fork's own wall clock in the
 simulation's measured time — which is worth noting because both would have
 flattered or broken the result silently.
 
+### Blocked on a policy decision, found while wiring it in
+
+Two facts surfaced during implementation that change what the substitution
+*means*, and the second is not a technical question.
+
+**The fork's slot discovery is not portable.** It finds each token's balance
+storage slot by differencing `debug_traceCall` prestate traces — run against its
+own anvil, where tracing is free. Against the configured provider that method is
+paid-tier only (verified: "debug_traceCall is not available on the Free tier").
+A simulation sampler must therefore scan storage slots instead, which is
+layout-dependent and is also what explains the `withdraw_collect` divergence:
+the probe overrode the recipient's balance slot cold, where the fork funds by a
+real donor transfer that warms it. Mitigable by falling back to the fork on any
+discovery failure, so no new failure mode reaches an operator.
+
+**The recorded number is not the number the simulation produces.** The stage
+model's `gasUnitsExpected` is the node's `eth_estimateGas` result — schema basis
+`node_estimateGas_with_paper_prestate_and_parent_component` — not executed gas.
+Against the retained 2026-09-22 calibration artifact, `parentGas` is **0 on all
+six stages**, so this chain has no L1 data component to lose. But the estimate
+sits above actual execution, and `eth_simulateV1` reproduces *actual* execution
+essentially exactly:
+
+| Stage | fork `localGasUsed` | simulateV1 | fork `estimate.gas` (recorded) |
+| --- | ---: | ---: | ---: |
+| approve_token0 | 57,988 | 57,988 | 58,801 |
+| approve_token1 | 63,649 | 63,649 | 64,484 |
+| cleanup_token0 | 38,040 | 38,040 | 38,406 |
+
+So section 4c's "−1.38% to −19.75% versus the fork" is more precisely *actual
+execution versus the estimator's padding*, which ranges from ~1.4% on the
+approvals to ~21% on `withdraw_collect`. The simulation is not less accurate;
+it measures a different and arguably truer quantity.
+
+**The decision.** Substituting changes the recorded figure from "the node's
+estimate" to "simulated actual", lowering recorded gas units by 1–21% and
+removing an implicit margin, while the explicit `gasUnitsBound = 1.3×` stays.
+That is a deliberate change to how conservative the cost model is, and it
+belongs to whoever owns the risk rather than to whoever noticed it.
+
+Implemented so far: the evidence contract now carries the method that produced
+each stage and binds the stored evidence class to it, so simulated gas can never
+be read back as fork gas. That is a strengthening and is independent of the
+decision above. The simulation sampler itself is not written.
+
 ### Position
 
 - **Live: keep it.** It is the only check that establishes whole-sequence
