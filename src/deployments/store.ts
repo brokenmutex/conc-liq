@@ -790,7 +790,11 @@ export class DeploymentStore {
   * source identity, freshness and complete stage set before exposing costs.
   * The band key covers the exact tick range too, so a row outside the
   * candidate's exact range can never validate; scoping the query to it here
-  * keeps the 201-row bound reachable as unrelated ranges accumulate rows. */
+  * keeps the 201-row bound reachable as unrelated ranges accumulate rows.
+  * Compare the stored JSON number rather than casting its text: a cast is
+  * evaluated per row in an order the planner chooses, so one malformed model
+  * would fail the whole lookup and block every open. A mistyped row simply
+  * does not match. */
  async paperGasProfiles(poolAddress:string,tickLower:number,tickUpper:number):Promise<PaperGasProfileRow[]>{
   return (await this.readPool.query<PaperGasProfileRow>(`
    SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
@@ -800,7 +804,7 @@ export class DeploymentStore {
    FROM deployment_calibration_profiles
    WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
     AND component='gas_units' AND allowance_state='zero'
-    AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
+    AND model->'tickLower'=to_jsonb($3::int) AND model->'tickUpper'=to_jsonb($4::int)
    ORDER BY size_band,stage,version DESC LIMIT 201`,
    [poolAddress,PAPER_STATIC_GAS_PATH,tickLower,tickUpper])).rows;
  }
@@ -3008,7 +3012,7 @@ export class DeploymentStore {
       observed_until AS "observedUntil"
      FROM deployment_calibration_profiles WHERE chain_id=$1 AND lower(pool_address)=lower($2)
       AND path_version=$3 AND component='gas_units' AND allowance_state='zero'
-      AND (model->>'tickLower')::int=$4 AND (model->>'tickUpper')::int=$5
+      AND model->'tickLower'=to_jsonb($4::int) AND model->'tickUpper'=to_jsonb($5::int)
      ORDER BY size_band,stage,version DESC LIMIT 201`,
      [profile.data.pool.chainId,profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
       indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper])).rows;
@@ -3109,7 +3113,7 @@ export class DeploymentStore {
      FROM deployment_calibration_profiles
      WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
       AND component='gas_units' AND allowance_state='zero'
-      AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
+      AND model->'tickLower'=to_jsonb($3::int) AND model->'tickUpper'=to_jsonb($4::int)
      ORDER BY size_band,stage,version DESC LIMIT 201`,
      [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
       open.data.candidate.range.tickLower,open.data.candidate.range.tickUpper])).rows;
@@ -3415,7 +3419,7 @@ export class DeploymentStore {
      observed_until AS "observedUntil" FROM deployment_calibration_profiles
     WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
      AND component='gas_units' AND allowance_state='zero'
-     AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
+     AND model->'tickLower'=to_jsonb($3::int) AND model->'tickUpper'=to_jsonb($4::int)
     ORDER BY size_band,stage,version DESC LIMIT 201`,
     [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
      model.candidate.range.tickLower,model.candidate.range.tickUpper])).rows;
@@ -5159,7 +5163,7 @@ export class DeploymentStore {
      observed_until AS "observedUntil" FROM deployment_calibration_profiles
     WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
      AND component='gas_units' AND allowance_state='zero'
-     AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
+     AND model->'tickLower'=to_jsonb($3::int) AND model->'tickUpper'=to_jsonb($4::int)
     ORDER BY size_band,stage,version DESC LIMIT 201`,
     [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
      openParsed.data.candidate.range.tickLower,openParsed.data.candidate.range.tickUpper])).rows;

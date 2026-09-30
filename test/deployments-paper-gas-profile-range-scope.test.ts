@@ -29,9 +29,12 @@ function band(sizeBand:string,tickLower:number,tickUpper:number):PaperGasProfile
 /** Wires a DeploymentStore to a fake read pool that behaves like Postgres
  * would for the paperGasProfiles query: it always applies the pool/path/
  * component/allowance filters, and additionally applies the exact tick-range
- * filter only when the query text carries it. Rows outside chain_id, pool or
- * path never leak in even from the pre-fix code path, matching what the real
- * WHERE clause always enforced; the tick predicate is what this change adds. */
+ * filter when the query scopes by one. Rows outside chain_id, pool or path
+ * never leak in even from the pre-fix code path, matching what the real WHERE
+ * clause always enforced; the tick predicate is what this change adds.
+ * Detection deliberately looks only for the scoped column, not the exact
+ * comparison form, so the assertion survives a change to how the predicate is
+ * written and keeps testing the contract rather than the SQL text. */
 function storeOverAllRows(rows:PaperGasProfileRow[]){
  const store=new DeploymentStore('postgresql://localhost/unused');
  (store as unknown as {readPool:{query:(sql:string,params:unknown[])=>
@@ -39,7 +42,7 @@ function storeOverAllRows(rows:PaperGasProfileRow[]){
   query:async(sql,params)=>{
    let matched=rows.filter(row=>row.poolAddress.toLowerCase()===String(params[0]).toLowerCase()&&
     row.pathVersion===params[1]);
-   if(sql.includes("(model->>'tickLower')::int=$")){
+   if(sql.includes("'tickLower'")){
     const tickLower=params[2] as number,tickUpper=params[3] as number;
     matched=matched.filter(row=>(row.model as {tickLower:number}).tickLower===tickLower&&
      (row.model as {tickUpper:number}).tickUpper===tickUpper);
