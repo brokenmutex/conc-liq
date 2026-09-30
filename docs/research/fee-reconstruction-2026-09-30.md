@@ -130,14 +130,39 @@ anywhere in the database that could be used instead, via
 Every recorded NVDA snapshot, in this campaign and in the database's entire
 history, carries `execution_eligible = false`, with reasons consistently
 including `sequencer_feed_unavailable`, `oracle_price_stale`, and
-`quote_oracle_unavailable`. **The NVDA/USD oracle feed has never been usable
-in this environment**, not just during the campaign window. This is not a
-gap this session's pruning caused — see Section 5 for the retention finding
-that does apply to the campaign window — it is a standing property of the
-feed itself: `sequencer_feed_unavailable` dominates every reason set.
+`quote_oracle_unavailable`.
 
-Given that, **pool spot is not a fallback of convenience; it is the only
-NVDA price reference this system has ever recorded**, and it is the one this
+**Corrected on review — this does not establish that no usable NVDA price
+exists.** Two findings narrow it, and both matter for anyone reusing this
+reasoning:
+
+1. `execution_eligible = false` is universal across **every** asset, not just
+   NVDA: 116,872 NVDA snapshots and 84,136 each for GLD, GOOGL, AAPL, QQQ, SPY
+   and MSFT, with zero eligible in any of them. A flag that is false for the
+   entire universe is not evidence about one feed. It is a stricter,
+   session-sensitive gate than the one the paper reference path applies —
+   `market_session_unverified` is among its reasons, while
+   `evaluateRangeKeeperReferences` explicitly admits a `held_equity_reference`
+   for a stock token outside its regular session. That is why paper previews
+   resolve eligible references today while every stored snapshot reads
+   ineligible.
+2. Oracle answers **do** exist in the database: 196,538 of 621,695 rows carry
+   `snapshot->'oracle'->'state'->>'answer'`. For NVDA they run **2026-09-23 to
+   2026-09-30**, 41,555 rows.
+
+The campaign window is the exception, and retention is why: of 40,125 NVDA
+snapshots between 2026-09-10 and 2026-09-19, **zero** retain an oracle answer.
+They were dedup-pruned by the seven-day telemetry retention, which strips the
+detail blob and keeps only `symbol`, `oracle_address`, `execution_eligible` and
+`reasons` as columns.
+
+So the operative constraint is narrower and more actionable than a broken feed:
+**the independent NVDA prices for this campaign existed and were deleted before
+anyone tried to value its fees against them.** The choice of pool spot below is
+forced, but by retention, not by the feed.
+
+Given that, **pool spot is the only NVDA price reference still recoverable for
+this campaign's window**, and it is the one this
 campaign's own NAV and benchmark accounting already uses throughout. This
 session values each withdraw's NVDA fee leg at that withdraw's own
 post-confirmation pool state (`receipt->'after'->'sqrtPriceX96'`, read
