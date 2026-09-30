@@ -171,7 +171,7 @@ async function main() {
   const simStart = Date.now();
   let attempt = 0, frame, draft, preview, candidate, blockNumber, blockTag, canonicalBlock;
   let predict, predictedTokenId, predictedLiquidity, postMintSqrtPriceX96, predictElapsedMs;
-  let stateOverrides, approve0Data, approve1Data, mintData;
+  let stateOverrides, approve0Data, approve1Data, mintData, deadline;
   const MAX_ATTEMPTS = 5;
   for (; attempt < MAX_ATTEMPTS; attempt++) {
     frame = await readCanonicalPaperOpenFrame(countingClient, profile);
@@ -225,7 +225,7 @@ async function main() {
     };
 
     const sourceTimestamp = BigInt(frame.source.timestamp);
-    const deadline = sourceTimestamp + 300n;
+    deadline = sourceTimestamp + 300n;
     const min0 = BigInt(candidate.amount0Minted) * (10_000n - bps) / 10_000n;
     const min1 = BigInt(candidate.amount1Minted) * (10_000n - bps) / 10_000n;
 
