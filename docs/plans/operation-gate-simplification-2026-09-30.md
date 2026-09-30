@@ -51,29 +51,53 @@ guards, and canonical anchor verification at commit.
 
 Every proposal below assumes these remain exactly as they are.
 
-### Category 2 — duplicated recomputation (the latency)
+### Category 2 — withdrawn; the split already exists
 
-One operator "open" recomputes the same `(candidate, costs, model)` triple
-**five times**: setup preflight, the pinned rebuild after gas sampling, the
-open preview, the acceptance, and the worker completion. Each recomputation
-re-reads a fresh canonical frame.
+**This category was wrong and is retracted.** It claimed that one operator
+"open" recomputes the `(candidate, costs, model)` triple five times and that
+each recomputation re-reads a fresh canonical frame, making it the source of
+the latency. The recomputation count is right. The premise underneath it is not.
 
-The hash comparison at each stage is cheap and worth keeping. Re-reading the
-chain to produce the value being compared is what costs the time.
+Verified in source on 2026-09-30:
 
-The distinction that collapses this: each stage is asking one of two different
-questions.
+- `store.ts` contains **no chain read at all**. All six of its replay sites
+  build `frame` from `model.source` and `model.poolState` — the persisted
+  model — so acceptance and completion are in-memory replays, not RPC.
+- Draft admission already pins: `deps.runPreflight(requested, input.reviewed.source)`.
+- Gas preparation and the setup rebuild already pin.
+- Exactly **two** stages read a fresh frame per open: the initial setup
+  preflight and the open preview. Both are asking "what is true now?", which is
+  the question that legitimately requires one.
 
-- *"Does this still equal what was reviewed?"* — should replay from the
-  **pinned** source, which needs no fresh frame.
-- *"Is this still true now?"* — needs a fresh frame, and belongs only at the
-  commit boundary.
+So the architecture already performs the replay-from-pinned versus verify-now
+split this category proposed to introduce. The five recomputations are cheap
+in-memory rebuilds whose hash comparisons are defence in depth between review
+and commit, and they cost milliseconds.
 
-Most stages currently perform the second while meaning the first.
+Measured, from the September 30 lifecycle run against the live services:
+
+| Stage | Accept to succeeded |
+| --- | ---: |
+| open | 2 s |
+| pause | 1 s |
+| resume | 1 s |
+| close and retain | 2 s |
+
+The entire acceptance-plus-completion chain, including three of the five
+recomputations and every hash comparison, is one to two seconds. There is no
+latency there to recover.
+
+**Where the latency actually is.** A setup preflight that does not sample gas
+takes 2.7–4.5 s; one that does takes 43–47 s. So roughly 90% of setup-review
+latency is the owned-fork gas sample, and the single fresh frame read is about
+4 s of it. Section 4b records why banding did not remove the sample: the tick
+range, which must stay pinned, moves too often for evidence to be reused
+between consecutive opens.
 
 ### Category 3 — miscalibrated thresholds (the fragility)
 
-48 copies of a 180-second window guard operations measured at 43–131 seconds.
+With category 2 withdrawn, this is the live one. 48 copies of a 180-second
+window guard operations measured at 43–131 seconds.
 
 Convert is the clearest case: the preview takes 91–131 s inside a 180 s source
 window, then issues a preview whose time-to-live is 46–51 s. The system spends
@@ -288,9 +312,9 @@ not speak to and which must not be inferred from it.
    **Done** — see section 4b. Bounds band growth to distinct tick ranges, which
    was the lockout driver. It does not reduce setup-review latency; that needs
    the range-anchor question, which is out of this plan's scope.
-2. **Split replay-from-pinned versus verify-now** (category 2). Mechanical, and
-   where the remaining latency lives. Each converted site must state which of
-   the two questions it is asking.
+2. ~~**Split replay-from-pinned versus verify-now**~~ (category 2).
+   **Withdrawn** — the split already exists; see the retraction above. No work
+   to do, and doing it would have churned the accounting path for nothing.
 3. **Derive freshness windows from measured latency** (category 3). Start with
    decoupling preview TTL from the source window, and raising the fee-cursor
    settle budget to the already-validated 30,000 ms with a re-measurement
