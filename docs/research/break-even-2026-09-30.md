@@ -378,6 +378,44 @@ such.
   parameter. This note reports both, not an average, because averaging two
   pool-specific measurements is itself an unverified assumption.
 
+## Review note: the fee input is reconstructable and was not reconstructed
+
+Added on review, 2026-09-30.
+
+The gas total above was verified independently: summing
+`receipt->'gasValuation'->>'quote'` over `live_pilot_v1.actions` with status
+`confirmed` or `reverted` gives 9.561928 USDG over 302 paid actions, matching
+both the campaign state and this note to the raw unit. The action mix is worth
+recording alongside it, because it sharpens the count-not-price verdict:
+
+| Action | Count | Gas USDG |
+| --- | ---: | ---: |
+| mint | 46 | 3.882053 |
+| swap | 58 | 2.024884 |
+| withdraw | 43 | 1.857458 |
+| approve | 155 | 1.797533 |
+
+Approvals and swaps are 213 of 302 paid actions and 3.82 USDG of the 9.56 —
+about 40% of gas spent on overhead around the position rather than on the 43
+mint/withdraw pairs that are the strategy itself.
+
+The fee figure is a different matter. This note cites 7.38 USDG rather than
+reconstructing it, and the break-even model is calibrated on the fee **rate**
+derived from it, which makes that the model's most load-bearing input. It is
+also the input whose provenance the note itself flags as unbacked by a manifest
+hash. The database does carry the raw material: 17,360 marks in
+`live_pilot_v1.marks` hold per-mark `uncollected0` / `uncollected1` fee state,
+with a peak of 402,891 raw USDG and 1.664e15 raw NVDA on a single position. A
+scale check is consistent with the cited total — a ~0.4 USDG peak across 43
+positions lands near 7.4 USDG — but consistency at that resolution is not
+verification.
+
+So the break-even numbers should be read as **conditional on an unverified fee
+rate**. Reconstructing total fees from the uncollected series and the withdraw
+receipts is the single highest-value follow-up to this note, and it is tractable
+from data already held. Until then, treat the break-even capital and cadence as
+the right order of magnitude rather than as measurements.
+
 ## Reproduction
 
 `scripts/analysis/break-even.mjs` opens one `REPEATABLE READ READ ONLY`
