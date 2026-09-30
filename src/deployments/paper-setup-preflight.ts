@@ -56,7 +56,7 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  loadProfile:(id:string)=>Promise<PaperSetupProfile|null>;
  readFrame:(profile:MarketProfile,pinnedSource?:PaperOpenFrame['source'])=>Promise<PaperOpenFrame>;
  verifyCanonical:(chainId:number,source:PaperOpenFrame['source'])=>Promise<void>;
- readGasProfiles:(poolAddress:string)=>Promise<PaperGasProfileRow[]>;
+ readGasProfiles:(poolAddress:string,tickLower:number,tickUpper:number)=>Promise<PaperGasProfileRow[]>;
  readGasPrice:()=>Promise<bigint>;
  now?:()=>number;
 },pinnedSource?:PaperOpenFrame['source']){
@@ -166,7 +166,7 @@ export async function buildStaticPaperSetupPreflight(input:PaperSetupPreflightIn
  }
  let gasRows:PaperGasProfileRow[],gasPriceWei:bigint;
  try{[gasRows,gasPriceWei]=await Promise.all([
-  deps.readGasProfiles(p!.pool),deps.readGasPrice()]);}
+  deps.readGasProfiles(p!.pool,range.tickLower,range.tickUpper),deps.readGasPrice()]);}
  catch{return unavailable(input,'registered_cost_evidence_unavailable');}
  const costCandidate={range:{tickLower:range.tickLower,tickUpper:range.tickUpper},
   deployedValue:String(deployedUsdX18),dilutedSharePpm:String(sharePpm)};

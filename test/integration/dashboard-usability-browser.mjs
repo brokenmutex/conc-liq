@@ -80,7 +80,7 @@ const readSetup=async(input,pinnedSource)=>{
  verifyCanonical:async(_chainId,source)=>{
   if(source.block!==blockSource.block||source.hash!==blockSource.hash||source.timestamp!==blockSource.timestamp)
    throw Error('mock_source_not_canonical');},
-  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
+  readGasProfiles:(address,tickLower,tickUpper)=>store.paperGasProfiles(address,tickLower,tickUpper),readGasPrice:async()=>1_000_000_000n,
  },pinnedSource);
  latestSetupPreflight=result;
  if(pinnedSource||result.status!=='available')return result;
@@ -189,7 +189,9 @@ const paperPreview=async(campaignId,kind)=>{
  if(kind!=='open')return {kind,status:'unavailable',reason:'not_in_harness',actionAvailable:false};
  const draft=await store.paperDraft(campaignId),freshFrame=frame();
  const indicative=buildIndicativePaperOpenPreview(draft,freshFrame);
- const costed=costIndicativePaperOpenPreview(indicative,await store.paperGasProfiles(draft.profile.pool.pool),
+ const costed=costIndicativePaperOpenPreview(indicative,indicative.candidate?
+  await store.paperGasProfiles(draft.profile.pool.pool,
+   indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper):[],
   draft.profile.pool.pool,freshFrame.nativePrice,1_000_000_000n);
  if(costed.status!=='indicative'||costed.costs.status!=='provisional')return costed;
  const saved=await persistTrustedPaperOpenPreview({store,draft,frame:freshFrame,preview:costed,

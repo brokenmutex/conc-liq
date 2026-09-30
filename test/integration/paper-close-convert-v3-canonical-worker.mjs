@@ -235,7 +235,8 @@ let store,indexer,preparationLease,auxiliaryPreparationLease,operationReadyLease
   // could move the centered range before the preview is persisted.
   draft=await store.paperDraft(draft.id);
   indicative=buildIndicativePaperOpenPreview(draft,frame);
-  const openGasRows=await store.paperGasProfiles(profile.pool.pool);
+  const openGasRows=await store.paperGasProfiles(profile.pool.pool,
+   indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper);
   const costed=costIndicativePaperOpenPreview(indicative,
    openGasRows,profile.pool.pool,frame.nativePrice??0n,
    await rpc.getGasPrice());

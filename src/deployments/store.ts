@@ -787,8 +787,11 @@ export class DeploymentStore {
  }
 
  /** Bounded, read-only calibration lookup. The resolver validates each model,
-  * source identity, freshness and complete stage set before exposing costs. */
- async paperGasProfiles(poolAddress:string):Promise<PaperGasProfileRow[]>{
+  * source identity, freshness and complete stage set before exposing costs.
+  * The band key covers the exact tick range too, so a row outside the
+  * candidate's exact range can never validate; scoping the query to it here
+  * keeps the 201-row bound reachable as unrelated ranges accumulate rows. */
+ async paperGasProfiles(poolAddress:string,tickLower:number,tickUpper:number):Promise<PaperGasProfileRow[]>{
   return (await this.readPool.query<PaperGasProfileRow>(`
    SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
     allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
@@ -797,7 +800,9 @@ export class DeploymentStore {
    FROM deployment_calibration_profiles
    WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
     AND component='gas_units' AND allowance_state='zero'
-   ORDER BY size_band,stage,version DESC LIMIT 201`,[poolAddress,PAPER_STATIC_GAS_PATH])).rows;
+    AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
+   ORDER BY size_band,stage,version DESC LIMIT 201`,
+   [poolAddress,PAPER_STATIC_GAS_PATH,tickLower,tickUpper])).rows;
  }
 
  /** Exact candidate scope for a trusted RangeKeeper preview. The selector
@@ -2993,6 +2998,9 @@ export class DeploymentStore {
     if(indicative.status!=='indicative'||indicative.candidateHash!==model.candidateHash||
      contentHash(indicative.candidate)!==contentHash(model.candidate))
      throw new DeploymentConflict('paper_open_candidate_replay_changed');
+    // Scoped to the replayed candidate's exact tick range: costIndicativePaperOpenPreview's
+    // valid() rejects any other range regardless, so excluding it here only keeps the
+    // 201-row bound reachable as unrelated ranges accumulate rows.
     const gasRows=(await db.query<PaperGasProfileRow>(`
      SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
       allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
@@ -3000,8 +3008,10 @@ export class DeploymentStore {
       observed_until AS "observedUntil"
      FROM deployment_calibration_profiles WHERE chain_id=$1 AND lower(pool_address)=lower($2)
       AND path_version=$3 AND component='gas_units' AND allowance_state='zero'
+      AND (model->>'tickLower')::int=$4 AND (model->>'tickUpper')::int=$5
      ORDER BY size_band,stage,version DESC LIMIT 201`,
-     [profile.data.pool.chainId,profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+     [profile.data.pool.chainId,profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
+      indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper])).rows;
     let costed;
     try{costed=costIndicativePaperOpenPreview(indicative,gasRows,profile.data.pool.pool,
      BigInt(model.reference.nativePrice),BigInt(model.costs.gasPriceWei),Date.parse(model.costs.gasPriceObservedAt));}
@@ -3088,6 +3098,9 @@ export class DeploymentStore {
     const {strategyId:_strategyId,strategyVersion:_strategyVersion,
      stateSchemaVersion:_stateSchemaVersion,...rawParameters}=config;
     const parameters=parseStrategyParameters('static_manual_v1',rawParameters);
+    // Scoped to the open model's exact tick range: costIndicativePaperOpenPreview's
+    // valid() rejects any other range regardless, so excluding it here only keeps the
+    // 201-row bound reachable as unrelated ranges accumulate rows.
     const gasRows=(await db.query<PaperGasProfileRow>(`
      SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
       allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
@@ -3096,8 +3109,10 @@ export class DeploymentStore {
      FROM deployment_calibration_profiles
      WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
       AND component='gas_units' AND allowance_state='zero'
+      AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
      ORDER BY size_band,stage,version DESC LIMIT 201`,
-     [profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+     [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
+      open.data.candidate.range.tickLower,open.data.candidate.range.tickUpper])).rows;
     let replayedCosts;
     try{replayedCosts=costIndicativePaperOpenPreview({status:'indicative',candidate:open.data.candidate},
      gasRows,profile.data.pool.pool,BigInt(model.reference.nativePrice),
@@ -3390,6 +3405,9 @@ export class DeploymentStore {
     contentHash(indicative.candidate)!==contentHash(model.candidate)||
     contentHash(allocation)!==contentHash(model.allocation))
     throw new DeploymentConflict('paper_open_candidate_mismatch');
+   // Scoped to the accepted model's exact tick range: costIndicativePaperOpenPreview's
+   // valid() rejects any other range regardless, so excluding it here only keeps the
+   // 201-row bound reachable as unrelated ranges accumulate rows.
    const gasRows=(await db.query<PaperGasProfileRow>(`
     SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
      allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
@@ -3397,8 +3415,10 @@ export class DeploymentStore {
      observed_until AS "observedUntil" FROM deployment_calibration_profiles
     WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
      AND component='gas_units' AND allowance_state='zero'
+     AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
     ORDER BY size_band,stage,version DESC LIMIT 201`,
-    [profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+    [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
+     model.candidate.range.tickLower,model.candidate.range.tickUpper])).rows;
    const costed=costIndicativePaperOpenPreview(indicative,gasRows,profile.data.pool.pool,
     frame.nativePrice,BigInt(model.costs.gasPriceWei),Date.parse(model.costs.gasPriceObservedAt));
    if(costed.costs.status!=='provisional'||contentHash(costed.costs)!==contentHash(model.costs))
@@ -5129,6 +5149,9 @@ export class DeploymentStore {
     price1:BigInt(model.reference.price1),nativePrice:BigInt(model.reference.nativePrice),
     referenceEligible:true,referenceReasons:[],referenceProofHash:model.referenceProofHash,
     referenceProof:model.referenceProof};
+   // Scoped to the open model's exact tick range: costIndicativePaperOpenPreview's
+   // valid() rejects any other range regardless, so excluding it here only keeps the
+   // 201-row bound reachable as unrelated ranges accumulate rows.
    const gasRows=(await db.query<PaperGasProfileRow>(`
     SELECT id,version,pool_address AS "poolAddress",path_version AS "pathVersion",stage,
      allowance_state AS "allowanceState",size_band AS "sizeBand",component,status,
@@ -5136,8 +5159,10 @@ export class DeploymentStore {
      observed_until AS "observedUntil" FROM deployment_calibration_profiles
     WHERE chain_id=4663 AND lower(pool_address)=lower($1) AND path_version=$2
      AND component='gas_units' AND allowance_state='zero'
+     AND (model->>'tickLower')::int=$3 AND (model->>'tickUpper')::int=$4
     ORDER BY size_band,stage,version DESC LIMIT 201`,
-    [profile.data.pool.pool,PAPER_STATIC_GAS_PATH])).rows;
+    [profile.data.pool.pool,PAPER_STATIC_GAS_PATH,
+     openParsed.data.candidate.range.tickLower,openParsed.data.candidate.range.tickUpper])).rows;
    const costed=costIndicativePaperOpenPreview({status:'indicative',candidate:openParsed.data.candidate},
     gasRows,profile.data.pool.pool,frame.nativePrice,BigInt(model.costs.gasPriceWei),
     Date.parse(model.costs.gasPriceObservedAt));

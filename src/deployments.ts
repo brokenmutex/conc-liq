@@ -97,7 +97,8 @@ async function main(){
    loadProfile:id=>store.paperSetupProfile(id),
    readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
    verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(client,chainId,[source]),
-   readGasProfiles:pool=>store.paperGasProfiles(pool),readGasPrice:()=>client.getGasPrice(),
+   readGasProfiles:(pool,tickLower,tickUpper)=>store.paperGasProfiles(pool,tickLower,tickUpper),
+   readGasPrice:()=>client.getGasPrice(),
   },pinnedSource);
  const paperSetupPreflight=async(input:Parameters<typeof buildStaticPaperSetupPreflight>[0],
   pinnedSource?:PaperOpenFrame['source'])=>{
@@ -278,7 +279,8 @@ async function main(){
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
       reason:'static_manual_terminal_gas_price_unavailable'};}
      let gasProfiles;
-     try{gasProfiles=await store.paperGasProfiles(state.profile.pool.pool);}
+     try{gasProfiles=await store.paperGasProfiles(state.profile.pool.pool,
+      state.openModel.candidate.range.tickLower,state.openModel.candidate.range.tickUpper);}
      catch{return {status:'unavailable',kind,campaignId,actionAvailable:false,
       reason:'static_manual_terminal_cost_profiles_unavailable'};}
      try{return await persistTrustedStaticPaperRetainPreview({store,state,frame,gasProfiles,
@@ -345,7 +347,8 @@ async function main(){
    const preview=buildIndicativePaperOpenPreview(draft,frame);
    if(preview.status!=='indicative')return preview;
    const rebuild=async()=>{
-    const rows=await store.paperGasProfiles(draft.profile.pool.pool);
+    const rows=await store.paperGasProfiles(draft.profile.pool.pool,
+     preview.candidate.range.tickLower,preview.candidate.range.tickUpper);
     let gasPriceWei=0n;
     if(rows.length)try{gasPriceWei=await client.getGasPrice();}catch{/* explicit unavailable cost below */}
     const reviewed={...preview,expiresAt:new Date(Math.min(

@@ -381,7 +381,10 @@ try{
      token1Raw:setupReview.requirements.token1Raw,nativeWei:parameters.limits.exitReserveWei}};
    currentCandidate=buildIndicativePaperOpenPreview(candidateDraft,candidateFrame).candidate;
   }
- const calibration=await store.paperGasProfiles(profile.pool.pool).then(rows=>rows.map(row=>{
+ // Diagnostic only: paperGasProfiles is now scoped to one exact tick range, so
+ // without a replayed candidate there is no range to scope the failure report by.
+ const calibration=currentCandidate?await store.paperGasProfiles(profile.pool.pool,
+  currentCandidate.range.tickLower,currentCandidate.range.tickUpper).then(rows=>rows.map(row=>{
   const model=row.model,source=model?.source,measured=typeof source?.estimatedAt==='string'?
    Date.parse(source.estimatedAt):NaN,observed=row.observedUntil instanceof Date?
    row.observedUntil.getTime():Date.parse(row.observedUntil),validity=[];
@@ -412,7 +415,7 @@ try{
       [currentCandidate.range.tickLower,currentCandidate.range.tickUpper]:null,
      sampledValue:[model?.sizeMinValue,model?.sizeMaxValue],currentValue:currentCandidate?.deployedValue,
      sampledShare:[model?.shareMinPpm,model?.shareMaxPpm],currentShare:currentCandidate?.dilutedSharePpm};
-   }));
+   })):'candidate_range_unavailable';
   throw Error(`setup preflight unavailable: ${JSON.stringify({missing:setupReview.missing,
    costs:setupReview.costs,currentSource:setupReview.source,currentCandidate,calibration})}`);
  }

@@ -544,7 +544,8 @@ try{
     'fork_estimated',$5,'{}',$6,$7)`,[randomUUID(),poolAddress,PAPER_STATIC_GAS_PATH,stage,
     JSON.stringify(model),contentHash(gasSource),gasSource.estimatedAt]);
  }
- const gasRows=await store.paperGasProfiles(poolAddress);
+ const gasRows=await store.paperGasProfiles(poolAddress,
+  indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper);
  assert.equal(gasRows.length,6);
  const costed=costIndicativePaperOpenPreview(indicative,gasRows,poolAddress,10n**18n,1_000_000_000n);
  assert.equal(costed.costs.status,'provisional');
@@ -614,7 +615,8 @@ try{
  assert.equal(registration.profileIds.length,6);
  const repeated=await store.registerPaperGasEvidence(fresh,attestation);
  assert.equal(repeated.created,false);assert.deepEqual(repeated.profileIds.sort(),registration.profileIds.sort());
- const imported=await store.paperGasProfiles(calibrationPool.pool);
+ const imported=await store.paperGasProfiles(calibrationPool.pool,
+  fresh.candidate.range.tickLower,fresh.candidate.range.tickUpper);
  assert.equal(imported.length,6);
  const importedCost=costIndicativePaperOpenPreview({status:'indicative',candidate:fresh.candidate,
   actionAvailable:false,economics:null},imported,calibrationPool.pool,10n**18n,1_000_000_000n);
@@ -641,7 +643,8 @@ try{
  assert.equal(secondVersion.version,2);assert.equal(secondVersion.created,true);
  await assert.rejects(store.registerPaperGasEvidence(fresh,attestation),
   error=>error instanceof DeploymentConflict&&error.code==='paper_gas_report_superseded');
- assert((await store.paperGasProfiles(calibrationPool.pool)).every(row=>row.version===2||row.version===1));
+ assert((await store.paperGasProfiles(calibrationPool.pool,
+  fresh.candidate.range.tickLower,fresh.candidate.range.tickUpper)).every(row=>row.version===2||row.version===1));
  const draft=await store.createDraft(draftInput);
  await assert.rejects(store.recordPreview({campaignId:draft.id,expectedRevision:1,kind:'open',
   request:{kind:'open'},proposal:{sourceBlock:'1'},evidence:{blockHash:'0x'+'2'.repeat(64)},

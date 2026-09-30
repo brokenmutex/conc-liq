@@ -71,7 +71,7 @@ const readSetup=async(input,pinnedSource)=>{
   return frame();},
  verifyCanonical:async(_chainId,source)=>{
   if(source.block!==blockSource.block||source.hash!==blockSource.hash)throw Error('mock_source_not_canonical');},
-  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>gasPriceWei,
+  readGasProfiles:(address,tickLower,tickUpper)=>store.paperGasProfiles(address,tickLower,tickUpper),readGasPrice:async()=>gasPriceWei,
  },pinnedSource);
  if(pinnedSource||result.status!=='available')return result;
  latestSetupPreflight=result;
@@ -129,7 +129,7 @@ for(const stage of PAPER_STATIC_GAS_STAGES){
    'fork_estimated',$5,'{}',$6,$7)`,[randomUUID(),poolAddress,PAPER_STATIC_GAS_PATH,stage,
   JSON.stringify(model),contentHash(gasSource),gasSource.estimatedAt]);
 }
-assert.equal((await store.paperGasProfiles(poolAddress)).length,6);
+assert.equal((await store.paperGasProfiles(poolAddress,-240,240)).length,6);
 
 // A TCP proxy this run owns in front of PostgreSQL's unix socket. Only the
 // dashboard read pool is behind it, so a read outage never reaches the command
@@ -222,7 +222,9 @@ const paperPreview=async(campaignId,kind)=>{
  counters.openPreview++;
  const draft=await store.paperDraft(campaignId),freshFrame=frame();
  const indicative=buildIndicativePaperOpenPreview(draft,freshFrame);
- const costed=costIndicativePaperOpenPreview(indicative,await store.paperGasProfiles(draft.profile.pool.pool),
+ const costed=costIndicativePaperOpenPreview(indicative,indicative.candidate?
+  await store.paperGasProfiles(draft.profile.pool.pool,
+   indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper):[],
   draft.profile.pool.pool,freshFrame.nativePrice,gasPriceWei);
  if(costed.status!=='indicative'||costed.costs.status!=='provisional')return costed;
  const saved=await persistTrustedPaperOpenPreview({store,draft,frame:freshFrame,preview:costed,

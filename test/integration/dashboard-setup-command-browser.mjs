@@ -70,7 +70,7 @@ const readSetup=async(input,pinnedSource)=>{
  verifyCanonical:async(_chainId,source)=>{
   if(source.block!==blockSource.block||source.hash!==blockSource.hash||source.timestamp!==blockSource.timestamp)
    throw Error('mock_source_not_canonical');},
-  readGasProfiles:address=>store.paperGasProfiles(address),readGasPrice:async()=>1_000_000_000n,
+  readGasProfiles:(address,tickLower,tickUpper)=>store.paperGasProfiles(address,tickLower,tickUpper),readGasPrice:async()=>1_000_000_000n,
  },pinnedSource);
  latestSetupPreflight=result;
  if(pinnedSource||result.status!=='available')return result;
@@ -127,7 +127,7 @@ for(const stage of PAPER_STATIC_GAS_STAGES){
    'fork_estimated',$5,'{}',$6,$7)`,[randomUUID(),poolAddress,PAPER_STATIC_GAS_PATH,stage,
   JSON.stringify(model),contentHash(gasSource),gasSource.estimatedAt]);
 }
-assert.equal((await store.paperGasProfiles(poolAddress)).length,6);
+assert.equal((await store.paperGasProfiles(poolAddress,-240,240)).length,6);
 
 let lastOpenPreview=null,openPreviewRequests=0,openAcceptRequests=0;
 const previewAttempts=[];
@@ -141,7 +141,8 @@ const paperPreview=async(campaignId,kind)=>{
  if(completeLifecycle&&kind==='close_retain'){
   const state=await store.paperValuationState(campaignId),terminalFrame={...frame(),
    source:{...blockSource,block:'101',hash:`0x${'b'.repeat(64)}`}};
-  const gasProfiles=await store.paperGasProfiles(poolAddress);
+  const gasProfiles=await store.paperGasProfiles(poolAddress,
+   state.openModel.candidate.range.tickLower,state.openModel.candidate.range.tickUpper);
   return persistTrustedStaticPaperRetainPreview({store,state,frame:terminalFrame,
    gasProfiles,gasPriceWei:1_000_000_000n,
    verifyAnchors:verifyWorkflowAnchors});
@@ -150,7 +151,9 @@ const paperPreview=async(campaignId,kind)=>{
  openPreviewRequests++;
  const draft=await store.paperDraft(campaignId),freshFrame=frame();
  const indicative=buildIndicativePaperOpenPreview(draft,freshFrame);
- const costed=costIndicativePaperOpenPreview(indicative,await store.paperGasProfiles(draft.profile.pool.pool),
+ const costed=costIndicativePaperOpenPreview(indicative,indicative.candidate?
+  await store.paperGasProfiles(draft.profile.pool.pool,
+   indicative.candidate.range.tickLower,indicative.candidate.range.tickUpper):[],
   draft.profile.pool.pool,freshFrame.nativePrice,1_000_000_000n);
  if(costed.status!=='indicative'||costed.costs.status!=='provisional')return costed;
  const saved=await persistTrustedPaperOpenPreview({store,draft,frame:freshFrame,preview:costed,
