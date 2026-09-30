@@ -20,7 +20,10 @@
 // (frame construction, a canonical quoter simulate call) exactly as the
 // existing static gradient script and the CLI sampler already do.
 //
-// Usage: node --import tsx scripts/analysis/rangekeeper-size-gradient-gas.ts [no_swap|swap|both]
+// Usage: node --import tsx scripts/analysis/rangekeeper-size-gradient-gas.ts [no_swap|swap|both|range]
+// range mode: RK_WIDTHS (comma-separated fullWidthSpacings, default "20,100")
+// and RK_CAPITALS_USD (first value used as the fixed capital) sample several
+// DIFFERENT tick ranges anchored at the same pinned tick/frame.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
@@ -58,9 +61,14 @@ import type { RangeKeeperCandidate, RangeKeeperLimits } from '../../src/strategy
 import type { RangeKeeperPaperGasProbeRequest } from '../../src/deployments/rangekeeper-paper-gas-evidence.js';
 
 const PROFILE = 'a8e7096f-17c3-452c-a72f-8fa962e586d2'; // AAPL/USD, fee 500, tickSpacing 10 -- same pool the static size-gradient script used, for a like-for-like comparison.
-const FULL_WIDTH_SPACINGS = 20; // 200-tick width -- matches the NVDA-500 production config's own fullWidthSpacings.
+// 200-tick width by default -- matches the NVDA-500 production config's own
+// fullWidthSpacings. Overridable via RK_FULL_WIDTH_SPACINGS for the
+// range-width comparison (a second dimension, independent of size/share).
+const FULL_WIDTH_SPACINGS = Number(process.env.RK_FULL_WIDTH_SPACINGS ?? 20);
 // 25, 100, 250, 500, 1000 USDG: the same 40x span the static gradient covered.
-const CAPITALS_USD = [25n, 100n, 250n, 500n, 1000n];
+// Overridable via RK_CAPITALS_USD (comma-separated) for a single-point run.
+const CAPITALS_USD = (process.env.RK_CAPITALS_USD ?? '25,100,250,500,1000')
+  .split(',').map(s => BigInt(s.trim()));
 const WAD = 10n ** 18n;
 const PPM = 1_000_000n;
 const CONFIG_HASH = '0'.repeat(64); // Arbitrary fixed placeholder; only used to compute a candidateHash for this script's own bookkeeping, never persisted or compared against a real draft.
@@ -128,33 +136,65 @@ async function main() {
       liquidity: candidate.liquidity.toString(), gas, total, elapsedS };
   };
 
+  const buildNoSwapCandidate = (capWei: bigint, forRange: { tickLower: number; tickUpper: number },
+    forSqrtPriceX96: bigint, limits: RangeKeeperLimits) => {
+    // Ample funds on both legs (4x cap in value each) so the ONLY binding
+    // constraint on deployed size is maxDeploymentValue, not token availability.
+    const ample0 = capWei * 4n * 10n ** BigInt(decimals0) / frame.price0!;
+    const ample1 = capWei * 4n * 10n ** BigInt(decimals1) / frame.price1!;
+    const sized = sizeRangeKeeperMint(forSqrtPriceX96, forRange, ample0, ample1,
+      frame.price0!, frame.price1!, decimals0, decimals1, capWei);
+    if (sized.mint.liquidity === 0n) return null;
+    const haircut = 10_000n - BigInt(limits.maxSlippageBps);
+    const candidate: RangeKeeperCandidate = {
+      kind: 'entry', range: forRange, swap: null, amount0Desired: sized.desired0, amount1Desired: sized.desired1,
+      amount0Min: sized.mint.amount0 * haircut / 10_000n, amount1Min: sized.mint.amount1 * haircut / 10_000n,
+      liquidity: sized.mint.liquidity, deployedValue: sized.deployed,
+      sourceBlock: BigInt(frame.source.block), sourceHash: frame.source.hash as `0x${string}`,
+      expiresAt: frame.source.timestamp + 90,
+    };
+    return { candidate, sized };
+  };
+
   const noSwapResults: any[] = [];
   if (mode === 'no_swap' || mode === 'both') {
     console.log('=== no-swap open + retain-exit: size gradient ===');
     for (const capUsd of CAPITALS_USD) {
       const capWei = capUsd * WAD;
       const limits = limitsFor(capWei);
-      // Ample funds on both legs (4x cap in value each) so the ONLY binding
-      // constraint on deployed size is maxDeploymentValue, not token availability.
-      const ample0 = capWei * 4n * 10n ** BigInt(decimals0) / frame.price0!;
-      const ample1 = capWei * 4n * 10n ** BigInt(decimals1) / frame.price1!;
-      const sized = sizeRangeKeeperMint(frame.sqrtPriceX96, range, ample0, ample1,
-        frame.price0!, frame.price1!, decimals0, decimals1, capWei);
-      if (sized.mint.liquidity === 0n) { console.log(`${capUsd} USDG: infeasible mint (liquidity=0), skipping`); continue; }
-      const haircut = 10_000n - BigInt(limits.maxSlippageBps);
-      const candidate: RangeKeeperCandidate = {
-        kind: 'entry', range, swap: null, amount0Desired: sized.desired0, amount1Desired: sized.desired1,
-        amount0Min: sized.mint.amount0 * haircut / 10_000n, amount1Min: sized.mint.amount1 * haircut / 10_000n,
-        liquidity: sized.mint.liquidity, deployedValue: sized.deployed,
-        sourceBlock: BigInt(frame.source.block), sourceHash: frame.source.hash as `0x${string}`,
-        expiresAt: frame.source.timestamp + 90,
-      };
+      const built = buildNoSwapCandidate(capWei, range, frame.sqrtPriceX96, limits);
+      if (!built) { console.log(`${capUsd} USDG: infeasible mint (liquidity=0), skipping`); continue; }
       try {
-        const result = await runSample(`${capUsd} USDG`, candidate, RANGEKEEPER_PAPER_NO_SWAP_PATH,
+        const result = await runSample(`${capUsd} USDG`, built.candidate, RANGEKEEPER_PAPER_NO_SWAP_PATH,
           [...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP, ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
-          [sized.desired0, sized.desired1], limits);
+          [built.sized.desired0, built.sized.desired1], limits);
         noSwapResults.push(result);
       } catch (error: any) { console.log(`${capUsd} USDG: SAMPLE FAILED ${error?.message}`); }
+    }
+  }
+
+  // Range-width gradient: ONE pinned frame, ONE fixed capital, multiple
+  // DIFFERENT tick ranges (via fullWidthSpacings) anchored at the same
+  // current tick. Isolates range/width as the variable under test, the
+  // dimension the static path's historical set (not available here -- zero
+  // RangeKeeper rows exist) found to be the actual driver.
+  const rangeResults: any[] = [];
+  if (mode === 'range') {
+    const widths = (process.env.RK_WIDTHS ?? '20,100').split(',').map(s => Number(s.trim()));
+    const capUsd = CAPITALS_USD[0]!, capWei = capUsd * WAD, limits = limitsFor(capWei);
+    console.log(`=== range-width gradient at fixed ${capUsd} USDG, one pinned frame ===`);
+    for (const width of widths) {
+      const forRange = rangeKeeperRange(frame.tick, p.tickSpacing, width);
+      const built = buildNoSwapCandidate(capWei, forRange, frame.sqrtPriceX96, limits);
+      if (!built) { console.log(`width=${width}: infeasible mint (liquidity=0), skipping`); continue; }
+      try {
+        const result: any = await runSample(`width=${width} (${forRange.tickLower}/${forRange.tickUpper})`,
+          built.candidate, RANGEKEEPER_PAPER_NO_SWAP_PATH,
+          [...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP, ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
+          [built.sized.desired0, built.sized.desired1], limits);
+        result.width = width; result.range = forRange;
+        rangeResults.push(result);
+      } catch (error: any) { console.log(`width=${width}: SAMPLE FAILED ${error?.message}`); }
     }
   }
 
@@ -220,9 +260,10 @@ async function main() {
   };
   report('no-swap size gradient', noSwapResults);
   report('direct-swap size gradient', swapResults);
+  report('range-width gradient', rangeResults);
 
   console.log('\nJSON:');
-  console.log(JSON.stringify({ pinnedSource: frame.source, tick: frame.tick, range, noSwapResults, swapResults }, null, 1));
+  console.log(JSON.stringify({ pinnedSource: frame.source, tick: frame.tick, range, noSwapResults, swapResults, rangeResults }, null, 1));
   await store.close();
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });
