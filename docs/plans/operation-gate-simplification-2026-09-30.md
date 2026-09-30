@@ -420,27 +420,72 @@ gas from the live pilot (NVDA/USDG, so indicative rather than like-for-like):
 
 Always above realized, before `gasUnitsBound` adds a further 30%.
 
-**What a substitution would actually cost is evidence ownership.** The fork
-asserts `first.hash===source.hash`, proving it executed against the exact block
-observed. A provider simulation can be told which block to use but cannot prove
-which state it used, and it would mean asking the same provider used for
-broadcasting to validate the check that protects the broadcast. The fork is a
-second, independent execution of the plan, and that independence is worth most
-exactly where value moves.
+**Corrected on validation — the provenance claim below was wrong.** This
+section originally argued that a provider simulation "can be told which block to
+use but cannot prove which state it used". Tested directly: `eth_simulateV1`
+returns a `parentHash` that matches an independently fetched canonical hash of
+the pinned block, on the live tip and on an archive block, and it rejects a
+future or invalid block tag outright. That is the same check the fork's
+`first.hash===source.hash` assertion performs, and against the same provider.
+
+The real residual difference is narrower and worth stating accurately: the fork
+fetches state and then **executes locally** in anvil, whereas `eth_simulateV1`
+executes **on the provider**. So what substitution actually costs is execution
+independence, not state identification — a provider that misreports execution
+would be caught by the fork and not by the simulation. That still argues for
+keeping the fork where it validates a broadcast, because there the provider
+checking the plan is the provider carrying it out. It is a much weaker argument
+than the one this section originally made, and it does not apply to paper at
+all, where nothing is broadcast.
+
+### Validated: all six stages reproduce
+
+Run on 2026-09-30 against an unmodified fork sample of the **identical
+candidate and frame**, which is a stronger comparison than matching bands in the
+database — same block, same calldata.
+
+| Stage | simulateV1 | fork | Δ |
+| --- | ---: | ---: | ---: |
+| approve_token0 | 57,988 | 58,801 | −1.38% |
+| approve_token1 | 63,649 | 64,484 | −1.29% |
+| mint | 468,434 | 490,390 | −4.48% |
+| withdraw_collect | 233,479 | 290,934 | −19.75% |
+| cleanup_token0 | 38,040 | 38,406 | −0.95% |
+| cleanup_token1 | 43,653 | 44,030 | −0.86% |
+
+All inside the 30% `gasUnitsBound` margin, reproduced across two independent
+runs. Gas sampling drops from ~19–22 s and 122 requests to **~0.4 s and two
+requests**, roughly 50× faster; slot discovery is a one-off 63-request cost per
+token pair rather than per sample.
+
+On `withdraw_collect`, the stage with the largest divergence, the simulation is
+**closer to realized on-chain gas than the fork is**. Against the live pilot's
+43 confirmed withdrawals (NVDA/USDG, so indicative rather than like-for-like),
+which realized 212,820 average and 227,811 maximum: the simulation's 233,479 is
+2.5% above the realized maximum, while the fork's 290,934 is 28% above it. The
+divergence is the fork being more conservative, not the simulation being wrong.
+
+Two bugs were found and fixed in the probe itself during validation — a
+balance-slot override keyed to the discovery holder rather than the funding
+account, and a timer that included the fork's own wall clock in the
+simulation's measured time — which is worth noting because both would have
+flattered or broken the result silently.
 
 ### Position
 
 - **Live: keep it.** It is the only check that establishes whole-sequence
   feasibility before an irreversible step, it costs nothing on the interactive
   path, and its independence from the broadcast provider is a feature.
-- **Paper: test replacing it.** There it produces attested provenance for a
-  number that authorizes nothing, on an interactive path, at 90% of the wait.
+- **Paper: replace it.** Validated above: all six stages reproduce inside the
+  existing margin, ~50× faster, and on the one divergent stage the simulation
+  tracks realized gas more closely than the fork does.
 
-Untested and required before any paper substitution: `mint` needs storage
-overrides for token balances and `withdraw` needs the NFT created by the
-preceding call. Only `approve` was demonstrated. The validation is to simulate
-all six stages and compare per-stage against the existing bands, which is
-evidence the repository already holds.
+Remaining gaps, both bounded and neither a blocker: the `withdraw_collect`
+divergence has a plausible but unconfirmed cold-versus-warm SSTORE explanation,
+and at production's 50 bps slippage this candidate was observed reverting
+repeatedly before the override bug was found, which was not re-checked at 50 bps
+afterwards. That revert condition deserves separate attention on its own terms.
+Close-convert's swap-involving stages were out of scope and remain unvalidated.
 
 ## 5. Proposed order
 
@@ -455,10 +500,11 @@ evidence the repository already holds.
    **Done, and half of it retracted** — see sections 3 and 3b. The fee-cursor
    budget is raised and self-measuring; the preview-TTL proposal was inert and
    is withdrawn.
-4. **Validate `eth_simulateV1` against the existing bands** (section 4c), and
-   if it reproduces them, use it for the paper gas sample only. Keep the live
-   fork. This is the remaining attack on setup-review latency now that banding
-   has been shown not to reduce it.
+4. ~~**Validate `eth_simulateV1` against the existing bands**~~ (section 4c).
+   **Done** — all six stages reproduce inside the existing margin, ~50× faster.
+   The remaining work is to wire it into the paper sampler behind the existing
+   evidence contract, keeping the live fork. This is the one change still
+   outstanding that reduces setup-review latency.
 5. **Leave close and convert until last.** 223 failure codes across 13 modules,
    for an operation that has never once completed, is not a tuning problem. Its
    contract needs restating before its gates can be pruned safely, and it is
