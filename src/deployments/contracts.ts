@@ -30,13 +30,16 @@ export const staticCenteredParameters=z.object({
  limits:commonLimits.optional(),
 }).strict();
 export const staticManualParameters=z.union([staticParameters,staticCenteredParameters]);
+// Exported standalone (not inlined in rangeKeeperParameters) so a setup
+// preflight can validate a submitted limits object before a draft exists.
+export const rangeKeeperLimitsSchema=commonLimits.extend({
+ minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
+  maxSwapShortfallValue:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=50),maxRecenters:z.number().int().nonnegative(),
+ maxLiquiditySharePpm:ppm,maxObservationGapSeconds:z.number().int().positive(),
+});
 export const rangeKeeperParameters=z.object({
  fullWidthSpacings:z.number().int().min(2).max(2000).refine(value=>value%2===0),
- limits:commonLimits.extend({
-  minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
-   maxSwapShortfallValue:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=50),maxRecenters:z.number().int().nonnegative(),
-  maxLiquiditySharePpm:ppm,maxObservationGapSeconds:z.number().int().positive(),
- }).optional(),
+ limits:rangeKeeperLimitsSchema.optional(),
 }).strict();
 export const allocationSchema=z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw}).strict();
 
