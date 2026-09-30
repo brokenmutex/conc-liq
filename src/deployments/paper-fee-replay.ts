@@ -20,6 +20,19 @@ const feeGrowthAbi=parseAbi(['function feeGrowthGlobal0X128() view returns (uint
  'function feeGrowthGlobal1X128() view returns (uint256)']);
 const INCOMPLETE_LATER_BLOCK='Paper fee replay cursor has an incomplete later block';
 const INCOMPLETE_INTERVAL_END='Paper fee replay cursor has not covered the interval end';
+/** How long one interval read waits for the indexer to reach its end block.
+ * Measured over 48 worker passes on 2026-09-30: 34 settles completed, mean
+ * 4.3s and max 10.0s, while 12 failed with every duration pinned at ~16.9s —
+ * the previous 15s budget plus query overhead. The failures were therefore
+ * budget-limited rather than a distinct fault, and nothing succeeded between
+ * 10s and the ceiling, so the two groups look like different regimes rather
+ * than one distribution cut in half. This is the maximum
+ * waitForCompletePaperFeeCursor accepts, and the stage duration the worker
+ * already logs will show whether the second regime fits inside it: failures
+ * still pinning at ~32s would mean indexer throughput, not the budget.
+ * A pass can now spend this long per campaign awaiting catch-up, so revisit
+ * it if the active campaign count grows relative to the worker interval. */
+const CURSOR_SETTLE_BUDGET_MS=30_000;
 
 /** Cheap read-only cursor polling outside fee replay transactions. The exact
  * sample block remains fixed; callers still rerun the full interval query and
@@ -255,7 +268,7 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
    'Paper fee snapshot liquidity mismatch');
  }
  let proof:Awaited<ReturnType<typeof readIndexedPaperFeeInterval>>;
- const settleDeadline=Date.now()+15_000;
+ const settleDeadline=Date.now()+CURSOR_SETTLE_BUDGET_MS;
  while(true){
   try{
    proof=await readIndexedPaperFeeInterval(db,stream,targetSetHash,profile,start,end,range,liquidity);
@@ -265,7 +278,7 @@ export async function readCanonicalPaperFeeInterval(client:RobinhoodClient,db:Po
     ![INCOMPLETE_LATER_BLOCK,INCOMPLETE_INTERVAL_END].includes(error.message)||
     Date.now()>=settleDeadline)throw error;
    await waitForCompletePaperFeeCursor(db,stream,targetSetHash,profile,after.source.block,
-    Math.min(15_000,Math.max(1,settleDeadline-Date.now())));
+    Math.min(CURSOR_SETTLE_BUDGET_MS,Math.max(1,settleDeadline-Date.now())));
   }
  }
  for(const source of [before.source,after.source]){

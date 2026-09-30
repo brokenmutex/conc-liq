@@ -117,8 +117,25 @@ completes under 10 s. These are budget-limited, not a distinct fault.
 `waitForCompletePaperFeeCursor` already validates up to 30,000 ms.
 
 Thresholds should be derived from measured stage latency with stated headroom.
-At minimum, preview time-to-live should stop inheriting the source window, so a
-slow preview cannot hand the operator a short fuse.
+
+**The preview time-to-live half of this was also wrong, and is retracted.**
+Extending preview TTL past `source + 180s` would be inert as well as unsafe:
+acceptance gates independently on source age at `server.ts:326` for open and
+`:355` for convert, so a longer-lived preview would simply be refused there.
+The source-age check is the real guard — it is what stops an operator acting on
+stale economics — and the TTL at `paper-preview.ts:82` is correctly derived from
+it. The short fuse on a convert preview is a symptom of generation taking
+91–131 s of the source's 180 s life, not of the TTL formula. The fix for that is
+to make generation faster, which is section 4b's unresolved problem, or to
+surface the remaining time in the UI. It is not to widen the window.
+
+Likewise, the server re-checking source age after the store already bounded the
+preview is a double-check of one property — but it is a comparison at a trust
+boundary, not a chain read, and removing it would weaken defence in depth for
+no measurable gain.
+
+So of the 48 windows, the one with evidence behind it is the fee-cursor settle
+budget below.
 
 ### Category 4 — fragile by construction
 
@@ -258,6 +275,25 @@ maximum rather than a single sample, or re-sampling when a fresh estimate
 deviates beyond a stated threshold. Widening the bands without addressing this
 would trade a slow open for an under-bounded one.
 
+## 3b. Implemented: the fee-cursor settle budget
+
+`CURSOR_SETTLE_BUDGET_MS` in `paper-fee-replay.ts` was raised from 15,000 to
+30,000 ms, the maximum `waitForCompletePaperFeeCursor` accepts, and both the
+deadline and the per-wait cap now read from that one constant instead of two
+copies of a literal.
+
+The measurement is recorded next to it. One caveat is recorded with it too:
+nothing succeeded between 10 s and the old 15 s ceiling, so the successes and
+the failures look like two regimes rather than one distribution cut in half.
+Raising the budget may therefore convert all, some or none of the failures. The
+stage duration the worker already logs makes the change self-measuring — if
+failures still pin, now at ~32 s, the constraint is indexer throughput and not
+the budget, and the next step is the indexer rather than another increase.
+
+A maintenance pass can now spend up to 30 s per campaign awaiting catch-up
+against a 60 s worker interval, which is fine at one or two campaigns and would
+need revisiting as that count grows.
+
 ## 4b. Implemented, and what it actually bought
 
 Banding was implemented on 2026-09-30: `paperGasBand` in `paper-cost.ts` is the
@@ -315,10 +351,10 @@ not speak to and which must not be inferred from it.
 2. ~~**Split replay-from-pinned versus verify-now**~~ (category 2).
    **Withdrawn** — the split already exists; see the retraction above. No work
    to do, and doing it would have churned the accounting path for nothing.
-3. **Derive freshness windows from measured latency** (category 3). Start with
-   decoupling preview TTL from the source window, and raising the fee-cursor
-   settle budget to the already-validated 30,000 ms with a re-measurement
-   against the next campaign.
+3. ~~**Derive freshness windows from measured latency**~~ (category 3).
+   **Done, and half of it retracted** — see sections 3 and 3b. The fee-cursor
+   budget is raised and self-measuring; the preview-TTL proposal was inert and
+   is withdrawn.
 4. **Leave close and convert until last.** 223 failure codes across 13 modules,
    for an operation that has never once completed, is not a tuning problem. Its
    contract needs restating before its gates can be pruned safely, and it is

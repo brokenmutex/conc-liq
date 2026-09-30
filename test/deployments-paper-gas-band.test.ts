@@ -42,7 +42,7 @@ test('the band envelope is the documented multiple of the sampled point',()=>{
  // A share that would exceed a million ppm saturates instead of producing a
  // band the resolver rejects outright.
  assert.equal(paperGasBand({deployedValue:'1',dilutedSharePpm:'400000'}).shareMaxPpm,'1000000');
- assert.equal(paperGasModelSchema.safeParse({...bandRows(sampled)[0]!.model}).success,true);
+ assert.equal(paperGasModelSchema.safeParse(bandRows(sampled)[0]!.model).success,true);
 });
 
 test('one sampled band serves every candidate across the measured envelope',()=>{
