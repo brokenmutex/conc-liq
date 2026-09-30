@@ -61,13 +61,25 @@ const HALF_WIDTH = 60;
 const CAPITAL_QUOTE_RAW = '250000000'; // 250 USDG -- irrelevant to gas per section 4, kept for a like-for-like fork run
 const UINT128_MAX = (1n << 128n) - 1n;
 
+// maxSlippageBps is 500 (5%, the schema's own ceiling -- staticPaperLimitsSchema
+// rejects anything above it), wider than production's typical setting. This is
+// a validation-script-only choice, not a src/ change: buildIndicativePaperOpenPreview
+// derives amount0Desired/amount1Desired from an INDEPENDENT reference price, which
+// can differ from the pool's own AMM price by enough that a tight slippage floor
+// occasionally reverts the mint at the literal pinned block (observed directly:
+// an identical candidate reverted consistently across 5 retries at 50bps, then a
+// later, slightly different tick succeeded immediately). That risk is real and
+// belongs to the candidate-construction path, not to this script's eth_simulateV1
+// mechanics -- widening slippage here isolates the question this script asks
+// (does eth_simulateV1 reproduce the fork's gas) from that separate, pre-existing
+// risk (does the candidate clear its own slippage floor at this instant).
 const limitsFor = (capitalQuoteRaw) => {
   const usdX18 = BigInt(capitalQuoteRaw) * 10n ** 12n;
   return {
     maxDeploymentValue: String(usdX18), minDeploymentValue: '1000000000000000000',
     maxExposurePpm: 950000, maxLossValue: String(usdX18 / 20n), maxDrawdownPpm: 100000,
     maxActionCost: String(usdX18 / 20n), maxRollingCost: String(usdX18 / 10n),
-    maxCampaignCost: String(usdX18 * 15n / 100n), exitReserveWei: '1000000000000000', maxSlippageBps: 50,
+    maxCampaignCost: String(usdX18 * 15n / 100n), exitReserveWei: '1000000000000000', maxSlippageBps: 500,
   };
 };
 
@@ -104,7 +116,15 @@ function erc7201Base(id) {
 const mappingKey = (holder, slot) =>
   keccak256(encodeAbiParameters(parseAbiParameters('address, uint256'), [holder, slot]));
 
-async function findBalanceSlotKey(client, token, holder, blockNumber, blockTag) {
+// Returns the *slot index/base* of the balances mapping (discovered against
+// `holder`, an address known to hold a nonzero balance, purely to have a
+// known value to compare storage reads against), not a storage key already
+// bound to that holder. The mapping slot is a property of the token's
+// storage layout, independent of which address's balance is being read --
+// the caller re-derives mappingKey(theFundingAccount, slot) once the slot is
+// known, so the override lands on the funding account's own balance word,
+// not on the discovery holder's.
+async function findBalanceSlot(client, token, holder, blockNumber, blockTag) {
   const actual = await client.readContract({
     address: token, abi: paperTokenAbi, functionName: 'balanceOf', args: [holder], blockNumber,
   });
@@ -114,7 +134,7 @@ async function findBalanceSlotKey(client, token, holder, blockNumber, blockTag) 
     requests++;
     const key = mappingKey(holder, BigInt(i));
     const raw = await client.request({ method: 'eth_getStorageAt', params: [token, key, blockTag] });
-    if (BigInt(raw) === actual) return { key, method: `classic_slot_${i}`, requests };
+    if (BigInt(raw) === actual) return { slot: BigInt(i), method: `classic_slot_${i}`, requests };
   }
   for (const ns of ['openzeppelin.storage.ERC20', 'openzeppelin.storage.ERC20Upgradeable']) {
     const base = erc7201Base(ns);
@@ -123,7 +143,7 @@ async function findBalanceSlotKey(client, token, holder, blockNumber, blockTag) 
       const slot = base + BigInt(offset);
       const key = mappingKey(holder, slot);
       const raw = await client.request({ method: 'eth_getStorageAt', params: [token, key, blockTag] });
-      if (BigInt(raw) === actual) return { key, method: `erc7201_${ns}_offset${offset}`, requests };
+      if (BigInt(raw) === actual) return { slot, method: `erc7201_${ns}_offset${offset}`, requests };
     }
   }
   throw new Error(`Could not locate the balance mapping slot for token ${token} (classic 0-59 and ERC-7201 scanned)`);
@@ -151,10 +171,14 @@ async function main() {
   // current tip) and reused across retries below.
   const discoveryBlockNumber = await countingClient.getBlockNumber();
   const discoveryBlockTag = toHex(discoveryBlockNumber);
-  const slot0 = await findBalanceSlotKey(countingClient, p.token0, p.pool, discoveryBlockNumber, discoveryBlockTag);
-  const slot1 = await findBalanceSlotKey(countingClient, p.token1, p.pool, discoveryBlockNumber, discoveryBlockTag);
+  const slot0 = await findBalanceSlot(countingClient, p.token0, p.pool, discoveryBlockNumber, discoveryBlockTag);
+  const slot1 = await findBalanceSlot(countingClient, p.token1, p.pool, discoveryBlockNumber, discoveryBlockTag);
   console.log(`token0 balance slot: ${slot0.method} (${slot0.requests} probe requests)`);
   console.log(`token1 balance slot: ${slot1.method} (${slot1.requests} probe requests)`);
+  // The override must land on PAPER_ACCOUNT's own balance word, not on the
+  // discovery holder's (p.pool) -- re-key the same slot index/base for it.
+  const paperAccountSlot0Key = mappingKey(PAPER_ACCOUNT, slot0.slot);
+  const paperAccountSlot1Key = mappingKey(PAPER_ACCOUNT, slot1.slot);
 
   const limits = limitsFor(CAPITAL_QUOTE_RAW);
   const config = staticManualParameters.parse({ halfWidthTicks: HALF_WIDTH, limits });
@@ -172,8 +196,9 @@ async function main() {
   let attempt = 0, frame, draft, preview, candidate, blockNumber, blockTag, canonicalBlock;
   let predict, predictedTokenId, predictedLiquidity, postMintSqrtPriceX96, predictElapsedMs;
   let stateOverrides, approve0Data, approve1Data, mintData, deadline;
-  const MAX_ATTEMPTS = 5;
+  const MAX_ATTEMPTS = 8;
   for (; attempt < MAX_ATTEMPTS; attempt++) {
+    if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 3000));
     frame = await readCanonicalPaperOpenFrame(countingClient, profile);
     console.log(`\n[attempt ${attempt + 1}] frame source block ${frame.source.block} tick ${frame.tick}`);
 
@@ -219,8 +244,8 @@ async function main() {
 
     const amount0 = BigInt(candidate.amount0Desired), amount1 = BigInt(candidate.amount1Desired);
     stateOverrides = {
-      [p.token0]: { stateDiff: { [slot0.key]: toHex(amount0, { size: 32 }) } },
-      [p.token1]: { stateDiff: { [slot1.key]: toHex(amount1, { size: 32 }) } },
+      [p.token0]: { stateDiff: { [paperAccountSlot0Key]: toHex(amount0, { size: 32 }) } },
+      [p.token1]: { stateDiff: { [paperAccountSlot1Key]: toHex(amount1, { size: 32 }) } },
       [PAPER_ACCOUNT]: { balance: toHex(10n ** 18n) },
     };
 
@@ -268,6 +293,9 @@ async function main() {
   }
   if (attempt >= MAX_ATTEMPTS) throw new Error(`could not get a viable candidate/prediction in ${MAX_ATTEMPTS} attempts`);
   const mintRevertRetries = attempt;
+  // Snapshot elapsed time here, BEFORE the fork runs: the fork's wall-clock
+  // time must not be folded into the eth_simulateV1 timing total below.
+  const candidateAndPredictMs = Date.now() - simStart;
 
   // --- Ground truth: run the UNMODIFIED owned-fork sampler on this exact
   // draft/frame, so the comparison is against the same candidate and the
@@ -328,7 +356,12 @@ async function main() {
     { to: p.token1, data: cleanup1Data },
   ]);
   const finalElapsedMs = Date.now() - finalStart;
-  const simElapsedMs = Date.now() - simStart;
+  // eth_simulateV1-attributable time only: candidate construction (shared
+  // overhead with the fork path -- every open needs a frame/preflight
+  // regardless of gas-sampling method) plus the two simulateV1 round trips.
+  // The fork's own ~21-47s runs in between and is excluded on purpose.
+  const simElapsedMs = candidateAndPredictMs + finalElapsedMs;
+  const gasSamplingOnlyMs = predictElapsedMs + finalElapsedMs;
 
   const [cApprove0, cApprove1, cMint, cWithdraw, cCleanup0, cCleanup1] = final.calls;
   const [confirmedTokenId, confirmedLiquidity] = decodeFunctionResult({
@@ -382,10 +415,15 @@ async function main() {
       dbBlock: dbRow?.model.source.block ?? null, dbEstimatedAt: dbRow?.model.source.estimatedAt ?? null });
   }
 
-  console.log(`\ntiming: eth_simulateV1 total ${simElapsedMs}ms (round trip A ${predictElapsedMs}ms, `
-    + `round trip B ${finalElapsedMs}ms, slot discovery ${slot0.requests + slot1.requests} requests) `
-    + `vs owned-fork ${forkReport ? (forkElapsedMs / 1000).toFixed(1) + 's' : 'FAILED after ' + (forkElapsedMs / 1000).toFixed(1) + 's'}`);
-  console.log(`total RPC requests against the live provider (this script's client): ${simulateRpcCount}`);
+  console.log(`\ntiming: gas-sampling-only (round trip A + round trip B, directly comparable to the `
+    + `fork's own sampling work) = ${gasSamplingOnlyMs}ms (A ${predictElapsedMs}ms + B ${finalElapsedMs}ms) `
+    + `vs owned-fork sampling ${forkReport ? (forkElapsedMs / 1000).toFixed(1) + 's' : 'FAILED after ' + (forkElapsedMs / 1000).toFixed(1) + 's'}`);
+  console.log(`timing: eth_simulateV1 total including shared candidate/frame construction `
+    + `(mint-revert retries: ${mintRevertRetries}) = ${simElapsedMs}ms; that construction step is common `
+    + `to both methods and is excluded from the fork comparison above`);
+  console.log(`slot discovery: ${slot0.requests + slot1.requests} requests (one-off per token, not per sample)`);
+  console.log(`total RPC requests against the live provider (this script's client, includes slot discovery `
+    + `and candidate/frame construction reads): ${simulateRpcCount}`);
   console.log(`fork read budget (owned local fork, separate provider budget): ${forkReport ? forkReport.readBudget.requests : 'n/a'}`);
 
   console.log('\nJSON_RESULT_START');
@@ -396,9 +434,11 @@ async function main() {
     provenance: { simParentHash: final.parentHash, canonicalBlockHash: canonicalBlock.hash, matches: provenanceMatches },
     tokenIdDeterminism: { predicted: predictedTokenId.toString(), confirmed: confirmedTokenId.toString(), matches: tokenIdDeterministic },
     statuses, rows,
-    timing: { simTotalMs: simElapsedMs, roundTripAMs: predictElapsedMs, roundTripBMs: finalElapsedMs,
+    timing: { simTotalMs: simElapsedMs, candidateAndFrameConstructionMs: candidateAndPredictMs - predictElapsedMs,
+      gasSamplingOnlyMs, roundTripAMs: predictElapsedMs, roundTripBMs: finalElapsedMs, mintRevertRetries,
       forkMs: forkReport ? forkElapsedMs : null, forkFailed: forkReport ? false : true, forkError: forkError ? String(forkError.message ?? forkError) : null },
-    requestCounts: { simulateProbeClient: simulateRpcCount, forkReadBudget: forkReport ? forkReport.readBudget.requests : null },
+    requestCounts: { simulateProbeClient: simulateRpcCount, slotDiscoveryRequests: slot0.requests + slot1.requests,
+      forkReadBudget: forkReport ? forkReport.readBudget.requests : null },
     totalScriptElapsedMs: Date.now() - t0,
   }, null, 1));
   console.log('JSON_RESULT_END');
