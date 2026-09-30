@@ -91,6 +91,32 @@ without it the operator supplies raw allocations by hand, with no preflight, no
 cost evidence and no review binding. That is a materially worse contract than
 static/manual has, and it is where most of the remaining work sits.
 
+**Built 2026-10-01.** `rangekeeper-paper-setup-preflight.ts`,
+`rangekeeper-paper-setup-review-cache.ts` and `rangekeeper-paper-draft-admission.ts`,
+with 13 tests. The preflight sizes a wallet allocation to the capital budget and
+then hands it to `planRangeKeeper`, taking `deployedValue`, `liquidity` and
+`range` for the cost scope **from the planner's candidate** rather than from its
+own sizing — the exact mistake that broke every static open until it was found,
+avoided here from the start. Limits are validated by replaying
+`resolveRangeKeeperPaperPolicy`, the same function the real open model uses,
+rather than by re-deriving its rules. Admission replays the reviewed source,
+rejects any change to the binding, cost identity, cost structure or gas-price
+bound, and is idempotent on a request id.
+
+One deliberate deviation from the static contract: `limits` is required rather
+than optional, because the RangeKeeper kernel reads `maxDeploymentValue`,
+`minDeploymentPpm` and `maxSlippageBps` to size anything at all, so a
+limits-free preflight could not call the planner meaningfully.
+
+**It is complete, tested, and inert in production.** The band it computes uses a
+pre-draft candidate identity, because `campaignId`, `revision` and the source
+anchors that `rangeKeeperPaperCandidateHash` embeds do not exist before a draft
+is created. No sampler targets that identity, so the preflight resolves to
+cost-unavailable — failing closed, correctly — until §2d's re-key lands. It is
+also not wired to any HTTP route yet, which was deliberately left out of scope.
+Once the re-key lands it picks it up without rework, because it calls the shared
+production band and cost functions rather than copies of them.
+
 ### 2c. The strategy is refused in two places
 
 - `server.ts:205` — `paper: id==='static_manual_v1' && staticPaperAvailable`,
@@ -158,9 +184,10 @@ against.
    §2d. Size and share drive nothing, the range drives everything, and the band
    key additionally embeds `candidateHash`, so it must be re-keyed before any
    reuse is possible at all. Implementing that re-key is now the work item.
-3. **Build the RangeKeeper setup preflight and draft admission**, mirroring the
-   static contract: size to a capital budget, price from banded evidence, bind a
-   reviewed source, and admit against limits. This is the bulk of the work.
+3. ~~**Build the RangeKeeper setup preflight and draft admission**~~ **Done** —
+   see §2b. Complete and tested, but inert until the §2d re-key lands and it is
+   wired to a route. **The re-key is therefore now the critical path**: without
+   it the setup contract exists but can never resolve a cost.
 4. **Extend the dashboard form** to collect `fullWidthSpacings` and the
    RangeKeeper limit set, which is larger than the static one.
 5. **Open the two gates** in `server.ts` and `tabs.js`, last.
