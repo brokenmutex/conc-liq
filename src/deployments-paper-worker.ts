@@ -4,6 +4,7 @@ import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
+import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
 import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_NOTIFY_CHANNEL,
  PAPER_OPERATION_READINESS_LOCK} from './deployments/store.js';
 import {log} from './logger.js';
@@ -94,8 +95,13 @@ export async function acquirePaperOperationReadinessLease(indexer:pg.Pool):Promi
  };
 }
 export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked'};
+// A bare error class name cannot tell an operator which invariant failed: every
+// assertion in the fee replay path logged the single token 'AssertionError',
+// so a transient indexer lag and a real integrity violation were indistinguishable
+// in the journal. safePaperDiagnosticFailure maps known assertion messages to
+// bounded codes and still never returns arbitrary message text.
 const failureCode=(error:unknown)=>error instanceof DeploymentConflict?error.code:
- error instanceof Error?error.name:'unknown';
+ safePaperDiagnosticFailure(error);
 
 // Keep the cursor outside a pass so a large closed history cannot pin every
 // pass to the same oldest campaigns. Each query is bounded, including the

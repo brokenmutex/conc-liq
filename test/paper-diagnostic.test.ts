@@ -34,6 +34,20 @@ test('paper diagnostics map exact fee replay assertion first lines to bounded co
  }
 });
 
+test('the paper worker reports the failing invariant, not just the error class',()=>{
+ // The worker logs failureCode(error) as the campaign failure reason. Mapping
+ // through safePaperDiagnosticFailure is what separates a transient indexer lag
+ // from a real integrity violation in the journal; error.name collapses both to
+ // 'AssertionError'. Arbitrary message text must still never reach a log line.
+ const lagging=assertion('Paper fee replay cursor has not covered the interval end');
+ const structural=assertion('Paper fee replay coverage unavailable');
+ assert.equal(safePaperDiagnosticFailure(lagging),'paper_fee_replay_cursor_interval_end_uncovered');
+ assert.equal(safePaperDiagnosticFailure(structural),'paper_fee_replay_coverage_unavailable');
+ assert.notEqual(safePaperDiagnosticFailure(lagging),safePaperDiagnosticFailure(structural));
+ assert.equal(safePaperDiagnosticFailure(assertion('operator note: 0xdeadbeef secret')),
+  'AssertionError','an unmapped assertion must degrade to its class, never its text');
+});
+
 test('paper diagnostics preserve machine codes and never return arbitrary error text',()=>{
  assert.equal(safePaperDiagnosticFailure(new Error('paper_close_convert_ephemeral_fee_target_set_changed')),
   'paper_close_convert_ephemeral_fee_target_set_changed');
