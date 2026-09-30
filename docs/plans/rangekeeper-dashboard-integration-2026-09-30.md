@@ -43,12 +43,41 @@ substantive blocker and everything else is small beside it. It is also the same
 shape as the static path's problem: an exit needs per-stage gas for a sequence
 that has not happened yet.
 
-The static path's stage runner now exists in two forms — the owned fork and, as
-of today, `paper-gas-simulation-sampler.ts`. The simulation reproduces the
-fork's actual consumed gas exactly on five of six static stages. **It has not
-been validated on any swap stage**, and a RangeKeeper exit is swap-involving on
-the convert path, so extending it is plausible but unproven and must be measured
-before it is relied on.
+The static path's stage runner now exists in two forms — the owned fork and
+`paper-gas-simulation-sampler.ts`.
+
+**Measured 2026-10-01, and the framing above was wrong in one important way.**
+See [the validation](../reviews/swap-simulation-validation-2026-09-30.md).
+
+`eth_simulateV1` does reflect a swap moving the pool price within a sequence.
+Observed on two independent live runs: the router swap's output exactly equalled
+a quote taken moments earlier, a `slot0()` read appended after the swap returned
+a moved tick, and a mint whose slippage minimums were only valid post-swap
+succeeded. Verified independently at the mechanism level as well — in one
+sequence an allowance reads zero, an approve writes 12,345, and a later read in
+the same sequence returns 12,345.
+
+Against the unmodified owned-fork sampler on the same candidate and frame,
+across the `direct_swap` open path and the retain exit: **8 of 10 stages match
+the fork's actual consumed gas exactly**, `open_mint` is −1.88% and
+`exit_withdraw_collect` −4.26%, reproducible in direction and magnitude across
+two runs at different blocks. Both deltas land on balance-crediting stages,
+the same cold-versus-warm signature as the static path's, and both sit far
+inside the 30% `gasUnitsBound` margin. Sampling takes ~0.37 s against 30–34 s.
+
+**But the convert exit is not merely unvalidated — it is untestable today.**
+`rangekeeper-paper-gas-sampler.ts` throws unconditionally for
+`kind:'convert_exit'` (assert at line 140, throw at line 222): there is no
+owned-fork convert-exit sampler at all, so no ground truth exists to compare a
+simulated convert sequence against, for anyone. Building that sampler is a
+prerequisite to convert-exit work, not a follow-on.
+
+So the retain exit can be unblocked now on measured evidence, and the convert
+exit cannot be assessed until an owned-fork sampler for it exists.
+
+One honest limit from the validation: its per-sample request count of four
+covers only direct `client.request` calls and misses traffic from reused viem
+actions, so the true count is higher and was not re-measured.
 
 ### 2b. There is no sized, costed setup path
 
@@ -85,10 +114,10 @@ asked here.
 
 ## 3. Proposed order
 
-1. **Measure whether the simulation runner extends to swap stages.** Cheap,
-   read-only, and decides 2a. If it does, the exit unblocks without an owned-fork
-   stage runner being written. If it does not, that runner is the next item and
-   is significantly larger.
+1. ~~**Measure whether the simulation runner extends to swap stages.**~~
+   **Done** — it does, for the `direct_swap` open path and the retain exit. The
+   retain exit can be unblocked on this evidence. Convert exit needs an
+   owned-fork sampler built first before it can even be compared.
 2. **Ask the banding question for the RangeKeeper paths** before sampling twelve
    pools three ways. The static path's answer — that size and share do not drive
    gas and the tick range does — was worth an order of magnitude and took under
@@ -105,9 +134,10 @@ asked here.
 - **Does a RangeKeeper paper campaign need the full setup/preflight contract, or
   is direct draft creation acceptable to start?** The second is much faster and
   materially weaker. This determines whether item 3 is in the first slice.
-- **Is the convert exit in scope?** The retain exit avoids the swap entirely, so
-  scoping to retain-only would likely sidestep the unvalidated swap-simulation
-  question and deliver a complete open-and-close loop sooner.
+- **Is the convert exit in scope?** Retain-only is now clearly the faster route
+  and is the one with measured evidence behind it. Convert additionally requires
+  an owned-fork convert-exit sampler to be written before its simulation could
+  be validated at all, which is a substantial piece of work in its own right.
 - **How many pools at once?** Twelve registered profiles do not have to become
   twelve campaigns. The gas evidence cost scales with pools actually used.
 
