@@ -515,10 +515,23 @@ async function main(){
      // Deliberately not trustedPreviewSaved: that flag is what the command server
      // reads to offer acceptance, and a first observation is not acceptable. The
      // confirmation has to run first.
+     // The operator has to come back for the second observation, and the window
+     // is narrow and not guessable: the kernel refuses one less than 30s after
+     // the first (planner.ts:206) and more than maxObservationGapSeconds after it
+     // (planner.ts:230). A 104-second gap is exactly what caused the recorded
+     // live no-entry on 2026-09-21, so the window is reported rather than left to
+     // the operator to infer.
+     const gapSeconds=(rangeKeeperDraft.parameters as {limits?:{maxObservationGapSeconds?:number}}|
+      undefined)?.limits?.maxObservationGapSeconds;
+     const windowFrom=(model.source.timestamp+30)*1000;
+     const windowUntil=typeof gapSeconds==='number'?(model.source.timestamp+gapSeconds)*1000:null;
      return {...model,openPreviewId:persisted.id,openPreviewDigest:persisted.contentDigest,
       openPreviewExpiresAt:persisted.expiresAt.toISOString(),modelHash:persisted.modelHash,
       confirmation:{status:'first_observation_recorded',
-       reason:'rangekeeper_second_observation_required'},
+       reason:'rangekeeper_second_observation_required',
+       secondObservationFrom:new Date(windowFrom).toISOString(),
+       secondObservationUntil:windowUntil===null?null:new Date(windowUntil).toISOString(),
+       secondObservationWindowSeconds:typeof gapSeconds==='number'?gapSeconds-30:null},
       operationAcceptanceAvailable:false,actionAvailable:false};
     }catch(error){
      return {...model,status:'unavailable' as const,

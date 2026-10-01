@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, openAcceptancePathFor, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, openAcceptancePathFor, setupDraftPathFor, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -165,4 +165,9 @@ it('routes a RangeKeeper open acceptance to its own operation endpoint', () => {
     `/api/deployments/${id}/rangekeeper/open-operations`);
   assert.equal(openAcceptancePathFor(id,'static_manual_v1'),
     `/api/deployments/${id}/open-operations`);
+});
+
+it('routes a RangeKeeper setup draft to its own admission endpoint', () => {
+  assert.equal(setupDraftPathFor('rangekeeper_v1'),'/api/deployments/rangekeeper/setup-drafts');
+  assert.equal(setupDraftPathFor('static_manual_v1'),'/api/deployments/setup-drafts');
 });

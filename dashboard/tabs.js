@@ -38,6 +38,14 @@ export function setupPreflightPathFor(strategyId) {
     ? '/api/deployments/rangekeeper/setup-preflight' : SETUP_PREFLIGHT_PATH;
 }
 
+/** RangeKeeper has its own setup draft admission. The static one parses a static
+ * payload and rejects any other strategy, so a RangeKeeper review posted there
+ * fails on input validation rather than on anything the operator can fix. */
+export function setupDraftPathFor(strategyId) {
+  return strategyId === 'rangekeeper_v1'
+    ? '/api/deployments/rangekeeper/setup-drafts' : '/api/deployments/setup-drafts';
+}
+
 /** RangeKeeper has its own open acceptance, because the static one rejects any
  * strategy but static/manual. Posting a RangeKeeper acceptance to the static
  * route would fail on admission rather than on anything the operator can fix. */
@@ -872,15 +880,25 @@ function bootDashboardTabs() {
       const preview=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/previews`,
         {method:'POST',body:{kind:'open'},csrf:true});
       openPreview=preview;openIdempotencyKey=null;openAcceptanceAmbiguous=false;
-      const usable=preview?.kind==='open'&&preview.status==='indicative'&&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(preview.id??'')&&
-        /^[0-9a-f]{64}$/.test(preview.contentDigest??'')&&Number.isSafeInteger(preview.expectedRevision)&&
-        Number.isFinite(Date.parse(preview.expiresAt))&&Date.parse(preview.expiresAt)>Date.now();
+      const bound=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(preview?.id??'')&&
+        /^[0-9a-f]{64}$/.test(preview?.contentDigest??'')&&Number.isSafeInteger(preview?.expectedRevision)&&
+        Number.isFinite(Date.parse(preview?.expiresAt))&&Date.parse(preview?.expiresAt)>Date.now();
+      // A RangeKeeper open preview is not static-shaped. Its kind is the model's
+      // and a confirmed one is the confirmation envelope's, so the static test
+      // would reject it and never offer the action.
+      const rangeKeeperConfirmed=preview?.strategyId==='rangekeeper_v1'&&
+        preview?.trustedPreviewSaved===true&&preview?.confirmation?.status==='confirmed';
+      const usable=bound&&((preview?.kind==='open'&&preview.status==='indicative')||rangeKeeperConfirmed);
       const facts=preview?.costs?.open;
       statusTarget.replaceChildren();
       const text=document.createElement('p');
-      text.textContent=usable?`Saved open preview · campaign ${campaignId} · revision ${preview.expectedRevision}. Cost evidence is provisional, not paid; funding remains unchecked.`:
-        `Open preview unavailable (${preview?.error??preview?.status??'incomplete binding'}). No operation was submitted.`;
+      const firstObservation=preview?.confirmation?.status==='first_observation_recorded'
+        ?preview.confirmation:null;
+      text.textContent=usable
+        ?`Saved open preview · campaign ${campaignId} · revision ${preview.expectedRevision}. Cost evidence is provisional, not paid; funding remains unchecked.`
+        :firstObservation
+          ?`First observation recorded. RangeKeeper opens on two observations: request another preview between ${formatSetupCreatedAt(firstObservation.secondObservationFrom)} and ${firstObservation.secondObservationUntil?formatSetupCreatedAt(firstObservation.secondObservationUntil):'the observation gap limit'}${firstObservation.secondObservationWindowSeconds?` (a ${firstObservation.secondObservationWindowSeconds}-second window)`:''}. Earlier or later and the kernel will record another first observation instead of confirming.`
+          :`Open preview unavailable (${preview?.error??preview?.status??'incomplete binding'}). No operation was submitted.`;
       statusTarget.append(text);
       if(facts){const cost=document.createElement('p');cost.textContent=`Open gas expected / bound: ${facts.expectedGasUnits??'Unavailable'} / ${facts.boundGasUnits??'Unavailable'} units; reference USD X18 ${facts.expectedValue??'Unavailable'} / ${facts.boundValue??'Unavailable'} · provisional, not paid.`;statusTarget.append(cost);}
       const accept=document.createElement('button');accept.type='button';accept.textContent='Accept open operation';
@@ -917,7 +935,8 @@ function bootDashboardTabs() {
     button.disabled=true;freezeDraftInputs(true);setDraftStatus('Rechecking canonical source, cost evidence, profile, reserve and limits before saving…');
     const payload={...candidate,requestId:pendingDraftRequestId};
     try{
-      const result=await authRequest('/api/deployments/setup-drafts',{method:'POST',body:payload,csrf:true});
+      const result=await authRequest(setupDraftPathFor(document.getElementById('setup-strategy')?.value),
+        {method:'POST',body:payload,csrf:true});
       if(result?.status!=='draft_created'||!/^\d+$/.test(String(result.revision))||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.draftId??''))
         throw new Error('draft_creation_response_invalid');
