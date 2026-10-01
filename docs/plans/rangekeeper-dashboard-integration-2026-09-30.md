@@ -165,6 +165,82 @@ stored range; keep the tick range pinned. That needs a model schema version bump
 and a resolver change from exact match to range containment, exactly as the
 static path took.
 
+**That recommendation is not implementable as written. Found 2026-10-01 while
+starting the re-key, by reading the resolver rather than the band function.**
+
+The band key is not the binding constraint, so dropping `candidateHash` from it
+buys nothing. `valid()` inside `selectRangeKeeperPaperCostProfiles`
+(`rangekeeper-paper-cost.ts:132-146`) independently requires, for every row:
+
+- `parsed.data.source.block===source.block` and the same `source.hash` — the row
+  must have been sampled at the **exact block** of the current frame;
+- `parsed.data.simulation.candidateHash===scope.candidateHash` — and for the
+  exact same candidate;
+- `sampled>=source.timestamp*1000 && sampled-source.timestamp*1000<=180_000` —
+  within 180 seconds of that block's timestamp.
+
+`selectRangeKeeperPaperExitCostProfiles` carries the same three. Re-keying the
+band leaves all of them in force, so evidence would still be unreusable past the
+frame it was taken at. The key was never what stopped reuse.
+
+**The deeper reason: a RangeKeeper calibration row is not a gas measurement.**
+`gasProfileModel` embeds `simulation:{kind:'owned_fork_full_candidate_v1',
+status:'success',sourceBlock,sourceHash,candidateHash,sequenceHash}`. The row is
+a *feasibility proof that one exact candidate's whole sequence executed on a fork
+at one exact block*, which also happens to carry per-stage gas units. Its
+`sequenceHash` is load-bearing well downstream — cross-checked in
+`rangekeeper-paper-confirmation-simulation.ts:152,196`,
+`rangekeeper-paper-confirmation-provenance.ts:42,56`,
+`rangekeeper-paper-persistence.ts:103` and
+`rangekeeper-paper-confirmed-open-adapter.ts:123`, where it becomes provenance
+for the confirmed open.
+
+The architecture is deliberately sample-per-open, not accidentally so.
+`rangekeeper-paper-open-model-overlap.ts` `scopedRows()` builds rows with
+`id:'speculative:<n>:<stage>'` out of the report *just sampled* and feeds them
+straight to the selector; `settleRangeKeeperPaperOpenOverlap` exists to run that
+sampling concurrently with registration. The `rk_` band is a **same-frame retry
+cache**, not a reuse mechanism. The zero rows in
+`deployment_calibration_profiles` (re-confirmed 2026-10-01: zero for every
+`paper_rangekeeper%` path) are consistent with that.
+
+Contrast the static path, which genuinely does reuse: `paperGasModelSchema`
+(`paper-cost.ts:31-35`) carries gas units, size/share bands, a tick range and a
+24-hour freshness window — **no candidate binding, no simulation object, no
+source-block equality**. It is a pure measurement, which is exactly why it can
+be banded.
+
+**So loosening `valid()` to obtain reuse would be a safety regression, not a
+cleanup.** It would let a feasibility proof for candidate X at block B vouch for
+candidate Y at block C, while that proof's `sequenceHash` continues to flow into
+the confirmed open's provenance.
+
+**What the re-key actually requires** is splitting one artifact into two:
+
+1. a reusable per-stage **gas measurement** row, static-shaped — size/share
+   bands, pinned tick range, 24-hour freshness, no candidate or block binding;
+2. a per-attempt **feasibility proof** that stays bound to candidate and block
+   and keeps feeding the confirmation and provenance chain unchanged.
+
+Only after that split do items 1 and 2 of the review's recommendation do
+anything at all. This is a larger change than a key-shape fix and it carries a
+risk decision — how conservative the cost model is, and whether a gas number may
+outlive the proof that the sequence it priced was executable. That is the same
+class of decision `4a10877` recorded rather than settling unilaterally, and it is
+recorded here for the same reason.
+
+**One correction to a concern raised earlier in the same session.** The
+`rows.length>200` guard was described as a cliff the re-key must ship around,
+on the basis that 192 rows exist on the live static path. That was the wrong
+denominator: `paperGasProfiles` (`store.ts:799-811`) is already range-scoped, as
+it filters `model->'tickLower'` and `model->'tickUpper'`. Measured 2026-10-01,
+the hottest single range returns **72 of 201** rows (12 bands × 6 stages), so
+the static path is not near lockout. The ceiling is real but distant and
+monotonic: nothing prunes superseded versions, each new size band at a recurring
+range adds 6 rows, and that range locks out at 34 bands. Worth fixing with
+`DISTINCT ON` or a prune when the re-key makes RangeKeeper bands long-lived —
+not before.
+
 Sampling then bounds to distinct (pool, path, range) triples across **two**
 paths, not three — convert exit has no sampler at all, per §2a.
 
@@ -183,7 +259,11 @@ against.
 2. ~~**Ask the banding question for the RangeKeeper paths**~~ **Done** — see
    §2d. Size and share drive nothing, the range drives everything, and the band
    key additionally embeds `candidateHash`, so it must be re-keyed before any
-   reuse is possible at all. Implementing that re-key is now the work item.
+   reuse is possible at all. **But the re-key is no longer the work item:**
+   §2d records that the key is not the binding constraint, and that reuse
+   requires first splitting the calibration row's reusable gas measurement from
+   its per-candidate feasibility proof. That split carries a risk decision and
+   is not started.
 3. ~~**Build the RangeKeeper setup preflight and draft admission**~~ **Done** —
    see §2b. Complete and tested, but inert until the §2d re-key lands and it is
    wired to a route. **The re-key is therefore now the critical path**: without
