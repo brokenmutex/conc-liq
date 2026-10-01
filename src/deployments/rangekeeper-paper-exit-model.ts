@@ -79,7 +79,10 @@ export interface RangeKeeperPaperExitKernelContext {
 
 export interface RangeKeeperPaperExitModel {
  schemaVersion:1;kind:'rangekeeper_paper_exit_model';status:'blocked'|'indicative';
- exitKind:'retain'|'convert';blockingReason:string;actionAvailable:false;
+ // Widened to `boolean` so an exit can structurally carry an action; every
+ // value this module still produces is `false` — see
+ // rangekeeper-paper-exit-preflight.ts for what persisting an action requires.
+ exitKind:'retain'|'convert';blockingReason:string;actionAvailable:boolean;
  campaignId:string;revision:number;strategyId:'rangekeeper_v1';strategyVersion:'1.0.0';
  draftConfigHash:string;kernelPolicyHash:string;kernelBuildId:string;profileHash:string;
  openMarkId:string;openModelHash:string;candidateHash:string;
@@ -103,7 +106,7 @@ export interface RangeKeeperPaperExitModel {
 export interface RangeKeeperPaperExitUnavailable {
  schemaVersion:1;kind:'rangekeeper_paper_exit_unavailable';status:'unavailable';
  exitKind:'retain'|'convert';reason:string;campaignId:string;revision:number;
- openModelHash:string|null;candidateHash:string|null;actionAvailable:false;
+ openModelHash:string|null;candidateHash:string|null;actionAvailable:boolean;
 }
 export type RangeKeeperPaperExitResult=RangeKeeperPaperExitModel|RangeKeeperPaperExitUnavailable;
 
