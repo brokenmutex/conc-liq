@@ -3,9 +3,10 @@
 Current status — October 1, 2026: recenter is not implemented. The full test
 suite passes 1,051 tests, and the canonical
 setup/open/observation/retained-close lifecycle passed against the verified
-sealed release. The release is deployed
-to the command, dashboard, and paper worker service units; the bounded first
-paper-campaign launch remains pending. See the
+sealed release. The release is deployed to the command, dashboard, and paper
+worker service units; one $250 AAPL paper campaign is active and recording
+observations. See the
+[production launch record](../reviews/rangekeeper-paper-production-2026-10-01.md) and
 [lifecycle evidence record](../reviews/rangekeeper-paper-lifecycle-2026-10-01.md).
 The existing 90-second freshness guard remains unchanged.
 

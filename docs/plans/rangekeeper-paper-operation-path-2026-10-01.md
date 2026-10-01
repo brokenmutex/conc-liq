@@ -11,8 +11,10 @@ restart, retained close, shared dashboard history, and desktop/mobile views.
 See [the lifecycle evidence record](../reviews/rangekeeper-paper-lifecycle-2026-10-01.md).
 The fixture waits for the required confirmed-chain timestamp under the existing
 30-second startup and 90-second observation limits. The verified release is
-deployed to the command, dashboard, and paper worker service units; the bounded
-first paper-campaign launch remains pending. No automatic recenter behavior is
+deployed to the command, dashboard, and paper worker service units. One $250
+AAPL paper campaign is active and recording observations; see the
+[production launch record](../reviews/rangekeeper-paper-production-2026-10-01.md).
+No automatic recenter behavior is
 available or claimed.
 
 The dashboard command-browser integration passes 20 checks with zero browser

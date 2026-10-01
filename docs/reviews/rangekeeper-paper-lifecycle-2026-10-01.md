@@ -49,7 +49,8 @@ RangeKeeper paper observation remains non-actionable: automatic recentering is
 not implemented, no recenter candidate is persisted, and the worker does not
 execute recenter actions. Retained close is an operator-requested terminal
 action. The verified release is deployed to the command, dashboard, and paper
-worker service units; the bounded first paper-campaign launch remains pending.
+worker service units. The first bounded paper campaign is now active; see the
+[production launch record](rangekeeper-paper-production-2026-10-01.md).
 
 ## Cleanup verification
 
@@ -68,5 +69,5 @@ The [sanitized sealed-run JSONL](evidence/rangekeeper-paper-lifecycle-2026-10-01
 records the setup response, source blocks/hashes, accepted operation IDs,
 post-restart observation, dashboard checks, and final `lifecycle_passed`
 result. The release artifact and evidence log are evidence for this paper lifecycle
-only; the successful service rollout does not mean the bounded paper campaign
-has launched or that autonomous recentering is available.
+only; the subsequent production launch is recorded separately and does not make
+autonomous recentering available.
