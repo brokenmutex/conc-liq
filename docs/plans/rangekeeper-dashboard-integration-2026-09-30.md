@@ -75,6 +75,40 @@ prerequisite to convert-exit work, not a follow-on.
 So the retain exit can be unblocked now on measured evidence, and the convert
 exit cannot be assessed until an owned-fork sampler for it exists.
 
+**Built 2026-10-01.** The convert-exit sampler now exists, and the blocker was
+not the fork plumbing the paragraph above assumed. The throw's own wording was
+exact: what was missing was a *persisted conversion quote contract*, so a sampler
+had no way to prove it priced the same swap the exit would execute.
+`rangeKeeperPaperConvertQuoteContent`/`Hash` and
+`rangeKeeperPaperConvertQuoteSchema` now expose that contract standalone out of
+`rangekeeper-paper-exit-model.ts` — the hash `terminalQuote` already computed
+inline, unchanged — and `validateRangeKeeperPaperConvertQuoteBinding` binds a
+persisted quote to the trusted terminal context: input amount against
+`wallet+released` kernel inventory, minimum output against the policy slippage
+floor replayed from `maxSlippageBps`, shortfall against `maxSwapShortfallValue`,
+and the hash recomputed from the trusted candidate, source, pool and limits
+rather than from the quote's own fields.
+
+`sampleRangeKeeperPaperConvertExit` then restores the position with
+`restorePaperPosition`, runs `exit_withdraw_collect`, **re-derives the quote on
+its own pinned fork and requires `chain.quote`'s output to equal the persisted
+`expectedOutput` exactly** before sending anything, replays
+`exit_convert_approve_router_input` and `exit_convert_swap`, checks the decoded
+router return equals the quoted amount and that the risky leg is left at zero,
+then the four cleanups — matching `RANGEKEEPER_PAPER_CONVERT_EXIT_STAGES`. Only
+two of the seven stages were genuinely new; five are the retain sequence.
+A CLI mirrors the retain one. 15 tests; 994 total, check green.
+
+**Still unvalidated against a live fork**, and this is the honest limit: convert
+exit has no ground truth anywhere, which is why it was blocked. Every new test is
+a unit test of the quote contract, its hash binding and fail-closed dispatch.
+Nothing has exercised the owned-fork replay — not its gas numbers, not whether
+the live quoter still agrees with a persisted quote at replay time, not whether
+the paper router's `multicall` return shape decodes as expected. Validating it
+needs a `rangekeeper_v1` paper campaign carried far enough to hold a real
+persisted terminal context, then
+`src/deployments-rangekeeper-paper-gas-convert-terminal-sample.ts` against it.
+
 One honest limit from the validation: its per-sample request count of four
 covers only direct `client.request` calls and misses traffic from reused viem
 actions, so the true count is higher and was not re-measured.
@@ -289,8 +323,11 @@ against.
 
 1. ~~**Measure whether the simulation runner extends to swap stages.**~~
    **Done** — it does, for the `direct_swap` open path and the retain exit. The
-   retain exit can be unblocked on this evidence. Convert exit needs an
-   owned-fork sampler built first before it can even be compared.
+   retain exit can be unblocked on this evidence. ~~Convert exit needs an
+   owned-fork sampler built first before it can even be compared.~~ **That
+   sampler is built** (§2a), so convert exit is now comparable in principle —
+   but it has no live fork run yet, so there is still no ground truth to compare
+   a simulated convert sequence against.
 2. ~~**Ask the banding question for the RangeKeeper paths**~~ **Done** — see
    §2d. Size and share drive nothing, the range drives everything, and the band
    key additionally embeds `candidateHash`, so it must be re-keyed before any
