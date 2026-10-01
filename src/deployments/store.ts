@@ -72,6 +72,8 @@ import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-
 import {rangeKeeperPaperGasProfileInserts,verifyRangeKeeperPaperGasReport,
  verifyRangeKeeperPaperGasEvidenceSource,
  type RangeKeeperPaperGasSourceReplayVerifier} from './rangekeeper-paper-gas-evidence.js';
+import {rangeKeeperPaperCloseRetainModelBookingSchema,
+ buildRangeKeeperPaperCloseRetainBooking} from './rangekeeper-paper-exit-completion.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 import {z} from 'zod';
 
@@ -5296,6 +5298,173 @@ export class DeploymentStore {
     closed_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1`,[row.campaign_id]);
    await db.query(`UPDATE deployment_operations SET status='succeeded',stage='paper_close_retain_recorded',
     claimed_by=NULL,claim_until=NULL,updated_at=clock_timestamp() WHERE id=$1`,[operationId]);
+   return {markId:mark.id,replayed:false};
+  });
+ }
+
+ // ---------------------------------------------------------------------
+ // NEW METHOD — added for the RangeKeeper paper EXIT (gap E of
+ // docs/plans/rangekeeper-paper-operation-path-2026-10-01.md). Another track
+ // may also be editing this file concurrently; this method is self-contained
+ // — it only reads/writes deployment_operations/deployment_campaigns/
+ // deployment_marks/deployment_ledger rows scoped to its own operationId —
+ // and does not modify any other method in this class.
+ //
+ // Scope: `close_retain` only. It cannot re-derive the exit model's live
+ // parts (kernel evaluation, convert quote) since those require RPC calls
+ // owned by rangekeeper-paper-exit-model.ts, which this method does not
+ // import from and must not edit. What it DOES independently re-derive, from
+ // two already-trusted deployment_marks rows (the open mark and the latest
+ // prior mark) plus the model's own pinned pool state, is the retained-
+ // principal arithmetic that is actually written to the ledger — see
+ // rangekeeper-paper-exit-completion.ts's buildRangeKeeperPaperCloseRetainBooking.
+ // close_convert is refused by the worker before this method is ever called.
+ // ---------------------------------------------------------------------
+ async completeRangeKeeperPaperConfirmedExit(operationId:string,workerId:string,
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>){
+  if(!/^[a-zA-Z0-9._:-]{8,128}$/.test(workerId))throw new DeploymentConflict('invalid_worker_id');
+  return this.transaction(async db=>{
+   const row=(await db.query<{campaign_id:string;preview_id:string;kind:string;status:string;
+    claimed_by:string|null;claim_valid:boolean|null;mode:string;lifecycle:string;chain_id:number;
+    current_revision:number;profile:unknown;profile_hash:string;config:unknown;config_hash:string;
+    strategy_id:string;strategy_version:string;state_schema_version:number;
+    proposal:Record<string,unknown>;request:Record<string,unknown>;evidence:Record<string,unknown>;
+    content_digest:string;expected_revision:number;preview_kind:string;preview_created_at:Date;
+    accepted_at:Date;expires_at:Date}>(`
+    SELECT o.campaign_id,o.preview_id,o.kind,o.status,o.claimed_by,
+     (o.claim_until>=clock_timestamp()) AS claim_valid,c.mode,c.lifecycle,c.chain_id,
+     c.current_revision,p.profile,p.profile_hash,r.config,r.config_hash,r.strategy_id,
+     r.strategy_version,r.state_schema_version,
+     v.proposal,v.request,v.evidence,v.content_digest,v.expected_revision,v.kind AS preview_kind,
+     v.created_at AS preview_created_at,o.created_at AS accepted_at,v.expires_at
+    FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_previews v ON v.id=o.preview_id WHERE o.id=$1 FOR UPDATE OF o,c`,
+    [operationId])).rows[0];
+   if(!row||row.mode!=='paper'||row.kind!=='close_retain'||row.strategy_id!=='rangekeeper_v1')
+    throw new DeploymentConflict('rangekeeper_paper_exit_operation_unavailable');
+   if(row.status==='succeeded'){
+    const prior=(await db.query<{id:string}>(`SELECT id::text FROM deployment_marks
+     WHERE campaign_id=$1 AND provenance->>'operationId'=$2 LIMIT 2`,
+     [row.campaign_id,operationId])).rows;
+    if(prior.length!==1)throw new DeploymentConflict('rangekeeper_paper_exit_replay_integrity');
+    return {markId:prior[0]!.id,replayed:true};
+   }
+   if(row.lifecycle!=='closing'||row.status!=='reconciling'||row.claimed_by!==workerId||
+    !row.claim_valid)throw new DeploymentConflict('rangekeeper_paper_exit_claim_lost');
+   if(row.strategy_version!=='1.0.0'||row.state_schema_version!==1)
+    throw new DeploymentConflict('rangekeeper_paper_exit_config_integrity');
+   if(row.current_revision!==row.expected_revision||row.accepted_at.getTime()>row.expires_at.getTime()||
+    row.accepted_at.getTime()<row.preview_created_at.getTime())
+    throw new DeploymentConflict('rangekeeper_paper_exit_preview_stale');
+   if(row.preview_kind!=='close_retain'||previewDigest({campaignId:row.campaign_id,
+    expectedRevision:row.expected_revision,kind:row.preview_kind,request:row.request,
+    proposal:row.proposal,evidence:row.evidence,expiresAt:row.expires_at})!==row.content_digest)
+    throw new DeploymentConflict('rangekeeper_paper_exit_preview_integrity');
+   const modelHashField=row.proposal.rangekeeperPaperExitModelHash;
+   if(typeof modelHashField!=='string'||row.proposal.rangekeeperPaperExitModel===undefined||
+    contentHash(row.proposal.rangekeeperPaperExitModel)!==modelHashField)
+    throw new DeploymentConflict('rangekeeper_paper_exit_model_hash_mismatch');
+   const parsedModel=rangeKeeperPaperCloseRetainModelBookingSchema.safeParse(
+    row.proposal.rangekeeperPaperExitModel);
+   if(!parsedModel.success)throw new DeploymentConflict('rangekeeper_paper_exit_model_unavailable');
+   const model=parsedModel.data;
+   if(model.status!=='indicative'||model.actionAvailable!==true)
+    throw new DeploymentConflict('rangekeeper_paper_exit_model_not_actionable');
+   const profile=marketProfileSchema.safeParse(row.profile);
+   if(!profile.success||contentHash(row.profile)!==row.profile_hash||
+    !row.config||typeof row.config!=='object'||Array.isArray(row.config)||
+    contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('rangekeeper_paper_exit_campaign_integrity');
+   const config=row.config as Record<string,unknown>;
+   if(config.strategyId!=='rangekeeper_v1'||config.strategyVersion!=='1.0.0'||
+    config.stateSchemaVersion!==1)
+    throw new DeploymentConflict('rangekeeper_paper_exit_config_integrity');
+   if(model.campaignId!==row.campaign_id||model.revision!==row.current_revision||
+    model.profileHash!==row.profile_hash||model.draftConfigHash!==row.config_hash||
+    referenceProofHash(model.reference.proof)!==model.reference.proofHash)
+    throw new DeploymentConflict('rangekeeper_paper_exit_model_integrity');
+   const req=row.request;
+   if(req.kind!=='close_retain'||req.strategyId!=='rangekeeper_v1'||req.exitKind!=='retain'||
+    req.profileHash!==model.profileHash||req.configHash!==model.draftConfigHash||
+    req.openMarkId!==model.openMarkId||req.candidateHash!==model.candidateHash)
+    throw new DeploymentConflict('rangekeeper_paper_exit_request_mismatch');
+   const openMark=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
+    SELECT id::text,source_block::text,source_hash,inventory,provenance FROM deployment_marks
+    WHERE id=$1 AND campaign_id=$2 FOR SHARE`,[model.openMarkId,row.campaign_id])).rows[0];
+   if(!openMark||openMark.source_block===null||openMark.source_hash===null||
+    openMark.provenance.classification!=='rangekeeper_paper_open_v1'||
+    openMark.provenance.modelHash!==model.openModelHash||
+    openMark.provenance.candidateHash!==model.candidateHash)
+    throw new DeploymentConflict('rangekeeper_paper_exit_open_mark_unavailable');
+   const openMarkSource=z.object({block:z.string().regex(/^(0|[1-9][0-9]*)$/),
+    hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),timestamp:z.number().int().nonnegative()}).strict()
+    .safeParse((openMark.provenance as {source?:unknown}).source);
+   if(!openMarkSource.success||openMarkSource.data.block!==openMark.source_block||
+    openMarkSource.data.hash.toLowerCase()!==openMark.source_hash.toLowerCase())
+    throw new DeploymentConflict('rangekeeper_paper_exit_open_mark_unavailable');
+   const previousMarkRow=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
+    SELECT id::text,source_block::text,source_hash,inventory,provenance FROM deployment_marks
+    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR SHARE`,[row.campaign_id])).rows[0];
+   if(!previousMarkRow||previousMarkRow.id!==model.previousMark.id||
+    previousMarkRow.source_block===null||previousMarkRow.source_hash===null||
+    BigInt(previousMarkRow.id)<=BigInt(openMark.id)||
+    previousMarkRow.provenance.classification!=='rangekeeper_paper_mark_v1'||
+    previousMarkRow.provenance.candidateHash!==model.candidateHash)
+    throw new DeploymentConflict('rangekeeper_paper_exit_previous_mark_unavailable');
+   const previousMarkSource=z.object({block:z.string().regex(/^(0|[1-9][0-9]*)$/),
+    hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),timestamp:z.number().int().nonnegative()}).strict()
+    .safeParse((previousMarkRow.provenance as {source?:unknown}).source);
+   if(!previousMarkSource.success||previousMarkSource.data.block!==previousMarkRow.source_block||
+    previousMarkSource.data.hash.toLowerCase()!==previousMarkRow.source_hash.toLowerCase()||
+    contentHash(previousMarkSource.data)!==contentHash(model.previousMark.source))
+    throw new DeploymentConflict('rangekeeper_paper_exit_previous_mark_unavailable');
+   const positionSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+    liquidity:z.string().regex(/^[1-9][0-9]*$/)}).strict(),
+    idleSchema=z.object({token0:z.string().regex(/^(0|[1-9][0-9]*)$/),
+     token1:z.string().regex(/^(0|[1-9][0-9]*)$/)}).strict();
+   const openPositionParsed=positionSchema.safeParse((openMark.inventory as {position?:unknown}).position),
+    previousPositionParsed=positionSchema.safeParse(
+     (previousMarkRow.inventory as {position?:unknown}).position),
+    previousIdleParsed=idleSchema.safeParse((previousMarkRow.inventory as {idle?:unknown}).idle);
+   if(!openPositionParsed.success||!previousPositionParsed.success||!previousIdleParsed.success)
+    throw new DeploymentConflict('rangekeeper_paper_exit_inventory_unavailable');
+   let booking;
+   try{booking=buildRangeKeeperPaperCloseRetainBooking({operationId,previewId:row.preview_id,
+    modelHash:modelHashField,model,openMarkPosition:openPositionParsed.data,
+    previousMark:{id:previousMarkRow.id,position:previousPositionParsed.data,idle:previousIdleParsed.data},
+    pool:{token0:profile.data.pool.token0,token1:profile.data.pool.token1}});}
+   catch{throw new DeploymentConflict('rangekeeper_paper_exit_model_replay_mismatch');}
+   const acceptedAt=row.accepted_at.getTime(),sourceAt=model.source.timestamp*1000;
+   if(sourceAt>acceptedAt||acceptedAt-sourceAt>180_000||
+    model.previousMark.source.timestamp>sourceAt||
+    BigInt(model.source.block)<=BigInt(model.previousMark.source.block))
+    throw new DeploymentConflict('rangekeeper_paper_exit_source_stale_or_ordered_wrong');
+   try{await verifyAnchors(row.chain_id,
+    [openMarkSource.data,previousMarkSource.data,model.source].filter((anchor,index,array)=>
+     array.findIndex(other=>other.block===anchor.block)===index));}
+   catch(error){if(error instanceof AssertionError)
+     throw new DeploymentConflict('rangekeeper_paper_exit_source_not_canonical');throw error;}
+   for(const entry of booking.ledger){
+    await db.query(`INSERT INTO deployment_ledger
+     (campaign_id,operation_id,entry_key,kind,token_address,amount_raw,value_raw,source)
+     VALUES($1,$2,$3,'capital_out',$4,NULL,NULL,$5)`,
+     [row.campaign_id,operationId,entry.entryKey,entry.token,JSON.stringify(entry.source)]);
+   }
+   const mark=(await db.query<{id:string}>(`INSERT INTO deployment_marks
+    (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
+    VALUES($1,$2,$3,$4,$5,NULL,$6,$7) RETURNING id::text`,
+    [row.campaign_id,row.current_revision,model.source.block,model.source.hash,
+     JSON.stringify(booking.mark.inventory),booking.mark.calibrationProfileIds,
+     JSON.stringify(booking.mark.provenance)])).rows[0]!;
+   await db.query(`UPDATE deployment_campaigns SET lifecycle='closed',range_state='no_liquidity',
+    closed_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1`,[row.campaign_id]);
+   await db.query(`UPDATE deployment_operations SET status='succeeded',
+    stage='rangekeeper_paper_close_retain_recorded',claimed_by=NULL,claim_until=NULL,
+    updated_at=clock_timestamp() WHERE id=$1`,[operationId]);
    return {markId:mark.id,replayed:false};
   });
  }

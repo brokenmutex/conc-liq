@@ -200,3 +200,156 @@ No estimate is offered. The open half's gaps are well-bounded; the exit half's
 gap E (booking a withdraw plus an optional conversion into the paper accounting
 ledger) is the least explored part of this scope and the most likely to be
 larger than it looks.
+
+## 7. Gap D and gap E, worked — October 1, 2026
+
+Commissioned to build gaps D and E against the shared contract an in-flight
+exit-preview track is writing (`proposal.rangekeeperPaperExitModel`,
+`proposal.rangekeeperPaperExitModelHash`, `proposal.rangekeeperPaperConvertQuote`,
+and `request` carrying `exitKind`). Gap D is done in full. Gap E turned out to
+be exactly as large as §6 warned, and is built for `close_retain` only.
+
+### Gap D — done, both kinds
+
+`paper-operation-worker.ts` previously blocked every `rangekeeper_v1` kind but
+`open` at a single line (`:170` before this change). It now routes
+`close_retain` and `close_convert` through a new branch that mirrors the
+static chain's shape — `sourceFor` → single-source canonical anchor check →
+claim-status advance — rather than the open flow's snapshot/adapter/owned-fork
+replay, because retain has no on-chain execution to replay. `sourceFor`
+(`:59-74`) gained a case for `strategy_id==='rangekeeper_v1'` with a
+`close_retain`/`close_convert` kind, delegating to
+`recoverRangeKeeperPaperExitModelSource` (new,
+`rangekeeper-paper-exit-completion.ts`), which hash-binds
+`proposal.rangekeeperPaperExitModel` to `proposal.rangekeeperPaperExitModelHash`
+before trusting the `.source` field inside it — the same posture every other
+`sourceFor` branch already takes toward its saved model. `close_convert`
+reaches the same claim-advance path as `close_retain` (so gap D's "reach"
+claim is true for both kinds) and is refused only at the very last step, with
+`rangekeeper_paper_exit_convert_completion_unavailable`, because gap E below
+does not cover it. Every existing static/open branch is untouched; the 1002
+baseline tests pass unmodified.
+
+### Gap E — real size, found by tracing, not guessed
+
+Reading `completeTrustedPaperCloseRetain` (`store.ts:5083`, at the time of
+reading) and `completeTrustedPaperOpen` (`store.ts:3366`) first established
+this codebase's one completion convention: every static completion
+deterministically **rebuilds the saved model from already-canonical, already-
+persisted inputs and requires the rebuild to hash-match** (`buildPaperOpenModel`,
+`buildPaperCloseRetainModel`), rather than trusting the saved model's content
+on the strength of its preview-time acceptance alone. RangeKeeper open does
+something structurally different — `completeRangeKeeperPaperConfirmedOpen`
+(`store.ts:1376`) does not rebuild the open model's valuation; it trusts the
+(separately hash-chain-verified) snapshot and instead replays the **on-chain
+mint execution** on an owned fork, because that is the part a pure function
+cannot prove.
+
+The reason `RangeKeeperPaperExitModel` cannot simply follow the static
+convention is in `rangekeeper-paper-exit-model.ts`'s own `buildRangeKeeperPaperExitModel`:
+it calls live `chain.quote(...)` (inside `terminalQuote`, convert only, and
+again inside `planRangeKeeper`'s `quote` callback for `kernelEvaluation`,
+*all* exit kinds) and a `simulate` callback. A worker-side rebuild-and-compare,
+in the static style, would need to re-issue those RPC calls — and would need
+the exact `simulate` wiring the in-flight exit-preflight module uses, which
+this task does not own and could not read without depending on another
+track's uncommitted work. Re-implementing that live evaluation a second time,
+independently, inside the worker would also duplicate logic this task does
+not own (`idleInventory`, `validateIdentity`, `terminalQuote` are none of them
+exported from `rangekeeper-paper-exit-model.ts`), which is itself a reason not
+to: a second, drifting copy of that logic is worse than no copy.
+
+**What was actually buildable, and why it is still a real check and not a bare
+hash-trust:** the model's `position.retainedLowerBound0/1` — the numbers
+actually written to the ledger — are reconstructible without any RPC call,
+from data already sitting on two existing `deployment_marks` rows:
+
+- the open mark's `inventory.position.{tickLower,tickUpper,liquidity}`
+  (written by `buildRangeKeeperPaperConfirmedOpenInventory`,
+  `rangekeeper-paper-confirmed-open-adapter.ts:153`), and
+- the latest prior mark's `inventory.idle.{token0,token1}` (written by
+  `buildRangeKeeperPaperMarkPayload`, `rangekeeper-paper-persistence.ts:177`,
+  which itself forces `kernel.wallet0===idle0` on every mark, so this value
+  never silently drifts from the open-time idle balance).
+
+`principalAmounts` (`src/backtest/principal.ts:148`, already imported by both
+`rangekeeper-paper-exit-model.ts` and `store.ts`) applied to those two marks'
+data plus the exit model's own pinned `poolState.sqrtPriceX96` reproduces
+exactly the `retained0`/`retained1` computation at
+`rangekeeper-paper-exit-model.ts:353`. That is a real, independent, DB-only
+re-derivation of the booked amounts — the same kind of defense-in-depth the
+static paths apply, just scoped to the part that is actually reconstructible
+without RPC.
+
+### What was built
+
+- `src/deployments/rangekeeper-paper-exit-completion.ts` (new, owned): a
+  deliberately narrow, non-strict mirror of the fields
+  `RangeKeeperPaperExitModel` exposes that the retain booking path reads
+  (`rangeKeeperPaperCloseRetainModelBookingSchema`); `recoverRangeKeeperPaperExitModelSource`
+  for gap D; and the pure, DB/RPC-free
+  `buildRangeKeeperPaperCloseRetainBooking`, which re-derives and requires an
+  exact match on the retained-lower-bound arithmetic above before producing
+  any ledger/mark content, and throws a specific reason on every mismatch it
+  can check (kind, previous-mark identity, position, idle, principal,
+  retained-lower-bound).
+- `DeploymentStore.completeRangeKeeperPaperConfirmedExit` (new, store.ts,
+  flagged inline where it is inserted, after `completeTrustedPaperCloseRetain`):
+  self-contained — reads/writes only `deployment_operations`,
+  `deployment_campaigns`, `deployment_marks` and `deployment_ledger` rows
+  scoped to its own `operationId`, inside one `FOR UPDATE`-locked transaction,
+  mirroring `completeTrustedPaperCloseRetain`'s shape (idempotent replay
+  return, claim/lifecycle/status/revision checks, preview digest integrity,
+  then booking). `close_retain` only; it throws
+  `rangekeeper_paper_exit_operation_unavailable` for any other `kind`.
+- Worker wiring in `paper-operation-worker.ts` as described under gap D.
+
+### What was deliberately not built, and why
+
+- **`close_convert` booking.** Needs the conversion-accounting pattern the
+  static path uses (`PAPER_CONVERSION_ACCOUNTING_POLICY_V2`, a separate
+  accounting table — see `completeTrustedStaticPaperCloseConvertV3`,
+  `store.ts:4496`, not fully read for this pass) plus a live re-verification of
+  `proposal.rangekeeperPaperConvertQuote` this task cannot build without the
+  same RPC/simulate dependency problem above. The worker refuses it with
+  `rangekeeper_paper_exit_convert_completion_unavailable` rather than booking
+  an unverified conversion.
+- **`kernelEvaluation` and `costs` are carried through unverified.** They are
+  copied into the booked mark's `provenance` verbatim from the hash-bound
+  model, not re-derived. They do not gate whether booking happens and are not
+  used in any arithmetic this method performs; they are provenance-only. If
+  the model's reported `kernelEvaluation`/`costs` were wrong, this method
+  would still book the correct retained-lower-bound (which it does
+  independently verify) with incorrect decorative context attached.
+- **The independent-price-deviation band check**
+  (`rangekeeper-paper-exit-model.ts:339-341`) is not re-verified. It is a
+  build-time gate on the model's own `status`; this method trusts
+  `model.status==='indicative'` (required) as proof it already passed, rather
+  than re-fetching `poolPrice1` independently.
+- **`inventoryProofHash`** (`rangeKeeperPaperExitInventoryProofHash`,
+  exported from `rangekeeper-paper-exit-model.ts:121`) is not re-derived. It
+  would require fully reconstructing the kernel's `RangeKeeperState`
+  (confirmation/exit sub-objects) from the prior mark's `kernelSnapshot`,
+  which is more surface than the retained-lower-bound check above for a field
+  that is not itself written to the ledger.
+- **Gap B (acceptance) for the exit side is still not built**, by anyone, as
+  far as this pass could tell — this track did not touch acceptance routes or
+  `server.ts`/`deployments.ts`. `completeRangeKeeperPaperConfirmedExit`
+  assumes acceptance will set `lifecycle='closing'` before the worker claims,
+  mirroring the static convention; until an acceptance path exists for
+  `rangekeeper_v1` exits, no operation reaches this method at all, and it is
+  unreachable in production exactly like gap E was before this pass.
+
+### What is unverified
+
+No live database or RPC run backs any of this. All nine new tests
+(`test/rangekeeper-paper-exit-completion.test.ts`) stub `store`/`chain`/
+`indexer`; the SQL inside `completeRangeKeeperPaperConfirmedExit` — the
+`deployment_marks`/`deployment_operations`/`deployment_previews` joins, the
+`FOR UPDATE`/`FOR SHARE` locking, the exact column casts — has not executed
+against a real schema. The static `completeTrustedPaperCloseRetain` query
+shapes it was modeled on are exercised elsewhere in this suite against a real
+database; this new method is not. Until it runs once against a live
+`deployment_marks` table with a genuine open mark and a genuine
+`recordRangeKeeperPaperMark`-written prior mark, treat the SQL as reviewed,
+not proven.

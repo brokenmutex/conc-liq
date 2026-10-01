@@ -25,6 +25,7 @@ import {loadRangeKeeperPaperConfirmationContext} from './rangekeeper-paper-confi
 import {adaptRangeKeeperConfirmedOpenContext} from './rangekeeper-paper-confirmed-open-adapter.js';
 import {isRangeKeeperPaperConfirmationReplayCapability,
  replayRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-replay-verifier.js';
+import {recoverRangeKeeperPaperExitModelSource} from './rangekeeper-paper-exit-completion.js';
 import {log} from '../logger.js';
 
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
@@ -59,6 +60,12 @@ function logTerminalReplayFailure(input:{enabled:boolean;campaignId:string;opera
 const sourceFor=(context:OperationContext):PaperCanonicalAnchor=>{
  if(!context.proposal||typeof context.proposal!=='object'||Array.isArray(context.proposal))
   throw new DeploymentConflict('paper_operation_saved_model_unavailable');
+ if(context.strategy_id==='rangekeeper_v1'&&
+  (context.kind==='close_retain'||context.kind==='close_convert')){
+  const source=recoverRangeKeeperPaperExitModelSource(context.proposal);
+  if(!source)throw new DeploymentConflict('paper_operation_saved_model_unavailable');
+  return source;
+ }
  if(context.kind==='close_convert'&&context.proposal.paperCloseConvertTerminalV3!==undefined){
   try{return parsePaperStaticCloseConvertTerminalV3(
    context.proposal.paperCloseConvertTerminalV3).source;}
@@ -167,6 +174,25 @@ export async function processOnePaperOperation(store:DeploymentStore,
   const verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
    verifyCanonicalPaperAnchors(chain,chainId,sources);
    if(context.strategy_id==='rangekeeper_v1'){
+    if(context.kind==='close_retain'||context.kind==='close_convert'){
+     const source=sourceFor(context);
+     await verifyCanonicalPaperAnchors(chain,4663,[source]);
+     if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+     if(claim.status==='preflighting'){
+      await store.advanceClaim(claim.id,workerId,'paper_model_preflight_checked','executing',null);
+      await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
+     }else if(claim.status==='executing'||claim.status==='confirming')
+      await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
+     else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
+     if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+     // close_convert has no completion path yet (see the plan's exit-booking
+     // scope note); only close_retain can be booked. Block with a specific
+     // reason instead of guessing at a conversion ledger it cannot verify.
+     if(context.kind==='close_convert')
+      return await block('rangekeeper_paper_exit_convert_completion_unavailable');
+     const completed=await store.completeRangeKeeperPaperConfirmedExit(claim.id,workerId,verify);
+     return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
+    }
     if(context.kind!=='open')return await block('rangekeeper_paper_operation_path_unavailable');
    if(!options.rpcUrl)return await block('rangekeeper_paper_confirmation_fork_rpc_unavailable');
    const snapshot=await store.rangeKeeperPaperConfirmationOperationSnapshot({operationId:claim.id,workerId,
