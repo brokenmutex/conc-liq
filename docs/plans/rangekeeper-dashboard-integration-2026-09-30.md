@@ -178,10 +178,17 @@ A sampling failure now returns the full sizing output with reason
 shape — the operator keeps the range and requirements even when cost evidence
 cannot be obtained.
 
-It is still **not wired to an HTTP route**, which remains deliberately out of
-scope, and no live fork sample has run through it: its tests drive
-`sampleOwnedFork` with a fixture, so the produce/verify/select path is exercised
-end to end but the fork itself is not.
+~~It is still **not wired to an HTTP route**~~ **Routed 2026-10-01** at
+`POST /api/deployments/rangekeeper/setup-preflight`, with admission at
+`/api/deployments/rangekeeper/setup-drafts`; both mirror the static pair and
+inherit its session and CSRF guard. The review serialises on the same busy flag
+the static setup review uses, since a second concurrent owned fork doubles
+memory for nothing. An admission replay passes a pinned source and therefore
+does not mint a second review snapshot.
+
+No live fork sample has run through it: its tests drive `sampleOwnedFork` with a
+fixture, so the produce/verify/select path is exercised end to end but the fork
+itself is not.
 
 ### 2c. The strategy is refused in two places
 
@@ -192,6 +199,23 @@ end to end but the fork itself is not.
 
 Both are one-line gates once what they guard actually works. They should be the
 **last** things changed, not the first.
+
+**Opened 2026-10-01**, after the setup contract was routed. `/api/strategies`
+now reports paper support per strategy rather than hardcoding
+`static_manual_v1`, and `tabs.js` accepts `rangekeeper_v1` through its own
+endpoint.
+
+RangeKeeper reports `paper: true` only when an owned fork endpoint is
+configured. It has no simulation sampler to fall back on, unlike the static
+path, so without `PAPER_FORK_RPC_URL` a setup review could only ever fail
+closed; it reports itself unavailable instead of offering one. **That variable
+is unset in the current environment, so the gate is open but the strategy still
+advertises unavailable until it is set.**
+
+Its availability deliberately does **not** check retain-worker readiness, the
+way `staticPaperAvailable` does, because §2a's exit preview is still blocked: a
+campaign it opens cannot yet be closed from the dashboard. The RangeKeeper limit
+group says so where the operator sets the limits.
 
 ### 2d. Gas evidence is needed per pool and per path
 
@@ -373,9 +397,26 @@ against.
    see §2b. Complete and tested, but inert until the §2d re-key lands and it is
    wired to a route. **The re-key is therefore now the critical path**: without
    it the setup contract exists but can never resolve a cost.
-4. **Extend the dashboard form** to collect `fullWidthSpacings` and the
-   RangeKeeper limit set, which is larger than the static one.
-5. **Open the two gates** in `server.ts` and `tabs.js`, last.
+4. ~~**Extend the dashboard form** to collect `fullWidthSpacings` and the
+   RangeKeeper limit set, which is larger than the static one.~~ **Done
+   2026-10-01.** RangeKeeper takes a full width in even tick spacings, since it
+   centers its own range on the observed tick, where static/manual takes a
+   half-width in raw ticks. Its seven extra kernel limits have their own group,
+   and the shared limit helpers are strategy-aware rather than duplicated. The
+   50bps slippage cap and the 30–90s observation gap are enforced in the form,
+   so the operator learns them before paying for a fork sample rather than
+   after. `maxRecenters` accepts zero, which pins a campaign to its entry.
+5. ~~**Open the two gates** in `server.ts` and `tabs.js`, last.~~ **Done
+   2026-10-01** — see §2c, including why RangeKeeper's availability requires a
+   configured fork and omits the retain-worker check.
+6. **Set `PAPER_FORK_RPC_URL` and take one live setup review**, which is the
+   first thing that exercises the preflight's fork sampling, the convert-exit
+   sampler and the quote binding against a real chain. Nothing in §2a or §2b has
+   run against a live fork yet; all of it is unit-tested against fixtures.
+7. **Unblock the retain exit preview** at `deployments.ts:341` on §2a's measured
+   evidence, so a RangeKeeper campaign can be closed from the dashboard. Until
+   then the form warns, but a campaign opened through this path has no dashboard
+   exit.
 
 ## 4. Decisions needed before starting
 
