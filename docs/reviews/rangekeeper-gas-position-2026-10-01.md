@@ -99,13 +99,23 @@ discrete values, 42,121 vs. 39,131 — see section 4), everything else
 For comparison, the prior review's section 5 (width varied, center fixed)
 measured 18.58% on `open_mint` and 11.11% total across a **20× width
 span**. This review measures 17.70% / 10.99% from shifting the center by
-at most **5 tick spacings (50 raw ticks) each way — 2.5% of the range's
-own 2,000-tick full span** (shift ±5 of a ±100-tick half-width, i.e. a
-tiny fraction of the range's own extent, not a large excursion). Position
-moves gas by almost exactly as much as a 20× width change does, from a
-far smaller perturbation. **This directly contradicts the premise that
-width alone could stand in for position: at fixed width, position is at
-least as strong a driver as width was found to be.**
+at most **5 tick spacings (50 raw ticks) each way**, against a range that
+is itself only 200 raw ticks wide — so the full excursion is **25% of the
+range's own span**, or half its ±100-tick half-width. **Corrected
+2026-10-01**: an earlier draft of this paragraph called that "2.5% of the
+range's own 2,000-tick full span", which was wrong by a factor of ten in
+both figures and contradicted section 2's own statement that
+`fullWidthSpacings=20` at spacing 10 is 200 raw ticks. The perturbation is
+not tiny, and the comparison with the width gradient is therefore not
+like-for-like on perturbation size.
+
+The finding does not rest on that comparison. Section 3 shows the effect
+is a **threshold**, not a gradient: it depends on whether the two boundary
+ticks are already initialized, and shift −1 and shift 0 are a single tick
+spacing apart yet land in opposite clusters. A threshold has no meaningful
+"per percent of span" slope, so what matters is that position changes which
+side of the threshold a range falls on at all — which it demonstrably does.
+**Width alone therefore cannot stand in for position.**
 
 ## 3. Root cause, confirmed directly (not inferred): cold vs. warm tick
 ## initialization, not distance from the current tick
@@ -247,12 +257,14 @@ samples only; this did not displace the primary question's budget.
 ## 6. Recommendation
 
 **The evidence rules out keying on width alone.** Section 2's position
-gradient, from a far smaller perturbation (±5 spacings) than the prior
-review's width gradient (20× span), produced a comparably large spread
-(17.70% mint / 10.99% total here vs. 18.58% / 11.11% there). If width were
-the only driver, a ±5-spacing shift at fixed width should have moved gas
-negligibly, the way the prior review's size/share gradients did (≤0.08%
-per stage). It did not. **Position is not a dimension that can be folded
+gradient produced a spread comparable to the prior review's width gradient
+(17.70% mint / 10.99% total here vs. 18.58% / 11.11% there). Per section 2's
+correction, the two perturbations are not comparable in size — a ±5-spacing
+shift is 25% of this range's own span, not a tiny fraction of it — so that
+comparison is not the load-bearing part. What is load-bearing: if width were
+the only driver, a shift at *fixed* width should have moved gas negligibly,
+the way the prior review's size/share gradients did (≤0.08% per stage). It
+did not, and section 3 identifies exactly why. **Position is not a dimension that can be folded
 into a width-only band — the evidence requires pinning absolute ticks**,
 consistent with the gas-banding review's section 7 recommendation.
 
@@ -293,3 +305,31 @@ previously-banded ranges, or for a cheap freshness check (e.g., reading
 than a full fork sample) before trusting a cached band — a design this
 review surfaces but does not specify further, since that is a `src/`
 change and out of scope here.
+
+## 7. How this was used
+
+Recorded 2026-10-01, after this review was written and integrated.
+
+This review was commissioned to decide the re-key's band key: width-banded
+versus absolute-tick-pinned. **That re-key has since been dropped**, for two
+reasons established independently of this review and recorded in
+`docs/plans/rangekeeper-dashboard-integration-2026-09-30.md` §2d — the band key
+was never the binding constraint on reuse, and the campaign action budget makes
+banding worth little in the first place.
+
+So section 6's recommendation no longer has a re-key to apply to. The review's
+findings keep two uses, and they are the reason it was integrated rather than
+discarded:
+
+1. **Section 5's margin qualification bears on `gasUnitsBound`.** The 30% margin
+   is the live safety property on every RangeKeeper open, banded or not. This
+   review's spreads fit inside it, but only within one small neighborhood of one
+   frame — which is now an open question about the margin itself, not about a
+   band.
+2. **Section 3's mechanism independently argues against ever banding this path.**
+   If a pinned-tick band's true cost can drift because another LP's position at
+   a boundary tick came or went, then cached gas evidence for a RangeKeeper range
+   is not merely stale-prone but *silently* stale-prone, with nothing in the key
+   to signal it. Sampling per open — the architecture the path already has — reads
+   the live initialization state every time and cannot go stale this way. That
+   makes sample-per-open the safer design and not just the adequate one.
