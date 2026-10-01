@@ -9,12 +9,12 @@ import {buildRangeKeeperPaperOpenModel,type RangeKeeperPaperDraft,type RangeKeep
 import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
  rangeKeeperPaperSizeBand,selectRangeKeeperPaperCostProfiles,type RangeKeeperPaperModeledCosts,
  type RangeKeeperPaperCandidateScope} from './rangekeeper-paper-cost.js';
-import {verifyRangeKeeperPaperGasReport} from './rangekeeper-paper-gas-evidence.js';
+import {rangeKeeperPaperSpeculativeGasRows,
+ verifyRangeKeeperPaperGasReport} from './rangekeeper-paper-gas-evidence.js';
 import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 
 type Registration={version:number;profileIds:readonly string[];reportHash:string};
 type PersistedGasProfileRow=PaperGasProfileRow&{validation:Record<string,unknown>};
-type SpeculativeRows=PaperGasProfileRow[];
 
 function candidateFrom(value:RangeKeeperPaperOpenModel['candidate']):RangeKeeperCandidate{
  if(!value)throw Error('rangekeeper_open_model_candidate_unavailable');
@@ -27,14 +27,6 @@ function candidateFrom(value:RangeKeeperPaperOpenModel['candidate']):RangeKeeper
   liquidity:BigInt(value.liquidity),deployedValue:BigInt(value.deployedValue),
   sourceBlock:BigInt(value.sourceBlock),sourceHash:value.sourceHash as `0x${string}`,
   expiresAt:value.expiresAt};
-}
-function scopedRows(report:ReturnType<typeof verifyRangeKeeperPaperGasReport>):SpeculativeRows{
- const sampledAt=new Date(report.sampledAt);
- return report.stageProfiles.map((stage,index)=>({id:`speculative:${index}:${stage.stage}`,
-  version:1,poolAddress:report.scope.poolAddress,pathVersion:report.pathVersion,stage:stage.stage,
-  allowanceState:stage.allowanceState,sizeBand:report.sizeBand,component:'gas_units',
-  status:'provisional',evidenceClass:'fork_estimated',model:stage.model,sourceHash:stage.sourceHash,
-  observedUntil:sampledAt}));
 }
 function sameCostsExceptProfileIds(a:RangeKeeperPaperModeledCosts,b:RangeKeeperPaperModeledCosts){
  const {profileIds:_a,...bodyA}=a,{profileIds:_b,...bodyB}=b;
@@ -141,7 +133,7 @@ export async function buildRangeKeeperPaperOpenModelWhileRegistering(input:{
   rangeKeeperPaperSizeBand(report.pathVersion,scope)!==report.sizeBand)
   throw Error('rangekeeper_open_model_overlap_candidate_mismatch');
 
- const speculativeRows=scopedRows(report);
+ const speculativeRows=rangeKeeperPaperSpeculativeGasRows(report);
  const parallelStartedAt=Date.now(),registrationStartedAt=parallelStartedAt,modelStartedAt=parallelStartedAt;
  let registrationFinishedAt=0,modelFinishedAt=0;
  const registrationPromise=input.register(report).then(value=>{

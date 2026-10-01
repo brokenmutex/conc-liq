@@ -320,6 +320,22 @@ export function verifyRangeKeeperPaperGasReport(rawReport:unknown,now=Date.now()
  return report;
 }
 
+/** Selector-shaped rows built from a report verified in this same request,
+ * for costing a sample just taken rather than one read from the store. These
+ * are never persisted and their ids are not profile ids, so a caller must not
+ * hand them to anything that expects a stored row's identity. Shared by the
+ * open overlap path and the setup preflight so both cost a fresh sample the
+ * same way. */
+export function rangeKeeperPaperSpeculativeGasRows(
+ report:ReturnType<typeof verifyRangeKeeperPaperGasReport>):PaperGasProfileRow[]{
+ const sampledAt=new Date(report.sampledAt);
+ return report.stageProfiles.map((stage,index)=>({id:`speculative:${index}:${stage.stage}`,
+  version:1,poolAddress:report.scope.poolAddress,pathVersion:report.pathVersion,stage:stage.stage,
+  allowanceState:stage.allowanceState,sizeBand:report.sizeBand,component:'gas_units',
+  status:'provisional',evidenceClass:'fork_estimated',model:stage.model,sourceHash:stage.sourceHash,
+  observedUntil:sampledAt}));
+}
+
 export interface RangeKeeperPaperGasSourceAttestation {
  verificationClass:'rangekeeper_paper_candidate_replay_v1';reportHash:string;
  sourceHash:string;profileHash:string;candidateHash:string;replayHash:string;verifiedAt:string;

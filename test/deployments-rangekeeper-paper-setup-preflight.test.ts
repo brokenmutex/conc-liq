@@ -1,14 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {randomUUID} from 'node:crypto';
 import {sqrtRatioAtTick} from '../src/backtest/principal.js';
 import {USDG,NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
 import {contentHash} from '../src/deployments/contracts.js';
 import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-profile.js';
-import {rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
+import {rangeKeeperPaperCandidateHash,
  RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES,
- RANGEKEEPER_PAPER_ZERO_ALLOWANCES,RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES,
  type RangeKeeperPaperCandidateScope} from '../src/deployments/rangekeeper-paper-cost.js';
 import {buildRangeKeeperPaperSetupPreflight,rangeKeeperPaperSetupCandidateIdentity,
  rangeKeeperSetupPreflightInput} from '../src/deployments/rangekeeper-paper-setup-preflight.js';
@@ -46,8 +44,23 @@ const input=rangeKeeperSetupPreflightInput.parse({profileId:'00000000-0000-4000-
  capitalQuoteRaw:'100000000',fullWidthSpacings:120,limits});
 const deps=(overrides:Partial<Parameters<typeof buildRangeKeeperPaperSetupPreflight>[1]>={})=>({
  loadProfile:async(id:string)=>({id,profile,profileHash:contentHash(profile)}),
- readFrame:async()=>frame,verifyCanonical:async()=>{},readGasProfiles:async()=>[],
- readGasPrice:async()=>1_000_000_000n,now:()=>now,...overrides});
+ readFrame:async()=>frame,verifyCanonical:async()=>{},
+ readGasPrice:async()=>1_000_000_000n,
+ sampleOwnedFork:async()=>{throw Error('owned fork unavailable in this test');},
+ now:()=>now,...overrides});
+
+/** Stage samples shaped exactly as the owned fork returns them, so the preflight
+ * exercises its real produce/verify/speculative-row path rather than fabricated
+ * calibration rows. Gas is constant across stages; this fixture is about the
+ * identity and binding, not about gas realism. */
+const forkSamples=(stages:readonly string[])=>stages.map((action,index)=>({
+ action,to:profile.pool.pool,calldata:`0x${'ab'.repeat(index+1)}`,returnData:'0x',
+ localHash:`0x${String(index+1).repeat(64)}`.slice(0,66),localGasUsed:'100000',
+ localEffectiveGasPriceWei:'1000000000',sourceBlock:frame.source.block,sourceHash:frame.source.hash,
+ estimate:{gas:'100000',parentGas:'0',baseFeeWei:'1000000000',parentBaseFeeWei:'1000000000',
+  totalFeeWei:'100000000000000',parentFeeWei:'0',executionFeeWei:'100000000000000',
+  basis:'node_estimateGas_with_paper_prestate_and_parent_component' as const},
+ stateOverrideHash:contentHash({}),stateOverrides:{}}));
 
 test('read-only rangekeeper setup sizes a candidate via the planner; cost evidence is absent by default',async()=>{
  const result=await buildRangeKeeperPaperSetupPreflight(input,deps());
@@ -66,7 +79,7 @@ test('read-only rangekeeper setup sizes a candidate via the planner; cost eviden
  assert(BigInt(result.requirements.liquidity)>0n);
  assert.equal(result.requirements.sizingConvention,
   'maximize_v3_liquidity_under_independent_reference_quote_budget_then_kernel_sized');
- assert(result.missing[0]!.startsWith('rangekeeper_open_and_retain_exit_profiles_incomplete'));
+ assert.equal(result.missing[0],'rangekeeper_setup_gas_sample_unavailable');
 });
 
 test('rangekeeper setup is available once the exact kernel candidate has complete fresh gas evidence',async()=>{
@@ -83,31 +96,26 @@ test('rangekeeper setup is available once the exact kernel candidate has complet
   liquidity:mint.liquidity,deployedValue:BigInt(sizing.requirements.deployedValueUsdX18),
   sourceBlock:BigInt(frame.source.block),sourceHash:frame.source.hash as `0x${string}`,
   expiresAt:frame.source.timestamp+90};
+ // The preflight's pre-draft identity must be the production candidate hash
+ // with sentinel campaign values, not a separate hash space: that is what lets
+ // produceRangeKeeperPaperGasEvidence accept the scope it samples against.
+ const configHash=contentHash({fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,
+  strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',stateSchemaVersion:1});
  const candidateHash=rangeKeeperPaperSetupCandidateIdentity({profileHash:contentHash(profile),
-  source:frame.source,referenceProofHash:frame.referenceProofHash,candidate}),
-  denominator=frame.poolLiquidity+candidate.liquidity,
-  scope:RangeKeeperPaperCandidateScope={poolAddress:profile.pool.pool,profileHash:contentHash(profile),
-   candidateHash,deployedValue:candidate.deployedValue,sharePpm:candidate.liquidity*1_000_000n/denominator,
-   range:candidate.range,swapKind:'none'},
-  pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope),
-  stages=[...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
-  sequenceHash=`0x${'e'.repeat(64)}`,estimatedAt=new Date(now-10_000).toISOString();
- const rows=stages.map((stage,index)=>{
-  const callHash=`0x${String(index+1).repeat(64)}`.slice(0,66),
-   source={block:frame.source.block,hash:frame.source.hash,estimatedAt,callHash,
-    method:'owned_fork_nitro_exact_call_v1' as const},
-   allowanceState=stage.startsWith('open_')?RANGEKEEPER_PAPER_ZERO_ALLOWANCES:RANGEKEEPER_PAPER_POST_ENTRY_ALLOWANCES,
-   model={schemaVersion:1 as const,source,gasUnitsExpected:'100000',gasUnitsBound:'130000',
-    poolAddress:profile.pool.pool,pathVersion,stage,allowanceState,profileHash:scope.profileHash,
-    candidateHash:scope.candidateHash,deployedValue:String(scope.deployedValue),sharePpm:String(scope.sharePpm),
-    range:scope.range,swapKind:scope.swapKind,simulation:{kind:'owned_fork_full_candidate_v1' as const,
-     status:'success' as const,sourceBlock:frame.source.block,sourceHash:frame.source.hash,
-     candidateHash:scope.candidateHash,sequenceHash}};
-  return {id:randomUUID(),version:1,poolAddress:profile.pool.pool,pathVersion,stage,allowanceState,
-   sizeBand,component:'gas_units',status:'provisional',evidenceClass:'fork_estimated',model,
-   sourceHash:contentHash(source),observedUntil:new Date(now-10_000)};
- });
- const result=await buildRangeKeeperPaperSetupPreflight(input,deps({readGasProfiles:async()=>rows}));
+  configHash,source:frame.source,referenceProofHash:frame.referenceProofHash,candidate});
+ assert.equal(candidateHash,rangeKeeperPaperCandidateHash({campaignId:'00000000-0000-4000-8000-000000000000',
+  revision:1,profileHash:contentHash(profile),configHash,source:frame.source,
+  referenceProofHash:frame.referenceProofHash,candidate}),
+  'setup identity must stay in the production candidate hash space');
+ const stages=[...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP,...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES];
+ let sampledScope:RangeKeeperPaperCandidateScope|null=null;
+ const result=await buildRangeKeeperPaperSetupPreflight(input,deps({
+  sampleOwnedFork:async(request:{stages:readonly string[];scope:RangeKeeperPaperCandidateScope})=>{
+   sampledScope=request.scope;return forkSamples(request.stages);
+  }}));
+ assert.deepEqual(sampledScope&&(sampledScope as RangeKeeperPaperCandidateScope).candidateHash,candidateHash,
+  'the preflight must sample against the identity it reports');
+ assert.deepEqual(stages.length,8);
  assert.equal(result.status,'available');
  assert.equal(result.costs.status,'provisional');
  assert.equal(result.actionAvailable,false);

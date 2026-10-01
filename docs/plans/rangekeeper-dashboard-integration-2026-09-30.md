@@ -142,14 +142,46 @@ than optional, because the RangeKeeper kernel reads `maxDeploymentValue`,
 `minDeploymentPpm` and `maxSlippageBps` to size anything at all, so a
 limits-free preflight could not call the planner meaningfully.
 
-**It is complete, tested, and inert in production.** The band it computes uses a
-pre-draft candidate identity, because `campaignId`, `revision` and the source
-anchors that `rangeKeeperPaperCandidateHash` embeds do not exist before a draft
-is created. No sampler targets that identity, so the preflight resolves to
-cost-unavailable — failing closed, correctly — until §2d's re-key lands. It is
-also not wired to any HTTP route yet, which was deliberately left out of scope.
-Once the re-key lands it picks it up without rework, because it calls the shared
-production band and cost functions rather than copies of them.
+~~**It is complete, tested, and inert in production.**~~ **No longer inert, as
+of 2026-10-01.** It was inert because it computed a *separate* pre-draft
+candidate identity, on the reasoning that `campaignId` and `revision` cannot
+exist before a draft. But `produceRangeKeeperPaperGasEvidence` asserts the
+scope's `candidateHash` is the production `rangeKeeperPaperCandidateHash`, so
+nothing could ever sample against a separate hash space — the preflight was
+waiting for evidence no sampler could produce.
+
+It now **samples its own candidate at review time**, which is what the open path
+already does and what §2d establishes is the only way this path can resolve a
+cost at all. Three changes:
+
+- `rangeKeeperPaperSetupCandidateIdentity` is now the production
+  `rangeKeeperPaperCandidateHash` over the real profile, configHash, source,
+  reference proof and candidate, with `campaignId` and `revision` replaced by
+  fixed sentinels (`00000000-0000-4000-8000-000000000000`, revision 1). Same
+  hash space as post-draft, which is what makes it sampleable.
+- The `readGasProfiles` dependency is replaced by `sampleOwnedFork`. The
+  preflight calls `produceRangeKeeperPaperGasEvidence`, verifies the report, and
+  costs it through `rangeKeeperPaperSpeculativeGasRows` — a helper now shared
+  with `rangekeeper-paper-open-model-overlap.ts`, which had its own private copy.
+  **Nothing is persisted**: the rows are costed in the request and discarded, so
+  a sentinel identity never enters the store's hash space and can never be
+  mistaken for a real campaign's evidence. That is what makes the sentinel safe,
+  and it keeps the preflight's declared `read_only_no_draft_or_operation`
+  contract intact.
+- The configHash derivation, previously duplicated verbatim here and in
+  admission, is now `rangeKeeperPaperSetupConfigHash` in `contracts.ts`. The
+  preflight folds it into the candidate identity, so a drift between the two
+  copies would have changed what admission replays.
+
+A sampling failure now returns the full sizing output with reason
+`rangekeeper_setup_gas_sample_unavailable`, rather than the bare unavailable
+shape — the operator keeps the range and requirements even when cost evidence
+cannot be obtained.
+
+It is still **not wired to an HTTP route**, which remains deliberately out of
+scope, and no live fork sample has run through it: its tests drive
+`sampleOwnedFork` with a fixture, so the produce/verify/select path is exercised
+end to end but the fork itself is not.
 
 ### 2c. The strategy is refused in two places
 

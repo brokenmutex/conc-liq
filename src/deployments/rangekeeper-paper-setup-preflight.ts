@@ -4,10 +4,13 @@ import {USDG} from '../constants.js';
 import {planRangeKeeper,rangeKeeperRange,rawValue} from '../strategy/rangekeeper/planner.js';
 import type {RangeKeeperCandidate} from '../strategy/rangekeeper/domain.js';
 import {positionAmounts,replayPaperMint} from '../v3/position-math.js';
-import {contentHash,rangeKeeperLimitsSchema} from './contracts.js';
-import {modelRangeKeeperPaperCosts,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
+import {contentHash,rangeKeeperLimitsSchema,rangeKeeperPaperSetupConfigHash} from './contracts.js';
+import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
  selectRangeKeeperPaperCostProfiles,type RangeKeeperPaperCandidateScope,
  type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
+import {produceRangeKeeperPaperGasEvidence,rangeKeeperPaperSpeculativeGasRows,
+ verifyRangeKeeperPaperGasReport,
+ type RangeKeeperPaperOwnedForkStageProbe} from './rangekeeper-paper-gas-evidence.js';
 import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangekeeper-paper-open-model.js';
 import {marketProfileSchema,referenceProofHash,type MarketProfile} from './market-profile.js';
 import {pinnedExternalReferenceProofIdentityHash} from './pinned-external-reference-proof.js';
@@ -35,6 +38,23 @@ export type RangeKeeperSetupPreflightInput=z.infer<typeof rangeKeeperSetupPrefli
 // binding belongs to the open/confirmation path once a draft exists).
 const SETUP_BUILD_ID='0'.repeat(64);
 
+/** A RangeKeeper candidate identity folds in campaignId and revision, which do
+ * not exist before a draft does, so the preflight supplies fixed sentinels. It
+ * can do this safely only because the evidence it samples is never persisted:
+ * `rangeKeeperPaperSpeculativeGasRows` rows are costed in the same request and
+ * discarded, so a sentinel identity never enters the store's hash space and
+ * cannot be mistaken for a real campaign's evidence. The alternative — keeping
+ * a separate pre-draft hash space — was what made this preflight inert, since
+ * `produceRangeKeeperPaperGasEvidence` asserts the scope's candidateHash is the
+ * production one and no sampler could ever target anything else. */
+const SETUP_CAMPAIGN_ID='00000000-0000-4000-8000-000000000000';
+const SETUP_REVISION=1;
+
+/** A missing-stage list is only meaningful when the selector actually looked at
+ * rows; a sampling failure has none, and must not report a bare trailing colon. */
+const costUnavailableReason=(selected:{reason:string;missingStages:readonly string[]})=>
+ selected.missingStages.length?`${selected.reason}:${selected.missingStages.join(',')}`:selected.reason;
+
 const ceilDiv=(n:bigint,d:bigint)=>n===0n?0n:(n+d-1n)/d;
 const ceilRefValueQuoteRaw=(amount:bigint,priceX18:bigint,decimals:number,
  quotePriceX18:bigint,quoteDecimals:number)=>
@@ -51,18 +71,17 @@ function serializeCandidate(c:RangeKeeperCandidate){
   expiresAt:c.expiresAt};
 }
 
-/** Pre-draft candidate identity. The production `rangeKeeperPaperCandidateHash`
- * folds in a real campaignId/revision/configHash that cannot exist before a
- * draft is created, so gas evidence keyed to it can never be pre-sampled. This
- * identity instead binds the candidate to the exact profile, source and
- * reference proof that produced it — everything the preflight actually knows
- * before a draft exists — so a size band can still be computed and looked up
- * honestly. It is deliberately a different hash space from the post-draft one;
- * admission never compares the two, only the preflight replay against itself. */
-export function rangeKeeperPaperSetupCandidateIdentity(input:{profileHash:string;
+/** Pre-draft candidate identity: the production `rangeKeeperPaperCandidateHash`
+ * over the real profile, configHash, source, reference proof and candidate, with
+ * the campaignId and revision that cannot exist yet replaced by sentinels. It is
+ * therefore the same hash space as the post-draft identity, which is what lets
+ * the preflight sample its own gas evidence at review time instead of looking up
+ * a band nothing writes. See SETUP_CAMPAIGN_ID for why that is safe here. */
+export function rangeKeeperPaperSetupCandidateIdentity(input:{profileHash:string;configHash:string;
  source:PaperOpenFrame['source'];referenceProofHash:string;candidate:RangeKeeperCandidate}){
- return contentHash({kind:'rangekeeper_paper_setup_preflight_candidate_v1',profileHash:input.profileHash,
-  source:input.source,referenceProofHash:input.referenceProofHash,candidate:serializeCandidate(input.candidate)});
+ return rangeKeeperPaperCandidateHash({campaignId:SETUP_CAMPAIGN_ID,revision:SETUP_REVISION,
+  profileHash:input.profileHash,configHash:input.configHash,source:input.source,
+  referenceProofHash:input.referenceProofHash,candidate:input.candidate});
 }
 
 function unavailable(input:RangeKeeperSetupPreflightInput,reason:string,profileId=input.profileId){
@@ -86,8 +105,11 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
  loadProfile:(id:string)=>Promise<PaperSetupProfile|null>;
  readFrame:(profile:MarketProfile,pinnedSource?:PaperOpenFrame['source'])=>Promise<PaperOpenFrame>;
  verifyCanonical:(chainId:number,source:PaperOpenFrame['source'])=>Promise<void>;
- readGasProfiles:(poolAddress:string,pathVersion:string,sizeBand:string)=>Promise<PaperGasProfileRow[]>;
  readGasPrice:()=>Promise<bigint>;
+ /** Samples this exact candidate on an owned fork at the pinned source. The
+  * preflight costs that sample directly and persists nothing, mirroring how the
+  * open path samples at open time rather than reusing a stored band. */
+ sampleOwnedFork:RangeKeeperPaperOwnedForkStageProbe;
  now?:()=>number;
 },pinnedSource?:PaperOpenFrame['source']){
  const now=deps.now??Date.now;
@@ -132,8 +154,7 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
  // parameters and profile the real draft will carry. This is the same
  // reason we call the planner for the candidate: do not re-derive the
  // kernel's own acceptance rules for a limits object.
- const configHash=contentHash({fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,
-  strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',stateSchemaVersion:1});
+ const configHash=rangeKeeperPaperSetupConfigHash(input);
  const syntheticDraft:RangeKeeperPaperDraft={id:input.profileId,revision:1,profile:profile.data,
   profileHash:registered.profileHash,configHash,strategyId:'rangekeeper_v1',
   parameters:{fullWidthSpacings:input.fullWidthSpacings,limits:input.limits},
@@ -202,14 +223,10 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
  const sharePpm=candidate.liquidity*PPM/denominator;
  if(sharePpm>BigInt(limits.maxLiquiditySharePpm))return unavailable(input,'rangekeeper_liquidity_share_limit');
  const candidateHash=rangeKeeperPaperSetupCandidateIdentity({profileHash:registered.profileHash,
-  source:frame.source,referenceProofHash:frame.referenceProofHash,candidate});
+  configHash,source:frame.source,referenceProofHash:frame.referenceProofHash,candidate});
  const pathVersion=rangeKeeperPaperPathVersion(candidate);
  const scope:RangeKeeperPaperCandidateScope={poolAddress:p!.pool,profileHash:registered.profileHash,
   candidateHash,deployedValue:candidate.deployedValue,sharePpm,range:candidate.range,swapKind:'none'};
- const sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope);
- let gasRows:PaperGasProfileRow[];
- try{gasRows=await deps.readGasProfiles(p!.pool,pathVersion,sizeBand);}
- catch{return unavailable(input,'registered_cost_evidence_unavailable');}
  const rangeOut={tickLower:range.tickLower,tickUpper:range.tickUpper,centerTick:frame.tick,
   fullWidthSpacings:input.fullWidthSpacings};
  const requirementsOut={liquidity:String(candidate.liquidity),token0Raw:candidate.amount0Desired.toString(),
@@ -221,21 +238,37 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
   nativePrice:String(frame.nativePrice),proofHash:frame.referenceProofHash,proofIdentityHash};
  const profileOut={pool:p!.pool,fee:p!.fee,tickSpacing:p!.tickSpacing,token0:p!.token0,token1:p!.token1,
   quoteToken:p!.quoteToken};
- const selected=selectRangeKeeperPaperCostProfiles({candidate,scope,source:frame.source,rows:gasRows,now:now()});
+ // The gas price is read before sampling because the evidence producer binds it
+ // into the report it signs, so it cannot be fetched afterwards.
+ let gasPriceWei:bigint;
+ try{gasPriceWei=await deps.readGasPrice();}catch{return unavailable(input,'registered_cost_evidence_unavailable');}
+ // Sample this exact candidate now rather than looking up a stored band. A
+ // RangeKeeper calibration row is a feasibility proof of one candidate at one
+ // block as well as a gas measurement, so no stored row can exist for a
+ // candidate that has not been sampled -- see the plan's section 2d. Nothing is
+ // persisted: the rows are costed in this request and discarded.
+ let selected:ReturnType<typeof selectRangeKeeperPaperCostProfiles>;
+ try{
+  const report=await produceRangeKeeperPaperGasEvidence({kind:'open',campaignId:SETUP_CAMPAIGN_ID,
+   revision:SETUP_REVISION,configHash,buildId:resolved.policy.buildId,profile:profile.data,frame,
+   candidateSource:frame.source,candidateReferenceProofHash:frame.referenceProofHash,candidate,
+   openMarkId:null,openModelHash:null,marketGasPriceWei:gasPriceWei,scope,
+   sampleOwnedFork:deps.sampleOwnedFork,now:now()});
+  const rows=rangeKeeperPaperSpeculativeGasRows(verifyRangeKeeperPaperGasReport(report,now()));
+  selected=selectRangeKeeperPaperCostProfiles({candidate,scope,source:frame.source,rows,now:now()});
+ }catch{selected={status:'unavailable',reason:'rangekeeper_setup_gas_sample_unavailable',missingStages:[]};}
  if(selected.status!=='available')
   return {schemaVersion:1 as const,kind:'rangekeeper_paper_setup_preflight' as const,status:'unavailable' as const,
    mode:'paper' as const,strategyId:'rangekeeper_v1' as const,profileId:registered.id,profileHash:registered.profileHash,
    input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits:input.limits},
    source:frame.source,profile:profileOut,range:rangeOut,requirements:requirementsOut,references:referencesOut,
-   costs:{status:'unavailable' as const,reason:`${selected.reason}:${selected.missingStages.join(',')}`},
+   costs:{status:'unavailable' as const,reason:costUnavailableReason(selected)},
    admissionLimits:{status:'not_evaluated' as const,reason:'rangekeeper_admission_limits_not_yet_checked'},
-   missing:[`${selected.reason}:${selected.missingStages.join(',')}`],actionAvailable:false,draftCreated:false,
+   missing:[costUnavailableReason(selected)],actionAvailable:false,draftCreated:false,
    operationCreated:false,
    limitations:['read_only_no_draft_or_operation','hypothetical_inventory_requirements_only',
     'does_not_claim_wallet_balances_or_funding_availability','costs_are_provisional_fork_estimates',
     'not_an_executable_preview']};
- let gasPriceWei:bigint;
- try{gasPriceWei=await deps.readGasPrice();}catch{return unavailable(input,'registered_cost_evidence_unavailable');}
  let costs:RangeKeeperPaperModeledCosts;
  try{costs=modelRangeKeeperPaperCosts({profiles:selected,limits,nativePrice:frame.nativePrice,
   marketGasPriceWei:gasPriceWei,swapFeeAndShortfallValue:0n,now:now()});}

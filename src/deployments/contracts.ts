@@ -32,6 +32,15 @@ export const staticCenteredParameters=z.object({
 export const staticManualParameters=z.union([staticParameters,staticCenteredParameters]);
 // Exported standalone (not inlined in rangeKeeperParameters) so a setup
 // preflight can validate a submitted limits object before a draft exists.
+/** The draft configHash a reviewed RangeKeeper parameter set will carry. The
+ * setup preflight and draft admission both need it before a draft row exists —
+ * the preflight folds it into the candidate identity it samples against, and
+ * admission into the synthetic draft it replays the policy with — so it lives
+ * here rather than being derived twice and drifting. */
+export const rangeKeeperPaperSetupConfigHash=(input:{fullWidthSpacings:number;limits:unknown})=>
+ contentHash({fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,
+  strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',stateSchemaVersion:1});
+
 export const rangeKeeperLimitsSchema=commonLimits.extend({
  minDeploymentPpm:ppm,maxSwapInputValue:raw,maxSwapInputPpm:ppm,
   maxSwapShortfallValue:raw,maxSlippageBps:bps.refine(value=>value>0&&value<=50),maxRecenters:z.number().int().nonnegative(),

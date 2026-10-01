@@ -3,7 +3,7 @@ import {ROBINHOOD_CHAIN_ID} from '../constants.js';
 import {rangeKeeperSetupPreflightInput,type RangeKeeperSetupPreflightInput} from './rangekeeper-paper-setup-preflight.js';
 import type {PaperSetupProfile} from './paper-setup-preflight.js';
 import {allocationSchema,contentHash,draftInput,rangeKeeperLimitsSchema,rangeKeeperParameters,
- type DraftInput} from './contracts.js';
+ rangeKeeperPaperSetupConfigHash,type DraftInput} from './contracts.js';
 import {marketProfileSchema} from './market-profile.js';
 import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangekeeper-paper-open-model.js';
 import type {RangeKeeperPaperSetupReviewInput} from './rangekeeper-paper-setup-review-cache.js';
@@ -238,8 +238,7 @@ export async function createRangeKeeperPaperDraftFromSetup(rawInput:unknown,deps
  // replaying its own resolver — not by re-deriving its acceptance rules here.
  const syntheticDraft:RangeKeeperPaperDraft={id:input.profileId,revision:1,profile:profile.data,
   profileHash:registered.profileHash,
-  configHash:contentHash({fullWidthSpacings:input.fullWidthSpacings,limits,strategyId:'rangekeeper_v1',
-   strategyVersion:'1.0.0',stateSchemaVersion:1}),
+  configHash:rangeKeeperPaperSetupConfigHash({fullWidthSpacings:input.fullWidthSpacings,limits}),
   strategyId:'rangekeeper_v1',parameters:{fullWidthSpacings:input.fullWidthSpacings,limits},
   allocation:{token0Raw:'0',token1Raw:'0',nativeWei:'0'}};
  const resolved=resolveRangeKeeperPaperPolicy(syntheticDraft,'0'.repeat(64));
