@@ -20,10 +20,29 @@
 // (frame construction, a canonical quoter simulate call) exactly as the
 // existing static gradient script and the CLI sampler already do.
 //
-// Usage: node --import tsx scripts/analysis/rangekeeper-size-gradient-gas.ts [no_swap|swap|both|range]
+// Usage: node --import tsx scripts/analysis/rangekeeper-size-gradient-gas.ts [no_swap|swap|both|range|range_position|swap_position]
 // range mode: RK_WIDTHS (comma-separated fullWidthSpacings, default "20,100")
 // and RK_CAPITALS_USD (first value used as the fixed capital) sample several
 // DIFFERENT tick ranges anchored at the same pinned tick/frame.
+//
+// range_position mode (docs/reviews/rangekeeper-gas-position-2026-10-01.md):
+// holds WIDTH fixed (RK_FULL_WIDTH_SPACINGS) and capital fixed (first of
+// RK_CAPITALS_USD) and shifts the range's CENTER by RK_POSITION_SHIFTS
+// (comma-separated signed integers, in units of tickSpacing, default
+// "-5,-3,-1,0,1,3,5") around the same pinned tick -- the mirror image of
+// `range` mode, which shifts width at a fixed center. RK_POSITION_MARGIN_TICKS
+// (default 20) is a confound guard: any shift that would leave the pinned
+// spot tick within that many raw ticks of either edge is skipped rather than
+// sampled, because a range that straddles spot only barely is at risk of
+// becoming single-sided from rounding, which is a different code path than
+// a comfortably-straddled range and would confound position with sidedness.
+//
+// swap_position mode: a cheap secondary check on whether the `open_swap`
+// step found by `swap` mode between 25 and 100 USDG (gas-banding review
+// section 4) is itself position-dependent. Runs the same two swap sizes
+// (RK_SWAP_POSITION_CAPITALS, default "25,100") at ONE shifted center
+// (RK_SWAP_POSITION_SHIFT spacings, default 5) instead of the tick-centered
+// range `swap` mode uses.
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
@@ -102,9 +121,13 @@ async function main() {
   console.log(`pinned range ${range.tickLower}/${range.tickUpper} (fullWidthSpacings ${FULL_WIDTH_SPACINGS}, spacing ${p.tickSpacing})`);
   console.log(`price0 ${frame.price0} price1 ${frame.price1}\n`);
 
-  const buildScope = (candidate: RangeKeeperCandidate, pathVersion: string, deployedValue: bigint, sharePpm: bigint, swapKind: 'none' | 'direct_pool_exact_input') => {
+  // forRange defaults to the module-level pinned `range` so every existing
+  // call site (no_swap/swap/range modes) is byte-for-byte unchanged; only
+  // the new position modes below ever pass a different range explicitly.
+  const buildScope = (candidate: RangeKeeperCandidate, pathVersion: string, deployedValue: bigint, sharePpm: bigint,
+    swapKind: 'none' | 'direct_pool_exact_input', forRange: { tickLower: number; tickUpper: number } = range) => {
     const campaignId = randomUUID();
-    const scopeBase = { poolAddress: p.pool, profileHash: registered.profileHash, deployedValue, sharePpm, range, swapKind };
+    const scopeBase = { poolAddress: p.pool, profileHash: registered.profileHash, deployedValue, sharePpm, range: forRange, swapKind };
     const candidateHash = rangeKeeperPaperCandidateHash({
       campaignId, revision: 1, profileHash: registered.profileHash, configHash: CONFIG_HASH,
       source: frame.source, referenceProofHash: frame.referenceProofHash, candidate,
@@ -113,10 +136,11 @@ async function main() {
   };
 
   const runSample = async (label: string, candidate: RangeKeeperCandidate, pathVersion: string,
-    stages: readonly string[], initialBalances: readonly [bigint, bigint], limits: RangeKeeperLimits) => {
+    stages: readonly string[], initialBalances: readonly [bigint, bigint], limits: RangeKeeperLimits,
+    forRange: { tickLower: number; tickUpper: number } = range) => {
     const sharePpm = candidate.liquidity * PPM / (frame.poolLiquidity + candidate.liquidity);
     const swapKind = candidate.swap ? 'direct_pool_exact_input' as const : 'none' as const;
-    const scope = buildScope(candidate, pathVersion, candidate.deployedValue, sharePpm, swapKind);
+    const scope = buildScope(candidate, pathVersion, candidate.deployedValue, sharePpm, swapKind, forRange);
     const request: RangeKeeperPaperGasProbeRequest = {
       kind: 'open', profile, frame, candidate, candidateSource: frame.source,
       candidateReferenceProofHash: frame.referenceProofHash, candidateHash: scope.candidateHash,
@@ -198,6 +222,108 @@ async function main() {
     }
   }
 
+  // Builds a range of the SAME width (fullWidthSpacings) as rangeKeeperRange
+  // would, but centered `shiftSpacings` spacings away from the pinned tick's
+  // own rounded anchor, instead of exactly on it. Returns null (a confound
+  // guard, not a measurement) if the pinned spot tick would then sit within
+  // `marginTicks` raw ticks of either edge -- too close to the edge risks a
+  // near-single-sided mint from rounding, which would confound "position"
+  // with "sidedness".
+  const shiftedRangeFor = (tick: number, spacing: number, fullWidthSpacings: number, shiftSpacings: number, marginTicks: number) => {
+    const anchor = Math.round(tick / spacing) * spacing;
+    const half = fullWidthSpacings / 2;
+    const tickLower = anchor - half * spacing + shiftSpacings * spacing;
+    const tickUpper = anchor + half * spacing + shiftSpacings * spacing;
+    if (tick - tickLower < marginTicks || tickUpper - tick < marginTicks) return null;
+    return { tickLower, tickUpper };
+  };
+
+  // Range-POSITION gradient (the primary question of this review): ONE
+  // pinned frame, ONE fixed width, ONE fixed capital, multiple shifts of the
+  // range's CENTER around the pinned tick. Unlike `range` mode (which varies
+  // width at a fixed center), this is the mirror experiment: width is held
+  // constant and only the absolute tick position of the (still two-sided)
+  // range varies.
+  const positionResults: any[] = [];
+  if (mode === 'range_position') {
+    const shifts = (process.env.RK_POSITION_SHIFTS ?? '-5,-3,-1,0,1,3,5').split(',').map(s => Number(s.trim()));
+    const marginTicks = Number(process.env.RK_POSITION_MARGIN_TICKS ?? 20);
+    const capUsd = CAPITALS_USD[0]!, capWei = capUsd * WAD, limits = limitsFor(capWei);
+    console.log(`=== range-position gradient at fixed ${capUsd} USDG, fixed width ${FULL_WIDTH_SPACINGS} spacings, one pinned frame ===`);
+    for (const shift of shifts) {
+      const forRange = shiftedRangeFor(frame.tick, p.tickSpacing, FULL_WIDTH_SPACINGS, shift, marginTicks);
+      if (!forRange) { console.log(`shift=${shift}: spot within ${marginTicks} ticks of an edge at this shift, skipping (confound guard, not a measurement)`); continue; }
+      const built = buildNoSwapCandidate(capWei, forRange, frame.sqrtPriceX96, limits);
+      if (!built) { console.log(`shift=${shift}: infeasible mint (liquidity=0), skipping`); continue; }
+      if (built.sized.mint.amount0 === 0n || built.sized.mint.amount1 === 0n) {
+        console.log(`shift=${shift}: single-sided mint (amount0=${built.sized.mint.amount0} amount1=${built.sized.mint.amount1}), skipping -- confound guard`);
+        continue;
+      }
+      try {
+        const result: any = await runSample(`shift=${shift} (${forRange.tickLower}/${forRange.tickUpper})`,
+          built.candidate, RANGEKEEPER_PAPER_NO_SWAP_PATH,
+          [...RANGEKEEPER_PAPER_OPEN_STAGES_NO_SWAP, ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
+          [built.sized.desired0, built.sized.desired1], limits, forRange);
+        result.shift = shift; result.range = forRange;
+        positionResults.push(result);
+      } catch (error: any) { console.log(`shift=${shift}: SAMPLE FAILED ${error?.message}`); }
+    }
+  }
+
+  // Secondary check: is the open_swap step (gas-banding review section 4,
+  // 4.97% between 25 and 100 USDG) itself position-dependent? Same two swap
+  // sizes, but at a shifted (non-centered) range instead of the tick-centered
+  // one `swap` mode uses. Cheap (2 samples) and does not displace the
+  // primary range_position question above.
+  const swapPositionResults: any[] = [];
+  if (mode === 'swap_position') {
+    const shift = Number(process.env.RK_SWAP_POSITION_SHIFT ?? 5);
+    const marginTicks = Number(process.env.RK_POSITION_MARGIN_TICKS ?? 20);
+    const capitals = (process.env.RK_SWAP_POSITION_CAPITALS ?? '25,100').split(',').map(s => BigInt(s.trim()));
+    const forRange = shiftedRangeFor(frame.tick, p.tickSpacing, FULL_WIDTH_SPACINGS, shift, marginTicks);
+    if (!forRange) throw new Error(`shift=${shift}: spot within ${marginTicks} ticks of an edge, cannot run swap_position mode -- choose a smaller RK_SWAP_POSITION_SHIFT`);
+    console.log(`=== direct-swap open: step-location check at shift=${shift} spacings (${forRange.tickLower}/${forRange.tickUpper}) ===`);
+    const chain = new RangeKeeperChain(client, p);
+    const source = { block: BigInt(frame.source.block), hash: frame.source.hash as `0x${string}`, timestamp: frame.source.timestamp };
+    for (const capUsd of capitals) {
+      const capWei = capUsd * WAD;
+      const limits = limitsFor(capWei);
+      const wallet1 = capWei * 4n * 10n ** BigInt(decimals1) / frame.price1!;
+      const amountIn = wallet1 / 2n;
+      let quote;
+      try { quote = await chain.quote(source, 1, amountIn, frame.price0!, frame.price1!); }
+      catch (error: any) { console.log(`${capUsd} USDG: quote failed ${error?.message}`); continue; }
+      if (quote.priceAfter <= sqrtRatioAtTick(forRange.tickLower) || quote.priceAfter >= sqrtRatioAtTick(forRange.tickUpper)) {
+        console.log(`${capUsd} USDG: post-swap price leaves the shifted range, skipping`); continue;
+      }
+      const next0 = quote.amountOut, next1 = wallet1 - amountIn;
+      const sized = sizeRangeKeeperMint(quote.priceAfter, forRange, next0, next1,
+        frame.price0!, frame.price1!, decimals0, decimals1, capWei);
+      if (sized.mint.liquidity === 0n) { console.log(`${capUsd} USDG: infeasible post-swap mint, skipping`); continue; }
+      if (sized.mint.amount0 === 0n || sized.mint.amount1 === 0n) {
+        console.log(`${capUsd} USDG: single-sided post-swap mint, skipping -- confound guard`); continue;
+      }
+      const haircut = 10_000n - BigInt(limits.maxSlippageBps);
+      const candidate: RangeKeeperCandidate = {
+        kind: 'entry', range: forRange,
+        swap: { token: 1, amountIn, quotedOut: quote.amountOut, minOut: quote.amountOut * haircut / 10_000n,
+          priceAfter: quote.priceAfter, feeValue: quote.feeValue, shortfallValue: quote.shortfallValue },
+        amount0Desired: sized.desired0, amount1Desired: sized.desired1,
+        amount0Min: sized.mint.amount0 * haircut / 10_000n, amount1Min: sized.mint.amount1 * haircut / 10_000n,
+        liquidity: sized.mint.liquidity, deployedValue: sized.deployed,
+        sourceBlock: BigInt(frame.source.block), sourceHash: frame.source.hash as `0x${string}`,
+        expiresAt: frame.source.timestamp + 90,
+      };
+      try {
+        const result: any = await runSample(`${capUsd} USDG`, candidate, RANGEKEEPER_PAPER_DIRECT_SWAP_PATH,
+          [...RANGEKEEPER_PAPER_OPEN_STAGES_SWAP, ...RANGEKEEPER_PAPER_RETAIN_EXIT_STAGES],
+          [0n, wallet1], limits, forRange);
+        result.shift = shift;
+        swapPositionResults.push(result);
+      } catch (error: any) { console.log(`${capUsd} USDG: SAMPLE FAILED ${error?.message}`); }
+    }
+  }
+
   const swapResults: any[] = [];
   if (mode === 'swap' || mode === 'both') {
     console.log('\n=== direct-swap open + retain-exit: size gradient (fixed 50% swap fraction) ===');
@@ -261,9 +387,11 @@ async function main() {
   report('no-swap size gradient', noSwapResults);
   report('direct-swap size gradient', swapResults);
   report('range-width gradient', rangeResults);
+  report('range-position gradient', positionResults);
+  report('swap-position step check', swapPositionResults);
 
   console.log('\nJSON:');
-  console.log(JSON.stringify({ pinnedSource: frame.source, tick: frame.tick, range, noSwapResults, swapResults, rangeResults }, null, 1));
+  console.log(JSON.stringify({ pinnedSource: frame.source, tick: frame.tick, range, noSwapResults, swapResults, rangeResults, positionResults, swapPositionResults }, null, 1));
   await store.close();
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });
