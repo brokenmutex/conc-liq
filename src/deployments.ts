@@ -398,8 +398,18 @@ async function main(){
      openModel:context.openModel,openMarkId:context.openMarkId,previous:context.previous,
      kernel:context.kernel,readGasProfiles:context.readGasProfiles,buildId,exitKind,frame,now,
      marketGasPriceWei,marketGasPriceObservedAt,
-     // This preview must stay blocked until the owned-fork stage runner is wired.
-     simulate:async()=>false});
+     // No candidate simulator is wired into the terminal preview. This throws
+     // rather than returning false so the kernel reports
+     // 'calldata_simulation_unavailable' instead of 'calldata_simulation_failed':
+     // returning false asserts that a candidate's calldata failed a simulation
+     // that never ran, and that reason is surfaced to the operator through the
+     // model's kernelEvaluation.simulationAvailable.
+     //
+     // This gate is reached only when the kernel would propose its own entry or
+     // recenter candidate while the operator is previewing a close, and it is not
+     // what makes a RangeKeeper campaign uncloseable. That is the missing exit
+     // operation path -- see the integration plan's section 2a.
+     simulate:async()=>{throw new Error('rangekeeper_terminal_candidate_simulator_unavailable');}});
    }
    const draft=await store.paperDraft(campaignId);
    if(draft.strategyId==='rangekeeper_v1'){

@@ -38,10 +38,46 @@ Four gaps, in descending order of difficulty.
 simulate:async()=>false});
 ```
 
-So a RangeKeeper paper campaign could be opened but never closed. This is the
-substantive blocker and everything else is small beside it. It is also the same
-shape as the static path's problem: an exit needs per-stage gas for a sequence
-that has not happened yet.
+So a RangeKeeper paper campaign could be opened but never closed.
+
+**That conclusion is right and its stated cause is wrong. Corrected 2026-10-01,
+by following the `simulate` callback to where the kernel consumes it.**
+
+`simulate` is passed to `planRangeKeeper`, which calls it at
+`strategy/rangekeeper/planner.ts:232` — inside the **entry/recenter** branch,
+after `construct()` has produced a new candidate. Its result reaches the exit
+model only as `kernelEvaluation.simulationAvailable`
+(`rangekeeper-paper-exit-model.ts:446-451`), an informational field. It is never
+reached at all when the kernel is not proposing its own candidate, which is the
+ordinary case for an operator previewing a close on an in-range position.
+
+The exit preview is not blocked by it. The preview returns an `indicative` or
+`blocked` read-only model either way, and `actionAvailable` is declared as the
+**literal type `false`** on `RangeKeeperPaperExitModel`
+(`rangekeeper-paper-exit-model.ts:82,106`), so the model cannot offer an action
+whatever `simulate` returns. Its own blocking reason says as much:
+`rangekeeper_operator_terminal_request_read_only`.
+
+**What actually makes a campaign uncloseable** is that no exit operation path
+exists:
+
+- `paper-operation-worker.ts:170` — `if(context.kind!=='open')return await
+  block('rangekeeper_paper_operation_path_unavailable')`. The worker handles
+  `open` and nothing else for `rangekeeper_v1`.
+- There is no retain or convert acceptance for `rangekeeper_v1` anywhere in
+  `store.ts`; `paperRetainAcceptance` and `paperConvertAcceptance` are both
+  static-only.
+- `actionAvailable:false` is a type, not a runtime state, so offering the action
+  is a contract change rather than a flag flip.
+
+That is a substantial piece of work — the exit counterpart of the whole open
+confirmation path — not the one-line unblock this section implied. The one line
+has been changed only to stop it lying: it now throws, so the kernel reports
+`calldata_simulation_unavailable` rather than `calldata_simulation_failed`, which
+asserted that a candidate's calldata failed a simulation that never ran.
+
+The rest of this section's framing still holds: an exit needs per-stage gas for a
+sequence that has not happened yet, the same shape as the static path's problem.
 
 The static path's stage runner now exists in two forms — the owned fork and
 `paper-gas-simulation-sampler.ts`.
@@ -434,10 +470,15 @@ against.
    against a real chain. Nothing in §2a or §2b has run against a live fork yet;
    all of it is unit-tested against fixtures. No configuration is needed — see
    §2c on why the fork needs no separate endpoint.
-7. **Unblock the retain exit preview** at `deployments.ts:341` on §2a's measured
-   evidence, so a RangeKeeper campaign can be closed from the dashboard. Until
-   then the form warns, but a campaign opened through this path has no dashboard
-   exit.
+7. **Build the RangeKeeper exit operation path**, which is what a campaign
+   actually needs to be closeable — see §2a's correction. It is the exit
+   counterpart of the open confirmation path: a retain and convert acceptance in
+   `store.ts`, a worker branch past
+   `paper-operation-worker.ts:170`'s `kind!=='open'` block, and a model contract
+   that can carry `actionAvailable:true` rather than declaring it as the literal
+   `false`. §2a's measured simulation evidence and §2a's convert sampler both
+   feed it, but neither substitutes for it. Until it exists, the dashboard form
+   warns and a campaign opened through this path has no dashboard exit.
 
 ## 4. Decisions needed before starting
 
