@@ -113,9 +113,14 @@ function costIdentity(value:unknown){
   nativeReferencePrice:costs.nativeReferencePrice,profileIds:costs.profileIds,
   open:costs.open,retainExit:costs.retainExit};
 }
-function costStructureIdentity(value:unknown){
+function costStructureIdentity(value:unknown,stableReferenceIdentity=false){
  const costs=freshPreflightSchema.shape.costs.parse(value);
- return {scope:costs.scope,pathVersion:costs.pathVersion,sizeBand:costs.sizeBand,
+ // Setup rows are sampled afresh and never registered. Their candidate band
+ // includes the full proof hash, including HTTP fetch timestamps. Once the
+ // exact source, sizing, limits and stable proof have matched, compare the
+ // actual path/stages/gas bounds rather than this transport-dependent band.
+ return {scope:costs.scope,pathVersion:costs.pathVersion,
+  ...(stableReferenceIdentity?{}:{sizeBand:costs.sizeBand}),
   nativeReferencePrice:costs.nativeReferencePrice,profileIds:costs.profileIds,
   open:{expectedGasUnits:costs.open.expectedGasUnits,boundGasUnits:costs.open.boundGasUnits},
   retainExit:{expectedGasUnits:costs.retainExit.expectedGasUnits,boundGasUnits:costs.retainExit.boundGasUnits}};
@@ -189,7 +194,13 @@ export async function createRangeKeeperPaperDraftFromSetup(rawInput:unknown,deps
  try{preflightRaw=await deps.runPreflight(requested,input.reviewed.source);}
  catch{return unavailable('canonical_setup_preflight_failed',input.profileId);}
  const reviewed=rangeKeeperPaperSetupReviewBinding(preflightRaw),fresh=freshPreflightSchema.safeParse(preflightRaw);
- if(!reviewed||!fresh.success)return unavailable('fresh_canonical_setup_preflight_unavailable',input.profileId);
+ if(!reviewed||!fresh.success){
+  const result=unavailable('fresh_canonical_setup_preflight_unavailable',input.profileId);
+  const detail=z.object({status:z.literal('unavailable'),missing:z.array(
+   z.string().regex(/^[a-z0-9_:,-]{1,160}$/)).max(12)}).safeParse(preflightRaw);
+  return detail.success&&result.status==='unavailable'?
+   {...result,missing:[...result.missing,...detail.data.missing]}:result;
+ }
  const useStableProofIdentity=!!input.reviewed.references.proofIdentityHash;
  if(contentHash(reviewBindingIdentity(reviewed,useStableProofIdentity))!==
   contentHash(reviewBindingIdentity(input.reviewed,useStableProofIdentity))||
@@ -208,7 +219,8 @@ export async function createRangeKeeperPaperDraftFromSetup(rawInput:unknown,deps
   approvedCosts=reviewedCostsSchema.parse(captured.costs);
   if(contentHash(costIdentity(input.reviewed.costs))!==contentHash(costIdentity(approvedCosts)))
    return unavailable('setup_review_cache_miss',input.profileId);
-  if(contentHash(costStructureIdentity(approvedCosts))!==contentHash(costStructureIdentity(fresh.data.costs)))
+  if(contentHash(costStructureIdentity(approvedCosts,useStableProofIdentity))!==
+   contentHash(costStructureIdentity(fresh.data.costs,useStableProofIdentity)))
    return unavailable('setup_cost_evidence_changed_since_review',input.profileId);
   if(!reviewedCostsCoverFreshGasQuote(approvedCosts,BigInt(fresh.data.costs.marketGasPriceWei)))
    return unavailable('setup_gas_price_exceeds_reviewed_bound',input.profileId);

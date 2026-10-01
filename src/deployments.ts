@@ -34,8 +34,12 @@ import {createRangeKeeperPaperExitAcceptance}
  from './deployments/rangekeeper-paper-exit-acceptance.js';
 import {persistTrustedRangeKeeperPaperExitPreview}
  from './deployments/rangekeeper-paper-exit-preflight.js';
-import {readCanonicalRangeKeeperPaperOpenModel,
- type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
+import {prepareRangeKeeperPaperRetainPreview} from './deployments/rangekeeper-paper-retain-runtime.js';
+import type {RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
+import {prepareRangeKeeperPaperOpenRuntime} from './deployments/rangekeeper-paper-open-runtime.js';
+import {prepareRangeKeeperPaperConfirmationRuntime} from './deployments/rangekeeper-paper-confirmation-runtime.js';
+import type {RangeKeeperPaperPinnedQuoteCache} from './deployments/rangekeeper-paper-pinned-quote-cache.js';
+import type {ForkReadHint} from './paper/fork.js';
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
 import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
@@ -180,6 +184,31 @@ async function main(){
  // It is worth using when set, because one sample bursts up to 1600 reads and a
  // separate endpoint keeps that off the quota the live collectors share.
  const rangeKeeperForkRpcUrl=env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL;
+ // Retain address/slot shapes only, never values or evidence. The fork fetches
+ // every hinted value anew at its own source and checks canonical anchors.
+ const rangeKeeperReadHints=new Map<string,readonly ForkReadHint[]>();
+ const rangeKeeperForkHints=(profileHash:string)=>({
+  prefetchHints:rangeKeeperReadHints.get(profileHash),
+  onReadHints:(hints:readonly ForkReadHint[])=>{
+   rangeKeeperReadHints.delete(profileHash);
+   if(rangeKeeperReadHints.size>=8)rangeKeeperReadHints.delete(rangeKeeperReadHints.keys().next().value!);
+   rangeKeeperReadHints.set(profileHash,structuredClone(hints));
+  },
+ });
+ const reportRangeKeeperTiming=(campaignId:string,phase:string,durationMs:number)=>{
+  if(!setupDiagnosticsEnabled)return;
+  try{log('info','rangekeeper_paper_preparation_timing',{campaignId,phase,
+   durationMs:Math.min(86_400_000,Math.max(0,Math.trunc(durationMs)))});}catch{}
+ };
+ const runRangeKeeperPaperOpen=async(campaignId:string,frame?:PaperOpenFrame,
+  pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache)=>prepareRangeKeeperPaperOpenRuntime({store,
+  client,campaignId,frame,pinnedQuoteCache,
+  onPhaseTiming:(phase,durationMs)=>reportRangeKeeperTiming(campaignId,`first_${phase}`,durationMs),
+  readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,
+   query.pathVersion,query.sizeBand),sampleOwnedFork:(request,limits,initialBalances)=>
+    sampleRangeKeeperPaperGasStages(request,{rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},
+     maxRequests:1600,timeoutMs:150_000,limits,initialBalances,
+     ...rangeKeeperForkHints(request.scope.profileHash)})});
  // The server-side confirmation producer: the second of RangeKeeper's two
  // observations. It loads the draft and its own canonical frame, replays scoped
  // costs in the store builder, runs the owned fork, and persists the envelope
@@ -187,6 +216,17 @@ async function main(){
  // is why no RangeKeeper open could be confirmed in production.
  const rangeKeeperConfirmationProducer=createRangeKeeperPaperConfirmationProducer({
   store,client,rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},
+  onFailure:(stage,error)=>setupDiagnostic?.(`rangekeeper_confirmation_${stage}`,safePaperDiagnosticFailure(error)),
+  prepareGasEvidence:async(draft,frame,_buildId,pinnedQuoteCache)=>{
+   const {model:sampled,simulation}=await prepareRangeKeeperPaperConfirmationRuntime({store,client,
+    campaignId:draft.id,frame,pinnedQuoteCache,rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},
+    maxRequests:1600,timeoutMs:150_000,
+    ...rangeKeeperForkHints(draft.profileHash),
+    onPhaseTiming:(phase,durationMs)=>reportRangeKeeperTiming(draft.id,`second_${phase}`,durationMs)});
+   if(sampled.status!=='indicative'||sampled.costs?.status!=='provisional')
+    throw new DeploymentConflict(sampled.blockingReason??'rangekeeper_confirmation_cost_preparation_unavailable');
+   return {simulation};
+  },
   maxRequests:1600,timeoutMs:150_000});
  // A parallel acceptance rather than another branch inside acceptOperation: it
  // pre-validates the published confirmation against the preview the operator is
@@ -207,7 +247,8 @@ async function main(){
     // funding its candidate needs, so nothing is re-derived here.
     sampleOwnedFork:(request,options)=>sampleRangeKeeperPaperGasStages(request,{
      rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000,
-     limits:options.limits,initialBalances:options.initialBalances}),
+     limits:options.limits,initialBalances:options.initialBalances,
+     ...rangeKeeperForkHints(request.scope.profileHash)}),
    },pinnedSource);
  const rangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>{
@@ -389,6 +430,16 @@ async function main(){
     }
     if(strategyId!=='rangekeeper_v1')return {status:'unavailable',
      reason:'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
+    if(kind==='close_retain'){
+     try{
+      const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null');
+      if(!identity?.buildId)throw new DeploymentConflict('rangekeeper_runtime_build_identity_unavailable');
+      return await prepareRangeKeeperPaperRetainPreview({store,client,campaignId,
+       buildId:identity.buildId,rpcUrl:rangeKeeperForkRpcUrl,
+       onFailure:(stage,error)=>setupDiagnostic?.(`rangekeeper_retain_${stage}`,safePaperDiagnosticFailure(error))});
+     }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+      reason:error instanceof DeploymentConflict?error.code:'rangekeeper_retain_preparation_unavailable'};}
+    }
     const snapshot=await store.rangeKeeperPaperExitContextSnapshot(campaignId),
      seed=rangeKeeperPaperExitContextSeed(snapshot,campaignId);
     if(!seed)return {status:'unavailable',reason:'rangekeeper_persisted_context_unavailable',
@@ -415,7 +466,7 @@ async function main(){
      readSnapshot:async()=>snapshot,readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(
       query.poolAddress,query.pathVersion,query.sizeBand)});
     if(context.status!=='available')return context;
-    const exitKind=kind==='close_retain'?'retain':'convert';
+    const exitKind='convert' as const;
     let marketGasPriceWei:bigint|null=null,marketGasPriceObservedAt:number|null=null;
     try{marketGasPriceWei=await client.getGasPrice();marketGasPriceObservedAt=Date.now();}
     catch{/* The builder returns a blocked model with explicit gas evidence unavailable. */}
@@ -442,7 +493,7 @@ async function main(){
     if(exitModel.status!=='indicative')return exitModel;
     try{
      const persisted=await persistTrustedRangeKeeperPaperExitPreview({store,draft:context.draft,
-      model:exitModel,kind:kind==='close_retain'?'close_retain':'close_convert',
+      model:exitModel,kind:'close_convert',
       verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
        verifyCanonicalPaperAnchors(client,chainId,sources)});
      return {...exitModel,id:persisted.id,contentDigest:persisted.contentDigest,
@@ -458,13 +509,6 @@ async function main(){
    }
    const draft=await store.paperDraft(campaignId);
    if(draft.strategyId==='rangekeeper_v1'){
-    let buildId='';
-    try{
-     const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null') as unknown;
-     if(identity&&typeof identity==='object'&&
-      typeof (identity as {buildId?:unknown}).buildId==='string')
-      buildId=(identity as {buildId:string}).buildId;
-    }catch{/* Missing or malformed release identity leaves the preview unavailable. */}
     const rangeKeeperDraft=draft as RangeKeeperPaperDraft;
     // RangeKeeper opens on two observations at different blocks, which the
     // confirmations table enforces (confirmation_source_block>first_source_block).
@@ -477,33 +521,29 @@ async function main(){
     catch{/* Treated as no live preview; the first-observation path re-checks. */}
     if(previewState.livePreview&&!previewState.confirmed){
      const confirmation=await rangeKeeperConfirmationProducer(campaignId);
-     // Acceptance for rangekeeper_v1 does not exist yet, so a confirmed envelope
-     // is reported as confirmed and explicitly not actionable rather than
-     // offering an action that would 503.
+     // Keep the envelope intact while exposing the strategy and confirmation
+     // discriminator the shared HTTP/UI actionability checks require.
      if(!confirmation||typeof confirmation!=='object'||Array.isArray(confirmation))return confirmation;
      const confirmed=(confirmation as {status?:unknown}).status==='confirmed';
-     return {...confirmation,operationAcceptanceAvailable:false,actionAvailable:false,
+     return {...confirmation,strategyId:'rangekeeper_v1',
+      confirmation:{status:confirmed?'confirmed':'unavailable'},
+      operationAcceptanceAvailable:false,actionAvailable:false,
       ...(confirmed&&previewState.binding?{id:previewState.binding.id,
        contentDigest:previewState.binding.contentDigest,
        expectedRevision:previewState.binding.expectedRevision,
        expiresAt:previewState.binding.expiresAt.toISOString(),
        trustedPreviewSaved:true}:{})};
     }
-    const model=await readCanonicalRangeKeeperPaperOpenModel({client,
-     draft:rangeKeeperDraft,buildId,
-     readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,
-      query.pathVersion,query.sizeBand)});
-    if(previewState.confirmed&&previewState.binding)return {...model,
-      id:previewState.binding.id,contentDigest:previewState.binding.contentDigest,
-      expectedRevision:previewState.binding.expectedRevision,
-      expiresAt:previewState.binding.expiresAt.toISOString(),
-      // Acceptance exists now, so the command server may offer it. It re-reads
-      // and re-validates every field of this binding under its own lock.
-      trustedPreviewSaved:true,confirmation:{status:'confirmed'},
-      operationAcceptanceAvailable:false,actionAvailable:false};
-    if(previewState.confirmed)return {...model,
-      confirmation:{status:'confirmed',reason:'rangekeeper_open_preview_binding_expired'},
-      operationAcceptanceAvailable:false,actionAvailable:false};
+    if(previewState.confirmed){
+     const confirmation=await store.rangeKeeperPaperConfirmationEnvelope({campaignId,
+      verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
+     if(!previewState.binding||!confirmation)return {status:'unavailable',campaignId,strategyId:'rangekeeper_v1',
+      reason:'rangekeeper_open_preview_binding_expired',actionAvailable:false};
+     return {...confirmation,strategyId:'rangekeeper_v1',confirmation:{status:'confirmed'},
+      ...previewState.binding,expiresAt:previewState.binding.expiresAt.toISOString(),
+      trustedPreviewSaved:true,operationAcceptanceAvailable:false,actionAvailable:false};
+    }
+    const model=await runRangeKeeperPaperOpen(campaignId);
     if(model.status!=='indicative'||model.decision?.kernelAction!=='confirm'||
      model.decision.requiresSecondObservation!==true||model.costs?.status!=='provisional')
      return model;

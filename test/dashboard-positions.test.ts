@@ -6,6 +6,11 @@ import {createDashboardServer} from '../src/dashboard/server.js';
 import {loadDashboardConfig} from '../src/dashboard/config.js';
 import {rangeKeeperPosition,rangeKeeperDetail} from '../src/dashboard/rangekeeper-position.js';
 import {rangeKeeperJson} from '../src/strategy/rangekeeper/live-domain.js';
+import {amountsForLiquidity,sqrtRatioAtTick} from '../src/backtest/principal.js';
+import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
+import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
+import {marketProfileSchema} from '../src/deployments/market-profile.js';
+import {readDeploymentDetail} from '../src/dashboard/deployment-position.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
  sourceAt:at,observedAt:at,block:'1',action:'mark',status:'open',economicNavQuote:nav,holdQuote:'100000000',priceQuoteX18:'220000000000000000000',
@@ -36,6 +41,52 @@ test('pre-entry cash does not poison later passive-hold attribution',()=>{
  const ps=[point('2026-09-12T12:00:00Z','100000000',{holdQuote:null}),point('2026-09-12T12:01:00Z','99000000',{action:'enter',holdQuote:'99500000'})];
  const w=positionWindow(ps,1,Date.parse(ps[1]!.sourceAt),'100000000','2026-09-12T11:59:00Z');
  assert.equal(total(w.rows,'alphaQuote'),-500000n);
+});
+test('RangeKeeper paper marks and retained close marks project into shared history with unavailable economics',async()=>{
+ const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
+  hash=`0x${'a'.repeat(64)}`,profile=marketProfileSchema.parse({pool:{chainId:4663,
+   factory:UNISWAP_V3_FACTORY,pool:address('1'),token0:address('2'),token1:address('3'),
+   quoteToken:0,decimals0:6,decimals1:18,fee:3000,tickSpacing:60,
+   positionManager:NONFUNGIBLE_POSITION_MANAGER,router:PAPER_ROUTER,quoter:PAPER_QUOTER,
+   poolCodeHash:hash,token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,
+   quoterCodeHash:hash,reference0:'USDG/USD',reference1:'AAPL/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+   referencePolicy:{token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+    token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+    nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}}),sqrt=sqrtRatioAtTick(0),liquidity=10n**12n,
+  principal=amountsForLiquidity({liquidity,sqrtPriceX96:sqrt,sqrtRatioAX96:sqrtRatioAtTick(-60),sqrtRatioBX96:sqrtRatioAtTick(60)}),
+  source={block:'100',hash:`0x${'b'.repeat(64)}`,timestamp:now-30},base={id:'00000000-0000-4000-8000-000000000001',
+   at:new Date(source.timestamp*1000),source_block:source.block,source_hash:source.hash,accounting_snapshot:null,
+   accounting_hash:null,conversion_accounting_snapshot:null,conversion_accounting_hash:null,
+   accounting_invalidated_at:null,accounting_invalidation_reason:null},
+  currentMark={...base,inventory:{classification:'rangekeeper_paper_mark_v1',position:{tickLower:-60,tickUpper:60,
+    liquidity:String(liquidity)},idle:{token0:'7',token1:'11'}},economics:{principalOnlyValue:'100000000000000000000'},
+   provenance:{classification:'rangekeeper_paper_mark_v1',source,poolState:{tick:0,sqrtPriceX96:String(sqrt)},
+    reference:{price0:'1000000000000000000',price1:'1000000000000000000'}}},
+  closeMark={...base,inventory:{classification:'rangekeeper_paper_close_retain_v1',position:null,
+    retainedPrincipalLowerBound:{token0Raw:'13',token1Raw:'17'}},economics:{principalOnlyValue:null},
+   provenance:{classification:'rangekeeper_paper_close_retain_v1',source,poolState:{tick:0,sqrtPriceX96:String(sqrt)},
+    reference:{price0:'1000000000000000000',price1:'1000000000000000000'}}};
+ const rowFor=(mark:any,lifecycle:'active'|'closed')=>({id:base.id,mode:'paper',lifecycle,range_state:'inside',
+  current_revision:1,created_at:new Date((now-120)*1000),closed_at:lifecycle==='closed'?new Date(source.timestamp*1000):null,
+  allocation:{token0Raw:'0',token1Raw:'0',nativeWei:'0'},runtime_identity:{},profile, strategy_id:'rangekeeper_v1',
+  config:{},mark_id:'1',mark_at:mark.at,source_block:mark.source_block,source_hash:mark.source_hash,
+  inventory:mark.inventory,economics:mark.economics,provenance:mark.provenance,initial_value:'100000000',
+  operation_id:null,operation_kind:null,operation_status:null,operation_stage:null,operation_reason:null,
+  operation_updated_at:null,accounting_snapshot:null,accounting_hash:null,conversion_accounting_snapshot:null,
+  conversion_accounting_hash:null,accounting_invalidated_at:null,accounting_invalidation_reason:null});
+ const detail=async(mark:any,lifecycle:'active'|'closed')=>readDeploymentDetail({query:async(sql:string)=>({rows:
+  sql.includes('FROM deployment_marks m')?[mark]:[]})} as any,rowFor(mark,lifecycle) as any,lifecycle==='closed'?0:24);
+ const opened=await detail(currentMark,'active'),openPoint:any=opened.performance.timeline.at(-1);
+ assert.ok(openPoint);
+ assert.equal(openPoint.action,'mark');assert.equal(openPoint.economicNavQuote,null);
+ assert.equal(openPoint.tokenBalances[0].amountRaw,String(principal.amount0+7n));
+ assert.equal(openPoint.tokenBalances[1].amountRaw,String(principal.amount1+11n));
+ assert.equal(opened.position.navQuote,null);assert.equal(opened.position.accounting,'unavailable');
+ const closed=await detail(closeMark,'closed'),exit:any=closed.performance.timeline.at(-1);
+ assert.ok(exit);
+ assert.equal(exit.action,'exit');assert.equal(exit.economicNavQuote,null);
+ assert.equal(exit.tokenBalances[0].amountRaw,null);assert.equal(exit.tokenBalances[0].lowerBoundRaw,'13');
+ assert.equal(exit.tokenBalances[1].lowerBoundRaw,'17');assert.equal(closed.position.navQuote,null);
 });
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');

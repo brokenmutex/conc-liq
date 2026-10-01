@@ -11,6 +11,7 @@ import {simulateRangeKeeperPaperConfirmationOnOwnedFork,
  verifyRangeKeeperPaperOwnedForkConfirmationEvidence} from './rangekeeper-paper-confirmation-simulation.js';
 import type {RangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-confirmation.js';
 import {validateRangeKeeperPaperConfirmationEnvelope} from './rangekeeper-paper-persistence.js';
+import {bindRangeKeeperPaperConfirmationFrame} from './rangekeeper-paper-confirmation-frame.js';
 
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/),hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
 const candidateSchema=z.object({kind:z.enum(['entry','recenter']),
@@ -60,9 +61,19 @@ export async function replayRangeKeeperPaperConfirmationOnOwnedFork(input:{
  operationId:string;openPreviewId:string;operationSnapshotHash:string;
  rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
 },dependencies:{runOwnedFork?:ReplayRunner}={}):Promise<RangeKeeperPaperConfirmationReplayResult>{
- const {draft,frame}=input,
+ const {draft}=input,
   envelope=validateRangeKeeperPaperConfirmationEnvelope(input.envelope,
    {campaignId:draft.id,revision:draft.revision});
+ const observation=envelope.confirmationObservation,
+  savedFrame:PaperOpenFrame={source:observation.source,tick:observation.poolState.tick,
+   sqrtPriceX96:BigInt(observation.poolState.sqrtPriceX96),poolLiquidity:BigInt(observation.poolState.poolLiquidity),
+   price0:BigInt(observation.reference.price0),price1:BigInt(observation.reference.price1),
+   nativePrice:BigInt(observation.reference.nativePrice),referenceEligible:true,referenceReasons:[],
+   referenceProofHash:observation.reference.proofHash,referenceProof:observation.reference.proof},
+  // A fresh canonical frame is expected to carry newer HTTP fetchedAt metadata.
+  // Compare all pinned proof bytes and market facts, then replay with the exact
+  // originally confirmed proof identity.
+  frame=bindRangeKeeperPaperConfirmationFrame(input.frame,savedFrame);
  assert(z.uuid().safeParse(input.operationId).success,'Replay operation ID is invalid');
  assert(z.uuid().safeParse(input.openPreviewId).success,'Replay preview ID is invalid');
  assert(/^[0-9a-f]{64}$/.test(input.operationSnapshotHash),'Replay operation snapshot hash is invalid');
@@ -72,19 +83,7 @@ export async function replayRangeKeeperPaperConfirmationOnOwnedFork(input:{
  assert.equal(draft.configHash,envelope.draftConfigHash);
  assert.equal(draft.profileHash,envelope.profileHash);
  assert.equal(contentHash(draft.profile),draft.profileHash);
- assert.equal(contentHash(frame.source),contentHash(envelope.confirmationObservation.source),
-  'Replay frame is not the persisted confirmation source');
- assert.equal(frame.referenceEligible,true);
- assert(frame.referenceProof,'Replay frame has no independent reference proof');
  assert.equal(referenceProofHash(frame.referenceProof),frame.referenceProofHash);
- assert.equal(frame.referenceProofHash,envelope.confirmationObservation.reference.proofHash);
- assert.equal(String(frame.tick),String(envelope.confirmationObservation.poolState.tick));
- assert.equal(String(frame.sqrtPriceX96),envelope.confirmationObservation.poolState.sqrtPriceX96);
- assert.equal(String(frame.poolLiquidity),envelope.confirmationObservation.poolState.poolLiquidity);
- assert.equal(String(frame.price0),envelope.confirmationObservation.reference.price0);
- assert.equal(String(frame.price1),envelope.confirmationObservation.reference.price1);
- assert.equal(String(frame.nativePrice),envelope.confirmationObservation.reference.nativePrice);
- assert.equal(contentHash(frame.referenceProof),contentHash(envelope.confirmationObservation.reference.proof));
 
  const buildId=(envelope.strategyState as {buildId?:unknown})?.buildId;
  assert.equal(typeof buildId,'string','Persisted strategy build identity is missing');

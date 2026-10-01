@@ -304,6 +304,12 @@ export class DeploymentStore {
  async acquireStaticPaperCloseConvertPreparationLease(campaignId:string,maxLifetimeMs=300_000){
   return this.paperPreparationLeases.acquire(campaignId,maxLifetimeMs);
  }
+ async acquirePaperPreparationLease(campaignId:string,maxLifetimeMs=300_000){
+  return this.paperPreparationLeases.acquire(campaignId,maxLifetimeMs);
+ }
+ async releasePaperPreparationLease(campaignId:string){
+  await this.paperPreparationLeases.release(campaignId);
+ }
  async releaseStaticPaperCloseConvertPreparationLease(campaignId:string){
   await this.paperPreparationLeases.release(campaignId);
  }
@@ -1774,16 +1780,114 @@ export class DeploymentStore {
   }finally{db.release();}
  }
 
+ /** A consistent, read-only seed for the first and later paper observations.
+  * The terminal snapshot deliberately requires a post-open mark; maintenance
+  * must also be able to start directly from the verified booked opening. */
+ async rangeKeeperPaperMaintenanceSnapshot(campaignId:string){
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const row=(await db.query<{mode:string;lifecycle:string;revision:number;chain_id:number;
+    runtime_identity:unknown;allocation:unknown;profile:unknown;profile_hash:string;evidence:unknown;
+    config:unknown;config_hash:string;strategy_id:string;strategy_version:string;state_schema_version:number;
+    open_id:string;open_source_block:string;open_source_hash:string;open_inventory:unknown;
+    open_provenance:Record<string,unknown>;first_model:unknown;envelope:unknown;envelope_hash:string;
+    previous_id:string;previous_source_block:string;previous_source_hash:string;
+    previous_inventory:unknown;previous_provenance:Record<string,unknown>;pending:boolean}>(`
+    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.runtime_identity,c.allocation,
+     p.profile,p.profile_hash,p.evidence,r.config,r.config_hash,r.strategy_id,r.strategy_version,r.state_schema_version,
+     o.id::text AS open_id,o.source_block::text AS open_source_block,o.source_hash AS open_source_hash,
+     o.inventory AS open_inventory,o.provenance AS open_provenance,
+     v.proposal->'rangekeeperPaperOpenModel' AS first_model,proof.envelope,proof.envelope_hash,
+     m.id::text AS previous_id,m.source_block::text AS previous_source_block,m.source_hash AS previous_source_hash,
+     m.inventory AS previous_inventory,m.provenance AS previous_provenance,
+     EXISTS(SELECT 1 FROM deployment_operations op WHERE op.campaign_id=c.id AND op.status IN
+      ('queued','preflighting','executing','confirming','reconciling','blocked')) AS pending
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id AND p.retired_at IS NULL
+    JOIN LATERAL (SELECT id,source_block,source_hash,inventory,provenance FROM deployment_marks
+     WHERE campaign_id=c.id AND provenance->>'classification'='rangekeeper_paper_open_v1'
+     ORDER BY id LIMIT 1) o ON true
+    JOIN deployment_previews v ON v.id::text=o.provenance->>'previewId' AND v.campaign_id=c.id
+    JOIN deployment_rangekeeper_paper_confirmations proof
+     ON proof.campaign_id=c.id AND proof.revision=c.current_revision
+    JOIN LATERAL (SELECT id,source_block,source_hash,inventory,provenance FROM deployment_marks
+     WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON true
+    WHERE c.id=$1`,[campaignId])).rows[0];
+   const runtime=sealedRuntimeIdentitySchema.safeParse(row?.runtime_identity),current=loadRuntimeIdentity();
+   if(!row||row.mode!=='paper'||!['active','paused'].includes(row.lifecycle)||row.pending||
+    row.strategy_id!=='rangekeeper_v1'||row.strategy_version!=='1.0.0'||row.state_schema_version!==1)
+    throw new DeploymentConflict('rangekeeper_paper_maintenance_campaign_unavailable');
+   if(!runtime.success||!current||contentHash(runtime.data)!==contentHash(current))
+    throw new DeploymentConflict('rangekeeper_paper_maintenance_runtime_mismatch');
+   const profile=marketProfileSchema.parse(row.profile),evidence=marketProfileEvidenceSchema.parse(row.evidence);
+   if(profile.pool.chainId!==row.chain_id||contentHash(profile)!==row.profile_hash||
+    referenceProofHash(evidence.referenceProof)!==evidence.references.proofHash)
+    throw new DeploymentConflict('market_profile_integrity');
+   for(const key of ['poolCodeHash','token0CodeHash','token1CodeHash','managerCodeHash','quoterCodeHash'] as const)
+    if(profile.pool[key].toLowerCase()!==evidence.contractHashes[key].toLowerCase())
+     throw new DeploymentConflict('market_profile_integrity');
+   const known=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM indexer_pools
+    WHERE stream_key=$1 AND lower(pool_address)=lower($2) AND chain_id=$3 AND fee=$4 AND enabled=true
+     AND target_set_hash=$5 AND lower(rwa_address)=lower($6)) AS found`,[evidence.streamKey,
+     profile.pool.pool,row.chain_id,profile.pool.fee,evidence.indexerTargetSetHash,
+     profile.pool.quoteToken===0?profile.pool.token1:profile.pool.token0])).rows[0]?.found;
+   if(!known)throw new DeploymentConflict('market_profile_indexer_changed');
+   if(!row.config||typeof row.config!=='object'||Array.isArray(row.config)||contentHash(row.config)!==row.config_hash)
+    throw new DeploymentConflict('campaign_config_integrity');
+   const {strategyId,strategyVersion,stateSchemaVersion,...parameters}=row.config as Record<string,unknown>;
+   if(strategyId!==row.strategy_id||strategyVersion!==row.strategy_version||stateSchemaVersion!==row.state_schema_version)
+    throw new DeploymentConflict('campaign_config_integrity');
+   parseStrategyParameters('rangekeeper_v1',parameters);
+   const allocation=allocationSchema.parse(row.allocation),envelope=validateRangeKeeperPaperConfirmationEnvelope(
+    row.envelope,{campaignId,revision:row.revision});
+   if(envelope.envelopeHash!==row.envelope_hash)
+    throw new DeploymentConflict('rangekeeper_paper_confirmed_open_integrity');
+   const booked=validateRangeKeeperPaperConfirmedOpenRecord(row.open_provenance.confirmedOpen,{
+    campaignId,revision:row.revision,previewId:String(row.open_provenance.previewId),
+    operationId:String(row.open_provenance.operationId),firstModel:row.first_model,
+    confirmationEnvelopeHash:envelope.envelopeHash,confirmationEnvelope:envelope});
+   const model=booked.model,openSource=paperFeeMarkSourceSchema.parse(row.open_provenance.source),
+    previousSource=paperFeeMarkSourceSchema.parse(row.previous_provenance.source);
+   const inventory=buildRangeKeeperPaperConfirmedOpenInventory({model,allocation,
+    decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1});
+   if(contentHash(inventory)!==contentHash(row.open_inventory)||booked.modelHash!==row.open_provenance.modelHash||
+    contentHash(model.source)!==contentHash(openSource)||openSource.block!==row.open_source_block||
+    openSource.hash.toLowerCase()!==row.open_source_hash.toLowerCase()||
+    previousSource.block!==row.previous_source_block||previousSource.hash.toLowerCase()!==row.previous_source_hash.toLowerCase())
+    throw new DeploymentConflict('rangekeeper_paper_maintenance_mark_integrity');
+   let kernelSnapshot:unknown=null;
+   if(row.previous_id!==row.open_id){
+    const payload=buildRangeKeeperPaperMarkPayload({source:previousSource,openSource,openModel:model,
+     allocation,candidateHash:model.candidateHash!,kernelSnapshot:row.previous_provenance.kernelSnapshot});
+    if(row.previous_provenance.classification!=='rangekeeper_paper_mark_v1'||
+     row.previous_provenance.candidateHash!==model.candidateHash||
+     contentHash(payload.inventory)!==contentHash(row.previous_inventory))
+     throw new DeploymentConflict('rangekeeper_paper_maintenance_mark_integrity');
+    kernelSnapshot=payload.provenance.kernelSnapshot;
+   }
+   const snapshot={draft:{id:campaignId,revision:row.revision,allocation,profile,
+    profileHash:row.profile_hash,configHash:row.config_hash,strategyId:'rangekeeper_v1' as const,parameters},
+    lifecycle:row.lifecycle as 'active'|'paused',runtimeIdentity:runtime.data,
+    openMark:{id:row.open_id,source:openSource,model,inventory,kernelState:envelope.strategyState},
+    previousMark:{id:row.previous_id,source:previousSource,inventory:row.previous_inventory,kernelSnapshot}};
+   await db.query('COMMIT');return snapshot;
+  }catch(error){await db.query('ROLLBACK');throw error;}finally{db.release();}
+ }
+
  /** Appends one source-pinned RangeKeeper paper mark and its kernel snapshot.
   * This persists hypothetical state only; it cannot create an operation or
   * make an action available. The open model remains the source of position and
   * idle balances so a restarted worker cannot substitute inventory. */
  async recordRangeKeeperPaperMark(input:{campaignId:string;source:PaperCanonicalAnchor;
+  frame?:PaperOpenFrame;decision?:{action:string;reason:string};
   kernelSnapshot:unknown;verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
   return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,input.campaignId);
    await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',
     [`deployment-rangekeeper-paper-mark:${input.campaignId}`]);
-   const row=(await db.query<{mode:string;lifecycle:string;revision:number;chain_id:number;
+   const row=(await db.query<{mode:string;lifecycle:string;revision:number;chain_id:number;runtime_identity:unknown;
     allocation:unknown;profile:unknown;strategy_id:string;strategy_version:string;state_schema_version:number;
     config:unknown;config_hash:string;profile_hash:string;open_id:string;open_source_block:string|null;
     open_source_hash:string|null;open_provenance:Record<string,unknown>;
@@ -1791,7 +1895,7 @@ export class DeploymentStore {
     confirmation_envelope_hash:string|null;confirmation_envelope:unknown;
     latest_id:string|null;latest_source_block:string|null;latest_source_hash:string|null;
     latest_inventory:unknown;latest_provenance:Record<string,unknown>|null;pending:boolean}>(`
-    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.allocation,p.profile,
+    SELECT c.mode,c.lifecycle,c.current_revision AS revision,c.chain_id,c.runtime_identity,c.allocation,p.profile,
      r.strategy_id,r.strategy_version,r.state_schema_version,r.config,r.config_hash,p.profile_hash,
      o.id::text AS open_id,o.source_block::text AS open_source_block,o.source_hash AS open_source_hash,
      o.provenance AS open_provenance,
@@ -1823,6 +1927,9 @@ export class DeploymentStore {
     (row.config as Record<string,unknown>).stateSchemaVersion!==1||row.open_source_block===null||
     row.open_source_hash===null)
     throw new DeploymentConflict('rangekeeper_paper_mark_campaign_unavailable');
+   const runtime=sealedRuntimeIdentitySchema.safeParse(row.runtime_identity),currentRuntime=loadRuntimeIdentity();
+   if(!runtime.success||!currentRuntime||contentHash(runtime.data)!==contentHash(currentRuntime))
+    throw new DeploymentConflict('rangekeeper_paper_maintenance_runtime_mismatch');
    let confirmedAnchors:PaperCanonicalAnchor[]=[];
    if(Object.hasOwn(row.open_provenance,'confirmedOpen')){
     try{
@@ -1860,8 +1967,31 @@ export class DeploymentStore {
    const payload=buildRangeKeeperPaperMarkPayload({source:source.data,openSource:openSource.data,
     openModel:row.open_model,allocation:allocationSchema.parse(row.allocation),
     candidateHash:String(row.open_provenance.candidateHash),kernelSnapshot:input.kernelSnapshot});
-   const existing=(await db.query<{id:string;inventory:unknown;provenance:Record<string,unknown>}>(`
-    SELECT id::text,inventory,provenance FROM deployment_marks
+   const frame=input.frame,profile=marketProfileSchema.parse(row.profile);
+   if(frame&&(contentHash(frame.source)!==contentHash(source.data)||frame.sqrtPriceX96<=0n||
+    !Number.isSafeInteger(frame.tick)||!frame.referenceProof||
+    referenceProofHash(frame.referenceProof)!==frame.referenceProofHash))
+    throw new DeploymentConflict('rangekeeper_paper_mark_frame_integrity');
+   const principal=frame?principalAmounts({liquidity:BigInt(payload.inventory.position.liquidity),
+    tickLower:payload.inventory.position.tickLower,tickUpper:payload.inventory.position.tickUpper,
+    sqrtPriceX96:frame.sqrtPriceX96}):null;
+   if(principal&&(payload.provenance.kernelSnapshot.released0!==String(principal.amount0)||
+    payload.provenance.kernelSnapshot.released1!==String(principal.amount1)))
+    throw new DeploymentConflict('rangekeeper_paper_mark_principal_mismatch');
+   const valued=frame?.referenceEligible&&frame.price0!==null&&frame.price1!==null&&
+    frame.price0>0n&&frame.price1>0n;
+   const principalOnlyValue=valued&&principal&&frame?
+    String((principal.amount0+BigInt(payload.inventory.idle.token0))*frame.price0!/10n**BigInt(profile.pool.decimals0)+
+     (principal.amount1+BigInt(payload.inventory.idle.token1))*frame.price1!/10n**BigInt(profile.pool.decimals1)):null;
+   const valuation=frame?{poolState:{tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),
+    poolLiquidity:String(frame.poolLiquidity)},reference:{price0:valued?String(frame.price0):null,
+     price1:valued?String(frame.price1):null,nativePrice:frame.nativePrice===null?null:String(frame.nativePrice),
+     proofHash:frame.referenceProofHash,proof:frame.referenceProof},referenceProofHash:frame.referenceProofHash,
+    referenceUnavailable:frame.referenceReasons}:{};
+   const decision=input.decision?z.object({action:z.enum(['wait','safety_exit']),
+    reason:z.string().regex(/^[a-z0-9_]{1,100}$/)}).strict().parse(input.decision):null;
+   const existing=(await db.query<{id:string;inventory:unknown;economics:unknown;provenance:Record<string,unknown>}>(`
+    SELECT id::text,inventory,economics,provenance FROM deployment_marks
     WHERE campaign_id=$1 AND source_block=$2::numeric AND lower(source_hash)=lower($3)
     LIMIT 2`,[input.campaignId,source.data.block,source.data.hash])).rows;
    if(existing.length){
@@ -1871,8 +2001,16 @@ export class DeploymentStore {
      existing[0]!.provenance.classification!==payload.provenance.classification||
      contentHash(existing[0]!.provenance.source)!==contentHash(payload.provenance.source)||
      existing[0]!.provenance.candidateHash!==payload.provenance.candidateHash||
+     (frame&&contentHash(existing[0]!.provenance.poolState)!==contentHash(valuation.poolState))||
+     (frame&&contentHash(existing[0]!.provenance.reference)!==contentHash(valuation.reference))||
+     (frame&&contentHash(existing[0]!.economics)!==contentHash({principalOnlyValue}))||
+     (decision&&contentHash(existing[0]!.provenance.managementDecision)!==contentHash(decision))||
      contentHash(existing[0]!.provenance.kernelSnapshot)!==contentHash(payload.provenance.kernelSnapshot))
      throw new DeploymentConflict('rangekeeper_paper_mark_replay_conflict');
+    try{await input.verifyAnchors(row.chain_id,[...confirmedAnchors,openSource.data,source.data]
+     .filter((anchor,index,array)=>array.findIndex(other=>other.block===anchor.block)===index));}
+    catch(error){if(error instanceof AssertionError)
+      throw new DeploymentConflict('rangekeeper_paper_mark_source_not_canonical');throw error;}
     return {markId:existing[0]!.id,replayed:true,actionAvailable:false as const};
    }
    if(row.latest_id){
@@ -1912,10 +2050,12 @@ export class DeploymentStore {
    }
    const mark=(await db.query<{id:string}>(`INSERT INTO deployment_marks
     (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
-    VALUES($1,$2,$3,$4,$5,NULL,'{}'::uuid[],$6) RETURNING id::text`,
+    VALUES($1,$2,$3,$4,$5,$7,'{}'::uuid[],$6) RETURNING id::text`,
     [input.campaignId,row.revision,source.data.block,source.data.hash,JSON.stringify(payload.inventory),
-     JSON.stringify({...payload.provenance,openMarkId:row.open_id,paidCostsAvailable:false,
-      actionAvailable:false,unavailable:['fees','paid_costs','net_economics','final_custody']})])).rows[0]!;
+     JSON.stringify({...payload.provenance,...valuation,managementDecision:decision,
+      openMarkId:row.open_id,paidCostsAvailable:false,
+      actionAvailable:false,unavailable:['fees','paid_costs','net_economics','final_custody']}),
+     frame?JSON.stringify({principalOnlyValue}):null])).rows[0]!;
    return {markId:mark.id,replayed:false,actionAvailable:false as const};
   });
  }
@@ -5363,13 +5503,13 @@ export class DeploymentStore {
     strategy_id:string;strategy_version:string;state_schema_version:number;
     proposal:Record<string,unknown>;request:Record<string,unknown>;evidence:Record<string,unknown>;
     content_digest:string;expected_revision:number;preview_kind:string;preview_created_at:Date;
-    accepted_at:Date;expires_at:Date}>(`
+    accepted_at:Date;expires_at:Date;runtime_identity:unknown}>(`
     SELECT o.campaign_id,o.preview_id,o.kind,o.status,o.claimed_by,
      (o.claim_until>=clock_timestamp()) AS claim_valid,c.mode,c.lifecycle,c.chain_id,
      c.current_revision,p.profile,p.profile_hash,r.config,r.config_hash,r.strategy_id,
      r.strategy_version,r.state_schema_version,
      v.proposal,v.request,v.evidence,v.content_digest,v.expected_revision,v.kind AS preview_kind,
-     v.created_at AS preview_created_at,o.created_at AS accepted_at,v.expires_at
+     v.created_at AS preview_created_at,o.created_at AS accepted_at,v.expires_at,c.runtime_identity
     FROM deployment_operations o JOIN deployment_campaigns c ON c.id=o.campaign_id
     JOIN deployment_market_profiles p ON p.id=c.market_profile_id
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
@@ -5386,6 +5526,9 @@ export class DeploymentStore {
    }
    if(row.lifecycle!=='closing'||row.status!=='reconciling'||row.claimed_by!==workerId||
     !row.claim_valid)throw new DeploymentConflict('rangekeeper_paper_exit_claim_lost');
+   const runtime=sealedRuntimeIdentitySchema.safeParse(row.runtime_identity),currentRuntime=loadRuntimeIdentity();
+   if(!runtime.success||!currentRuntime||contentHash(runtime.data)!==contentHash(currentRuntime))
+    throw new DeploymentConflict('rangekeeper_paper_exit_runtime_mismatch');
    if(row.strategy_version!=='1.0.0'||row.state_schema_version!==1)
     throw new DeploymentConflict('rangekeeper_paper_exit_config_integrity');
    if(row.current_revision!==row.expected_revision||row.accepted_at.getTime()>row.expires_at.getTime()||
@@ -5403,8 +5546,10 @@ export class DeploymentStore {
     row.proposal.rangekeeperPaperExitModel);
    if(!parsedModel.success)throw new DeploymentConflict('rangekeeper_paper_exit_model_unavailable');
    const model=parsedModel.data;
-   if(model.status!=='indicative'||model.actionAvailable!==true)
-    throw new DeploymentConflict('rangekeeper_paper_exit_model_not_actionable');
+   // The persisted economic model remains read-only. HTTP actionability is a
+   // separate wrapper over its trusted preview and the ready operation worker.
+   if(model.status!=='indicative')
+    throw new DeploymentConflict('rangekeeper_paper_exit_model_not_indicative');
    const profile=marketProfileSchema.safeParse(row.profile);
    if(!profile.success||contentHash(row.profile)!==row.profile_hash||
     !row.config||typeof row.config!=='object'||Array.isArray(row.config)||
@@ -5459,7 +5604,10 @@ export class DeploymentStore {
     liquidity:z.string().regex(/^[1-9][0-9]*$/)}).strict(),
     idleSchema=z.object({token0:z.string().regex(/^(0|[1-9][0-9]*)$/),
      token1:z.string().regex(/^(0|[1-9][0-9]*)$/)}).strict();
-   const openPositionParsed=positionSchema.safeParse((openMark.inventory as {position?:unknown}).position),
+   // A booked opening also records amount0Minted/amount1Minted. Those entry
+   // quantities are not the principal at the exit frame, and must not make a
+   // valid persisted position fail a strict three-field parse.
+   const openPositionParsed=positionSchema.strip().safeParse((openMark.inventory as {position?:unknown}).position),
     previousPositionParsed=positionSchema.safeParse(
      (previousMarkRow.inventory as {position?:unknown}).position),
     previousIdleParsed=idleSchema.safeParse((previousMarkRow.inventory as {idle?:unknown}).idle);

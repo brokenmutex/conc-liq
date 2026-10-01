@@ -39,9 +39,9 @@ async function withBrowser<T>(work:()=>Promise<T>){
  try{return await work();}
  finally{for(const [name,value] of Object.entries(original)){if(value===undefined)delete global[name];else global[name]=value;}}
 }
-function mount(kind:'close_retain'|'pause'|'resume',request:(path:string,options?:any)=>Promise<any>){
+function mount(kind:'close_retain'|'pause'|'resume',request:(path:string,options?:any)=>Promise<any>,strategyId='static_manual_v1'){
  const root=new ElementMock(),props={campaignId,authenticated:()=>true,request};
- if(kind==='close_retain')mountStaticRetainAction(root,props);
+ if(kind==='close_retain')mountStaticRetainAction(root,{...props,strategyId});
  else mountPaperLifecycleAction(root,{...props,kind});
  return root;
 }
@@ -128,7 +128,8 @@ test('pause and resume recovery keeps exact keys for ambiguous errors and clears
    assert(path.endsWith('/lifecycle-operations'));
    lastBody=options.body;storedBeforePost=Boolean((globalThis as any).localStorage.getItem(storageKey(kind)));
    throw error(502,'gateway_timeout');
-  });
+});
+
   await button(fresh,`Review ${kind}`)?.click();
   await button(fresh,`${actionName} management`)?.click();
   assert.equal(storedBeforePost,true);
@@ -159,6 +160,33 @@ test('pause and resume recovery keeps exact keys for ambiguous errors and clears
   assert.equal((globalThis as any).localStorage.getItem(storageKey(kind)),null);
   assert.equal(button(leaseFailure,`Review ${kind}`)?.disabled,false);
  }
+}));
+
+test('RangeKeeper retain-close routes acceptance and lost-response recovery through its strategy endpoint after preview expiry',async()=>withBrowser(async()=>{
+ const key=storageKey('close_retain');let posted:any=null;
+ const rkPreview={...preview('close_retain'),strategyId:'rangekeeper_v1',
+  position:{retainedLowerBound0:'30',retainedLowerBound1:'40'},
+  costs:{expectedGasUnits:'100',boundGasUnits:'150',expectedValue:'1000000000000000000',boundValue:'2000000000000000000'}};
+ rkPreview.expiresAt=new Date(Date.now()+60_000).toISOString();
+ const root=mount('close_retain',async(path,options={})=>{
+  if(path.endsWith('/previews'))return rkPreview;
+  posted={path,payload:options.body};throw error(502,'gateway_timeout');
+ },'rangekeeper_v1');
+ await button(root,'Review retain-close')?.click();
+ const facts=find(root,item=>item.className==='retain-preview-facts');
+ assert.match(facts?.children.map(item=>item.children.map(child=>child.textContent).join(' ')).join(' ')??'',/30|150/);
+ await button(root,'Accept retain-close')?.click();
+ assert.equal(posted.path,`/api/deployments/${campaignId}/rangekeeper/close-operations`);
+ const saved=JSON.parse((globalThis as any).localStorage.getItem(key));
+ assert.equal(saved.strategyId,'rangekeeper_v1');assert.deepEqual(saved.payload,posted.payload);
+ rkPreview.expiresAt=new Date(Date.now()-1).toISOString();
+ const recovery=new ElementMock();let replayPath='';
+ mountPendingPaperAcceptanceRecovery(recovery,{authenticated:()=>true,request:async(path:string,options:any)=>{
+  replayPath=path;assert.deepEqual(options.body,posted.payload);return {id:operationId,status:'queued'};
+ }});
+ await button(recovery,'Reconcile saved acceptance')?.click();
+ assert.equal(replayPath,`/api/deployments/${campaignId}/rangekeeper/close-operations`);
+ assert.equal((globalThis as any).localStorage.getItem(key),null);
 }));
 
 test('malformed persisted action payload blocks a fresh preview instead of discarding recovery state',async()=>withBrowser(async()=>{

@@ -77,6 +77,14 @@ export interface RangeKeeperPaperOpenModel {
  unavailable:string[];
 }
 
+/** Model-shape compatibility only. Actual booked positions additionally require
+ * the store's validated confirmation envelope and immutable opening record. */
+export function rangeKeeperPaperOpenDecisionHasCandidate(decision:RangeKeeperPaperOpenModel['decision']|undefined){
+ return decision?.requiresSecondObservation===true||
+  (decision?.requiresSecondObservation===false&&decision.kernelAction==='execute'&&
+   decision.kernelReason==='two_confirmations');
+}
+
 function serializeCandidate(candidate:RangeKeeperCandidate|null):SerializableCandidate|null{
  if(!candidate)return null;
  return {kind:candidate.kind,range:candidate.range,
@@ -215,6 +223,10 @@ export interface BuildRangeKeeperPaperOpenInput {
  marketGasPriceWei:bigint|null;
  marketGasPriceObservedAt:number|null;
  pinnedQuoteCache?:RangeKeeperPaperPinnedQuoteCache;
+ /** Internal server seam called once after canonical candidate discovery and
+  * before scoped profiles are loaded. It never affects the candidate itself. */
+ onCandidate?:(input:{candidate:RangeKeeperCandidate;scope:RangeKeeperPaperCandidateScope;
+  pathVersion:string;sizeBand:string})=>Promise<void>;
  now?:number;
 }
 
@@ -273,6 +285,7 @@ export async function buildRangeKeeperPaperOpenModel(input:BuildRangeKeeperPaper
   candidateHash,deployedValue:candidate.deployedValue,sharePpm:share,
   range:candidate.range,swapKind:candidate.swap?'direct_pool_exact_input':'none'};
  const pathVersion=rangeKeeperPaperPathVersion(candidate),sizeBand=rangeKeeperPaperSizeBand(pathVersion,scope);
+ await input.onCandidate?.({candidate,scope,pathVersion,sizeBand});
  let gasProfiles=input.gasProfiles??[];
  if(input.readGasProfiles){
   try{gasProfiles=[...await input.readGasProfiles({poolAddress:p.pool,pathVersion,sizeBand})];}

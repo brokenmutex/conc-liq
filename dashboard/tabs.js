@@ -150,6 +150,19 @@ export function suggestedNativeAllocationWei({ openBoundWei, closeBoundWei, exit
   return String(currentBounds + headroom);
 }
 
+export function setupNativeAllocationSuggestionFor(preflight, limits) {
+  const configuredReserve=String(limits?.exitReserveWei??'');
+  const modeledReserve=preflight?.strategyId==='rangekeeper_v1'
+    ? String(preflight.costs?.retainExit?.requiredReserveWei??'') : '0';
+  if(!RAW_INTEGER.test(configuredReserve)||!RAW_INTEGER.test(modeledReserve))return null;
+  const exitReserveWei=String(BigInt(configuredReserve)>BigInt(modeledReserve)?
+    BigInt(configuredReserve):BigInt(modeledReserve));
+  return suggestedNativeAllocationWei({ openBoundWei: preflight?.costs?.open?.boundWei,
+    closeBoundWei: preflight?.strategyId === 'rangekeeper_v1'
+      ? preflight?.costs?.retainExit?.boundWei : preflight?.costs?.closeRetain?.boundWei,
+    exitReserveWei });
+}
+
 function normalizeSetupLimits(limits, strategyId = 'static_manual_v1') {
   const rangeKeeper = strategyId === 'rangekeeper_v1';
   const fields = Object.keys(unitsFor(strategyId));
@@ -244,7 +257,9 @@ export function preflightFacts(result) {
     : 'Unavailable']);
   if(result.costs?.status==='provisional'&&result.costs.gasPriceWei&&result.costs.gasPriceObservedAt)
     facts.push(['Observed gas price · wei',`${result.costs.gasPriceWei} · ${result.costs.gasPriceObservedAt}`]);
-  for (const [label, row] of [['Open', result.costs?.open], ['Retain close', result.costs?.closeRetain]]) {
+  const retainCosts = result.strategyId === 'rangekeeper_v1'
+    ? result.costs?.retainExit : result.costs?.closeRetain;
+  for (const [label, row] of [['Open', result.costs?.open], ['Retain close', retainCosts]]) {
     if (row) {
       facts.push([`${label} gas · expected / bound`, `${row.expectedGasUnits ?? 'Unavailable'} / ${row.boundGasUnits ?? 'Unavailable'} units`]);
       facts.push([`${label} cost · expected / bound · USDG`, `${formatX18(row.expectedValue)} / ${formatX18(row.boundValue)}`]);
@@ -266,6 +281,9 @@ const STATIC_LIMIT_FIELDS = ['maxDeploymentValue','minDeploymentValue','maxExpos
 /** Build a local, read-only draft proposal from an exact available preflight.
  * This function never submits the result to the command API. */
 export function reviewStaticPaperDraftBinding({ walletAddress, preflight, nativeWei, limits, now = Date.now() }) {
+  if (preflight?.strategyId === 'rangekeeper_v1') {
+    return reviewRangeKeeperPaperDraftBinding({ walletAddress, preflight, nativeWei, limits, now });
+  }
   const missing = [];
   if (!EVM_ADDRESS.test(String(walletAddress ?? '').trim())) missing.push('wallet_address_invalid_or_missing');
   if (!preflight || preflight.kind !== 'paper_setup_preflight' || preflight.status !== 'available' ||
@@ -326,6 +344,70 @@ export function reviewStaticPaperDraftBinding({ walletAddress, preflight, native
       allocation: { token0Raw: preflight.requirements.token0Raw,
         token1Raw: preflight.requirements.token1Raw, nativeWei: String(nativeWei) },
       config: { halfWidthTicks: preflight.input.halfWidthTicks, limits: normalizedLimits },
+    },
+  } };
+}
+
+/** Build the exact server admission body from the RangeKeeper setup review.
+ * The server repeats canonical sizing/cost checks; this local binding only
+ * admits the reviewed identity and operator-entered native allocation. */
+export function reviewRangeKeeperPaperDraftBinding({ walletAddress, preflight, nativeWei, limits, now = Date.now() }) {
+  const missing = [];
+  if (!EVM_ADDRESS.test(String(walletAddress ?? '').trim())) missing.push('wallet_address_invalid_or_missing');
+  const input = preflight?.input;
+  if (!preflight || preflight.kind !== 'rangekeeper_paper_setup_preflight' || preflight.status !== 'available' ||
+      preflight.mode !== 'paper' || preflight.strategyId !== 'rangekeeper_v1' ||
+      !PROFILE_UUID.test(preflight.profileId ?? '') || !/^[0-9a-f]{64}$/.test(preflight.profileHash ?? '') ||
+      !EVM_ADDRESS.test(preflight.profile?.pool ?? '') || !EVM_ADDRESS.test(preflight.profile?.token0 ?? '') ||
+      !EVM_ADDRESS.test(preflight.profile?.token1 ?? '') || ![0, 1].includes(preflight.profile?.quoteToken) ||
+      !Number.isSafeInteger(preflight.profile?.fee) || !Number.isSafeInteger(preflight.profile?.tickSpacing) ||
+      !RAW_INTEGER.test(input?.capitalQuoteRaw ?? '') || !Number.isSafeInteger(input?.fullWidthSpacings) ||
+      input.fullWidthSpacings < 2 || input.fullWidthSpacings > 2000 || input.fullWidthSpacings % 2 !== 0 ||
+      !EVM_HASH.test(preflight.source?.hash ?? '') || !RAW_INTEGER.test(String(preflight.source?.block ?? '')) ||
+      !Number.isSafeInteger(preflight.source?.timestamp) || !Number.isSafeInteger(preflight.range?.tickLower) ||
+      !Number.isSafeInteger(preflight.range?.tickUpper) || preflight.range.tickLower >= preflight.range.tickUpper ||
+      preflight.range?.fullWidthSpacings !== input.fullWidthSpacings ||
+      !RAW_INTEGER.test(preflight.requirements?.token0Raw ?? '') ||
+      !RAW_INTEGER.test(preflight.requirements?.token1Raw ?? '') ||
+      !preflight.references || !/^[0-9a-f]{64}$/.test(preflight.references.proofHash ?? '') ||
+      !preflight.costs || preflight.costs.status !== 'provisional' ||
+      preflight.costs.scope !== 'range_keeper_open_and_retain_exit_gas_only' ||
+      !RAW_INTEGER.test(preflight.costs?.retainExit?.boundWei ?? '') ||
+      !PROFILE_UUID.test(preflight.setupReviewId ?? '')) {
+    missing.push('fresh_registered_profile_or_exact_rangekeeper_preflight_binding_unavailable');
+  } else if (now - preflight.source.timestamp * 1000 < 0 || now - preflight.source.timestamp * 1000 > 180_000) {
+    missing.push('preflight_source_expired');
+  }
+  if (!RAW_INTEGER.test(String(nativeWei ?? '')) || BigInt(RAW_INTEGER.test(String(nativeWei ?? '')) ? nativeWei : '0') <= 0n) {
+    missing.push('proposed_native_allocation_wei_missing');
+  }
+  const normalizedLimits = normalizeSetupLimits(limits, 'rangekeeper_v1');
+  if (!normalizedLimits) missing.push('rangekeeper_limits_missing_or_invalid');
+  if (normalizedLimits && input?.limits && Object.keys(unitsFor('rangekeeper_v1')).some(field =>
+      String(input.limits[field]) !== String(normalizedLimits[field]))) {
+    missing.push('rangekeeper_limits_changed_since_cost_preparation');
+  }
+  if (missing.length) return { status: 'incomplete', missing };
+  const reviewed = {
+    profileId: preflight.profileId, profileHash: preflight.profileHash, input: preflight.input,
+    source: preflight.source, profile: preflight.profile, range: preflight.range,
+    requirements: preflight.requirements, references: preflight.references, costs: preflight.costs,
+  };
+  return { status: 'reviewable', missing: [], binding: {
+    campaignRevision: null, profileId: preflight.profileId, profileHash: preflight.profileHash,
+    source: preflight.source, proposedDraft: {
+      mode: 'paper', chainId: 4663, wallet: walletAddress.trim(), marketProfileId: preflight.profileId,
+      strategyId: 'rangekeeper_v1', strategyVersion: '1.0.0', stateSchemaVersion: 1,
+      allocation: { token0Raw: preflight.requirements.token0Raw,
+        token1Raw: preflight.requirements.token1Raw, nativeWei: String(nativeWei) },
+      config: { fullWidthSpacings: input.fullWidthSpacings, limits: normalizedLimits },
+    },
+    admissionRequest: {
+      reviewId: preflight.setupReviewId, profileId: preflight.profileId,
+      capitalQuoteRaw: input.capitalQuoteRaw, fullWidthSpacings: input.fullWidthSpacings,
+      wallet: walletAddress.trim(), allocation: { token0Raw: preflight.requirements.token0Raw,
+        token1Raw: preflight.requirements.token1Raw, nativeWei: String(nativeWei) },
+      limits: normalizedLimits, reviewed,
     },
   } };
 }
@@ -528,7 +610,6 @@ function bootDashboardTabs() {
     applySuggestedLimitValues();
   };
   setupStrategy.addEventListener('change',updateLimitsVisibility);setupMode.addEventListener('change',updateLimitsVisibility);
-  updateLimitsVisibility();
   async function runSetupReview(event) {
     event.preventDefault();
     const reviewSequence=++setupReviewSequence;
@@ -637,8 +718,7 @@ function bootDashboardTabs() {
     currentSetupPreflight = result;
     if(result.status==='available'){
       const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
-      const nativeWei=suggestedNativeAllocationWei({openBoundWei:result.costs?.open?.boundWei,
-        closeBoundWei:result.costs?.closeRetain?.boundWei,exitReserveWei:limits?.exitReserveWei});
+      const nativeWei=setupNativeAllocationSuggestionFor(result,limits);
       const input=document.getElementById('setup-allocation-native');
       const suggestion=nativeWei?rawToDecimal(nativeWei,18):'';
       if(suggestion&&(!input.value||input.value===lastSuggestedNativeAllocation))input.value=suggestion;
@@ -650,7 +730,7 @@ function bootDashboardTabs() {
       if(currentSetupPreflight===result)updateDraftBinding();
     },Math.max(0,reviewExpiry-Date.now()+1));
     setSetupStatus(isAvailable
-      ? 'Preflight completed. The suggested native allocation adds 20% headroom over open cost plus the greater of close bound or exit reserve. Gas can reprice beyond this cushion; request a fresh open preview before accepting. Admission limits were not evaluated.'
+      ? `Preflight completed. The suggested native allocation adds 20% headroom over open cost plus the greater of ${result.strategyId==='rangekeeper_v1'?'retained-exit bound':'close bound'} or the configured and modeled exit reserve. Gas can reprice beyond this cushion; request a fresh open preview before accepting. Admission limits were not evaluated.`
       : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
   }
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
@@ -694,6 +774,7 @@ function bootDashboardTabs() {
     }
     lastSuggestedLimits=suggestions;
   }
+  updateLimitsVisibility();
   document.getElementById('setup-capital').addEventListener('input',applySuggestedLimitValues);
   for(const id of Object.values(limitInputIds))document.getElementById(id).addEventListener('input',()=>{
     const details=document.getElementById('setup-limits-review');if(details)details.open=true;
@@ -723,8 +804,8 @@ function bootDashboardTabs() {
   });
   function renderOperatorDraftBinding(result) {
     const section=document.getElementById('operator-draft-binding'),available=onOperatorOrigin&&
-      result?.status==='available'&&result.kind==='paper_setup_preflight'&&
-      result.mode==='paper'&&result.strategyId==='static_manual_v1';
+      result?.status==='available'&&['paper_setup_preflight','rangekeeper_paper_setup_preflight'].includes(result.kind)&&
+      result.mode==='paper'&&['static_manual_v1','rangekeeper_v1'].includes(result.strategyId);
     section.hidden=!available;
     if(!available)return;
     const token0=document.getElementById('setup-allocation-token0'),token1=document.getElementById('setup-allocation-token1');
@@ -739,12 +820,13 @@ function bootDashboardTabs() {
     if(!currentSetupPreflight||document.getElementById('operator-draft-binding').hidden)return;
     const wallet=document.getElementById('setup-wallet-address').value,
       nativeWei=setupNativeAllocationToWei(document.getElementById('setup-allocation-native').value),
-      limits=humanSetupLimitsToRaw(readHumanLimitInputs()),
+      strategyId=currentSetupPreflight.strategyId,
+      limits=humanSetupLimitsToRaw(readHumanLimitInputs(strategyId),strategyId),
       result=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits}),
       status=document.getElementById('operator-draft-binding-status');
     status.dataset.state=result.status==='reviewable'?'available':'unavailable';
     status.textContent=result.status==='reviewable'?
-      (savedDraftId?'Static paper admission passed when draft '+savedDraftId+' was created. Wallet ownership/funding remain unchecked; request a fresh open preview.':
+      (savedDraftId?`${currentSetupPreflight.strategyId==='rangekeeper_v1'?'RangeKeeper':'Static/manual'} paper admission passed when draft ${savedDraftId} was created. Wallet ownership/funding remain unchecked; request a fresh open preview.`:
        'Binding values are structurally complete. Wallet ownership/funding and server admission have not been checked; no draft was saved.'):
       `Review incomplete: ${result.missing.join(', ')}.`;
     const facts=document.getElementById('operator-draft-binding-facts');
@@ -756,7 +838,8 @@ function bootDashboardTabs() {
       ['Registered profile hash',binding.profileHash],
       ['Preflight source block / hash',`${binding.source.block} · ${binding.source.hash}`],
       ['Campaign revision',savedDraftId?'1':'None · no draft exists'],['Capital budget · raw USDG',currentSetupPreflight.input.capitalQuoteRaw],
-      ['Centered half-width · ticks',String(proposal.config.halfWidthTicks)],
+      [proposal.strategyId==='rangekeeper_v1'?'Full width · tick spacings':'Centered half-width · ticks',
+        String(proposal.strategyId==='rangekeeper_v1'?proposal.config.fullWidthSpacings:proposal.config.halfWidthTicks)],
       ['Resolved tick bounds',`${currentSetupPreflight.range.tickLower} to ${currentSetupPreflight.range.tickUpper}`],
       [`${currentSetupPreflight.profile.token0} allocation · raw`,proposal.allocation.token0Raw],
       [`${currentSetupPreflight.profile.token1} allocation · raw`,proposal.allocation.token1Raw],
@@ -808,10 +891,12 @@ function bootDashboardTabs() {
       Date.parse(currentSetupPreflight.setupReviewExpiresAt)<=Date.now())return null;
     const wallet=document.getElementById('setup-wallet-address').value.trim();
     const nativeWei=setupNativeAllocationToWei(document.getElementById('setup-allocation-native').value);
-    const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
+    const strategyId=currentSetupPreflight.strategyId;
+    const limits=humanSetupLimitsToRaw(readHumanLimitInputs(strategyId),strategyId);
     const localReview=reviewStaticPaperDraftBinding({walletAddress:wallet,preflight:currentSetupPreflight,nativeWei,limits});
     if(localReview.status!=='reviewable')return null;
     const proposal=localReview.binding.proposedDraft;
+    if(strategyId==='rangekeeper_v1')return localReview.binding.admissionRequest;
     const reviewed={profileId:currentSetupPreflight.profileId,profileHash:currentSetupPreflight.profileHash,
       input:currentSetupPreflight.input,source:currentSetupPreflight.source,profile:currentSetupPreflight.profile,
       range:currentSetupPreflight.range,requirements:currentSetupPreflight.requirements,
@@ -935,14 +1020,16 @@ function bootDashboardTabs() {
     button.disabled=true;freezeDraftInputs(true);setDraftStatus('Rechecking canonical source, cost evidence, profile, reserve and limits before saving…');
     const payload={...candidate,requestId:pendingDraftRequestId};
     try{
-      const result=await authRequest(setupDraftPathFor(document.getElementById('setup-strategy')?.value),
+      const strategyId=Number.isSafeInteger(candidate.fullWidthSpacings)?'rangekeeper_v1':'static_manual_v1';
+      const result=await authRequest(setupDraftPathFor(strategyId),
         {method:'POST',body:payload,csrf:true});
       if(result?.status!=='draft_created'||!/^\d+$/.test(String(result.revision))||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(result.draftId??''))
         throw new Error('draft_creation_response_invalid');
       savedDraftId=result.draftId;clearPendingDraft();
       freezeDraftInputs(false);
-      setDraftStatus(`${result.replayed?'Reconciled existing':'Saved'} static/manual paper draft ${result.draftId} · revision ${result.revision}. Wallet funding is unchecked; no operation was created.`,'available');
+      const strategyName=strategyId==='rangekeeper_v1'?'RangeKeeper':'static/manual';
+      setDraftStatus(`${result.replayed?'Reconciled existing':'Saved'} ${strategyName} paper draft ${result.draftId} · revision ${result.revision}. Wallet funding is unchecked; no operation was created.`,'available');
       const link=document.createElement('a');link.href='#positions-tab';link.textContent='Open Positions';link.addEventListener('click',()=>document.getElementById('positions-tab').click());draftStatus.append(' ',link);
       document.getElementById('setup-open-review').hidden=false;
       await requestFreshOpenPreview(result.draftId);
@@ -1071,11 +1158,18 @@ function bootDashboardTabs() {
     document.getElementById('operator-draft-binding-status').textContent='Recovered pending request. Its previous source and costs are historical; retrying the same UUID first checks for an already-saved campaign, then server admission requires fresh evidence.';
     document.getElementById('operator-draft-binding-status').dataset.state='loading';
     const facts=document.getElementById('operator-draft-binding-facts');
-    const review=body.reviewed,config={halfWidthTicks:body.halfWidthTicks,limits:body.limits};
+    const rangeKeeper=Number.isSafeInteger(body.fullWidthSpacings),
+      review=body.reviewed,config={...(rangeKeeper?{fullWidthSpacings:body.fullWidthSpacings}:
+        {halfWidthTicks:body.halfWidthTicks}),limits:body.limits};
+    document.getElementById('setup-strategy').value=rangeKeeper?'rangekeeper_v1':'static_manual_v1';
+    if(rangeKeeper)document.getElementById('setup-rangekeeper-width').value=String(body.fullWidthSpacings);
+    else widthSelect.value=String(body.halfWidthTicks);
     const rows=[['Wallet identity · syntax only',body.wallet],['Funding status','Unchecked'],
       ['Registered market profile',body.profileId],['Registered profile hash',review.profileHash],
       ['Previously reviewed source · not current',`${review.source?.block??'Unavailable'} · ${review.source?.hash??'Unavailable'}`],
-      ['Capital budget · raw USDG',body.capitalQuoteRaw],['Centered half-width · ticks',String(body.halfWidthTicks)],
+      ['Capital budget · raw USDG',body.capitalQuoteRaw],
+      [rangeKeeper?'Full width · tick spacings':'Centered half-width · ticks',
+        String(rangeKeeper?body.fullWidthSpacings:body.halfWidthTicks)],
       ['Previously reviewed bounds · not current',`${review.range?.tickLower??'Unavailable'} to ${review.range?.tickUpper??'Unavailable'}`],
       ['Token 0 allocation · raw',body.allocation?.token0Raw??'Unavailable'],
       ['Token 1 allocation · raw',body.allocation?.token1Raw??'Unavailable'],['Native allocation · native units',rawToDecimal(body.allocation?.nativeWei??'',18)||'Unavailable'],

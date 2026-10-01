@@ -1,9 +1,10 @@
 import {z} from 'zod';
+import {principalAmounts} from '../backtest/principal.js';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import {contentHash,allocationSchema} from './contracts.js';
 import {marketProfileSchema,referenceProofHash} from './market-profile.js';
 import type {PaperOpenFrame} from './paper-preview.js';
-import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft,
+import {resolveRangeKeeperPaperPolicy,rangeKeeperPaperOpenDecisionHasCandidate,type RangeKeeperPaperDraft,
  type RangeKeeperPaperOpenModel} from './rangekeeper-paper-open-model.js';
 import {rangeKeeperPaperExitInventoryProofHash,
  type RangeKeeperPaperExitKernelContext} from './rangekeeper-paper-exit-model.js';
@@ -137,7 +138,7 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
  if(parsed.revision!==draft.revision||parsed.revision!==open.revision||
   open.kind!=='rangekeeper_paper_open_model'||open.campaignId!==parsed.campaignId||
   open.status!=='indicative'||open.actionAvailable!==false||
-  !open.decision?.requiresSecondObservation||!open.candidate||!open.candidateHash||
+  !rangeKeeperPaperOpenDecisionHasCandidate(open.decision)||!open.candidate||!open.candidateHash||
   parsed.openMark.modelHash!==contentHash(open)||open.candidateHash!==parsed.previousMark.candidateHash||
   open.profileHash!==draft.profileHash||open.draftConfigHash!==draft.configHash||
   contentHash(draft.profile)!==draft.profileHash||
@@ -146,9 +147,9 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   BigInt(parsed.previousMark.source.block)<=BigInt(openSource.data.block)||
   BigInt(source.block)<=BigInt(parsed.previousMark.source.block)||
   source.timestamp<parsed.previousMark.source.timestamp||
-  parsed.kernel.source.block!==source.block||
-  parsed.kernel.source.hash.toLowerCase()!==source.hash.toLowerCase()||
-  parsed.kernel.source.timestamp!==source.timestamp||parsed.kernel.pending||
+  parsed.kernel.source.block!==parsed.previousMark.source.block||
+  parsed.kernel.source.hash.toLowerCase()!==parsed.previousMark.source.hash.toLowerCase()||
+  parsed.kernel.source.timestamp!==parsed.previousMark.source.timestamp||parsed.kernel.pending||
   parsed.pendingOperationId!==null)
   return unavailable(input.campaignId,'rangekeeper_persisted_open_or_mark_identity_invalid');
  const policy=resolveRangeKeeperPaperPolicy(draft,input.buildId);
@@ -179,9 +180,15 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   parsed.previousMark.idle.token1!==String(idle1))
   return unavailable(input.campaignId,'rangekeeper_persisted_idle_inventory_mismatch');
  const priorState=rangeKeeperState(parsed.kernel.state);
+ // The persisted kernel belongs to the previous mark. Project only principal
+ // onto the newly verified frame; do not relabel the old observation as new,
+ // or carry old principal quantities across a pool price change.
+ const principal=principalAmounts({liquidity:candidate.liquidity,
+  tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
+  sqrtPriceX96:input.frame.sqrtPriceX96});
  const kernelWithoutProof={state:priorState,source,
   wallet0:BigInt(parsed.kernel.wallet0),wallet1:BigInt(parsed.kernel.wallet1),
-  released0:BigInt(parsed.kernel.released0),released1:BigInt(parsed.kernel.released1),
+  released0:principal.amount0,released1:principal.amount1,
   nativeWei:BigInt(parsed.kernel.nativeWei),
   campaignStartValue:BigInt(parsed.kernel.campaignStartValue),highWaterValue:BigInt(parsed.kernel.highWaterValue),
   rollingSpentCost:BigInt(parsed.kernel.rollingSpentCost),campaignSpentCost:BigInt(parsed.kernel.campaignSpentCost),

@@ -197,7 +197,7 @@ export async function produceRangeKeeperPaperGasEvidence(input:{kind:GasReportKi
  assert.equal(samples.length,stages.length,'Owned-fork stage sequence incomplete');
  for(let i=0;i<stages.length;i++)assert.equal(samples[i]!.action,stages[i],
   'Owned-fork stage sequence does not match the frozen path');
- const sampledAt=new Date(now).toISOString(),frameModel=serializedFrame(frame),candidate=serializeCandidate(input.candidate);
+ const sampledAt=new Date(input.now??Date.now()).toISOString(),frameModel=serializedFrame(frame),candidate=serializeCandidate(input.candidate);
  const provisional=stages.map((stage,index)=>{
   const sample=samples[index]!;
   assert.equal(sample.sourceBlock,frame.source.block);

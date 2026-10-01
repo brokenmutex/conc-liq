@@ -88,7 +88,10 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
    token1Raw:'1000000000000000000',nativeWei:'10000000000000000'},profile,profileHash,configHash,
    strategyId:'rangekeeper_v1' as const,parameters};
  const now=Date.now(),firstAt=Math.floor(now/1000)-60,secondAt=firstAt+30,
-  proof={fixture:'range-keeper-confirmation'},proofHash=referenceProofHash(proof),
+  proof={fixture:'range-keeper-confirmation',registry:{fetchedAt:new Date(now).toISOString(),
+   sha256:`sha256:${'b'.repeat(64)}`,url:'https://fixture.test/registry'},
+   feedDirectory:{fetchedAt:new Date(now).toISOString(),sha256:`sha256:${'c'.repeat(64)}`,
+    url:'https://fixture.test/feeds'}},proofHash=referenceProofHash(proof),
   firstSource={block:'100',hash:gasHash('1'),timestamp:firstAt},
   secondSource={block:'101',hash:gasHash('2'),timestamp:secondAt},
   frame1:PaperOpenFrame={source:firstSource,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),
@@ -228,7 +231,11 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
  assert.equal(result.openingBooked,false);
  assert.equal(result.executionEvidence,'source_bound_caller_simulation_evidence_unverified');
  assert.equal(result.simulationEvidence.sequenceHash,result.decision.simulation.simulationHash);
- const replayed=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:result,frame:frame2,
+ const freshAt={...frame2,referenceProof:{...proof,
+  registry:{...proof.registry,fetchedAt:new Date(now+1000).toISOString()},
+  feedDirectory:{...proof.feedDirectory,fetchedAt:new Date(now+1000).toISOString()}}};
+ freshAt.referenceProofHash=referenceProofHash(freshAt.referenceProof);
+ const replayed=await replayRangeKeeperPaperConfirmationOnOwnedFork({draft,envelope:result,frame:freshAt,
   operationId:randomUUID(),openPreviewId:randomUUID(),operationSnapshotHash:'a'.repeat(64),
   rpcUrl:'http://fixture.invalid',beforeRead:async()=>{}},{runOwnedFork:async request=>({
    status:'success',sourceBlock:frame2.source.block,sourceHash:frame2.source.hash,

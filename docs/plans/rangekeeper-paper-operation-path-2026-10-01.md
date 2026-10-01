@@ -1,7 +1,30 @@
 # RangeKeeper paper operation path — scope, October 1, 2026
 
-Status: scope only. No source change is proposed here for immediate execution,
-and nothing below authorizes execution of a strategy.
+## Current status — October 1, 2026
+
+The RangeKeeper paper setup, open, observation, and retained-close source paths
+are implemented. The full test suite passes 1,048 tests, and SQL integration
+for retained close/replay is green. Canonical-source setup, opening, and
+observations have passed in some runs; the complete canonical lifecycle through
+retained NFT close and recovery is still pending. Confirmation now reuses its verified owned-fork result for gas evidence and
+overlaps fresh fork prefetching with planning. Earlier swapped-entry attempts
+failed the unchanged 90-second guard; diagnostics confirmed preview expiry.
+The lifecycle fixture now waits for the required confirmed-chain timestamp,
+rather than wall time. Retained-NFT/slippage fixes still need the complete
+end-to-end lifecycle proof.
+
+The dashboard command-browser integration passes 20 checks with zero browser
+exceptions, including the RangeKeeper setup-review/admission body. Its
+RangeKeeper source and cost evidence are explicitly synthetic fixtures: this
+proves the browser session, CSRF, UI binding, and command route contract, not
+canonical chain behavior or economics. Keep this evidence separate from the
+canonical setup/open/observation runs and the outstanding full-lifecycle gate.
+
+Do not describe this as a completed or managed RangeKeeper lifecycle, and do not
+claim a sealed release or production deployment. The initial open/exit gap
+analysis below is preserved as a dated historical source snapshot; claims about missing routes
+and unreachable paths describe that earlier snapshot and are superseded by the
+current status above. The follow-up recenter plan remains separate work.
 
 Commissioned to scope the RangeKeeper **exit** operation path, after
 `rangekeeper-dashboard-integration-2026-09-30.md` §2a was corrected: a campaign
@@ -11,7 +34,13 @@ is uncloseable because no exit operation path exists, not because of the
 Tracing the static chain to compare against produced a larger finding, which
 changes the order of the work.
 
-## 0. The headline: no RangeKeeper operation can be accepted at all
+## Historical source snapshot — initial gap analysis
+
+The findings below record the source state observed when this plan was first
+written. They are retained to explain the original implementation sequence;
+they are not a statement of current source status.
+
+### Initial headline: no RangeKeeper operation could be accepted
 
 Not the exit — **any** operation, open included. Verified by reading, not
 inferred.

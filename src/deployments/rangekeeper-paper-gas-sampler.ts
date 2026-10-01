@@ -58,6 +58,34 @@ function serializeCandidate(c:RangeKeeperCandidate){return {kind:c.kind,range:c.
  sourceHash:c.sourceHash,expiresAt:c.expiresAt};}
 const rawValue=(amount:bigint,price:bigint,decimals:number)=>amount*price/10n**BigInt(decimals);
 
+export function rangeKeeperPaperWithdrawalMinimum(amount:bigint,maxSlippageBps:number){
+ assert(amount>=0n&&Number.isSafeInteger(maxSlippageBps)&&maxSlippageBps>=0&&maxSlippageBps<=10_000,
+  'RangeKeeper withdrawal slippage input is invalid');
+ return amount*(10_000n-BigInt(maxSlippageBps))/10_000n;
+}
+
+/** V3 decrease+collect leaves the ERC-721 owned with zero liquidity; this
+ * is the retired-position state RangeKeeper records until explicit burn. */
+export function assertRangeKeeperPaperRetiredPosition(input:{nftCount:bigint;owner:string;
+ liquidity:bigint;tokensOwed0:bigint;tokensOwed1:bigint},expectedOwner:string=PAPER_ACCOUNT){
+ assert.equal(input.nftCount,1n,'Owned-fork withdrawal must retain its one zero-liquidity NFT');
+ assert(same(input.owner,expectedOwner),'Owned-fork withdrawal changed NFT owner');
+ assert.equal(input.liquidity,0n);assert.equal(input.tokensOwed0,0n);assert.equal(input.tokensOwed1,0n);
+}
+
+/** Require exact current reference values while allowing only the explicitly
+ * volatile external-source fetch timestamps to change across a fork reread. */
+export function assertRangeKeeperTerminalReferenceMatch(frame:PaperOpenFrame,reference:{eligible:boolean;
+ price0:bigint|null;price1:bigint|null;nativePrice:bigint|null;proof:unknown}){
+ assert(reference.eligible&&reference.price0!==null&&reference.price0>0n&&
+  reference.price1!==null&&reference.price1>0n&&reference.nativePrice!==null&&reference.nativePrice>0n&&
+  String(reference.price0)===String(frame.price0)&&
+  String(reference.price1)===String(frame.price1)&&String(reference.nativePrice)===String(frame.nativePrice),
+  'Terminal fork reference values mismatch');
+ assert(frame.referenceProof, 'Terminal source reference proof unavailable');
+ assertSameRangeKeeperPinnedReferenceProof(frame.referenceProof,reference.proof);
+}
+
 /** HTTP source acquisition time changes on each pinned-frame reread. Treat
  * that transport timestamp as audit metadata, while requiring identical URL,
  * exact response bytes, and every on-chain/reference fact in the proof. */
@@ -391,10 +419,11 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
    position.tickLower===candidate.range.tickLower&&position.tickUpper===candidate.range.tickUpper);
   const slot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'});
   const principal=principalAmounts({liquidity,tickLower:position.tickLower,tickUpper:position.tickUpper,sqrtPriceX96:slot[0]});
-  const haircut=10_000n-BigInt(input.limits.maxSlippageBps);
   const exitBlock=await fork.rpc<{timestamp:`0x${string}`}>('eth_getBlockByNumber',['latest',false]);
   await send('exit_withdraw_collect',{kind:'withdraw',tokenId,liquidity,
-   min0:principal.amount0*haircut/PPM,min1:principal.amount1*haircut/PPM,deadline:BigInt(exitBlock.timestamp)+300n});
+   min0:rangeKeeperPaperWithdrawalMinimum(principal.amount0,input.limits.maxSlippageBps),
+   min1:rangeKeeperPaperWithdrawalMinimum(principal.amount1,input.limits.maxSlippageBps),
+   deadline:BigInt(exitBlock.timestamp)+300n});
   for(const [stage,token] of [
    ['exit_cleanup_router_token0',0],['exit_cleanup_router_token1',1],
    ['exit_cleanup_manager_token0',0],['exit_cleanup_manager_token1',1],
@@ -406,7 +435,11 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
     functionName:'allowance',args:[PAPER_ACCOUNT,spender as Address]}),0n,
     'Owned-fork retain exit left a core allowance');
   position=await readCanaryPosition(local,tokenId,await local.getBlockNumber({cacheTime:0}));
-  assert.equal(position.liquidity,0n);assert.equal(position.tokensOwed0,0n);assert.equal(position.tokensOwed1,0n);
+  const terminalBlockNumber=await local.getBlockNumber({cacheTime:0}),terminalBlock=await local.getBlock({blockNumber:terminalBlockNumber});
+  const terminalSnapshot=await chain.snapshot({block:terminalBlockNumber,hash:terminalBlock.hash!,
+   timestamp:Number(terminalBlock.timestamp)},PAPER_ACCOUNT,null);
+  assertRangeKeeperPaperRetiredPosition({nftCount:terminalSnapshot.nftCount,owner:position.owner,
+   liquidity:position.liquidity,tokensOwed0:position.tokensOwed0,tokensOwed1:position.tokensOwed1});
   const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
   assert(same(pinned.hash,source.hash),'RangeKeeper owned-fork source block changed');
   const stageNames=rows.map(row=>row.action);
@@ -442,8 +475,7 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});
   const ref=await readRangeKeeperReferences(local,{block:source.number,hash:source.hash,
    timestamp:frame.source.timestamp},profile);
-  assert(ref.eligible&&String(ref.price0)===String(frame.price0)&&String(ref.price1)===String(frame.price1)&&
-   referenceProofHash(ref.proof)===frame.referenceProofHash,'Terminal fork reference mismatch');
+  assertRangeKeeperTerminalReferenceMatch(frame,ref);
   const slot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'}),
    liq=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'liquidity'});
   assert.equal(slot[1],frame.tick);assert.equal(slot[0],frame.sqrtPriceX96);assert.equal(liq,frame.poolLiquidity);
@@ -495,9 +527,10 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   assert.deepEqual(rows.map(x=>x.action),request.stages);
   const latest=await local.getBlockNumber({cacheTime:0}),latestBlock=await local.getBlock({blockNumber:latest});
   const end=await chain.snapshot({block:latest,hash:latestBlock.hash!,timestamp:Number(latestBlock.timestamp)},PAPER_ACCOUNT,null);
-  assert.equal(end.nftCount,0n);assert(end.allowances.every(x=>x.amount===0n));
+  assert(end.allowances.every(x=>x.amount===0n));
   const terminal=await readCanaryPosition(local,restored.tokenId,latest);
-  assert.equal(terminal.liquidity,0n);assert.equal(terminal.tokensOwed0,0n);assert.equal(terminal.tokensOwed1,0n);
+  assertRangeKeeperPaperRetiredPosition({nftCount:end.nftCount,owner:terminal.owner,
+   liquidity:terminal.liquidity,tokensOwed0:terminal.tokensOwed0,tokensOwed1:terminal.tokensOwed1});
   const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
   assert(same(pinned.hash,source.hash),'Owned fork lost its pinned canonical source');
   return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
@@ -540,8 +573,7 @@ async function sampleRangeKeeperPaperConvertExit(request:RangeKeeperPaperGasProb
   await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});
   const ref=await readRangeKeeperReferences(local,{block:source.number,hash:source.hash,
    timestamp:frame.source.timestamp},profile);
-  assert(ref.eligible&&String(ref.price0)===String(frame.price0)&&String(ref.price1)===String(frame.price1)&&
-   referenceProofHash(ref.proof)===frame.referenceProofHash,'Terminal fork reference mismatch');
+  assertRangeKeeperTerminalReferenceMatch(frame,ref);
   const slot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'}),
    liq=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'liquidity'});
   assert.equal(slot[1],frame.tick);assert.equal(slot[0],frame.sqrtPriceX96);assert.equal(liq,frame.poolLiquidity);
@@ -627,9 +659,10 @@ async function sampleRangeKeeperPaperConvertExit(request:RangeKeeperPaperGasProb
   assert.deepEqual(rows.map(x=>x.action),request.stages);
   const latest=await local.getBlockNumber({cacheTime:0}),latestBlock=await local.getBlock({blockNumber:latest});
   const end=await chain.snapshot({block:latest,hash:latestBlock.hash!,timestamp:Number(latestBlock.timestamp)},PAPER_ACCOUNT,null);
-  assert.equal(end.nftCount,0n);assert(end.allowances.every(x=>x.amount===0n));
+  assert(end.allowances.every(x=>x.amount===0n));
   const terminal=await readCanaryPosition(local,restored.tokenId,latest);
-  assert.equal(terminal.liquidity,0n);assert.equal(terminal.tokensOwed0,0n);assert.equal(terminal.tokensOwed1,0n);
+  assertRangeKeeperPaperRetiredPosition({nftCount:end.nftCount,owner:terminal.owner,
+   liquidity:terminal.liquidity,tokensOwed0:terminal.tokensOwed0,tokensOwed1:terminal.tokensOwed1});
   const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
   assert(same(pinned.hash,source.hash),'Owned fork lost its pinned canonical source');
   return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));

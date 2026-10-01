@@ -146,6 +146,35 @@ test('rangekeeper setup admission fails closed when submitted limits cannot be r
   assert(result.missing[0]!.includes('rangekeeper_min_deployment_value_not_enforced_by_kernel'));
 });
 
+test('rangekeeper setup refresh permits only transport-derived band drift after exact reference and cost checks',async()=>{
+ const refreshedProof=structuredClone(referenceProof);
+ refreshedProof.registry.fetchedAt=new Date(now).toISOString();
+ const refreshed={...preflight,references:{...preflight.references,
+  proofHash:referenceProofHash(refreshedProof),
+  proofIdentityHash:pinnedExternalReferenceProofIdentityHash(refreshedProof)},
+  costs:{...costs,sizeBand:`rk_${'1'.repeat(32)}`}};
+ const accepted=await createRangeKeeperPaperDraftFromSetup(input(),deps({runPreflight:async()=>refreshed}));
+ assert.equal(accepted.status,'draft_created');
+ const changedReference=await createRangeKeeperPaperDraftFromSetup(input(),deps({runPreflight:async()=>({
+  ...refreshed,references:{...refreshed.references,proofIdentityHash:'c'.repeat(64)}})}));
+ assert.equal(changedReference.status,'unavailable');
+ const changedGas=await createRangeKeeperPaperDraftFromSetup(input(),deps({runPreflight:async()=>({
+  ...refreshed,costs:{...refreshed.costs,open:{...costs.open,boundGasUnits:'360001'}}})}));
+ assert.equal(changedGas.status,'unavailable');
+});
+
+test('rangekeeper setup admission preserves bounded refresh failures without exposing arbitrary errors',async()=>{
+ for(const [missing,expected] of [
+  [['fresh_source_stale'],['fresh_canonical_setup_preflight_unavailable','fresh_source_stale']],
+  [['https://private.invalid/token?secret=1'],['fresh_canonical_setup_preflight_unavailable']],
+ ] as const){
+  const result=await createRangeKeeperPaperDraftFromSetup(input(),deps({
+   runPreflight:async()=>({status:'unavailable',missing})}));
+  assert.equal(result.status,'unavailable');
+  if(result.status==='unavailable')assert.deepEqual(result.missing,expected);
+ }
+});
+
 test('rangekeeper setup admission rejects a native allocation below the bound open cost plus exit reserve',async()=>{
  const shortNative={...input(),allocation:{...input().allocation,nativeWei:'1'}};
  const result=await createRangeKeeperPaperDraftFromSetup(shortNative,deps());

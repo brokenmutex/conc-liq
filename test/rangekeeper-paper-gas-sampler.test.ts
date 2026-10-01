@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import {describe,it} from 'node:test';
 import {assertRangeKeeperPaperTerminalInventory,rangeKeeperPaperCandidateFunding,
  rangeKeeperPaperTerminalAllowances,sampleRangeKeeperPaperGasStages,
- assertSameRangeKeeperPinnedReferenceProof} from '../src/deployments/rangekeeper-paper-gas-sampler.js';
+ assertSameRangeKeeperPinnedReferenceProof,assertRangeKeeperTerminalReferenceMatch,
+ assertRangeKeeperPaperRetiredPosition,rangeKeeperPaperWithdrawalMinimum}
+ from '../src/deployments/rangekeeper-paper-gas-sampler.js';
 import {replayPaperMint} from '../src/v3/position-math.js';
 import type {RangeKeeperCandidate} from '../src/strategy/rangekeeper/domain.js';
 
@@ -24,6 +26,31 @@ describe('RangeKeeper owned-fork gas sampler inventory',()=>{
    feedDirectory:{...reread.feedDirectory,url:'https://example.test/other-feeds'}}),/source bytes or URL changed/);
   assert.throws(()=>assertSameRangeKeeperPinnedReferenceProof(proof,{...reread,
    token1:{oracle:{state:{roundId:'18',answer:'101'}}}}),/round, or chain reference proof changed/);
+ });
+ it('requires terminal replay to match native price as well as token prices and stable proof bytes',()=>{
+  const proof={token1:{oracle:{state:{roundId:'17',answer:'101'}}},
+   registry:{fetchedAt:'2026-09-24T10:00:00.000Z',sha256:'sha256:'+'a'.repeat(64),url:'https://example.test/registry'},
+   feedDirectory:{fetchedAt:'2026-09-24T10:00:00.000Z',sha256:'sha256:'+'b'.repeat(64),url:'https://example.test/feeds'}};
+  const frame={price0:2n,price1:3n,nativePrice:4n,referenceProof:proof} as any;
+  assert.doesNotThrow(()=>assertRangeKeeperTerminalReferenceMatch(frame,{eligible:true,price0:2n,price1:3n,
+   nativePrice:4n,proof:{...proof,registry:{...proof.registry,fetchedAt:'2026-09-24T10:00:02.000Z'}}}));
+  assert.throws(()=>assertRangeKeeperTerminalReferenceMatch(frame,{eligible:true,price0:2n,price1:3n,
+   nativePrice:5n,proof}),/reference values mismatch/);
+  assert.throws(()=>assertRangeKeeperTerminalReferenceMatch(frame,{eligible:true,price0:2n,price1:3n,
+   nativePrice:4n,proof:{...proof,token1:{oracle:{state:{roundId:'18',answer:'101'}}}}}),
+   /round, or chain reference proof changed/);
+ });
+ it('models V3 decrease-and-collect as an owned retired NFT and applies basis-point slippage',()=>{
+  assert.equal(rangeKeeperPaperWithdrawalMinimum(10_000n,50),9_950n);
+  assert.equal(rangeKeeperPaperWithdrawalMinimum(10_000n,10_000),0n);
+  const retired={nftCount:1n,owner:'0x0000000000000000000000000000000000000001',
+   liquidity:0n,tokensOwed0:0n,tokensOwed1:0n};
+  assert.doesNotThrow(()=>assertRangeKeeperPaperRetiredPosition(retired,retired.owner));
+  assert.throws(()=>assertRangeKeeperPaperRetiredPosition({...retired,nftCount:0n},retired.owner),/retain its one/);
+  assert.throws(()=>assertRangeKeeperPaperRetiredPosition({...retired,owner:'0x0000000000000000000000000000000000000002'},retired.owner),
+   /changed NFT owner/);
+  assert.throws(()=>assertRangeKeeperPaperRetiredPosition({...retired,liquidity:1n},retired.owner),/0n/);
+  assert.throws(()=>rangeKeeperPaperWithdrawalMinimum(100n,10_001),/slippage input is invalid/);
  });
  it('keeps trusted draft idle inventory when replaying either swap direction',()=>{
   const candidate={...base,swap:{token:0 as const,amountIn:20n,quotedOut:15n,minOut:14n,

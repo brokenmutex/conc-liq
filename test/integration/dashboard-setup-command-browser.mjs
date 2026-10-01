@@ -17,6 +17,8 @@ import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {DeploymentStore} from '../../src/deployments/store.ts';
 import {createStaticPaperDraftFromSetup} from '../../src/deployments/static-paper-draft-admission.ts';
 import {StaticPaperSetupReviewCache} from '../../src/deployments/static-paper-setup-review-cache.ts';
+import {rangeKeeperPaperDraftAdmissionInputSchema} from '../../src/deployments/rangekeeper-paper-draft-admission.ts';
+import {rangeKeeperSetupPreflightInput} from '../../src/deployments/rangekeeper-paper-setup-preflight.ts';
 import {buildStaticPaperSetupPreflight} from '../../src/deployments/paper-setup-preflight.ts';
 import {buildIndicativePaperOpenPreview} from '../../src/deployments/paper-preview.ts';
 import {costIndicativePaperOpenPreview,PAPER_STATIC_GAS_PATH,PAPER_STATIC_GAS_STAGES} from '../../src/deployments/paper-cost.ts';
@@ -61,6 +63,7 @@ const frame=()=>({source:blockSource,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),pool
  referenceReasons:[],referenceProofHash:referenceProofHash(referenceProof),referenceProof});
 const setupReviewCache=new StaticPaperSetupReviewCache();
 let latestSetupPreflight=null;
+let latestRangeKeeperAdmission=null,latestRangeKeeperAdmissionIssues=null,rangeKeeperDraftId=null,rangeKeeperPreflightCalls=0;
 const readSetup=async(input,pinnedSource)=>{
  const result=await buildStaticPaperSetupPreflight(input,{
  loadProfile:id=>store.paperSetupProfile(id),readFrame:async(_profile,source)=>{
@@ -78,6 +81,31 @@ const readSetup=async(input,pinnedSource)=>{
  assert(captured,'Server must capture the exact setup costs before browser review');
  latestSetupPreflight={...result,...captured};
  return latestSetupPreflight;
+};
+const readRangeKeeperSetup=async(raw)=>{
+ const input=rangeKeeperSetupPreflightInput.parse(raw);rangeKeeperPreflightCalls++;
+ const setupReviewId='77b2b303-12df-4e54-8bb7-2c2ce8e73c2a',expiresAt=new Date(Date.now()+120_000).toISOString();
+ const limits=input.limits;
+ return {status:'available',kind:'rangekeeper_paper_setup_preflight',mode:'paper',
+  strategyId:'rangekeeper_v1',profileId,profileHash,
+  input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits},
+  setupReviewId,setupReviewExpiresAt:expiresAt,
+  source:blockSource,profile:{pool:poolAddress,fee:profile.pool.fee,tickSpacing:profile.pool.tickSpacing,
+   token0:profile.pool.token0,token1:profile.pool.token1,quoteToken:profile.pool.quoteToken},
+  range:{tickLower:-600,tickUpper:600,centerTick:0,fullWidthSpacings:input.fullWidthSpacings},
+  requirements:{liquidity:'123456',token0Raw:'120000000',token1Raw:'130000000',
+   referenceValueQuoteRaw:'250000000',budgetResidualQuoteRaw:'0',deployedValueUsdX18:'250000000000000000000',
+   sharePpm:'100',sizingConvention:'maximize_v3_liquidity_under_independent_reference_quote_budget_then_kernel_sized'},
+  references:{price0:'1000000000000000000',price1:'1000000000000000000',nativePrice:'2000000000000000000000',
+   proofHash:'d'.repeat(64),proofIdentityHash:'e'.repeat(64)},
+  costs:{status:'provisional',scope:'range_keeper_open_and_retain_exit_gas_only',
+   evidenceClass:'fork_estimated',pathVersion:'rk_setup_fixture_v1',sizeBand:`rk_${'f'.repeat(32)}`,
+   profileIds:[{stage:'a',id:'fixture-a',version:1},{stage:'b',id:'fixture-b',version:1},
+    {stage:'c',id:'fixture-c',version:1}],marketGasPriceWei:'1000000000',boundGasPriceWei:'1500000000',
+   gasPriceObservedAt:new Date().toISOString(),nativeReferencePrice:'2000000000000000000000',
+   swapFeeAndShortfallValue:'0',open:{expectedGasUnits:'100',boundGasUnits:'120',expectedWei:'100',boundWei:'150',
+    expectedValue:'10',boundValue:'15'},retainExit:{expectedGasUnits:'200',boundGasUnits:'250',expectedWei:'200',
+    boundWei:'300',expectedValue:'20',boundValue:'30',requiredReserveWei:'500'},unavailable:[]}};
 };
 
 async function chromiumPath(){
@@ -137,6 +165,8 @@ const verifySource=async(_chainId,sources)=>{
 };
 const paperPreview=async(campaignId,kind)=>{
  previewAttempts.push(kind);
+ if(campaignId===rangeKeeperDraftId)return {kind:'rangekeeper_paper_open_model',status:'unavailable',
+  strategyId:'rangekeeper_v1',reason:'synthetic_setup_fixture_only',actionAvailable:false};
  if(completeLifecycle&&(kind==='pause'||kind==='resume'))return store.recordPaperLifecyclePreview(campaignId,kind);
  if(completeLifecycle&&kind==='close_retain'){
   const state=await store.paperValuationState(campaignId),terminalFrame={...frame(),
@@ -192,6 +222,15 @@ const dashboardRead=async(path)=>{
 };
 server=createDeploymentCommandServer(store,{origin,dashboardRead,
  paperSetupPreflight:input=>readSetup(input),
+ rangeKeeperSetupPreflight:input=>readRangeKeeperSetup(input),
+  rangeKeeperSetupDraftAdmission:input=>{
+  try{latestRangeKeeperAdmission=rangeKeeperPaperDraftAdmissionInputSchema.parse(input);}
+  catch(error){latestRangeKeeperAdmissionIssues=error.issues??String(error);throw error;}
+  rangeKeeperDraftId=randomUUID();
+  return {status:'draft_created',draftId:rangeKeeperDraftId,revision:1,configHash:'a'.repeat(64),
+   profileId:latestRangeKeeperAdmission.profileId,replayed:false,source:blockSource,
+   range:{tickLower:-600,tickUpper:600},allocationHash:'b'.repeat(64),limitations:['synthetic_setup_fixture_only']};
+ },
  paperSetupDraftAdmission:input=>createStaticPaperDraftFromSetup(input,{
   runPreflight:(request,pinned)=>readSetup(request,pinned),loadProfile:id=>store.paperSetupProfile(id),
   lookupCapturedReview:input=>setupReviewCache.lookup(input),
@@ -227,7 +266,8 @@ let sequence=0;const pending=new Map();
 ws.addEventListener('message',event=>{const message=JSON.parse(event.data);
  if(message.id){const item=pending.get(message.id);if(!item)return;pending.delete(message.id);
   message.error?item.reject(Error(JSON.stringify(message.error))):item.resolve(message.result);}
- else if(message.method==='Runtime.exceptionThrown')errors.push(message.params.exceptionDetails.text);
+ else if(message.method==='Runtime.exceptionThrown')errors.push(
+  message.params.exceptionDetails.exception?.description??message.params.exceptionDetails.text);
  else if(message.method==='Network.responseReceived'&&message.params.response.status>=400)
   resourceFailures.push({status:message.params.response.status,url:message.params.response.url});});
 const send=(method,params={})=>new Promise((resolve,reject)=>{const id=++sequence;pending.set(id,{resolve,reject});
@@ -244,7 +284,7 @@ const waitFor=async expression=>{for(let i=0;i<160;i++){if(await evaluate(expres
  recoveryHidden:document.querySelector('#pending-open-recovery')?.hidden,
  actionStatus:[...document.querySelectorAll('.retain-action-status')].map(e=>e.textContent),
  localOpen:localStorage.getItem('concliq.operator.paper-open.pending.v1')})`))+
- ` errors=${JSON.stringify(errors)} previewAttempts=${JSON.stringify(previewAttempts)} responses=${JSON.stringify(resourceFailures)}`);};
+ ` errors=${JSON.stringify(errors)} previewAttempts=${JSON.stringify(previewAttempts)} responses=${JSON.stringify(resourceFailures)} admissionIssues=${JSON.stringify(latestRangeKeeperAdmissionIssues)}`);};
 const check=async(name,expression)=>{assert(await evaluate(expression),name);checks.push(name);};
 const click=selector=>evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
 const fill=(selector,value)=>evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(selector)});e.value=${JSON.stringify(value)};
@@ -456,10 +496,42 @@ await navigate('/operator');await waitFor('window.concliqOperatorAuthenticated?.
 await waitFor('document.querySelector("#saved-paper-drafts-status").textContent.includes("No saved static/manual paper drafts")||/\\d+ saved draft/.test(document.querySelector("#saved-paper-drafts-status").textContent)');
 await check('Deleted draft stays absent after reload',`document.querySelector(${JSON.stringify(deletedSelector)})===null`);
 checks.push('Confirmed draft deletion retains audit revision, creates no operation, and stays out of position history');
+
+// This final browser case exercises the actual dashboard assets and command
+// HTTP session/CSRF routes with deterministic synthetic RangeKeeper evidence.
+// It validates the admission request schema but does not create a campaign or
+// claim canonical chain/economic verification.
+await fill('#setup-strategy','rangekeeper_v1');
+await fill('#setup-mode','paper');
+await fill('#setup-capital','250');
+await fill('#setup-rangekeeper-width','20');
+await click('#setup-review-button');
+await waitFor('document.querySelector("#setup-preflight-title").textContent==="Sizing preflight available"&&document.querySelector("#operator-draft-binding").hidden===false');
+await check('RangeKeeper setup review shows its full-width and retain-exit cost binding',
+ 'document.querySelector("#operator-draft-binding-facts").textContent.includes("Full width · tick spacings")&&'+
+ 'document.querySelector("#setup-preflight-facts").textContent.includes("Retain close cost · expected / bound · USDG")');
+await waitFor('document.querySelector("#save-paper-draft").disabled===false');
+await click('#save-paper-draft');
+await waitFor('document.querySelector("#setup-draft-submit-status").textContent.includes("Saved RangeKeeper paper draft")');
+assert.equal(rangeKeeperPreflightCalls,1);
+assert(latestRangeKeeperAdmission,'RangeKeeper setup draft must traverse the strategy-specific command route');
+assert.equal(latestRangeKeeperAdmission.fullWidthSpacings,20);
+assert.equal(latestRangeKeeperAdmission.reviewId,'77b2b303-12df-4e54-8bb7-2c2ce8e73c2a',
+ 'request should bind the exact synthetic review id');
+assert.equal(latestRangeKeeperAdmission.allocation.token0Raw,'120000000');
+assert.equal(latestRangeKeeperAdmission.allocation.token1Raw,'130000000');
+assert(/^[1-9][0-9]*$/.test(latestRangeKeeperAdmission.allocation.nativeWei));
+assert.equal(latestRangeKeeperAdmission.reviewed.input.fullWidthSpacings,20);
+assert.equal(latestRangeKeeperAdmission.reviewed.range.fullWidthSpacings,20);
+assert.deepEqual(latestRangeKeeperAdmission.limits,latestRangeKeeperAdmission.reviewed.input.limits);
+assert(!('halfWidthTicks' in latestRangeKeeperAdmission));
+checks.push('RangeKeeper setup review submits schema-valid exact-binding admission body through the real browser session and command route');
+
 assert.equal(errors.length,0,JSON.stringify(errors));
 assert.equal(resourceFailures.filter(item=>item.status===404&&/\.(js|css)(\?|$)/.test(item.url)).length,0,
  'dashboard script/style assets load without 404s: '+JSON.stringify(resourceFailures));
 console.log(JSON.stringify({checks,profileId,draftId,openPreviewId:lastOpenPreview?.id,
+ rangeKeeperSetup:{admitted:Boolean(latestRangeKeeperAdmission),synthetic:true,fullWidthSpacings:latestRangeKeeperAdmission?.fullWidthSpacings},
  openPreviewRequests,openAcceptRequests,operationsPersisted:completeLifecycle?4:0,workerStarted:completeLifecycle,signerLoaded:false,
  browserExceptions:errors,httpResponses:resourceFailures,sourceBoundary:'deterministic canonical frame and anchor verifier only'},null,2));
 

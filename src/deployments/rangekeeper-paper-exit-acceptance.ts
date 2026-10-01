@@ -54,6 +54,8 @@ export function createRangeKeeperPaperExitAcceptance(dependencies:{store:Deploym
   try{await verifyAnchors(context.chainId,[source]);}
   catch{throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_source_not_canonical');}
   // No admission argument: the static discriminators are deliberately bypassed.
-  return store.acceptOperation(campaignId,request,actor);
+  const accepted=await store.acceptOperation(campaignId,request,actor);
+  await store.releasePaperPreparationLease(campaignId);
+  return accepted;
  };
 }

@@ -13,7 +13,7 @@ import {consumeTrustedRangeKeeperSimulation,simulateRangeKeeperPaperConfirmation
 import type {RangeKeeperPaperOwnedForkConfirmationEvidence}
  from './rangekeeper-paper-confirmation-simulation.js';
 import type {ForkReadDiagnostics,ForkReadHint} from '../paper/fork.js';
-import type {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
+import {RangeKeeperPaperPinnedQuoteCache} from './rangekeeper-paper-pinned-quote-cache.js';
 import {markRangeKeeperPaperServerProduced} from './rangekeeper-paper-confirmation-provenance.js';
 import type {RangeKeeperPaperConfirmationResult}
  from './rangekeeper-paper-confirmation.js';
@@ -51,6 +51,13 @@ export interface RangeKeeperPaperConfirmationProducerDependencies {
   ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence});
  /** In-process speculative planner result; the store builder replays and exact-joins it. */
  preparation?:RangeKeeperPaperConfirmationPreparation;
+ /** Server-owned candidate sampling at this exact second-observation source.
+  * Called before the confirmation builder selects its source-bound costs. */
+ prepareGasEvidence?:(draft:RangeKeeperPaperDraft,frame:PaperOpenFrame,buildId:string,
+  pinnedQuoteCache:RangeKeeperPaperPinnedQuoteCache)=>Promise<void|{
+   simulation?:RangeKeeperPaperConfirmationSimulation&{
+    ownedForkEvidence:RangeKeeperPaperOwnedForkConfirmationEvidence}} >;
+ onFailure?:(stage:string,error:unknown)=>void;
  /** Test seam bound when constructing the service; never taken from an HTTP request. */
  runOwnedFork?:ForkRunner;readCanonicalFrame?:CanonicalFrameReader;
 }
@@ -67,6 +74,9 @@ export function createRangeKeeperPaperConfirmationProducer(
  const ownsForkRunner=dependencies.runOwnedFork===undefined,
   runFork=dependencies.runOwnedFork??simulateRangeKeeperPaperConfirmationOnOwnedFork,
   readFrame=dependencies.readCanonicalFrame??readCanonicalPaperOpenFrame;
+ const reportFailure=(stage:string,error:unknown)=>{
+  try{dependencies.onFailure?.(stage,error);}catch{/* Diagnostics cannot change eligibility. */}
+ };
  return async campaignId=>{
   let draft:RangeKeeperPaperDraft;
   try{draft=await dependencies.store.paperDraft(campaignId) as RangeKeeperPaperDraft;}
@@ -75,8 +85,9 @@ export function createRangeKeeperPaperConfirmationProducer(
   if(draft.id!==campaignId||draft.strategyId!=='rangekeeper_v1')
    return {status:'unavailable',reason:'rangekeeper_confirmation_strategy_unavailable',
     campaignId,revision:draft.revision,actionAvailable:false};
-  if(dependencies.pinnedQuoteCache&&
-   !dependencies.pinnedQuoteCache.matches(dependencies.client,draft.profile))
+  const pinnedQuoteCache=dependencies.pinnedQuoteCache??
+   new RangeKeeperPaperPinnedQuoteCache(dependencies.client,draft.profile);
+  if(!pinnedQuoteCache.matches(dependencies.client,draft.profile))
    return {status:'unavailable',reason:'rangekeeper_confirmation_quote_cache_context_mismatch',
     campaignId,revision:draft.revision,actionAvailable:false};
   let runtime;
@@ -88,13 +99,21 @@ export function createRangeKeeperPaperConfirmationProducer(
   try{frame=await readFrame(dependencies.client,draft.profile);}
   catch{return {status:'unavailable',reason:'rangekeeper_confirmation_canonical_frame_unavailable',
    campaignId,revision:draft.revision,actionAvailable:false};}
+  let preparedSimulation:RangeKeeperPaperConfirmationProducerDependencies['reusableSimulation'];
+  if(dependencies.prepareGasEvidence){
+   try{const prepared=await dependencies.prepareGasEvidence(draft,frame,runtime.buildId,pinnedQuoteCache);
+    preparedSimulation=prepared?.simulation;}
+   catch(error){reportFailure('cost_preparation',error);return {status:'unavailable',reason:'rangekeeper_confirmation_cost_preparation_unavailable',
+    campaignId,revision:draft.revision,actionAvailable:false};}
+  }
+  const reusableSimulation=dependencies.reusableSimulation??preparedSimulation;
   let marketGasPriceWei:bigint|null=null,marketGasPriceObservedAt:number|null=null;
   try{marketGasPriceWei=await dependencies.client.getGasPrice();marketGasPriceObservedAt=Date.now();}
   catch{/* Builder returns an explicit unavailable result when gas price is absent. */}
   const now=Date.now();let completedOwnedForkEvidence:unknown;
   const result=await dependencies.store.readRangeKeeperPaperConfirmationEnvelope({campaignId,frame,
    client:dependencies.client,marketGasPriceWei,marketGasPriceObservedAt,now,prepareOnly:true,
-   pinnedQuoteCache:dependencies.pinnedQuoteCache,
+   pinnedQuoteCache,
    preparation:dependencies.preparation,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources),
    simulate:async(candidate:RangeKeeperCandidate)=>{
@@ -117,9 +136,9 @@ export function createRangeKeeperPaperConfirmationProducer(
     const allocation={token0Raw:draft.allocation.token0Raw,token1Raw:draft.allocation.token1Raw,
      nativeWei:draft.allocation.nativeWei},context:RangeKeeperPaperSimulationCapabilityContext={
       probe,profile:draft.profile,frame,configHash:draft.configHash,allocation,limits:policy.policy.limits};
-    if(dependencies.reusableSimulation){
+    if(reusableSimulation){
      if(!ownsForkRunner)throw new Error('rangekeeper_confirmation_reusable_simulation_runner_untrusted');
-     const reused=consumeTrustedRangeKeeperSimulation({simulation:dependencies.reusableSimulation,context});
+     const reused=consumeTrustedRangeKeeperSimulation({simulation:reusableSimulation,context});
      if(!reused)throw new Error('rangekeeper_confirmation_reusable_simulation_unavailable');
      completedOwnedForkEvidence=reused.ownedForkEvidence;
      return reused;
@@ -143,7 +162,7 @@ export function createRangeKeeperPaperConfirmationProducer(
    markRangeKeeperPaperServerProduced(result);
    try{await dependencies.store.persistRangeKeeperPaperConfirmationWithProducerReceipt({envelope:result,
     verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(dependencies.client,chainId,sources)});}
-   catch{return {status:'unavailable',reason:'rangekeeper_confirmation_producer_receipt_unavailable',
+   catch(error){reportFailure('producer_receipt',error);return {status:'unavailable',reason:'rangekeeper_confirmation_producer_receipt_unavailable',
     campaignId,revision:draft.revision,actionAvailable:false};}
   }
   return result;

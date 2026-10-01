@@ -49,6 +49,8 @@ test('the paper worker reports the failing invariant, not just the error class',
 });
 
 test('paper diagnostics preserve machine codes and never return arbitrary error text',()=>{
+ assert.equal(safePaperDiagnosticFailure(new Error('rangekeeper_paper_confirmation_preview_expired')),
+  'rangekeeper_paper_confirmation_preview_expired');
  assert.equal(safePaperDiagnosticFailure(new Error('paper_close_convert_ephemeral_fee_target_set_changed')),
   'paper_close_convert_ephemeral_fee_target_set_changed');
  assert.equal(safePaperDiagnosticFailure(assertion(

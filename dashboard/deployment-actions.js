@@ -60,6 +60,7 @@ const pendingAcceptanceKey = (campaignId, kind) =>
   `concliq.operator.paper-action.pending.v1.${campaignId}.${kind}`;
 function validPendingAcceptance(value, campaignId, kind) {
   return Boolean(value && value.campaignId === campaignId && value.kind === kind &&
+    (!value.strategyId || ['static_manual_v1','rangekeeper_v1'].includes(value.strategyId)) &&
     uuid.test(value.payload?.previewId ?? '') && digest.test(value.payload?.contentDigest ?? '') &&
     Number.isSafeInteger(value.payload?.expectedRevision) && value.payload.expectedRevision > 0 &&
     uuid.test(value.payload?.idempotencyKey ?? ''));
@@ -73,15 +74,16 @@ function readPendingAcceptance(campaignId, kind) {
     if (!validPendingAcceptance(saved, campaignId, kind)) return {campaignId,kind,invalid:true};
     // Normalize to the request-only shape. Credentials and unrelated storage
     // fields are never copied into the action's in-memory recovery record.
-    return {campaignId, kind, payload:{previewId:saved.payload.previewId,
+    return {campaignId, kind, strategyId:saved.strategyId ?? 'static_manual_v1', payload:{previewId:saved.payload.previewId,
       contentDigest:saved.payload.contentDigest,expectedRevision:saved.payload.expectedRevision,
       idempotencyKey:saved.payload.idempotencyKey}};
   } catch { return null; }
 }
-function persistPendingAcceptance(campaignId, kind, payload) {
-  if (!validPendingAcceptance({campaignId,kind,payload},campaignId,kind)) return false;
+function persistPendingAcceptance(campaignId, kind, payload, strategyId = 'static_manual_v1') {
+  if (!validPendingAcceptance({campaignId,kind,payload,strategyId},campaignId,kind)) return false;
   try {
     localStorage.setItem(pendingAcceptanceKey(campaignId, kind), JSON.stringify({campaignId,kind,
+      ...(strategyId === 'rangekeeper_v1' ? {strategyId} : {}),
       payload:{previewId:payload.previewId,contentDigest:payload.contentDigest,
         expectedRevision:payload.expectedRevision,idempotencyKey:payload.idempotencyKey}}));
     return true;
@@ -119,7 +121,7 @@ function savedPaperAcceptances() {
         try {
           const saved = JSON.parse(localStorage.getItem(key));
           record = validPendingAcceptance({...saved, kind}, campaignId, kind) ?
-            {campaignId, kind, payload:{previewId:saved.payload.previewId,
+            {campaignId, kind, strategyId:saved.strategyId ?? 'static_manual_v1', payload:{previewId:saved.payload.previewId,
               contentDigest:saved.payload.contentDigest,expectedRevision:saved.payload.expectedRevision,
               idempotencyKey:saved.payload.idempotencyKey}} : {campaignId,kind,invalid:true};
         } catch { record = {campaignId,kind,invalid:true}; }
@@ -149,7 +151,9 @@ export function mountPendingPaperAcceptanceRecovery(root, {authenticated, reques
   for (const record of records) {
     const row = document.createElement('div'), status = document.createElement('p');
     row.className = 'paper-acceptance-recovery-row';
-    const label = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Convert-close'}[record.kind];
+    const actionLabel = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Convert-close'}[record.kind];
+    const label = record.kind === 'close_retain' && record.strategyId === 'rangekeeper_v1' ?
+      `RangeKeeper ${actionLabel}` : actionLabel;
     status.setAttribute('role','status');
     status.textContent = record.invalid ?
       `${label} · ${record.campaignId}: the saved request is unreadable, so its outcome cannot be reconciled. Check Positions for this campaign before discarding it.` :
@@ -179,7 +183,8 @@ export function mountPendingPaperAcceptanceRecovery(root, {authenticated, reques
     button.addEventListener('click',async()=>{
       if (!record.payload || !authenticated?.() || recoveryInFlight.has(record.key) || typeof request !== 'function') return;
       recoveryInFlight.add(record.key); button.disabled = true;
-      const suffix = record.kind === 'close_retain' ? 'operations' :
+      const suffix = record.kind === 'close_retain' ?
+        (record.strategyId === 'rangekeeper_v1' ? 'rangekeeper/close-operations' : 'operations') :
         record.kind === 'close_convert' ? 'close-convert-operations' : 'lifecycle-operations';
       const clearSameRequest = () => {
         const current = savedPaperAcceptances().find(item=>item.key === record.key);
@@ -339,10 +344,11 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
 /** Mounts the one currently eligible browser action. Caller supplies the
  * in-memory authenticated request function; the CSRF token stays private. */
 export function mountStaticRetainAction(root, { campaignId, authenticated, request,
-  positionLabel, onAccepted = () => {}, now = Date.now } = {}) {
+  positionLabel, strategyId = 'static_manual_v1', onAccepted = () => {}, now = Date.now } = {}) {
   root.replaceChildren();
   const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
-  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function' ||
+      !['static_manual_v1','rangekeeper_v1'].includes(strategyId)) return;
   root.setAttribute('role', 'group');
   root.setAttribute('aria-label', `Close ${positionLabel || `campaign ${campaignId}`} · retain token balances`);
 
@@ -357,7 +363,9 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
   const storageKind = 'close_retain';
   let pending = readPendingAcceptance(campaignId, storageKind);
   status.textContent = pending ? 'A retain-close acceptance may already be queued. Reconcile the same request before requesting another preview.' :
-    authenticated?.() ? 'Paper close · retain the position token balances in their current assets; no USDG swap.' :
+    authenticated?.() ? (strategyId === 'rangekeeper_v1' ?
+      'RangeKeeper paper exit · retain the position token balances in their current assets; no USDG swap. Fees, paid gas and final custody remain unavailable.' :
+      'Paper close · retain the position token balances in their current assets; no USDG swap.') :
       'Operator connection required for a fresh retain-close preview.';
   const review = document.createElement('div'); review.className = 'retain-action-review'; review.hidden = true;
   const retry = document.createElement('button'); retry.type = 'button';
@@ -385,7 +393,8 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
     button.disabled = true; previewButton.disabled = true;
     setStatus('Submitting or reconciling the saved retain-close request…');
     try {
-      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/operations`,
+      const acceptPath = strategyId === 'rangekeeper_v1' ? 'rangekeeper/close-operations' : 'operations';
+      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/${acceptPath}`,
         { method: 'POST', body: pending.payload });
       const validStatuses = ['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected','completed'];
       if (!uuid.test(accepted?.id ?? '') || !validStatuses.includes(accepted.status))
@@ -436,7 +445,18 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       const consequence = document.createElement('p'); consequence.className = 'retain-action-consequence';
       consequence.textContent = 'This paper close keeps the token balances in their current assets. It does not swap them into USDG.';
       review.append(consequence);
-      if (result.retainedLowerBound) {
+      if (result.strategyId === 'rangekeeper_v1' || result.kind === 'rangekeeper_paper_exit_model') {
+        const position = result.position ?? {};
+        const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
+        addFact(facts, 'Token 0 retained principal lower bound · raw', position.retainedLowerBound0 ?? 'Unavailable');
+        addFact(facts, 'Token 1 retained principal lower bound · raw', position.retainedLowerBound1 ?? 'Unavailable');
+        addFact(facts, 'Retain-exit gas · expected / bound', result.costs ?
+          `${result.costs.expectedGasUnits ?? 'Unavailable'} / ${result.costs.boundGasUnits ?? 'Unavailable'} units` : 'Unavailable');
+        addFact(facts, 'Gas cost · expected / bound · reference USD', result.costs ?
+          `${formatX18(result.costs.expectedValue)} / ${formatX18(result.costs.boundValue)} · provisional, not paid` : 'Unavailable · not paid');
+        addFact(facts, 'Earned fees and final net value', 'Unavailable');
+        review.append(facts);
+      } else if (result.retainedLowerBound) {
         const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
         addFact(facts, 'Token 0 retained lower bound · raw', result.retainedLowerBound.token0Raw ?? 'Unavailable');
         addFact(facts, 'Token 1 retained lower bound · raw', result.retainedLowerBound.token1Raw ?? 'Unavailable');
@@ -470,7 +490,7 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
           accept.disabled = true; setStatus('Preview expired or the operator session ended. Review a fresh preview.'); return;
         }
         if (!idempotencyKey) { accept.disabled = true; setStatus('A browser idempotency key is unavailable; acceptance is disabled.'); return; }
-        if (!persistPendingAcceptance(campaignId, storageKind, payload)) {
+        if (!persistPendingAcceptance(campaignId, storageKind, payload, strategyId)) {
           accept.disabled = true; setStatus('This browser cannot retain the recovery key. No operation request was sent.'); return;
         }
         pending = {campaignId,kind:storageKind,payload}; syncButtons();

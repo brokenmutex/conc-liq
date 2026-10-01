@@ -75,7 +75,7 @@ test('queued lifecycle operations remain visible before a valuation mark exists'
  assert.equal(run('needsAttention(pausing)'),true);
 });
 
-test('retain-close browser affordance requires loopback, static paper and no pending operation',()=>{
+test('retain-close browser affordance is strategy-aware and requires paper operator surface/no pending operation',()=>{
  const eligible=position('open','active');
  Object.assign(context,{eligible});
  assert.match(run('lifecycleControls(eligible)'),/retain-action-root/);
@@ -90,7 +90,7 @@ test('retain-close browser affordance requires loopback, static paper and no pen
  assert.doesNotMatch(run('lifecycleControls(pending)'),/convert-action-root/);
  const rk=position('open','active',{deployment:{...eligible.deployment,strategyId:'rangekeeper_v1'}});
  Object.assign(context,{rk});
- assert.doesNotMatch(run('lifecycleControls(rk)'),/retain-action-root/);
+ assert.match(run('lifecycleControls(rk)'),/retain-action-root/);
  assert.doesNotMatch(run('lifecycleControls(rk)'),/convert-action-root/);
  assert.doesNotMatch(run('lifecycleControls(rk)'),/paper-lifecycle-action-root/);
  context.location.pathname='/';

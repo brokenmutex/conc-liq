@@ -9,7 +9,7 @@ import {contentHash} from './contracts.js';
 import {referenceProofHash} from './market-profile.js';
 import {readCanonicalPaperNextFrame,type PaperOpenFrame} from './paper-preview.js';
 import type {PaperGasProfileRow} from './paper-cost.js';
-import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft,
+import {resolveRangeKeeperPaperPolicy,rangeKeeperPaperOpenDecisionHasCandidate,type RangeKeeperPaperDraft,
  type RangeKeeperPaperOpenModel} from './rangekeeper-paper-open-model.js';
 import {RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH,modelRangeKeeperPaperExitCost,
  rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,rangeKeeperPaperSizeBand,
@@ -254,7 +254,7 @@ function validateIdentity(input:BuildRangeKeeperPaperExitInput,candidate:RangeKe
  limits:RangeKeeperLimits,policyHash:string,now:number):string[]{
  const {draft,openModel:open,previous,frame,kernel}=input,reasons:string[]=[];
  if(open.status!=='indicative'||open.actionAvailable||!open.candidate||!open.candidateHash||
-  open.decision?.requiresSecondObservation!==true)
+  !rangeKeeperPaperOpenDecisionHasCandidate(open.decision))
   reasons.push('rangekeeper_open_candidate_unconfirmed_or_unavailable');
  if(open.campaignId!==draft.id||open.revision!==draft.revision||open.profileHash!==draft.profileHash||
   open.draftConfigHash!==draft.configHash||open.strategyId!=='rangekeeper_v1'||

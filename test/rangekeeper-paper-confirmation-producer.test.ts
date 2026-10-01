@@ -114,6 +114,7 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
   process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({buildId:'f'.repeat(64),
    configHash:'a'.repeat(64),nodeVersion:'v24.20.0'});
   let capturedProbe:unknown=null,capturedEvidence:unknown=null,capturedCache:unknown=null,
+   preparationCache:unknown=null,
    frameRead=false,draftRead=false;
   try{
    const client={getGasPrice:async()=>1n,getChainId:async()=>4663,
@@ -122,11 +123,17 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
      readRangeKeeperPaperConfirmationEnvelope:async(input:any)=>{
      assert.equal(input.frame,frame);assert.equal(input.marketGasPriceWei,1n);
       capturedCache=input.pinnedQuoteCache;
+      assert.equal(capturedCache,preparationCache,'Cost preparation and confirmation must share the pinned quote memo');
       await input.verifyAnchors(4663,[source]);
       const simulation=await input.simulate(candidate);capturedEvidence=simulation.ownedForkEvidence;
       return {status:'unavailable',campaignId,reason:'fixture_non_actionable',actionAvailable:false};
      }} as never;
    const producer=createRangeKeeperPaperConfirmationProducer({store,client,rpcUrl:'http://fixture.invalid',
+    prepareGasEvidence:async(receivedDraft,receivedFrame,buildId,cache)=>{
+     assert(draftRead&&frameRead);assert.equal(receivedDraft.id,campaignId);
+     assert.equal(receivedFrame,frame);assert.equal(buildId,'f'.repeat(64));
+     assert(cache.matches(client,profile));preparationCache=cache;
+    },
     beforeRead:async()=>{},readCanonicalFrame:async(_client,receivedProfile)=>{
      frameRead=true;assert.equal(contentHash(receivedProfile),profileHash);return frame;},
      runOwnedFork:async request=>{
@@ -155,6 +162,17 @@ describe('trusted RangeKeeper paper confirmation producer',()=>{
     'Producer did not forward its request-local pinned quote cache');
    assert.equal((capturedEvidence as {evidenceClass:string}).evidenceClass,
     'caller_claimed_owned_anvil_fork');
+   const forgedProducer=createRangeKeeperPaperConfirmationProducer({store,client,
+    rpcUrl:'http://fixture.invalid',beforeRead:async()=>{},readCanonicalFrame:async()=>frame,
+    prepareGasEvidence:async(_draft,_frame,_buildId,cache)=>{
+     preparationCache=cache;
+     return {simulation:{status:'success',sourceBlock:source.block,sourceHash:source.hash,
+      candidateHash:(capturedProbe as {candidateHash:string}).candidateHash,
+      simulationHash:'a'.repeat(64),ownedForkEvidence:capturedEvidence} as never};
+    }});
+   await assert.rejects(()=>forgedProducer(campaignId),
+    /rangekeeper_confirmation_reusable_simulation_unavailable/,
+    'Preparation must not turn caller-shaped evidence into a trusted simulation');
   }finally{
    if(priorIdentity===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
    else process.env.CONC_LIQ_RUNTIME_IDENTITY=priorIdentity;

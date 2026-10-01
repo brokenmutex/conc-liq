@@ -26,6 +26,7 @@ const context=(overrides:Record<string,unknown>={})=>({mode:'paper',lifecycle:'a
 const stub=(ctx:unknown)=>{
  const calls:unknown[][]=[];
  return {calls,store:{rangeKeeperPaperExitAcceptanceContext:async()=>ctx,
+  releasePaperPreparationLease:async()=>{},
   acceptOperation:async(...args:unknown[])=>{calls.push(args);return accepted;}} as never};
 };
 const ok=async()=>{};

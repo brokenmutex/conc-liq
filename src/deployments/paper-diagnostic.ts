@@ -23,11 +23,11 @@ const paperFeeDiagnosticCodes=new Map<string,string>([
  * URLs, response bodies, and nested errors are never returned. */
 export function safePaperDiagnosticFailure(error:unknown):string{
  if(error!==null&&typeof error==='object'&&'code' in error&&
-  typeof error.code==='string'&&/^paper_[a-z0-9_]{1,100}$/.test(error.code))
+  typeof error.code==='string'&&/^(?:paper|rangekeeper)_[a-z0-9_]{1,100}$/.test(error.code))
   return error.code;
  if(!(error instanceof Error))return 'unknown';
  const firstLine=error.message.split('\n',1)[0]??'';
- if(/^paper_[a-z0-9_]{1,100}$/.test(firstLine))return firstLine;
+ if(/^(?:paper|rangekeeper)_[a-z0-9_]{1,100}$/.test(firstLine))return firstLine;
  const known=paperFeeDiagnosticCodes.get(firstLine);
  if(known)return known;
  return /^[A-Za-z][A-Za-z0-9]{0,30}Error$/.test(error.name)?error.name:'Error';

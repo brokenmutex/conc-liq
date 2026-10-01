@@ -3,6 +3,8 @@ import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
+import {maintainRangeKeeperPaperObservation} from './deployments/rangekeeper-paper-maintenance.js';
+import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
 import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
 import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_NOTIFY_CHANNEL,
@@ -94,7 +96,8 @@ export async function acquirePaperOperationReadinessLease(indexer:pg.Pool):Promi
   },
  };
 }
-export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked'};
+export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked';
+ strategy_id?:'static_manual_v1'|'rangekeeper_v1'};
 // A bare error class name cannot tell an operator which invariant failed: every
 // assertion in the fee replay path logged the single token 'AssertionError',
 // so a transient indexer lag and a real integrity violation were indistinguishable
@@ -126,10 +129,11 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    preparationSkipped:0};
   try{
    const after=(await lock.query<PaperCampaignRow>(`
-    SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
+    SELECT c.id::text,c.lifecycle,r.strategy_id FROM deployment_campaigns c
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
-    WHERE c.mode='paper' AND r.strategy_id='static_manual_v1'
-      AND c.lifecycle IN ('active','paused','closing','closed','blocked')
+    WHERE c.mode='paper' AND ((r.strategy_id='static_manual_v1'
+      AND c.lifecycle IN ('active','paused','closing','closed','blocked')) OR
+      (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused')))
       AND ($1::uuid IS NULL OR c.id>$1::uuid)
     ORDER BY c.id
     LIMIT $2`,[campaignCursor,maxCampaigns])).rows;
@@ -137,10 +141,11 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    // eligible history. Wrap once when the tail contains fewer than the budget.
    const wrapped=campaignCursor!==null&&after.length<maxCampaigns?
     (await lock.query<PaperCampaignRow>(`
-     SELECT c.id::text,c.lifecycle FROM deployment_campaigns c
+     SELECT c.id::text,c.lifecycle,r.strategy_id FROM deployment_campaigns c
      JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
-     WHERE c.mode='paper' AND r.strategy_id='static_manual_v1'
-       AND c.lifecycle IN ('active','paused','closing','closed','blocked')
+     WHERE c.mode='paper' AND ((r.strategy_id='static_manual_v1'
+       AND c.lifecycle IN ('active','paused','closing','closed','blocked')) OR
+       (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused')))
        AND c.id<=$1::uuid
      ORDER BY c.id
      LIMIT $2`,[campaignCursor,maxCampaigns-after.length])).rows:[];
@@ -149,6 +154,16 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    let invalidated=0,failed=0,preparationSkipped=0;
    for(const campaign of campaigns){
     try{
+     if(campaign.strategy_id==='rangekeeper_v1'){
+      const result=await maintainRangeKeeperPaperObservation(store,chain,indexer,campaign.id,
+       (chainId,sources)=>verifyCanonicalPaperAnchors(chain,chainId,sources));
+      if(result.status==='preparation_locked'){preparationSkipped++;continue;}
+      log('info','rangekeeper_paper_observation',{
+       campaignId:campaign.id,markId:result.markId,replayed:result.replayed,
+       sourceBlock:result.source.block,decision:result.decision,
+      });
+      continue;
+     }
      const result=await maintainCanonicalPaperScenario(store,chain,indexer,
       campaign.id,maxSteps,{sampleValuation:campaign.lifecycle==='active'||campaign.lifecycle==='paused',
        ...(diagnostics?{progress:(stage,state,durationMs,reason)=>log(
