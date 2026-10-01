@@ -229,6 +229,41 @@ outlive the proof that the sequence it priced was executable. That is the same
 class of decision `4a10877` recorded rather than settling unilaterally, and it is
 recorded here for the same reason.
 
+**And measured against the campaign scope, the split is not worth doing.**
+`rangeKeeperConfigSchema.campaignScope` (`src/strategy/rangekeeper/config.ts:46-47`)
+defaults to `maxDurationSeconds:43200` and `maxEconomicActions:2`, capped at 10.
+An economic action is the mint itself — `live-controller.ts:620` increments
+`economicActions` when a position is created, and `:758` gates any further action
+on that cap. So a RangeKeeper campaign performs **2 economic actions over at most
+12 hours by default, and at most 10**.
+
+At roughly 30 seconds per owned-fork sample, that is 1 to 5 minutes of sampling
+per campaign, spread across a 12-hour window. Twelve pools running concurrently
+is 24 to 120 samples per cycle — tens of minutes of fork time per half-day, on
+independent serializable work. Banding could remove at most that, and only in
+the fraction of cases where a recenter happens to land on an already-sampled tick
+range.
+
+So the sample-per-open architecture is not a defect to be engineered around; it
+is well matched to a strategy that is capped at a handful of actions per
+half-day. The banding question was the right question for the static path, whose
+setup reviews are operator-driven and unbounded in frequency, and it was imported
+here by analogy without checking the action budget first. **The re-key should not
+be built.** `§2d`'s measured gradients keep their value as evidence about what
+drives RangeKeeper gas — which matters for the `gasUnitsBound` margin and for the
+convert path — but no band key change follows from them.
+
+What this frees up: §2a's convert exit, wiring the §2b setup contract to a route,
+§4's dashboard form, and §2c's two gates are now the entire remaining path. None
+of them depends on banding.
+
+One consequence worth stating plainly, because §2b claims the opposite: the setup
+preflight is **not** waiting on a re-key that will never come. Its problem is
+different and smaller — it computes a pre-draft candidate identity that no
+sampler targets. The fix is for the preflight to sample at review time, the way
+the open path samples at open time, rather than to look up a band that was never
+going to exist.
+
 **One correction to a concern raised earlier in the same session.** The
 `rows.length>200` guard was described as a cliff the re-key must ship around,
 on the basis that 192 rows exist on the live static path. That was the wrong
@@ -262,8 +297,9 @@ against.
    reuse is possible at all. **But the re-key is no longer the work item:**
    §2d records that the key is not the binding constraint, and that reuse
    requires first splitting the calibration row's reusable gas measurement from
-   its per-candidate feasibility proof. That split carries a risk decision and
-   is not started.
+   its per-candidate feasibility proof — and against a campaign scope of 2 to 10
+   economic actions per 12 hours, that split is not worth its risk. **Dropped,
+   with the reasoning recorded in §2d.**
 3. ~~**Build the RangeKeeper setup preflight and draft admission**~~ **Done** —
    see §2b. Complete and tested, but inert until the §2d re-key lands and it is
    wired to a route. **The re-key is therefore now the critical path**: without
