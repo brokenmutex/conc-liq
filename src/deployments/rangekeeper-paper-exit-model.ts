@@ -18,7 +18,47 @@ import {RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH,modelRangeKeeperPaperExitCost
 
 const PPM=1_000_000n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
+const rawHash=z.string().regex(/^[0-9a-f]{64}$/);
 const hash=z.string().regex(/^0x[0-9a-fA-F]{64}$/);
+
+/** The persisted, hash-bound contract for a RangeKeeper convert-exit's priced
+ * swap. `terminalQuote` builds and hashes exactly this shape when the exit
+ * model is built (against the live canonical chain); the convert-exit gas
+ * sampler recomputes the identical content from its own trusted context
+ * (candidateHash, source, pool/router/quoter/fee, trusted terminal inventory)
+ * and checks the hash matches before it ever opens a fork. That is the whole
+ * binding: a quote cannot be swapped out for a different candidate, source,
+ * pool, or input amount without changing this hash. It does not, by itself,
+ * prove `expectedOutput` is still the correct market price — the sampler
+ * re-verifies that by calling the exact same quoter on its own pinned fork
+ * and requiring an exact match before it replays the swap. */
+export interface RangeKeeperPaperConvertQuoteContent {
+ kind:'range_keeper_paper_direct_convert_quote_v1';candidateHash:string;source:PaperOpenFrame['source'];
+ pool:string;router:string;quoter:string;fee:number;inputToken:0|1;outputToken:0|1;inputAmount:string;
+ expectedOutput:string;minimumOutput:string;feeValue:string;shortfallValue:string;maxSlippageBps:number;
+}
+export function rangeKeeperPaperConvertQuoteContent(input:{candidateHash:string;source:PaperOpenFrame['source'];
+ pool:{pool:string;router:string;quoter:string;fee:number};inputToken:0|1;outputToken:0|1;
+ inputAmount:bigint;expectedOutput:bigint;minimumOutput:bigint;feeValue:bigint;shortfallValue:bigint;
+ maxSlippageBps:number}):RangeKeeperPaperConvertQuoteContent{
+ return {kind:'range_keeper_paper_direct_convert_quote_v1',candidateHash:input.candidateHash,source:input.source,
+  pool:input.pool.pool,router:input.pool.router,quoter:input.pool.quoter,fee:input.pool.fee,
+  inputToken:input.inputToken,outputToken:input.outputToken,inputAmount:String(input.inputAmount),
+  expectedOutput:String(input.expectedOutput),minimumOutput:String(input.minimumOutput),
+  feeValue:String(input.feeValue),shortfallValue:String(input.shortfallValue),
+  maxSlippageBps:input.maxSlippageBps};
+}
+export const rangeKeeperPaperConvertQuoteHash=(content:RangeKeeperPaperConvertQuoteContent):string=>
+ contentHash(content);
+
+/** Public shape of `RangeKeeperPaperExitModel['conversion']` when present,
+ * standalone so the gas sampler can validate a persisted copy of it without
+ * importing the whole exit-model build path. */
+export const rangeKeeperPaperConvertQuoteSchema=z.object({pathVersion:z.string().min(1),
+ inputToken:z.union([z.literal(0),z.literal(1)]),outputToken:z.union([z.literal(0),z.literal(1)]),
+ inputAmount:raw,expectedOutput:raw,minimumOutput:raw,expectedProceedsValue:raw,minimumProceedsValue:raw,
+ feeValue:raw,shortfallValue:raw,quoteHash:rawHash}).strict();
+export type RangeKeeperPaperConvertQuote=z.infer<typeof rangeKeeperPaperConvertQuoteSchema>;
 const candidateSchema=z.object({kind:z.enum(['entry','recenter']),
  range:z.object({tickLower:z.number().int(),tickUpper:z.number().int()}).strict(),
  swap:z.object({token:z.union([z.literal(0),z.literal(1)]),amountIn:raw,quotedOut:raw,minOut:raw,
@@ -171,7 +211,13 @@ function idleInventory(draft:RangeKeeperPaperDraft,candidate:RangeKeeperCandidat
  return {amount0,amount1};
 }
 
-async function terminalQuote(input:{candidateHash:string;kind:'retain'|'convert';frame:PaperOpenFrame;
+/** Builds the persisted, hash-bound conversion-quote contract from a live
+ * quoter call. Exported so a gas-sampling CLI can obtain the exact same
+ * quote object (and quoteHash) the exit model would compute, ahead of
+ * calling the convert-exit sampler — the sampler only validates the
+ * binding and re-derives the quote on its own fork, it never builds one
+ * from request JSON. */
+export async function terminalQuote(input:{candidateHash:string;kind:'retain'|'convert';frame:PaperOpenFrame;
  draft:RangeKeeperPaperDraft;amount0:bigint;amount1:bigint;chain:RangeKeeperChain;
  limits:RangeKeeperLimits}):Promise<RangeKeeperPaperExitModel['conversion']>{
  if(input.kind==='retain')return null;
@@ -190,17 +236,15 @@ async function terminalQuote(input:{candidateHash:string;kind:'retain'|'convert'
  const outputPrice=risky===0?input.frame.price1!:input.frame.price0!,outputDecimals=risky===0?p.decimals1:p.decimals0;
  const expectedProceedsValue=rawValue(quote.amountOut,outputPrice,outputDecimals);
  const minimumProceedsValue=rawValue(minOut,outputPrice,outputDecimals);
- const content={kind:'range_keeper_paper_direct_convert_quote_v1',candidateHash:input.candidateHash,
-  source:input.frame.source,pool:p.pool,router:p.router,quoter:p.quoter,fee:p.fee,
-  inputToken:risky,outputToken:p.quoteToken,inputAmount:String(amountIn),
-  expectedOutput:String(quote.amountOut),minimumOutput:String(minOut),
-  feeValue:String(quote.feeValue),shortfallValue:String(quote.shortfallValue),
-  maxSlippageBps:input.limits.maxSlippageBps};
- return {pathVersion:'paper_rangekeeper_v1_direct_convert_exit_v1',inputToken:risky,
+ const content=rangeKeeperPaperConvertQuoteContent({candidateHash:input.candidateHash,source:input.frame.source,
+  pool:{pool:p.pool,router:p.router,quoter:p.quoter,fee:p.fee},inputToken:risky,outputToken:p.quoteToken,
+  inputAmount:amountIn,expectedOutput:quote.amountOut,minimumOutput:minOut,feeValue:quote.feeValue,
+  shortfallValue:quote.shortfallValue,maxSlippageBps:input.limits.maxSlippageBps});
+ return {pathVersion:RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH,inputToken:risky,
   outputToken:p.quoteToken,inputAmount:String(amountIn),expectedOutput:String(quote.amountOut),
   minimumOutput:String(minOut),expectedProceedsValue:String(expectedProceedsValue),
   minimumProceedsValue:String(minimumProceedsValue),feeValue:String(quote.feeValue),
-  shortfallValue:String(quote.shortfallValue),quoteHash:contentHash(content)};
+  shortfallValue:String(quote.shortfallValue),quoteHash:rangeKeeperPaperConvertQuoteHash(content)};
 }
 
 function validateIdentity(input:BuildRangeKeeperPaperExitInput,candidate:RangeKeeperCandidate,

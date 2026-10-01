@@ -54,8 +54,10 @@ describe('RangeKeeper owned-fork gas sampler inventory',()=>{
   assert.throws(()=>assertRangeKeeperPaperTerminalInventory(fake,base,frame,{idle0:8n,idle1:9n}),
    /differs from saved mark/);
  });
- it('explicitly rejects convert-exit without a saved conversion quote contract',async()=>{
+ it('fails closed on convert-exit without trusted context or a persisted conversion quote',async()=>{
   await assert.rejects(()=>sampleRangeKeeperPaperGasStages({kind:'convert_exit'} as any,{} as any),
-   /persisted conversion quote contract/);
+   /trusted persisted mark and kernel context/);
+  await assert.rejects(()=>sampleRangeKeeperPaperGasStages({kind:'convert_exit'} as any,
+   {terminalContext:{} as any} as any),/persisted conversion quote contract/);
  });
 });

@@ -17,11 +17,14 @@ import {readRangeKeeperReferences} from '../strategy/rangekeeper/reference.js';
 import type {RangeKeeperPaperGasProbeRequest,RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
 import {openPaperFork,type ForkReadDiagnostics,type ForkReadHint,type PaperFork} from '../paper/fork.js';
 import {localReceipt,prestateOverrides,simulatePaperTransaction,type PaperTransaction} from '../paper/execution-gas.js';
-import {PAPER_ACCOUNT,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
+import {PAPER_ACCOUNT,paperRouterAbi,paperTokenAbi,PAPER_ROUTER,PAPER_QUOTER} from '../paper/execution-abi.js';
 import {NONFUNGIBLE_POSITION_MANAGER,USDG} from '../constants.js';
 import {restorePaperPosition,type PaperExitInventory} from '../paper/execution-exit.js';
 import {replayPaperMint} from '../v3/position-math.js';
 import {contentHash} from './contracts.js';
+import {RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH} from './rangekeeper-paper-cost.js';
+import {rangeKeeperPaperConvertQuoteContent,rangeKeeperPaperConvertQuoteHash,
+ type RangeKeeperPaperConvertQuote} from './rangekeeper-paper-exit-model.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 
@@ -135,9 +138,10 @@ export function terminalInventoryHash(context:RangeKeeperPaperLoadedExitContext,
   terminal0:String(k.wallet0+k.released0),terminal1:String(k.wallet1+k.released1)});
 }
 
-function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
+/** Shared source/candidate/inventory identity checks for any terminal
+ * (post-open) RangeKeeper paper probe, regardless of exit kind. */
+function validateExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
- assert(request.kind==='retain_exit','Convert-exit sampling requires a persisted conversion quote contract');
  const p=context.draft.profile.pool,k=context.kernel,c=request.candidate,open=context.openModel;
  assert.equal(request.openMarkId,context.openMarkId);assert.equal(request.openModelHash,contentHash(open));
  assert.equal(request.candidateHash,open.candidateHash);assert.equal(contentHash(serializeCandidate(c)),contentHash(open.candidate));
@@ -158,6 +162,56 @@ function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
  assert.equal(request.scope.profileHash,context.draft.profileHash);assert.equal(request.scope.candidateHash,open.candidateHash);
  assert.equal(request.scope.poolAddress,p.pool);assert(Number.isInteger(limits.maxSlippageBps)&&
   limits.maxSlippageBps>0&&limits.maxSlippageBps<=50);
+}
+
+function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
+ context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
+ assert(request.kind==='retain_exit','Convert-exit probes must use validateConvertTerminalProbe');
+ validateExitProbeIdentity(request,context,limits);
+}
+
+/** Checks that a persisted conversion quote is bound to this exact
+ * candidate, source, pool and trusted terminal input amount, and that its
+ * minimum/shortfall match policy. Deliberately decoupled from the full
+ * probe-identity checks (it only needs the context's pool/kernel/candidate
+ * hash and the probe's source) so it can be unit-tested with a minimal
+ * fixture. It does not prove `expectedOutput` is still the live market
+ * price — the sampler reproves that separately, by calling the real quoter
+ * on its own pinned fork and requiring an exact match before it replays
+ * the swap. */
+export function validateRangeKeeperPaperConvertQuoteBinding(input:{
+ context:RangeKeeperPaperLoadedExitContext;source:PaperOpenFrame['source'];
+ quote:RangeKeeperPaperConvertQuote;limits:RangeKeeperLimits}){
+ const {context,source,quote,limits}=input,p=context.draft.profile.pool,k=context.kernel,open=context.openModel;
+ const inputToken:0|1=p.quoteToken===0?1:0,outputToken:0|1=p.quoteToken;
+ const inputAmount=inputToken===0?k.wallet0+k.released0:k.wallet1+k.released1;
+ assert.equal(quote.pathVersion,RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH);
+ assert.equal(quote.inputToken,inputToken);assert.equal(quote.outputToken,outputToken);
+ assert.equal(BigInt(quote.inputAmount),inputAmount,
+  'Persisted conversion quote input differs from trusted terminal inventory');
+ assert(BigInt(quote.expectedOutput)>0n&&BigInt(quote.minimumOutput)>0n,
+  'Persisted conversion quote output is empty');
+ assert.equal(BigInt(quote.minimumOutput),BigInt(quote.expectedOutput)*(10_000n-BigInt(limits.maxSlippageBps))/10_000n,
+  'Persisted conversion minimum output differs from the policy slippage floor');
+ assert(BigInt(quote.shortfallValue)<=limits.maxSwapShortfallValue,
+  'Persisted conversion shortfall exceeds the policy limit');
+ const content=rangeKeeperPaperConvertQuoteContent({candidateHash:open.candidateHash!,source,
+  pool:{pool:p.pool,router:p.router,quoter:p.quoter,fee:p.fee},inputToken,outputToken,
+  inputAmount:BigInt(quote.inputAmount),expectedOutput:BigInt(quote.expectedOutput),
+  minimumOutput:BigInt(quote.minimumOutput),feeValue:BigInt(quote.feeValue),
+  shortfallValue:BigInt(quote.shortfallValue),maxSlippageBps:limits.maxSlippageBps});
+ assert.equal(quote.quoteHash,rangeKeeperPaperConvertQuoteHash(content),
+  'Persisted conversion quote hash does not match this exact candidate, source, pool and terminal input amount');
+}
+
+/** Validates a convert-exit probe's identity plus its persisted conversion
+ * quote's binding (see validateRangeKeeperPaperConvertQuoteBinding). The
+ * quote is supplied by the caller, never by request JSON. */
+function validateConvertTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
+ context:RangeKeeperPaperLoadedExitContext,quote:RangeKeeperPaperConvertQuote,limits:RangeKeeperLimits){
+ assert(request.kind==='convert_exit','Retain-exit probes must use validateTerminalProbe');
+ validateExitProbeIdentity(request,context,limits);
+ validateRangeKeeperPaperConvertQuoteBinding({context,source:request.frame.source,quote,limits});
 }
 
 async function fundFixture(fork:Awaited<ReturnType<typeof openPaperFork>>,client:RobinhoodClient,
@@ -196,6 +250,10 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
  preparedFork?:PaperFork;
  limits:RangeKeeperLimits;initialBalances?:readonly [bigint,bigint];
  terminalContext?:RangeKeeperPaperLoadedExitContext;
+ /** Trusted, hash-bound conversion quote for a convert-exit probe. It is a
+  * caller-supplied attestation produced earlier (e.g. by the exit model's
+  * terminalQuote), never request JSON; see validateConvertTerminalProbe. */
+ conversionQuote?:RangeKeeperPaperConvertQuote;
 }):Promise<readonly RangeKeeperPaperGasStageSample[]>{
  if(input.preparedFork){
   try{
@@ -219,7 +277,12 @@ export async function sampleRangeKeeperPaperGasStages(request:RangeKeeperPaperGa
    throw error;
   }
  }
- if(request.kind==='convert_exit')throw new Error('Convert-exit sampling requires a persisted conversion quote contract');
+ if(request.kind==='convert_exit'){
+  assert(input.terminalContext,'Convert-exit sampling requires trusted persisted mark and kernel context');
+  assert(input.conversionQuote,'Convert-exit sampling requires a persisted conversion quote contract');
+  validateConvertTerminalProbe(request,input.terminalContext,input.conversionQuote,input.limits);
+  return sampleRangeKeeperPaperConvertExit(request,input.terminalContext,input.conversionQuote,input);
+ }
  if(request.kind==='retain_exit'){
   assert(input.terminalContext,'Retain-exit sampling requires trusted persisted mark and kernel context');
   validateTerminalProbe(request,input.terminalContext,input.limits);
@@ -421,6 +484,138 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
    min1:restored.principal.amount1*(10_000n-BigInt(input.limits.maxSlippageBps))/10_000n,
    deadline:source.timestamp+300n});
   await send('exit_withdraw_collect',exit.to,exit.data);
+  for(const [stage,token,spender] of [
+   ['exit_cleanup_router_token0',p.token0,PAPER_ROUTER],['exit_cleanup_router_token1',p.token1,PAPER_ROUTER],
+   ['exit_cleanup_manager_token0',p.token0,NONFUNGIBLE_POSITION_MANAGER],
+   ['exit_cleanup_manager_token1',p.token1,NONFUNGIBLE_POSITION_MANAGER],
+  ] as const){
+   const data=encodeFunctionData({abi:paperTokenAbi,functionName:'approve',args:[spender,0n]});
+   await send(stage,token as Address,data);
+  }
+  assert.deepEqual(rows.map(x=>x.action),request.stages);
+  const latest=await local.getBlockNumber({cacheTime:0}),latestBlock=await local.getBlock({blockNumber:latest});
+  const end=await chain.snapshot({block:latest,hash:latestBlock.hash!,timestamp:Number(latestBlock.timestamp)},PAPER_ACCOUNT,null);
+  assert.equal(end.nftCount,0n);assert(end.allowances.every(x=>x.amount===0n));
+  const terminal=await readCanaryPosition(local,restored.tokenId,latest);
+  assert.equal(terminal.liquidity,0n);assert.equal(terminal.tokensOwed0,0n);assert.equal(terminal.tokensOwed1,0n);
+  const pinned=await fork.read('eth_getBlockByNumber',[fork.blockTag,false]) as {hash:string};
+  assert(same(pinned.hash,source.hash),'Owned fork lost its pinned canonical source');
+  return rows.map(row=>({...row,stateOverrides:row.stateOverrides as Record<string,unknown>}));
+ }finally{
+  try{input.onReadDiagnostics?.({...fork.diagnostics,
+   duplicateRequestsByMethod:{...fork.diagnostics.duplicateRequestsByMethod},
+   duplicateImmutableReadsByMethod:{...fork.diagnostics.duplicateImmutableReadsByMethod}});}
+  finally{await fork.close();}
+ }
+}
+
+/** Executes the frozen retain-exit withdrawal followed by a direct-pool
+ * conversion swap of the risky leftover into the quote token, on a fresh,
+ * pinned Anvil fork. `quote` must already be checked by
+ * validateConvertTerminalProbe: its quoteHash binds it to this exact
+ * candidate/source/pool/input-amount, but not to the live price — this
+ * sampler re-derives the live quote on its own fork and requires an exact
+ * match before it ever sends the swap, so a stale or mispriced quote cannot
+ * silently pass through as gas evidence. */
+async function sampleRangeKeeperPaperConvertExit(request:RangeKeeperPaperGasProbeRequest,
+ context:RangeKeeperPaperLoadedExitContext,quote:RangeKeeperPaperConvertQuote,
+ input:{rpcUrl:string;beforeRead:()=>Promise<void>;maxRequests?:number;timeoutMs?:number;
+ limits:RangeKeeperLimits;onReadDiagnostics?:(diagnostics:ForkReadDiagnostics)=>void}
+):Promise<readonly RangeKeeperPaperGasStageSample[]>{
+ const {profile,frame,candidate}=request,p=profile.pool,k=context.kernel;
+ assert(input.rpcUrl.length>0&&Number.isSafeInteger(input.maxRequests??1600)&&(input.maxRequests??1600)>0&&
+  (input.maxRequests??1600)<=2000&&Number.isSafeInteger(input.timeoutMs??300_000)&&
+  (input.timeoutMs??300_000)>0&&(input.timeoutMs??300_000)<=300_000,'Owned-fork request/time budget invalid');
+ assert.equal(p.chainId,4663);assert(same(p.token0,USDG)||same(p.token1,USDG),
+  'Convert-exit fixture supports only USDG paired markets');
+ assert(same(p.router,PAPER_ROUTER)&&same(p.quoter,PAPER_QUOTER)&&same(p.positionManager,NONFUNGIBLE_POSITION_MANAGER),
+  'Persisted market profile differs from audited local paper deployment');
+ assert(frame.referenceEligible&&frame.referenceProof&&referenceProofHash(frame.referenceProof)===frame.referenceProofHash,
+  'Terminal source reference proof unavailable');
+ const source={number:BigInt(frame.source.block),hash:frame.source.hash as Hash,timestamp:BigInt(frame.source.timestamp)};
+ const fork=await openPaperFork({source,rpcUrl:input.rpcUrl,beforeRead:input.beforeRead,
+  maxRequests:input.maxRequests??1600,timeoutMs:input.timeoutMs??300_000,deterministicClock:true});
+ try{
+  const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0}),chain=new RangeKeeperChain(local,p);
+  await chain.verify({block:source.number,hash:source.hash,timestamp:frame.source.timestamp});
+  const ref=await readRangeKeeperReferences(local,{block:source.number,hash:source.hash,
+   timestamp:frame.source.timestamp},profile);
+  assert(ref.eligible&&String(ref.price0)===String(frame.price0)&&String(ref.price1)===String(frame.price1)&&
+   referenceProofHash(ref.proof)===frame.referenceProofHash,'Terminal fork reference mismatch');
+  const slot=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'slot0'}),
+   liq=await local.readContract({address:p.pool as Address,abi:poolAbi,functionName:'liquidity'});
+  assert.equal(slot[1],frame.tick);assert.equal(slot[0],frame.sqrtPriceX96);assert.equal(liq,frame.poolLiquidity);
+  const empty=await chain.snapshot({block:source.number,hash:source.hash,timestamp:frame.source.timestamp},PAPER_ACCOUNT,null);
+  assert(empty.wallet0===0n&&empty.wallet1===0n&&empty.nftCount===0n&&empty.allowances.every(x=>x.amount===0n),
+   'Paper fixture account is not empty at pinned source');
+  const allowance=rangeKeeperPaperTerminalAllowances({candidate,allocation:context.draft.allocation,
+   openSqrtPriceX96:BigInt(context.openModel.poolState.sqrtPriceX96),openPrice0:BigInt(context.openModel.reference.price0!),
+   openPrice1:BigInt(context.openModel.reference.price1!),decimals0:p.decimals0,decimals1:p.decimals1,
+   maxDeploymentValue:input.limits.maxDeploymentValue});
+  assertRangeKeeperPaperTerminalInventory(context,candidate,frame,allowance);
+  const allowances=[
+   {token:p.token0 as Address,spender:NONFUNGIBLE_POSITION_MANAGER,amount:String(allowance.manager0)},
+   {token:p.token1 as Address,spender:NONFUNGIBLE_POSITION_MANAGER,amount:String(allowance.manager1)},
+   {token:p.token0 as Address,spender:PAPER_ROUTER,amount:String(allowance.router0)},
+   {token:p.token1 as Address,spender:PAPER_ROUTER,amount:String(allowance.router1)},
+  ] as const;
+  const policy={market:{symbol:'RangeKeeper',rwa:(same(p.token0,USDG)?p.token1:p.token0) as Address,
+   pool:p.pool as Address,fee:p.fee,tickSpacing:p.tickSpacing,
+   rwaDecimals:same(p.token0,USDG)?p.decimals1:p.decimals0},
+   budgetQuote:'10000000000',halfWidthSpacings:1,maxLiquiditySharePpm:10_000,
+   maxSlippageBps:input.limits.maxSlippageBps,transactionTtlSeconds:300};
+  const inventory:PaperExitInventory={liquidity:String(candidate.liquidity),tickLower:candidate.range.tickLower,
+   tickUpper:candidate.range.tickUpper,idle0:String(allowance.idle0),idle1:String(allowance.idle1),fee0:'0',fee1:'0',
+   allowances,nativeBalanceWei:String(k.nativeWei)};
+  const restored=await restorePaperPosition(fork,policy,inventory);
+  assert.equal(restored.position.liquidity,candidate.liquidity);
+  const rows:PaperTransaction[]=[];
+  const send=async(action:string,to:Address,data:`0x${string}`)=>{
+   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT);
+   assert.equal(tx.sourceBlock,frame.source.block);assert(same(tx.sourceHash,frame.source.hash));rows.push(tx);return tx;
+  };
+  await fork.rpc('anvil_impersonateAccount',[PAPER_ACCOUNT]);
+  const exit=encodeRangeKeeperTx(p,PAPER_ACCOUNT,{kind:'withdraw',tokenId:restored.tokenId,
+   liquidity:candidate.liquidity,min0:restored.principal.amount0*(10_000n-BigInt(input.limits.maxSlippageBps))/10_000n,
+   min1:restored.principal.amount1*(10_000n-BigInt(input.limits.maxSlippageBps))/10_000n,
+   deadline:source.timestamp+300n});
+  await send('exit_withdraw_collect',exit.to,exit.data);
+  const inputToken:0|1=p.quoteToken===0?1:0,outputToken:0|1=p.quoteToken,
+   inputAmount=BigInt(quote.inputAmount),minOut=BigInt(quote.minimumOutput);
+  const postWithdraw0=await local.readContract({address:p.token0 as Address,abi:paperTokenAbi,
+   functionName:'balanceOf',args:[PAPER_ACCOUNT]});
+  const postWithdraw1=await local.readContract({address:p.token1 as Address,abi:paperTokenAbi,
+   functionName:'balanceOf',args:[PAPER_ACCOUNT]});
+  const postWithdrawInput=inputToken===0?postWithdraw0:postWithdraw1,
+   preSwapOutput=outputToken===0?postWithdraw0:postWithdraw1;
+  assert.equal(postWithdrawInput,inputAmount,
+   'Owned-fork post-withdraw inventory differs from the frozen conversion input amount');
+  // Re-derive the live quote on this exact pinned fork. The persisted quote's
+  // hash only binds its own fields together (see validateConvertTerminalProbe);
+  // this is the ground-truth check that its expectedOutput still matches a
+  // real quoter call at the exact candidate/source before any swap is sent.
+  const sourceQuote=await chain.quote({block:source.number,hash:source.hash,timestamp:frame.source.timestamp},
+   inputToken,inputAmount,frame.price0!,frame.price1!);
+  assert.equal(sourceQuote.amountOut,BigInt(quote.expectedOutput),
+   'Persisted conversion quote differs from the owned-fork quoter at its exact source');
+  const approve=encodeRangeKeeperTx(p,PAPER_ACCOUNT,{kind:'approve',token:inputToken,spender:'router',amount:inputAmount});
+  await send('exit_convert_approve_router_input',approve.to,approve.data);
+  const swapBlock=await fork.rpc<{timestamp:`0x${string}`}>('eth_getBlockByNumber',['latest',false]);
+  const swap=encodeRangeKeeperTx(p,PAPER_ACCOUNT,{kind:'swap',token:inputToken,amountIn:inputAmount,minOut,
+   deadline:BigInt(swapBlock.timestamp)+300n});
+  const swapTx=await send('exit_convert_swap',swap.to,swap.data);
+  const swapReturns=decodeFunctionResult({abi:paperRouterAbi,functionName:'multicall',data:swapTx.returnData});
+  assert.equal(swapReturns.length,1);
+  assert.equal(decodeFunctionResult({abi:paperRouterAbi,functionName:'exactInputSingle',data:swapReturns[0]!}),
+   BigInt(quote.expectedOutput),'Owned-fork conversion swap output differs from the exact source quote');
+  const postSwap0=await local.readContract({address:p.token0 as Address,abi:paperTokenAbi,
+   functionName:'balanceOf',args:[PAPER_ACCOUNT]});
+  const postSwap1=await local.readContract({address:p.token1 as Address,abi:paperTokenAbi,
+   functionName:'balanceOf',args:[PAPER_ACCOUNT]});
+  const postSwapInput=inputToken===0?postSwap0:postSwap1,postSwapOutput=outputToken===0?postSwap0:postSwap1;
+  assert.equal(postSwapInput,0n,'Owned-fork conversion left risky-token residue');
+  assert.equal(postSwapOutput,preSwapOutput+BigInt(quote.expectedOutput),
+   'Owned-fork conversion output differs from the exact quoted amount');
   for(const [stage,token,spender] of [
    ['exit_cleanup_router_token0',p.token0,PAPER_ROUTER],['exit_cleanup_router_token1',p.token1,PAPER_ROUTER],
    ['exit_cleanup_manager_token0',p.token0,NONFUNGIBLE_POSITION_MANAGER],
