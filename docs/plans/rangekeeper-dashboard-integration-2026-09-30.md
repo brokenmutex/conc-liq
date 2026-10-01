@@ -205,12 +205,32 @@ now reports paper support per strategy rather than hardcoding
 `static_manual_v1`, and `tabs.js` accepts `rangekeeper_v1` through its own
 endpoint.
 
-RangeKeeper reports `paper: true` only when an owned fork endpoint is
-configured. It has no simulation sampler to fall back on, unlike the static
-path, so without `PAPER_FORK_RPC_URL` a setup review could only ever fail
-closed; it reports itself unavailable instead of offering one. **That variable
-is unset in the current environment, so the gate is open but the strategy still
-advertises unavailable until it is set.**
+**Corrected 2026-10-01.** An earlier version of this section said RangeKeeper
+reports `paper: true` only when `PAPER_FORK_RPC_URL` is configured, and that the
+variable was unset so the strategy would still advertise unavailable. Both halves
+were wrong, and the gate has been simplified accordingly.
+
+The fork's upstream is an ordinary pinned-read endpoint. Anvil's `--fork-url`
+points at a local proxy this process runs (`paper/fork.ts:218`), and that proxy
+forwards only seven whitelisted `eth_*` methods, each pinned to the fork block
+(`assertPinnedRead`, `stateIndex` at `paper/fork.ts:83`): `eth_getCode`,
+`eth_getStorageAt`, `eth_getBalance`, `eth_getTransactionCount`,
+`eth_getBlockByNumber`, `eth_call`, `eth_estimateGas`. No `debug_*` or `trace_*`
+is ever forwarded upstream — the paid-tier `debug_traceCall` constraint recorded
+in `4a10877` applies to the *simulation* sampler, which has no local anvil to
+trace against, not to the fork. So the ordinary read URL serves the fork as well
+as a dedicated endpoint would, and
+`deployments-paper-gas-sample.ts:21` already passes `ROBINHOOD_READ_HTTP_URL`
+straight through as `rpcUrl`.
+
+Fork sampling therefore falls back to `ROBINHOOD_READ_HTTP_URL`, which the
+deployment env schema requires (`deployments.ts:57`), so a fork upstream always
+exists and the availability gate no longer mentions it. `PAPER_FORK_RPC_URL`
+remains worth setting — one sample bursts up to 1600 pinned reads, and a separate
+endpoint keeps that off the quota the live collectors share — but it is an
+operational choice, not a requirement. It is in fact already set in the operator
+env file, to the same value as the read URL; the earlier claim came from reading
+`.env`, which is not the file the deployment server runs with.
 
 Its availability deliberately does **not** check retain-worker readiness, the
 way `staticPaperAvailable` does, because §2a's exit preview is still blocked: a
@@ -409,10 +429,11 @@ against.
 5. ~~**Open the two gates** in `server.ts` and `tabs.js`, last.~~ **Done
    2026-10-01** — see §2c, including why RangeKeeper's availability requires a
    configured fork and omits the retain-worker check.
-6. **Set `PAPER_FORK_RPC_URL` and take one live setup review**, which is the
-   first thing that exercises the preflight's fork sampling, the convert-exit
-   sampler and the quote binding against a real chain. Nothing in §2a or §2b has
-   run against a live fork yet; all of it is unit-tested against fixtures.
+6. **Take one live setup review**, which is the first thing that exercises the
+   preflight's fork sampling, the convert-exit sampler and the quote binding
+   against a real chain. Nothing in §2a or §2b has run against a live fork yet;
+   all of it is unit-tested against fixtures. No configuration is needed — see
+   §2c on why the fork needs no separate endpoint.
 7. **Unblock the retain exit preview** at `deployments.ts:341` on §2a's measured
    evidence, so a RangeKeeper campaign can be closed from the dashboard. Until
    then the form warns, but a campaign opened through this path has no dashboard

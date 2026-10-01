@@ -216,7 +216,8 @@ export function createDeploymentCommandServer(store:CommandStore,
     // retain-worker readiness check yet because its exit preview is still
     // blocked (see the integration plan's section 2a), so a campaign it opens
     // cannot yet be closed from the dashboard -- which is why this reports the
-    // setup surface only, and the form warns on it.
+    // setup surface only, and the form warns on it. Fork sampling needs no
+    // separate endpoint: it falls back to the required read URL.
     const rangeKeeperPaperAvailable=Boolean(options.rangeKeeperSetupPreflight&&
      options.rangeKeeperSetupDraftAdmission&&options.paperSetupDraftList);
     const paperAvailable=(id:string)=>id==='static_manual_v1'?staticPaperAvailable:

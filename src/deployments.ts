@@ -158,12 +158,19 @@ async function main(){
   createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
  });
  const rangeKeeperSetupReviewCache=new RangeKeeperPaperSetupReviewCache();
- // RangeKeeper has no simulation sampler, so unlike the static path there is no
- // fallback: without an owned fork endpoint a setup review cannot resolve a cost
- // at all, and the strategy must report itself unavailable rather than offer a
- // review that always fails closed.
- const rangeKeeperForkRpcUrl=env.PAPER_FORK_RPC_URL;
- const runRangeKeeperSetupPreflight=rangeKeeperForkRpcUrl?
+ // The fork's upstream is an ordinary pinned-read endpoint: anvil's --fork-url
+ // points at a local proxy this process runs, and that proxy forwards only seven
+ // whitelisted eth_* methods, each pinned to the fork block (assertPinnedRead in
+ // paper/fork.ts). No debug_* or trace_* is ever forwarded, so the read URL
+ // serves it as well as a dedicated one -- deployments-paper-gas-sample.ts
+ // already passes ROBINHOOD_READ_HTTP_URL straight through as rpcUrl.
+ //
+ // PAPER_FORK_RPC_URL therefore exists to let an operator point fork sampling at
+ // a different endpoint, not because a different kind of endpoint is required.
+ // It is worth using when set, because one sample bursts up to 1600 reads and a
+ // separate endpoint keeps that off the quota the live collectors share.
+ const rangeKeeperForkRpcUrl=env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL;
+ const runRangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>
    buildRangeKeeperPaperSetupPreflight(input,{
     loadProfile:id=>store.paperSetupProfile(id),
@@ -175,8 +182,8 @@ async function main(){
     sampleOwnedFork:(request,options)=>sampleRangeKeeperPaperGasStages(request,{
      rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000,
      limits:options.limits,initialBalances:options.initialBalances}),
-   },pinnedSource):undefined;
- const rangeKeeperSetupPreflight=runRangeKeeperSetupPreflight?
+   },pinnedSource);
+ const rangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>{
    // One owned fork at a time, for the same reason the static setup review
    // serialises: a concurrent second fork doubles memory and invalidates nothing.
@@ -195,15 +202,15 @@ async function main(){
     }
     return result;
    }finally{paperSetupBusy=false;}
-  }:undefined;
- const rangeKeeperSetupDraftAdmission=rangeKeeperSetupPreflight?
-  (input:unknown)=>createRangeKeeperPaperDraftFromSetup(input,{
+  };
+ const rangeKeeperSetupDraftAdmission=(input:unknown)=>
+  createRangeKeeperPaperDraftFromSetup(input,{
    runPreflight:(parsed,pinnedSource)=>rangeKeeperSetupPreflight(parsed,pinnedSource),
    loadProfile:id=>store.paperSetupProfile(id),
    lookupCapturedReview:review=>rangeKeeperSetupReviewCache.lookup(review),
    findDraftRequest:(requestId,draft)=>store.findDraftRequest(requestId,draft),
    createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
-  }):undefined;
+  });
 
  const paperPreview=async(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
