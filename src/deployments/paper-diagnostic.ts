@@ -1,4 +1,6 @@
 const paperFeeDiagnosticCodes=new Map<string,string>([
+ ['Local paper eth_sendTransaction: Insufficient funds for gas * price + value',
+  'paper_local_send_insufficient_funds'],
  ['Paper fee source anchor invalid','paper_fee_source_anchor_invalid'],
  ['Paper fee source reorged','paper_fee_source_reorged'],
  ['Paper fee source timestamp changed','paper_fee_source_timestamp_changed'],

@@ -69,7 +69,8 @@ export function operatorForkGas(localGas:bigint,nitroGas:bigint,gasPrice:bigint,
   return {gas:`0x${gas.toString(16)}` as Hex,gasPrice:`0x${gasPrice.toString(16)}` as Hex};
 }
 
-export async function simulatePaperTransaction(fork: PaperFork, input: { action: string; to: Address; calldata: Hex }, account:Address=PAPER_ACCOUNT): Promise<PaperTransaction> {
+export async function simulatePaperTransaction(fork: PaperFork, input: { action: string; to: Address; calldata: Hex },
+ account:Address=PAPER_ACCOUNT,options:{measuredGas?:boolean}={}): Promise<PaperTransaction> {
   const tx = { from: account, to: input.to, data: input.calldata, value: "0x0", gas: "0x7a1200" };
   const overrides = prestateOverrides(await fork.rpc("debug_traceCall", [tx, "latest", { tracer: "prestateTracer", tracerConfig: { diffMode: false } }]));
   const localReturn = await fork.rpc<Hex>("eth_call", [tx, "latest"]);
@@ -93,10 +94,14 @@ export async function simulatePaperTransaction(fork: PaperFork, input: { action:
   const [parentGas, baseFee, parentBaseFee] = decodeFunctionResult({ abi: nodeInterfaceAbi, functionName: "gasEstimateL1Component", data: result });
   const estimate = gasComponents([fullGas, parentGas, baseFee, parentBaseFee]);
   let sendTx:typeof tx&{gasPrice?:Hex}=tx,localEnvelope:PaperTransaction['localEnvelope'];
-  if(account.toLowerCase()!==PAPER_ACCOUNT.toLowerCase()) {
+  if(account.toLowerCase()!==PAPER_ACCOUNT.toLowerCase()||options.measuredGas===true) {
     const block=await fork.rpc<{baseFeePerGas:Hex}>('eth_getBlockByNumber',['latest',false]);
     const localBaseFee=BigInt(block.baseFeePerGas),price=localBaseFee>baseFee?localBaseFee:baseFee;
-    const priced={...tx,gasPrice:`0x${price.toString(16)}`};
+    // Do not let an oversized fixed 8m gas field make estimateGas require
+    // funds for a limit the measured transaction will not send.
+    const {gas:_defaultGas,...unboundedTx}=tx;
+    const estimateBase=options.measuredGas?unboundedTx:tx;
+    const priced={...estimateBase,gasPrice:`0x${price.toString(16)}`};
     const localGas=BigInt(await fork.rpc<Hex>('eth_estimateGas',[priced]));
     const balance=BigInt(await fork.rpc<Hex>('eth_getBalance',[account,'latest']));
     const legacyPrice=BigInt(await fork.rpc<Hex>('eth_gasPrice',[]));

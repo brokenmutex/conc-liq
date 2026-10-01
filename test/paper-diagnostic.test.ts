@@ -49,6 +49,9 @@ test('the paper worker reports the failing invariant, not just the error class',
 });
 
 test('paper diagnostics preserve machine codes and never return arbitrary error text',()=>{
+ assert.equal(safePaperDiagnosticFailure(new Error(
+  'Local paper eth_sendTransaction: Insufficient funds for gas * price + value')),
+  'paper_local_send_insufficient_funds');
  assert.equal(safePaperDiagnosticFailure(new Error('rangekeeper_paper_confirmation_preview_expired')),
   'rangekeeper_paper_confirmation_preview_expired');
  assert.equal(safePaperDiagnosticFailure(new Error('paper_close_convert_ephemeral_fee_target_set_changed')),

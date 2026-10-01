@@ -507,7 +507,7 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   assert.equal(restored.before.rwa,String(same(p.token0,USDG)?allowance.idle1:allowance.idle0));
   const rows:PaperTransaction[]=[];
   const send=async(action:string,to:Address,data:`0x${string}`)=>{
-   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT);
+   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT,{measuredGas:true});
    assert.equal(tx.sourceBlock,frame.source.block);assert(same(tx.sourceHash,frame.source.hash));rows.push(tx);return tx;
   };
   await fork.rpc('anvil_impersonateAccount',[PAPER_ACCOUNT]);
@@ -603,7 +603,7 @@ async function sampleRangeKeeperPaperConvertExit(request:RangeKeeperPaperGasProb
   assert.equal(restored.position.liquidity,candidate.liquidity);
   const rows:PaperTransaction[]=[];
   const send=async(action:string,to:Address,data:`0x${string}`)=>{
-   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT);
+   const tx=await simulatePaperTransaction(fork,{action,to,calldata:data},PAPER_ACCOUNT,{measuredGas:true});
    assert.equal(tx.sourceBlock,frame.source.block);assert(same(tx.sourceHash,frame.source.hash));rows.push(tx);return tx;
   };
   await fork.rpc('anvil_impersonateAccount',[PAPER_ACCOUNT]);
