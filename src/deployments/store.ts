@@ -851,6 +851,49 @@ export class DeploymentStore {
   return {livePreview:row?.live===true,confirmed:row?.confirmed===true};
  }
 
+ /** Read-only context for the parallel RangeKeeper open acceptance
+  * (rangekeeper-paper-open-acceptance.ts). Composing the existing reads here
+  * does not work: rangeKeeperPaperConfirmationEnvelope never returns the
+  * confirmation's open_preview_id, and rangeKeeperPaperConfirmationContextSnapshot
+  * accepts lifecycle 'active' too and requires a loaded, matching runtime
+  * identity that open admission has no business depending on. This returns the
+  * campaign's current paper/strategy/lifecycle/chain state, the preview named
+  * by the caller (whichever kind, so a mismatch is reported rather than read as
+  * a plain miss), and the confirmation envelope published for the campaign's
+  * current revision, if any. All judgment -- preview-to-envelope binding,
+  * envelope integrity, status and anchor re-verification -- stays in the
+  * acceptance module; this method only reads. */
+ async rangeKeeperPaperOpenAcceptanceContext(input:{campaignId:string;previewId:string}){
+  if(!z.uuid().safeParse(input.campaignId).success||!z.uuid().safeParse(input.previewId).success)
+   return null;
+  const row=(await this.readPool.query<{mode:string;lifecycle:string;chain_id:number;
+   strategy_id:string;current_revision:number;preview_kind:string|null;
+   preview_content_digest:string|null;preview_expected_revision:number|null;
+   confirmation_revision:number|null;confirmation_open_preview_id:string|null;
+   confirmation_envelope:unknown|null;confirmation_envelope_hash:string|null}>(`
+   SELECT c.mode,c.lifecycle,c.chain_id,r.strategy_id,c.current_revision,
+    v.kind AS preview_kind,v.content_digest AS preview_content_digest,
+    v.expected_revision AS preview_expected_revision,
+    proof.revision AS confirmation_revision,
+    proof.open_preview_id::text AS confirmation_open_preview_id,
+    proof.envelope AS confirmation_envelope,proof.envelope_hash AS confirmation_envelope_hash
+   FROM deployment_campaigns c
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+   LEFT JOIN deployment_previews v ON v.id=$2 AND v.campaign_id=c.id
+   LEFT JOIN deployment_rangekeeper_paper_confirmations proof
+    ON proof.campaign_id=c.id AND proof.revision=c.current_revision
+   WHERE c.id=$1`,[input.campaignId,input.previewId])).rows[0];
+  if(!row)return null;
+  return {mode:row.mode,lifecycle:row.lifecycle,chainId:row.chain_id,strategyId:row.strategy_id,
+   currentRevision:row.current_revision,
+   preview:row.preview_kind===null?null:{kind:row.preview_kind,
+    contentDigest:row.preview_content_digest as string,
+    expectedRevision:row.preview_expected_revision as number},
+   confirmation:row.confirmation_revision===null?null:{revision:row.confirmation_revision,
+    openPreviewId:row.confirmation_open_preview_id as string,
+    envelope:row.confirmation_envelope,envelopeHash:row.confirmation_envelope_hash as string}};
+ }
+
  async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
   client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
   /** Internal producer staging mode; final publication is atomic below. */
