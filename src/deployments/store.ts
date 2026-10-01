@@ -833,6 +833,24 @@ export class DeploymentStore {
 
  /** Builds and persists a read-only second-observation confirmation envelope
   * while the campaign is still a draft. It never books capital or opens a position. */
+ /** Whether a live, unexpired `open` preview exists for a RangeKeeper draft, and
+  * whether its confirmation envelope has already been published. The preview
+  * route needs this to tell a first observation from a second: RangeKeeper opens
+  * on two observations, so the first request persists the preview and a later one
+  * runs the confirmation against it. Read-only; the authoritative checks stay in
+  * readRangeKeeperPaperConfirmationEnvelope, which re-reads under its own lock. */
+ async rangeKeeperPaperOpenPreviewState(campaignId:string):Promise<{livePreview:boolean;
+  confirmed:boolean}>{
+  const row=(await this.readPool.query<{live:boolean;confirmed:boolean}>(`
+   SELECT EXISTS(SELECT 1 FROM deployment_previews v
+     WHERE v.campaign_id=$1 AND v.kind='open' AND v.expires_at>clock_timestamp()
+      AND v.expected_revision=c.current_revision) AS live,
+    EXISTS(SELECT 1 FROM deployment_rangekeeper_paper_confirmations proof
+     WHERE proof.campaign_id=$1 AND proof.revision=c.current_revision) AS confirmed
+   FROM deployment_campaigns c WHERE c.id=$1`,[campaignId])).rows[0];
+  return {livePreview:row?.live===true,confirmed:row?.confirmed===true};
+ }
+
  async readRangeKeeperPaperConfirmationEnvelope(input:{campaignId:string;frame:PaperOpenFrame;
   client:RobinhoodClient;marketGasPriceWei:bigint|null;marketGasPriceObservedAt:number|null;
   /** Internal producer staging mode; final publication is atomic below. */

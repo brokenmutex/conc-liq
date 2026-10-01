@@ -24,6 +24,10 @@ import {sampleStaticPaperGas} from './deployments/paper-gas-sampler.js';
 import {sampleStaticPaperGasViaSimulation} from './deployments/paper-gas-simulation-sampler.js';
 import {safePaperGasVerifyFailure,verifyPaperGasSource} from './deployments/paper-gas-source.js';
 import {persistTrustedPaperOpenPreview} from './deployments/paper-open-preflight.js';
+import {persistTrustedRangeKeeperPaperOpenPreview}
+ from './deployments/rangekeeper-paper-open-preflight.js';
+import {createRangeKeeperPaperConfirmationProducer}
+ from './deployments/rangekeeper-paper-confirmation-producer.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
@@ -170,6 +174,14 @@ async function main(){
  // It is worth using when set, because one sample bursts up to 1600 reads and a
  // separate endpoint keeps that off the quota the live collectors share.
  const rangeKeeperForkRpcUrl=env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL;
+ // The server-side confirmation producer: the second of RangeKeeper's two
+ // observations. It loads the draft and its own canonical frame, replays scoped
+ // costs in the store builder, runs the owned fork, and persists the envelope
+ // with a producer receipt. It was previously constructed only by tests, which
+ // is why no RangeKeeper open could be confirmed in production.
+ const rangeKeeperConfirmationProducer=createRangeKeeperPaperConfirmationProducer({
+  store,client,rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},
+  maxRequests:1600,timeoutMs:150_000});
  const runRangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>
    buildRangeKeeperPaperSetupPreflight(input,{
@@ -420,10 +432,55 @@ async function main(){
       typeof (identity as {buildId?:unknown}).buildId==='string')
       buildId=(identity as {buildId:string}).buildId;
     }catch{/* Missing or malformed release identity leaves the preview unavailable. */}
-    return readCanonicalRangeKeeperPaperOpenModel({client,
-     draft:draft as RangeKeeperPaperDraft,buildId,
+    const rangeKeeperDraft=draft as RangeKeeperPaperDraft;
+    // RangeKeeper opens on two observations at different blocks, which the
+    // confirmations table enforces (confirmation_source_block>first_source_block).
+    // So one preview request cannot do both: the first persists the trusted
+    // preview the confirmation reads, and a later one runs the confirmation
+    // producer against it.
+    let previewState={livePreview:false,confirmed:false};
+    try{previewState=await store.rangeKeeperPaperOpenPreviewState(campaignId);}
+    catch{/* Treated as no live preview; the first-observation path re-checks. */}
+    if(previewState.livePreview&&!previewState.confirmed){
+     const confirmation=await rangeKeeperConfirmationProducer(campaignId);
+     // Acceptance for rangekeeper_v1 does not exist yet, so a confirmed envelope
+     // is reported as confirmed and explicitly not actionable rather than
+     // offering an action that would 503.
+     return confirmation&&typeof confirmation==='object'&&!Array.isArray(confirmation)?
+      {...confirmation,operationAcceptanceAvailable:false,actionAvailable:false,
+       ...(((confirmation as {status?:unknown}).status==='confirmed')?
+        {acceptancePending:'rangekeeper_paper_open_acceptance_unavailable'}:{})}:confirmation;
+    }
+    const model=await readCanonicalRangeKeeperPaperOpenModel({client,
+     draft:rangeKeeperDraft,buildId,
      readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,
       query.pathVersion,query.sizeBand)});
+    if(previewState.confirmed)return {...model,
+      confirmation:{status:'confirmed',
+       acceptancePending:'rangekeeper_paper_open_acceptance_unavailable'},
+      operationAcceptanceAvailable:false,actionAvailable:false};
+    if(model.status!=='indicative'||model.decision?.kernelAction!=='confirm'||
+     model.decision.requiresSecondObservation!==true||model.costs?.status!=='provisional')
+     return model;
+    try{
+     const persisted=await persistTrustedRangeKeeperPaperOpenPreview({store,
+      draft:rangeKeeperDraft,model,
+      verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
+       verifyCanonicalPaperAnchors(client,chainId,sources)});
+     // Deliberately not trustedPreviewSaved: that flag is what the command server
+     // reads to offer acceptance, and a first observation is not acceptable. The
+     // confirmation has to run first.
+     return {...model,openPreviewId:persisted.id,openPreviewDigest:persisted.contentDigest,
+      openPreviewExpiresAt:persisted.expiresAt.toISOString(),modelHash:persisted.modelHash,
+      confirmation:{status:'first_observation_recorded',
+       reason:'rangekeeper_second_observation_required'},
+      operationAcceptanceAvailable:false,actionAvailable:false};
+    }catch(error){
+     return {...model,status:'unavailable' as const,
+      unavailable:[...model.unavailable,error instanceof DeploymentConflict?error.code:
+       'rangekeeper_open_preview_unavailable'],
+      operationAcceptanceAvailable:false,actionAvailable:false};
+    }
    }
    const frame=await readCanonicalPaperOpenFrame(client,draft.profile);
    const preview=buildIndicativePaperOpenPreview(draft,frame);
