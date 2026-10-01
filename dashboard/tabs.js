@@ -38,6 +38,15 @@ export function setupPreflightPathFor(strategyId) {
     ? '/api/deployments/rangekeeper/setup-preflight' : SETUP_PREFLIGHT_PATH;
 }
 
+/** RangeKeeper has its own open acceptance, because the static one rejects any
+ * strategy but static/manual. Posting a RangeKeeper acceptance to the static
+ * route would fail on admission rather than on anything the operator can fix. */
+export function openAcceptancePathFor(campaignId, strategyId) {
+  const base = `/api/deployments/${encodeURIComponent(campaignId)}`;
+  return strategyId === 'rangekeeper_v1'
+    ? `${base}/rangekeeper/open-operations` : `${base}/open-operations`;
+}
+
 function decimalToRaw(value, decimals) {
   const text = String(value ?? '').trim();
   const match = /^(0|[1-9][0-9]*)(?:\.([0-9]+))?$/.exec(text);
@@ -821,7 +830,8 @@ function bootDashboardTabs() {
     const priorAttemptWasAmbiguous=openAcceptanceAmbiguous;
     accept.disabled=true;setOpenActionsLocked(true);
     try{
-      const accepted=await authRequest(`/api/deployments/${encodeURIComponent(campaignId)}/open-operations`,
+      const accepted=await authRequest(
+        openAcceptancePathFor(campaignId,document.getElementById('setup-strategy')?.value),
         {method:'POST',body:payload,csrf:true});
       if(!PROFILE_UUID.test(accepted?.id??'')||
          !['queued','preflighting','executing','confirming','reconciling','blocked','succeeded','failed','cancelled','rejected'].includes(accepted.status))

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, openAcceptancePathFor, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -157,4 +157,12 @@ it('round-trips RangeKeeper limits through their displayed units', () => {
   assert.equal(human.maxObservationGapSeconds,'90');
   assert.equal(human.maxSlippageBps,'0.5');
   assert.equal(Object.keys(human).length,17);
+});
+
+it('routes a RangeKeeper open acceptance to its own operation endpoint', () => {
+  const id='67b2b303-e821-4450-bb7b-27171b12079f';
+  assert.equal(openAcceptancePathFor(id,'rangekeeper_v1'),
+    `/api/deployments/${id}/rangekeeper/open-operations`);
+  assert.equal(openAcceptancePathFor(id,'static_manual_v1'),
+    `/api/deployments/${id}/open-operations`);
 });
