@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -94,4 +94,63 @@ it('shows fresh bounds and exact inventory facts without implying acceptance', (
     ['Open gas · expected / bound', '100 / 120 units'], ['Open cost · expected / bound · USDG', '3.000000 / 4.000000'],
     ['Admission limits', 'Not evaluated'],
   ]);
+});
+
+const rangeKeeperHumanLimits=()=>({
+  ...suggestedSetupLimits('250','rangekeeper_v1') as Record<string,string>,
+});
+
+it('routes the RangeKeeper setup review to its own endpoint', () => {
+  assert.equal(setupPreflightPathFor('rangekeeper_v1'), '/api/deployments/rangekeeper/setup-preflight');
+  assert.equal(setupPreflightPathFor('static_manual_v1'), '/api/deployments/setup-preflight');
+});
+
+it('binds a RangeKeeper setup review to an even full width in tick spacings', () => {
+  const limits=humanSetupLimitsToRaw(rangeKeeperHumanLimits(),'rangekeeper_v1');
+  assert(limits,'suggested RangeKeeper limits must normalize');
+  const ok=setupPreflightRequest({pool:profile,capital:'250',strategyId:'rangekeeper_v1',
+    mode:'paper',limits,fullWidthSpacings:'20'});
+  assert.equal(ok.available,true);
+  assert.equal(ok.payload.fullWidthSpacings,20);
+  assert.equal(ok.payload.capitalQuoteRaw,'250000000');
+  // No halfWidthTicks: RangeKeeper centers its own range on the observed tick.
+  assert.equal('halfWidthTicks' in ok.payload,false);
+  for(const width of ['21','0','2002','','abc']){
+    assert.equal(setupPreflightRequest({pool:profile,capital:'250',strategyId:'rangekeeper_v1',
+      mode:'paper',limits,fullWidthSpacings:width}).available,false,`width ${width} must be refused`);
+  }
+  // Limits are required for RangeKeeper, unlike the static contract.
+  assert.equal(setupPreflightRequest({pool:profile,capital:'250',strategyId:'rangekeeper_v1',
+    mode:'paper',fullWidthSpacings:'20'}).available,false);
+});
+
+it('enforces the RangeKeeper limit bounds the kernel would otherwise reject after a fork sample', () => {
+  const base=rangeKeeperHumanLimits();
+  assert(humanSetupLimitsToRaw(base,'rangekeeper_v1'),'baseline must normalize');
+  // RangeKeeper caps slippage at 50bps; static/manual allows 500.
+  assert.equal(humanSetupLimitsToRaw({...base,maxSlippageBps:'0.5'},'rangekeeper_v1')!.maxSlippageBps,50);
+  assert.equal(humanSetupLimitsToRaw({...base,maxSlippageBps:'0.51'},'rangekeeper_v1'),null);
+  assert(humanSetupLimitsToRaw({...base,maxSlippageBps:'0.51'},'static_manual_v1'),
+    'the same slippage stays valid for static/manual');
+  // The kernel bounds the observation gap to 30..90 seconds.
+  for(const gap of ['29','91'])
+    assert.equal(humanSetupLimitsToRaw({...base,maxObservationGapSeconds:gap},'rangekeeper_v1'),null);
+  for(const gap of ['30','90'])
+    assert(humanSetupLimitsToRaw({...base,maxObservationGapSeconds:gap},'rangekeeper_v1'),`gap ${gap} is valid`);
+  // Zero recentres is meaningful: it pins a campaign to its entry.
+  assert.equal(humanSetupLimitsToRaw({...base,maxRecenters:'0'},'rangekeeper_v1')!.maxRecenters,0);
+  // Every other limit still refuses a zero.
+  assert.equal(humanSetupLimitsToRaw({...base,maxSwapInputValue:'0'},'rangekeeper_v1'),null);
+  // A static payload is missing the seven RangeKeeper fields entirely.
+  assert.equal(humanSetupLimitsToRaw(suggestedSetupLimits('250') as Record<string,string>,'rangekeeper_v1'),null);
+});
+
+it('round-trips RangeKeeper limits through their displayed units', () => {
+  const raw=humanSetupLimitsToRaw(rangeKeeperHumanLimits(),'rangekeeper_v1');
+  assert(raw);
+  const human=rawSetupLimitsToHuman(raw,'rangekeeper_v1');
+  assert(human);
+  assert.equal(human.maxObservationGapSeconds,'90');
+  assert.equal(human.maxSlippageBps,'0.5');
+  assert.equal(Object.keys(human).length,17);
 });

@@ -6,6 +6,8 @@ import {z,ZodError} from 'zod';
 import {acceptInput,draftInput,STRATEGY_IDS,type AcceptInput,type DraftInput} from './contracts.js';
 import {DeploymentConflict} from './store.js';
 import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-setup-preflight.js';
+import {rangeKeeperSetupPreflightInput,
+ type RangeKeeperSetupPreflightInput} from './rangekeeper-paper-setup-preflight.js';
 import {staticPaperDraftAdmissionInputSchema} from './static-paper-draft-admission.js';
 import {parseResearchDetailsRequest,parseResearchSummaryRequest} from '../dashboard/research-api.js';
 
@@ -17,10 +19,19 @@ const SESSION_SECONDS=4*60*60;
 const MAX_SESSIONS=32;
 const BODY_BYTES=16*1024;
 
+/** A review the operator can fix by re-reviewing, rather than a rejected input.
+ * Kept in step with the static admission's own list below. */
+const RANGEKEEPER_SETUP_STALE_REASONS:readonly string[]=['setup_review_binding_stale',
+ 'setup_review_evidence_expired','setup_cost_evidence_changed_since_review',
+ 'setup_gas_price_exceeds_reviewed_bound','setup_review_cache_miss',
+ 'registered_profile_changed_since_preflight'];
+
 export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:()=>number;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
+ rangeKeeperSetupPreflight?:(input:RangeKeeperSetupPreflightInput)=>Promise<unknown>;
+ rangeKeeperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
  paperSetupDraftList?:()=>Promise<unknown>;
  paperSetupDraftDelete?:(campaignId:string)=>Promise<unknown>;
  setupDefaults?:()=>{walletAddress:string|null};
@@ -201,8 +212,17 @@ export function createDeploymentCommandServer(store:CommandStore,
      options.paperSetupDraftAdmission&&options.paperSetupDraftList&&options.paperOpenAcceptance&&
      options.paperRetainAcceptance&&options.paperLifecycleAcceptance&&options.paperOperationReplay&&
      options.paperRetainWorkerReady);
+    // RangeKeeper advertises paper support on its own setup path. It needs no
+    // retain-worker readiness check yet because its exit preview is still
+    // blocked (see the integration plan's section 2a), so a campaign it opens
+    // cannot yet be closed from the dashboard -- which is why this reports the
+    // setup surface only, and the form warns on it.
+    const rangeKeeperPaperAvailable=Boolean(options.rangeKeeperSetupPreflight&&
+     options.rangeKeeperSetupDraftAdmission&&options.paperSetupDraftList);
+    const paperAvailable=(id:string)=>id==='static_manual_v1'?staticPaperAvailable:
+     id==='rangekeeper_v1'?rangeKeeperPaperAvailable:false;
     send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',
-     paper:id==='static_manual_v1'&&staticPaperAvailable,live:false}))});return;
+     paper:paperAvailable(id),live:false}))});return;
    }
    if(path==='/api/deployments/setup-defaults'&&request.method==='GET'){
     send(response,200,options.setupDefaults?.()??{walletAddress:null});return;
@@ -232,6 +252,27 @@ export function createDeploymentCommandServer(store:CommandStore,
     const input=paperSetupPreflightInput.parse(await jsonBody(request));
     if(!options.paperSetupPreflight){send(response,503,{error:'paper_setup_preflight_unavailable'});return;}
     send(response,200,await options.paperSetupPreflight(input));return;
+   }
+   if(path==='/api/deployments/rangekeeper/setup-preflight'&&request.method==='POST'){
+    const input=rangeKeeperSetupPreflightInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperSetupPreflight){
+     send(response,503,{error:'rangekeeper_setup_preflight_unavailable'});return;}
+    send(response,200,await options.rangeKeeperSetupPreflight(input));return;
+   }
+   if(path==='/api/deployments/rangekeeper/setup-drafts'&&request.method==='POST'){
+    if(!options.rangeKeeperSetupDraftAdmission){
+     send(response,503,{error:'rangekeeper_setup_draft_admission_unavailable'});return;}
+    // Same status mapping as the static admission below: a stale review is a
+    // 409 the operator can retry by re-reviewing, anything else a 422.
+    const result=await options.rangeKeeperSetupDraftAdmission(await jsonBody(request)) as
+     {status?:string;replayed?:boolean;missing?:string[]};
+    if(result.status==='draft_created'){send(response,result.replayed?200:201,result);return;}
+    if(result.status==='request_conflict'){
+     send(response,409,{error:'draft_request_id_conflict',...result});return;}
+    if(result.status==='reconciliation_required'){
+     send(response,503,{error:'draft_creation_reconciliation_required',...result});return;}
+    const reason=result.missing?.[0]??'rangekeeper_setup_draft_unavailable';
+    send(response,RANGEKEEPER_SETUP_STALE_REASONS.includes(reason)?409:422,{error:reason,...result});return;
    }
    if(path==='/api/deployments/setup-drafts'&&request.method==='POST'){
     if(!options.paperSetupDraftAdmission){send(response,503,{error:'paper_setup_draft_admission_unavailable'});return;}

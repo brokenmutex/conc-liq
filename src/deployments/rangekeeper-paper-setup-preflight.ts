@@ -2,15 +2,15 @@ import {z} from 'zod';
 import {sqrtRatioAtTick} from '../backtest/principal.js';
 import {USDG} from '../constants.js';
 import {planRangeKeeper,rangeKeeperRange,rawValue} from '../strategy/rangekeeper/planner.js';
-import type {RangeKeeperCandidate} from '../strategy/rangekeeper/domain.js';
+import type {RangeKeeperCandidate,RangeKeeperLimits} from '../strategy/rangekeeper/domain.js';
 import {positionAmounts,replayPaperMint} from '../v3/position-math.js';
 import {contentHash,rangeKeeperLimitsSchema,rangeKeeperPaperSetupConfigHash} from './contracts.js';
 import {modelRangeKeeperPaperCosts,rangeKeeperPaperCandidateHash,rangeKeeperPaperPathVersion,
  selectRangeKeeperPaperCostProfiles,type RangeKeeperPaperCandidateScope,
  type RangeKeeperPaperModeledCosts} from './rangekeeper-paper-cost.js';
 import {produceRangeKeeperPaperGasEvidence,rangeKeeperPaperSpeculativeGasRows,
- verifyRangeKeeperPaperGasReport,
- type RangeKeeperPaperOwnedForkStageProbe} from './rangekeeper-paper-gas-evidence.js';
+ verifyRangeKeeperPaperGasReport,type RangeKeeperPaperGasProbeRequest,
+ type RangeKeeperPaperGasStageSample} from './rangekeeper-paper-gas-evidence.js';
 import {resolveRangeKeeperPaperPolicy,type RangeKeeperPaperDraft} from './rangekeeper-paper-open-model.js';
 import {marketProfileSchema,referenceProofHash,type MarketProfile} from './market-profile.js';
 import {pinnedExternalReferenceProofIdentityHash} from './pinned-external-reference-proof.js';
@@ -47,6 +47,10 @@ const SETUP_BUILD_ID='0'.repeat(64);
  * a separate pre-draft hash space — was what made this preflight inert, since
  * `produceRangeKeeperPaperGasEvidence` asserts the scope's candidateHash is the
  * production one and no sampler could ever target anything else. */
+export type RangeKeeperSetupForkSampler=(request:RangeKeeperPaperGasProbeRequest,
+ options:{limits:RangeKeeperLimits;initialBalances:readonly [bigint,bigint]})=>
+ Promise<readonly RangeKeeperPaperGasStageSample[]>;
+
 const SETUP_CAMPAIGN_ID='00000000-0000-4000-8000-000000000000';
 const SETUP_REVISION=1;
 
@@ -108,8 +112,13 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
  readGasPrice:()=>Promise<bigint>;
  /** Samples this exact candidate on an owned fork at the pinned source. The
   * preflight costs that sample directly and persists nothing, mirroring how the
-  * open path samples at open time rather than reusing a stored band. */
- sampleOwnedFork:RangeKeeperPaperOwnedForkStageProbe;
+  * open path samples at open time rather than reusing a stored band.
+  *
+  * The policy limits and the funding the sample must start from are passed in
+  * rather than left to the caller: both are derived here from the kernel's own
+  * resolved policy and its candidate, and a caller re-deriving them could fund
+  * a fixture that does not match the candidate being priced. */
+ sampleOwnedFork:RangeKeeperSetupForkSampler;
  now?:()=>number;
 },pinnedSource?:PaperOpenFrame['source']){
  const now=deps.now??Date.now;
@@ -253,7 +262,8 @@ export async function buildRangeKeeperPaperSetupPreflight(input:RangeKeeperSetup
    revision:SETUP_REVISION,configHash,buildId:resolved.policy.buildId,profile:profile.data,frame,
    candidateSource:frame.source,candidateReferenceProofHash:frame.referenceProofHash,candidate,
    openMarkId:null,openModelHash:null,marketGasPriceWei:gasPriceWei,scope,
-   sampleOwnedFork:deps.sampleOwnedFork,now:now()});
+   sampleOwnedFork:request=>deps.sampleOwnedFork(request,
+    {limits,initialBalances:[candidate.amount0Desired,candidate.amount1Desired]}),now:now()});
   const rows=rangeKeeperPaperSpeculativeGasRows(verifyRangeKeeperPaperGasReport(report,now()));
   selected=selectRangeKeeperPaperCostProfiles({candidate,scope,source:frame.source,rows,now:now()});
  }catch{selected={status:'unavailable',reason:'rangekeeper_setup_gas_sample_unavailable',missingStages:[]};}

@@ -40,7 +40,8 @@
           <form id="setup-form"><div class="form-grid">
             <label>Pool and fee tier<select id="setup-pool" required disabled><option value="">Loading registered pools…</option></select></label>
             <label>Capital · USDG<input id="setup-capital" type="number" min="1" max="100000" step="0.000001" value="250" required></label>
-            <label>Centered half-width<select id="setup-width" required disabled><option value="">Choose a pool first</option></select></label>
+            <label id="setup-static-width-row">Centered half-width<select id="setup-width" required disabled><option value="">Choose a pool first</option></select></label>
+            <label id="setup-rangekeeper-width-row" hidden>Full width · even tick spacings<input id="setup-rangekeeper-width" type="number" min="2" max="2000" step="2" value="20" title="RangeKeeper centers its own range on the observed pool tick, so this is the full width counted in tick spacings and must be even."></label>
             <label>Strategy<select id="setup-strategy"><option value="static_manual_v1">Static / manual</option><option value="rangekeeper_v1">RangeKeeper</option></select></label>
             <label>Mode<select id="setup-mode"><option value="paper">Paper</option><option value="live">Live</option></select></label>
           </div><details class="setup-limits-review" id="setup-limits-review"><summary>Review suggested risk and cost limits · editable</summary><p class="inline-note">Some suggestions scale from your capital. Review and edit them before continuing. These are paper setup suggestions, not a profitability recommendation.</p><div class="limits-grid">
@@ -54,6 +55,14 @@
             <label>Maximum campaign cost · USD<input id="limit-max-campaign-cost" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Native exit reserve · native units<input id="limit-exit-reserve" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Maximum slippage · percent<input id="limit-slippage-bps" type="text" inputmode="decimal" autocomplete="off"></label>
+          </div><div class="limits-grid" id="setup-limits-rangekeeper" hidden><p class="inline-note">RangeKeeper's kernel sizes against these seven additional limits, and caps slippage at 0.5 percent rather than 5. A RangeKeeper paper campaign cannot yet be closed from this dashboard: its exit preview is still blocked.</p>
+            <label>Minimum deployment · percent of capital<input id="limit-min-deployment-ppm" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label>Maximum swap input · USD<input id="limit-max-swap-input" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label>Maximum swap input · percent of capital<input id="limit-max-swap-input-ppm" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label>Maximum swap shortfall · USD<input id="limit-max-swap-shortfall" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label>Maximum recentres · count<input id="limit-max-recenters" type="text" inputmode="numeric" autocomplete="off"></label>
+            <label>Maximum pool liquidity share · percent<input id="limit-max-liquidity-share" type="text" inputmode="decimal" autocomplete="off"></label>
+            <label>Maximum observation gap · seconds<input id="limit-observation-gap" type="text" inputmode="numeric" autocomplete="off"></label>
           </div></details><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
           <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div>
             <section id="operator-draft-binding" class="operator-draft-binding" aria-labelledby="operator-draft-binding-title" hidden>

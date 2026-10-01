@@ -12,6 +12,11 @@ import {buildIndicativePaperOpenPreview,readCanonicalPaperOpenFrame,readCanonica
 import {buildStaticPaperSetupPreflight} from './deployments/paper-setup-preflight.js';
 import {createStaticPaperDraftFromSetup} from './deployments/static-paper-draft-admission.js';
 import {StaticPaperSetupReviewCache} from './deployments/static-paper-setup-review-cache.js';
+import {buildRangeKeeperPaperSetupPreflight,
+ type RangeKeeperSetupPreflightInput} from './deployments/rangekeeper-paper-setup-preflight.js';
+import {createRangeKeeperPaperDraftFromSetup} from './deployments/rangekeeper-paper-draft-admission.js';
+import {RangeKeeperPaperSetupReviewCache} from './deployments/rangekeeper-paper-setup-review-cache.js';
+import {sampleRangeKeeperPaperGasStages} from './deployments/rangekeeper-paper-gas-sampler.js';
 import {costIndicativePaperOpenPreview} from './deployments/paper-cost.js';
 import {prepareStaticPaperGasForCandidate} from './deployments/static-paper-gas-preparation.js';
 import {prepareStaticPaperSetup} from './deployments/static-paper-setup-preparation.js';
@@ -152,6 +157,54 @@ async function main(){
   findDraftRequest:(requestId,draft)=>store.findDraftRequest(requestId,draft),
   createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
  });
+ const rangeKeeperSetupReviewCache=new RangeKeeperPaperSetupReviewCache();
+ // RangeKeeper has no simulation sampler, so unlike the static path there is no
+ // fallback: without an owned fork endpoint a setup review cannot resolve a cost
+ // at all, and the strategy must report itself unavailable rather than offer a
+ // review that always fails closed.
+ const rangeKeeperForkRpcUrl=env.PAPER_FORK_RPC_URL;
+ const runRangeKeeperSetupPreflight=rangeKeeperForkRpcUrl?
+  async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>
+   buildRangeKeeperPaperSetupPreflight(input,{
+    loadProfile:id=>store.paperSetupProfile(id),
+    readFrame:(profile,source)=>readCanonicalPaperOpenFrame(client,profile,source),
+    verifyCanonical:(chainId,source)=>verifyCanonicalPaperAnchors(client,chainId,[source]),
+    readGasPrice:()=>client.getGasPrice(),
+    // The preflight supplies the kernel's own resolved limits and the exact
+    // funding its candidate needs, so nothing is re-derived here.
+    sampleOwnedFork:(request,options)=>sampleRangeKeeperPaperGasStages(request,{
+     rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},maxRequests:1600,timeoutMs:150_000,
+     limits:options.limits,initialBalances:options.initialBalances}),
+   },pinnedSource):undefined;
+ const rangeKeeperSetupPreflight=runRangeKeeperSetupPreflight?
+  async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>{
+   // One owned fork at a time, for the same reason the static setup review
+   // serialises: a concurrent second fork doubles memory and invalidates nothing.
+   if(paperSetupBusy)throw new DeploymentConflict('paper_setup_preflight_busy');
+   paperSetupBusy=true;
+   try{
+    const result=await runRangeKeeperSetupPreflight(input,pinnedSource);
+    // A replay for admission must not mint a second review snapshot.
+    if(pinnedSource)return result;
+    if(result&&typeof result==='object'&&!Array.isArray(result)){
+     const row=result as Record<string,unknown>,captured=rangeKeeperSetupReviewCache.capture(row);
+     if(captured)return {...row,...captured};
+     if(row.status==='available')return {...row,status:'unavailable',costs:{status:'unavailable',
+      reason:'setup_review_snapshot_unavailable'},missing:['setup_review_snapshot_unavailable'],
+      actionAvailable:false,draftCreated:false,operationCreated:false};
+    }
+    return result;
+   }finally{paperSetupBusy=false;}
+  }:undefined;
+ const rangeKeeperSetupDraftAdmission=rangeKeeperSetupPreflight?
+  (input:unknown)=>createRangeKeeperPaperDraftFromSetup(input,{
+   runPreflight:(parsed,pinnedSource)=>rangeKeeperSetupPreflight(parsed,pinnedSource),
+   loadProfile:id=>store.paperSetupProfile(id),
+   lookupCapturedReview:review=>rangeKeeperSetupReviewCache.lookup(review),
+   findDraftRequest:(requestId,draft)=>store.findDraftRequest(requestId,draft),
+   createDraftWithRequestId:(requestId,draft)=>store.createDraftWithRequestId(requestId,draft),
+  }):undefined;
+
  const paperPreview=async(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>{
   if(previewBusy)throw new DeploymentConflict('paper_preview_busy');
   previewBusy=true;
@@ -425,6 +478,7 @@ async function main(){
  const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
+  rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,
   paperSetupDraftDelete:campaignId=>store.deleteStaticPaperDraft(campaignId),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperConvertAcceptance,

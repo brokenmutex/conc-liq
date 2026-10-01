@@ -18,6 +18,25 @@ const decimalUnits = Object.freeze({
   maxRollingCost: 18, maxCampaignCost: 18, exitReserveWei: 18,
   maxSlippageBps: 2,
 });
+// RangeKeeper's kernel reads seven limits static/manual has no equivalent for.
+// Counts are entered as integers; ppm fields are entered as percent, like the
+// shared exposure and drawdown fields above.
+const rangeKeeperOnlyDecimalUnits = Object.freeze({
+  minDeploymentPpm: 4, maxSwapInputValue: 18, maxSwapInputPpm: 4,
+  maxSwapShortfallValue: 18, maxRecenters: 0, maxLiquiditySharePpm: 4,
+  maxObservationGapSeconds: 0,
+});
+const rangeKeeperDecimalUnits = Object.freeze({ ...decimalUnits, ...rangeKeeperOnlyDecimalUnits });
+const unitsFor = strategyId => strategyId === 'rangekeeper_v1' ? rangeKeeperDecimalUnits : decimalUnits;
+// Fields carried as integers rather than scaled raw values.
+const integerLimitFields = ['maxExposurePpm', 'maxDrawdownPpm', 'maxSlippageBps',
+  'minDeploymentPpm', 'maxSwapInputPpm', 'maxLiquiditySharePpm', 'maxRecenters',
+  'maxObservationGapSeconds'];
+
+export function setupPreflightPathFor(strategyId) {
+  return strategyId === 'rangekeeper_v1'
+    ? '/api/deployments/rangekeeper/setup-preflight' : SETUP_PREFLIGHT_PATH;
+}
 
 function decimalToRaw(value, decimals) {
   const text = String(value ?? '').trim();
@@ -51,22 +70,23 @@ export function formatSetupCreatedAt(value) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York', timeZoneName: 'short' }).format(timestamp);
 }
 
-export function humanSetupLimitsToRaw(limits) {
+export function humanSetupLimitsToRaw(limits, strategyId = 'static_manual_v1') {
   if (!limits || typeof limits !== 'object') return null;
   const result = {};
-  for (const [field, decimals] of Object.entries(decimalUnits)) {
+  for (const [field, decimals] of Object.entries(unitsFor(strategyId))) {
     const raw = decimalToRaw(limits[field], decimals);
-    if (raw === null || BigInt(raw) <= 0n) return null;
-    result[field] = ['maxExposurePpm', 'maxDrawdownPpm', 'maxSlippageBps'].includes(field)
-      ? Number(raw) : raw;
+    // maxRecenters is the one limit a zero is meaningful for: it pins a campaign
+    // to its entry with no recentre allowed, which the kernel accepts.
+    if (raw === null || (BigInt(raw) <= 0n && field !== 'maxRecenters')) return null;
+    result[field] = integerLimitFields.includes(field) ? Number(raw) : raw;
   }
-  return normalizeSetupLimits(result);
+  return normalizeSetupLimits(result, strategyId);
 }
 
-export function rawSetupLimitsToHuman(limits) {
+export function rawSetupLimitsToHuman(limits, strategyId = 'static_manual_v1') {
   if (!limits || typeof limits !== 'object') return null;
   const result = {};
-  for (const [field, decimals] of Object.entries(decimalUnits)) {
+  for (const [field, decimals] of Object.entries(unitsFor(strategyId))) {
     const value = String(limits[field] ?? '');
     if (!/^(0|[1-9][0-9]*)$/.test(value)) return null;
     result[field] = rawToDecimal(value, decimals);
@@ -74,7 +94,7 @@ export function rawSetupLimitsToHuman(limits) {
   return result;
 }
 
-export function suggestedSetupLimits(capital) {
+export function suggestedSetupLimits(capital, strategyId = 'static_manual_v1') {
   const capitalQuoteRaw = capitalToQuoteRaw(capital);
   if (!capitalQuoteRaw) return null;
   const capitalUsdX18 = BigInt(capitalQuoteRaw) * 10n ** 12n;
@@ -86,6 +106,14 @@ export function suggestedSetupLimits(capital) {
     maxLossValue: amount(5, 100), maxDrawdownPpm: '10',
     maxActionCost: amount(5, 100), maxRollingCost: amount(10, 100),
     maxCampaignCost: amount(15, 100), exitReserveWei: '0.001', maxSlippageBps: '0.5',
+    ...(strategyId === 'rangekeeper_v1' ? {
+      // The kernel sizes against these, so the suggestions mirror the shared
+      // ones: deploy up to the whole budget, swap up to half of it, and allow
+      // the observation gap the kernel's own maximum permits.
+      minDeploymentPpm: '10', maxSwapInputValue: amount(50, 100), maxSwapInputPpm: '50',
+      maxSwapShortfallValue: amount(1, 100), maxRecenters: '5',
+      maxLiquiditySharePpm: '95', maxObservationGapSeconds: '90',
+    } : {}),
   };
 }
 
@@ -105,26 +133,37 @@ export function suggestedNativeAllocationWei({ openBoundWei, closeBoundWei, exit
   return String(currentBounds + headroom);
 }
 
-function normalizeSetupLimits(limits) {
-  const fields=['maxDeploymentValue','minDeploymentValue','maxExposurePpm','maxLossValue','maxDrawdownPpm',
-    'maxActionCost','maxRollingCost','maxCampaignCost','exitReserveWei','maxSlippageBps'];
+function normalizeSetupLimits(limits, strategyId = 'static_manual_v1') {
+  const rangeKeeper = strategyId === 'rangekeeper_v1';
+  const fields = Object.keys(unitsFor(strategyId));
   if(!limits||typeof limits!=='object')return null;
   const normalized={};
   for(const field of fields){
     const value=String(limits[field]??'');
-    if(!/^(0|[1-9][0-9]*)$/.test(value)||BigInt(value)<=0n)return null;
-    normalized[field]=['maxExposurePpm','maxDrawdownPpm','maxSlippageBps'].includes(field)?Number(value):value;
+    if(!/^(0|[1-9][0-9]*)$/.test(value))return null;
+    if(BigInt(value)<=0n&&field!=='maxRecenters')return null;
+    normalized[field]=integerLimitFields.includes(field)?Number(value):value;
   }
-  if(normalized.maxExposurePpm>1_000_000||normalized.maxDrawdownPpm>1_000_000||normalized.maxSlippageBps>500||
+  // RangeKeeper caps slippage at 50bps where static/manual allows 500, and the
+  // kernel rejects anything above. Enforcing it here keeps the operator from
+  // discovering it only after a fork sample has already been paid for.
+  if(normalized.maxExposurePpm>1_000_000||normalized.maxDrawdownPpm>1_000_000||
+    normalized.maxSlippageBps>(rangeKeeper?50:500)||
     BigInt(normalized.minDeploymentValue)>BigInt(normalized.maxDeploymentValue)||
     BigInt(normalized.maxActionCost)>BigInt(normalized.maxRollingCost)||
     BigInt(normalized.maxActionCost)>BigInt(normalized.maxCampaignCost))return null;
+  if(rangeKeeper&&(normalized.minDeploymentPpm>1_000_000||normalized.maxSwapInputPpm>1_000_000||
+    normalized.maxLiquiditySharePpm>1_000_000||normalized.minDeploymentPpm<=0||
+    normalized.maxSwapInputPpm<=0||normalized.maxLiquiditySharePpm<=0||
+    normalized.maxObservationGapSeconds<30||normalized.maxObservationGapSeconds>90))return null;
   return normalized;
 }
 
-export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyId, mode, limits }) {
-  if (strategyId !== 'static_manual_v1' || mode !== 'paper') {
-    return { available: false, reason: 'Only static/manual paper setup preflight is implemented.' };
+export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyId, mode, limits,
+    fullWidthSpacings }) {
+  const rangeKeeper = strategyId === 'rangekeeper_v1';
+  if ((strategyId !== 'static_manual_v1' && !rangeKeeper) || mode !== 'paper') {
+    return { available: false, reason: 'Only static/manual and RangeKeeper paper setup preflight are implemented.' };
   }
   const profileId = pool?.marketProfileId ?? pool?.profileId;
   if (typeof profileId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(profileId)) {
@@ -132,12 +171,25 @@ export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyI
   }
   const capitalQuoteRaw = capitalToQuoteRaw(capital);
   const spacing = Number(pool.tickSpacing);
+  if (rangeKeeper) {
+    // RangeKeeper centres its own range on the observed tick, so it takes a full
+    // width counted in tick spacings rather than a half-width in raw ticks.
+    const spacings = Number(fullWidthSpacings);
+    if (!capitalQuoteRaw || !Number.isSafeInteger(spacings) || spacings < 2 ||
+        spacings > 2000 || spacings % 2 !== 0) {
+      return { available: false, reason: 'Choose valid USDG capital and an even full width between 2 and 2000 tick spacings.' };
+    }
+    const normalized = limits === undefined ? undefined : normalizeSetupLimits(limits, strategyId);
+    if (!normalized) return { available: false, reason: 'Enter all valid RangeKeeper limits in their displayed units before review. RangeKeeper caps slippage at 0.5 percent and the observation gap between 30 and 90 seconds.' };
+    return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings,
+      limits: normalized } };
+  }
   const ticks = Number(halfWidthTicks);
   if (!capitalQuoteRaw || !Number.isSafeInteger(spacing) || spacing < 1 ||
       !Number.isSafeInteger(ticks) || ticks < spacing || ticks % spacing !== 0) {
     return { available: false, reason: 'Choose valid USDG capital and a half-width aligned to the registered pool tick spacing.' };
   }
-  const normalizedLimits=limits===undefined?undefined:normalizeSetupLimits(limits);
+  const normalizedLimits=limits===undefined?undefined:normalizeSetupLimits(limits,strategyId);
   if(limits!==undefined&&!normalizedLimits)return {available:false,reason:'Enter all valid static/manual limits in their displayed units before review.'};
   return { available: true, payload: { profileId, capitalQuoteRaw, halfWidthTicks: ticks,
     ...(normalizedLimits?{limits:normalizedLimits}:{}) } };
@@ -438,7 +490,20 @@ function bootDashboardTabs() {
   document.getElementById('setup-form').addEventListener('change', invalidateReview);
   const setupStrategy=document.getElementById('setup-strategy'),setupMode=document.getElementById('setup-mode'),
     setupLimits=document.getElementById('setup-limits-review');
-  const updateLimitsVisibility=()=>{setupLimits.hidden=setupStrategy.value!=='static_manual_v1'||setupMode.value!=='paper';};
+  const rangeKeeperRows=document.getElementById('setup-limits-rangekeeper'),
+    rangeKeeperWidthRow=document.getElementById('setup-rangekeeper-width-row'),
+    staticWidthRow=document.getElementById('setup-static-width-row');
+  const updateLimitsVisibility=()=>{
+    const strategy=setupStrategy.value,paper=setupMode.value==='paper',
+      rangeKeeper=strategy==='rangekeeper_v1';
+    setupLimits.hidden=!paper||(strategy!=='static_manual_v1'&&!rangeKeeper);
+    // RangeKeeper centres its own range, so it takes a full width in spacings
+    // where static/manual takes a half-width in ticks. Only one applies.
+    if(rangeKeeperRows)rangeKeeperRows.hidden=!rangeKeeper||!paper;
+    if(rangeKeeperWidthRow)rangeKeeperWidthRow.hidden=!rangeKeeper||!paper;
+    if(staticWidthRow)staticWidthRow.hidden=rangeKeeper&&paper;
+    applySuggestedLimitValues();
+  };
   setupStrategy.addEventListener('change',updateLimitsVisibility);setupMode.addEventListener('change',updateLimitsVisibility);
   updateLimitsVisibility();
   async function runSetupReview(event) {
@@ -450,8 +515,17 @@ function bootDashboardTabs() {
     const ticks = widthSelect.value;
     const strategyId = document.getElementById('setup-strategy').value;
     const mode = document.getElementById('setup-mode').value;
+    const rangeKeeper = strategyId === 'rangekeeper_v1';
+    const fullWidthSpacings = document.getElementById('setup-rangekeeper-width')?.value ?? '';
     const capitalRaw = capitalToQuoteRaw(capital), spacing = Number(pool?.tickSpacing), width = Number(ticks);
-    if (!pool || !capitalRaw || !Number.isSafeInteger(spacing) || spacing < 1 ||
+    if (rangeKeeper) {
+      const spacings = Number(fullWidthSpacings);
+      if (!pool || !capitalRaw || !Number.isSafeInteger(spacings) || spacings < 2 ||
+          spacings > 2000 || spacings % 2 !== 0) {
+        error.textContent = 'Choose an enabled registered pool, valid USDG capital and an even RangeKeeper full width between 2 and 2000 tick spacings.';
+        error.hidden = false; return;
+      }
+    } else if (!pool || !capitalRaw || !Number.isSafeInteger(spacing) || spacing < 1 ||
         !Number.isSafeInteger(width) || width < spacing || width % spacing !== 0) {
       error.textContent = 'Choose an enabled registered pool, valid USDG capital and a half-width aligned to its tick spacing.';
       error.hidden = false; return;
@@ -463,7 +537,9 @@ function bootDashboardTabs() {
     const facts = [
       ['Pool', poolSelect.selectedOptions[0].textContent],
       ['Capital', `${capital} USDG`],
-      ['Half-width around center', widthSelect.selectedOptions[0].textContent],
+      ...(strategyId === 'rangekeeper_v1'
+        ? [['Full width around center', `${fullWidthSpacings} tick spacings (${Number(fullWidthSpacings) * spacing} ticks)`]]
+        : [['Half-width around center', widthSelect.selectedOptions[0].textContent]]),
       ['Strategy', document.getElementById('setup-strategy').selectedOptions[0].textContent],
       ['Mode', document.getElementById('setup-mode').selectedOptions[0].textContent],
     ];
@@ -475,21 +551,24 @@ function bootDashboardTabs() {
       setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the operator dashboard to request it; no request was sent.');
       return;
     }
-    if (strategyId !== 'static_manual_v1' || mode !== 'paper') {
-      setSetupStatus('Preflight unavailable: only static/manual paper setup is implemented. No request was sent.');
+    if ((strategyId !== 'static_manual_v1' && !rangeKeeper) || mode !== 'paper') {
+      setSetupStatus('Preflight unavailable: only static/manual and RangeKeeper paper setup are implemented. No request was sent.');
       return;
     }
     if (!operatorSession.isReady()) {
       setSetupStatus('Operator session is connecting. Retry the request after the connection is ready.');
       return;
     }
-    const limits=humanSetupLimitsToRaw(readHumanLimitInputs());
-    const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode,limits });
+    const limits=humanSetupLimitsToRaw(readHumanLimitInputs(strategyId),strategyId);
+    const request = setupPreflightRequest({ pool, capital, halfWidthTicks: ticks, strategyId, mode, limits,
+      fullWidthSpacings });
     if (!request.available) { setSetupStatus(`Preflight unavailable: ${request.reason}`); return; }
-    setSetupStatus('Preparing estimated costs from a fresh confirmed source. This may take several minutes; no draft or operation will be created…', 'loading');
+    setSetupStatus(rangeKeeper
+      ? 'Preparing estimated costs by sampling this exact candidate on an owned fork. This may take several minutes; no draft or operation will be created…'
+      : 'Preparing estimated costs from a fresh confirmed source. This may take several minutes; no draft or operation will be created…', 'loading');
     reviewButton.disabled=true;
     try {
-      const result = await authRequest(SETUP_PREFLIGHT_PATH, { method: 'POST', body: request.payload, csrf: true,
+      const result = await authRequest(setupPreflightPathFor(strategyId), { method: 'POST', body: request.payload, csrf: true,
         signal:AbortSignal.timeout(360_000) });
       if(reviewSequence!==setupReviewSequence)return;
       reviewButton.disabled=false;
@@ -554,23 +633,40 @@ function bootDashboardTabs() {
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
     maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
     maxActionCost:'limit-max-action-cost',maxRollingCost:'limit-max-rolling-cost',
-    maxCampaignCost:'limit-max-campaign-cost',exitReserveWei:'limit-exit-reserve',maxSlippageBps:'limit-slippage-bps'};
+    maxCampaignCost:'limit-max-campaign-cost',exitReserveWei:'limit-exit-reserve',maxSlippageBps:'limit-slippage-bps',
+    minDeploymentPpm:'limit-min-deployment-ppm',maxSwapInputValue:'limit-max-swap-input',
+    maxSwapInputPpm:'limit-max-swap-input-ppm',maxSwapShortfallValue:'limit-max-swap-shortfall',
+    maxRecenters:'limit-max-recenters',maxLiquiditySharePpm:'limit-max-liquidity-share',
+    maxObservationGapSeconds:'limit-observation-gap'};
   const limitLabels={maxDeploymentValue:'Maximum deployment · USD',
     minDeploymentValue:'Minimum deployment · USD',maxExposurePpm:'Maximum exposure · percent',
     maxLossValue:'Maximum loss · USD',maxDrawdownPpm:'Maximum drawdown · percent',
     maxActionCost:'Maximum action cost · USD',maxRollingCost:'Maximum rolling cost · USD',
     maxCampaignCost:'Maximum campaign cost · USD',exitReserveWei:'Native exit reserve · native units',
-    maxSlippageBps:'Maximum slippage · percent'};
+    maxSlippageBps:'Maximum slippage · percent',minDeploymentPpm:'Minimum deployment · percent of capital',
+    maxSwapInputValue:'Maximum swap input · USD',maxSwapInputPpm:'Maximum swap input · percent of capital',
+    maxSwapShortfallValue:'Maximum swap shortfall · USD',maxRecenters:'Maximum recentres · count',
+    maxLiquiditySharePpm:'Maximum pool liquidity share · percent',
+    maxObservationGapSeconds:'Maximum observation gap · seconds'};
   let lastSuggestedLimits = null;
   let lastSuggestedNativeAllocation = null;
-  function readHumanLimitInputs(){
-    return Object.fromEntries(Object.entries(limitInputIds).map(([key,id])=>[key,document.getElementById(id).value]));
+  function activeStrategyId(){
+    return document.getElementById('setup-strategy')?.value??'static_manual_v1';
+  }
+  function readHumanLimitInputs(strategyId=activeStrategyId()){
+    const fields=Object.keys(unitsFor(strategyId));
+    return Object.fromEntries(fields
+      .filter(key=>document.getElementById(limitInputIds[key]))
+      .map(key=>[key,document.getElementById(limitInputIds[key]).value]));
   }
   function applySuggestedLimitValues(){
-    const capital=document.getElementById('setup-capital').value,suggestions=suggestedSetupLimits(capital);
+    const capital=document.getElementById('setup-capital').value,
+      strategyId=activeStrategyId(),suggestions=suggestedSetupLimits(capital,strategyId);
     if(!suggestions)return;
-    for(const [key,id]of Object.entries(limitInputIds)){
-      const input=document.getElementById(id),previous=lastSuggestedLimits?.[key];
+    for(const key of Object.keys(unitsFor(strategyId))){
+      const input=document.getElementById(limitInputIds[key]);
+      if(!input||suggestions[key]===undefined)continue;
+      const previous=lastSuggestedLimits?.[key];
       if(!input.value||input.value===previous)input.value=suggestions[key];
     }
     lastSuggestedLimits=suggestions;
