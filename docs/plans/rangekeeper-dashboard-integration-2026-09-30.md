@@ -3,6 +3,15 @@
 Status: scope only. No source change is proposed here for immediate execution,
 and nothing below authorizes execution of a strategy.
 
+Current-status pointer — October 1, 2026: the historical route gaps and blocked
+close findings below have since been implemented and verified by the canonical
+sealed lifecycle. The full suite passes 1,051 tests; the verified release is
+deployed to command, dashboard, and paper worker services, while the bounded
+first paper-campaign launch remains pending. Recenter remains unimplemented.
+See the [operation-path status](rangekeeper-paper-operation-path-2026-10-01.md)
+and [lifecycle evidence](../reviews/rangekeeper-paper-lifecycle-2026-10-01.md)
+for current evidence. The sections below remain a historical scope snapshot.
+
 The operator asked to be able to deploy several RangeKeeper instances across
 pools. Pool availability is now solved separately — twelve verified market
 profiles are registered and every one is available to any strategy. This

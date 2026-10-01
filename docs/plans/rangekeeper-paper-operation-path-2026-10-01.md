@@ -3,26 +3,28 @@
 ## Current status — October 1, 2026
 
 The RangeKeeper paper setup, open, observation, and retained-close source paths
-are implemented. The full test suite passes 1,048 tests, and SQL integration
-for retained close/replay is green. Canonical-source setup, opening, and
-observations have passed in some runs; the complete canonical lifecycle through
-retained NFT close and recovery is still pending. Confirmation now reuses its verified owned-fork result for gas evidence and
-overlaps fresh fork prefetching with planning. Earlier swapped-entry attempts
-failed the unchanged 90-second guard; diagnostics confirmed preview expiry.
-The lifecycle fixture now waits for the required confirmed-chain timestamp,
-rather than wall time. Retained-NFT/slippage fixes still need the complete
-end-to-end lifecycle proof.
+are implemented. The full test suite passes 1,051 tests, SQL integration for
+retained close/replay is green, and the canonical lifecycle passed against the
+verified sealed release. The lifecycle evidence covers setup admission,
+confirmed open and worker booking, observations before and after a worker
+restart, retained close, shared dashboard history, and desktop/mobile views.
+See [the lifecycle evidence record](../reviews/rangekeeper-paper-lifecycle-2026-10-01.md).
+The fixture waits for the required confirmed-chain timestamp under the existing
+30-second startup and 90-second observation limits. The verified release is
+deployed to the command, dashboard, and paper worker service units; the bounded
+first paper-campaign launch remains pending. No automatic recenter behavior is
+available or claimed.
 
 The dashboard command-browser integration passes 20 checks with zero browser
 exceptions, including the RangeKeeper setup-review/admission body. Its
 RangeKeeper source and cost evidence are explicitly synthetic fixtures: this
 proves the browser session, CSRF, UI binding, and command route contract, not
 canonical chain behavior or economics. Keep this evidence separate from the
-canonical setup/open/observation runs and the outstanding full-lifecycle gate.
+canonical lifecycle proof linked above.
 
-Do not describe this as a completed or managed RangeKeeper lifecycle, and do not
-claim a sealed release or production deployment. The initial open/exit gap
-analysis below is preserved as a dated historical source snapshot; claims about missing routes
+Do not describe the paper campaign as launched or autonomously managed. The
+initial open/exit gap analysis below is preserved as a dated historical source
+snapshot; claims about missing routes
 and unreachable paths describe that earlier snapshot and are superseded by the
 current status above. The follow-up recenter plan remains separate work.
 

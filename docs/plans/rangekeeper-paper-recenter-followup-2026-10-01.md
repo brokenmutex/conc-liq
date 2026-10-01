@@ -1,26 +1,28 @@
 # RangeKeeper paper recenter follow-up — October 1, 2026
 
-Status: recenter is not implemented. This is a scoped follow-up proposal for
-the paper open, observation, and retained-close source paths. The full test
-suite passes 1,048 tests and retained-close/replay SQL integration is green.
-Canonical-source setup, opening, and observations have passed in some runs, but
-the full canonical retained-close and recovery lifecycle is still pending as
-confirmation prefetch overlap and the landed retained-NFT/slippage fixes are
-validated end to end. The 90-second freshness guard remains unchanged.
+Current status — October 1, 2026: recenter is not implemented. The full test
+suite passes 1,051 tests, and the canonical
+setup/open/observation/retained-close lifecycle passed against the verified
+sealed release. The release is deployed
+to the command, dashboard, and paper worker service units; the bounded first
+paper-campaign launch remains pending. See the
+[lifecycle evidence record](../reviews/rangekeeper-paper-lifecycle-2026-10-01.md).
+The existing 90-second freshness guard remains unchanged.
 
 The dashboard command-browser integration passes 20 checks with zero browser
 exceptions. Its RangeKeeper review/admission evidence uses a synthetic
 source/cost fixture and proves UI/session/CSRF/route binding only, not canonical
-chain behavior or economics. This document does not treat the full lifecycle
-as proven, make recenter available, claim managed trading, or authorize a
-sealed release or production deployment.
+chain behavior or economics. This document remains a recenter follow-up
+proposal: the lifecycle proof does not make recenter available or claim
+autonomous trading.
 
 ## Current boundary
 
 The paper implementation has source paths for one confirmed opening,
-source-pinned observations, and a retained-principal close. Canonical setup,
-open, and observations have passed in some runs; full retained close and
-recovery have not yet passed end to end. The opening mark is the
+source-pinned observations, and a retained-principal close. The sealed
+canonical lifecycle proved setup admission, open, observation continuity across
+worker restart,
+retained close, and shared dashboard history. The opening mark is the
 immutable capital-in baseline and remains the campaign's `open_mark_id`.
 Observations currently
 reconstruct the one active position from the original opening candidate.
