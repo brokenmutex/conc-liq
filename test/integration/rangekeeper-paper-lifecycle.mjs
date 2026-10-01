@@ -355,8 +355,12 @@ try{
   assert(closedDetail.performance.markCount>=4,'Shared dashboard history lacks open, restarted observations, and close marks');
   assert(closedDetail.performance.timeline.some(row=>row.action==='enter'));
   assert(closedDetail.performance.timeline.some(row=>row.action==='exit'));
-  assert(closedDetail.performance.timeline.every(row=>row.economicNavQuote===null&&row.feeIncomeQuote===null&&
-   row.gasQuote===null),'Unavailable economic values were filled from modeled evidence');
+  assert(closedDetail.performance.timeline.every(row=>row.economicNavQuote===null&&
+   row.feesThisIntervalQuote===null&&row.gasThisMarkQuote===null&&row.swapThisMarkQuote===null),
+   'Unavailable economic values were filled from modeled evidence');
+  assert(closedDetail.performance.rows.every(row=>row.netPnlQuote===null&&row.alphaQuote===null&&
+   row.feeIncomeQuote===null&&row.gasQuote===null&&row.swapCostQuote===null),
+   'Unavailable performance aggregates were filled from modeled evidence');
   const sharedClosedResponse=await fetch(`${origin}/api/positions/paper-dep-${campaignId}?hours=24`,
    {headers:{cookie}}),sharedClosed=await sharedClosedResponse.json();
   assert.equal(sharedClosedResponse.status,200);assert.equal(sharedClosed.position.status,'closed');
