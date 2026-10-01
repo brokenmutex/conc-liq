@@ -840,15 +840,27 @@ export class DeploymentStore {
   * runs the confirmation against it. Read-only; the authoritative checks stay in
   * readRangeKeeperPaperConfirmationEnvelope, which re-reads under its own lock. */
  async rangeKeeperPaperOpenPreviewState(campaignId:string):Promise<{livePreview:boolean;
-  confirmed:boolean}>{
-  const row=(await this.readPool.query<{live:boolean;confirmed:boolean}>(`
-   SELECT EXISTS(SELECT 1 FROM deployment_previews v
-     WHERE v.campaign_id=$1 AND v.kind='open' AND v.expires_at>clock_timestamp()
-      AND v.expected_revision=c.current_revision) AS live,
-    EXISTS(SELECT 1 FROM deployment_rangekeeper_paper_confirmations proof
-     WHERE proof.campaign_id=$1 AND proof.revision=c.current_revision) AS confirmed
-   FROM deployment_campaigns c WHERE c.id=$1`,[campaignId])).rows[0];
-  return {livePreview:row?.live===true,confirmed:row?.confirmed===true};
+  confirmed:boolean;binding:{id:string;contentDigest:string;expectedRevision:number;
+   expiresAt:Date}|null}>{
+  const row=(await this.readPool.query<{confirmed:boolean;preview_id:string|null;
+   content_digest:string|null;expected_revision:number|null;expires_at:Date|null}>(`
+   SELECT EXISTS(SELECT 1 FROM deployment_rangekeeper_paper_confirmations proof
+     WHERE proof.campaign_id=$1 AND proof.revision=c.current_revision) AS confirmed,
+    live.id::text AS preview_id,live.content_digest,live.expected_revision,live.expires_at
+   FROM deployment_campaigns c
+   LEFT JOIN LATERAL (SELECT v.id,v.content_digest,v.expected_revision,v.expires_at
+     FROM deployment_previews v
+     WHERE v.campaign_id=c.id AND v.kind='open' AND v.expires_at>clock_timestamp()
+      AND v.expected_revision=c.current_revision
+     ORDER BY v.created_at DESC,v.id DESC LIMIT 1) live ON true
+   WHERE c.id=$1`,[campaignId])).rows[0];
+  // The binding is what the operator needs to accept: acceptOperation re-checks
+  // every field of it under its own lock, so exposing it here cannot widen what
+  // is acceptable.
+  const binding=row?.preview_id&&row.content_digest&&row.expected_revision!==null&&row.expires_at?
+   {id:row.preview_id,contentDigest:row.content_digest,
+    expectedRevision:row.expected_revision,expiresAt:row.expires_at}:null;
+  return {livePreview:binding!==null,confirmed:row?.confirmed===true,binding};
  }
 
  /** Read-only context for the parallel RangeKeeper open acceptance

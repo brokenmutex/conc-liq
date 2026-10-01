@@ -32,6 +32,7 @@ export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:(
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
  rangeKeeperSetupPreflight?:(input:RangeKeeperSetupPreflightInput)=>Promise<unknown>;
  rangeKeeperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
+ rangeKeeperOpenAcceptance?:(campaignId:string,input:AcceptInput,actor:string)=>Promise<unknown>;
  paperSetupDraftList?:()=>Promise<unknown>;
  paperSetupDraftDelete?:(campaignId:string)=>Promise<unknown>;
  setupDefaults?:()=>{walletAddress:string|null};
@@ -410,7 +411,25 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(openSaved&&options.paperOpenAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
-    const actionable=Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
+    // A confirmed RangeKeeper open is not static-shaped: its kind is the model's,
+    // not 'open', and its status is the model's. It is acceptable once the
+    // confirmation is published and the preview binding it carries is still live.
+    const rkRecord=result&&typeof result==='object'&&!Array.isArray(result)?
+     result as {strategyId?:unknown;trustedPreviewSaved?:unknown;confirmation?:unknown;
+      id?:unknown;contentDigest?:unknown;expectedRevision?:unknown;expiresAt?:unknown}:null;
+    const rkExpiryMs=Date.parse(String(rkRecord?.expiresAt??''));
+    const rangeKeeperOpenSaved=Boolean(rkRecord&&rkRecord.strategyId==='rangekeeper_v1'&&
+     rkRecord.trustedPreviewSaved===true&&
+     (rkRecord.confirmation as {status?:unknown}|undefined)?.status==='confirmed'&&
+     typeof rkRecord.id==='string'&&uuid.test(rkRecord.id)&&
+     typeof rkRecord.contentDigest==='string'&&/^[0-9a-f]{64}$/.test(rkRecord.contentDigest)&&
+     Number.isSafeInteger(rkRecord.expectedRevision)&&Number(rkRecord.expectedRevision)>0&&
+     Number.isFinite(rkExpiryMs)&&rkExpiryMs>now());
+    if(rangeKeeperOpenSaved&&options.rangeKeeperOpenAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    const actionable=Boolean(rangeKeeperOpenSaved&&workerReady&&options.rangeKeeperOpenAcceptance)||
+     Boolean(saved&&input.kind==='close_retain'&&workerReady&&options.paperRetainAcceptance)||
      Boolean(openSaved&&workerReady&&options.paperOpenAcceptance)||
      Boolean(convertSaved&&input.kind==='close_convert'&&workerReady&&convertPreparationReady&&
       options.paperConvertAcceptance)||
@@ -463,6 +482,23 @@ export function createDeploymentCommandServer(store:CommandStore,
      send(response,503,{error:'operation_worker_not_ready'});return;
     }
     send(response,202,await options.paperOpenAcceptance(openAcceptMatch[1]!,input,'operator'));return;
+   }
+   const rangeKeeperOpenAcceptMatch=
+    /^\/api\/deployments\/([^/]+)\/rangekeeper\/open-operations$/.exec(path);
+   if(rangeKeeperOpenAcceptMatch&&request.method==='POST'){
+    if(!uuid.test(rangeKeeperOpenAcceptMatch[1]!)){send(response,400,{error:'invalid_campaign_id'});return;}
+    const input=acceptInput.parse(await jsonBody(request));
+    const replay=await options.paperOperationReplay?.(rangeKeeperOpenAcceptMatch[1]!,input,['open']);
+    if(replay){send(response,202,replay);return;}
+    let workerReady=false;
+    if(options.rangeKeeperOpenAcceptance&&options.paperRetainWorkerReady){
+     try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
+    }
+    if(!workerReady||!options.rangeKeeperOpenAcceptance){
+     send(response,503,{error:'operation_worker_not_ready'});return;
+    }
+    send(response,202,
+     await options.rangeKeeperOpenAcceptance(rangeKeeperOpenAcceptMatch[1]!,input,'operator'));return;
    }
    const convertAcceptMatch=/^\/api\/deployments\/([^/]+)\/close-convert-operations$/.exec(path);
    if(convertAcceptMatch&&request.method==='POST'){

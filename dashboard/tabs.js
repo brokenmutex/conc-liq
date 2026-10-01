@@ -155,7 +155,13 @@ function normalizeSetupLimits(limits, strategyId = 'static_manual_v1') {
   if(rangeKeeper&&(normalized.minDeploymentPpm>1_000_000||normalized.maxSwapInputPpm>1_000_000||
     normalized.maxLiquiditySharePpm>1_000_000||normalized.minDeploymentPpm<=0||
     normalized.maxSwapInputPpm<=0||normalized.maxLiquiditySharePpm<=0||
-    normalized.maxObservationGapSeconds<30||normalized.maxObservationGapSeconds>90))return null;
+    // The kernel's own two-observation timing makes a gap at or near its 30s
+    // floor unusable. planner.ts:206 refuses a second observation less than 30s
+    // after the first (decision_interval), and planner.ts:230 refuses one more
+    // than maxObservationGapSeconds after it, so the window an operator must land
+    // a request in is (gap - 30) seconds wide and a gap of 30 is a single
+    // instant. 45 leaves 15s, which is the narrowest that is honestly workable.
+    normalized.maxObservationGapSeconds<45||normalized.maxObservationGapSeconds>90))return null;
   return normalized;
 }
 
@@ -180,7 +186,7 @@ export function setupPreflightRequest({ pool, capital, halfWidthTicks, strategyI
       return { available: false, reason: 'Choose valid USDG capital and an even full width between 2 and 2000 tick spacings.' };
     }
     const normalized = limits === undefined ? undefined : normalizeSetupLimits(limits, strategyId);
-    if (!normalized) return { available: false, reason: 'Enter all valid RangeKeeper limits in their displayed units before review. RangeKeeper caps slippage at 0.5 percent and the observation gap between 30 and 90 seconds.' };
+    if (!normalized) return { available: false, reason: 'Enter all valid RangeKeeper limits in their displayed units before review. RangeKeeper caps slippage at 0.5 percent, and the observation gap must be 45 to 90 seconds: it opens on two observations and the kernel refuses a second one less than 30 seconds after the first, so a smaller gap leaves no window to confirm in.' };
     return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings,
       limits: normalized } };
   }

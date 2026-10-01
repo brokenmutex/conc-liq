@@ -132,10 +132,14 @@ it('enforces the RangeKeeper limit bounds the kernel would otherwise reject afte
   assert.equal(humanSetupLimitsToRaw({...base,maxSlippageBps:'0.51'},'rangekeeper_v1'),null);
   assert(humanSetupLimitsToRaw({...base,maxSlippageBps:'0.51'},'static_manual_v1'),
     'the same slippage stays valid for static/manual');
-  // The kernel bounds the observation gap to 30..90 seconds.
-  for(const gap of ['29','91'])
-    assert.equal(humanSetupLimitsToRaw({...base,maxObservationGapSeconds:gap},'rangekeeper_v1'),null);
-  for(const gap of ['30','90'])
+  // The contract allows 30..90, but a gap at or near 30 leaves no window to take
+  // a second observation in: the kernel refuses one less than 30s after the first
+  // and more than `gap` after it, so the window is (gap - 30) wide. The form
+  // refuses below 45 so an operator cannot configure an un-openable campaign.
+  for(const gap of ['30','44','91'])
+    assert.equal(humanSetupLimitsToRaw({...base,maxObservationGapSeconds:gap},'rangekeeper_v1'),null,
+      `gap ${gap} must be refused`);
+  for(const gap of ['45','90'])
     assert(humanSetupLimitsToRaw({...base,maxObservationGapSeconds:gap},'rangekeeper_v1'),`gap ${gap} is valid`);
   // Zero recentres is meaningful: it pins a campaign to its entry.
   assert.equal(humanSetupLimitsToRaw({...base,maxRecenters:'0'},'rangekeeper_v1')!.maxRecenters,0);

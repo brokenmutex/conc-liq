@@ -28,6 +28,8 @@ import {persistTrustedRangeKeeperPaperOpenPreview}
  from './deployments/rangekeeper-paper-open-preflight.js';
 import {createRangeKeeperPaperConfirmationProducer}
  from './deployments/rangekeeper-paper-confirmation-producer.js';
+import {createRangeKeeperPaperOpenAcceptance}
+ from './deployments/rangekeeper-paper-open-acceptance.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
@@ -182,6 +184,12 @@ async function main(){
  const rangeKeeperConfirmationProducer=createRangeKeeperPaperConfirmationProducer({
   store,client,rpcUrl:rangeKeeperForkRpcUrl,beforeRead:async()=>{},
   maxRequests:1600,timeoutMs:150_000});
+ // A parallel acceptance rather than another branch inside acceptOperation: it
+ // pre-validates the published confirmation against the preview the operator is
+ // accepting, then calls the bare acceptOperation, whose own static admission
+ // branches are never reached.
+ const rangeKeeperOpenAcceptance=createRangeKeeperPaperOpenAcceptance({store,
+  verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
  const runRangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>
    buildRangeKeeperPaperSetupPreflight(input,{
@@ -438,7 +446,8 @@ async function main(){
     // So one preview request cannot do both: the first persists the trusted
     // preview the confirmation reads, and a later one runs the confirmation
     // producer against it.
-    let previewState={livePreview:false,confirmed:false};
+    let previewState:Awaited<ReturnType<typeof store.rangeKeeperPaperOpenPreviewState>>=
+     {livePreview:false,confirmed:false,binding:null};
     try{previewState=await store.rangeKeeperPaperOpenPreviewState(campaignId);}
     catch{/* Treated as no live preview; the first-observation path re-checks. */}
     if(previewState.livePreview&&!previewState.confirmed){
@@ -446,18 +455,29 @@ async function main(){
      // Acceptance for rangekeeper_v1 does not exist yet, so a confirmed envelope
      // is reported as confirmed and explicitly not actionable rather than
      // offering an action that would 503.
-     return confirmation&&typeof confirmation==='object'&&!Array.isArray(confirmation)?
-      {...confirmation,operationAcceptanceAvailable:false,actionAvailable:false,
-       ...(((confirmation as {status?:unknown}).status==='confirmed')?
-        {acceptancePending:'rangekeeper_paper_open_acceptance_unavailable'}:{})}:confirmation;
+     if(!confirmation||typeof confirmation!=='object'||Array.isArray(confirmation))return confirmation;
+     const confirmed=(confirmation as {status?:unknown}).status==='confirmed';
+     return {...confirmation,operationAcceptanceAvailable:false,actionAvailable:false,
+      ...(confirmed&&previewState.binding?{id:previewState.binding.id,
+       contentDigest:previewState.binding.contentDigest,
+       expectedRevision:previewState.binding.expectedRevision,
+       expiresAt:previewState.binding.expiresAt.toISOString(),
+       trustedPreviewSaved:true}:{})};
     }
     const model=await readCanonicalRangeKeeperPaperOpenModel({client,
      draft:rangeKeeperDraft,buildId,
      readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(query.poolAddress,
       query.pathVersion,query.sizeBand)});
+    if(previewState.confirmed&&previewState.binding)return {...model,
+      id:previewState.binding.id,contentDigest:previewState.binding.contentDigest,
+      expectedRevision:previewState.binding.expectedRevision,
+      expiresAt:previewState.binding.expiresAt.toISOString(),
+      // Acceptance exists now, so the command server may offer it. It re-reads
+      // and re-validates every field of this binding under its own lock.
+      trustedPreviewSaved:true,confirmation:{status:'confirmed'},
+      operationAcceptanceAvailable:false,actionAvailable:false};
     if(previewState.confirmed)return {...model,
-      confirmation:{status:'confirmed',
-       acceptancePending:'rangekeeper_paper_open_acceptance_unavailable'},
+      confirmation:{status:'confirmed',reason:'rangekeeper_open_preview_binding_expired'},
       operationAcceptanceAvailable:false,actionAvailable:false};
     if(model.status!=='indicative'||model.decision?.kernelAction!=='confirm'||
      model.decision.requiresSecondObservation!==true||model.costs?.status!=='provisional')
@@ -552,7 +572,7 @@ async function main(){
  const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
-  rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,
+  rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,rangeKeeperOpenAcceptance,
   paperSetupDraftDelete:campaignId=>store.deleteStaticPaperDraft(campaignId),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperConvertAcceptance,
