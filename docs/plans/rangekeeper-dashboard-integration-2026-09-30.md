@@ -470,15 +470,19 @@ against.
    against a real chain. Nothing in §2a or §2b has run against a live fork yet;
    all of it is unit-tested against fixtures. No configuration is needed — see
    §2c on why the fork needs no separate endpoint.
-7. **Build the RangeKeeper exit operation path**, which is what a campaign
-   actually needs to be closeable — see §2a's correction. It is the exit
-   counterpart of the open confirmation path: a retain and convert acceptance in
-   `store.ts`, a worker branch past
-   `paper-operation-worker.ts:170`'s `kind!=='open'` block, and a model contract
-   that can carry `actionAvailable:true` rather than declaring it as the literal
-   `false`. §2a's measured simulation evidence and §2a's convert sampler both
-   feed it, but neither substitutes for it. Until it exists, the dashboard form
-   warns and a campaign opened through this path has no dashboard exit.
+7. **Build the RangeKeeper operation path.** Scoped separately in
+   [the operation path scope](rangekeeper-paper-operation-path-2026-10-01.md),
+   which found the gap is wider than this plan assumed: **no acceptance admits a
+   `rangekeeper_v1` operation of any kind, open included.** Every acceptance
+   wrapper hardcodes `strategy_id==='static_manual_v1'`, the RangeKeeper open
+   preview returns before the static path's `trustedPreviewSaved`, and the
+   confirmation producer has no caller under `src/`. The built machinery has been
+   exercised only by a direct SQL insert in an integration test.
+
+   So the open acceptance path comes before the exit, and §1's "Draft creation
+   works today" should be read narrowly: a draft can be created, and nothing
+   beyond a draft can be accepted. The dashboard form's warning understates it —
+   a campaign cannot be opened through this path either, not only not closed.
 
 ## 4. Decisions needed before starting
 
