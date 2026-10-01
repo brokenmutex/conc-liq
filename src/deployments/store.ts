@@ -877,6 +877,39 @@ export class DeploymentStore {
   * current revision, if any. All judgment -- preview-to-envelope binding,
   * envelope integrity, status and anchor re-verification -- stays in the
   * acceptance module; this method only reads. */
+ /** Campaign and exit-preview facts a RangeKeeper exit acceptance checks before
+  * calling the bare acceptOperation. Read-only, and it deliberately returns the
+  * preview's whole proposal rather than a parsed view: the acceptance hash-binds
+  * the exit model itself, which it cannot do from a projection. The lifecycle and
+  * kind decisions stay in the acceptance, and acceptOperation re-reads everything
+  * under its own lock. */
+ async rangeKeeperPaperExitAcceptanceContext(input:{campaignId:string;previewId:string}){
+  if(!z.uuid().safeParse(input.campaignId).success||!z.uuid().safeParse(input.previewId).success)
+   return null;
+  const row=(await this.readPool.query<{mode:string;lifecycle:string;chain_id:number;
+   strategy_id:string;current_revision:number;profile_hash:string;config_hash:string;
+   preview_kind:string|null;preview_content_digest:string|null;
+   preview_expected_revision:number|null;preview_expires_at:Date|null;
+   preview_proposal:unknown|null}>(`
+   SELECT c.mode,c.lifecycle,c.chain_id,r.strategy_id,c.current_revision,
+    p.profile_hash,r.config_hash,
+    v.kind AS preview_kind,v.content_digest AS preview_content_digest,
+    v.expected_revision AS preview_expected_revision,v.expires_at AS preview_expires_at,
+    v.proposal AS preview_proposal
+   FROM deployment_campaigns c
+   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+   JOIN deployment_market_profiles p ON p.id=c.market_profile_id
+   LEFT JOIN deployment_previews v ON v.id=$2 AND v.campaign_id=c.id
+   WHERE c.id=$1`,[input.campaignId,input.previewId])).rows[0];
+  if(!row)return null;
+  return {mode:row.mode,lifecycle:row.lifecycle,chainId:row.chain_id,strategyId:row.strategy_id,
+   currentRevision:row.current_revision,profileHash:row.profile_hash,configHash:row.config_hash,
+   preview:row.preview_kind===null?null:{kind:row.preview_kind,
+    contentDigest:row.preview_content_digest as string,
+    expectedRevision:row.preview_expected_revision as number,
+    expiresAt:row.preview_expires_at as Date,proposal:row.preview_proposal}};
+ }
+
  async rangeKeeperPaperOpenAcceptanceContext(input:{campaignId:string;previewId:string}){
   if(!z.uuid().safeParse(input.campaignId).success||!z.uuid().safeParse(input.previewId).success)
    return null;

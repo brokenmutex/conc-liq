@@ -30,6 +30,10 @@ import {createRangeKeeperPaperConfirmationProducer}
  from './deployments/rangekeeper-paper-confirmation-producer.js';
 import {createRangeKeeperPaperOpenAcceptance}
  from './deployments/rangekeeper-paper-open-acceptance.js';
+import {createRangeKeeperPaperExitAcceptance}
+ from './deployments/rangekeeper-paper-exit-acceptance.js';
+import {persistTrustedRangeKeeperPaperExitPreview}
+ from './deployments/rangekeeper-paper-exit-preflight.js';
 import {readCanonicalRangeKeeperPaperOpenModel,
  type RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
@@ -189,6 +193,8 @@ async function main(){
  // accepting, then calls the bare acceptOperation, whose own static admission
  // branches are never reached.
  const rangeKeeperOpenAcceptance=createRangeKeeperPaperOpenAcceptance({store,
+  verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
+ const rangeKeeperExitAcceptance=createRangeKeeperPaperExitAcceptance({store,
   verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)});
  const runRangeKeeperSetupPreflight=
   async(input:RangeKeeperSetupPreflightInput,pinnedSource?:PaperOpenFrame['source'])=>
@@ -414,7 +420,7 @@ async function main(){
     try{marketGasPriceWei=await client.getGasPrice();marketGasPriceObservedAt=Date.now();}
     catch{/* The builder returns a blocked model with explicit gas evidence unavailable. */}
     const now=Date.now();
-    return buildRangeKeeperPaperExitModel({client,draft:context.draft,
+    const exitModel=await buildRangeKeeperPaperExitModel({client,draft:context.draft,
      openModel:context.openModel,openMarkId:context.openMarkId,previous:context.previous,
      kernel:context.kernel,readGasProfiles:context.readGasProfiles,buildId,exitKind,frame,now,
      marketGasPriceWei,marketGasPriceObservedAt,
@@ -430,6 +436,25 @@ async function main(){
      // what makes a RangeKeeper campaign uncloseable. That is the missing exit
      // operation path -- see the integration plan's section 2a.
      simulate:async()=>{throw new Error('rangekeeper_terminal_candidate_simulator_unavailable');}});
+    // Persist a trusted exit preview so the exit acceptance has something to bind
+    // to. Only a complete indicative model is persistable; a blocked one carries
+    // its reason to the operator instead, and the preflight refuses it anyway.
+    if(exitModel.status!=='indicative')return exitModel;
+    try{
+     const persisted=await persistTrustedRangeKeeperPaperExitPreview({store,draft:context.draft,
+      model:exitModel,kind:kind==='close_retain'?'close_retain':'close_convert',
+      verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
+       verifyCanonicalPaperAnchors(client,chainId,sources)});
+     return {...exitModel,id:persisted.id,contentDigest:persisted.contentDigest,
+      expectedRevision:persisted.expectedRevision,
+      expiresAt:persisted.expiresAt.toISOString(),trustedPreviewSaved:true,
+      operationAcceptanceAvailable:false,actionAvailable:false};
+    }catch(error){
+     return {...exitModel,status:'blocked' as const,
+      blockingReason:error instanceof DeploymentConflict?error.code:
+       'rangekeeper_exit_preview_unavailable',
+      operationAcceptanceAvailable:false,actionAvailable:false};
+    }
    }
    const draft=await store.paperDraft(campaignId);
    if(draft.strategyId==='rangekeeper_v1'){
@@ -573,6 +598,7 @@ async function main(){
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,rangeKeeperOpenAcceptance,
+  rangeKeeperExitAcceptance,
   paperSetupDraftDelete:campaignId=>store.deleteStaticPaperDraft(campaignId),
   dashboardRead,paperOpenAcceptance,paperRetainAcceptance,paperLifecycleAcceptance,
   paperConvertAcceptance,
