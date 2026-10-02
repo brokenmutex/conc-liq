@@ -192,6 +192,22 @@ test('RangeKeeper retain-close routes acceptance and lost-response recovery thro
  assert.equal((globalThis as any).localStorage.getItem(key),null);
 }));
 
+test('RangeKeeper retain preview explains preparation contention and gas binding without submitting',async()=>withBrowser(async()=>{
+ const cases:Array<[string,RegExp]>=[
+  ['rangekeeper_paper_preparation_busy',/Another paper preparation is in progress.*try this preview again shortly/i],
+  ['rangekeeper_paper_gas_campaign_binding_invalid',/gas estimate could not be matched to this paper campaign/i]];
+ for(const [reason,message] of cases){
+  const root=mount('close_retain',async()=>({kind:'rangekeeper_paper_exit_model',status:'unavailable',
+   strategyId:'rangekeeper_v1',exitKind:'retain',actionAvailable:false,
+   operationAcceptanceAvailable:false,reason}),'rangekeeper_v1');
+  await button(root,'Review retain-close')?.click();
+  assert.equal(button(root,'Accept retain-close')?.disabled,true);
+  const review=find(root,item=>item.className==='retain-action-review');
+  assert.match(review?.children.map(item=>item.textContent).join(' ')??'',message);
+  assert.equal((globalThis as any).localStorage.getItem(storageKey('close_retain')),null);
+ }
+}));
+
 test('RangeKeeper Exit · convert to USDG renders its quote and recovers the exact strategy acceptance',async()=>withBrowser(async()=>{
  const key=`concliq.operator.paper-convert.pending.v1.${campaignId}`,previewModel:any={
   id:previewId,kind:'rangekeeper_paper_exit_model',status:'indicative',strategyId:'rangekeeper_v1',

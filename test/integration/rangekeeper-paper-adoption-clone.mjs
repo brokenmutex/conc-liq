@@ -36,10 +36,17 @@ async function waitFor(predicate,label,timeoutMs=600_000,onProgress=()=>{}){
  throw Error(`Timed out waiting for ${label} after ${Math.floor(timeoutMs/1000)} seconds`);
 }
 async function stop(child){
- if(!child||child.exitCode!==null)return;
- child.kill('SIGTERM');await Promise.race([once(child,'exit'),sleep(5000)]);
- if(child.exitCode===null){child.kill('SIGKILL');await Promise.race([once(child,'exit'),sleep(2000)]);}
- if(child.exitCode===null)throw Error('Child process did not stop after bounded shutdown');
+ const exited=()=>child.exitCode!==null||child.signalCode!==null;
+ const waitForExit=timeoutMs=>new Promise(resolve=>{
+  if(exited()){resolve(true);return;}
+  const finish=value=>{clearTimeout(timer);child.off('exit',onExit);resolve(value);},
+   onExit=()=>finish(true),timer=setTimeout(()=>finish(false),timeoutMs);
+  child.once('exit',onExit);
+ });
+ if(!child||exited())return;
+ child.kill('SIGTERM');
+ if(!await waitForExit(5000)){child.kill('SIGKILL');await waitForExit(2000);}
+ if(!exited())throw Error('Child process did not stop after bounded shutdown');
 }
 const phase=(name,details={})=>process.stdout.write(JSON.stringify({phase:name,...details})+'\n');
 
@@ -220,14 +227,14 @@ try{
    let event;try{event=JSON.parse(line);}catch{continue;}
    const name=event.event??event.name;
    if(!['rangekeeper_paper_automatic_failed','rangekeeper_paper_automatic_pass',
-    'paper_worker_campaign_failed'].includes(name))continue;
+    'rangekeeper_paper_operation_failed','paper_worker_campaign_failed'].includes(name))continue;
    const safe={event:name};
-   for(const key of ['stage','status','reason','cause','sourceBlock','markId'])
+   for(const key of ['stage','status','reason','cause','sourceBlock','markId','operationId'])
     if(typeof event[key]==='string'&&event[key].length<=160)safe[key]=event[key];
    if(name==='rangekeeper_paper_automatic_failed'){
     automaticFailures.push({stage:safe.stage??'',reason:safe.reason??''});
     if(automaticFailures.length>3)automaticFailures.shift();
-   }
+   }else if(name==='rangekeeper_paper_automatic_pass')automaticFailures.length=0;
    phase('paper_worker_diagnostic',safe);
   }
  };
@@ -257,6 +264,7 @@ try{
   if(command.exitCode!==null)throw Error(`Command server exited: ${safeError(commandOutput)}`);
   return fetch(origin+'/healthz').then(response=>response.status===200).catch(()=>false);
  },'command API health',30_000);
+ const automaticRunStartedAt=new Date();
  await startWorker();phase('clone_command_and_worker_ready',{campaignId,origin,exitKind});
  const adoptedEpoch=await store.rangeKeeperPaperEpochSnapshot(campaignId);
  assert.equal(adoptedEpoch.currentEpoch,beforeEpoch.currentEpoch);
@@ -264,9 +272,21 @@ try{
  assert.equal(adoptedEpoch.previousMark.id,beforeEpoch.previousMark.id,'adoption changed latest mark');
  const recentered=await waitFor(async()=>{
   if(automaticFailures.length===3)throw Error(`repeated automatic recenter failure: ${JSON.stringify(automaticFailures)}`);
-  const latest=(await admin.query(`SELECT id::text,inventory,economics,provenance,source_block::text,source_hash
-   FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0];
-  return latest?.provenance?.classification==='rangekeeper_paper_recenter_v1'?latest:null;
+  const blocked=(await admin.query(`SELECT id::text,status,stage,reason,attempts FROM deployment_operations
+   WHERE campaign_id=$1 AND kind='change_range' AND status='blocked' AND updated_at >= $2
+   ORDER BY updated_at DESC LIMIT 1`,[campaignId,automaticRunStartedAt])).rows[0];
+  if(blocked)throw Error(`automatic recenter operation blocked: ${JSON.stringify(blocked)}`);
+  const completedRecenter=(await admin.query(`SELECT m.id::text,m.inventory,m.economics,m.provenance,
+    m.source_block::text,m.source_hash
+   FROM deployment_marks m JOIN deployment_operations o ON o.id::text=m.provenance->>'operationId'
+    AND o.campaign_id=m.campaign_id
+   WHERE m.campaign_id=$1 AND m.id>$2::bigint
+    AND m.provenance->>'classification'='rangekeeper_paper_recenter_v1'
+    AND m.provenance->>'previousEpoch'=$3 AND m.provenance->>'epoch'=$4
+    AND o.kind='change_range' AND o.status='succeeded'
+   ORDER BY m.id DESC LIMIT 1`,[campaignId,adoptedEpoch.previousMark.id,
+    String(adoptedEpoch.currentEpoch),String(adoptedEpoch.currentEpoch+1)])).rows[0];
+  return completedRecenter??null;
  },'canonical automatic recenter after real observations',600_000,
  detail=>phase('waiting_for_fresh_canonical_recenter',{campaignId,...detail}));
  phase('canonical_recenter_recorded',{campaignId,markId:recentered.id,epoch:recentered.provenance.epoch,
@@ -300,7 +320,7 @@ try{
   recenterMarkId:recentered.id,historicalMarksPreserved:true});
 
  browser=await startCanonicalPaperBrowser({origin});
- await browser.login();await selectCampaignInPositions(browser,campaignId);
+ await selectCampaignInPositions(browser,campaignId);
  const action=await acceptPositionsAction(browser,campaignId,
   exitKind==='retain'?'rangekeeper_close_retain':'rangekeeper_close_convert',
   {previewTimeoutMs:600_000});
@@ -316,13 +336,43 @@ try{
   return row?.lifecycle==='closed'&&operation?.status==='succeeded';
  },'accepted RangeKeeper exit completion',600_000,
  detail=>phase('waiting_for_exit_worker_completion',{campaignId,operationId,...detail}));
+ const expectedGasStages=exitKind==='retain'?[
+  'exit_withdraw_collect','exit_cleanup_router_token0','exit_cleanup_router_token1',
+  'exit_cleanup_manager_token0','exit_cleanup_manager_token1']:[
+  'exit_withdraw_collect','exit_convert_approve_router_input','exit_convert_swap',
+  'exit_cleanup_router_token0','exit_cleanup_router_token1',
+  'exit_cleanup_manager_token0','exit_cleanup_manager_token1'];
+ const terminalGasReports=(await admin.query(`SELECT validation->>'reportHash' AS "reportHash",
+   array_agg(DISTINCT stage ORDER BY stage) AS stages,
+   count(DISTINCT validation->>'campaignId')::int AS campaigns,
+   count(DISTINCT validation->>'buildId')::int AS builds,
+   count(DISTINCT validation->>'candidateHash')::int AS candidates,
+   count(DISTINCT validation->>'replayHash')::int AS replays,
+   count(DISTINCT version)::int AS versions
+  FROM deployment_calibration_profiles WHERE component='gas_units' AND status='provisional'
+   AND validation->>'campaignId'=$1 AND validation->>'buildId'=$2
+   AND validation#>>'{scope,inventoryHash}' IS NOT NULL
+  GROUP BY validation->>'reportHash' ORDER BY max(observed_until) DESC LIMIT 8`,
+  [campaignId,target.buildId])).rows;
+ const terminalGasReport=terminalGasReports.find(row=>contentHash([...row.stages].sort())===
+  contentHash([...expectedGasStages].sort()));
+ assert(terminalGasReport,'accepted adopted close did not register a complete current-runtime terminal gas report');
+ assert.equal(terminalGasReport.campaigns,1,'terminal gas profile rows escaped the adopted campaign binding');
+ assert.equal(terminalGasReport.builds,1,'terminal gas profile rows escaped the effective adopted build binding');
+ assert.equal(terminalGasReport.candidates,1,'terminal gas profile rows do not share one candidate identity');
+ assert.equal(terminalGasReport.replays,1,'terminal gas profile rows do not share one owned-fork replay');
+ assert.equal(terminalGasReport.versions,1,'terminal gas profile rows were not appended as one common version');
+ phase('adopted_terminal_gas_registration_verified',{campaignId,buildId:target.buildId,
+  reportHash:terminalGasReport.reportHash,stageCount:terminalGasReport.stages.length,
+  replayBound:true,commonVersion:true});
  const rows=await readDeploymentRows(admin),closed=rows.find(row=>row.id===campaignId);
  assert(closed&&closed.lifecycle==='closed');
  const history=await readDeploymentDetail(admin,closed,0);
  assert(history.performance.timeline.some(point=>point.action==='exit'),
   'shared dashboard history must contain the completed exit');
  assert.equal(history.position.navQuote,null,'final economic value must remain unavailable');
- const view=await inspectPositionAtWidths(browser,campaignId,['close_retain','close_convert'],
+ const view=await inspectPositionAtWidths(browser,campaignId,
+  [exitKind==='retain'?'close_retain':'close_convert'],
   {history:true,expectedGapLabels:['unavailable']});
  await assertBrowserHealthy(browser);
  phase('clone_lifecycle_complete',{campaignId,operationId,exitKind,
@@ -331,7 +381,7 @@ try{
 }catch(error){
  process.stderr.write(`${safeError(error)}\n`);process.exitCode=1;
 }finally{
- if(browser)try{await browser.cleanup();}catch(error){process.stderr.write(`${safeError(error)}\n`);process.exitCode=1;}
+ if(browser)try{await browser.close();}catch(error){process.stderr.write(`${safeError(error)}\n`);process.exitCode=1;}
  try{await stop(worker);}catch(error){process.stderr.write(`${safeError(error)}\n`);process.exitCode=1;}
  try{await stop(command);}catch(error){process.stderr.write(`${safeError(error)}\n`);process.exitCode=1;}
  admin?.release();await store?.close().catch(()=>{});await adminPool?.end().catch(()=>{});

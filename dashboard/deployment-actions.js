@@ -535,8 +535,12 @@ export function mountStaticRetainAction(root, { campaignId, authenticated, reque
       const canAccept = retainPreviewCanBeAccepted(result, now());
       if (!canAccept) {
         const detail = document.createElement('p');
-        detail.textContent = result.actionAvailable === false || result.operationAcceptanceAvailable === false ?
-          'Acceptance is unavailable because the command service has not proven supervised worker readiness.' :
+        detail.textContent = result.reason === 'rangekeeper_paper_preparation_busy' ?
+          'Another paper preparation is in progress. Try this preview again shortly.' :
+          result.reason === 'rangekeeper_paper_gas_campaign_binding_invalid' ?
+          'The retain-close gas estimate could not be matched to this paper campaign, so acceptance is unavailable.' :
+          result.actionAvailable === false || result.operationAcceptanceAvailable === false ?
+          `Acceptance is unavailable${result.reason ? ` (${result.reason})` : ' until operation readiness is confirmed'}.` :
           'This preview lacks a fresh, complete acceptance binding. Request another preview before any acceptance.';
         review.append(detail);
       }

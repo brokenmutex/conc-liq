@@ -44,7 +44,8 @@ const range={tickLower:-600,tickUpper:600},openSqrt=sqrtRatioAtTick(0),mint=repl
  amount0Desired:BigInt(allocation.token0Raw),amount1Desired:BigInt(allocation.token1Raw),amount0Min:0n,
  amount1Min:0n,liquidity:mint.liquidity,deployedValue:2n*10n**18n,sourceBlock:BigInt(openSource.block),
  sourceHash:openSource.hash as `0x${string}`,expiresAt:openSource.timestamp+90},
- idle={token0:String(BigInt(allocation.token0Raw)-mint.amount0),token1:String(BigInt(allocation.token1Raw)-mint.amount1)},
+ idle={token0:String(BigInt(allocation.token0Raw)-mint.amount0),
+  token1:String(BigInt(allocation.token1Raw)-mint.amount1)},
  candidateHash=rangeKeeperPaperCandidateHash({campaignId,revision,profileHash,configHash,source:openSource,
   referenceProofHash:proofHash,candidate}),openModel={kind:'rangekeeper_paper_open_model',status:'indicative',
  actionAvailable:false,campaignId,revision,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
@@ -67,8 +68,9 @@ function snapshot(overrides:Record<string,unknown>={}){
  const body:any={schemaVersion:1,kind:'rangekeeper_paper_persisted_context_v1',campaignId,revision,
   mode:'paper',lifecycle:'active',pendingOperationId:null,
   draft:{...draft},openMark:{id:'1',classification:'rangekeeper_paper_open_v1',modelHash:openModelHash,model:openModel},
-  previousMark:{id:'2',classification:'rangekeeper_paper_mark_v1',source:priorSource,candidateHash,epoch:0,
-   position:{tickLower:range.tickLower,tickUpper:range.tickUpper,liquidity:String(mint.liquidity)},idle},
+  previousMark:{id:'2',classification:'rangekeeper_paper_mark_v1',source:priorSource,candidateHash,
+   candidate:openModel.candidate,candidateReferenceProofHash:proofHash,epoch:0,
+   position:{tickLower:range.tickLower,tickUpper:range.tickUpper,liquidity:String(mint.liquidity)},idle:{...idle}},
  kernel:{source:priorSource,state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
     configHash:`0x${policy.policy!.policyHash}`,buildId,lastEligible:priorSource,confirmation:null,exit:null},
    wallet0:idle.token0,wallet1:idle.token1,released0:String(priorPrincipal.amount0),
@@ -77,7 +79,7 @@ function snapshot(overrides:Record<string,unknown>={}){
    entryAllowed:false,safeExitRequired:false,executionReady:false},...overrides};
  body.currentEpoch={epoch:0,markId:'1',markHash:'8'.repeat(64),source:openSource,
   candidate:openModel.candidate,candidateHash,candidateReferenceProofHash:proofHash,
-  inventory:{position:body.previousMark.position,idle},kernelSnapshot:{...body.kernel,source:openSource,
+  inventory:{position:body.previousMark.position,idle:{...idle}},kernelSnapshot:{...body.kernel,source:openSource,
    state:{...body.kernel.state,buildId}},mintSqrtPriceX96:String(openSqrt),
   fundingBeforeSwap:{token0:allocation.token0Raw,token1:allocation.token1Raw},allowancesCleared:false,
   reference:{price0:'1000000000000000000',price1:'1000000000000000000',nativePrice:'1000000000000000000',
@@ -126,4 +128,48 @@ test('restart context rejects changed prior inventory even when the snapshot has
  const loaded=await load(saved);
  assert.equal(loaded.status,'unavailable');
  if(loaded.status==='unavailable')assert.equal(loaded.reason,'rangekeeper_persisted_idle_inventory_mismatch');
+});
+
+test('adopted exit context validates a connected two-hop runtime lineage against immutable opening model',async()=>{
+ const historicalBuild='a'.repeat(64),middleBuild='b'.repeat(64),open={...openModel,kernelBuildId:historicalBuild},
+  openHash=contentHash(open),firstMarkHash='c'.repeat(64),secondMarkHash='d'.repeat(64);
+ const link=(fromBuildId:string,toBuildId:string,latestMarkHash:string,adoptionHash:string)=>{
+  const compatibilityProof={schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId,toBuildId,strategyId:'rangekeeper_v1',configHash,profileHash,latestMarkHash,
+   openModelHash:openHash,historicalKernelBuildId:historicalBuild,validatorVersion:'rangekeeper-paper-epoch-v1'};
+  return {fromBuildId,toBuildId,adoptionHash,latestMarkHash,compatibilityProof};
+ };
+ const first=link(historicalBuild,middleBuild,firstMarkHash,'1'.repeat(64)),
+  second=link(middleBuild,buildId,secondMarkHash,'2'.repeat(64)),
+  runtimeAdoption={adoptedFromBuildId:historicalBuild,adoptionHash:second.adoptionHash,
+   latestMarkHash:second.latestMarkHash,compatibilityProof:second.compatibilityProof,
+   adoptionChain:[first,second]},
+  openMark={id:'1',classification:'rangekeeper_paper_open_v1',modelHash:openHash,model:open},
+  saved=snapshot({openMark,runtimeIdentity:{buildId},runtimeAdoption,
+   kernel:{...snapshot().kernel,state:{...snapshot().kernel.state,buildId:historicalBuild}}});
+ const loaded=await load(saved);
+ assert.equal(loaded.status,'available',loaded.status==='unavailable'?loaded.reason:'');
+ if(loaded.status==='available')assert.equal(loaded.openModel.kernelBuildId,historicalBuild);
+});
+
+test('adopted exit context rejects a disconnected or altered runtime adoption hop',async()=>{
+ const historicalBuild='a'.repeat(64),middleBuild='b'.repeat(64),open={...openModel,kernelBuildId:historicalBuild},
+  openHash=contentHash(open),latestMarkHash='c'.repeat(64);
+ const link=(fromBuildId:string,toBuildId:string,adoptionHash:string)=>({fromBuildId,toBuildId,
+  adoptionHash,latestMarkHash,compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId,toBuildId,strategyId:'rangekeeper_v1',configHash,profileHash,latestMarkHash,
+   openModelHash:openHash,historicalKernelBuildId:historicalBuild,validatorVersion:'rangekeeper-paper-epoch-v1'}});
+ const first=link(historicalBuild,middleBuild,'1'.repeat(64)),second=link('e'.repeat(64),buildId,'2'.repeat(64)),
+  runtimeAdoption={adoptedFromBuildId:historicalBuild,adoptionHash:second.adoptionHash,
+   latestMarkHash:second.latestMarkHash,compatibilityProof:second.compatibilityProof,adoptionChain:[first,second]},
+  openMark={id:'1',classification:'rangekeeper_paper_open_v1',modelHash:openHash,model:open},
+  kernel=snapshot().kernel;
+ for(const changed of [runtimeAdoption,{...runtimeAdoption,adoptionChain:[first,
+  {...second,compatibilityProof:{...second.compatibilityProof,openModelHash:'f'.repeat(64)}}]}]){
+  const saved=snapshot({openMark,runtimeIdentity:{buildId},runtimeAdoption:changed,
+   kernel:{...kernel,state:{...kernel.state,buildId:historicalBuild}}});
+  const loaded=await load(saved);
+  assert.equal(loaded.status,'unavailable');
+  if(loaded.status==='unavailable')assert.equal(loaded.reason,'rangekeeper_open_runtime_adoption_unverified');
+ }
 });

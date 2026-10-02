@@ -508,6 +508,22 @@ try{
     hash:'0x'+'f'.repeat(64)}}},verifyAnchors:verifyConfirmationAnchors}),
   /rangekeeper_paper_confirmation_envelope_integrity_invalid/);
  await admin.query("UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1",[rkDraft.id]);
+ const runtimeBeforeLegacyContext=process.env.CONC_LIQ_RUNTIME_IDENTITY;
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkMarkRuntime);
+ const rkLegacyExitContext=await store.rangeKeeperPaperExitContextSnapshot(rkDraft.id);
+ if(runtimeBeforeLegacyContext===undefined)delete process.env.CONC_LIQ_RUNTIME_IDENTITY;
+ else process.env.CONC_LIQ_RUNTIME_IDENTITY=runtimeBeforeLegacyContext;
+ assert.equal(rkLegacyExitContext.currentEpoch.epoch,0);
+ assert.equal(rkLegacyExitContext.currentEpoch.source.block,rkOpenSource.block,
+  'legacy epoch-0 position source remains the immutable open source');
+ assert.equal(rkLegacyExitContext.currentEpoch.candidateHash,rkCandidateHash);
+ assert.equal(rkLegacyExitContext.currentEpoch.candidateReferenceProofHash,rkOpenModel.reference.proofHash);
+ assert.deepEqual(rkLegacyExitContext.currentEpoch.fundingBeforeSwap,
+  {token0:'10000000000000000000000',token1:'10000000000000000000000'});
+ assert.equal(rkLegacyExitContext.currentEpoch.mintSqrtPriceX96,rkOpenModel.poolState.sqrtPriceX96);
+ assert.equal(rkLegacyExitContext.currentEpoch.allowancesCleared,false);
+ assert.equal(rkLegacyExitContext.previousMark.source.block,rkMarkSource.block,
+  'the latest observation/kernel stays attached to its own mark');
  await assert.rejects(admin.query(`UPDATE deployment_rangekeeper_paper_confirmations
   SET envelope='{}' WHERE campaign_id=$1`,[rkDraft.id]),/append-only/);
  const rkNextSource={block:'202',hash:'0x'+'8'.repeat(64),timestamp:rkMarkSource.timestamp+1},
@@ -605,6 +621,9 @@ try{
  const rkEpochSnapshot=await store.rangeKeeperPaperEpochSnapshot(rkDraft.id);
  assert.equal(rkEpochSnapshot.runtimeIdentity.buildId,rkRuntimeFinal.buildId);
  assert.equal(rkEpochSnapshot.openMark.model.kernelBuildId,rkHistoricalKernelBuildId);
+ assert.deepEqual(rkEpochSnapshot.runtimeAdoption.adoptionChain.map(({fromBuildId,toBuildId})=>
+  ({fromBuildId,toBuildId})),[{fromBuildId:rkHistoricalKernelBuildId,toBuildId:rkRuntimeAfter.buildId},
+   {fromBuildId:rkRuntimeAfter.buildId,toBuildId:rkRuntimeFinal.buildId}]);
  const rkActualOpen=(await admin.query(`SELECT revision,source_block::text,source_hash,inventory,economics,provenance
   FROM deployment_marks WHERE id=$1`,[rkEpochSnapshot.openMark.id])).rows[0];
  assert.equal(rkEpochSnapshot.openMark.markHash,contentHash(rkActualOpen));

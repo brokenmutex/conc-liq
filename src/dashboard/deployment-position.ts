@@ -153,7 +153,8 @@ const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
   flow.minimumToAmountRaw===conversion.minimumOutputRaw?parsed:null;
 };
 const isConvertedClose=(provenance:unknown)=>
- record(provenance).classification==='paper_model_converted_close';
+ ['paper_model_converted_close','rangekeeper_paper_close_convert_v1']
+  .includes(String(record(provenance).classification));
 type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native';
  amountRaw:string;valueQuote:string};
 const isCapitalOut=(flow:(PaperConversionAccountingV2|PaperConversionAccountingV3)['flows'][number]):flow is PaperCapitalOut=>
@@ -308,7 +309,8 @@ export function deploymentPosition(row:DeploymentRow){
     updatedAt:row.operation_updated_at?.toISOString()??null},
    sourceBlock:row.source_block,sourceHash:row.source_hash,
    rangekeeper:row.strategy_id==='rangekeeper_v1'?{
-    currentEpoch:Number.isInteger(provenance.epoch)?provenance.epoch:0,
+    currentEpoch:Number.isInteger(provenance.epoch)?provenance.epoch:
+     Number.isInteger(record(provenance.currentEpoch).epoch)?record(provenance.currentEpoch).epoch:0,
     latestMarkId:row.mark_id,latestMarkHash:row.mark_id?contentHash({revision:row.current_revision,
      source_block:row.source_block,source_hash:row.source_hash,inventory:row.inventory,
      economics:row.economics,provenance:row.provenance}):null,
@@ -348,12 +350,12 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
  if(!sourceAt||!mark.source_block||!mark.source_hash)throw Error('Deployment mark source unavailable');
  const kind=prov.classification,action=kind==='paper_model_provisional'||kind==='rangekeeper_paper_open_v1'?'enter':
   kind==='paper_model_partial_close'||kind==='paper_model_converted_close'||
-   kind==='rangekeeper_paper_close_retain_v1'?'exit':
+   kind==='rangekeeper_paper_close_retain_v1'||kind==='rangekeeper_paper_close_convert_v1'?'exit':
    kind==='rangekeeper_paper_recenter_v1'?'recenter':'mark';
  if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close',
   'rangekeeper_paper_open_v1',
   'paper_model_converted_close','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1',
-  'rangekeeper_paper_close_retain_v1'].includes(String(kind)))
+  'rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1'].includes(String(kind)))
   throw Error('Deployment mark classification unavailable');
  return {id:mark.id,sourceAt,observedAt:mark.at.toISOString(),block:mark.source_block,
   action,status:action==='exit'?'closed':'open',
@@ -450,8 +452,17 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
    id:`mark-${mark.id}`,at:mark.at.toISOString(),action:'valuation',status:'recorded',
    stage:'principal_only',reason:null,block:mark.source_block,hash:null,
    scope:'deployment_paper_model'}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+ const rangeKeeperSwaps=marks.filter(mark=>{
+  const provenance=record(mark.provenance),kind=provenance.classification;
+  const amount=kind==='rangekeeper_paper_recenter_v1'?record(provenance.swap).amountIn:
+   kind==='rangekeeper_paper_close_convert_v1'?record(record(mark.inventory).conversion).inputAmount:
+    kind==='rangekeeper_paper_open_v1'?record(record(rkOpenModel(provenance)?.candidate).swap).amountIn:null;
+  const raw=decimal(amount);return raw!==null&&BigInt(raw)>0n;
+ }).length;
  return {position,performance,events:activity,
-  counts:{recenters:0,recenterAttempts:0,swaps:position.deployment.conversionAccountingStatus==='available'?1:0},
+  counts:{recenters:marks.filter(mark=>record(mark.provenance).classification==='rangekeeper_paper_recenter_v1').length,
+   recenterAttempts:events.filter(event=>event.kind==='change_range').length,
+   swaps:rangeKeeperSwaps+(position.deployment.conversionAccountingStatus==='available'?1:0)},
   limitations:position.accounting==='provisional'?
    ['Provisional fixed-flow paper scenario: lower integer fee allocation and scoped fork gas estimates. These are not earned fees or paid costs.',
     'Execution delay, failures and counterfactual flow changes remain unmodeled. Incomplete marks stay blank.']:

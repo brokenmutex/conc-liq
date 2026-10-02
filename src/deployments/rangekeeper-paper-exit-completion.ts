@@ -134,6 +134,7 @@ export function buildRangeKeeperPaperCloseRetainBooking(
  const baseSource={classification:'rangekeeper_paper_close_retain_v1' as const,
   operationId:input.operationId,previewId:input.previewId,openMarkId:model.openMarkId,
   previousMarkId:previousMark.id,modelHash:input.modelHash,candidateHash:model.candidateHash,
+  currentEpoch:model.currentEpoch,
   referenceProofHash:model.reference.proofHash,source:model.source,poolState:model.poolState,
   reference:model.reference,unavailable:['fee_capture','paid_gas','net_economics']};
  const ledger:RangeKeeperPaperCloseRetainLedgerEntry[]=[

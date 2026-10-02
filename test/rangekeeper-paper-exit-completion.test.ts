@@ -97,6 +97,7 @@ test('retain booking uses the active epoch position while preserving the opening
    idle:{token0:String(nextIdle0),token1:String(nextIdle1)}}} as any);
  assert.equal((booking.mark.inventory as any).retainedPrincipalLowerBound.token0Raw,String(nextRetained0));
  assert.equal((booking.mark.provenance as any).candidateHash,nextCandidateHash);
+ assert.deepEqual((booking.mark.provenance as any).currentEpoch,nextModel.currentEpoch);
 });
 
 test('buildRangeKeeperPaperCloseRetainBooking fails closed on every independently-checkable mismatch',()=>{

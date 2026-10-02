@@ -228,6 +228,18 @@ async function campaignRuntimeMatches(db:PoolClient,campaignId:string,stored:unk
  const effective=await campaignEffectiveRuntimeIdentity(db,campaignId,stored);
  return !!effective&&contentHash(effective)===contentHash(current);
 }
+function rangeKeeperRuntimeAdoptionProjection(rows:readonly {source:Record<string,unknown>}[]){
+ if(!rows.length)return null;
+ const adoptionChain=rows.map(({source})=>({
+  fromBuildId:(source.fromRuntimeIdentity as Record<string,unknown>|undefined)?.buildId,
+  toBuildId:(source.toRuntimeIdentity as Record<string,unknown>|undefined)?.buildId,
+  adoptionHash:source.adoptionHash,
+  latestMarkHash:(source.latestMark as Record<string,unknown>|undefined)?.markHash,
+  compatibilityProof:source.compatibilityProof}));
+ const first=adoptionChain[0]!,last=adoptionChain.at(-1)!;
+ return {adoptedFromBuildId:first.fromBuildId,adoptionHash:last.adoptionHash,
+  latestMarkHash:last.latestMarkHash,compatibilityProof:last.compatibilityProof,adoptionChain};
+}
 
 function rangeKeeperTerminalInventoryHash(context:Awaited<ReturnType<typeof loadRangeKeeperPaperExitContext>>,
  report:ReturnType<typeof verifyRangeKeeperPaperGasReport>):string{
@@ -2164,12 +2176,7 @@ export class DeploymentStore {
    const adoptions=(await db.query<{source:Record<string,unknown>}>(`SELECT source FROM deployment_ledger
     WHERE campaign_id=$1 AND kind='attribution_boundary' AND
      entry_key LIKE 'rangekeeper_runtime_adoption:%' ORDER BY id`,[campaignId])).rows,
-    firstAdoption=adoptions[0]?.source,lastAdoption=adoptions.at(-1)?.source,
-    runtimeAdoption=firstAdoption&&lastAdoption?{adoptedFromBuildId:
-     ((firstAdoption.fromRuntimeIdentity as Record<string,unknown>|undefined)?.buildId),
-     adoptionHash:lastAdoption.adoptionHash,
-     latestMarkHash:(lastAdoption.latestMark as Record<string,unknown>|undefined)?.markHash,
-     compatibilityProof:lastAdoption.compatibilityProof}:null,
+    runtimeAdoption=rangeKeeperRuntimeAdoptionProjection(adoptions),
     body={schemaVersion:1,kind:'rangekeeper_paper_epoch_snapshot_v1',draft,
      runtimeIdentity:current??runtime.data,runtimeAdoption,openMark,previousMark,
      currentEpoch:Number(epoch),pending:false};
@@ -2754,7 +2761,8 @@ export class DeploymentStore {
     previousCandidate=(previousEpoch>0||previousClass==='rangekeeper_paper_recenter_v1')?
      row.previous_provenance.candidate:open.candidate,
     previousCandidateReferenceProofHash=typeof row.previous_provenance.candidateReferenceProofHash==='string'?
-     row.previous_provenance.candidateReferenceProofHash:open.referenceProofHash;
+     row.previous_provenance.candidateReferenceProofHash:
+     (open.reference as Record<string,unknown>|undefined)?.proofHash;
    if(!['rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(previousClass))||
     !previousSource.success||!position.success||!idle.success||!kernel.success||
     previousSource.data.block!==row.previous_source_block||
@@ -2770,21 +2778,27 @@ export class DeploymentStore {
    const draft={id:campaignId,revision:row.current_revision,
     allocation:allocationSchema.parse(row.allocation),profile:profile.data,profileHash:row.profile_hash,
     configHash:row.config_hash,strategyId:'rangekeeper_v1',parameters};
-   const positionEpoch=(row.previous_provenance.positionEpoch&&
+   const positionEpoch=(previousEpoch>0&&row.previous_provenance.positionEpoch&&
     typeof row.previous_provenance.positionEpoch==='object'?
      row.previous_provenance.positionEpoch as Record<string,unknown>:row.previous_provenance),
-    currentEpochSource=paperFeeMarkSourceSchema.parse(positionEpoch.source??open.source),
-    currentCandidate=positionEpoch.candidate??previousCandidate,
-    currentCandidateHash=positionEpoch.candidateHash??row.previous_provenance.candidateHash,
-    currentReferenceProofHash=positionEpoch.candidateReferenceProofHash??previousCandidateReferenceProofHash,
+    openCandidate=open.candidate as {swap?:{priceAfter?:unknown}|null},
+    openReference=open.reference as Record<string,unknown>,
+    openPoolState=open.poolState as Record<string,unknown>,
+    allocation=allocationSchema.parse(row.allocation),
+    currentEpochSource=paperFeeMarkSourceSchema.parse(previousEpoch===0?open.source:
+     positionEpoch.source??open.source),
+    currentCandidate=previousEpoch===0?open.candidate:positionEpoch.candidate??previousCandidate,
+    currentCandidateHash=previousEpoch===0?open.candidateHash:
+     positionEpoch.candidateHash??row.previous_provenance.candidateHash,
+    currentReferenceProofHash=previousEpoch===0?openReference.proofHash:
+     positionEpoch.candidateReferenceProofHash??previousCandidateReferenceProofHash,
     currentKernel=positionEpoch.kernelSnapshot??kernel.data,
-    mintSqrtPriceX96=positionEpoch.mintSqrtPriceX96??
-     ((open.candidate as {swap?:{priceAfter?:unknown}|null}).swap?.priceAfter??
-      (open.poolState as Record<string,unknown>|undefined)?.sqrtPriceX96),
-    fundingBeforeSwap=positionEpoch.fundingBeforeSwap??{
-     token0:String((row.allocation as {token0Raw:string}).token0Raw),
-     token1:String((row.allocation as {token1Raw:string}).token1Raw)},
-    currentReferenceRaw=(positionEpoch.reference??row.previous_provenance.reference??open.reference) as
+    mintSqrtPriceX96=previousEpoch===0?(openCandidate.swap?.priceAfter??openPoolState.sqrtPriceX96):
+     positionEpoch.mintSqrtPriceX96??(openCandidate.swap?.priceAfter??openPoolState.sqrtPriceX96),
+    fundingBeforeSwap=previousEpoch===0?{token0:allocation.token0Raw,token1:allocation.token1Raw}:
+     positionEpoch.fundingBeforeSwap??{token0:allocation.token0Raw,token1:allocation.token1Raw},
+    currentReferenceRaw=(previousEpoch===0?openReference:
+     positionEpoch.reference??row.previous_provenance.reference??openReference) as
      Record<string,unknown>,
     currentReference={price0:String(currentReferenceRaw.price0),price1:String(currentReferenceRaw.price1),
      nativePrice:String(currentReferenceRaw.nativePrice),proofHash:String(currentReferenceRaw.proofHash),
@@ -2810,16 +2824,11 @@ export class DeploymentStore {
      source:currentEpochSource,candidate:currentCandidate,candidateHash:currentCandidateHash,
      candidateReferenceProofHash:currentReferenceProofHash,inventory:{position:position.data,idle:idle.data},
      kernelSnapshot:currentKernel,mintSqrtPriceX96,fundingBeforeSwap,reference:currentReference,
-     allowancesCleared:Boolean(positionEpoch.allowancesCleared??(previousEpoch>0))};
+     allowancesCleared:previousEpoch===0?false:Boolean(positionEpoch.allowancesCleared??true)};
    const adoptionRows=await db.query<{source:Record<string,unknown>}>(`SELECT source FROM deployment_ledger
     WHERE campaign_id=$1 AND kind='attribution_boundary' AND
      entry_key LIKE 'rangekeeper_runtime_adoption:%' ORDER BY id`,[campaignId]),
-    firstAdoption=adoptionRows.rows[0]?.source,lastAdoption=adoptionRows.rows.at(-1)?.source,
-    runtimeAdoption=firstAdoption&&lastAdoption?{adoptedFromBuildId:
-     ((firstAdoption.fromRuntimeIdentity as Record<string,unknown>|undefined)?.buildId),
-     adoptionHash:lastAdoption.adoptionHash,
-     latestMarkHash:(lastAdoption.latestMark as Record<string,unknown>|undefined)?.markHash,
-     compatibilityProof:lastAdoption.compatibilityProof}:null;
+    runtimeAdoption=rangeKeeperRuntimeAdoptionProjection(adoptionRows.rows);
    const body={schemaVersion:1,kind:'rangekeeper_paper_persisted_context_v1',campaignId,
     revision:row.current_revision,mode:'paper',lifecycle:row.lifecycle,pendingOperationId:null,
     runtimeIdentity:effectiveRuntime,runtimeAdoption,
@@ -2873,12 +2882,14 @@ export class DeploymentStore {
     WHERE c.id=$1 FOR SHARE OF c`,[report.campaignId])).rows[0];
    const persistedProfile=marketProfileSchema.safeParse(campaign?.profile),
     evidence=marketProfileEvidenceSchema.safeParse(campaign?.profile_evidence),
-    storedRuntime=sealedRuntimeIdentitySchema.safeParse(campaign?.runtime_identity);
+    storedRuntime=sealedRuntimeIdentitySchema.safeParse(campaign?.runtime_identity),
+    effectiveRuntime=campaign?await campaignEffectiveRuntimeIdentity(db,report.campaignId,
+     campaign.runtime_identity):null;
    if(!campaign||campaign.mode!=='paper'||campaign.chain_id!==profile.data.pool.chainId||
     campaign.current_revision!==report.revision||campaign.strategy_id!=='rangekeeper_v1'||
     campaign.strategy_version!=='1.0.0'||campaign.state_schema_version!==1||campaign.retired_at||
-    !persistedProfile.success||!evidence.success||!storedRuntime.success||
-    contentHash(storedRuntime.data)!==contentHash(runtime)||
+    !persistedProfile.success||!evidence.success||!storedRuntime.success||!effectiveRuntime||
+    contentHash(effectiveRuntime)!==contentHash(runtime)||
     persistedProfile.data.pool.chainId!==campaign.chain_id||
     contentHash(persistedProfile.data)!==campaign.profile_hash||campaign.profile_hash!==report.profileHash||
     contentHash(profile.data)!==campaign.profile_hash||!campaign.config||
@@ -6517,6 +6528,11 @@ export class DeploymentStore {
     operationId,previewId:row.preview_id,modelHash,quoteHash:convert.quoteHash,
     openMarkId:m.openMarkId,openModelHash:m.openModelHash,
     previousMark:m.previousMark,source:source.data,candidateHash:m.candidateHash,
+    currentEpoch:{epoch:modelEpoch!.epoch,markId:modelEpoch!.markId,markHash:modelEpoch!.markHash,
+     source:modelEpoch!.source,candidateHash:modelEpoch!.candidateHash,
+     candidateReferenceProofHash:modelEpoch!.candidateReferenceProofHash,
+     allowancesCleared:modelEpoch!.allowancesCleared,position:modelEpoch!.position},
+    poolState:m.poolState,reference:m.reference,
     modeledCosts:m.costs,paidCostsAvailable:false,economicsAvailable:false,
     simulationHash:(capability as {simulationHash:string}).simulationHash,
     unavailable:['fees','paid_costs','net_economics','final_custody']};

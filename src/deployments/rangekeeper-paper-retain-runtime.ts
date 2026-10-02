@@ -21,7 +21,15 @@ export async function prepareRangeKeeperPaperExitPreview(input:{store:Deployment
  exitKind:'retain'|'convert';
  onFailure?:(stage:string,error:unknown)=>void}){
  const {store,client,campaignId,buildId}=input;
- const lease=await store.acquirePaperPreparationLease(campaignId);let retained=false,stage='persisted_context';
+ let lease:Awaited<ReturnType<DeploymentStore['acquirePaperPreparationLease']>>;
+ try{lease=await store.acquirePaperPreparationLease(campaignId);}
+ catch(error){
+  try{input.onFailure?.('preparation_lease',error);}catch{/* Diagnostics cannot change the result. */}
+  if(error instanceof Error&&error.message==='paper_preparation_lease_already_held')
+   throw new DeploymentConflict('rangekeeper_paper_preparation_busy');
+  throw error;
+ }
+ let retained=false,stage='persisted_context';
  try{
   const snapshot=await store.rangeKeeperPaperExitContextSnapshot(campaignId),
    seed=rangeKeeperPaperExitContextSeed(snapshot,campaignId);

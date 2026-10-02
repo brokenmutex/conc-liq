@@ -134,6 +134,24 @@ export interface BuildRangeKeeperPaperExitInput {
  simulate:(candidate:RangeKeeperCandidate)=>Promise<boolean>;now?:number;
 }
 
+/** One binding for terminal gas sampling and cost-profile selection. */
+export function rangeKeeperPaperTerminalInventoryHash(context:Pick<BuildRangeKeeperPaperExitInput,
+ 'currentEpoch'|'kernel'|'previous'>,candidate:RangeKeeperCandidate,frame:PaperOpenFrame){
+ const k=context.kernel,e=context.currentEpoch,
+  principal=principalAmounts({liquidity:candidate.liquidity,tickLower:candidate.range.tickLower,
+   tickUpper:candidate.range.tickUpper,sqrtPriceX96:frame.sqrtPriceX96});
+ return contentHash({kind:'range_keeper_paper_terminal_inventory_v1',currentEpoch:{epoch:e.epoch,
+  markId:e.markId,markHash:e.markHash,candidateSource:e.source,candidateHash:e.candidateHash,
+  candidateReferenceProofHash:e.candidateReferenceProofHash,inventory:e.inventory,
+  mintSqrtPriceX96:String(e.mintSqrtPriceX96),fundingBeforeSwap:e.fundingBeforeSwap},
+  source:frame.source,inventoryProofHash:k.inventoryProofHash,wallet0:String(k.wallet0),wallet1:String(k.wallet1),
+  released0:String(k.released0),released1:String(k.released1),nativeWei:String(k.nativeWei),
+  position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
+   liquidity:String(candidate.liquidity)},principal0:String(principal.amount0),principal1:String(principal.amount1),
+  idle0:context.previous.idle.token0,idle1:context.previous.idle.token1,
+  terminal0:String(k.wallet0+k.released0),terminal1:String(k.wallet1+k.released1)});
+}
+
 type ExitProofContext=Omit<RangeKeeperPaperExitKernelContext,'inventoryProofHash'>;
 export function rangeKeeperPaperExitInventoryProofHash(input:{campaignId:string;revision:number;
  openMarkId:string;openModelHash:string;candidateHash:string;kernel:ExitProofContext;
@@ -346,7 +364,7 @@ function validateIdentity(input:BuildRangeKeeperPaperExitInput,candidate:RangeKe
   BigInt(frame.source.block)<=BigInt(previous.source.block)||frame.source.timestamp<previous.source.timestamp)
   reasons.push('rangekeeper_exit_source_order_invalid');
  if(kernel.source.block!==frame.source.block||kernel.source.hash.toLowerCase()!==frame.source.hash.toLowerCase()||
-  kernel.state.buildId!==input.buildId||kernel.state.configHash.toLowerCase()!==`0x${policyHash}`.toLowerCase()||
+  kernel.state.buildId!==open.kernelBuildId||kernel.state.configHash.toLowerCase()!==`0x${policyHash}`.toLowerCase()||
   kernel.source.timestamp!==frame.source.timestamp||
   kernel.inventoryProofHash!==rangeKeeperPaperExitInventoryProofHash({campaignId:draft.id,
    revision:draft.revision,openMarkId:input.openMarkId,openModelHash:contentHash(open),
@@ -367,7 +385,7 @@ function unavailableModel(input:BuildRangeKeeperPaperExitInput,reason:string,
  return {schemaVersion:1,kind:'rangekeeper_paper_exit_model',status:'blocked',exitKind:input.exitKind,
   blockingReason:reason,actionAvailable:false,campaignId:input.draft.id,revision:input.draft.revision,
   strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',draftConfigHash:input.draft.configHash,
-  kernelPolicyHash:policyHash??open.kernelPolicyHash??'',kernelBuildId:input.buildId,
+  kernelPolicyHash:policyHash??open.kernelPolicyHash??'',kernelBuildId:open.kernelBuildId??input.buildId,
   profileHash:input.draft.profileHash,openMarkId:input.openMarkId,openModelHash:contentHash(open),
   candidateHash:input.currentEpoch.candidateHash,currentEpoch:{epoch:input.currentEpoch.epoch,
    markId:input.currentEpoch.markId,markHash:input.currentEpoch.markHash,source:input.currentEpoch.source,
@@ -397,7 +415,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
   return unavailableModel(input,policyResolution.unavailable.join(',')||'rangekeeper_policy_unavailable');
  const policy=policyResolution.policy,limits=policy.limits;
  let candidate:RangeKeeperCandidate;
- try{candidate=parseCandidate(input.currentEpoch.candidate);}
+ try{candidate=parseCandidate(serializeCandidate(input.currentEpoch.candidate));}
  catch{return unavailableModel(input,'rangekeeper_current_epoch_candidate_invalid',policy.policyHash);}
  const identityReasons=validateIdentity(input,candidate,limits,policy.policyHash,now);
  if(identityReasons.length)return unavailableModel(input,identityReasons.join(','),policy.policyHash);
@@ -434,16 +452,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
   return unavailableModel(input,'rangekeeper_exit_liquidity_share_limit',policy.policyHash);
  const candidateHash=input.currentEpoch.candidateHash,deployedValue=rawValue(principal.amount0,frame.price0!,p.decimals0)+
   rawValue(principal.amount1,frame.price1!,p.decimals1);
- const inventoryHash=contentHash({kind:'range_keeper_paper_terminal_inventory_v1',candidateHash,
-  source:frame.source,inventoryProofHash:input.kernel.inventoryProofHash,
-  wallet0:String(input.kernel.wallet0),wallet1:String(input.kernel.wallet1),
-  released0:String(input.kernel.released0),released1:String(input.kernel.released1),
-  nativeWei:String(input.kernel.nativeWei),position:{tickLower:candidate.range.tickLower,
-   tickUpper:candidate.range.tickUpper,liquidity:String(candidate.liquidity)},
-  principal0:String(principal.amount0),principal1:String(principal.amount1),
-  idle0:String(idle.amount0),idle1:String(idle.amount1),
-  terminal0:String(input.kernel.wallet0+input.kernel.released0),
-  terminal1:String(input.kernel.wallet1+input.kernel.released1)});
+ const inventoryHash=rangeKeeperPaperTerminalInventoryHash(input,candidate,frame);
  const scope:RangeKeeperPaperCandidateScope={poolAddress:p.pool,profileHash:draft.profileHash,
   candidateHash,deployedValue,sharePpm:share,range:candidate.range,
   swapKind:candidate.swap?'direct_pool_exact_input':'none',inventoryHash};
@@ -507,7 +516,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
   status:costReason?'blocked':'indicative',exitKind:input.exitKind,
   blockingReason:costReason??'rangekeeper_operator_terminal_request_read_only',actionAvailable:false,
   campaignId:draft.id,revision:draft.revision,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
-  draftConfigHash:draft.configHash,kernelPolicyHash:policy.policyHash,kernelBuildId:policy.buildId,
+  draftConfigHash:draft.configHash,kernelPolicyHash:policy.policyHash,kernelBuildId:input.kernel.state.buildId,
   profileHash:draft.profileHash,openMarkId:input.openMarkId,openModelHash:contentHash(open),candidateHash,
   currentEpoch:{epoch:input.currentEpoch.epoch,markId:input.currentEpoch.markId,
    markHash:input.currentEpoch.markHash,source:input.currentEpoch.source,candidateHash,

@@ -40,7 +40,7 @@ revision, expiration and worker-readiness checks.
 ## Validation record
 
 Repository boundary, script registry and research artifact checks passed.
-The full repository check passed 1,071 tests in 90 suites, with no failures.
+The latest full repository check passed 1,079 tests in 90 suites, with no failures.
 The PostgreSQL deployment integration suite passed on an isolated database,
 including legacy-shape preservation and append-only initial cost normalization.
 Canonical lifecycle validation remains required before deployment.
@@ -52,9 +52,42 @@ checks adoption, real automatic recenter, worker restart, browser acceptance
 and terminal history for each close mode. Production has not been closed or
 modified by these tests.
 
-The first source run recorded the initial modeled opening cost exactly once,
-observed five minutes outside the range and completed a real owned-fork first
-confirmation. A later fork-restoration failure and upstream RPC failures
-stopped the runs before a recenter was booked. These runs establish neither
-automatic recenter completion nor terminal-close acceptance; both are being
-rerun on isolated copies with current source.
+Source validation recorded the initial modeled opening cost exactly once,
+observed five minutes outside the range and completed two canonical
+confirmations. On the retain copy, the worker autonomously booked recenter
+mark 906 (epoch 1, source 78067281), then restart preserved the original open
+mark 206 and the recenter row fingerprint. A subsequent browser retain preview
+remained non-actionable and is under investigation.
+
+On the conversion copy, accepted recenter operation
+`85489d5d-12a1-4677-a33a-98b240d69fa8` initially blocked on an evidence assertion.
+A separate exact-source owned-fork replay matched its saved simulation hash.
+After an explicit test-only requeue of that same operation, the default worker
+completed mark 905 at epoch 1. Its frozen preview was unchanged. This establishes
+replay and completion recovery, not an uninterrupted source lifecycle.
+
+Upstream RPC failures also interrupted earlier attempts. Fresh sealed-launch
+lifecycle checks remain outstanding.
+
+The source browser checks exposed additional compatibility defects before
+acceptance: strict exit-context parsing omitted candidate fields supplied by
+the store; terminal probe identity validation used an undefined opening model
+and an unserialized bigint candidate; gas registration compared against the
+original runtime instead of the validated adoption chain. These checks are
+being repaired with focused regressions. Legacy epoch-zero exit context now
+anchors position origin to the immutable opening while retaining the latest
+observation as the previous mark; its PostgreSQL regression passed.
+
+The shared dashboard projection recognizes RangeKeeper conversion-close marks,
+preserves the terminal epoch, and counts modeled recenter and swap activity.
+Final earned-fee, paid-cost and performance figures remain unavailable.
+
+On the conversion source copy, the browser accepted Exit close with HTTP 202.
+Operation `c3e8906b-c5d9-4c5c-94de-9692c622be4b` succeeded on its first worker
+attempt and appended terminal mark 914. It retains epoch 1, has no position,
+and records USDG `250244613` raw with AAPL `0` raw. The history helper was
+corrected to explicitly select 24 hours instead of assuming the closed-position
+default. A separate read-only browser run then passed desktop/mobile history,
+exit activity, unavailable final NAV, and zero browser/asset errors. This
+completes source conversion-close validation after the previously described
+recenter recovery; it is not an uninterrupted sealed-release lifecycle gate.

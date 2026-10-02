@@ -23,7 +23,7 @@ import {restorePaperPosition,type PaperExitInventory} from '../paper/execution-e
 import {replayPaperMint} from '../v3/position-math.js';
 import {contentHash} from './contracts.js';
 import {RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH} from './rangekeeper-paper-cost.js';
-import {rangeKeeperPaperConvertQuoteContent,rangeKeeperPaperConvertQuoteHash,
+import {rangeKeeperPaperTerminalInventoryHash,rangeKeeperPaperConvertQuoteContent,rangeKeeperPaperConvertQuoteHash,
  type RangeKeeperPaperConvertQuote} from './rangekeeper-paper-exit-model.js';
 import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import type {PaperOpenFrame} from './paper-preview.js';
@@ -157,30 +157,17 @@ export function assertRangeKeeperPaperTerminalInventory(context:RangeKeeperPaper
 
 export function terminalInventoryHash(context:RangeKeeperPaperLoadedExitContext,
  candidate:RangeKeeperCandidate,frame:PaperOpenFrame){
- const k=context.kernel;
- const principal=principalAmounts({liquidity:candidate.liquidity,tickLower:candidate.range.tickLower,
-  tickUpper:candidate.range.tickUpper,sqrtPriceX96:frame.sqrtPriceX96});
- return contentHash({kind:'range_keeper_paper_terminal_inventory_v1',currentEpoch:{epoch:context.currentEpoch.epoch,
-  markId:context.currentEpoch.markId,markHash:context.currentEpoch.markHash,
-  candidateSource:context.currentEpoch.source,candidateHash:context.currentEpoch.candidateHash,
-  candidateReferenceProofHash:context.currentEpoch.candidateReferenceProofHash,
-  inventory:context.currentEpoch.inventory,mintSqrtPriceX96:String(context.currentEpoch.mintSqrtPriceX96),
-  fundingBeforeSwap:context.currentEpoch.fundingBeforeSwap},
-  source:frame.source,inventoryProofHash:k.inventoryProofHash,wallet0:String(k.wallet0),wallet1:String(k.wallet1),
-  released0:String(k.released0),released1:String(k.released1),nativeWei:String(k.nativeWei),
-  position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
-   liquidity:String(candidate.liquidity)},principal0:String(principal.amount0),principal1:String(principal.amount1),
-  idle0:context.previous.idle.token0,idle1:context.previous.idle.token1,
-  terminal0:String(k.wallet0+k.released0),terminal1:String(k.wallet1+k.released1)});
+ return rangeKeeperPaperTerminalInventoryHash(context,candidate,frame);
 }
 
 /** Shared source/candidate/inventory identity checks for any terminal
  * (post-open) RangeKeeper paper probe, regardless of exit kind. */
-function validateExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
+export function validateRangeKeeperPaperExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
  const p=context.draft.profile.pool,k=context.kernel,c=request.candidate,epoch=context.currentEpoch;
- assert.equal(request.openMarkId,context.openMarkId);assert.equal(request.openModelHash,contentHash(open));
- assert.equal(request.candidateHash,epoch.candidateHash);assert.equal(contentHash(serializeCandidate(c)),contentHash(epoch.candidate));
+ assert.equal(request.openMarkId,context.openMarkId);assert.equal(request.openModelHash,contentHash(context.openModel));
+ assert.equal(request.candidateHash,epoch.candidateHash);
+ assert.equal(contentHash(serializeCandidate(c)),contentHash(serializeCandidate(epoch.candidate)));
  assert.equal(contentHash(request.profile),contentHash(context.draft.profile));
  assert.equal(contentHash(request.candidateSource),contentHash(epoch.source));
  assert.equal(request.candidateReferenceProofHash,epoch.candidateReferenceProofHash);
@@ -203,7 +190,7 @@ function validateExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
 function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
  assert(request.kind==='retain_exit','Convert-exit probes must use validateConvertTerminalProbe');
- validateExitProbeIdentity(request,context,limits);
+ validateRangeKeeperPaperExitProbeIdentity(request,context,limits);
 }
 
 /** Checks that a persisted conversion quote is bound to this exact
@@ -246,7 +233,7 @@ export function validateRangeKeeperPaperConvertQuoteBinding(input:{
 function validateConvertTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,quote:RangeKeeperPaperConvertQuote,limits:RangeKeeperLimits){
  assert(request.kind==='convert_exit','Retain-exit probes must use validateTerminalProbe');
- validateExitProbeIdentity(request,context,limits);
+ validateRangeKeeperPaperExitProbeIdentity(request,context,limits);
  validateRangeKeeperPaperConvertQuoteBinding({context,source:request.frame.source,quote,limits});
 }
 

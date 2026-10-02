@@ -87,6 +87,16 @@ test('RangeKeeper paper marks and retained close marks project into shared histo
  assert.equal(exit.action,'exit');assert.equal(exit.economicNavQuote,null);
  assert.equal(exit.tokenBalances[0].amountRaw,null);assert.equal(exit.tokenBalances[0].lowerBoundRaw,'13');
  assert.equal(exit.tokenBalances[1].lowerBoundRaw,'17');assert.equal(closed.position.navQuote,null);
+ const converted=await detail({...base,inventory:{classification:'rangekeeper_paper_close_convert_v1',
+  position:null,token0Raw:'23',token1Raw:'0',conversion:{inputAmount:'17'}},economics:null,
+  provenance:{classification:'rangekeeper_paper_close_convert_v1',currentEpoch:{epoch:1},source}},'closed'),
+  convertedPoint:any=converted.performance.timeline.at(-1);
+ assert.equal(convertedPoint.action,'exit');assert.equal(convertedPoint.status,'closed');
+ assert.equal(convertedPoint.tokenBalances[0].amountRaw,'23');
+ assert.equal(convertedPoint.tokenBalances[1].amountRaw,'0');
+ assert.equal(converted.position.deployment.rangekeeper?.currentEpoch,1);
+ assert.equal(converted.position.deployment.conversionAccountingStatus,'unavailable');
+ assert.equal(converted.position.navQuote,null);assert.equal(converted.counts.swaps,1);
 });
 test('RangeKeeper recenter marks show the new epoch and exact current inventory without inventing economics',async()=>{
  const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
@@ -127,6 +137,7 @@ test('RangeKeeper recenter marks show the new epoch and exact current inventory 
  assert.equal(detail.position.navQuote,null);assert.equal(detail.position.deployment.rangekeeper?.currentEpoch,1);
  assert.equal(detail.position.deployment.rangekeeper?.latestClassification,'rangekeeper_paper_recenter_v1');
  assert.equal(detail.position.deployment.rangekeeper?.recenterAvailable,false);
+ assert.equal(detail.counts.recenters,1);
 });
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');

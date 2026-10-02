@@ -13,6 +13,8 @@ import {replayPaperMint} from '../src/v3/position-math.js';
 
 const address=(n:string)=>`0x${n.repeat(40)}`;
 const hash=(n:string)=>`0x${n.repeat(64)}`;
+const persistedModel=(value:unknown)=>JSON.parse(JSON.stringify(value,(_key,v)=>
+ typeof v==='bigint'?String(v):v));
 
 function fixture(){
  const profile=marketProfileSchema.parse({pool:{chainId:4663,factory:address('1'),pool:address('2'),
@@ -96,12 +98,12 @@ test('recenter planner fails closed when latest mark is not the current epoch/so
 
 test('validated runtime adoption remains valid after later append-only observation marks',async()=>{
  const f=fixture(),previousHash=f.snapshot.previousMark.markHash,
-  adoptedFrom='a'.repeat(64),compatibilityProof={schemaVersion:1,
-   kind:'rangekeeper_paper_runtime_compatibility_v1',fromBuildId:adoptedFrom,
-   toBuildId:f.buildId,strategyId:'rangekeeper_v1',configHash:f.draft.configHash,
-   profileHash:f.draft.profileHash,latestMarkHash:'b'.repeat(64),validatorVersion:'fixture-v1'},
-  snapshot={...f.snapshot,openMark:{...f.snapshot.openMark,model:{...f.snapshot.openMark.model,
-   kernelBuildId:adoptedFrom}},previousMark:{...f.snapshot.previousMark,
+  adoptedFrom='a'.repeat(64),openModel=persistedModel({...f.snapshot.openMark.model,kernelBuildId:adoptedFrom}),
+  compatibilityProof={schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId:adoptedFrom,toBuildId:f.buildId,strategyId:'rangekeeper_v1',
+   configHash:f.draft.configHash,profileHash:f.draft.profileHash,latestMarkHash:'b'.repeat(64),
+   openModelHash:contentHash(openModel),historicalKernelBuildId:adoptedFrom,validatorVersion:'fixture-v1'},
+  snapshot={...f.snapshot,openMark:{...f.snapshot.openMark,model:openModel},previousMark:{...f.snapshot.previousMark,
    kernelSnapshot:{...f.kernel,state:{...f.kernel.state,buildId:adoptedFrom}}},
    runtimeAdoption:{adoptedFromBuildId:adoptedFrom,adoptionHash:'c'.repeat(64),
     latestMarkHash:'b'.repeat(64),compatibilityProof}};
@@ -110,6 +112,37 @@ test('validated runtime adoption remains valid after later append-only observati
   quote:async()=>{throw Error('inside range must not quote');},
   simulate:async()=>{throw Error('inside range must not simulate');},now:130_000});
  assert.equal(plan.decision.reason,'inside_range');assert.equal(plan.priorMark.markHash,previousHash);
+});
+
+test('recenter planner validates a continuous two-hop runtime adoption chain',async()=>{
+ const f=fixture(),adoptedFrom='a'.repeat(64),intermediate='b'.repeat(64),
+  openModel=persistedModel({...f.snapshot.openMark.model,kernelBuildId:adoptedFrom}),
+  proof=(fromBuildId:string,toBuildId:string,latestMarkHash:string)=>({schemaVersion:1,
+   kind:'rangekeeper_paper_runtime_compatibility_v1',fromBuildId,toBuildId,strategyId:'rangekeeper_v1',
+   configHash:f.draft.configHash,profileHash:f.draft.profileHash,latestMarkHash,
+   openModelHash:contentHash(openModel),historicalKernelBuildId:adoptedFrom,validatorVersion:'fixture-v1'}),
+  firstProof=proof(adoptedFrom,intermediate,'c'.repeat(64)),
+  secondProof=proof(intermediate,f.buildId,'e'.repeat(64)),
+  adoptionChain=[{fromBuildId:adoptedFrom,toBuildId:intermediate,adoptionHash:'d'.repeat(64),
+    latestMarkHash:'c'.repeat(64),compatibilityProof:firstProof},
+   {fromBuildId:intermediate,toBuildId:f.buildId,adoptionHash:'f'.repeat(64),
+    latestMarkHash:'e'.repeat(64),compatibilityProof:secondProof}],
+  snapshot={...f.snapshot,openMark:{...f.snapshot.openMark,model:openModel},
+   previousMark:{...f.snapshot.previousMark,kernelSnapshot:{...f.kernel,
+    state:{...f.kernel.state,buildId:adoptedFrom}}},runtimeAdoption:{adoptedFromBuildId:adoptedFrom,
+    adoptionHash:'f'.repeat(64),latestMarkHash:'e'.repeat(64),compatibilityProof:secondProof,adoptionChain}};
+ const plan=await buildRangeKeeperPaperRecenterPlan({snapshot,frame:f.frame,buildId:f.buildId,
+  actionCost:1n,actionGasWei:1n,requiredExitReserveWei:1n,
+  quote:async()=>{throw Error('inside range must not quote');},
+  simulate:async()=>{throw Error('inside range must not simulate');},now:130_000});
+ assert.equal(plan.decision.reason,'inside_range');
+ const broken={...snapshot,runtimeAdoption:{...snapshot.runtimeAdoption!,adoptionChain:[
+  adoptionChain[0]!,{...adoptionChain[1]!,fromBuildId:'9'.repeat(64)}]}};
+ await assert.rejects(buildRangeKeeperPaperRecenterPlan({snapshot:broken,frame:f.frame,buildId:f.buildId,
+  actionCost:1n,actionGasWei:1n,requiredExitReserveWei:1n,
+  quote:async()=>{throw Error('inside range must not quote');},
+  simulate:async()=>{throw Error('inside range must not simulate');},now:130_000}),
+  /runtime_adoption_unavailable/);
 });
 
 test('fast observation cadence schedules confirmation at the persisted 30-second decision boundary',()=>{

@@ -37,7 +37,8 @@ const persistedDraftSchema=z.object({id:z.uuid(),revision:z.number().int().posit
  allocation:allocationSchema,profile:marketProfileSchema,profileHash:hash64,configHash:hash64,
  strategyId:z.literal('rangekeeper_v1'),parameters:z.record(z.string(),z.unknown())}).strict();
 const persistedMarkSchema=z.object({id:raw,classification:z.enum(['rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1']),
- source:sourceSchema,candidateHash:hash64,epoch:z.number().int().nonnegative().optional(),
+ source:sourceSchema,candidateHash:hash64,candidate:candidateSchema,candidateReferenceProofHash:hash64,
+ epoch:z.number().int().nonnegative().optional(),
  position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),liquidity:raw}).strict(),
  idle:z.object({token0:raw,token1:raw}).strict()}).strict();
 const persistedKernelSchema=z.object({source:sourceSchema,state:stateSchema,
@@ -55,6 +56,15 @@ const currentEpochSchema=z.object({epoch:z.number().int().nonnegative(),markId:r
  allowancesCleared:z.boolean(),
  reference:z.object({price0:raw,price1:raw,nativePrice:raw,proofHash:hash64,
   proof:z.record(z.string(),z.unknown())}).strict()}).strict();
+const compatibilityProofSchema=z.object({schemaVersion:z.literal(1),
+ kind:z.literal('rangekeeper_paper_runtime_compatibility_v1'),
+ fromBuildId:z.string().regex(/^[a-f0-9]{64}$/),toBuildId:z.string().regex(/^[a-f0-9]{64}$/),
+ strategyId:z.literal('rangekeeper_v1'),configHash:hash64,profileHash:hash64,latestMarkHash:hash64,
+ openModelHash:hash64,historicalKernelBuildId:z.string().regex(/^[a-f0-9]{64}$/),
+ validatorVersion:z.string().min(1)}).strict();
+const adoptionLinkSchema=z.object({fromBuildId:z.string().regex(/^[a-f0-9]{64}$/),
+ toBuildId:z.string().regex(/^[a-f0-9]{64}$/),adoptionHash:hash64,latestMarkHash:hash64,
+ compatibilityProof:compatibilityProofSchema}).strict();
 type RangeKeeperExitContextKernelSnapshot=z.infer<typeof persistedKernelSchema>;
 const contextSnapshotSchema=z.object({schemaVersion:z.literal(1),
  kind:z.literal('rangekeeper_paper_persisted_context_v1'),campaignId:z.uuid(),revision:z.number().int().positive(),
@@ -64,7 +74,9 @@ const contextSnapshotSchema=z.object({schemaVersion:z.literal(1),
  currentEpoch:currentEpochSchema,kernel:persistedKernelSchema,
  runtimeIdentity:z.object({buildId:z.string().regex(/^[a-f0-9]{64}$/)}).passthrough().optional(),
  runtimeAdoption:z.object({adoptedFromBuildId:z.string().regex(/^[a-f0-9]{64}$/),
-  adoptionHash:hash64,latestMarkHash:hash64,compatibilityProof:z.record(z.string(),z.unknown())}).nullable().optional(),
+  adoptionHash:hash64,latestMarkHash:hash64,compatibilityProof:z.record(z.string(),z.unknown()),
+  adoptionChain:z.array(adoptionLinkSchema).optional()}).nullable().optional(),
+ adoptionChain:z.array(adoptionLinkSchema).optional(),
  snapshotHash:hash64}).strict();
 
 export type RangeKeeperPaperPersistedContextReader=(campaignId:string)=>Promise<unknown>;
@@ -179,6 +191,8 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   (epoch.epoch===0&&epoch.candidate.kind!=='entry')||
   BigInt(parsed.previousMark.source.block)<BigInt(epoch.source.block)||
   parsed.previousMark.source.timestamp<epoch.source.timestamp||
+  contentHash(parsed.previousMark.candidate)!==contentHash(epoch.candidate)||
+  parsed.previousMark.candidateReferenceProofHash!==epoch.candidateReferenceProofHash||
   BigInt(source.block)<=BigInt(parsed.previousMark.source.block)||
   source.timestamp<parsed.previousMark.source.timestamp||
   parsed.kernel.source.block!==parsed.previousMark.source.block||
@@ -191,12 +205,29 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   return unavailable(input.campaignId,policy.unavailable.join(',')||'rangekeeper_persisted_policy_mismatch');
  if(parsed.runtimeIdentity&&parsed.runtimeIdentity.buildId!==input.buildId)
   return unavailable(input.campaignId,'rangekeeper_effective_runtime_identity_mismatch');
- if(open.kernelBuildId!==input.buildId){
-  const adoption=parsed.runtimeAdoption,compat=adoption?.compatibilityProof;
-  if(!adoption||adoption.adoptedFromBuildId!==open.kernelBuildId||
-   compat?.fromBuildId!==open.kernelBuildId||compat?.toBuildId!==input.buildId||
-   compat?.latestMarkHash!==adoption.latestMarkHash||compat?.configHash!==draft.configHash||
-   compat?.profileHash!==draft.profileHash)
+ const adoptionChain=parsed.runtimeAdoption?.adoptionChain??parsed.adoptionChain??
+  (parsed.runtimeAdoption&&parsed.runtimeAdoption!==null?[{
+  fromBuildId:parsed.runtimeAdoption.adoptedFromBuildId,
+  toBuildId:String(parsed.runtimeAdoption.compatibilityProof.toBuildId??''),
+  adoptionHash:parsed.runtimeAdoption.adoptionHash,latestMarkHash:parsed.runtimeAdoption.latestMarkHash,
+  compatibilityProof:parsed.runtimeAdoption.compatibilityProof as z.infer<typeof compatibilityProofSchema>}] :[]);
+ let chainBuild=open.kernelBuildId;
+ for(const link of adoptionChain){
+  const proof=compatibilityProofSchema.safeParse(link.compatibilityProof);
+  if(link.fromBuildId!==chainBuild||!proof.success||proof.data.fromBuildId!==link.fromBuildId||
+   proof.data.toBuildId!==link.toBuildId||proof.data.latestMarkHash!==link.latestMarkHash||
+   proof.data.configHash!==draft.configHash||proof.data.profileHash!==draft.profileHash||
+   proof.data.openModelHash!==contentHash(open)||proof.data.historicalKernelBuildId!==open.kernelBuildId)
+   return unavailable(input.campaignId,'rangekeeper_open_runtime_adoption_unverified');
+  chainBuild=link.toBuildId;
+ }
+ if(chainBuild!==input.buildId||parsed.runtimeIdentity&&parsed.runtimeIdentity.buildId!==chainBuild)
+  return unavailable(input.campaignId,'rangekeeper_open_runtime_adoption_unverified');
+ if(parsed.runtimeAdoption&&parsed.runtimeAdoption!==null&&adoptionChain.length){
+  const last=adoptionChain.at(-1)!;
+  if(parsed.runtimeAdoption.adoptedFromBuildId!==adoptionChain[0]!.fromBuildId||
+   parsed.runtimeAdoption.adoptionHash!==last.adoptionHash||
+   parsed.runtimeAdoption.latestMarkHash!==last.latestMarkHash)
    return unavailable(input.campaignId,'rangekeeper_open_runtime_adoption_unverified');
  }
  if(source.timestamp<0||now<source.timestamp*1000||now-source.timestamp*1000>180_000)

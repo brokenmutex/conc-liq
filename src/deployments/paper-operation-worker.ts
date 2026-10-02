@@ -29,6 +29,7 @@ import {recoverRangeKeeperPaperExitModelSource} from './rangekeeper-paper-exit-c
 import {replayRangeKeeperPaperConvertOnOwnedFork} from './rangekeeper-paper-convert-replay.js';
 import {replayRangeKeeperPaperRecenterOnOwnedFork} from './rangekeeper-paper-recenter-replay.js';
 import {log} from '../logger.js';
+import {safePaperDiagnosticFailure} from './paper-diagnostic.js';
 
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
  attempts:number};
@@ -154,7 +155,7 @@ export async function processOnePaperOperation(store:DeploymentStore,
  const claim=await store.claimNext(workerId,LEASE_SECONDS,'paper','static_manual_v1')??
   await store.claimNext(workerId,LEASE_SECONDS,'paper','rangekeeper_v1');
  if(!claim)return {status:'idle' as const};
- let lost=false,renewing=false,renewal:Promise<void>|undefined;
+ let lost=false,renewing=false,renewal:Promise<void>|undefined,rangeKeeperStage:string|undefined;
  const renew=setInterval(()=>{
   if(renewing||lost)return;
   renewing=true;
@@ -184,10 +185,13 @@ export async function processOnePaperOperation(store:DeploymentStore,
      }else if(claim.status==='executing'||claim.status==='confirming')
       await store.advanceClaim(claim.id,workerId,'paper_recenter_reconciling','reconciling',null);
      else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
+     rangeKeeperStage='recenter_snapshot';
      const snapshot=await store.rangeKeeperPaperRecenterOperationSnapshot(context.campaign_id,claim.id,workerId);
+     rangeKeeperStage='recenter_fork_replay';
      const replay=await replayRangeKeeperPaperRecenterOnOwnedFork({snapshot,client:chain,
       rpcUrl:options.rpcUrl,beforeRead:options.beforeForkRead});
      if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+     rangeKeeperStage='recenter_completion';
      const completed=await store.completeRangeKeeperPaperConfirmedRecenter(claim.id,workerId,replay,verify);
      return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
     }
@@ -204,10 +208,13 @@ export async function processOnePaperOperation(store:DeploymentStore,
      if(lost)return {status:'claim_lost' as const,operationId:claim.id};
      if(context.kind==='close_convert'){
       if(!options.rpcUrl)return await block('rangekeeper_paper_convert_fork_rpc_unavailable');
+      rangeKeeperStage='convert_snapshot';
       const snapshot=await store.rangeKeeperPaperExitOperationSnapshot(context.campaign_id,claim.id,workerId);
+      rangeKeeperStage='convert_fork_replay';
       const replay=await replayRangeKeeperPaperConvertOnOwnedFork({snapshot,client:chain,
        rpcUrl:options.rpcUrl,beforeRead:options.beforeForkRead});
       if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+      rangeKeeperStage='convert_completion';
       const completed=await store.completeRangeKeeperPaperConfirmedConvert(claim.id,workerId,replay,verify);
       return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
      }
@@ -334,6 +341,11 @@ export async function processOnePaperOperation(store:DeploymentStore,
   }
   return {status:'completed' as const,operationId:claim.id,kind:context.kind};
  }catch(error){
+  if(rangeKeeperStage)try{log('error','rangekeeper_paper_operation_failed',{
+   campaignId:claim.campaign_id,operationId:claim.id,stage:rangeKeeperStage,
+   reason:safePaperDiagnosticFailure(error),
+   cause:error instanceof Error&&error.cause?safePaperDiagnosticFailure(error.cause):undefined});}
+  catch{/* Diagnostics must not change claim recovery. */}
   if(error instanceof DeploymentConflict&&error.code==='paper_operation_claim_changed')
    return {status:'claim_lost' as const,operationId:claim.id};
   if(error instanceof DeploymentConflict)return await block(error.code);

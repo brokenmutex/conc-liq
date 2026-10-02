@@ -15,7 +15,8 @@ import {rangeKeeperPaperCandidateHash} from './rangekeeper-paper-cost.js';
 export interface RangeKeeperPaperRecenterSnapshot {
  draft:RangeKeeperPaperDraft;runtimeIdentity:{buildId:string};currentEpoch:number;pending:boolean;
  runtimeAdoption?:null|{adoptedFromBuildId:string;adoptionHash:string;latestMarkHash:string;
-  compatibilityProof:unknown};
+  compatibilityProof:unknown;adoptionChain?:Array<{fromBuildId:string;toBuildId:string;adoptionHash:string;
+   latestMarkHash:string;compatibilityProof:unknown}>};
  openMark:{id:string;markHash:string;source:PaperOpenFrame['source'];inventory:unknown;
   model:RangeKeeperPaperOpenModel;epoch:0};
  previousMark:RangeKeeperPaperEpochMark&{candidateHash:string};
@@ -26,6 +27,34 @@ export interface RangeKeeperPaperRecenterPlan {
  priorMark:{id:string;markHash:string;source:PaperOpenFrame['source']};source:PaperOpenFrame['source'];
  decision:RangeKeeperDecision;candidate:RangeKeeperCandidate|null;candidateHash:string|null;
  nextObservationAt:number|null;kernelState:RangeKeeperDecision['state'];actionAvailable:false;
+}
+
+function assertRuntimeAdoption(input:{adoption:NonNullable<RangeKeeperPaperRecenterSnapshot['runtimeAdoption']>;
+ open:RangeKeeperPaperOpenModel;draft:RangeKeeperPaperDraft;buildId:string}){
+ const {adoption,open,draft,buildId}=input,legacy=adoption.compatibilityProof as Record<string,unknown>|undefined,
+  chain=adoption.adoptionChain??(legacy?[{fromBuildId:adoption.adoptedFromBuildId,
+   toBuildId:String(legacy.toBuildId??''),adoptionHash:adoption.adoptionHash,
+   latestMarkHash:adoption.latestMarkHash,compatibilityProof:legacy}]:[]);
+ assert(chain.length>0&&/^[a-f0-9]{64}$/.test(adoption.adoptionHash),
+  'rangekeeper_paper_recenter_runtime_adoption_unavailable');
+ let expectedBuild=open.kernelBuildId;
+ for(const link of chain){
+  const proof=link.compatibilityProof as Record<string,unknown>|undefined;
+  assert(/^[a-f0-9]{64}$/.test(link.adoptionHash)&&/^[a-f0-9]{64}$/.test(link.latestMarkHash)&&
+   link.fromBuildId===expectedBuild&&proof&&proof.schemaVersion===1&&
+   proof.kind==='rangekeeper_paper_runtime_compatibility_v1'&&
+   proof.fromBuildId===link.fromBuildId&&proof.toBuildId===link.toBuildId&&
+   proof.latestMarkHash===link.latestMarkHash&&proof.strategyId==='rangekeeper_v1'&&
+   proof.configHash===draft.configHash&&proof.profileHash===draft.profileHash&&
+   proof.openModelHash===contentHash(open)&&proof.historicalKernelBuildId===open.kernelBuildId,
+   'rangekeeper_paper_recenter_runtime_adoption_unavailable');
+  expectedBuild=link.toBuildId;
+ }
+ const first=chain[0]!,last=chain.at(-1)!;
+ assert(expectedBuild===buildId&&adoption.adoptedFromBuildId===first.fromBuildId&&
+  adoption.adoptionHash===last.adoptionHash&&adoption.latestMarkHash===last.latestMarkHash&&
+  contentHash(adoption.compatibilityProof)===contentHash(last.compatibilityProof),
+  'rangekeeper_paper_recenter_runtime_adoption_unavailable');
 }
 
 export function rangeKeeperPaperNextObservationAt(input:{decision:RangeKeeperDecision;
@@ -58,16 +87,8 @@ export async function buildRangeKeeperPaperRecenterPlan(input:{snapshot:RangeKee
  assert(open.kernelPolicyHash===policy.policyHash&&snapshot.runtimeIdentity.buildId===input.buildId,
   'rangekeeper_paper_recenter_runtime_identity_invalid');
  if(open.kernelBuildId!==input.buildId){
-  const adoption=snapshot.runtimeAdoption;
-  const proof=adoption?.compatibilityProof as Record<string,unknown>|undefined;
-  assert(adoption&&
-   /^[a-f0-9]{64}$/.test(adoption.adoptionHash)&&proof&&
-   proof.schemaVersion===1&&proof.kind==='rangekeeper_paper_runtime_compatibility_v1'&&
-   proof.strategyId==='rangekeeper_v1'&&proof.fromBuildId===adoption.adoptedFromBuildId&&
-   proof.toBuildId===input.buildId&&
-   proof.configHash===draft.configHash&&proof.profileHash===draft.profileHash&&
-   /^[a-f0-9]{64}$/.test(String(proof.latestMarkHash)),
-   'rangekeeper_paper_recenter_runtime_adoption_unavailable');
+  assert(snapshot.runtimeAdoption,'rangekeeper_paper_recenter_runtime_adoption_unavailable');
+  assertRuntimeAdoption({adoption:snapshot.runtimeAdoption,open,draft,buildId:input.buildId});
  }
  assert(!snapshot.pending,'rangekeeper_paper_recenter_pending_operation');
  assert(snapshot.currentEpoch===previous.epoch&&previous.epoch>=0&&

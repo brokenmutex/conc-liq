@@ -265,17 +265,21 @@ export async function acceptPositionsAction(browser,campaignId,kind,
  if(kind==='pause')await browser.waitFor('document.querySelector(".paper-lifecycle-preview-button")?.textContent.includes("pause")',
   'pause action');
  await browser.waitFor(`document.querySelector(${JSON.stringify(spec.preview)})!==null`,`${kind} preview action`);
- if(kind==='close_convert')await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=
+ if(['close_convert','rangekeeper_close_retain','rangekeeper_close_convert'].includes(kind))
+  await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=
   ${JSON.stringify(`/api/deployments/${campaignId}/previews`)};window.__canonicalConvertPreview=null;
   window.__canonicalConvertPreviewCount=0;
   window.fetch=async(input,init)=>{const response=await original(input,init),path=new URL(
    typeof input==='string'?input:input.url,location.href).pathname;
    if(path===target&&init?.method==='POST'){try{const body=await response.clone().json(),model=
-    body.paperCloseConvertModel??body.proposal?.paperCloseConvertModel??{};
+    body.paperCloseConvertModel??body.proposal?.paperCloseConvertModel??
+     body.rangekeeperPaperExitModel??body.proposal?.rangekeeperPaperExitModel??{};
     window.__canonicalConvertPreview={httpStatus:response.status,previewStatus:body.status??null,
-     error:body.error??null,reason:body.reason??null,kind:body.kind??null,keys:Object.keys(body),
+     error:body.error??null,reason:body.reason??null,kind:body.kind??null,
+     strategyId:body.strategyId??model.strategyId??null,exitKind:body.exitKind??model.exitKind??null,
      previewId:body.id??body.previewId??null,trustedPreviewSaved:body.trustedPreviewSaved??null,
      actionAvailable:body.actionAvailable??null,operationAcceptanceAvailable:body.operationAcceptanceAvailable??null,
+     currentEpoch:model.currentEpoch?.epoch??body.currentEpoch?.epoch??null,
      terminalModelVersion:model.terminalModelVersion??null,sourceBlock:model.source?.block??body.source?.block??null,
      sourceTimestamp:model.source?.timestamp??body.source?.timestamp??null,
      pathVersion:model.costs?.pathVersion??body.costs?.pathVersion??null,
@@ -290,25 +294,30 @@ export async function acceptPositionsAction(browser,campaignId,kind,
  while(true){
   if(Date.now()>=previewDeadline)throw Error(`${kind} preview deadline expired before a fresh request`);
   previewAttempts++;
-  const previousPreviewCount=kind==='close_convert'?
+  const previousPreviewCount=['close_convert','rangekeeper_close_retain','rangekeeper_close_convert'].includes(kind)?
    await browser.evaluate('window.__canonicalConvertPreviewCount'):null;
   await beforePreviewRequest({attempt:previewAttempts,kind,deadline:previewDeadline});
   if(Date.now()>=previewDeadline)throw Error(`${kind} preview deadline expired before a fresh request`);
   await browser.click(spec.preview);
   const remaining=Math.max(1,previewDeadline-Date.now());
-  if(kind==='close_convert'){
+  if(['close_convert','rangekeeper_close_retain','rangekeeper_close_convert'].includes(kind)){
    await browser.waitFor(`window.__canonicalConvertPreviewCount>${previousPreviewCount}`,
     `${kind} API preview response`,remaining);
-   await browser.waitFor('document.querySelector(".convert-action-root .convert-action-review")?.hidden===false',
+   const reviewSelector=kind==='rangekeeper_close_retain'?'.retain-action-root .retain-action-review':
+    '.convert-action-root .convert-action-review';
+   await browser.waitFor(`document.querySelector(${JSON.stringify(reviewSelector)})?.hidden===false`,
     `${kind} rendered preview response`,remaining);
   }else await browser.waitFor(`document.querySelector(${JSON.stringify(spec.confirm)})!==null`,
    `${kind} preview response`,remaining);
   const confirmState=await browser.evaluate(`(()=>{const e=document.querySelector(${JSON.stringify(spec.confirm)});
    return {disabled:e.disabled,hidden:!e.getClientRects().length};})()`);
   previewText=await browser.evaluate(`document.querySelector(".position-detail")?.innerText??''`);
-  previewResponse=kind==='close_convert'?await browser.evaluate('window.__canonicalConvertPreview'):null;
+  previewResponse=['close_convert','rangekeeper_close_retain','rangekeeper_close_convert'].includes(kind)?
+   await browser.evaluate('window.__canonicalConvertPreview'):null;
   if(!confirmState.hidden&&!confirmState.disabled)break;
-  const retryReason=kind==='close_convert'&&previewResponse?.reason===
+  const retryReason=['close_convert','rangekeeper_close_retain','rangekeeper_close_convert'].includes(kind)&&
+   previewResponse?.reason==='rangekeeper_paper_preparation_busy'?'rangekeeper_paper_preparation_busy':
+   kind==='close_convert'&&previewResponse?.reason===
    'static_manual_conversion_preparation_busy'?'static_manual_conversion_preparation_busy':
    kind==='close_convert'&&previewResponse?.reason==='paper_close_convert_fee_interval_gap'?
     'paper_close_convert_fee_interval_gap':
@@ -406,6 +415,9 @@ export async function inspectPositionAtWidths(browser,campaignId,expectedStages,
  {expectedVisibleValues=[],expectedGapLabels=['unavailable'],expectedMarkCount,history=true}={}){
  if(history)await openPositionsHistory(browser,campaignId);
  else await selectCampaignInPositions(browser,campaignId);
+ await browser.click('#paper .periods button[data-action="hours"][data-value="24"]');
+ await browser.waitFor(`document.querySelector('#paper .periods button[data-action="hours"][data-value="24"]')?.getAttribute('aria-pressed')==='true'`,
+  '24-hour chart window selection');
  await browser.click('#paper .bottom-tabs button[data-action="tab"][data-value="activity"]');
  await browser.waitFor('document.querySelector("#paper .activity-list")!==null','activity tab');
  for(const stage of expectedStages)await browser.waitFor(
