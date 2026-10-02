@@ -590,6 +590,17 @@ try{
    verifyPinnedRelease:async(identity,proof)=>{assert.deepEqual(identity,rkRuntimeAfter);
     assert.equal(proof.buildId,rkRuntimeAfter.buildId);},verifyAnchors:async()=>{}});
  assert.equal(rkAdoption2.replayed,false);
+ const rkAdoptionReplayAfterLaterHop=await store.adoptRangeKeeperPaperRuntime({campaignId:rkDraft.id,
+  actor:'operator',fromRuntimeIdentity:rkMarkRuntime,toRuntimeIdentity:rkRuntimeAfter,
+  expectedLatestMark:{id:rkLatestForAdoption.id,markHash:rkAdoptionMarkHash,source:rkAdoptionSource},
+  releaseProof:{manifestHash:'b'.repeat(64),buildId:rkMarkRuntime.buildId},
+  compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId:rkMarkRuntime.buildId,toBuildId:rkRuntimeAfter.buildId,strategyId:'rangekeeper_v1',
+   configHash:rkAdoptionBinding.config_hash,profileHash:rkAdoptionBinding.profile_hash,
+   latestMarkHash:rkAdoptionMarkHash,openModelHash:rkOpeningModelHash,
+   historicalKernelBuildId:rkHistoricalKernelBuildId,validatorVersion:'test-fixture-v1'},
+  verifyPinnedRelease:async()=>{},verifyAnchors:async()=>{}});
+ assert.deepEqual(rkAdoptionReplayAfterLaterHop,{...rkAdoption,replayed:true});
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
  const rkEpochSnapshot=await store.rangeKeeperPaperEpochSnapshot(rkDraft.id);
  assert.equal(rkEpochSnapshot.runtimeIdentity.buildId,rkRuntimeFinal.buildId);

@@ -2190,7 +2190,7 @@ export class DeploymentStore {
   if(!/^[a-z][a-z0-9_-]{0,63}$/.test(input.actor))throw new DeploymentConflict('invalid_actor');
   const from=sealedRuntimeIdentitySchema.safeParse(input.fromRuntimeIdentity),to=sealedRuntimeIdentitySchema.safeParse(
    input.toRuntimeIdentity),current=loadRuntimeIdentity();
-  if(!from.success||!to.success||!current||contentHash(to.data)!==contentHash(current))
+  if(!from.success||!to.success)
    throw new DeploymentConflict('rangekeeper_runtime_adoption_identity_invalid');
   if(from.data.configHash!==to.data.configHash||from.data.nodeVersion!==to.data.nodeVersion)
    throw new DeploymentConflict('rangekeeper_runtime_adoption_changes_config_or_node');
@@ -2250,6 +2250,8 @@ export class DeploymentStore {
     if(storedHash!==adoptionHash||contentHash(stored)!==adoptionHash)
      throw new DeploymentConflict('rangekeeper_runtime_adoption_replay_integrity');
     return {adoptionHash,replayed:true};}
+   if(!current||contentHash(to.data)!==contentHash(current))
+    throw new DeploymentConflict('rangekeeper_runtime_adoption_identity_invalid');
    const effective=await campaignEffectiveRuntimeIdentity(db,input.campaignId,row.runtime_identity);
    if(!effective||contentHash(effective)!==contentHash(from.data))
     throw new DeploymentConflict('rangekeeper_runtime_adoption_predecessor_mismatch');
