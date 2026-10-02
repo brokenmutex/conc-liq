@@ -230,7 +230,15 @@ export async function createDraftAndAcceptOpen(browser,{profilePool,capital='2',
 
 export async function selectCampaignInPositions(browser,campaignId){
  await browser.click('#positions-tab');
- await browser.waitFor('document.querySelector("#paper .view-switch")!==null','Positions list');
+ // The static Positions shell (including its view switch) exists before the
+ // first /api/positions request completes. Waiting only for that shell can
+ // mistake the initial empty `positions=[]` render for a loaded empty list,
+ // switch to History, and hide an active campaign as its real rows arrive.
+ // Gate the active/history decision on the overview request having succeeded;
+ // if it never does, retain the browser helper's bounded timeout and fail.
+ await browser.waitFor('document.querySelector("#connection-status")?.textContent.startsWith("API connected")===true&&'+
+  'document.querySelector("#paper .view-switch")!==null',
+  'Positions overview data loaded');
  let present=await browser.evaluate(`document.querySelector('#paper .positions-table tbody tr[data-position="paper-dep-${campaignId}"]')!==null`);
  if(!present){await browser.click('#paper [data-action="scope"][data-value="history"]');
   await browser.waitFor(`document.querySelector('#paper .positions-table tbody tr[data-position="paper-dep-${campaignId}"]')!==null`,

@@ -109,3 +109,82 @@ the retain completion defect was found. Both stopped at epoch zero before any
 recenter or close acceptance. Their copied historical marks remain preserved.
 Fresh final clones were restored from the original dump for the corrected
 artifact. Production still runs its predecessor release.
+
+The corrected artifact is
+`762c22c4af8f2e7ead3258ea0b9233400d3943b94e436ffcbf4138d9e30ec613`,
+sealed from clean source `aaa1ec8d357f4214334814a66c4c6dfbe46beb0b` with
+Node v24.20.0. Its first two parallel lifecycle attempts verified both release
+manifests, predecessor observation and append-only adoption, but did not reach
+recenter acceptance. Conversion timed out at the 600-second recenter gate;
+the retain attempt was stopped after repeated failures. Both copies remain
+active at epoch zero, and all owned processes stopped. The failed logs are
+`/tmp/rk-final-sealed-{retain,convert}-aaa1ec8-20261002.log`.
+
+Those attempts reported HTTP/RPC error classes during canonical reads and
+source verification, plus `construction_unproven` decisions. They did not
+capture numeric HTTP/RPC error codes, so the cause is unconfirmed. A bounded
+read-only probe subsequently passed canonical frame and pinned-quote reads,
+and could read all four historical block headers selected from the failed
+logs. Source and sealed configurations resolve to the same archive endpoint.
+The probe is recorded in `/tmp/rk-readonly-rpc-diagnostic-20261002.log`.
+Fresh sequential lifecycle tests retain the same artifact, policy, freshness,
+readiness and release-integrity gates. Successful endpoint probes alone do not
+qualify the artifact for deployment.
+
+The sequential sealed conversion lifecycle then passed without requeue or
+manual recovery on `conc_liq_rk_seq_convert_20261002`. Automatic operation
+`980a123d-4743-49e8-bb4b-d5436b59d96b` appended recenter mark 879 at epoch 1
+and source 78116296. Restart preserved opening mark 206, the recenter
+fingerprint and all prior history. The real browser accepted Exit close as
+`e0876c38-564a-47e4-861b-c7e9bc71800e`; its first worker attempt appended
+terminal mark 882 at source 78117117. The campaign is closed, its position is
+null, and modeled inventory is USDG `250165588` raw and AAPL `0` raw. The
+current adopted build registered all seven terminal gas stages with one
+replay and version. Desktop/mobile 24-hour history, exit activity and browser
+health passed; final custody and economic values remain unavailable. All
+owned conversion test processes stopped. Evidence:
+`/tmp/rk-seq-sealed-convert-aaa1ec8-20261002.log`.
+
+The sequential retain run independently completed automatic recenter operation
+`6918f47a-8bdb-4119-b331-a0d89bee94ca`, mark 879 at epoch 1 and source
+78122164, then passed worker restart and history continuity. Browser navigation
+timed out before close acceptance: the test helper checked for an active row
+before the initial Positions response rendered, immediately switched to
+History, and then waited for the active campaign there. The copied campaign
+remains active at observation 883 with only the opening and succeeded recenter
+operations. Owned processes stopped. This browser-harness failure does not
+establish a retain-close failure; its completion gate is still outstanding.
+Evidence: `/tmp/rk-seq-sealed-retain-aaa1ec8-20261002.log`.
+
+After the helper waited for a successful Positions overview, the same sealed
+retain copy completed browser acceptance and worker close without a requeue.
+Operation `cae55634-5a66-4d72-8e32-86b8a729c6ec` succeeded on attempt 1,
+appending terminal mark 885 at epoch 1 with no position. Its retained principal
+lower bounds are USDG `144201329` raw and AAPL `319887930342712218` raw.
+Read-only checks verified all five gas stages shared one candidate, replay and
+version, the effective adopted runtime matched the artifact/environment, and
+opening/recenter fingerprints remained unchanged. Desktop/mobile history passed
+and all owned processes stopped. The original navigation failure is preserved;
+this is a browser-checkpoint continuation, not an uninterrupted harness run.
+Evidence: `/tmp/rk-seq-sealed-retain-browser-continuation-aaa1ec8-20261002.log`.
+
+The subsequent production rollout stopped the three paper/dashboard services
+and made a consistent private backup. Runtime adoption rejected the latest-mark
+check before appending anything. Diagnosis identified a numeric-ordering bug:
+`SELECT id::text ... ORDER BY id DESC` sorts the output alias as text, selecting
+mark 999 ahead of actual latest mark 1020. The existing sealed tests had stayed
+below this digit boundary. Production's previous services were restarted with
+their original units and environment; no adoption or release installation was
+applied. Artifact `762c22...` is therefore not approved for deployment. A
+qualified numeric ordering fix and SQL/canonical regressions crossing the
+boundary are required before a new artifact can be adopted.
+
+The numeric-order correction qualifies the underlying bigint mark column in
+adoption, recenter lineage/acceptance/completion, and exit acceptance/completion
+queries. The SQL fixture now uses opening 999 and observations 1000/1001,
+then exercises adoption, epoch lookup and retained close. It fails on pre-fix
+source `aaa1ec8` with the exact production adoption error and passes after the
+fix. The temporary pre-fix worktree edit was restored. Full repository checks
+again pass 1,079/1,079 tests in 90 suites. New sealed clone runs additionally
+set the disposable mark sequence so predecessor observation begins at 1000;
+this does not alter historical marks or production sequences.

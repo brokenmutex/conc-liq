@@ -2268,8 +2268,8 @@ export class DeploymentStore {
    if(pending)throw new DeploymentConflict('rangekeeper_runtime_adoption_operation_pending');
    const latest=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
     inventory:unknown;economics:unknown;provenance:Record<string,unknown>}>(`
-    SELECT id::text,revision,source_block::text,source_hash,inventory,economics,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,[input.campaignId])).rows[0];
+    SELECT m.id::text,revision,source_block::text,source_hash,inventory,economics,provenance
+    FROM deployment_marks m WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR UPDATE`,[input.campaignId])).rows[0];
    const latestSource=paperFeeMarkSourceSchema.safeParse(latest?.provenance.source),
     latestHash=latest?contentHash({revision:latest.revision,source_block:latest.source_block,
      source_hash:latest.source_hash,inventory:latest.inventory,economics:latest.economics,
@@ -2530,8 +2530,8 @@ export class DeploymentStore {
       // would silently restore the retired range and balances.
       const parent=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
        inventory:unknown;economics:unknown;provenance:Record<string,unknown>}>(`
-       SELECT id::text,revision,source_block::text,source_hash,inventory,economics,provenance
-       FROM deployment_marks WHERE campaign_id=$1 AND id<$2::bigint ORDER BY id DESC LIMIT 1`,
+       SELECT m.id::text,revision,source_block::text,source_hash,inventory,economics,provenance
+       FROM deployment_marks m WHERE m.campaign_id=$1 AND m.id<$2::bigint ORDER BY m.id DESC LIMIT 1`,
        [input.campaignId,row.latest_id])).rows[0],
        poolState=row.latest_provenance.poolState as {tick?:unknown;sqrtPriceX96?:unknown;
         poolLiquidity?:unknown}|undefined,
@@ -2812,10 +2812,10 @@ export class DeploymentStore {
      inventory:row.open_inventory,economics:row.open_economics,provenance:row.open_provenance})}:
      await (async()=>{const mark=(await db.query<{id:string;revision:number;source_block:string|null;
       source_hash:string|null;inventory:unknown;economics:unknown;provenance:Record<string,unknown>}>(`
-      SELECT id::text,revision,source_block::text,source_hash,inventory,economics,provenance
-      FROM deployment_marks WHERE campaign_id=$1 AND
+      SELECT m.id::text,revision,source_block::text,source_hash,inventory,economics,provenance
+      FROM deployment_marks m WHERE m.campaign_id=$1 AND
        provenance->>'classification'='rangekeeper_paper_recenter_v1' AND
-       (provenance->>'epoch')::integer=$2 ORDER BY id DESC LIMIT 1`,[campaignId,previousEpoch])).rows[0];
+       (provenance->>'epoch')::integer=$2 ORDER BY m.id DESC LIMIT 1`,[campaignId,previousEpoch])).rows[0];
       if(!mark)throw new DeploymentConflict('rangekeeper_paper_epoch_creator_unavailable');
       return {id:mark.id,markHash:contentHash({revision:mark.revision,source_block:mark.source_block,
        source_hash:mark.source_hash,inventory:mark.inventory,economics:mark.economics,
@@ -3594,8 +3594,8 @@ export class DeploymentStore {
     preview.evidence.profileHash!==campaign.profile_hash||preview.evidence.paidCostsAvailable!==false)
     throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_model_invalid');
    const latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
-    provenance:Record<string,unknown>}>(`SELECT id::text,source_block::text,source_hash,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,[campaignId])).rows[0],
+    provenance:Record<string,unknown>}>(`SELECT m.id::text,source_block::text,source_hash,provenance
+    FROM deployment_marks m WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR UPDATE`,[campaignId])).rows[0],
     previous=(model as {previousMark:{id:string;source:PaperCanonicalAnchor;candidateHash:string}}).previousMark;
    if(!latest||!previous||latest.id!==previous.id||latest.source_block!==previous.source.block||
     latest.source_hash?.toLowerCase()!==previous.source.hash.toLowerCase()||
@@ -3676,8 +3676,8 @@ export class DeploymentStore {
     throw new DeploymentConflict('rangekeeper_paper_recenter_model_binding_invalid');
    const latest=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
     inventory:unknown;economics:unknown;provenance:Record<string,unknown>}>(`
-    SELECT id::text,revision,source_block::text,source_hash,inventory,economics,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,[campaignId])).rows[0];
+    SELECT m.id::text,revision,source_block::text,source_hash,inventory,economics,provenance
+    FROM deployment_marks m WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR UPDATE`,[campaignId])).rows[0];
    const latestHash=latest?contentHash({revision:latest.revision,source_block:latest.source_block,
     source_hash:latest.source_hash,inventory:latest.inventory,economics:latest.economics,
     provenance:latest.provenance}):null;
@@ -6346,8 +6346,8 @@ export class DeploymentStore {
    catch{throw new DeploymentConflict('rangekeeper_paper_recenter_replay_capability_invalid');}
    const latest=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
     inventory:Record<string,unknown>;economics:unknown;provenance:Record<string,unknown>}>(`
-    SELECT id::text,revision,source_block::text,source_hash,inventory,economics,provenance
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,
+    SELECT m.id::text,revision,source_block::text,source_hash,inventory,economics,provenance
+    FROM deployment_marks m WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR UPDATE`,
     [row.campaign_id])).rows[0],
     latestHash=latest?contentHash({revision:latest.revision,source_block:latest.source_block,
      source_hash:latest.source_hash,inventory:latest.inventory,economics:latest.economics,
@@ -6496,8 +6496,8 @@ export class DeploymentStore {
     FROM deployment_marks WHERE id=$1 AND campaign_id=$2 FOR SHARE`,[m.openMarkId,row.campaign_id])).rows[0],
     latest=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
      inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
-     SELECT id::text,source_block::text,source_hash,inventory,provenance
-     FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR UPDATE`,[row.campaign_id])).rows[0];
+     SELECT m.id::text,source_block::text,source_hash,inventory,provenance
+     FROM deployment_marks m WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR UPDATE`,[row.campaign_id])).rows[0];
    if(!open||open.provenance.classification!=='rangekeeper_paper_open_v1'||
     open.provenance.modelHash!==m.openModelHash||!latest||latest.id!==m.previousMark.id||
     latest.source_block!==m.previousMark.source.block||
@@ -6680,8 +6680,8 @@ export class DeploymentStore {
     throw new DeploymentConflict('rangekeeper_paper_exit_open_mark_unavailable');
    const previousMarkRow=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
     inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
-    SELECT id::text,source_block::text,source_hash,inventory,provenance FROM deployment_marks
-    WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1 FOR SHARE`,[row.campaign_id])).rows[0];
+    SELECT m.id::text,source_block::text,source_hash,inventory,provenance FROM deployment_marks m
+    WHERE m.campaign_id=$1 ORDER BY m.id DESC LIMIT 1 FOR SHARE`,[row.campaign_id])).rows[0];
    if(!previousMarkRow||previousMarkRow.id!==model.previousMark.id||
     previousMarkRow.source_block===null||previousMarkRow.source_hash===null||
     BigInt(previousMarkRow.id)<=BigInt(openMark.id)||

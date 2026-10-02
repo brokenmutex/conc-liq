@@ -146,6 +146,24 @@ try{
  const alreadyAdopted=!!priorAdoption?.toRuntimeIdentity&&
   contentHash(priorAdoption.toRuntimeIdentity)===contentHash(target);
  if(sealedMode)assert(!alreadyAdopted,'sealed lifecycle mode requires a fresh disposable clone');
+ const markSequenceBoundary=process.env.TEST_MARK_SEQUENCE_BOUNDARY;
+ if(markSequenceBoundary!==undefined){
+  assert(sealedMode,'mark sequence positioning is permitted only in sealed clone mode');
+  assert.equal(markSequenceBoundary,'1000','only the reviewed bigint ordering boundary 1000 is supported');
+  const databaseName=decodeURIComponent(databaseUrl.pathname.slice(1));
+  assert(databaseName.startsWith('conc_liq_rk_'),
+   'mark sequence positioning is restricted to conc_liq_rk_ disposable databases');
+  assert(!alreadyAdopted,'mark sequence positioning requires a fresh, not-yet-adopted clone');
+  const maximum=(await admin.query('SELECT max(id)::text AS id FROM deployment_marks')).rows[0]?.id;
+  assert(maximum===null||BigInt(maximum)<=999n,
+   'mark sequence positioning requires all existing deployment marks to be below 1000');
+  const sequence=(await admin.query("SELECT pg_get_serial_sequence('deployment_marks','id') AS name")).rows[0]?.name;
+  assert(sequence,'deployment mark ID sequence must exist');
+  const positioned=(await admin.query('SELECT setval($1::regclass,999,true) AS value',[sequence])).rows[0]?.value;
+  assert.equal(Number(positioned),999,'test clone mark sequence must be positioned immediately before 1000');
+  phase('test_only_mark_sequence_positioned',{databaseName,nextExpectedMarkId:1000,
+   purpose:'exercise numeric latest-mark ordering across the 999-to-1000 boundary'});
+ }
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(alreadyAdopted?target:from);
  store=new DeploymentStore(process.env.TEST_DATABASE_URL);await store.assertReady();
  let beforeEpoch=await store.rangeKeeperPaperEpochSnapshot(campaignId);
@@ -175,12 +193,14 @@ try{
   phase('predecessor_sealed_release_observing',{campaignId,buildId:oldRelease.buildId,origin:sealedOrigin});
   const oldObservation=await waitFor(async()=>{
    const row=(await admin.query(`SELECT id::text,provenance->>'classification' AS classification
-    FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,[campaignId])).rows[0];
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId])).rows[0];
    return row&&BigInt(row.id)>BigInt(beforeEpoch.previousMark.id)&&row.classification==='rangekeeper_paper_mark_v1'?row:null;
   },'predecessor sealed observation before adoption',180_000,
    detail=>phase('waiting_for_predecessor_observation',{campaignId,...detail}));
   phase('predecessor_sealed_observation_recorded',{campaignId,markId:oldObservation.id,
    classification:oldObservation.classification});
+ if(markSequenceBoundary==='1000')assert(BigInt(oldObservation.id)>=1000n,
+  'predecessor observation must cross the configured numeric mark-ID boundary');
   await stop(worker);worker=null;
   await waitFor(async()=>!(await store.paperOperationWorkerReady()),'predecessor worker lease release',30_000);
   await stop(command);command=null;
@@ -291,6 +311,8 @@ try{
  detail=>phase('waiting_for_fresh_canonical_recenter',{campaignId,...detail}));
  phase('canonical_recenter_recorded',{campaignId,markId:recentered.id,epoch:recentered.provenance.epoch,
   previousEpoch:recentered.provenance.previousEpoch,sourceBlock:recentered.source_block});
+ if(markSequenceBoundary==='1000')assert(BigInt(recentered.id)>=1000n,
+  'recenter mark must cross the configured numeric mark-ID boundary');
  const recenteredHash=contentHash(recentered);
  await stop(worker);worker=null;
  await waitFor(async()=>!(await store.paperOperationWorkerReady()),'worker readiness lease release',30_000);
@@ -336,6 +358,20 @@ try{
   return row?.lifecycle==='closed'&&operation?.status==='succeeded';
  },'accepted RangeKeeper exit completion',600_000,
  detail=>phase('waiting_for_exit_worker_completion',{campaignId,operationId,...detail}));
+ const terminalMark=(await admin.query(`SELECT id::text,inventory,provenance FROM deployment_marks
+  WHERE campaign_id=$1 AND provenance->>'operationId'=$2
+   AND provenance->>'classification' IN ('rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1')
+  ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId,operationId])).rows[0];
+ assert(terminalMark,'completed close operation must have its terminal mark');
+ if(markSequenceBoundary==='1000'){
+  assert(BigInt(terminalMark.id)>=1000n,'terminal close mark must cross the configured numeric mark-ID boundary');
+  const numericLatest=(await admin.query(`SELECT id::text FROM deployment_marks WHERE campaign_id=$1
+   ORDER BY deployment_marks.id DESC LIMIT 1`,[campaignId])).rows[0];
+  assert(numericLatest&&BigInt(numericLatest.id)>=BigInt(terminalMark.id),
+   'numeric latest-mark query must include or follow the terminal mark across the 999-to-1000 boundary');
+  phase('numeric_mark_ordering_boundary_verified',{campaignId,terminalMarkId:terminalMark.id,
+   latestMarkId:numericLatest.id,boundary:1000});
+ }
  const expectedGasStages=exitKind==='retain'?[
   'exit_withdraw_collect','exit_cleanup_router_token0','exit_cleanup_router_token1',
   'exit_cleanup_manager_token0','exit_cleanup_manager_token1']:[

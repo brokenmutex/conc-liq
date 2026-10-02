@@ -227,6 +227,14 @@ try{
  const rkDraft=await store.createDraft({...draftInput,mode:'paper',strategyId:'rangekeeper_v1',
   allocation:{token0Raw:'10000000000000000000000',token1Raw:'10000000000000000000000',nativeWei:'10000000000000000'},
   config:{fullWidthSpacings:2,limits:rkLimits}});
+ const rkMarkSequence=(await admin.query(`SELECT COALESCE(max(id),0)::text AS maximum,
+  pg_get_serial_sequence('deployment_marks','id') AS sequence FROM deployment_marks`)).rows[0],
+  rkMarkBoundary=BigInt(process.env.TEST_MARK_SEQUENCE_BOUNDARY??'1000');
+ assert(/^10+$/.test(String(rkMarkBoundary))&&rkMarkBoundary-2n>=BigInt(rkMarkSequence.maximum),
+  'test mark sequence boundary must be a free power of ten above existing isolated marks');
+ await admin.query('SELECT setval($1::regclass,$2::bigint,true)',
+  [rkMarkSequence.sequence,String(rkMarkBoundary-2n)]);
+ const rkExpectedOpenMarkId=String(rkMarkBoundary-1n),rkExpectedBoundaryMarkId=String(rkMarkBoundary);
  const rkOpenSource={block:'200',hash:'0x'+'6'.repeat(64),timestamp:Math.floor(Date.now()/1000)-20},
   rkMarkSource={block:'201',hash:'0x'+'7'.repeat(64),timestamp:rkOpenSource.timestamp+1},
   rkRange={tickLower:-60,tickUpper:60},rkSqrt=sqrtRatioAtTick(0),
@@ -317,6 +325,10 @@ try{
    [rkDraft.id,rkMarkSource.block,rkMarkSource.hash,JSON.stringify({position:{...rkRange,
     liquidity:String(rkMint.liquidity)},idle:{token0:String(rkIdle0),token1:String(rkIdle1)}}),
     JSON.stringify(rkLegacyProvenance)])).rows[0],rkMark={markId:legacyMark.id,replayed:false,actionAvailable:false};
+ assert.equal(rkOpenMarkId,rkExpectedOpenMarkId,
+  'fixture opening mark must sit immediately below a decimal id boundary');
+ assert.equal(rkMark.markId,rkExpectedBoundaryMarkId,
+  'fixture observation mark must cross the decimal id boundary');
  const rkLegacyBefore=(await admin.query(`SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1`,
   [rkMark.markId])).rows[0];
  await assert.rejects(store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
@@ -534,6 +546,8 @@ try{
  const rkNextMark=await store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkNextSource,
   kernelSnapshot:rkNextKernel,verifyAnchors:verifyRkNextAnchors});
  assert.equal(rkNextMark.replayed,false);
+ assert.equal(rkNextMark.markId,String(rkMarkBoundary+1n),
+  'latest mark selection must stay numeric after crossing a decimal id boundary');
  assert.deepEqual((await admin.query(`SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1`,
   [rkMark.markId])).rows[0],rkLegacyBefore,'legacy epoch-0 mark stays byte-for-byte unchanged');
  const rkBlockedSource={block:'203',hash:'0x'+'9'.repeat(64),timestamp:rkNextSource.timestamp+1};
@@ -549,8 +563,8 @@ try{
  const rkAdoptionBinding=(await admin.query(`SELECT r.config_hash,p.profile_hash FROM deployment_campaigns c
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
   JOIN deployment_market_profiles p ON p.id=c.market_profile_id WHERE c.id=$1`,[rkDraft.id])).rows[0];
- const rkLatestForAdoption=(await admin.query(`SELECT id::text,revision,source_block::text,source_hash,
-  inventory,economics,provenance FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,
+ const rkLatestForAdoption=(await admin.query(`SELECT deployment_marks.id::text,revision,source_block::text,source_hash,
+  inventory,economics,provenance FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id DESC LIMIT 1`,
   [rkDraft.id])).rows[0],
   rkOpeningForAdoption=(await admin.query(`SELECT provenance FROM deployment_marks WHERE campaign_id=$1
    AND provenance->>'classification'='rangekeeper_paper_open_v1' ORDER BY id LIMIT 1`,[rkDraft.id])).rows[0].provenance,
@@ -565,6 +579,8 @@ try{
   rkRuntimeAfter={...rkMarkRuntime,buildId:'a'.repeat(64)},
   rkAdoptionSource=(()=>{const source=rkLatestForAdoption.provenance.source;
    return {block:source.block,hash:source.hash,timestamp:source.timestamp};})();
+ assert.equal(rkLatestForAdoption.id,rkNextMark.markId,
+  'runtime-adoption fixture must bind the newest mark beyond a decimal id boundary');
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeAfter);
  const rkAdoption=await store.adoptRangeKeeperPaperRuntime({campaignId:rkDraft.id,actor:'operator',
   fromRuntimeIdentity:rkMarkRuntime,toRuntimeIdentity:rkRuntimeAfter,
@@ -620,6 +636,8 @@ try{
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
  const rkEpochSnapshot=await store.rangeKeeperPaperEpochSnapshot(rkDraft.id);
  assert.equal(rkEpochSnapshot.runtimeIdentity.buildId,rkRuntimeFinal.buildId);
+ assert.equal(rkEpochSnapshot.previousMark.id,rkNextMark.markId,
+  'current epoch snapshot must expose the numeric latest mark beyond a decimal id boundary');
  assert.equal(rkEpochSnapshot.openMark.model.kernelBuildId,rkHistoricalKernelBuildId);
  assert.deepEqual(rkEpochSnapshot.runtimeAdoption.adoptionChain.map(({fromBuildId,toBuildId})=>
   ({fromBuildId,toBuildId})),[{fromBuildId:rkHistoricalKernelBuildId,toBuildId:rkRuntimeAfter.buildId},
