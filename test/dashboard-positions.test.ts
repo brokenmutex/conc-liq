@@ -88,6 +88,46 @@ test('RangeKeeper paper marks and retained close marks project into shared histo
  assert.equal(exit.tokenBalances[0].amountRaw,null);assert.equal(exit.tokenBalances[0].lowerBoundRaw,'13');
  assert.equal(exit.tokenBalances[1].lowerBoundRaw,'17');assert.equal(closed.position.navQuote,null);
 });
+test('RangeKeeper recenter marks show the new epoch and exact current inventory without inventing economics',async()=>{
+ const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
+  hash=`0x${'a'.repeat(64)}`,profile=marketProfileSchema.parse({pool:{chainId:4663,
+   factory:UNISWAP_V3_FACTORY,pool:address('1'),token0:address('2'),token1:address('3'),
+   quoteToken:0,decimals0:6,decimals1:18,fee:3000,tickSpacing:60,
+   positionManager:NONFUNGIBLE_POSITION_MANAGER,router:PAPER_ROUTER,quoter:PAPER_QUOTER,
+   poolCodeHash:hash,token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,
+   quoterCodeHash:hash,reference0:'USDG/USD',reference1:'AAPL/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+   referencePolicy:{token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+    token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+    nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}}),sqrt=sqrtRatioAtTick(120),liquidity=10n**12n,
+  principal=amountsForLiquidity({liquidity,sqrtPriceX96:sqrt,sqrtRatioAX96:sqrtRatioAtTick(60),sqrtRatioBX96:sqrtRatioAtTick(180)}),
+  source={block:'101',hash:`0x${'c'.repeat(64)}`,timestamp:now-20},campaignId='00000000-0000-4000-8000-000000000001',
+  mark={id:'2',at:new Date(source.timestamp*1000),source_block:source.block,source_hash:source.hash,
+   accounting_snapshot:null,accounting_hash:null,conversion_accounting_snapshot:null,conversion_accounting_hash:null,
+   accounting_invalidated_at:null,accounting_invalidation_reason:null,
+   inventory:{classification:'rangekeeper_paper_recenter_v1',position:{tickLower:60,tickUpper:180,
+    liquidity:String(liquidity)},idle:{token0:'7',token1:'11'}},economics:{principalOnlyValue:null},
+   provenance:{classification:'rangekeeper_paper_recenter_v1',epoch:1,previousEpoch:0,candidateHash:hash,
+    source,poolState:{tick:120,sqrtPriceX96:String(sqrt)},
+    reference:{price0:'1000000000000000000',price1:'1000000000000000000'},paidCostsAvailable:false,modeledCosts:null}};
+ const row={id:campaignId,mode:'paper',lifecycle:'active',range_state:'inside',current_revision:1,
+  created_at:new Date((now-120)*1000),closed_at:null,allocation:{token0Raw:'0',token1Raw:'0',nativeWei:'0'},
+  runtime_identity:{},profile,strategy_id:'rangekeeper_v1',config:{},mark_id:'2',mark_at:mark.at,
+  source_block:mark.source_block,source_hash:mark.source_hash,inventory:mark.inventory,economics:mark.economics,
+  provenance:mark.provenance,initial_value:'100000000',operation_id:null,operation_kind:null,
+  operation_status:null,operation_stage:null,operation_reason:null,operation_updated_at:null,
+  accounting_snapshot:null,accounting_hash:null,conversion_accounting_snapshot:null,conversion_accounting_hash:null,
+  accounting_invalidated_at:null,accounting_invalidation_reason:null};
+ const detail=await readDeploymentDetail({query:async(sql:string)=>({rows:
+  sql.includes('FROM deployment_marks m')?[mark]:[]})} as any,row as any,24),
+  event:any=detail.performance.timeline.at(-1);
+ assert.equal(event.action,'recenter');assert.equal(event.epoch,1);assert.equal(event.previousEpoch,0);
+ assert.equal(event.candidateHash,hash);assert.equal(event.economicNavQuote,null);
+ assert.equal(event.tokenBalances[0].amountRaw,String(principal.amount0+7n));
+ assert.equal(event.tokenBalances[1].amountRaw,String(principal.amount1+11n));
+ assert.equal(detail.position.navQuote,null);assert.equal(detail.position.deployment.rangekeeper?.currentEpoch,1);
+ assert.equal(detail.position.deployment.rangekeeper?.latestClassification,'rangekeeper_paper_recenter_v1');
+ assert.equal(detail.position.deployment.rangekeeper?.recenterAvailable,false);
+});
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');
  const ps=Array.from({length:2200},(_,i)=>point(new Date(start+i*1000).toISOString(),String(100000000+i),{action:i===1199?'recenter':'mark',feesThisIntervalQuote:'1'}));

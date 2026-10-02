@@ -27,6 +27,7 @@ const stub=(ctx:unknown)=>{
  const calls:unknown[][]=[];
  return {calls,store:{rangeKeeperPaperExitAcceptanceContext:async()=>ctx,
   releasePaperPreparationLease:async()=>{},
+  acceptRangeKeeperPaperConvertOperation:async(...args:unknown[])=>{calls.push(['convert',...args]);return accepted;},
   acceptOperation:async(...args:unknown[])=>{calls.push(args);return accepted;}} as never};
 };
 const ok=async()=>{};
@@ -42,13 +43,11 @@ test('admits a RangeKeeper retain exit through the bare acceptOperation',async()
  assert.deepEqual(calls[0],[campaignId,request,'operator']);
 });
 
-test('refuses a convert exit, because the worker has no completion for it',async()=>{
+test('admits convert through its strategy-aware storage admission after canonical verification',async()=>{
  const {calls,store}=stub(context({preview:{...context().preview,kind:'close_convert'}}));
  const accept=createRangeKeeperPaperExitAcceptance({store,verifyAnchors:ok});
- await assert.rejects(()=>accept(campaignId,request,'operator'),(error:{code?:string})=>{
-  assert.equal(error.code,'rangekeeper_paper_exit_acceptance_convert_unavailable');return true;});
- // Admitting it would strand the campaign in `closing` behind a blocked operation.
- assert.equal(calls.length,0);
+ assert.deepEqual(await accept(campaignId,request,'operator'),accepted);
+ assert.deepEqual(calls,[['convert',campaignId,request,'operator',ok]]);
 });
 
 test('refuses every state an exit operation could not complete from',async()=>{

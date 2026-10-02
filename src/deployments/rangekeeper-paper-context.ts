@@ -6,6 +6,7 @@ import {marketProfileSchema,referenceProofHash} from './market-profile.js';
 import type {PaperOpenFrame} from './paper-preview.js';
 import {resolveRangeKeeperPaperPolicy,rangeKeeperPaperOpenDecisionHasCandidate,type RangeKeeperPaperDraft,
  type RangeKeeperPaperOpenModel} from './rangekeeper-paper-open-model.js';
+import {rangeKeeperPaperCandidateHash} from './rangekeeper-paper-cost.js';
 import {rangeKeeperPaperExitInventoryProofHash,
  type RangeKeeperPaperExitKernelContext} from './rangekeeper-paper-exit-model.js';
 import type {RangeKeeperPaperGasProfileReader} from './rangekeeper-paper-cost.js';
@@ -35,8 +36,8 @@ const stateSchema=z.object({schemaVersion:z.literal(1),policyId:z.literal('range
 const persistedDraftSchema=z.object({id:z.uuid(),revision:z.number().int().positive(),
  allocation:allocationSchema,profile:marketProfileSchema,profileHash:hash64,configHash:hash64,
  strategyId:z.literal('rangekeeper_v1'),parameters:z.record(z.string(),z.unknown())}).strict();
-const persistedMarkSchema=z.object({id:raw,classification:z.literal('rangekeeper_paper_mark_v1'),
- source:sourceSchema,candidateHash:hash64,
+const persistedMarkSchema=z.object({id:raw,classification:z.enum(['rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1']),
+ source:sourceSchema,candidateHash:hash64,epoch:z.number().int().nonnegative().optional(),
  position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),liquidity:raw}).strict(),
  idle:z.object({token0:raw,token1:raw}).strict()}).strict();
 const persistedKernelSchema=z.object({source:sourceSchema,state:stateSchema,
@@ -44,18 +45,40 @@ const persistedKernelSchema=z.object({source:sourceSchema,state:stateSchema,
  campaignStartValue:raw,highWaterValue:raw,
  rollingSpentCost:raw,campaignSpentCost:raw,reservedCost:raw,recenters:z.number().int().nonnegative(),
  pending:z.boolean(),entryAllowed:z.boolean(),safeExitRequired:z.boolean(),executionReady:z.boolean()}).strict();
+const currentEpochSchema=z.object({epoch:z.number().int().nonnegative(),markId:raw,markHash:hash64,
+ source:sourceSchema,candidate:candidateSchema,candidateHash:hash64,
+ candidateReferenceProofHash:hash64,
+ inventory:z.object({position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),liquidity:raw}).strict(),
+  idle:z.object({token0:raw,token1:raw}).strict()}).strict(),
+ kernelSnapshot:persistedKernelSchema,mintSqrtPriceX96:raw,
+ fundingBeforeSwap:z.object({token0:raw,token1:raw}).strict(),
+ allowancesCleared:z.boolean(),
+ reference:z.object({price0:raw,price1:raw,nativePrice:raw,proofHash:hash64,
+  proof:z.record(z.string(),z.unknown())}).strict()}).strict();
+type RangeKeeperExitContextKernelSnapshot=z.infer<typeof persistedKernelSchema>;
 const contextSnapshotSchema=z.object({schemaVersion:z.literal(1),
  kind:z.literal('rangekeeper_paper_persisted_context_v1'),campaignId:z.uuid(),revision:z.number().int().positive(),
  mode:z.literal('paper'),lifecycle:z.enum(['active','paused','closing']),pendingOperationId:z.null(),
  draft:persistedDraftSchema,openMark:z.object({id:raw,classification:z.literal('rangekeeper_paper_open_v1'),modelHash:hash64,
   model:z.record(z.string(),z.unknown())}).strict(),previousMark:persistedMarkSchema,
- kernel:persistedKernelSchema,snapshotHash:hash64}).strict();
+ currentEpoch:currentEpochSchema,kernel:persistedKernelSchema,
+ runtimeIdentity:z.object({buildId:z.string().regex(/^[a-f0-9]{64}$/)}).passthrough().optional(),
+ runtimeAdoption:z.object({adoptedFromBuildId:z.string().regex(/^[a-f0-9]{64}$/),
+  adoptionHash:hash64,latestMarkHash:hash64,compatibilityProof:z.record(z.string(),z.unknown())}).nullable().optional(),
+ snapshotHash:hash64}).strict();
 
 export type RangeKeeperPaperPersistedContextReader=(campaignId:string)=>Promise<unknown>;
 export type RangeKeeperPaperPersistedContextUnavailable={status:'unavailable';reason:string;
  campaignId:string;actionAvailable:false};
 export interface RangeKeeperPaperLoadedExitContext {
  status:'available';draft:RangeKeeperPaperDraft;openMarkId:string;openModel:RangeKeeperPaperOpenModel;
+ currentEpoch:{epoch:number;markId:string;markHash:string;source:PaperOpenFrame['source'];
+  candidate:RangeKeeperCandidate;candidateHash:string;candidateReferenceProofHash:string;
+  inventory:{position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
+  kernelSnapshot:RangeKeeperExitContextKernelSnapshot;mintSqrtPriceX96:bigint;
+  fundingBeforeSwap:{token0:string;token1:string};
+  allowancesCleared:boolean;
+  reference:{price0:bigint;price1:bigint;nativePrice:bigint;proofHash:string;proof:Record<string,unknown>}};
  previous:{id:string;source:PaperOpenFrame['source'];candidateHash:string;
   position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
  kernel:RangeKeeperPaperExitKernelContext;readGasProfiles:RangeKeeperPaperGasProfileReader;
@@ -95,7 +118,7 @@ const unavailable=(campaignId:string,reason:string):RangeKeeperPaperPersistedCon
  * loader after that frame has been read. */
 export function rangeKeeperPaperExitContextSeed(raw:unknown,campaignId:string):{
  profile:RangeKeeperPaperDraft['profile'];openSource:PaperOpenFrame['source'];
- previousSource:PaperOpenFrame['source']
+ previousSource:PaperOpenFrame['source'];candidateSource:PaperOpenFrame['source']
 }|null{
  let parsed:z.infer<typeof contextSnapshotSchema>;
  try{parsed=contextSnapshotSchema.parse(raw);}catch{return null;}
@@ -105,7 +128,7 @@ export function rangeKeeperPaperExitContextSeed(raw:unknown,campaignId:string):{
  const openSource=sourceSchema.safeParse(parsed.openMark.model.source);
  if(!openSource.success)return null;
  return {profile:parsed.draft.profile,openSource:openSource.data,
-  previousSource:parsed.previousMark.source};
+  previousSource:parsed.previousMark.source,candidateSource:parsed.currentEpoch.source};
 }
 
 /** Loads only a trusted persisted RangeKeeper context. `readSnapshot` is an
@@ -131,7 +154,9 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   referenceProofHash(input.frame.referenceProof)!==input.frame.referenceProofHash)
   return unavailable(input.campaignId,'rangekeeper_current_source_or_reference_unavailable');
  const source=currentSource.data,open=parsed.openMark.model as unknown as RangeKeeperPaperOpenModel,
-  openSource=sourceSchema.safeParse(open.source);
+  openSource=sourceSchema.safeParse(open.source),epoch=parsed.currentEpoch,
+  epochSource=sourceSchema.safeParse(epoch.source),epochCandidateParsed=candidateSchema.safeParse(epoch.candidate),
+  referenceProofHashValue=epoch.reference.proofHash;
  if(!openSource.success||!Number.isSafeInteger(openSource.data.timestamp))
   return unavailable(input.campaignId,'rangekeeper_persisted_open_source_invalid');
  const draft=parsed.draft as RangeKeeperPaperDraft;
@@ -139,12 +164,21 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   open.kind!=='rangekeeper_paper_open_model'||open.campaignId!==parsed.campaignId||
   open.status!=='indicative'||open.actionAvailable!==false||
   !rangeKeeperPaperOpenDecisionHasCandidate(open.decision)||!open.candidate||!open.candidateHash||
-  parsed.openMark.modelHash!==contentHash(open)||open.candidateHash!==parsed.previousMark.candidateHash||
+  parsed.openMark.modelHash!==contentHash(open)||
   open.profileHash!==draft.profileHash||open.draftConfigHash!==draft.configHash||
   contentHash(draft.profile)!==draft.profileHash||
   BigInt(parsed.openMark.id)<=0n||parsed.previousMark.id==='0'||
   BigInt(parsed.previousMark.id)<=BigInt(parsed.openMark.id)||
-  BigInt(parsed.previousMark.source.block)<=BigInt(openSource.data.block)||
+  !epochSource.success||!epochCandidateParsed.success||
+  !Number.isInteger(epoch.epoch)||epoch.epoch!==parsed.previousMark.epoch||
+  BigInt(epoch.markId)<=0n||BigInt(epoch.markId)>BigInt(parsed.previousMark.id)||
+  !hash64.safeParse(epoch.markHash).success||
+  (epoch.epoch===0&&epoch.markId!==parsed.openMark.id)||
+  (epoch.epoch===0&&(!openSource.success||contentHash(epoch.source)!==contentHash(openSource.data)))||
+  (epoch.epoch>0&&epoch.candidate.kind!=='recenter')||
+  (epoch.epoch===0&&epoch.candidate.kind!=='entry')||
+  BigInt(parsed.previousMark.source.block)<BigInt(epoch.source.block)||
+  parsed.previousMark.source.timestamp<epoch.source.timestamp||
   BigInt(source.block)<=BigInt(parsed.previousMark.source.block)||
   source.timestamp<parsed.previousMark.source.timestamp||
   parsed.kernel.source.block!==parsed.previousMark.source.block||
@@ -153,31 +187,60 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   parsed.pendingOperationId!==null)
   return unavailable(input.campaignId,'rangekeeper_persisted_open_or_mark_identity_invalid');
  const policy=resolveRangeKeeperPaperPolicy(draft,input.buildId);
- if(!policy.policy||policy.unavailable.length||policy.policy.policyHash!==open.kernelPolicyHash||
-  policy.policy.buildId!==open.kernelBuildId)
+ if(!policy.policy||policy.unavailable.length||policy.policy.policyHash!==open.kernelPolicyHash)
   return unavailable(input.campaignId,policy.unavailable.join(',')||'rangekeeper_persisted_policy_mismatch');
+ if(parsed.runtimeIdentity&&parsed.runtimeIdentity.buildId!==input.buildId)
+  return unavailable(input.campaignId,'rangekeeper_effective_runtime_identity_mismatch');
+ if(open.kernelBuildId!==input.buildId){
+  const adoption=parsed.runtimeAdoption,compat=adoption?.compatibilityProof;
+  if(!adoption||adoption.adoptedFromBuildId!==open.kernelBuildId||
+   compat?.fromBuildId!==open.kernelBuildId||compat?.toBuildId!==input.buildId||
+   compat?.latestMarkHash!==adoption.latestMarkHash||compat?.configHash!==draft.configHash||
+   compat?.profileHash!==draft.profileHash)
+   return unavailable(input.campaignId,'rangekeeper_open_runtime_adoption_unverified');
+ }
  if(source.timestamp<0||now<source.timestamp*1000||now-source.timestamp*1000>180_000)
   return unavailable(input.campaignId,'rangekeeper_current_source_not_after_saved_mark');
- const candidateParsed=candidateSchema.safeParse(open.candidate);
- if(!candidateParsed.success)return unavailable(input.campaignId,'rangekeeper_persisted_open_candidate_invalid');
- const candidate=decimalCandidate(candidateParsed.data);
- if(candidate.sourceBlock!==BigInt(openSource.data.block)||candidate.sourceHash.toLowerCase()!==openSource.data.hash.toLowerCase()||
-  candidate.range.tickLower!==parsed.previousMark.position.tickLower||
-  candidate.range.tickUpper!==parsed.previousMark.position.tickUpper||
-  String(candidate.liquidity)!==parsed.previousMark.position.liquidity)
-  return unavailable(input.campaignId,'rangekeeper_persisted_position_identity_mismatch');
- const replay=replayPaperMint(BigInt(open.poolState.sqrtPriceX96),candidate.range,
-  candidate.amount0Desired,candidate.amount1Desired,0n);
- if(replay.liquidity!==candidate.liquidity||candidate.expiresAt!==openSource.data.timestamp+90)
-  return unavailable(input.campaignId,'rangekeeper_open_mint_replay_mismatch');
- let available0=BigInt(draft.allocation.token0Raw),available1=BigInt(draft.allocation.token1Raw);
+ const openCandidateParsed=candidateSchema.safeParse(open.candidate);
+ if(!openCandidateParsed.success)return unavailable(input.campaignId,'rangekeeper_persisted_open_candidate_invalid');
+ const openCandidate=decimalCandidate(openCandidateParsed.data),candidate=decimalCandidate(epochCandidateParsed.data),
+  mintPrice=BigInt(epoch.mintSqrtPriceX96),epochReferenceProof=epoch.reference.proof;
+ if(!referenceProofHashValue||referenceProofHash(epochReferenceProof)!==referenceProofHashValue||
+  referenceProofHashValue!==epoch.candidateReferenceProofHash||
+  BigInt(epoch.reference.price0)<=0n||BigInt(epoch.reference.price1)<=0n||BigInt(epoch.reference.nativePrice)<=0n||
+  candidate.sourceBlock!==BigInt(epochSource.data.block)||candidate.sourceHash.toLowerCase()!==epochSource.data.hash.toLowerCase()||
+  candidate.expiresAt!==epochSource.data.timestamp+90||mintPrice<=0n||
+  (candidate.swap!==null&&candidate.swap.priceAfter!==mintPrice)||
+  candidate.range.tickUpper-candidate.range.tickLower!==policy.policy.limits.fullWidthSpacings*draft.profile.pool.tickSpacing||
+  candidate.range.tickLower!==epoch.inventory.position.tickLower||
+  candidate.range.tickUpper!==epoch.inventory.position.tickUpper||
+  String(candidate.liquidity)!==epoch.inventory.position.liquidity)
+  return unavailable(input.campaignId,'rangekeeper_current_epoch_identity_invalid');
+ if(contentHash(epoch.inventory)!==contentHash({position:parsed.previousMark.position,idle:parsed.previousMark.idle}))
+  return unavailable(input.campaignId,'rangekeeper_persisted_idle_inventory_mismatch');
+ if(epoch.allowancesCleared!==(epoch.epoch>0))
+  return unavailable(input.campaignId,'rangekeeper_current_epoch_allowance_state_unproven');
+ if(epoch.epoch===0&&(contentHash(openCandidateParsed.data)!==contentHash(epochCandidateParsed.data)||
+  epoch.candidateHash!==open.candidateHash||epoch.candidateReferenceProofHash!==open.reference.proofHash))
+  return unavailable(input.campaignId,'rangekeeper_open_epoch_candidate_identity_invalid');
+ const expectedEpochCandidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
+  profileHash:draft.profileHash,configHash:draft.configHash,source:epochSource.data,
+  referenceProofHash:epoch.candidateReferenceProofHash,candidate});
+ if(epoch.candidateHash!==expectedEpochCandidateHash||parsed.previousMark.candidateHash!==epoch.candidateHash)
+  return unavailable(input.campaignId,'rangekeeper_current_epoch_candidate_hash_mismatch');
+ let available0=BigInt(epoch.fundingBeforeSwap.token0),available1=BigInt(epoch.fundingBeforeSwap.token1);
+ if(epoch.epoch===0&&(epoch.fundingBeforeSwap.token0!==draft.allocation.token0Raw||
+  epoch.fundingBeforeSwap.token1!==draft.allocation.token1Raw))
+  return unavailable(input.campaignId,'rangekeeper_open_epoch_funding_changed');
  if(candidate.swap){
   if(candidate.swap.token===0){available0-=candidate.swap.amountIn;available1+=candidate.swap.quotedOut;}
   else{available1-=candidate.swap.amountIn;available0+=candidate.swap.quotedOut;}
  }
- const idle0=available0-replay.amount0,idle1=available1-replay.amount1;
- if(idle0<0n||idle1<0n||parsed.previousMark.idle.token0!==String(idle0)||
-  parsed.previousMark.idle.token1!==String(idle1))
+ const replay=replayPaperMint(mintPrice,candidate.range,candidate.amount0Desired,candidate.amount1Desired,0n),
+  idle0=available0-replay.amount0,idle1=available1-replay.amount1;
+ if(replay.liquidity!==candidate.liquidity||replay.amount0<candidate.amount0Min||replay.amount1<candidate.amount1Min||
+  idle0<0n||idle1<0n||epoch.inventory.idle.token0!==String(idle0)||
+  epoch.inventory.idle.token1!==String(idle1))
   return unavailable(input.campaignId,'rangekeeper_persisted_idle_inventory_mismatch');
  const priorState=rangeKeeperState(parsed.kernel.state);
  // The persisted kernel belongs to the previous mark. Project only principal
@@ -196,15 +259,25 @@ export async function loadRangeKeeperPaperExitContext(input:{campaignId:string;b
   pending:parsed.kernel.pending,entryAllowed:parsed.kernel.entryAllowed,
   safeExitRequired:parsed.kernel.safeExitRequired,executionReady:parsed.kernel.executionReady};
  if(kernelWithoutProof.wallet0!==idle0||kernelWithoutProof.wallet1!==idle1||
-  priorState.buildId!==input.buildId||priorState.configHash.toLowerCase()!==`0x${policy.policy.policyHash}`.toLowerCase())
+  priorState.buildId!==open.kernelBuildId||priorState.configHash.toLowerCase()!==`0x${policy.policy.policyHash}`.toLowerCase())
   return unavailable(input.campaignId,'rangekeeper_persisted_kernel_inventory_mismatch');
+ if(epoch.kernelSnapshot.recenters!==epoch.epoch||
+  epoch.kernelSnapshot.campaignStartValue!==parsed.kernel.campaignStartValue||
+  epoch.kernelSnapshot.state.configHash.toLowerCase()!==`0x${policy.policy.policyHash}`.toLowerCase())
+  return unavailable(input.campaignId,'rangekeeper_current_epoch_kernel_baseline_mismatch');
  const previous={id:parsed.previousMark.id,source:parsed.previousMark.source,
   candidateHash:parsed.previousMark.candidateHash,position:parsed.previousMark.position,
   idle:parsed.previousMark.idle};
  const kernel:RangeKeeperPaperExitKernelContext={...kernelWithoutProof,inventoryProofHash:''};
+ const currentEpoch={epoch:epoch.epoch,markId:epoch.markId,markHash:epoch.markHash,source:epochSource.data,
+  candidate,candidateHash:epoch.candidateHash,candidateReferenceProofHash:epoch.candidateReferenceProofHash,
+  inventory:epoch.inventory,kernelSnapshot:epoch.kernelSnapshot,mintSqrtPriceX96:mintPrice,
+  fundingBeforeSwap:epoch.fundingBeforeSwap,allowancesCleared:epoch.allowancesCleared,
+  reference:{price0:BigInt(epoch.reference.price0),price1:BigInt(epoch.reference.price1),
+   nativePrice:BigInt(epoch.reference.nativePrice),proofHash:epoch.reference.proofHash,proof:epochReferenceProof}};
  kernel.inventoryProofHash=rangeKeeperPaperExitInventoryProofHash({campaignId:draft.id,
   revision:draft.revision,openMarkId:parsed.openMark.id,openModelHash:parsed.openMark.modelHash,
-  candidateHash:open.candidateHash,kernel,previous});
- return {status:'available',draft,openMarkId:parsed.openMark.id,openModel:open,previous,kernel,
+  candidateHash:currentEpoch.candidateHash,currentEpoch,kernel,previous});
+ return {status:'available',draft,openMarkId:parsed.openMark.id,openModel:open,currentEpoch,previous,kernel,
   readGasProfiles:input.readGasProfiles,snapshotHash,actionAvailable:false};
 }

@@ -1,5 +1,13 @@
 # RangeKeeper paper recenter follow-up — October 1, 2026
 
+October 2 implementation update: retain-close UI admission, Exit conversion to
+USDG, current position epochs, automatic confirmation/recenter replay, and
+append-only runtime adoption are being integrated. The implementation and
+current validation boundary are recorded in the
+[management review](../reviews/rangekeeper-paper-management-2026-10-02.md).
+Production remains on the previous release until campaign-copy and sealed
+lifecycle checks pass. The October 1 status below is historical.
+
 Current status — October 1, 2026: recenter is not implemented. The full test
 suite passes 1,051 tests, and the canonical
 setup/open/observation/retained-close lifecycle passed against the verified

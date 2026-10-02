@@ -12,7 +12,7 @@ const context=vm.createContext({
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
  .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
-  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountStaticConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};');
+  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 
@@ -75,7 +75,7 @@ test('queued lifecycle operations remain visible before a valuation mark exists'
  assert.equal(run('needsAttention(pausing)'),true);
 });
 
-test('retain-close browser affordance is strategy-aware and requires paper operator surface/no pending operation',()=>{
+test('paper exit affordances are strategy-aware and require paper operator surface/no pending operation',()=>{
  const eligible=position('open','active');
  Object.assign(context,{eligible});
  assert.match(run('lifecycleControls(eligible)'),/retain-action-root/);
@@ -91,7 +91,8 @@ test('retain-close browser affordance is strategy-aware and requires paper opera
  const rk=position('open','active',{deployment:{...eligible.deployment,strategyId:'rangekeeper_v1'}});
  Object.assign(context,{rk});
  assert.match(run('lifecycleControls(rk)'),/retain-action-root/);
- assert.doesNotMatch(run('lifecycleControls(rk)'),/convert-action-root/);
+ assert.match(run('lifecycleControls(rk)'),/convert-action-root/);
+ assert.match(run('lifecycleControls(rk)'),/RangeKeeper paper retain and convert exit previews/);
  assert.doesNotMatch(run('lifecycleControls(rk)'),/paper-lifecycle-action-root/);
  context.location.pathname='/';
  assert.doesNotMatch(run('lifecycleControls(eligible)'),/retain-action-root/);

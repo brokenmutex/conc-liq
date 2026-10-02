@@ -5,13 +5,6 @@ import {recoverRangeKeeperPaperExitModelSource} from './rangekeeper-paper-exit-c
 
 type AnchorVerifier=(chainId:number,sources:readonly PaperOpenFrame['source'][])=>Promise<void>;
 
-/** A RangeKeeper exit kind the worker can actually finish. close_convert has a
- * preview, a quote contract and a gas sampler, but no completion: the worker
- * blocks it with `rangekeeper_paper_exit_convert_completion_unavailable` rather
- * than guess at a conversion ledger. Admitting one would create an operation
- * guaranteed to block, leaving the campaign in `closing` with no way forward, so
- * it is refused here instead — at the point the operator can still choose retain. */
-const COMPLETABLE_EXIT_KINDS:readonly string[]=['close_retain'];
 const EXIT_PREVIEW_KINDS:readonly string[]=['close_retain','close_convert'];
 
 /** Admits a RangeKeeper paper exit operation.
@@ -36,8 +29,6 @@ export function createRangeKeeperPaperExitAcceptance(dependencies:{store:Deploym
   if(!preview)throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_preview_not_found');
   if(!EXIT_PREVIEW_KINDS.includes(preview.kind))
    throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_preview_wrong_kind');
-  if(!COMPLETABLE_EXIT_KINDS.includes(preview.kind))
-   throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_convert_unavailable');
   if(preview.expectedRevision!==context.currentRevision||
    preview.expectedRevision!==request.expectedRevision)
    throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_expected_revision_mismatch');
@@ -54,7 +45,9 @@ export function createRangeKeeperPaperExitAcceptance(dependencies:{store:Deploym
   try{await verifyAnchors(context.chainId,[source]);}
   catch{throw new DeploymentConflict('rangekeeper_paper_exit_acceptance_source_not_canonical');}
   // No admission argument: the static discriminators are deliberately bypassed.
-  const accepted=await store.acceptOperation(campaignId,request,actor);
+  const accepted=preview.kind==='close_convert'?
+   await store.acceptRangeKeeperPaperConvertOperation(campaignId,request,actor,verifyAnchors):
+   await store.acceptOperation(campaignId,request,actor);
   await store.releasePaperPreparationLease(campaignId);
   return accepted;
  };

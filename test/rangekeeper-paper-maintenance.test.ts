@@ -45,6 +45,8 @@ function setup(){
    kernelPolicyHash:policy.policyHash,kernelBuildId:buildId,profileHash,
    source:openSource,poolState:{tick:0,sqrtPriceX96:String(sqrtRatioAtTick(0)),poolLiquidity:'1000000000000000'},
    reference:{price0:'1000000000000000000',price1:'1000000000000000000',nativePrice:'1000000000000000000'},
+   costs:{status:'provisional',open:{expectedValue:'300000000000000',boundValue:'400000000000000',
+    expectedWei:'30000',boundWei:'40000'},profileIds:[{stage:'open',id:randomUUID(),version:1}]},
    candidate,candidateHash:'a'.repeat(64),allocation:{strategyInventoryValue:'2000000000000000000'}} as
    unknown as RangeKeeperPaperOpenModel,
   inventory={position:{tickLower:-60,tickUpper:60,liquidity:candidate.liquidity},
@@ -69,6 +71,9 @@ test('persists outside-range timer without creating a recenter or executable sta
  assert.equal(first.decision.reason,'outside_range_observed');
  assert.equal(first.actionAvailable,false);
  assert.equal(first.kernelSnapshot.recenters,0);
+ assert.equal(first.kernelSnapshot.campaignSpentCost,'400000000000000');
+ assert.equal(first.kernelSnapshot.rollingSpentCost,'400000000000000');
+ assert.equal(first.kernelSnapshot.nativeWei,'9999999999960000');
  assert.equal(first.kernelSnapshot.entryAllowed,false);
  assert.equal(first.kernelSnapshot.executionReady,false);
  assert.equal(first.kernelSnapshot.state.exit?.since,1_040);
@@ -81,6 +86,8 @@ test('persists outside-range timer without creating a recenter or executable sta
  }
  assert.equal(second.decision.reason,'outside_range_persistence_elapsed');
  assert.equal(second.kernelSnapshot.recenters,0);
+ assert.equal(second.kernelSnapshot.campaignSpentCost,'400000000000000');
+ assert.equal(second.kernelSnapshot.rollingSpentCost,'400000000000000');
  assert.equal(second.kernelSnapshot.state.exit?.since,1_040);
 });
 

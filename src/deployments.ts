@@ -32,16 +32,12 @@ import {createRangeKeeperPaperOpenAcceptance}
  from './deployments/rangekeeper-paper-open-acceptance.js';
 import {createRangeKeeperPaperExitAcceptance}
  from './deployments/rangekeeper-paper-exit-acceptance.js';
-import {persistTrustedRangeKeeperPaperExitPreview}
- from './deployments/rangekeeper-paper-exit-preflight.js';
-import {prepareRangeKeeperPaperRetainPreview} from './deployments/rangekeeper-paper-retain-runtime.js';
+import {prepareRangeKeeperPaperExitPreview} from './deployments/rangekeeper-paper-retain-runtime.js';
 import type {RangeKeeperPaperDraft} from './deployments/rangekeeper-paper-open-model.js';
 import {prepareRangeKeeperPaperOpenRuntime} from './deployments/rangekeeper-paper-open-runtime.js';
 import {prepareRangeKeeperPaperConfirmationRuntime} from './deployments/rangekeeper-paper-confirmation-runtime.js';
 import type {RangeKeeperPaperPinnedQuoteCache} from './deployments/rangekeeper-paper-pinned-quote-cache.js';
 import type {ForkReadHint} from './paper/fork.js';
-import {loadRangeKeeperPaperExitContext,rangeKeeperPaperExitContextSeed} from './deployments/rangekeeper-paper-context.js';
-import {buildRangeKeeperPaperExitModel} from './deployments/rangekeeper-paper-exit-model.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
 import {persistTrustedStaticPaperRetainPreview} from './deployments/paper-close-retain-preflight.js';
 import {buildStaticPaperCloseConvertRoute} from './deployments/paper-close-convert-preflight.js';
@@ -430,82 +426,16 @@ async function main(){
     }
     if(strategyId!=='rangekeeper_v1')return {status:'unavailable',
      reason:'paper_terminal_preview_strategy_unavailable',campaignId,actionAvailable:false};
-    if(kind==='close_retain'){
-     try{
-      const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null');
-      if(!identity?.buildId)throw new DeploymentConflict('rangekeeper_runtime_build_identity_unavailable');
-      return await prepareRangeKeeperPaperRetainPreview({store,client,campaignId,
-       buildId:identity.buildId,rpcUrl:rangeKeeperForkRpcUrl,
-       onFailure:(stage,error)=>setupDiagnostic?.(`rangekeeper_retain_${stage}`,safePaperDiagnosticFailure(error))});
-     }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
-      reason:error instanceof DeploymentConflict?error.code:'rangekeeper_retain_preparation_unavailable'};}
-    }
-    const snapshot=await store.rangeKeeperPaperExitContextSnapshot(campaignId),
-     seed=rangeKeeperPaperExitContextSeed(snapshot,campaignId);
-    if(!seed)return {status:'unavailable',reason:'rangekeeper_persisted_context_unavailable',
-     campaignId,actionAvailable:false};
-    let buildId='';
     try{
-     const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null') as unknown;
-     if(identity&&typeof identity==='object'&&typeof (identity as {buildId?:unknown}).buildId==='string')
-      buildId=(identity as {buildId:string}).buildId;
-    }catch{/* Missing or malformed release identity leaves the preview unavailable. */}
-    if(!buildId)return {status:'unavailable',reason:'rangekeeper_runtime_build_identity_unavailable',
-     campaignId,actionAvailable:false};
-    let frame:PaperOpenFrame;
-    try{frame=await readCanonicalPaperNextFrame(client,seed.profile,
-     {sourceBlock:seed.previousSource.block,sourceHash:seed.previousSource.hash});}
-    catch{return {status:'unavailable',reason:'rangekeeper_canonical_exit_source_unavailable',
-     campaignId,actionAvailable:false};}
-    try{await verifyCanonicalPaperAnchors(client,seed.profile.pool.chainId,
-     [seed.openSource,seed.previousSource,frame.source]);}
-    catch{return {status:'unavailable',reason:'rangekeeper_persisted_source_not_canonical',
-     campaignId,actionAvailable:false};}
-    const contextNow=Date.now(),context=await loadRangeKeeperPaperExitContext({campaignId,buildId,frame,
-     now:contextNow,
-     readSnapshot:async()=>snapshot,readGasProfiles:query=>store.rangeKeeperPaperGasProfiles(
-      query.poolAddress,query.pathVersion,query.sizeBand)});
-    if(context.status!=='available')return context;
-    const exitKind='convert' as const;
-    let marketGasPriceWei:bigint|null=null,marketGasPriceObservedAt:number|null=null;
-    try{marketGasPriceWei=await client.getGasPrice();marketGasPriceObservedAt=Date.now();}
-    catch{/* The builder returns a blocked model with explicit gas evidence unavailable. */}
-    const now=Date.now();
-    const exitModel=await buildRangeKeeperPaperExitModel({client,draft:context.draft,
-     openModel:context.openModel,openMarkId:context.openMarkId,previous:context.previous,
-     kernel:context.kernel,readGasProfiles:context.readGasProfiles,buildId,exitKind,frame,now,
-     marketGasPriceWei,marketGasPriceObservedAt,
-     // No candidate simulator is wired into the terminal preview. This throws
-     // rather than returning false so the kernel reports
-     // 'calldata_simulation_unavailable' instead of 'calldata_simulation_failed':
-     // returning false asserts that a candidate's calldata failed a simulation
-     // that never ran, and that reason is surfaced to the operator through the
-     // model's kernelEvaluation.simulationAvailable.
-     //
-     // This gate is reached only when the kernel would propose its own entry or
-     // recenter candidate while the operator is previewing a close, and it is not
-     // what makes a RangeKeeper campaign uncloseable. That is the missing exit
-     // operation path -- see the integration plan's section 2a.
-     simulate:async()=>{throw new Error('rangekeeper_terminal_candidate_simulator_unavailable');}});
-    // Persist a trusted exit preview so the exit acceptance has something to bind
-    // to. Only a complete indicative model is persistable; a blocked one carries
-    // its reason to the operator instead, and the preflight refuses it anyway.
-    if(exitModel.status!=='indicative')return exitModel;
-    try{
-     const persisted=await persistTrustedRangeKeeperPaperExitPreview({store,draft:context.draft,
-      model:exitModel,kind:'close_convert',
-      verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
-       verifyCanonicalPaperAnchors(client,chainId,sources)});
-     return {...exitModel,id:persisted.id,contentDigest:persisted.contentDigest,
-      expectedRevision:persisted.expectedRevision,
-      expiresAt:persisted.expiresAt.toISOString(),trustedPreviewSaved:true,
-      operationAcceptanceAvailable:false,actionAvailable:false};
-    }catch(error){
-     return {...exitModel,status:'blocked' as const,
-      blockingReason:error instanceof DeploymentConflict?error.code:
-       'rangekeeper_exit_preview_unavailable',
-      operationAcceptanceAvailable:false,actionAvailable:false};
-    }
+     const identity=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'null');
+     if(!identity?.buildId)throw new DeploymentConflict('rangekeeper_runtime_build_identity_unavailable');
+     return await prepareRangeKeeperPaperExitPreview({store,client,campaignId,
+      buildId:identity.buildId,rpcUrl:rangeKeeperForkRpcUrl,
+      exitKind:kind==='close_retain'?'retain':'convert',
+      onFailure:(stage,error)=>setupDiagnostic?.(`rangekeeper_exit_${stage}`,safePaperDiagnosticFailure(error))});
+    }catch(error){return {status:'unavailable',kind,campaignId,actionAvailable:false,
+     reason:error instanceof DeploymentConflict?error.code:'rangekeeper_exit_preparation_unavailable'};}
+
    }
    const draft=await store.paperDraft(campaignId);
    if(draft.strategyId==='rangekeeper_v1'){

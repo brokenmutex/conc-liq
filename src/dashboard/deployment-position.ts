@@ -83,7 +83,7 @@ const rkObservedBalances=(inventory:unknown,provenance:unknown)=>{
   lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   idle0=decimal(idle.token0),idle1=decimal(idle.token1);
- if(!['rangekeeper_paper_mark_v1','rangekeeper_paper_close_retain_v1'].includes(String(prov.classification))||
+ if(!['rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1','rangekeeper_paper_close_retain_v1'].includes(String(prov.classification))||
   sqrt===null||liquidity===null||lower===null||upper===null||idle0===null||idle1===null)return null;
  try{
   const principal=amountsForLiquidity({liquidity:BigInt(liquidity),sqrtPriceX96:BigInt(sqrt),
@@ -239,12 +239,12 @@ export function deploymentPosition(row:DeploymentRow){
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
  const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
   allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??
-   (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1'].includes(String(provenance.classification))?rkBalances?.token0Raw??null:decimal(inventory.token0Raw)),
+   (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(provenance.classification))?rkBalances?.token0Raw??null:decimal(inventory.token0Raw)),
   lowerBoundRaw:decimal(record(inventory.knownLowerBound).token0Raw)??
    decimal(record(inventory.retainedPrincipalLowerBound).token0Raw)},
   {address:p.token1,symbol:symbol(p.reference1),decimals:p.decimals1,
   allocatedRaw:allocation.token1Raw,amountRaw:model?.inventory.token1Raw??
-   (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1'].includes(String(provenance.classification))?rkBalances?.token1Raw??null:decimal(inventory.token1Raw)),
+   (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(provenance.classification))?rkBalances?.token1Raw??null:decimal(inventory.token1Raw)),
    lowerBoundRaw:decimal(record(inventory.knownLowerBound).token1Raw)??
     decimal(record(inventory.retainedPrincipalLowerBound).token1Raw)}];
  const position=record(inventory.position),liquidity=decimal(position.liquidity),
@@ -307,6 +307,13 @@ export function deploymentPosition(row:DeploymentRow){
     stage:row.operation_stage,reason:row.operation_reason,
     updatedAt:row.operation_updated_at?.toISOString()??null},
    sourceBlock:row.source_block,sourceHash:row.source_hash,
+   rangekeeper:row.strategy_id==='rangekeeper_v1'?{
+    currentEpoch:Number.isInteger(provenance.epoch)?provenance.epoch:0,
+    latestMarkId:row.mark_id,latestMarkHash:row.mark_id?contentHash({revision:row.current_revision,
+     source_block:row.source_block,source_hash:row.source_hash,inventory:row.inventory,
+     economics:row.economics,provenance:row.provenance}):null,
+    latestClassification:provenance.classification??null,
+    recenterAvailable:false}:null,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
    conversionAccountingStatus:conversionClose?(conversionModel?'available':'unavailable'):'not_applicable',
@@ -341,14 +348,17 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
  if(!sourceAt||!mark.source_block||!mark.source_hash)throw Error('Deployment mark source unavailable');
  const kind=prov.classification,action=kind==='paper_model_provisional'||kind==='rangekeeper_paper_open_v1'?'enter':
   kind==='paper_model_partial_close'||kind==='paper_model_converted_close'||
-   kind==='rangekeeper_paper_close_retain_v1'?'exit':'mark';
+   kind==='rangekeeper_paper_close_retain_v1'?'exit':
+   kind==='rangekeeper_paper_recenter_v1'?'recenter':'mark';
  if(!['paper_model_provisional','paper_model_principal_valuation','paper_model_partial_close',
   'rangekeeper_paper_open_v1',
-  'paper_model_converted_close','rangekeeper_paper_mark_v1',
+  'paper_model_converted_close','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1',
   'rangekeeper_paper_close_retain_v1'].includes(String(kind)))
   throw Error('Deployment mark classification unavailable');
  return {id:mark.id,sourceAt,observedAt:mark.at.toISOString(),block:mark.source_block,
   action,status:action==='exit'?'closed':'open',
+  ...(kind==='rangekeeper_paper_recenter_v1'&&Number.isInteger(prov.epoch)?{epoch:prov.epoch,
+   previousEpoch:prov.previousEpoch,candidateHash:prov.candidateHash}:{}),
   economicNavQuote:micro(model?.economics.netNavQuote??null),
   holdQuote:micro(model?.economics.passiveQuote??null),
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),profile.pool):null,
@@ -359,12 +369,12 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
   tokenBalances:[{address:profile.pool.token0,
    amountRaw:model?.inventory.token0Raw??
-    (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1'].includes(String(kind))?rkBalances?.token0Raw??null:decimal(inv.token0Raw)),
+    (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(kind))?rkBalances?.token0Raw??null:decimal(inv.token0Raw)),
    lowerBoundRaw:decimal(record(inv.knownLowerBound).token0Raw)??
     decimal(record(inv.retainedPrincipalLowerBound).token0Raw)},
    {address:profile.pool.token1,
     amountRaw:model?.inventory.token1Raw??
-     (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1'].includes(String(kind))?rkBalances?.token1Raw??null:decimal(inv.token1Raw)),
+     (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(kind))?rkBalances?.token1Raw??null:decimal(inv.token1Raw)),
     lowerBoundRaw:decimal(record(inv.knownLowerBound).token1Raw)??
      decimal(record(inv.retainedPrincipalLowerBound).token1Raw)}],
   principalOnlyValue:micro(principalValue(inv,economics,prov,profile.pool)),

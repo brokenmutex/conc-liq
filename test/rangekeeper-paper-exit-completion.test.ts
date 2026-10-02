@@ -39,6 +39,9 @@ function model(overrides:Record<string,unknown>={}):RangeKeeperPaperCloseRetainM
   schemaVersion:1,kind:'rangekeeper_paper_exit_model',status:'indicative',exitKind:'retain',
   actionAvailable:true,campaignId,revision:1,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
   draftConfigHash,profileHash,openMarkId,openModelHash,candidateHash,
+  currentEpoch:{epoch:0,markId:openMarkId,markHash:'6'.repeat(64),source:openSource,
+   candidateHash,candidateReferenceProofHash:'2'.repeat(64),allowancesCleared:false,
+   position:{tickLower,tickUpper,liquidity:String(liquidity)}},
   previousMark:{id:previousMarkId,source:previousSource,candidateHash},
   source:exitSource,poolState:{tick:0,sqrtPriceX96:String(sqrtPriceX96),poolLiquidity:'1'},
   reference:{price0:'1',price1:'1',nativePrice:'1',proofHash:'2'.repeat(64),proof:{fixture:true}},
@@ -55,6 +58,7 @@ function model(overrides:Record<string,unknown>={}):RangeKeeperPaperCloseRetainM
 const bookingInput=(overrides:Record<string,unknown>={})=>({operationId,previewId,
  modelHash:'5'.repeat(64),model:model(),
  openMarkPosition:{tickLower,tickUpper,liquidity:String(liquidity)},
+ currentEpochPosition:{tickLower,tickUpper,liquidity:String(liquidity)},
  previousMark:{id:previousMarkId,position:{tickLower,tickUpper,liquidity:String(liquidity)},
   idle:{token0:String(idle0),token1:String(idle1)}},
  pool:{token0:'0x7000000000000000000000000000000000000000',
@@ -73,6 +77,26 @@ test('buildRangeKeeperPaperCloseRetainBooking books the retained-lower-bound led
  assert.equal((booking.mark.inventory as any).retainedPrincipalLowerBound.token0Raw,String(retained0));
  assert.equal((booking.mark.inventory as any).retainedPrincipalLowerBound.token1Raw,String(retained1));
  assert.deepEqual(booking.mark.calibrationProfileIds,['44444444-4444-4444-8444-444444444444']);
+});
+
+test('retain booking uses the active epoch position while preserving the opening baseline',()=>{
+ const nextLower=-1_200,nextUpper=1_200,nextLiquidity=2_000_000_000n,
+  nextPrincipal=principalAmounts({liquidity:nextLiquidity,sqrtPriceX96,tickLower:nextLower,tickUpper:nextUpper}),
+  nextIdle0=101n,nextIdle1=202n,nextCandidateHash='9'.repeat(64),nextRetained0=nextIdle0+nextPrincipal.amount0,
+  nextRetained1=nextIdle1+nextPrincipal.amount1;
+ const nextModel=model({candidateHash:nextCandidateHash,currentEpoch:{epoch:1,markId:'11',markHash:'7'.repeat(64),
+  source:previousSource,candidateHash:nextCandidateHash,candidateReferenceProofHash:'2'.repeat(64),
+  allowancesCleared:true,position:{tickLower:nextLower,tickUpper:nextUpper,liquidity:String(nextLiquidity)}},
+  position:{paperPositionKey:`paper:${nextCandidateHash}`,tickLower:nextLower,tickUpper:nextUpper,
+   liquidity:String(nextLiquidity),sharePpm:'1',idle0:String(nextIdle0),idle1:String(nextIdle1),
+   principal0:String(nextPrincipal.amount0),principal1:String(nextPrincipal.amount1),
+   retainedLowerBound0:String(nextRetained0),retainedLowerBound1:String(nextRetained1)}});
+ const booking=buildRangeKeeperPaperCloseRetainBooking({...bookingInput(),model:nextModel,
+  currentEpochPosition:{tickLower:nextLower,tickUpper:nextUpper,liquidity:String(nextLiquidity)},
+  previousMark:{id:previousMarkId,position:{tickLower:nextLower,tickUpper:nextUpper,liquidity:String(nextLiquidity)},
+   idle:{token0:String(nextIdle0),token1:String(nextIdle1)}}} as any);
+ assert.equal((booking.mark.inventory as any).retainedPrincipalLowerBound.token0Raw,String(nextRetained0));
+ assert.equal((booking.mark.provenance as any).candidateHash,nextCandidateHash);
 });
 
 test('buildRangeKeeperPaperCloseRetainBooking fails closed on every independently-checkable mismatch',()=>{
@@ -164,11 +188,11 @@ test('worker resumes a reconciling close_retain claim and completes exactly once
  assert.deepEqual(calls.map(c=>c[0]),['complete']);
 });
 
-test('worker blocks rangekeeper close_convert with a specific reason instead of booking it',async()=>{
+test('worker requires owned-fork replay configuration before booking RangeKeeper convert',async()=>{
  const {store,chain,indexer,calls}=exitWorkerFixture({kind:'close_convert'});
  const result=await processOnePaperOperation(store,chain,indexer,'rk-worker');
  assert.deepEqual(result,{status:'blocked',operationId,
-  reason:'rangekeeper_paper_exit_convert_completion_unavailable'});
+  reason:'rangekeeper_paper_convert_fork_rpc_unavailable'});
  // The claim still advances to 'reconciling' and the source is still
  // anchor-checked before the kind is refused; the third advance is the
  // block() call itself moving the claim to 'blocked'. Only the completion

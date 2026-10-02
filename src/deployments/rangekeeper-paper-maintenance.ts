@@ -86,9 +86,10 @@ export function buildRangeKeeperPaperMaintenanceKernel(input:{snapshot:Snapshot;
   priorKernel=previousKernel;
  const kernelSnapshot=serializeRangeKeeperPaperKernelSnapshot({state,source,wallet0:BigInt(inventory.idle.token0),
   wallet1:BigInt(inventory.idle.token1),released0:positionAmounts.amount0,released1:positionAmounts.amount1,
-  nativeWei:BigInt(draft.allocation.nativeWei),campaignStartValue,highWaterValue,
-  rollingSpentCost:priorKernel?BigInt(String(priorKernel.rollingSpentCost)):0n,
-  campaignSpentCost:priorKernel?BigInt(String(priorKernel.campaignSpentCost)):0n,
+  nativeWei:firstMark?initialOpenNativeWei(model,draft.allocation.nativeWei):BigInt(String(previousKernel!.nativeWei)),
+  campaignStartValue,highWaterValue,
+  rollingSpentCost:priorKernel?BigInt(String(priorKernel.rollingSpentCost)):initialOpenCost(model).boundValue,
+  campaignSpentCost:priorKernel?BigInt(String(priorKernel.campaignSpentCost)):initialOpenCost(model).boundValue,
   reservedCost:priorKernel?BigInt(String(priorKernel.reservedCost)):0n,recenters:0,pending:false,
   entryAllowed:false,safeExitRequired:false,executionReady:false});
  const persistentOutside=state.exit!==null&&source.timestamp-state.exit.since>=300,
@@ -97,6 +98,20 @@ export function buildRangeKeeperPaperMaintenanceKernel(input:{snapshot:Snapshot;
  assert(openSource.block===model.source.block,'rangekeeper_paper_maintenance_open_anchor_invalid');
  return {kernelSnapshot,decision,valuation:{principal:positionAmounts,principalOnlyValue,campaignStartValue,
   highWaterValue},actionAvailable:false as const};
+}
+
+function initialOpenCost(model:RangeKeeperPaperOpenModel){
+ const costs=model.costs;
+ if(!costs||costs.status!=='provisional'||!costs.open||!costs.profileIds.length)
+  throw Error('rangekeeper_paper_initial_open_cost_unavailable');
+ const boundValue=BigInt(costs.open.boundValue),boundWei=BigInt(costs.open.boundWei);
+ if(boundValue<0n||boundWei<0n)throw Error('rangekeeper_paper_initial_open_cost_invalid');
+ return {boundValue,boundWei};
+}
+function initialOpenNativeWei(model:RangeKeeperPaperOpenModel,nativeWei:string){
+ const available=BigInt(nativeWei)-initialOpenCost(model).boundWei;
+ if(available<0n)throw Error('rangekeeper_paper_initial_open_native_reserve_unavailable');
+ return available;
 }
 
 /** One bounded signer-free RangeKeeper paper observation. */

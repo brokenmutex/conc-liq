@@ -4,6 +4,8 @@ import {z} from 'zod';
 import {createRobinhoodClient,type RobinhoodClient} from './client.js';
 import {maintainCanonicalPaperScenario} from './deployments/paper-maintenance.js';
 import {maintainRangeKeeperPaperObservation} from './deployments/rangekeeper-paper-maintenance.js';
+import {prepareRangeKeeperPaperRecenterPreview} from './deployments/rangekeeper-paper-recenter-runtime.js';
+import {loadRuntimeIdentity} from './runtime/identity.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
 import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
@@ -14,6 +16,7 @@ import {log} from './logger.js';
 const envSchema=z.object({
  DATABASE_URL:z.string().min(1),
  ROBINHOOD_READ_HTTP_URL:z.url(),
+ PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
  DEPLOYMENT_PAPER_WORKER_INTERVAL_MS:z.coerce.number().int().min(10000).max(300000).default(60000),
  DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS:z.coerce.number().int().min(1).max(100).default(20),
@@ -98,6 +101,14 @@ export async function acquirePaperOperationReadinessLease(indexer:pg.Pool):Promi
 }
 export type PaperCampaignRow={id:string;lifecycle:'active'|'paused'|'closing'|'closed'|'blocked';
  strategy_id?:'static_manual_v1'|'rangekeeper_v1'};
+export interface RangeKeeperAutomaticPassResult {
+ status:string;reason?:string;markId?:string;source?:{block:string};
+ decision?:unknown;nextObservationAt?:number|null;operationId?:string;
+}
+export function nextPaperMaintenanceAt(now:number,intervalMs:number,nextObservationAt?:number|null){
+ return Number.isFinite(nextObservationAt)?
+  Math.min(now+intervalMs,Math.max(now+1_000,nextObservationAt!)):now+intervalMs;
+}
 // A bare error class name cannot tell an operator which invariant failed: every
 // assertion in the fee replay path logged the single token 'AssertionError',
 // so a transient indexer lag and a real integrity violation were indistinguishable
@@ -117,7 +128,8 @@ export function advancePaperCampaignCursor(page:readonly PaperCampaignRow[],curs
 /** A single bounded, signer-free audit/projection pass. Its session lock
  * prevents two copies of this worker from scanning the same campaign set. */
 export async function runPaperMaintenancePass(store:DeploymentStore,
- chain:RobinhoodClient,indexer:pg.Pool,maxCampaigns:number,maxSteps:number,diagnostics=false){
+ chain:RobinhoodClient,indexer:pg.Pool,maxCampaigns:number,maxSteps:number,diagnostics=false,
+ runRangeKeeperAutomatic?:(campaignId:string,observationOnly:boolean)=>Promise<RangeKeeperAutomaticPassResult>){
  if(!Number.isSafeInteger(maxCampaigns)||maxCampaigns<1||maxCampaigns>100||
   !Number.isSafeInteger(maxSteps)||maxSteps<1||maxSteps>100)
   throw Error('Paper worker budget invalid');
@@ -151,10 +163,23 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
      LIMIT $2`,[campaignCursor,maxCampaigns-after.length])).rows:[];
    const campaigns=after.concat(wrapped);
    campaignCursor=advancePaperCampaignCursor(campaigns,campaignCursor);
-   let invalidated=0,failed=0,preparationSkipped=0;
+   let invalidated=0,failed=0,preparationSkipped=0,nextObservationAt:number|undefined;
    for(const campaign of campaigns){
     try{
      if(campaign.strategy_id==='rangekeeper_v1'){
+      if(runRangeKeeperAutomatic){
+       const result=await runRangeKeeperAutomatic(campaign.id,campaign.lifecycle==='paused');
+       if(result.status==='preparation_locked'){preparationSkipped++;continue;}
+       if(typeof result.nextObservationAt==='number'&&Number.isFinite(result.nextObservationAt))
+        nextObservationAt=Math.min(nextObservationAt??Infinity,result.nextObservationAt);
+       const decision=result.decision&&typeof result.decision==='object'?
+        result.decision as {action?:unknown;reason?:unknown}:null;
+       log('info','rangekeeper_paper_automatic_pass',{campaignId:campaign.id,status:result.status,
+        reason:result.reason,markId:result.markId,sourceBlock:result.source?.block,
+        operationId:result.operationId,nextObservationAt:result.nextObservationAt,
+        decision:decision?{action:decision.action,reason:decision.reason}:null});
+       continue;
+      }
       const result=await maintainRangeKeeperPaperObservation(store,chain,indexer,campaign.id,
        (chainId,sources)=>verifyCanonicalPaperAnchors(chain,chainId,sources));
       if(result.status==='preparation_locked'){preparationSkipped++;continue;}
@@ -179,7 +204,7 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
     }
    }
    return {status:'completed' as const,processed:campaigns.length,invalidated,failed,
-    preparationSkipped};
+    preparationSkipped,...(nextObservationAt===undefined?{}:{nextObservationAt})};
   }finally{
    await lock.query('SELECT pg_advisory_unlock($1::int,$2::int)',lockKey);
   }
@@ -219,7 +244,7 @@ async function main(){
      if(readinessLease)await readinessLease.assertHealthy();
      try{
       const result=await processOnePaperOperation(store,chain,indexer,workerId,
-       {rpcUrl:env.ROBINHOOD_READ_HTTP_URL,diagnostics});
+       {rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,diagnostics});
       if(result.status==='idle')break;
       log(result.status==='blocked'?'error':'info','paper_operation_worker_pass',result);
       if(result.status==='retry')break;
@@ -230,15 +255,30 @@ async function main(){
     }
    }
    if(Date.now()>=nextMaintenanceAt){
+    let nextObservationAt:number|undefined;
     try{
      const result=await runPaperMaintenancePass(store,chain,indexer,
       env.DEPLOYMENT_PAPER_WORKER_MAX_CAMPAIGNS,
-      env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS,diagnostics);
+      env.DEPLOYMENT_PAPER_WORKER_MAX_STEPS,diagnostics,
+      env.DEPLOYMENT_PAPER_OPERATION_WORKER==='1'?async (campaignId,observationOnly)=>{
+       const runtime=loadRuntimeIdentity();
+       if(!runtime)throw new DeploymentConflict('rangekeeper_runtime_build_identity_unavailable');
+       const snapshot=await store.rangeKeeperPaperEpochSnapshot(campaignId);
+       if(snapshot.previousMark.classification==='rangekeeper_paper_open_v1')
+        return maintainRangeKeeperPaperObservation(store,chain,indexer,campaignId,
+         (chainId,sources)=>verifyCanonicalPaperAnchors(chain,chainId,sources));
+       return prepareRangeKeeperPaperRecenterPreview({store,client:chain,indexer,campaignId,
+        buildId:runtime.buildId,rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,observationOnly,
+        onFailure:(stage,error)=>log('error','rangekeeper_paper_automatic_failed',
+         {campaignId,stage,reason:failureCode(error),
+          cause:error instanceof Error&&error.cause?failureCode(error.cause):undefined})});
+      }:undefined);
      log('info','paper_worker_pass',result);
+     nextObservationAt=result.status==='completed'?result.nextObservationAt:undefined;
     }catch(error){
      log('error','paper_worker_pass_failed',{reason:failureCode(error)});
     }
-    nextMaintenanceAt=Date.now()+env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS;
+    nextMaintenanceAt=nextPaperMaintenanceAt(Date.now(),env.DEPLOYMENT_PAPER_WORKER_INTERVAL_MS,nextObservationAt);
    }
    const untilMaintenance=Math.max(0,nextMaintenanceAt-Date.now());
    if(readinessLease)await readinessLease.waitForOperation(

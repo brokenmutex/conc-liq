@@ -252,8 +252,14 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   close_retain:{preview:'.retain-action-root .retain-preview-button',confirm:'.retain-action-root .retain-confirm-button',
   acceptPath:'/operations'},
   close_convert:{preview:'.convert-action-root .convert-preview-button',confirm:'.convert-action-root .convert-confirm-button',
-  acceptPath:'/close-convert-operations'}};
+  acceptPath:'/close-convert-operations'},
+  rangekeeper_close_retain:{preview:'.retain-action-root .retain-preview-button',confirm:'.retain-action-root .retain-confirm-button',
+  acceptPath:'/rangekeeper/close-operations'},
+  rangekeeper_close_convert:{preview:'.convert-action-root .convert-preview-button',confirm:'.convert-action-root .convert-confirm-button',
+  acceptPath:'/rangekeeper/close-operations'}};
  const spec=specs[kind];assert(spec,`unsupported action ${kind}`);
+ const actionKind=kind==='rangekeeper_close_retain'?'close_retain':
+  kind==='rangekeeper_close_convert'?'close_convert':kind;
  if(kind==='resume')await browser.waitFor('document.querySelector(".paper-lifecycle-preview-button")?.textContent.includes("resume")',
   'resume action');
  if(kind==='pause')await browser.waitFor('document.querySelector(".paper-lifecycle-preview-button")?.textContent.includes("pause")',
@@ -324,6 +330,10 @@ export async function acceptPositionsAction(browser,campaignId,kind,
  }
  if(kind==='close_retain')assert.match(previewText,/provisional, not paid/i);
  if(kind==='close_convert')assert.match(previewText,/provisional/i);
+ if(kind==='rangekeeper_close_retain')assert.match(previewText,/provisional/i,
+  'RangeKeeper retain preview must keep modeled economics provisional');
+ if(kind==='rangekeeper_close_convert')assert.match(previewText,/provisional/i,
+  'RangeKeeper convert preview must keep quote and costs provisional');
  await beforeAccept({kind,previewText,previewResponse});
  const acceptancePath=`/api/deployments/${campaignId}${spec.acceptPath}`;
  await browser.evaluate(`(()=>{const original=window.fetch.bind(window),target=${JSON.stringify(acceptancePath)};
@@ -374,7 +384,7 @@ export async function acceptPositionsAction(browser,campaignId,kind,
   assert.equal(await browser.evaluate('window.__canonicalDroppedAcceptedResponse'),true,
    `${kind} recovery fixture did not drop the actual accepted 202 response`);
   const recoverySelector=`#pending-paper-acceptance-recovery .paper-acceptance-reconcile-button`+
-   `[data-campaign-id="${campaignId}"][data-kind="${kind}"]`;
+   `[data-campaign-id="${campaignId}"][data-kind="${actionKind}"]`;
   await browser.waitFor(`document.querySelector(${JSON.stringify(recoverySelector)})!==null&&
    document.querySelector(${JSON.stringify(recoverySelector)}).disabled===false&&
    document.querySelector(${JSON.stringify(recoverySelector)}).getClientRects().length>0`,

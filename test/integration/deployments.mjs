@@ -232,10 +232,16 @@ try{
   rkRange={tickLower:-60,tickUpper:60},rkSqrt=sqrtRatioAtTick(0),
   rkMint=replayPaperMint(rkSqrt,rkRange,10n**18n,10n**18n,0n),
   rkCandidateHash='c'.repeat(64),rkPolicyHash='a'.repeat(64),rkBuildId='b'.repeat(64),
+  rkModelReferenceProof={fixture:'rk-opening-reference'},
+  rkModelReferenceProofHash=referenceProofHash(rkModelReferenceProof),
   rkOpenModel={kind:'rangekeeper_paper_open_model',status:'indicative',actionAvailable:false,
    campaignId:rkDraft.id,revision:1,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
    kernelPolicyHash:rkPolicyHash,kernelBuildId:rkBuildId,candidateHash:rkCandidateHash,
-   source:rkOpenSource,poolState:{sqrtPriceX96:String(rkSqrt)},candidate:{kind:'entry',range:rkRange,
+   source:rkOpenSource,poolState:{sqrtPriceX96:String(rkSqrt)},reference:{price0:'1',price1:'1',
+    nativePrice:'1',eligible:true,proofHash:rkModelReferenceProofHash,proof:rkModelReferenceProof,reasons:[]},
+   costs:{status:'provisional',profileIds:[],open:{expectedValue:'1',boundValue:'1',
+    expectedWei:'1',boundWei:'1'}},
+   candidate:{kind:'entry',range:rkRange,
     swap:null,amount0Desired:'1000000000000000000',amount1Desired:'1000000000000000000',
     amount0Min:'0',amount1Min:'0',liquidity:String(rkMint.liquidity),deployedValue:'1',
     sourceBlock:rkOpenSource.block,sourceHash:rkOpenSource.hash,expiresAt:rkOpenSource.timestamp+90}},
@@ -255,8 +261,11 @@ try{
   [rkDraft.id,rkOpenSource.block,rkOpenSource.hash,JSON.stringify({
    classification:'rangekeeper_paper_open_v1',previewId:rkPreviewId,source:rkOpenSource,
    modelHash:contentHash(rkOpenModel),candidateHash:rkCandidateHash}),JSON.stringify({
+    classification:'rangekeeper_paper_open_v1',token0Raw:'10000000000000000000000',
+    token1Raw:'10000000000000000000000',nativeWei:'10000000000000000',
     position:{...rkRange,liquidity:String(rkMint.liquidity),amount0Minted:String(rkMint.amount0),
-     amount1Minted:String(rkMint.amount1)}})]);
+     amount1Minted:String(rkMint.amount1)},idle:{token0:String(10n**22n-rkMint.amount0),
+      token1:String(10n**22n-rkMint.amount1)}})]);
  await admin.query(`UPDATE deployment_campaigns SET lifecycle='active' WHERE id=$1`,[rkDraft.id]);
  const rkLifecyclePreview=await store.recordPreview({campaignId:rkDraft.id,expectedRevision:1,
   kind:'pause',request:{kind:'pause'},proposal:{paperLifecycle:{from:'active',to:'paused'}},evidence:{},
@@ -275,8 +284,9 @@ try{
    state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
     configHash:`0x${rkPolicyHash}`,buildId:rkBuildId,lastEligible:{block:201n,
      hash:rkMarkSource.hash,timestamp:rkMarkSource.timestamp},confirmation:null,exit:null},
-   wallet0:rkIdle0,wallet1:rkIdle1,released0:rkPrincipal.amount0,released1:rkPrincipal.amount1,nativeWei:0n,
-   campaignStartValue:1n,highWaterValue:1n,rollingSpentCost:0n,campaignSpentCost:0n,
+   wallet0:rkIdle0,wallet1:rkIdle1,released0:rkPrincipal.amount0,released1:rkPrincipal.amount1,
+   nativeWei:BigInt('10000000000000000')-1n,
+   campaignStartValue:1n,highWaterValue:1n,rollingSpentCost:1n,campaignSpentCost:1n,
    reservedCost:0n,recenters:0,pending:false,entryAllowed:true,safeExitRequired:false,executionReady:false}),
   verifyRkAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
    sources.map(source=>source.block),['200','201']);};
@@ -291,23 +301,33 @@ try{
  await assert.rejects(store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
   kernelSnapshot:rkKernel,frame:{...rkMarkFrame,referenceProofHash:'0'.repeat(64)},
   verifyAnchors:verifyRkAnchors}),/rangekeeper_paper_mark_frame_integrity/);
- const rkMark=await store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
-  kernelSnapshot:rkKernel,frame:rkMarkFrame,verifyAnchors:verifyRkAnchors});
- assert.equal(rkMark.replayed,false);assert.equal(rkMark.actionAvailable,false);
- const rkRestartStore=new DeploymentStore(url.toString());
- const rkReplay=await rkRestartStore.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
-  kernelSnapshot:rkKernel,frame:rkMarkFrame,verifyAnchors:verifyRkAnchors});
- await rkRestartStore.close();
- assert.deepEqual(rkReplay,{...rkMark,replayed:true});
+ const rkLegacyKernel={...rkKernel,nativeWei:'10000000000000000',
+   rollingSpentCost:'0',campaignSpentCost:'0'},
+  rkOpenMarkId=(await admin.query(`SELECT id::text AS id FROM deployment_marks WHERE campaign_id=$1
+   AND provenance->>'classification'='rangekeeper_paper_open_v1'`,[rkDraft.id])).rows[0].id,
+  rkLegacyProvenance={classification:'rangekeeper_paper_mark_v1',source:rkMarkSource,
+   poolState:{tick:0,sqrtPriceX96:String(rkSqrt),poolLiquidity:String(rkMarkFrame.poolLiquidity)},
+   reference:{price0:String(rkMarkFrame.price0),price1:String(rkMarkFrame.price1),
+    nativePrice:String(rkMarkFrame.nativePrice),proofHash:rkMarkFrame.referenceProofHash,
+    proof:rkMarkFrame.referenceProof},openMarkId:rkOpenMarkId,candidateHash:rkCandidateHash,
+   kernelSnapshot:rkLegacyKernel},
+  legacyMark=(await admin.query(`INSERT INTO deployment_marks
+   (campaign_id,revision,source_block,source_hash,inventory,economics,calibration_profile_ids,provenance)
+   VALUES($1,1,$2,$3,$4,NULL,'{}'::uuid[],$5) RETURNING id::text AS id`,
+   [rkDraft.id,rkMarkSource.block,rkMarkSource.hash,JSON.stringify({position:{...rkRange,
+    liquidity:String(rkMint.liquidity)},idle:{token0:String(rkIdle0),token1:String(rkIdle1)}}),
+    JSON.stringify(rkLegacyProvenance)])).rows[0],rkMark={markId:legacyMark.id,replayed:false,actionAvailable:false};
+ const rkLegacyBefore=(await admin.query(`SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1`,
+  [rkMark.markId])).rows[0];
+ await assert.rejects(store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkMarkSource,
+  kernelSnapshot:rkKernel,frame:rkMarkFrame,verifyAnchors:verifyRkAnchors}),
+  /rangekeeper_paper_mark_replay_conflict/);
  const savedRkMark=(await admin.query(`SELECT inventory,economics,provenance FROM deployment_marks
   WHERE id=$1`,[rkMark.markId])).rows[0];
  assert.equal(savedRkMark.inventory.idle.token0,String(rkIdle0));
- assert.deepEqual(savedRkMark.provenance.kernelSnapshot,rkKernel);
- assert.equal(savedRkMark.provenance.actionAvailable,false);
- assert.equal(savedRkMark.economics.principalOnlyValue,
-  String((rkPrincipal.amount0+rkIdle0)*10n**18n/10n**BigInt(market.pool.decimals0)+
-   (rkPrincipal.amount1+rkIdle1)*10n**18n/10n**BigInt(market.pool.decimals1)));
- assert.equal(savedRkMark.economics.netNavQuote,undefined);
+ assert.deepEqual(savedRkMark.provenance.kernelSnapshot,rkLegacyKernel);
+ assert.equal(Object.hasOwn(savedRkMark.provenance,'epoch'),false);
+ assert.equal(savedRkMark.economics,null);
  assert.deepEqual(savedRkMark.provenance.reference.proof,rkMarkProof);
  await assert.rejects(admin.query('UPDATE deployment_marks SET economics=$2 WHERE id=$1',
   [rkMark.markId,JSON.stringify({principalOnlyValue:'1'})]),/Deployment evidence is append-only/);
@@ -498,6 +518,8 @@ try{
  const rkNextMark=await store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkNextSource,
   kernelSnapshot:rkNextKernel,verifyAnchors:verifyRkNextAnchors});
  assert.equal(rkNextMark.replayed,false);
+ assert.deepEqual((await admin.query(`SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1`,
+  [rkMark.markId])).rows[0],rkLegacyBefore,'legacy epoch-0 mark stays byte-for-byte unchanged');
  const rkBlockedSource={block:'203',hash:'0x'+'9'.repeat(64),timestamp:rkNextSource.timestamp+1};
  await assert.rejects(store.recordRangeKeeperPaperMark({campaignId:rkDraft.id,source:rkBlockedSource,
   kernelSnapshot:{...rkNextKernel,source:rkBlockedSource,recenters:1,state:{...rkNextKernel.state,
@@ -506,20 +528,102 @@ try{
   /rangekeeper_paper_mark_recenter_persistence_unavailable/);
  assert.equal((await admin.query(`SELECT count(*)::int AS n FROM deployment_marks WHERE campaign_id=$1`,
   [rkDraft.id])).rows[0].n,3);
+ // Runtime cutover is a non-economic, append-only attribution boundary. The
+ // stored campaign identity and all prior mark bytes remain unchanged.
+ const rkAdoptionBinding=(await admin.query(`SELECT r.config_hash,p.profile_hash FROM deployment_campaigns c
+  JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+  JOIN deployment_market_profiles p ON p.id=c.market_profile_id WHERE c.id=$1`,[rkDraft.id])).rows[0];
+ const rkLatestForAdoption=(await admin.query(`SELECT id::text,revision,source_block::text,source_hash,
+  inventory,economics,provenance FROM deployment_marks WHERE campaign_id=$1 ORDER BY id DESC LIMIT 1`,
+  [rkDraft.id])).rows[0],
+  rkOpeningForAdoption=(await admin.query(`SELECT provenance FROM deployment_marks WHERE campaign_id=$1
+   AND provenance->>'classification'='rangekeeper_paper_open_v1' ORDER BY id LIMIT 1`,[rkDraft.id])).rows[0].provenance,
+  rkOpeningModel=rkOpeningForAdoption.confirmedOpen?.model??rkOpeningForAdoption.model??
+   rkPreviewProposal.rangekeeperPaperOpenModel,
+  rkOpeningModelHash=rkOpeningForAdoption.modelHash??contentHash(rkOpeningModel),
+  rkHistoricalKernelBuildId=rkOpeningModel.kernelBuildId??rkOpeningForAdoption.kernelBuildId,
+  rkAdoptionMarkHash=contentHash({revision:rkLatestForAdoption.revision,
+   source_block:rkLatestForAdoption.source_block,source_hash:rkLatestForAdoption.source_hash,
+   inventory:rkLatestForAdoption.inventory,economics:rkLatestForAdoption.economics,
+   provenance:rkLatestForAdoption.provenance}),
+  rkRuntimeAfter={...rkMarkRuntime,buildId:'a'.repeat(64)},
+  rkAdoptionSource=(()=>{const source=rkLatestForAdoption.provenance.source;
+   return {block:source.block,hash:source.hash,timestamp:source.timestamp};})();
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeAfter);
+ const rkAdoption=await store.adoptRangeKeeperPaperRuntime({campaignId:rkDraft.id,actor:'operator',
+  fromRuntimeIdentity:rkMarkRuntime,toRuntimeIdentity:rkRuntimeAfter,
+  expectedLatestMark:{id:rkLatestForAdoption.id,markHash:rkAdoptionMarkHash,source:rkAdoptionSource},
+  releaseProof:{manifestHash:'b'.repeat(64),buildId:rkMarkRuntime.buildId},
+  compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId:rkMarkRuntime.buildId,toBuildId:rkRuntimeAfter.buildId,strategyId:'rangekeeper_v1',
+   configHash:rkAdoptionBinding.config_hash,profileHash:rkAdoptionBinding.profile_hash,latestMarkHash:rkAdoptionMarkHash,
+   openModelHash:rkOpeningModelHash,historicalKernelBuildId:rkHistoricalKernelBuildId,
+   validatorVersion:'test-fixture-v1'},
+  verifyPinnedRelease:async(identity,proof)=>{assert.deepEqual(identity,rkMarkRuntime);
+   assert.equal(proof.buildId,rkMarkRuntime.buildId);},
+  verifyAnchors:async(chainId,sources)=>{assert.equal(chainId,4663);
+   assert.deepEqual(sources.map(({block,hash})=>({block,hash})),
+    [{block:rkAdoptionSource.block,hash:rkAdoptionSource.hash}]);}});
+ assert.equal(rkAdoption.replayed,false);
+ const rkAdoptionReplay=await store.adoptRangeKeeperPaperRuntime({campaignId:rkDraft.id,actor:'operator',
+  fromRuntimeIdentity:rkMarkRuntime,toRuntimeIdentity:rkRuntimeAfter,
+  expectedLatestMark:{id:rkLatestForAdoption.id,markHash:rkAdoptionMarkHash,source:rkAdoptionSource},
+  releaseProof:{manifestHash:'b'.repeat(64),buildId:rkMarkRuntime.buildId},
+  compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+   fromBuildId:rkMarkRuntime.buildId,toBuildId:rkRuntimeAfter.buildId,strategyId:'rangekeeper_v1',
+   configHash:rkAdoptionBinding.config_hash,profileHash:rkAdoptionBinding.profile_hash,latestMarkHash:rkAdoptionMarkHash,
+   openModelHash:rkOpeningModelHash,historicalKernelBuildId:rkHistoricalKernelBuildId,
+   validatorVersion:'test-fixture-v1'},verifyPinnedRelease:async()=>{},verifyAnchors:async()=>{}});
+ assert.deepEqual(rkAdoptionReplay,{...rkAdoption,replayed:true});
+ const rkRuntimeFinal={...rkMarkRuntime,buildId:'9'.repeat(64)};
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
+ const
+  rkAdoption2=await store.adoptRangeKeeperPaperRuntime({campaignId:rkDraft.id,actor:'operator',
+   fromRuntimeIdentity:rkRuntimeAfter,toRuntimeIdentity:rkRuntimeFinal,
+   expectedLatestMark:{id:rkLatestForAdoption.id,markHash:rkAdoptionMarkHash,source:rkAdoptionSource},
+   releaseProof:{manifestHash:'c'.repeat(64),buildId:rkRuntimeAfter.buildId},
+   compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+    fromBuildId:rkRuntimeAfter.buildId,toBuildId:rkRuntimeFinal.buildId,strategyId:'rangekeeper_v1',
+    configHash:rkAdoptionBinding.config_hash,profileHash:rkAdoptionBinding.profile_hash,
+    latestMarkHash:rkAdoptionMarkHash,openModelHash:rkOpeningModelHash,
+    historicalKernelBuildId:rkHistoricalKernelBuildId,validatorVersion:'test-fixture-v1'},
+   verifyPinnedRelease:async(identity,proof)=>{assert.deepEqual(identity,rkRuntimeAfter);
+    assert.equal(proof.buildId,rkRuntimeAfter.buildId);},verifyAnchors:async()=>{}});
+ assert.equal(rkAdoption2.replayed,false);
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
+ const rkEpochSnapshot=await store.rangeKeeperPaperEpochSnapshot(rkDraft.id);
+ assert.equal(rkEpochSnapshot.runtimeIdentity.buildId,rkRuntimeFinal.buildId);
+ assert.equal(rkEpochSnapshot.openMark.model.kernelBuildId,rkHistoricalKernelBuildId);
+ const rkActualOpen=(await admin.query(`SELECT revision,source_block::text,source_hash,inventory,economics,provenance
+  FROM deployment_marks WHERE id=$1`,[rkEpochSnapshot.openMark.id])).rows[0];
+ assert.equal(rkEpochSnapshot.openMark.markHash,contentHash(rkActualOpen));
+ const rkStillStored=(await admin.query('SELECT runtime_identity FROM deployment_campaigns WHERE id=$1',
+  [rkDraft.id])).rows[0].runtime_identity;
+ assert.deepEqual(rkStillStored,rkMarkRuntime);
+ assert.deepEqual((await admin.query('SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1',
+  [rkLatestForAdoption.id])).rows[0],{inventory:rkLatestForAdoption.inventory,
+   economics:rkLatestForAdoption.economics,provenance:rkLatestForAdoption.provenance});
  // Real SQL acceptance/claim/terminal booking. Chain values here are explicit
  // fixtures; canonical RPC/fork acceptance is a separate lifecycle harness.
- const rkRow=(await admin.query(`SELECT r.config_hash,p.profile_hash,o.id::text AS open_id
+ const rkRow=(await admin.query(`SELECT r.config_hash,p.profile_hash,o.id::text AS open_id,
+  o.source_block::text AS open_block,o.source_hash AS open_hash,o.inventory AS open_inventory,
+  o.economics AS open_economics,o.provenance AS open_provenance
   FROM deployment_campaigns c JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=1
   JOIN deployment_market_profiles p ON p.id=c.market_profile_id
   JOIN deployment_marks o ON o.campaign_id=c.id AND o.provenance->>'classification'='rangekeeper_paper_open_v1'
   WHERE c.id=$1`,[rkDraft.id])).rows[0];
  const rkExitSource={block:'205',hash:'0x'+'e'.repeat(64),timestamp:Math.floor(Date.now()/1000)-1},
+  rkOpenMarkHash=contentHash({revision:1,source_block:rkRow.open_block,source_hash:rkRow.open_hash,
+   inventory:rkRow.open_inventory,economics:rkRow.open_economics,provenance:rkRow.open_provenance}),
   rkExitPrincipal=principalAmounts({liquidity:rkMint.liquidity,sqrtPriceX96:rkSqrt,...rkRange}),
   rkExitProof={fixture:'retain-sql'},rkExitModel={schemaVersion:1,kind:'rangekeeper_paper_exit_model',
    status:'indicative',exitKind:'retain',actionAvailable:false,campaignId:rkDraft.id,revision:1,
    strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',draftConfigHash:rkRow.config_hash,
    profileHash:rkRow.profile_hash,openMarkId:rkRow.open_id,openModelHash:contentHash(rkOpenModel),
-   candidateHash:rkCandidateHash,previousMark:{id:rkNextMark.markId,source:rkNextSource,candidateHash:rkCandidateHash},
+   candidateHash:rkCandidateHash,currentEpoch:{epoch:0,markId:rkRow.open_id,markHash:rkOpenMarkHash,
+    source:rkOpenSource,candidateHash:rkCandidateHash,candidateReferenceProofHash:rkModelReferenceProofHash,
+    allowancesCleared:false,position:{...rkRange,liquidity:String(rkMint.liquidity)}},
+   previousMark:{id:rkNextMark.markId,source:rkNextSource,candidateHash:rkCandidateHash},
    source:rkExitSource,poolState:{tick:0,sqrtPriceX96:String(rkSqrt),poolLiquidity:'1'},
    reference:{price0:'1',price1:'1',nativePrice:'1',proofHash:referenceProofHash(rkExitProof),proof:rkExitProof},
    position:{paperPositionKey:`paper:${rkCandidateHash}`,...rkRange,liquidity:String(rkMint.liquidity),
@@ -542,7 +646,7 @@ try{
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({...rkMarkRuntime,buildId:'0'.repeat(64)});
  await assert.rejects(store.completeRangeKeeperPaperConfirmedExit(rkAccepted.id,rkWorker,async()=>{}),
   /rangekeeper_paper_exit_runtime_mismatch/);
- process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkMarkRuntime);
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
  await assert.rejects(store.completeRangeKeeperPaperConfirmedExit(rkAccepted.id,rkWorker,
   async()=>assert.fail('changed anchor')),/rangekeeper_paper_exit_source_not_canonical/);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE operation_id=$1',

@@ -114,30 +114,33 @@ export function assertSameRangeKeeperPinnedReferenceProof(expected:unknown,actua
 /** Reconstructs the exact post-mint idle balances and retained approvals from
  * the trusted draft allocation and saved open model. */
 export function rangeKeeperPaperTerminalAllowances(input:{candidate:RangeKeeperCandidate;
- allocation:{token0Raw:string;token1Raw:string};openSqrtPriceX96:bigint;openPrice0:bigint;openPrice1:bigint;
+ fundingBeforeSwap:{token0:string;token1:string};mintSqrtPriceX96:bigint;referencePrice0:bigint;referencePrice1:bigint;
+ zeroAllowances?:boolean;
  decimals0:number;decimals1:number;maxDeploymentValue:bigint}){
- const allocated=[BigInt(input.allocation.token0Raw),BigInt(input.allocation.token1Raw)] as const,
+ const allocated=[BigInt(input.fundingBeforeSwap.token0),BigInt(input.fundingBeforeSwap.token1)] as const,
   available=[allocated[0],allocated[1]] as [bigint,bigint],manager=[allocated[0],allocated[1]] as [bigint,bigint],
   router=[0n,0n] as [bigint,bigint],c=input.candidate;
  if(c.swap){
   const token=c.swap.token,acquired=(1-token) as 0|1;
   assert(available[token]>=c.swap.amountIn,'Persisted draft cannot fund saved entry swap');
-  const acquiredPrice=acquired===0?input.openPrice0:input.openPrice1,
+  const acquiredPrice=acquired===0?input.referencePrice0:input.referencePrice1,
    acquiredDecimals=acquired===0?input.decimals0:input.decimals1;
   assert(acquiredPrice>0n);
   const acquiredCap=input.maxDeploymentValue*10n**BigInt(acquiredDecimals)/acquiredPrice;
   manager[acquired]=allocated[acquired]>acquiredCap?allocated[acquired]:acquiredCap;
   router[token]=allocated[token];available[token]-=c.swap.amountIn;available[acquired]+=c.swap.quotedOut;
  }
- const mint=replayPaperMint(input.openSqrtPriceX96,c.range,c.amount0Desired,c.amount1Desired,0n);
+ const mint=replayPaperMint(input.mintSqrtPriceX96,c.range,c.amount0Desired,c.amount1Desired,0n);
  assert(mint.liquidity===c.liquidity,'Saved open candidate no longer replays to its recorded liquidity');
  assert(available[0]>=mint.amount0&&available[1]>=mint.amount1,
   'Persisted draft cannot fund the saved open mint');
  const idle0=available[0]-mint.amount0,idle1=available[1]-mint.amount1;
  assert(manager[0]>=mint.amount0&&manager[1]>=mint.amount1,'Saved entry approvals cannot cover the mint');
  if(c.swap)router[c.swap.token]-=c.swap.amountIn;
- return {idle0,idle1,manager0:manager[0]-mint.amount0,manager1:manager[1]-mint.amount1,
-  router0:router[0],router1:router[1],minted0:mint.amount0,minted1:mint.amount1};
+ const manager0=input.zeroAllowances?0n:manager[0]-mint.amount0,
+  manager1=input.zeroAllowances?0n:manager[1]-mint.amount1,
+  router0=input.zeroAllowances?0n:router[0],router1=input.zeroAllowances?0n:router[1];
+ return {idle0,idle1,manager0,manager1,router0,router1,minted0:mint.amount0,minted1:mint.amount1};
 }
 
 export function assertRangeKeeperPaperTerminalInventory(context:RangeKeeperPaperLoadedExitContext,
@@ -157,7 +160,12 @@ export function terminalInventoryHash(context:RangeKeeperPaperLoadedExitContext,
  const k=context.kernel;
  const principal=principalAmounts({liquidity:candidate.liquidity,tickLower:candidate.range.tickLower,
   tickUpper:candidate.range.tickUpper,sqrtPriceX96:frame.sqrtPriceX96});
- return contentHash({kind:'range_keeper_paper_terminal_inventory_v1',candidateHash:context.openModel.candidateHash,
+ return contentHash({kind:'range_keeper_paper_terminal_inventory_v1',currentEpoch:{epoch:context.currentEpoch.epoch,
+  markId:context.currentEpoch.markId,markHash:context.currentEpoch.markHash,
+  candidateSource:context.currentEpoch.source,candidateHash:context.currentEpoch.candidateHash,
+  candidateReferenceProofHash:context.currentEpoch.candidateReferenceProofHash,
+  inventory:context.currentEpoch.inventory,mintSqrtPriceX96:String(context.currentEpoch.mintSqrtPriceX96),
+  fundingBeforeSwap:context.currentEpoch.fundingBeforeSwap},
   source:frame.source,inventoryProofHash:k.inventoryProofHash,wallet0:String(k.wallet0),wallet1:String(k.wallet1),
   released0:String(k.released0),released1:String(k.released1),nativeWei:String(k.nativeWei),
   position:{tickLower:candidate.range.tickLower,tickUpper:candidate.range.tickUpper,
@@ -170,12 +178,12 @@ export function terminalInventoryHash(context:RangeKeeperPaperLoadedExitContext,
  * (post-open) RangeKeeper paper probe, regardless of exit kind. */
 function validateExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
  context:RangeKeeperPaperLoadedExitContext,limits:RangeKeeperLimits){
- const p=context.draft.profile.pool,k=context.kernel,c=request.candidate,open=context.openModel;
+ const p=context.draft.profile.pool,k=context.kernel,c=request.candidate,epoch=context.currentEpoch;
  assert.equal(request.openMarkId,context.openMarkId);assert.equal(request.openModelHash,contentHash(open));
- assert.equal(request.candidateHash,open.candidateHash);assert.equal(contentHash(serializeCandidate(c)),contentHash(open.candidate));
+ assert.equal(request.candidateHash,epoch.candidateHash);assert.equal(contentHash(serializeCandidate(c)),contentHash(epoch.candidate));
  assert.equal(contentHash(request.profile),contentHash(context.draft.profile));
- assert.equal(contentHash(request.candidateSource),contentHash(open.source));
- assert.equal(request.candidateReferenceProofHash,open.reference.proofHash);
+ assert.equal(contentHash(request.candidateSource),contentHash(epoch.source));
+ assert.equal(request.candidateReferenceProofHash,epoch.candidateReferenceProofHash);
  assert.equal(k.source.block,request.frame.source.block);assert(same(k.source.hash,request.frame.source.hash));
  assert.equal(request.scope.inventoryHash,terminalInventoryHash(context,c,request.frame));
  const principal=principalAmounts({liquidity:c.liquidity,tickLower:c.range.tickLower,
@@ -187,7 +195,7 @@ function validateExitProbeIdentity(request:RangeKeeperPaperGasProbeRequest,
  assert.equal(request.scope.sharePpm,c.liquidity*1_000_000n/(request.frame.poolLiquidity+c.liquidity));
  assert.equal(request.scope.range.tickLower,c.range.tickLower);assert.equal(request.scope.range.tickUpper,c.range.tickUpper);
  assert.equal(request.scope.swapKind,c.swap?'direct_pool_exact_input':'none');
- assert.equal(request.scope.profileHash,context.draft.profileHash);assert.equal(request.scope.candidateHash,open.candidateHash);
+ assert.equal(request.scope.profileHash,context.draft.profileHash);assert.equal(request.scope.candidateHash,epoch.candidateHash);
  assert.equal(request.scope.poolAddress,p.pool);assert(Number.isInteger(limits.maxSlippageBps)&&
   limits.maxSlippageBps>0&&limits.maxSlippageBps<=50);
 }
@@ -210,7 +218,7 @@ function validateTerminalProbe(request:RangeKeeperPaperGasProbeRequest,
 export function validateRangeKeeperPaperConvertQuoteBinding(input:{
  context:RangeKeeperPaperLoadedExitContext;source:PaperOpenFrame['source'];
  quote:RangeKeeperPaperConvertQuote;limits:RangeKeeperLimits}){
- const {context,source,quote,limits}=input,p=context.draft.profile.pool,k=context.kernel,open=context.openModel;
+ const {context,source,quote,limits}=input,p=context.draft.profile.pool,k=context.kernel,epoch=context.currentEpoch;
  const inputToken:0|1=p.quoteToken===0?1:0,outputToken:0|1=p.quoteToken;
  const inputAmount=inputToken===0?k.wallet0+k.released0:k.wallet1+k.released1;
  assert.equal(quote.pathVersion,RANGEKEEPER_PAPER_DIRECT_CONVERT_EXIT_PATH);
@@ -223,7 +231,7 @@ export function validateRangeKeeperPaperConvertQuoteBinding(input:{
   'Persisted conversion minimum output differs from the policy slippage floor');
  assert(BigInt(quote.shortfallValue)<=limits.maxSwapShortfallValue,
   'Persisted conversion shortfall exceeds the policy limit');
- const content=rangeKeeperPaperConvertQuoteContent({candidateHash:open.candidateHash!,source,
+ const content=rangeKeeperPaperConvertQuoteContent({candidateHash:epoch.candidateHash,source,
   pool:{pool:p.pool,router:p.router,quoter:p.quoter,fee:p.fee},inputToken,outputToken,
   inputAmount:BigInt(quote.inputAmount),expectedOutput:BigInt(quote.expectedOutput),
   minimumOutput:BigInt(quote.minimumOutput),feeValue:BigInt(quote.feeValue),
@@ -482,9 +490,11 @@ async function sampleRangeKeeperPaperRetainExit(request:RangeKeeperPaperGasProbe
   const empty=await chain.snapshot({block:source.number,hash:source.hash,timestamp:frame.source.timestamp},PAPER_ACCOUNT,null);
   assert(empty.wallet0===0n&&empty.wallet1===0n&&empty.nftCount===0n&&empty.allowances.every(x=>x.amount===0n),
    'Paper fixture account is not empty at pinned source');
-  const allowance=rangeKeeperPaperTerminalAllowances({candidate,allocation:context.draft.allocation,
-   openSqrtPriceX96:BigInt(context.openModel.poolState.sqrtPriceX96),openPrice0:BigInt(context.openModel.reference.price0!),
-   openPrice1:BigInt(context.openModel.reference.price1!),decimals0:p.decimals0,decimals1:p.decimals1,
+  const allowance=rangeKeeperPaperTerminalAllowances({candidate,
+   fundingBeforeSwap:context.currentEpoch.fundingBeforeSwap,
+   mintSqrtPriceX96:context.currentEpoch.mintSqrtPriceX96,
+   referencePrice0:context.currentEpoch.reference.price0,referencePrice1:context.currentEpoch.reference.price1,
+   zeroAllowances:context.currentEpoch.allowancesCleared,decimals0:p.decimals0,decimals1:p.decimals1,
    maxDeploymentValue:input.limits.maxDeploymentValue});
   assertRangeKeeperPaperTerminalInventory(context,candidate,frame,allowance);
   const allowances=[
@@ -580,9 +590,11 @@ async function sampleRangeKeeperPaperConvertExit(request:RangeKeeperPaperGasProb
   const empty=await chain.snapshot({block:source.number,hash:source.hash,timestamp:frame.source.timestamp},PAPER_ACCOUNT,null);
   assert(empty.wallet0===0n&&empty.wallet1===0n&&empty.nftCount===0n&&empty.allowances.every(x=>x.amount===0n),
    'Paper fixture account is not empty at pinned source');
-  const allowance=rangeKeeperPaperTerminalAllowances({candidate,allocation:context.draft.allocation,
-   openSqrtPriceX96:BigInt(context.openModel.poolState.sqrtPriceX96),openPrice0:BigInt(context.openModel.reference.price0!),
-   openPrice1:BigInt(context.openModel.reference.price1!),decimals0:p.decimals0,decimals1:p.decimals1,
+  const allowance=rangeKeeperPaperTerminalAllowances({candidate,
+   fundingBeforeSwap:context.currentEpoch.fundingBeforeSwap,
+   mintSqrtPriceX96:context.currentEpoch.mintSqrtPriceX96,
+   referencePrice0:context.currentEpoch.reference.price0,referencePrice1:context.currentEpoch.reference.price1,
+   zeroAllowances:context.currentEpoch.allowancesCleared,decimals0:p.decimals0,decimals1:p.decimals1,
    maxDeploymentValue:input.limits.maxDeploymentValue});
   assertRangeKeeperPaperTerminalInventory(context,candidate,frame,allowance);
   const allowances=[

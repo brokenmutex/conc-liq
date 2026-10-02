@@ -58,6 +58,10 @@ export const rangeKeeperPaperCloseRetainModelBookingSchema=z.object({
  strategyId:z.literal('rangekeeper_v1'),strategyVersion:z.literal('1.0.0'),
  draftConfigHash:hash64,profileHash:hash64,
  openMarkId:raw,openModelHash:hash64,candidateHash:hash64,
+ currentEpoch:z.object({epoch:z.number().int().nonnegative(),markId:raw,markHash:hash64,
+  source:rangeKeeperPaperExitSourceSchema,candidateHash:hash64,candidateReferenceProofHash:hash64,
+  allowancesCleared:z.boolean(),position:z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
+   liquidity:positiveRaw}).strict()}).strict(),
  previousMark:z.object({id:raw,source:rangeKeeperPaperExitSourceSchema,candidateHash:hash64}).strict(),
  source:rangeKeeperPaperExitSourceSchema,
  poolState:z.object({tick:z.number().int(),sqrtPriceX96:raw,poolLiquidity:raw}).strict(),
@@ -79,6 +83,7 @@ export interface RangeKeeperPaperCloseRetainBookingInput {
  operationId:string;previewId:string;modelHash:string;
  model:RangeKeeperPaperCloseRetainModelForBooking;
  openMarkPosition:{tickLower:number;tickUpper:number;liquidity:string};
+ currentEpochPosition:{tickLower:number;tickUpper:number;liquidity:string};
  previousMark:{id:string;position:{tickLower:number;tickUpper:number;liquidity:string};
   idle:{token0:string;token1:string}};
  pool:{token0:string;token1:string};
@@ -98,14 +103,17 @@ export interface RangeKeeperPaperCloseRetainBooking {
  * mismatch; never silently substitutes a recomputed value for the model's. */
 export function buildRangeKeeperPaperCloseRetainBooking(
  input:RangeKeeperPaperCloseRetainBookingInput):RangeKeeperPaperCloseRetainBooking{
- const {model,openMarkPosition,previousMark,pool}=input;
+ const {model,openMarkPosition,currentEpochPosition,previousMark,pool}=input;
  if(model.exitKind!=='retain'||model.conversion!==null)
   throw new Error('rangekeeper_paper_exit_retain_model_kind_mismatch');
  if(previousMark.id!==model.previousMark.id)
   throw new Error('rangekeeper_paper_exit_previous_mark_mismatch');
- if(openMarkPosition.tickLower!==model.position.tickLower||
+ if((model.currentEpoch.epoch===0&&(openMarkPosition.tickLower!==model.position.tickLower||
   openMarkPosition.tickUpper!==model.position.tickUpper||
-  openMarkPosition.liquidity!==model.position.liquidity||
+  openMarkPosition.liquidity!==model.position.liquidity))||
+  currentEpochPosition.tickLower!==model.position.tickLower||
+  currentEpochPosition.tickUpper!==model.position.tickUpper||
+  currentEpochPosition.liquidity!==model.position.liquidity||
   previousMark.position.tickLower!==model.position.tickLower||
   previousMark.position.tickUpper!==model.position.tickUpper||
   previousMark.position.liquidity!==model.position.liquidity)

@@ -4,7 +4,11 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const digest = /^[0-9a-f]{64}$/;
 
 export function retainPreviewCanBeAccepted(preview, now = Date.now()) {
-  return Boolean(preview && preview.kind === 'close_retain' &&
+  const isRetainClose = preview?.kind === 'close_retain' ||
+    (preview?.kind === 'rangekeeper_paper_exit_model' &&
+      preview.strategyId === 'rangekeeper_v1' && preview.exitKind === 'retain' &&
+      preview.trustedPreviewSaved === true);
+  return Boolean(preview && isRetainClose &&
     preview.status === 'indicative' && preview.actionAvailable === true &&
     preview.operationAcceptanceAvailable === true && uuid.test(preview.id ?? '') &&
     digest.test(preview.contentDigest ?? '') && Number.isSafeInteger(preview.expectedRevision) &&
@@ -20,18 +24,39 @@ export function retainAcceptPayload(preview, idempotencyKey) {
 }
 
 export function convertPreviewCanBeAccepted(preview, now = Date.now()) {
-  return Boolean(preview && preview.kind === 'close_convert' &&
-    preview.terminalModelVersion === 3 && preview.status === 'indicative' &&
+  const isRangeKeeper = preview?.kind === 'rangekeeper_paper_exit_model' &&
+    preview.strategyId === 'rangekeeper_v1' && preview.exitKind === 'convert' &&
+    preview.trustedPreviewSaved === true && digest.test(preview.modelHash ?? '') &&
+    (() => {
+      const quote = preview.conversion, costs = preview.costs;
+      const raw = value => typeof value === 'string' && /^(0|[1-9][0-9]*)$/.test(value);
+      return Boolean(quote && typeof quote.pathVersion === 'string' && quote.pathVersion.length > 0 &&
+        [0,1].includes(quote.inputToken) && [0,1].includes(quote.outputToken) &&
+        quote.inputToken !== quote.outputToken &&
+        ['inputAmount','expectedOutput','minimumOutput','expectedProceedsValue',
+          'minimumProceedsValue','feeValue','shortfallValue'].every(key => raw(quote[key])) &&
+        BigInt(quote.inputAmount) > 0n && BigInt(quote.minimumOutput) > 0n &&
+        BigInt(quote.minimumOutput) <= BigInt(quote.expectedOutput) &&
+        BigInt(quote.minimumProceedsValue) <= BigInt(quote.expectedProceedsValue) &&
+        digest.test(quote.quoteHash ?? '') && costs?.status === 'provisional' &&
+        costs.kind === 'convert' && costs.scope === 'range_keeper_terminal_exit_gas_only' &&
+        costs.evidenceClass === 'fork_estimated' && typeof costs.pathVersion === 'string' &&
+        ['expectedGasUnits','boundGasUnits','expectedWei','boundWei','expectedValue','boundValue']
+          .every(key => raw(costs[key])) && Array.isArray(costs.unavailable));
+    })();
+  const isStatic = preview?.kind === 'close_convert' && preview.terminalModelVersion === 3 &&
+    preview.costs?.status === 'provisional' &&
+    preview.costs?.scope === 'candidate_prestate_gas_only' &&
+    preview.costs?.pathVersion === 'paper_static_manual_close_convert_prestate_v1' &&
+    preview.costs?.paidGasAvailable === false;
+  return Boolean(preview && (isStatic || isRangeKeeper) && preview.status === 'indicative' &&
     preview.trustedPreviewSaved === true && preview.actionAvailable === true &&
     preview.operationAcceptanceAvailable === true && uuid.test(preview.id ?? '') &&
     digest.test(preview.contentDigest ?? '') && digest.test(preview.modelHash ?? '') &&
     Number.isSafeInteger(preview.expectedRevision) && preview.expectedRevision > 0 &&
     Number.isFinite(Date.parse(preview.expiresAt)) && Date.parse(preview.expiresAt) > now &&
-    preview.costs?.status === 'provisional' &&
-    preview.costs?.scope === 'candidate_prestate_gas_only' &&
-    preview.costs?.pathVersion === 'paper_static_manual_close_convert_prestate_v1' &&
-    preview.costs?.paidGasAvailable === false && preview.paidCostsAvailable === false &&
-    preview.feeAccrualAvailable === false);
+    (isRangeKeeper || (preview.paidCostsAvailable === false &&
+      preview.feeAccrualAvailable === false)));
 }
 
 export function convertAcceptPayload(preview, idempotencyKey) {
@@ -151,8 +176,8 @@ export function mountPendingPaperAcceptanceRecovery(root, {authenticated, reques
   for (const record of records) {
     const row = document.createElement('div'), status = document.createElement('p');
     row.className = 'paper-acceptance-recovery-row';
-    const actionLabel = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Convert-close'}[record.kind];
-    const label = record.kind === 'close_retain' && record.strategyId === 'rangekeeper_v1' ?
+    const actionLabel = {pause:'Pause',resume:'Resume',close_retain:'Retain-close',close_convert:'Exit · convert to USDG'}[record.kind];
+    const label = record.strategyId === 'rangekeeper_v1' && ['close_retain','close_convert'].includes(record.kind) ?
       `RangeKeeper ${actionLabel}` : actionLabel;
     status.setAttribute('role','status');
     status.textContent = record.invalid ?
@@ -185,7 +210,9 @@ export function mountPendingPaperAcceptanceRecovery(root, {authenticated, reques
       recoveryInFlight.add(record.key); button.disabled = true;
       const suffix = record.kind === 'close_retain' ?
         (record.strategyId === 'rangekeeper_v1' ? 'rangekeeper/close-operations' : 'operations') :
-        record.kind === 'close_convert' ? 'close-convert-operations' : 'lifecycle-operations';
+        record.kind === 'close_convert' ?
+          (record.strategyId === 'rangekeeper_v1' ? 'rangekeeper/close-operations' : 'close-convert-operations') :
+          'lifecycle-operations';
       const clearSameRequest = () => {
         const current = savedPaperAcceptances().find(item=>item.key === record.key);
         if (!current || JSON.stringify(current.payload) !== JSON.stringify(record.payload)) return false;
@@ -228,18 +255,20 @@ function formatX18(value) {
 /** The convert command is exposed only after the server returns a saved V3
  * preview with explicit worker readiness. A pending acceptance keeps its exact
  * request key across a page reload until the server reconciles its outcome. */
-export function mountStaticConvertAction(root, {campaignId, positionLabel, authenticated, request,
-  onAccepted = () => {}, now = Date.now} = {}) {
+export function mountPaperConvertAction(root, {campaignId, positionLabel, authenticated, request,
+  strategyId = 'static_manual_v1', onAccepted = () => {}, now = Date.now} = {}) {
   root.replaceChildren();
   const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
-  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function' ||
+      !['static_manual_v1','rangekeeper_v1'].includes(strategyId)) return;
   root.setAttribute('role', 'group');
-  root.setAttribute('aria-label', `Close ${positionLabel || `campaign ${campaignId}`} · convert tokens to USDG`);
+  root.setAttribute('aria-label', `${strategyId==='rangekeeper_v1'?'Exit':'Close'} ${positionLabel || `campaign ${campaignId}`} · convert tokens to USDG`);
   const storageKey = `concliq.operator.paper-convert.pending.v1.${campaignId}`;
   const button = document.createElement('button'); button.type = 'button';
   button.className = 'convert-preview-button';
-  button.textContent = 'Review convert-close'; button.disabled = !authenticated?.();
-  button.setAttribute('aria-label', `Review close · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
+  button.textContent = strategyId === 'rangekeeper_v1' ? 'Review exit · convert to USDG' : 'Review convert-close';
+  button.disabled = !authenticated?.();
+  button.setAttribute('aria-label', `${strategyId==='rangekeeper_v1'?'Review exit':'Review close'} · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
   const status = document.createElement('p'); status.className = 'convert-action-status';
   status.setAttribute('role', 'status');
   const review = document.createElement('div'); review.className = 'convert-action-review'; review.hidden = true;
@@ -254,7 +283,11 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
     if (saved?.campaignId === campaignId && uuid.test(saved?.payload?.previewId ?? '') &&
       digest.test(saved?.payload?.contentDigest ?? '') &&
       Number.isSafeInteger(saved?.payload?.expectedRevision) &&
-      uuid.test(saved?.payload?.idempotencyKey ?? '')) pending = saved;
+      uuid.test(saved?.payload?.idempotencyKey ?? '') &&
+      (saved.strategyId === undefined || saved.strategyId === strategyId))
+      pending = {campaignId,kind:'close_convert',...(strategyId==='rangekeeper_v1'?{strategyId}:{}),
+        payload:{previewId:saved.payload.previewId,contentDigest:saved.payload.contentDigest,
+          expectedRevision:saved.payload.expectedRevision,idempotencyKey:saved.payload.idempotencyKey}};
   } catch { /* A fresh preview remains reviewable, but acceptance needs storage. */ }
   const clear = () => {pending = null; retry.hidden = true;
     try { localStorage.removeItem(storageKey); } catch { /* fail closed below */ }};
@@ -264,13 +297,14 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
     button.disabled = true;
     setStatus('Submitting or reconciling the saved convert-close request…');
     try {
-      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/close-convert-operations`,
+      const acceptPath = strategyId === 'rangekeeper_v1' ? 'rangekeeper/close-operations' : 'close-convert-operations';
+      const accepted = await request(`/api/deployments/${encodeURIComponent(campaignId)}/${acceptPath}`,
         {method: 'POST', body: pending.payload});
       if (!uuid.test(accepted?.id ?? '') || !['queued','preflighting','executing','confirming',
         'reconciling','blocked','succeeded','failed','cancelled','rejected','completed'].includes(accepted.status))
         throw new Error('operation_acceptance_response_invalid');
       clear();
-      setStatus(`Convert-close operation ${accepted.id} · ${accepted.status}. Final economics remain unavailable until recorded.`);
+    setStatus(`${strategyId==='rangekeeper_v1'?'Exit · convert to USDG':'Convert-close'} operation ${accepted.id} · ${accepted.status}. Final economics remain unavailable until recorded.`);
       try {await onAccepted(accepted);} catch { /* operation journal is authoritative */ }
       await pollOperation(accepted.id, request, setStatus, onAccepted, 'Convert-close');
     } catch (error) {
@@ -291,7 +325,9 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
     button.disabled = true;
     setStatus(`A convert-close request may already be accepted for preview ${pending.payload.previewId}.`);
     retry.hidden = false;
-  } else setStatus(authenticated?.() ? 'Paper close · convert the position tokens to USDG. The token balances will not be retained.' :
+  } else setStatus(authenticated?.() ? (strategyId==='rangekeeper_v1' ?
+    'RangeKeeper paper exit · model converting the position tokens to USDG. Token inventory will not be retained; quotes and costs are provisional.' :
+    'Paper close · convert the position tokens to USDG. The token balances will not be retained.') :
     'Operator connection is required to review convert-close.');
   button.addEventListener('click', async () => {
     if (pending || !authenticated?.()) return;
@@ -302,33 +338,56 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
         {method: 'POST', body: {kind: 'close_convert'}});
       review.replaceChildren();
       const heading = document.createElement('h4'); heading.textContent =
-        `${positionLabel ? `${positionLabel} · ` : ''}Close · convert tokens to USDG`; review.append(heading);
+        `${positionLabel ? `${positionLabel} · ` : ''}${strategyId==='rangekeeper_v1'?
+          'Exit · withdraw and convert remaining tokens to USDG':'Close · convert tokens to USDG'}`; review.append(heading);
       const consequence = document.createElement('p'); consequence.className = 'convert-action-consequence';
-      consequence.textContent = 'This paper close models swapping the position tokens into USDG. It does not retain the token balances.';
+      consequence.textContent = strategyId==='rangekeeper_v1' ?
+        'This paper exit models withdrawing the LP position and converting the remaining token inventory to USDG. It does not retain token balances; quote and costs are provisional.' :
+        'This paper close models swapping the position tokens into USDG. It does not retain the token balances.';
       review.append(consequence);
       const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
-      addFact(facts, 'Swap input · raw', preview.quote?.inputAmountRaw ?? 'Unavailable');
-      addFact(facts, 'Minimum USDG output · raw', preview.quote?.minimumOutputRaw ?? 'Unavailable');
-      addFact(facts, 'Expected USDG output · raw', preview.quote?.expectedOutputRaw ?? 'Unavailable');
-      addFact(facts, 'Gas · expected / bound · reference USD', preview.costs ?
-        `${formatX18(preview.costs.expectedValue)} / ${formatX18(preview.costs.boundValue)} · fork estimated` : 'Unavailable');
-      addFact(facts, 'Modeled fee carry', 'Provisional · not earned');
-      addFact(facts, 'Paid gas and final economics', 'Unavailable');
+      if (strategyId === 'rangekeeper_v1' && preview.kind === 'rangekeeper_paper_exit_model') {
+        const quote=preview.conversion??{},costs=preview.costs??{};
+        addFact(facts, `Token ${quote.inputToken ?? '—'} swap input · raw`, quote.inputAmount ?? 'Unavailable');
+        addFact(facts, `Token ${quote.outputToken ?? '—'} expected output · raw`, quote.expectedOutput ?? 'Unavailable');
+        addFact(facts, `Token ${quote.outputToken ?? '—'} minimum output · raw`, quote.minimumOutput ?? 'Unavailable');
+        addFact(facts, 'Expected proceeds · reference USD', formatX18(quote.expectedProceedsValue));
+        addFact(facts, 'Minimum proceeds · reference USD', formatX18(quote.minimumProceedsValue));
+        addFact(facts, 'Swap fee / shortfall · reference USD',
+          `${formatX18(quote.feeValue)} / ${formatX18(quote.shortfallValue)}`);
+        addFact(facts, 'Convert-exit gas · expected / bound',
+          `${costs.expectedGasUnits ?? 'Unavailable'} / ${costs.boundGasUnits ?? 'Unavailable'} units`);
+        addFact(facts, 'Gas cost · expected / bound · reference USD',
+          `${formatX18(costs.expectedValue)} / ${formatX18(costs.boundValue)} · fork estimated, not paid`);
+        addFact(facts, 'Conversion quote hash', quote.quoteHash ?? 'Unavailable');
+        addFact(facts, 'Earned fees, paid gas and final net value', 'Unavailable');
+      } else {
+        addFact(facts, 'Swap input · raw', preview.quote?.inputAmountRaw ?? 'Unavailable');
+        addFact(facts, 'Minimum USDG output · raw', preview.quote?.minimumOutputRaw ?? 'Unavailable');
+        addFact(facts, 'Expected USDG output · raw', preview.quote?.expectedOutputRaw ?? 'Unavailable');
+        addFact(facts, 'Gas · expected / bound · reference USD', preview.costs ?
+          `${formatX18(preview.costs.expectedValue)} / ${formatX18(preview.costs.boundValue)} · fork estimated` : 'Unavailable');
+        addFact(facts, 'Modeled fee carry', 'Provisional · not earned');
+        addFact(facts, 'Paid gas and final economics', 'Unavailable');
+      }
       review.append(facts);
       const canAccept = convertPreviewCanBeAccepted(preview, now());
       const detail = document.createElement('p');
       detail.textContent = canAccept ? 'Review the minimum output and provisional cost before confirming.' :
-        'Operation acceptance is unavailable until the saved V3 preview and supervised worker pass their evidence gates.';
+        strategyId === 'rangekeeper_v1' ?
+          'Acceptance is unavailable until the saved RangeKeeper convert quote, current campaign binding and supervised worker pass their evidence gates.' :
+          'Operation acceptance is unavailable until the saved V3 preview and supervised worker pass their evidence gates.';
       review.append(detail);
       const accept = document.createElement('button'); accept.type = 'button';
-      accept.className = 'convert-confirm-button'; accept.textContent = 'Confirm close · convert to USDG';
-      accept.setAttribute('aria-label', `Confirm close · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
+      accept.className = 'convert-confirm-button'; accept.textContent = strategyId==='rangekeeper_v1' ?
+        'Confirm exit · convert to USDG' : 'Confirm close · convert to USDG';
+      accept.setAttribute('aria-label', `${strategyId==='rangekeeper_v1'?'Confirm exit':'Confirm close'} · convert ${positionLabel || `campaign ${campaignId}`} tokens to USDG`);
       accept.disabled = !canAccept; review.append(accept);
       accept.addEventListener('click', () => {
         const key = globalThis.crypto?.randomUUID?.() ?? null;
         const payload = convertAcceptPayload(preview, key);
         if (!payload || !authenticated?.()) {accept.disabled = true; setStatus('Preview expired or authentication ended. Review again.'); return;}
-        pending = {campaignId, payload};
+        pending = {campaignId,kind:'close_convert',...(strategyId==='rangekeeper_v1'?{strategyId}:{}),payload};
         try {localStorage.setItem(storageKey, JSON.stringify(pending));}
         catch {pending = null; setStatus('This browser cannot retain a recovery key. No request was sent.'); return;}
         accept.disabled = true; void submit();
@@ -340,6 +399,10 @@ export function mountStaticConvertAction(root, {campaignId, positionLabel, authe
     } finally {button.disabled = !authenticated?.();}
   });
 }
+
+// Kept for existing static/manual call sites while the shared paper UI uses the
+// strategy-aware adapter above.
+export const mountStaticConvertAction = mountPaperConvertAction;
 
 /** Mounts the one currently eligible browser action. Caller supplies the
  * in-memory authenticated request function; the CSRF token stays private. */

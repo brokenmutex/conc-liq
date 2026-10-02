@@ -76,6 +76,15 @@ export interface RangeKeeperPaperExitKernelContext {
  campaignSpentCost:bigint;reservedCost:bigint;recenters:number;
  pending:boolean;entryAllowed:boolean;safeExitRequired:boolean;executionReady:boolean;
 }
+export interface RangeKeeperPaperCurrentEpochContext {
+ epoch:number;markId:string;markHash:string;source:PaperOpenFrame['source'];
+ candidate:RangeKeeperCandidate;candidateHash:string;candidateReferenceProofHash:string;
+ inventory:{position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
+ kernelSnapshot:Record<string,unknown>;mintSqrtPriceX96:bigint;
+ allowancesCleared:boolean;
+ fundingBeforeSwap:{token0:string;token1:string};
+ reference:{price0:bigint;price1:bigint;nativePrice:bigint;proofHash:string;proof:Record<string,unknown>};
+}
 
 export interface RangeKeeperPaperExitModel {
  schemaVersion:1;kind:'rangekeeper_paper_exit_model';status:'blocked'|'indicative';
@@ -86,6 +95,10 @@ export interface RangeKeeperPaperExitModel {
  campaignId:string;revision:number;strategyId:'rangekeeper_v1';strategyVersion:'1.0.0';
  draftConfigHash:string;kernelPolicyHash:string;kernelBuildId:string;profileHash:string;
  openMarkId:string;openModelHash:string;candidateHash:string;
+ currentEpoch:{epoch:number;markId:string;markHash:string;source:PaperOpenFrame['source'];
+  candidateHash:string;candidateReferenceProofHash:string;
+  allowancesCleared:boolean;
+  position:{tickLower:number;tickUpper:number;liquidity:string}};
  previousMark:{id:string;source:PaperOpenFrame['source'];candidateHash:string};
  source:PaperOpenFrame['source'];poolState:{tick:number;sqrtPriceX96:string;poolLiquidity:string};
  reference:{price0:string;price1:string;nativePrice:string;proofHash:string;proof:Record<string,unknown>};
@@ -112,6 +125,7 @@ export type RangeKeeperPaperExitResult=RangeKeeperPaperExitModel|RangeKeeperPape
 
 export interface BuildRangeKeeperPaperExitInput {
  client:RobinhoodClient;draft:RangeKeeperPaperDraft;openModel:RangeKeeperPaperOpenModel;
+ currentEpoch:RangeKeeperPaperCurrentEpochContext;
  openMarkId:string;previous:{id:string;source:PaperOpenFrame['source'];candidateHash:string;
   position:{tickLower:number;tickUpper:number;liquidity:string};idle:{token0:string;token1:string}};
  frame:PaperOpenFrame;buildId:string;exitKind:'retain'|'convert';
@@ -123,6 +137,7 @@ export interface BuildRangeKeeperPaperExitInput {
 type ExitProofContext=Omit<RangeKeeperPaperExitKernelContext,'inventoryProofHash'>;
 export function rangeKeeperPaperExitInventoryProofHash(input:{campaignId:string;revision:number;
  openMarkId:string;openModelHash:string;candidateHash:string;kernel:ExitProofContext;
+ currentEpoch:RangeKeeperPaperCurrentEpochContext;
  previous:BuildRangeKeeperPaperExitInput['previous']}):string{
  const k=input.kernel;
  const confirmation=k.state.confirmation;
@@ -143,6 +158,18 @@ export function rangeKeeperPaperExitInventoryProofHash(input:{campaignId:string;
  return contentHash({kind:'range_keeper_paper_exit_inventory_snapshot_v1',
   campaignId:input.campaignId,revision:input.revision,openMarkId:input.openMarkId,
   openModelHash:input.openModelHash,candidateHash:input.candidateHash,source:k.source,
+  currentEpoch:{epoch:input.currentEpoch.epoch,markId:input.currentEpoch.markId,
+   markHash:input.currentEpoch.markHash,source:input.currentEpoch.source,
+   candidateHash:input.currentEpoch.candidateHash,
+   candidateReferenceProofHash:input.currentEpoch.candidateReferenceProofHash,
+   allowancesCleared:input.currentEpoch.allowancesCleared,
+   position:input.currentEpoch.inventory.position,
+   inventory:input.currentEpoch.inventory,kernelSnapshot:input.currentEpoch.kernelSnapshot,
+   mintSqrtPriceX96:String(input.currentEpoch.mintSqrtPriceX96),
+   fundingBeforeSwap:input.currentEpoch.fundingBeforeSwap,
+   reference:{price0:String(input.currentEpoch.reference.price0),price1:String(input.currentEpoch.reference.price1),
+    nativePrice:String(input.currentEpoch.reference.nativePrice),proofHash:input.currentEpoch.reference.proofHash,
+    proof:input.currentEpoch.reference.proof}},
   previous:{id:input.previous.id,source:input.previous.source,candidateHash:input.previous.candidateHash,
    position:input.previous.position,idle:input.previous.idle},
   inventory:{wallet0:String(k.wallet0),wallet1:String(k.wallet1),released0:String(k.released0),
@@ -162,14 +189,14 @@ export function rangeKeeperPaperExitInventoryProofHash(input:{campaignId:string;
     since:k.state.exit.since,lastOutsideAt:k.state.exit.lastOutsideAt}:null}});
 }
 
-const unavailable=(input:Pick<BuildRangeKeeperPaperExitInput,'draft'|'openModel'|'exitKind'>,
+const unavailable=(input:Pick<BuildRangeKeeperPaperExitInput,'draft'|'openModel'|'currentEpoch'|'exitKind'>,
  reason:string):RangeKeeperPaperExitUnavailable=>({schemaVersion:1,kind:'rangekeeper_paper_exit_unavailable',
  status:'unavailable',exitKind:input.exitKind,reason,campaignId:input.draft.id,
  revision:input.draft.revision,openModelHash:input.openModel?contentHash(input.openModel):null,
- candidateHash:input.openModel?.candidateHash??null,actionAvailable:false});
+ candidateHash:input.currentEpoch?.candidateHash??input.openModel?.candidateHash??null,actionAvailable:false});
 
-function parseCandidate(open:RangeKeeperPaperOpenModel):RangeKeeperCandidate{
- const c=candidateSchema.parse(open.candidate);
+function parseCandidate(value:unknown):RangeKeeperCandidate{
+ const c=candidateSchema.parse(value);
  return {kind:c.kind,range:c.range,
   swap:c.swap?{token:c.swap.token,amountIn:BigInt(c.swap.amountIn),quotedOut:BigInt(c.swap.quotedOut),
    minOut:BigInt(c.swap.minOut),priceAfter:BigInt(c.swap.priceAfter),feeValue:BigInt(c.swap.feeValue),
@@ -178,6 +205,15 @@ function parseCandidate(open:RangeKeeperPaperOpenModel):RangeKeeperCandidate{
   amount0Min:BigInt(c.amount0Min),amount1Min:BigInt(c.amount1Min),liquidity:BigInt(c.liquidity),
   deployedValue:BigInt(c.deployedValue),sourceBlock:BigInt(c.sourceBlock),
   sourceHash:c.sourceHash as `0x${string}`,expiresAt:c.expiresAt};
+}
+function serializeCandidate(c:RangeKeeperCandidate){
+ return {kind:c.kind,range:c.range,swap:c.swap?{token:c.swap.token,amountIn:String(c.swap.amountIn),
+  quotedOut:String(c.swap.quotedOut),minOut:String(c.swap.minOut),priceAfter:String(c.swap.priceAfter),
+  feeValue:String(c.swap.feeValue),shortfallValue:String(c.swap.shortfallValue)}:null,
+  amount0Desired:String(c.amount0Desired),amount1Desired:String(c.amount1Desired),
+  amount0Min:String(c.amount0Min),amount1Min:String(c.amount1Min),liquidity:String(c.liquidity),
+  deployedValue:String(c.deployedValue),sourceBlock:String(c.sourceBlock),sourceHash:c.sourceHash,
+  expiresAt:c.expiresAt};
 }
 
 function frameReasons(frame:PaperOpenFrame,now:number):string[]{
@@ -197,20 +233,19 @@ function frameReasons(frame:PaperOpenFrame,now:number):string[]{
  return reasons;
 }
 
-function idleInventory(draft:RangeKeeperPaperDraft,candidate:RangeKeeperCandidate,
- open:RangeKeeperPaperOpenModel):{amount0:bigint;amount1:bigint}{
- const p=draft.profile.pool,openPrice=BigInt(open.poolState.sqrtPriceX96);
- const replay=replayPaperMint(openPrice,candidate.range,candidate.amount0Desired,candidate.amount1Desired,0n);
- if(replay.liquidity!==candidate.liquidity||candidate.expiresAt!==open.source.timestamp+90)
-  throw Error('rangekeeper_open_mint_replay_mismatch');
- let available0=BigInt(draft.allocation.token0Raw),available1=BigInt(draft.allocation.token1Raw);
- if(candidate.swap){
-  if(candidate.swap.token===0){available0-=candidate.swap.amountIn;available1+=candidate.swap.quotedOut;}
-  else{available1-=candidate.swap.amountIn;available0+=candidate.swap.quotedOut;}
+function idleInventory(epoch:RangeKeeperPaperCurrentEpochContext):{amount0:bigint;amount1:bigint}{
+ let available0=BigInt(epoch.fundingBeforeSwap.token0),available1=BigInt(epoch.fundingBeforeSwap.token1);
+ if(epoch.candidate.swap){
+  if(epoch.candidate.swap.token===0){available0-=epoch.candidate.swap.amountIn;available1+=epoch.candidate.swap.quotedOut;}
+  else{available1-=epoch.candidate.swap.amountIn;available0+=epoch.candidate.swap.quotedOut;}
  }
+ const replay=replayPaperMint(epoch.mintSqrtPriceX96,epoch.candidate.range,
+  epoch.candidate.amount0Desired,epoch.candidate.amount1Desired,0n);
+ if(replay.liquidity!==epoch.candidate.liquidity||replay.amount0<epoch.candidate.amount0Min||
+  replay.amount1<epoch.candidate.amount1Min||available0<replay.amount0||available1<replay.amount1)
+  throw Error('rangekeeper_current_epoch_mint_replay_mismatch');
  const amount0=available0-replay.amount0,amount1=available1-replay.amount1;
- if(amount0<0n||amount1<0n||p.decimals0<0||p.decimals1<0)
-  throw Error('rangekeeper_open_idle_inventory_invalid');
+ if(amount0<0n||amount1<0n)throw Error('rangekeeper_current_epoch_idle_inventory_invalid');
  return {amount0,amount1};
 }
 
@@ -252,25 +287,57 @@ export async function terminalQuote(input:{candidateHash:string;kind:'retain'|'c
 
 function validateIdentity(input:BuildRangeKeeperPaperExitInput,candidate:RangeKeeperCandidate,
  limits:RangeKeeperLimits,policyHash:string,now:number):string[]{
- const {draft,openModel:open,previous,frame,kernel}=input,reasons:string[]=[];
+ const {draft,openModel:open,currentEpoch,previous,frame,kernel}=input,reasons:string[]=[];
  if(open.status!=='indicative'||open.actionAvailable||!open.candidate||!open.candidateHash||
   !rangeKeeperPaperOpenDecisionHasCandidate(open.decision))
   reasons.push('rangekeeper_open_candidate_unconfirmed_or_unavailable');
  if(open.campaignId!==draft.id||open.revision!==draft.revision||open.profileHash!==draft.profileHash||
   open.draftConfigHash!==draft.configHash||open.strategyId!=='rangekeeper_v1'||
-  open.strategyVersion!=='1.0.0'||open.kernelPolicyHash!==policyHash||open.kernelBuildId!==input.buildId)
+  open.strategyVersion!=='1.0.0'||open.kernelPolicyHash!==policyHash)
   reasons.push('rangekeeper_open_config_identity_mismatch');
  if(!open.reference.proof||referenceProofHash(open.reference.proof)!==open.reference.proofHash)
   reasons.push('rangekeeper_open_reference_proof_invalid');
- if(candidate.sourceBlock!==BigInt(open.source.block)||candidate.sourceHash.toLowerCase()!==open.source.hash.toLowerCase()||
+ let originalCandidate:RangeKeeperCandidate|null=null;
+ try{originalCandidate=parseCandidate(open.candidate);}catch{}
+ if(!originalCandidate||originalCandidate.sourceBlock!==BigInt(open.source.block)||
+  originalCandidate.sourceHash.toLowerCase()!==open.source.hash.toLowerCase()||
+  open.candidateHash!==rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
+   profileHash:draft.profileHash,configHash:draft.configHash,source:open.source,
+   referenceProofHash:open.reference.proofHash,candidate:originalCandidate}))
+  reasons.push('rangekeeper_immutable_open_candidate_invalid');
+ if(candidate.sourceBlock!==BigInt(currentEpoch.source.block)||
+  candidate.sourceHash.toLowerCase()!==currentEpoch.source.hash.toLowerCase()||
   candidate.range.tickUpper-candidate.range.tickLower!==
    limits.fullWidthSpacings*draft.profile.pool.tickSpacing)
-  reasons.push('rangekeeper_open_candidate_source_or_width_mismatch');
+  reasons.push('rangekeeper_current_candidate_source_or_width_mismatch');
+ if(!currentEpoch.reference.proof||referenceProofHash(currentEpoch.reference.proof)!==
+  currentEpoch.candidateReferenceProofHash||currentEpoch.reference.proofHash!==currentEpoch.candidateReferenceProofHash)
+  reasons.push('rangekeeper_current_candidate_reference_proof_invalid');
  const expectedCandidateHash=rangeKeeperPaperCandidateHash({campaignId:draft.id,revision:draft.revision,
-  profileHash:draft.profileHash,configHash:draft.configHash,source:open.source,
-  referenceProofHash:open.reference.proofHash,candidate});
- if(open.candidateHash!==expectedCandidateHash||previous.candidateHash!==expectedCandidateHash)
-  reasons.push('rangekeeper_candidate_identity_mismatch');
+  profileHash:draft.profileHash,configHash:draft.configHash,source:currentEpoch.source,
+  referenceProofHash:currentEpoch.candidateReferenceProofHash,candidate});
+ if(currentEpoch.candidateHash!==expectedCandidateHash||previous.candidateHash!==expectedCandidateHash)
+  reasons.push('rangekeeper_current_candidate_identity_mismatch');
+ if(!Number.isSafeInteger(currentEpoch.epoch)||currentEpoch.epoch<0||
+  !raw.safeParse(currentEpoch.markId).success||BigInt(currentEpoch.markId)<=0n||
+  !rawHash.safeParse(currentEpoch.markHash).success||currentEpoch.epoch!==kernel.recenters||
+  currentEpoch.inventory.position.tickLower!==candidate.range.tickLower||
+  currentEpoch.inventory.position.tickUpper!==candidate.range.tickUpper||
+  currentEpoch.inventory.position.liquidity!==String(candidate.liquidity)||
+  currentEpoch.inventory.idle.token0!==previous.idle.token0||
+  currentEpoch.inventory.idle.token1!==previous.idle.token1||
+  BigInt(currentEpoch.source.block)>BigInt(previous.source.block)||
+  currentEpoch.source.timestamp>previous.source.timestamp||
+  BigInt(currentEpoch.markId)>BigInt(previous.id))
+  reasons.push('rangekeeper_current_epoch_mark_or_inventory_invalid');
+ if((currentEpoch.epoch===0&&(currentEpoch.markId!==input.openMarkId||
+  currentEpoch.candidateHash!==open.candidateHash||contentHash(serializeCandidate(candidate))!==
+   contentHash(serializeCandidate(originalCandidate!))))||
+  (currentEpoch.epoch>0&&candidate.kind!=='recenter'))
+  reasons.push('rangekeeper_current_epoch_baseline_mismatch');
+ if(currentEpoch.mintSqrtPriceX96<=0n||
+  (candidate.swap!==null&&candidate.swap.priceAfter!==currentEpoch.mintSqrtPriceX96))
+  reasons.push('rangekeeper_current_epoch_mint_price_invalid');
  if(!raw.safeParse(input.openMarkId).success||!raw.safeParse(previous.id).success||
   !raw.safeParse(previous.source.block).success||!hash.safeParse(previous.source.hash).success||
   !Number.isSafeInteger(previous.source.timestamp)||previous.source.timestamp<0||
@@ -283,7 +350,7 @@ function validateIdentity(input:BuildRangeKeeperPaperExitInput,candidate:RangeKe
   kernel.source.timestamp!==frame.source.timestamp||
   kernel.inventoryProofHash!==rangeKeeperPaperExitInventoryProofHash({campaignId:draft.id,
    revision:draft.revision,openMarkId:input.openMarkId,openModelHash:contentHash(open),
-   candidateHash:open.candidateHash??'',kernel,previous}))
+   candidateHash:currentEpoch.candidateHash,currentEpoch,kernel,previous}))
   reasons.push('rangekeeper_kernel_state_identity_mismatch');
  if(kernel.wallet0<0n||kernel.wallet1<0n||kernel.released0<0n||kernel.released1<0n||
   kernel.nativeWei<0n||kernel.campaignStartValue<=0n||kernel.highWaterValue<=0n||
@@ -302,14 +369,20 @@ function unavailableModel(input:BuildRangeKeeperPaperExitInput,reason:string,
   strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',draftConfigHash:input.draft.configHash,
   kernelPolicyHash:policyHash??open.kernelPolicyHash??'',kernelBuildId:input.buildId,
   profileHash:input.draft.profileHash,openMarkId:input.openMarkId,openModelHash:contentHash(open),
-  candidateHash:open.candidateHash??'',previousMark:{id:input.previous.id,source:input.previous.source,
+  candidateHash:input.currentEpoch.candidateHash,currentEpoch:{epoch:input.currentEpoch.epoch,
+   markId:input.currentEpoch.markId,markHash:input.currentEpoch.markHash,source:input.currentEpoch.source,
+   candidateHash:input.currentEpoch.candidateHash,
+   candidateReferenceProofHash:input.currentEpoch.candidateReferenceProofHash,
+   allowancesCleared:input.currentEpoch.allowancesCleared,
+   position:input.currentEpoch.inventory.position},
+  previousMark:{id:input.previous.id,source:input.previous.source,
    candidateHash:input.previous.candidateHash},source:frame.source,
   poolState:{tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),poolLiquidity:String(frame.poolLiquidity)},
   reference:{price0:frame.price0===null?'':String(frame.price0),price1:frame.price1===null?'':String(frame.price1),
    nativePrice:frame.nativePrice===null?'':String(frame.nativePrice),proofHash:frame.referenceProofHash,
    proof:frame.referenceProof??{}},
   inventoryProofHash:input.kernel.inventoryProofHash,
-  position:{paperPositionKey:open.candidateHash??'',tickLower:0,tickUpper:0,liquidity:'0',sharePpm:'0',
+  position:{paperPositionKey:input.currentEpoch.candidateHash,tickLower:0,tickUpper:0,liquidity:'0',sharePpm:'0',
    idle0:'0',idle1:'0',principal0:'0',principal1:'0',retainedLowerBound0:'0',retainedLowerBound1:'0'},
   conversion:null,costs:null,kernelEvaluation:null,
   unmodeled:['fee_capture','paid_gas','final_custody','lifecycle_accounting'],unavailable:[reason]};
@@ -324,13 +397,13 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
   return unavailableModel(input,policyResolution.unavailable.join(',')||'rangekeeper_policy_unavailable');
  const policy=policyResolution.policy,limits=policy.limits;
  let candidate:RangeKeeperCandidate;
- try{candidate=parseCandidate(input.openModel);}
- catch{return unavailableModel(input,'rangekeeper_open_candidate_invalid',policy.policyHash);}
+ try{candidate=parseCandidate(input.currentEpoch.candidate);}
+ catch{return unavailableModel(input,'rangekeeper_current_epoch_candidate_invalid',policy.policyHash);}
  const identityReasons=validateIdentity(input,candidate,limits,policy.policyHash,now);
  if(identityReasons.length)return unavailableModel(input,identityReasons.join(','),policy.policyHash);
  const draft=input.draft,open=input.openModel,frame=input.frame,p=draft.profile.pool;
  let idle:{amount0:bigint;amount1:bigint};
- try{idle=idleInventory(draft,candidate,open);}
+ try{idle=idleInventory(input.currentEpoch);}
  catch(error){return unavailableModel(input,error instanceof Error?error.message:'rangekeeper_idle_inventory_unavailable',policy.policyHash);}
  if(input.previous.position.tickLower!==candidate.range.tickLower||
   input.previous.position.tickUpper!==candidate.range.tickUpper||
@@ -359,7 +432,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
  const share=candidate.liquidity*PPM/denominator;
  if(share>BigInt(limits.maxLiquiditySharePpm))
   return unavailableModel(input,'rangekeeper_exit_liquidity_share_limit',policy.policyHash);
- const candidateHash=open.candidateHash!,deployedValue=rawValue(principal.amount0,frame.price0!,p.decimals0)+
+ const candidateHash=input.currentEpoch.candidateHash,deployedValue=rawValue(principal.amount0,frame.price0!,p.decimals0)+
   rawValue(principal.amount1,frame.price1!,p.decimals1);
  const inventoryHash=contentHash({kind:'range_keeper_paper_terminal_inventory_v1',candidateHash,
   source:frame.source,inventoryProofHash:input.kernel.inventoryProofHash,
@@ -436,6 +509,11 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
   campaignId:draft.id,revision:draft.revision,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
   draftConfigHash:draft.configHash,kernelPolicyHash:policy.policyHash,kernelBuildId:policy.buildId,
   profileHash:draft.profileHash,openMarkId:input.openMarkId,openModelHash:contentHash(open),candidateHash,
+  currentEpoch:{epoch:input.currentEpoch.epoch,markId:input.currentEpoch.markId,
+   markHash:input.currentEpoch.markHash,source:input.currentEpoch.source,candidateHash,
+   candidateReferenceProofHash:input.currentEpoch.candidateReferenceProofHash,
+   allowancesCleared:input.currentEpoch.allowancesCleared,
+   position:input.currentEpoch.inventory.position},
   previousMark:{id:input.previous.id,source:input.previous.source,candidateHash:input.previous.candidateHash},
   source:frame.source,poolState:{tick:frame.tick,sqrtPriceX96:String(frame.sqrtPriceX96),
    poolLiquidity:String(frame.poolLiquidity)},reference:{price0:String(frame.price0),price1:String(frame.price1),
@@ -447,7 +525,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
    principal1:String(principal.amount1),retainedLowerBound0:String(retained0),
    retainedLowerBound1:String(retained1)},conversion,costs,
   kernelEvaluation:{action:decision.action,reason:decision.reason,
-   candidateHash:decision.candidate?contentHash(decision.candidate):null,
+   candidateHash:decision.candidate?contentHash(serializeCandidate(decision.candidate)):null,
    simulationAvailable:decision.reason!=='calldata_simulation_unavailable'&&
     decision.reason!=='calldata_simulation_failed',remaining:{action:String(decision.remaining.action),
      rolling:String(decision.remaining.rolling),campaign:String(decision.remaining.campaign),
@@ -463,7 +541,7 @@ export async function buildRangeKeeperPaperExitModel(input:BuildRangeKeeperPaper
  * trusted persisted state; the gas reader must be the exact-scope store query. */
 export async function readCanonicalRangeKeeperPaperExitModel(input:Omit<BuildRangeKeeperPaperExitInput,
  'frame'|'buildId'|'marketGasPriceWei'|'marketGasPriceObservedAt'|'now'>&{buildId:string|null;now?:number}){
- const emptyInput={draft:input.draft,openModel:input.openModel,exitKind:input.exitKind};
+ const emptyInput={draft:input.draft,openModel:input.openModel,currentEpoch:input.currentEpoch,exitKind:input.exitKind};
  if(!input.buildId)return unavailable(emptyInput,'rangekeeper_runtime_build_identity_unavailable');
  if(!raw.safeParse(input.openMarkId).success||!raw.safeParse(input.previous.id).success||
   BigInt(input.openMarkId)<=0n||BigInt(input.previous.id)<=BigInt(input.openMarkId)||

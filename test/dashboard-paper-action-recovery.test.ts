@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {test} from 'node:test';
 // Browser module is intentionally plain JavaScript and has no TypeScript declarations.
 // @ts-expect-error JavaScript browser module has no declaration file.
-import {mountPaperLifecycleAction,mountStaticConvertAction,mountStaticRetainAction,mountPendingPaperAcceptanceRecovery} from '../dashboard/deployment-actions.js';
+import {mountPaperLifecycleAction,mountStaticConvertAction,mountPaperConvertAction,mountStaticRetainAction,mountPendingPaperAcceptanceRecovery} from '../dashboard/deployment-actions.js';
 
 const campaignId='67b2b303-e821-4450-bb7b-27171b12079f';
 const operationId='da00e8f8-35e5-455f-8e5b-8b13a7f5fadb';
@@ -164,7 +164,8 @@ test('pause and resume recovery keeps exact keys for ambiguous errors and clears
 
 test('RangeKeeper retain-close routes acceptance and lost-response recovery through its strategy endpoint after preview expiry',async()=>withBrowser(async()=>{
  const key=storageKey('close_retain');let posted:any=null;
- const rkPreview={...preview('close_retain'),strategyId:'rangekeeper_v1',
+ const rkPreview={...preview('close_retain'),kind:'rangekeeper_paper_exit_model',
+  strategyId:'rangekeeper_v1',exitKind:'retain',trustedPreviewSaved:true,
   position:{retainedLowerBound0:'30',retainedLowerBound1:'40'},
   costs:{expectedGasUnits:'100',boundGasUnits:'150',expectedValue:'1000000000000000000',boundValue:'2000000000000000000'}};
  rkPreview.expiresAt=new Date(Date.now()+60_000).toISOString();
@@ -173,6 +174,8 @@ test('RangeKeeper retain-close routes acceptance and lost-response recovery thro
   posted={path,payload:options.body};throw error(502,'gateway_timeout');
  },'rangekeeper_v1');
  await button(root,'Review retain-close')?.click();
+ assert.equal(button(root,'Accept retain-close')?.disabled,false,
+  'a saved RangeKeeper retain-exit model with a complete acceptance binding must be actionable');
  const facts=find(root,item=>item.className==='retain-preview-facts');
  assert.match(facts?.children.map(item=>item.children.map(child=>child.textContent).join(' ')).join(' ')??'',/30|150/);
  await button(root,'Accept retain-close')?.click();
@@ -180,6 +183,50 @@ test('RangeKeeper retain-close routes acceptance and lost-response recovery thro
  const saved=JSON.parse((globalThis as any).localStorage.getItem(key));
  assert.equal(saved.strategyId,'rangekeeper_v1');assert.deepEqual(saved.payload,posted.payload);
  rkPreview.expiresAt=new Date(Date.now()-1).toISOString();
+ const recovery=new ElementMock();let replayPath='';
+ mountPendingPaperAcceptanceRecovery(recovery,{authenticated:()=>true,request:async(path:string,options:any)=>{
+  replayPath=path;assert.deepEqual(options.body,posted.payload);return {id:operationId,status:'queued'};
+ }});
+ await button(recovery,'Reconcile saved acceptance')?.click();
+ assert.equal(replayPath,`/api/deployments/${campaignId}/rangekeeper/close-operations`);
+ assert.equal((globalThis as any).localStorage.getItem(key),null);
+}));
+
+test('RangeKeeper Exit · convert to USDG renders its quote and recovers the exact strategy acceptance',async()=>withBrowser(async()=>{
+ const key=`concliq.operator.paper-convert.pending.v1.${campaignId}`,previewModel:any={
+  id:previewId,kind:'rangekeeper_paper_exit_model',status:'indicative',strategyId:'rangekeeper_v1',
+  exitKind:'convert',trustedPreviewSaved:true,actionAvailable:true,operationAcceptanceAvailable:true,
+  contentDigest:digest,modelHash:'b'.repeat(64),expectedRevision:2,
+  expiresAt:new Date(Date.now()+60_000).toISOString(),conversion:{
+   pathVersion:'rangekeeper_paper_direct_convert_exit_v1',inputToken:1,outputToken:0,
+   inputAmount:'1000',expectedOutput:'950',minimumOutput:'900',expectedProceedsValue:'950000000000000000',
+   minimumProceedsValue:'900000000000000000',feeValue:'1000000000000000',
+   shortfallValue:'2000000000000000',quoteHash:'c'.repeat(64)},
+  costs:{status:'provisional',kind:'convert',scope:'range_keeper_terminal_exit_gas_only',
+   evidenceClass:'fork_estimated',pathVersion:'rangekeeper-paper-convert-exit-v1',
+   expectedGasUnits:'100',boundGasUnits:'150',expectedWei:'1000',boundWei:'1500',
+   expectedValue:'1000000000000000',boundValue:'2000000000000000',unavailable:[]}};
+ let posted:any=null;
+ const root=new ElementMock();
+ mountPaperConvertAction(root,{campaignId,strategyId:'rangekeeper_v1',positionLabel:'AAPL / USDG · RK',
+  authenticated:()=>true,request:async(path:string,options:any={})=>{
+   if(path.endsWith('/previews'))return previewModel;
+   posted={path,payload:options.body};throw error(502,'gateway_timeout');
+  }});
+ await button(root,'Review exit · convert to USDG')?.click();
+ const review=find(root,item=>item.className==='convert-action-review');
+ assert.ok(review&&!review.hidden);
+ const facts=review.children.find(item=>item.className==='retain-preview-facts');
+ const rendered=facts?.children.map(item=>item.children.map(child=>child.textContent).join(' ')).join(' ')??'';
+ assert.match(rendered,/minimum output.*900/i);assert.match(rendered,/expected proceeds.*0\.950000/i);
+ assert.match(rendered,/fork estimated, not paid/);assert.match(rendered,/Earned fees, paid gas and final net value\s+Unavailable/);
+ assert.equal(button(root,'Confirm exit · convert to USDG')?.disabled,false);
+ await button(root,'Confirm exit · convert to USDG')?.click();
+ assert.equal(posted.path,`/api/deployments/${campaignId}/rangekeeper/close-operations`);
+ const saved=JSON.parse((globalThis as any).localStorage.getItem(key));
+ assert.equal(saved.strategyId,'rangekeeper_v1');assert.equal(saved.kind,'close_convert');
+ assert.deepEqual(saved.payload,posted.payload);
+ previewModel.expiresAt=new Date(Date.now()-1).toISOString();
  const recovery=new ElementMock();let replayPath='';
  mountPendingPaperAcceptanceRecovery(recovery,{authenticated:()=>true,request:async(path:string,options:any)=>{
   replayPath=path;assert.deepEqual(options.body,posted.payload);return {id:operationId,status:'queued'};

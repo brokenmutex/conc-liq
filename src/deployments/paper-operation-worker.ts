@@ -26,6 +26,8 @@ import {adaptRangeKeeperConfirmedOpenContext} from './rangekeeper-paper-confirme
 import {isRangeKeeperPaperConfirmationReplayCapability,
  replayRangeKeeperPaperConfirmationOnOwnedFork} from './rangekeeper-paper-confirmation-replay-verifier.js';
 import {recoverRangeKeeperPaperExitModelSource} from './rangekeeper-paper-exit-completion.js';
+import {replayRangeKeeperPaperConvertOnOwnedFork} from './rangekeeper-paper-convert-replay.js';
+import {replayRangeKeeperPaperRecenterOnOwnedFork} from './rangekeeper-paper-recenter-replay.js';
 import {log} from '../logger.js';
 
 type ClaimedOperation={id:string;campaign_id:string;status:string;stage:string;
@@ -169,11 +171,26 @@ export async function processOnePaperOperation(store:DeploymentStore,
   if(claim.attempts>MAX_ATTEMPTS)return await block('paper_operation_attempt_bound');
   const context=await readClaimContext(indexer,claim,workerId);
   if(context.mode!=='paper'||
-   !['open','pause','resume','close_retain','close_convert'].includes(context.kind))
+   !['open','pause','resume','close_retain','close_convert','change_range'].includes(context.kind))
    return await block('paper_operation_path_unavailable');
   const verify=(chainId:number,sources:readonly PaperCanonicalAnchor[])=>
    verifyCanonicalPaperAnchors(chain,chainId,sources);
    if(context.strategy_id==='rangekeeper_v1'){
+    if(context.kind==='change_range'){
+     if(!options.rpcUrl)return await block('rangekeeper_paper_recenter_fork_rpc_unavailable');
+     if(claim.status==='preflighting'){
+      await store.advanceClaim(claim.id,workerId,'paper_recenter_preflight_checked','executing',null);
+      await store.advanceClaim(claim.id,workerId,'paper_recenter_reconciling','reconciling',null);
+     }else if(claim.status==='executing'||claim.status==='confirming')
+      await store.advanceClaim(claim.id,workerId,'paper_recenter_reconciling','reconciling',null);
+     else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
+     const snapshot=await store.rangeKeeperPaperRecenterOperationSnapshot(context.campaign_id,claim.id,workerId);
+     const replay=await replayRangeKeeperPaperRecenterOnOwnedFork({snapshot,client:chain,
+      rpcUrl:options.rpcUrl,beforeRead:options.beforeForkRead});
+     if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+     const completed=await store.completeRangeKeeperPaperConfirmedRecenter(claim.id,workerId,replay,verify);
+     return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
+    }
     if(context.kind==='close_retain'||context.kind==='close_convert'){
      const source=sourceFor(context);
      await verifyCanonicalPaperAnchors(chain,4663,[source]);
@@ -185,11 +202,15 @@ export async function processOnePaperOperation(store:DeploymentStore,
       await store.advanceClaim(claim.id,workerId,'paper_model_reconciling','reconciling',null);
      else if(claim.status!=='reconciling')return await block('paper_operation_status_unavailable');
      if(lost)return {status:'claim_lost' as const,operationId:claim.id};
-     // close_convert has no completion path yet (see the plan's exit-booking
-     // scope note); only close_retain can be booked. Block with a specific
-     // reason instead of guessing at a conversion ledger it cannot verify.
-     if(context.kind==='close_convert')
-      return await block('rangekeeper_paper_exit_convert_completion_unavailable');
+     if(context.kind==='close_convert'){
+      if(!options.rpcUrl)return await block('rangekeeper_paper_convert_fork_rpc_unavailable');
+      const snapshot=await store.rangeKeeperPaperExitOperationSnapshot(context.campaign_id,claim.id,workerId);
+      const replay=await replayRangeKeeperPaperConvertOnOwnedFork({snapshot,client:chain,
+       rpcUrl:options.rpcUrl,beforeRead:options.beforeForkRead});
+      if(lost)return {status:'claim_lost' as const,operationId:claim.id};
+      const completed=await store.completeRangeKeeperPaperConfirmedConvert(claim.id,workerId,replay,verify);
+      return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
+     }
      const completed=await store.completeRangeKeeperPaperConfirmedExit(claim.id,workerId,verify);
      return {status:'completed' as const,operationId:claim.id,kind:context.kind,...completed};
     }

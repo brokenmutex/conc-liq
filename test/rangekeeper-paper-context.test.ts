@@ -8,6 +8,7 @@ import {marketProfileSchema,referenceProofHash} from '../src/deployments/market-
 import type {PaperOpenFrame} from '../src/deployments/paper-preview.js';
 import {resolveRangeKeeperPaperPolicy} from '../src/deployments/rangekeeper-paper-open-model.js';
 import {loadRangeKeeperPaperExitContext} from '../src/deployments/rangekeeper-paper-context.js';
+import {rangeKeeperPaperCandidateHash} from '../src/deployments/rangekeeper-paper-cost.js';
 import {replayPaperMint} from '../src/v3/position-math.js';
 
 const address=(digit:string)=>`0x${digit.repeat(40)}`;
@@ -44,7 +45,8 @@ const range={tickLower:-600,tickUpper:600},openSqrt=sqrtRatioAtTick(0),mint=repl
  amount1Min:0n,liquidity:mint.liquidity,deployedValue:2n*10n**18n,sourceBlock:BigInt(openSource.block),
  sourceHash:openSource.hash as `0x${string}`,expiresAt:openSource.timestamp+90},
  idle={token0:String(BigInt(allocation.token0Raw)-mint.amount0),token1:String(BigInt(allocation.token1Raw)-mint.amount1)},
- candidateHash='9'.repeat(64),openModel={kind:'rangekeeper_paper_open_model',status:'indicative',
+ candidateHash=rangeKeeperPaperCandidateHash({campaignId,revision,profileHash,configHash,source:openSource,
+  referenceProofHash:proofHash,candidate}),openModel={kind:'rangekeeper_paper_open_model',status:'indicative',
  actionAvailable:false,campaignId,revision,strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',
  draftConfigHash:configHash,profileHash,kernelPolicyHash:policy.policy!.policyHash,kernelBuildId:buildId,
  source:openSource,poolState:{tick:0,sqrtPriceX96:String(openSqrt),poolLiquidity:String(10n**24n)},
@@ -65,14 +67,21 @@ function snapshot(overrides:Record<string,unknown>={}){
  const body:any={schemaVersion:1,kind:'rangekeeper_paper_persisted_context_v1',campaignId,revision,
   mode:'paper',lifecycle:'active',pendingOperationId:null,
   draft:{...draft},openMark:{id:'1',classification:'rangekeeper_paper_open_v1',modelHash:openModelHash,model:openModel},
-  previousMark:{id:'2',classification:'rangekeeper_paper_mark_v1',source:priorSource,candidateHash,
+  previousMark:{id:'2',classification:'rangekeeper_paper_mark_v1',source:priorSource,candidateHash,epoch:0,
    position:{tickLower:range.tickLower,tickUpper:range.tickUpper,liquidity:String(mint.liquidity)},idle},
-  kernel:{source:priorSource,state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
+ kernel:{source:priorSource,state:{schemaVersion:1,policyId:'rangekeeper_v1',strategyVersion:'1.0.0',
     configHash:`0x${policy.policy!.policyHash}`,buildId,lastEligible:priorSource,confirmation:null,exit:null},
    wallet0:idle.token0,wallet1:idle.token1,released0:String(priorPrincipal.amount0),
    released1:String(priorPrincipal.amount1),nativeWei:allocation.nativeWei,campaignStartValue:'1',highWaterValue:'1',
    rollingSpentCost:'0',campaignSpentCost:'0',reservedCost:'0',recenters:0,pending:false,
    entryAllowed:false,safeExitRequired:false,executionReady:false},...overrides};
+ body.currentEpoch={epoch:0,markId:'1',markHash:'8'.repeat(64),source:openSource,
+  candidate:openModel.candidate,candidateHash,candidateReferenceProofHash:proofHash,
+  inventory:{position:body.previousMark.position,idle},kernelSnapshot:{...body.kernel,source:openSource,
+   state:{...body.kernel.state,buildId}},mintSqrtPriceX96:String(openSqrt),
+  fundingBeforeSwap:{token0:allocation.token0Raw,token1:allocation.token1Raw},allowancesCleared:false,
+  reference:{price0:'1000000000000000000',price1:'1000000000000000000',nativePrice:'1000000000000000000',
+   proofHash,proof}};
  body.snapshotHash=contentHash(body);
  return body;
 }
@@ -84,7 +93,7 @@ const load=(saved:unknown)=>loadRangeKeeperPaperExitContext({campaignId,buildId,
 
 test('restart context binds the previous mark kernel and reprojects principal at the current source',async()=>{
  const saved=snapshot(),loaded=await load(saved);
- assert.equal(loaded.status,'available');
+ assert.equal(loaded.status,'available',loaded.status==='unavailable'?loaded.reason:'');
  if(loaded.status!=='available')return;
  assert.equal(loaded.previous.source.block,priorSource.block);
  assert.equal(loaded.kernel.source.block,currentSource.block);
@@ -107,7 +116,7 @@ test('exit context accepts the booked two-confirmation decision but rejects an u
   const model={...openModel,decision:{requiresSecondObservation:false,kernelAction:'execute',kernelReason:reason}},
    saved=snapshot({openMark:{id:'1',classification:'rangekeeper_paper_open_v1',
     modelHash:contentHash(model),model}});
-  assert.equal((await load(saved)).status,expected);
+  const loaded=await load(saved);assert.equal(loaded.status,expected,loaded.status==='unavailable'?loaded.reason:'');
  }
 });
 

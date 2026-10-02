@@ -4,6 +4,43 @@ import {it} from 'node:test';
 import {DeploymentConflict} from '../src/deployments/store.js';
 import {createDeploymentCommandServer} from '../src/deployments/server.js';
 
+it('RangeKeeper exit actions require matching saved model kind, live binding and a ready worker',async()=>{
+ const origin='http://127.0.0.1:4174',campaign='10000000-0000-4000-8000-000000000003';
+ let workerReady=true,override:Record<string,unknown>={};
+ const store={async createDraft(){return {};},async acceptOperation(){return {};},
+  async operation(){return null;},async listMarketProfiles(){return [];}};
+ const server=createDeploymentCommandServer(store,{origin,
+  paperRetainWorkerReady:async()=>workerReady,rangeKeeperExitAcceptance:async()=>({}),
+  paperPreview:async(_id,kind)=>({kind:'rangekeeper_paper_exit_model',status:'indicative',
+   strategyId:'rangekeeper_v1',exitKind:kind==='close_retain'?'retain':'convert',
+   trustedPreviewSaved:true,id:'10000000-0000-4000-8000-000000000002',contentDigest:'a'.repeat(64),
+   expectedRevision:1,expiresAt:new Date(Date.now()+60_000).toISOString(),...override})});
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ const address=server.address();assert(address&&typeof address!=='string');
+ const url=`http://127.0.0.1:${address.port}`;
+ try{
+  const login=await fetch(url+'/api/session',{method:'POST',headers:{origin,'content-type':'application/json'},body:'{}'});
+  const cookie=login.headers.get('set-cookie')!.split(';')[0]!,session=await login.json() as {csrfToken:string};
+  const preview=async(kind:string)=>{
+   const response=await fetch(`${url}/api/deployments/${campaign}/previews`,{method:'POST',
+    headers:{origin,cookie,'content-type':'application/json','x-csrf-token':session.csrfToken},
+    body:JSON.stringify({kind})});assert.equal(response.status,200);
+   return await response.json() as {actionAvailable:boolean;operationAcceptanceAvailable:boolean};
+  };
+  for(const kind of ['close_retain','close_convert']){
+   override={};workerReady=true;
+   assert.equal((await preview(kind)).actionAvailable,true);
+   workerReady=false;assert.equal((await preview(kind)).actionAvailable,false);workerReady=true;
+   for(const changed of [{trustedPreviewSaved:false},{status:'blocked'},
+    {kind:'other_model'},{expiresAt:new Date(0).toISOString()},
+    {exitKind:kind==='close_retain'?'convert':'retain'}]){
+    override=changed;const result=await preview(kind);
+    assert.equal(result.actionAvailable,false);assert.equal(result.operationAcceptanceAvailable,false);
+   }
+  }
+ }finally{server.closeAllConnections();server.close();await once(server,'close');}
+});
+
 it('command API requires operator session, exact origin and CSRF before a draft is stored without a password',async()=>{
  const origin='http://127.0.0.1:4174';
  const calls:unknown[]=[];

@@ -67,12 +67,18 @@ describe('RangeKeeper owned-fork gas sampler inventory',()=>{
  it('reconstructs persisted terminal idle balances and exact residual approvals',()=>{
   const minted=replayPaperMint(1n<<96n,base.range,base.amount0Desired,base.amount1Desired,0n);
   const result=rangeKeeperPaperTerminalAllowances({candidate:{...base,liquidity:minted.liquidity},
-   allocation:{token0Raw:String(minted.amount0+7n),token1Raw:String(minted.amount1+9n)},
-   openSqrtPriceX96:1n<<96n,openPrice0:1n,openPrice1:1n,decimals0:0,decimals1:0,
+   fundingBeforeSwap:{token0:String(minted.amount0+7n),token1:String(minted.amount1+9n)},
+   mintSqrtPriceX96:1n<<96n,referencePrice0:1n,referencePrice1:1n,decimals0:0,decimals1:0,
    maxDeploymentValue:1_000n});
   assert.equal(result.idle0,7n);assert.equal(result.idle1,9n);
   assert.equal(result.manager0,7n);assert.equal(result.manager1,9n);
-  assert.equal(result.router0,0n);assert.equal(result.router1,0n);
+ assert.equal(result.router0,0n);assert.equal(result.router1,0n);
+  const recentered=rangeKeeperPaperTerminalAllowances({candidate:{...base,liquidity:minted.liquidity},
+   fundingBeforeSwap:{token0:String(minted.amount0+7n),token1:String(minted.amount1+9n)},
+   mintSqrtPriceX96:1n<<96n,referencePrice0:1n,referencePrice1:1n,zeroAllowances:true,
+   decimals0:0,decimals1:0,maxDeploymentValue:1_000n});
+  assert.equal(recentered.idle0,7n);assert.equal(recentered.idle1,9n);
+  assert.deepEqual([recentered.manager0,recentered.manager1,recentered.router0,recentered.router1],[0n,0n,0n,0n]);
  });
  it('rejects terminal inventory that differs from the saved mark',()=>{
   const fake={previous:{idle:{token0:'7',token1:'9'}},kernel:{wallet0:7n,wallet1:9n,

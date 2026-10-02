@@ -429,11 +429,13 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(rangeKeeperOpenSaved&&options.rangeKeeperOpenAcceptance&&options.paperRetainWorkerReady){
      try{workerReady=await options.paperRetainWorkerReady();}catch{workerReady=false;}
     }
-    // A saved RangeKeeper exit preview. close_convert is persisted and previewable
-    // but has no completion, so the acceptance refuses it; only retain is offered.
+    // Only expose either exit after its canonical, owned-fork preview is saved.
     const rangeKeeperExitSaved=Boolean(rkRecord&&rkRecord.strategyId==='rangekeeper_v1'&&
-     rkRecord.trustedPreviewSaved===true&&input.kind==='close_retain'&&
-     (rkRecord as {exitKind?:unknown}).exitKind==='retain'&&
+     (rkRecord as {kind?:unknown}).kind==='rangekeeper_paper_exit_model'&&
+     (rkRecord as {status?:unknown}).status==='indicative'&&
+     rkRecord.trustedPreviewSaved===true&&
+     ((input.kind==='close_retain'&&(rkRecord as {exitKind?:unknown}).exitKind==='retain')||
+      (input.kind==='close_convert'&&(rkRecord as {exitKind?:unknown}).exitKind==='convert'))&&
      typeof rkRecord.id==='string'&&uuid.test(rkRecord.id)&&
      typeof rkRecord.contentDigest==='string'&&/^[0-9a-f]{64}$/.test(rkRecord.contentDigest)&&
      Number.isSafeInteger(rkRecord.expectedRevision)&&Number(rkRecord.expectedRevision)>0&&

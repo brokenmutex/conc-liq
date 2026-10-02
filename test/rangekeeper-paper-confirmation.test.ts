@@ -318,8 +318,9 @@ test('builds only a source-pinned confirmation envelope after exact gas and simu
      lastEligible:{block:nextSource.block,hash:nextSource.hash,timestamp:nextSource.timestamp},
      confirmation:null,exit:null},wallet0:restoredContext.inventory.idle.token0,
     wallet1:restoredContext.inventory.idle.token1,released0:'0',released1:'0',
-    nativeWei:draft.allocation.nativeWei,campaignStartValue:'2000000000000000000',
-    highWaterValue:'2000000000000000000',rollingSpentCost:'0',campaignSpentCost:'0',
+    nativeWei:String(BigInt(draft.allocation.nativeWei)-BigInt(firstCosts.open.boundWei)),
+    campaignStartValue:'2000000000000000000',highWaterValue:'2000000000000000000',
+    rollingSpentCost:firstCosts.open.boundValue,campaignSpentCost:firstCosts.open.boundValue,
     reservedCost:'0',recenters:0,pending:false,entryAllowed:true,safeExitRequired:false,
     executionReady:true}});
   assert.equal(payload.provenance.source.block,nextSource.block);
