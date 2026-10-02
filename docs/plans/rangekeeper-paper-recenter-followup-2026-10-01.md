@@ -2,11 +2,14 @@
 
 October 2 implementation update: retain-close UI admission, Exit conversion to
 USDG, current position epochs, automatic confirmation/recenter replay, and
-append-only runtime adoption are being integrated. The implementation and
-current validation boundary are recorded in the
+append-only runtime adoption are deployed from source `e4a7e7c`, sealed build
+`0a2a395...`. Both canonical close lifecycles passed with mark IDs above 999.
+The existing production paper campaign automatically recentered at mark 1053
+on its first operation attempt, while preserving its original opening and
+history. Its four-recenter cap and cost/reserve guards remain unchanged. The
+implementation, validation and rollout evidence are recorded in the
 [management review](../reviews/rangekeeper-paper-management-2026-10-02.md).
-Production remains on the previous release until campaign-copy and sealed
-lifecycle checks pass. The October 1 status below is historical.
+The October 1 status below is historical.
 
 Current status — October 1, 2026: recenter is not implemented. The full test
 suite passes 1,051 tests, and the canonical

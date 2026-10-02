@@ -1,8 +1,11 @@
 # RangeKeeper paper management — October 2, 2026
 
-Status: implementation and isolated validation in progress. Production still runs
-its previously sealed observation-only release. This record is not a deployment
-or canonical lifecycle acceptance claim.
+Status: deployed on October 2 from source `e4a7e7c`, sealed build `0a2a395...`.
+Both canonical close lifecycles passed after automatic recentering, including
+numeric mark IDs above 999. Production adoption preserved all prior marks;
+public desktop/mobile controls and service readiness passed. Production
+automatic-recenter monitoring is recorded below. Earlier checkpoints are
+retained as historical evidence.
 
 The requested behavior is retain-close (withdraw and keep AAPL plus USDG), Exit
 close (withdraw and convert AAPL into USDG), and automatic RangeKeeper recentering.
@@ -37,13 +40,14 @@ revision, expiration and worker-readiness checks.
 - Gas and swap costs remain modeled/provisional. Missing earned fees and final
   economic results remain unavailable.
 
-## Validation record
+## Validation history
 
 Repository boundary, script registry and research artifact checks passed.
 The latest full repository check passed 1,079 tests in 90 suites, with no failures.
 The PostgreSQL deployment integration suite passed on an isolated database,
 including legacy-shape preservation and append-only initial cost normalization.
-Canonical lifecycle validation remains required before deployment.
+At that initial checkpoint, canonical lifecycle validation remained required
+before deployment.
 
 Two disposable local databases were restored from a consistent data-only dump
 of deployment tables and pool profiles. The source-only harness explicitly
@@ -188,3 +192,68 @@ fix. The temporary pre-fix worktree edit was restored. Full repository checks
 again pass 1,079/1,079 tests in 90 suites. New sealed clone runs additionally
 set the disposable mark sequence so predecessor observation begins at 1000;
 this does not alter historical marks or production sequences.
+
+The corrected clean release is
+`0a2a39512709e68556157120e23e3fc53262567d2197ec9801f618b1482d304b`
+from source `e4a7e7c75751a1d63f1d65e8193cf32f144fabad`. Its numeric-boundary
+conversion run adopted at mark 1000, autonomously recentered at mark 1026
+(source 78137628, epoch 1), and passed restart continuity. Browser close
+`3a2293d3-4a4a-4294-8be2-31448dfdb39d` completed terminal mark 1029; the
+numeric latest mark is also 1029. All seven gas stages, desktop/mobile history,
+and unavailable final economics passed. Evidence:
+`/tmp/rk-numeric-sealed-convert-20261002.log`. The equivalent retain gate and
+production rollout remain pending at this checkpoint. The production campaign
+policy's existing `maxRecenters: 4` and all cost/reserve limits are preserved.
+
+The corrected retain run also passed without harness retry or operation
+requeue. It adopted at mark 1000, recentered at 1026 (source 78143515,
+operation `a7c8b797-3520-4181-8aa5-20aa497c90e6`), and passed worker restart.
+Retain close `58217587-a182-4229-85e2-d2a0d838131a` succeeded on attempt 1
+with terminal/latest mark 1029. Retained principal lower bounds are USDG
+`128801756` raw and AAPL `366790629299208652` raw. All five terminal gas
+stages and desktop/mobile history passed. Both numeric clone workers released
+their readiness leases and all owned test processes stopped.
+
+## Production rollout
+
+After both corrected release gates passed, the three existing units were
+stopped and a fresh consistent backup was made in
+`data/backups/rangekeeper-paper-numeric-rollout-20261002-ITlF9X/`.
+Adoption `28bc40d3f5ef3aba74e8bbcbeb59b9d789918e0c37704523c145dfa6085c48e9`
+bound latest mark 1049 and appended an attribution boundary; the entire prior
+mark fingerprint stayed unchanged. The environment, Node v24.20.0, opening
+mark 206 and campaign revision 1 were preserved. No DDL migration was needed.
+
+Only `conc-liq-dashboard.service`, `conc-liq-deployment-command.service` and
+`conc-liq-paper-operation-worker.service` changed to the new pinned release.
+Both health endpoints and the actual worker lease became ready in 6,423 ms,
+within the unchanged 30-second gate. Process executable and launcher paths
+matched the sealed artifact. Public `/operator` passed active-campaign,
+enabled retain/convert review controls, 24-hour charts, activity, unavailable
+economics and desktop/mobile layout checks. The browser submitted only the
+session handshake. There were no browser exceptions or unexpected application
+HTTP failures; the implicit missing favicon request was recorded separately.
+
+The existing production paper campaign remains open. Its adopted worker
+appended initial modeled-cost normalization at 1050 and its first recenter
+confirmation at 1051. No close operation was submitted to production.
+
+Production automatically accepted recenter
+`d1f1568d-acc2-4353-bdcf-4e9ad2e61208` after two confirmations and completed
+it on attempt 1. Mark 1053 at source 78147730 records epoch 1; subsequent
+observation 1054 retained that epoch. The campaign remains active and inside
+range. A final read-only check verified opening mark 206 and the fingerprint
+of every pre-adoption mark through 1049 are unchanged, the effective runtime
+is the new release, the worker is ready, and there are zero production close
+operations. The public desktop/mobile check passed again after recentering.
+
+The passed sealed lifecycle logs, full check, before/after numeric SQL
+regression, release build and production browser/state proofs are archived
+with SHA-256 hashes in
+`data/backups/rangekeeper-paper-numeric-rollout-20261002-ITlF9X/evidence/manifest.json`.
+The same private directory contains original unit/environment bytes, the
+stopped-service database dump and successful adoption/install/start logs.
+All three services remain active with zero restarts. Retain keeps both tokens;
+Exit close converts AAPL into USDG. Costs remain provisional and unavailable
+economic values remain unavailable. No live funding, signing or broadcast was
+performed.
