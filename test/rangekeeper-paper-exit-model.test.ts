@@ -46,29 +46,33 @@ const range={tickLower:-600,tickUpper:600},mintSqrt=sqrtRatioAtTick(0),mint=repl
  BigInt(allocation.token0Raw),BigInt(allocation.token1Raw),0n),position={tickLower:range.tickLower,
  tickUpper:range.tickUpper,liquidity:String(mint.liquidity)},idle={token0:String(BigInt(allocation.token0Raw)-mint.amount0),
  token1:String(BigInt(allocation.token1Raw)-mint.amount1)};
-const candidate={kind:'entry' as const,range,swap:null,amount0Desired:BigInt(allocation.token0Raw),
+const openCandidate={kind:'entry' as const,range,swap:null,amount0Desired:BigInt(allocation.token0Raw),
  amount1Desired:BigInt(allocation.token1Raw),amount0Min:0n,amount1Min:0n,liquidity:mint.liquidity,
  deployedValue:2n*10n**18n,sourceBlock:100n,sourceHash:openSource.hash as `0x${string}`,expiresAt:timestamp+60};
-const candidateHash=rangeKeeperPaperCandidateHash({campaignId,revision,profileHash,configHash,source:openSource,
+const openCandidateHash=rangeKeeperPaperCandidateHash({campaignId,revision,profileHash,configHash,source:openSource,
+ referenceProofHash:proofHash,candidate:openCandidate});
+const candidate={...openCandidate,kind:'recenter' as const,sourceBlock:101n,
+ sourceHash:priorSource.hash as `0x${string}`};
+const candidateHash=rangeKeeperPaperCandidateHash({campaignId,revision,profileHash,configHash,source:priorSource,
  referenceProofHash:proofHash,candidate});
 const openModel={kind:'rangekeeper_paper_open_model' as const,status:'indicative' as const,actionAvailable:false,
  campaignId,revision,strategyId:'rangekeeper_v1' as const,strategyVersion:'1.0.0',draftConfigHash:configHash,
  profileHash,kernelPolicyHash:policy.policy!.policyHash,kernelBuildId:buildId,source:openSource,
  poolState:{tick:0,sqrtPriceX96:String(mintSqrt),poolLiquidity:String(10n**24n)},reference:{price0:'1000000000000000000',
  price1:'1000000000000000000',nativePrice:'1000000000000000000',eligible:true,proofHash,proof,reasons:[]},
- decision:{requiresSecondObservation:true},candidate:{kind:'entry',range,swap:null,amount0Desired:String(candidate.amount0Desired),
- amount1Desired:String(candidate.amount1Desired),amount0Min:'0',amount1Min:'0',liquidity:String(candidate.liquidity),
- deployedValue:String(candidate.deployedValue),sourceBlock:'100',sourceHash:openSource.hash,expiresAt:candidate.expiresAt},
- candidateHash} as unknown as RangeKeeperPaperOpenModel;
+ decision:{requiresSecondObservation:true},candidate:{kind:'entry',range,swap:null,amount0Desired:String(openCandidate.amount0Desired),
+ amount1Desired:String(openCandidate.amount1Desired),amount0Min:'0',amount1Min:'0',liquidity:String(openCandidate.liquidity),
+ deployedValue:String(openCandidate.deployedValue),sourceBlock:'100',sourceHash:openSource.hash,expiresAt:openCandidate.expiresAt},
+ candidateHash:openCandidateHash} as unknown as RangeKeeperPaperOpenModel;
 const priorPrincipal=amountsForLiquidity({liquidity:mint.liquidity,sqrtPriceX96:mintSqrt,
  sqrtRatioAX96:sqrtRatioAtTick(range.tickLower),sqrtRatioBX96:sqrtRatioAtTick(range.tickUpper)}),
  currentSqrt=sqrtRatioAtTick(0),currentPrincipal=priorPrincipal;
 const frame:PaperOpenFrame={source:frameSource,tick:0,sqrtPriceX96:currentSqrt,poolLiquidity:10n**24n,
  price0:10n**18n,price1:10n**30n,nativePrice:2_000n*10n**18n,referenceEligible:true,
  referenceReasons:[],referenceProofHash:proofHash,referenceProof:proof};
-const currentEpoch={epoch:0,markId:'1',markHash:'8'.repeat(64),source:openSource,candidate,candidateHash,
+const currentEpoch={epoch:1,markId:'2',markHash:'8'.repeat(64),source:priorSource,candidate,candidateHash,
  candidateReferenceProofHash:proofHash,inventory:{position,idle},kernelSnapshot:{},mintSqrtPriceX96:mintSqrt,
- allowancesCleared:false,fundingBeforeSwap:{token0:allocation.token0Raw,token1:allocation.token1Raw},
+ allowancesCleared:true,fundingBeforeSwap:{token0:allocation.token0Raw,token1:allocation.token1Raw},
  reference:{price0:10n**18n,price1:10n**18n,nativePrice:10n**18n,proofHash,proof}};
 const previous={id:'2',source:priorSource,candidateHash,position,idle};
 const kernelBase={state:{schemaVersion:1 as const,policyId:'rangekeeper_v1' as const,strategyVersion:'1.0.0' as const,
@@ -77,7 +81,7 @@ const kernelBase={state:{schemaVersion:1 as const,policyId:'rangekeeper_v1' as c
  source:frameSource,inventoryProofHash:'9'.repeat(64),wallet0:BigInt(idle.token0),wallet1:BigInt(idle.token1),
  released0:currentPrincipal.amount0,released1:currentPrincipal.amount1,nativeWei:BigInt(allocation.nativeWei),
  campaignStartValue:2n*10n**18n,highWaterValue:2n*10n**18n,rollingSpentCost:0n,campaignSpentCost:0n,
- reservedCost:0n,recenters:0,pending:false,entryAllowed:false,safeExitRequired:false,executionReady:false};
+ reservedCost:0n,recenters:1,pending:false,entryAllowed:false,safeExitRequired:false,executionReady:false};
 const kernel={...kernelBase,inventoryProofHash:rangeKeeperPaperExitInventoryProofHash({campaignId,revision,
  openMarkId:'1',openModelHash:contentHash(openModel),candidateHash,currentEpoch,kernel:kernelBase,previous})};
 

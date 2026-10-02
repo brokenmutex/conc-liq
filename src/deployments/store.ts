@@ -6643,6 +6643,7 @@ export class DeploymentStore {
     throw new DeploymentConflict('rangekeeper_paper_exit_config_integrity');
    if(model.campaignId!==row.campaign_id||model.revision!==row.current_revision||
     model.profileHash!==row.profile_hash||model.draftConfigHash!==row.config_hash||
+    model.currentEpoch?.candidateHash!==model.candidateHash||
     referenceProofHash(model.reference.proof)!==model.reference.proofHash)
     throw new DeploymentConflict('rangekeeper_paper_exit_model_integrity');
    const req=row.request;
@@ -6651,13 +6652,25 @@ export class DeploymentStore {
     req.openMarkId!==model.openMarkId||req.candidateHash!==model.candidateHash)
     throw new DeploymentConflict('rangekeeper_paper_exit_request_mismatch');
    const openMark=(await db.query<{id:string;source_block:string|null;source_hash:string|null;
-    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
-    SELECT id::text,source_block::text,source_hash,inventory,provenance FROM deployment_marks
-    WHERE id=$1 AND campaign_id=$2 FOR SHARE`,[model.openMarkId,row.campaign_id])).rows[0];
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>;open_model:Record<string,unknown>|null}>(`
+    SELECT m.id::text,m.source_block::text,m.source_hash,m.inventory,m.provenance,
+     COALESCE(m.provenance->'confirmedOpen'->'model',m.provenance->'model',
+      v.proposal->'rangekeeperPaperOpenModel') AS open_model
+    FROM deployment_marks m LEFT JOIN deployment_previews v ON
+     v.id::text=m.provenance->>'previewId' AND v.campaign_id=m.campaign_id
+    WHERE m.id=$1 AND m.campaign_id=$2 FOR SHARE OF m`,[model.openMarkId,row.campaign_id])).rows[0];
+   const confirmedOpen=openMark?.provenance.confirmedOpen as Record<string,unknown>|undefined,
+    openModel=openMark?.open_model,
+    openCandidateHash=openModel?.candidateHash;
    if(!openMark||openMark.source_block===null||openMark.source_hash===null||
     openMark.provenance.classification!=='rangekeeper_paper_open_v1'||
     openMark.provenance.modelHash!==model.openModelHash||
-    openMark.provenance.candidateHash!==model.candidateHash)
+    !openModel||contentHash(openModel)!==model.openModelHash||
+    typeof openCandidateHash!=='string'||openMark.provenance.candidateHash!==openCandidateHash||
+    (confirmedOpen!==undefined&&(confirmedOpen.campaignId!==row.campaign_id||
+     confirmedOpen.revision!==row.current_revision||confirmedOpen.modelHash!==model.openModelHash||
+     confirmedOpen.model===undefined||contentHash(confirmedOpen.model)!==model.openModelHash))||
+    (model.currentEpoch.epoch===0&&model.candidateHash!==openCandidateHash))
     throw new DeploymentConflict('rangekeeper_paper_exit_open_mark_unavailable');
    const openMarkSource=z.object({block:z.string().regex(/^(0|[1-9][0-9]*)$/),
     hash:z.string().regex(/^0x[0-9a-fA-F]{64}$/),timestamp:z.number().int().nonnegative()}).strict()
@@ -6672,8 +6685,12 @@ export class DeploymentStore {
    if(!previousMarkRow||previousMarkRow.id!==model.previousMark.id||
     previousMarkRow.source_block===null||previousMarkRow.source_hash===null||
     BigInt(previousMarkRow.id)<=BigInt(openMark.id)||
-    previousMarkRow.provenance.classification!=='rangekeeper_paper_mark_v1'||
-    previousMarkRow.provenance.candidateHash!==model.candidateHash)
+    !['rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1']
+     .includes(String(previousMarkRow.provenance.classification))||
+    Number(previousMarkRow.provenance.epoch??0)!==model.currentEpoch.epoch||
+    previousMarkRow.provenance.candidateHash!==model.currentEpoch.candidateHash||
+    (previousMarkRow.provenance.classification==='rangekeeper_paper_recenter_v1'&&
+     previousMarkRow.id!==model.currentEpoch.markId))
     throw new DeploymentConflict('rangekeeper_paper_exit_previous_mark_unavailable');
    const positionSchema=z.object({tickLower:z.number().int(),tickUpper:z.number().int(),
     liquidity:z.string().regex(/^[1-9][0-9]*$/)}),
@@ -6698,6 +6715,7 @@ export class DeploymentStore {
     currentEpochPosition=positionSchema.safeParse((epochCreator.inventory as {position?:unknown}).position);
    if(!epochCreatorSource.success||epochCreator.source_block!==epochCreatorSource.data.block||
     epochCreator.source_hash?.toLowerCase()!==epochCreatorSource.data.hash.toLowerCase()||
+    epochCreator.provenance.candidateHash!==model.currentEpoch.candidateHash||
     epochCreatorHash!==currentEpoch.markHash||contentHash(epochCreatorSource.data)!==contentHash(currentEpoch.source)||
     !currentEpochPosition.success||contentHash(currentEpochPosition.data)!==contentHash(currentEpoch.position))
     throw new DeploymentConflict('rangekeeper_paper_exit_epoch_creator_integrity');

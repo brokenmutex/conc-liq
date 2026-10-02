@@ -56,8 +56,8 @@ Source validation recorded the initial modeled opening cost exactly once,
 observed five minutes outside the range and completed two canonical
 confirmations. On the retain copy, the worker autonomously booked recenter
 mark 906 (epoch 1, source 78067281), then restart preserved the original open
-mark 206 and the recenter row fingerprint. A subsequent browser retain preview
-remained non-actionable and is under investigation.
+mark 206 and the recenter row fingerprint. Subsequent browser exit checks
+exposed and resolved the compatibility defects recorded below.
 
 On the conversion copy, accepted recenter operation
 `85489d5d-12a1-4677-a33a-98b240d69fa8` initially blocked on an evidence assertion.
@@ -73,8 +73,8 @@ The source browser checks exposed additional compatibility defects before
 acceptance: strict exit-context parsing omitted candidate fields supplied by
 the store; terminal probe identity validation used an undefined opening model
 and an unserialized bigint candidate; gas registration compared against the
-original runtime instead of the validated adoption chain. These checks are
-being repaired with focused regressions. Legacy epoch-zero exit context now
+original runtime instead of the validated adoption chain. These checks were
+repaired with focused regressions. Legacy epoch-zero exit context now
 anchors position origin to the immutable opening while retaining the latest
 observation as the previous mark; its PostgreSQL regression passed.
 
@@ -91,3 +91,21 @@ default. A separate read-only browser run then passed desktop/mobile history,
 exit activity, unavailable final NAV, and zero browser/asset errors. This
 completes source conversion-close validation after the previously described
 recenter recovery; it is not an uninterrupted sealed-release lifecycle gate.
+
+The retain source copy accepted operation
+`f659796b-3d1d-4657-b4d3-11a859b43258`, then blocked at completion because the
+store still compared the current candidate with the immutable opening candidate.
+The completion check now binds those identities separately. An exact-ID,
+exact-reason test-only requeue completed terminal mark 913 with the accepted
+preview unchanged. The mark retains epoch 1, has no position, and records
+USDG `158519826` raw plus AAPL `276836248285330071` raw as principal lower
+bounds. Read-only desktop/mobile history then passed with exit activity,
+unavailable final NAV, and no browser/asset errors. This is recovery evidence;
+it does not claim an uninterrupted close.
+
+Release `0075588fed2d105abdb9105591751441e7721afe3d167fca3312958468aa44fe`
+from source `1ba851d` was built and its two sealed clone runs were stopped when
+the retain completion defect was found. Both stopped at epoch zero before any
+recenter or close acceptance. Their copied historical marks remain preserved.
+Fresh final clones were restored from the original dump for the corrected
+artifact. Production still runs its predecessor release.
