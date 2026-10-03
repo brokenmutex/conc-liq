@@ -140,21 +140,28 @@ it('admits only a fresh persisted live review when catalog and preview both expo
   assert.deepEqual(liveSetupAdmissionRequest({preflight,liveAdmission:true,requestId,now}),{available:true,payload:{
     reviewId:preflight.reviewPersistence.reviewId,reviewHash:preflight.reviewPersistence.reviewHash,requestId}});
   assert.equal(liveSetupAdmissionRequest({preflight,liveAdmission:false,requestId,now}).available,false);
-  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:true,requestId,now}).available,false);
+  // admissionAvailable records readiness when the review was taken; the current capability and the server's
+  // own check at POST time decide, so a review that outlived a worker outage can still be approved.
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:true,requestId,now}).available,true);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:false,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,executionEligible:true},liveAdmission:true,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,status:'unavailable'}},liveAdmission:true,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,expiresAt:new Date(now-1).toISOString()}},liveAdmission:true,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight,liveAdmission:true,requestId:'bad',now}).available,false);
 });
 
-it('recognizes queued admission without treating it as execution eligibility',()=>{
+it('recognizes a queued admission by its durable ids whatever execution fields an older or newer server sends',()=>{
   const queued={status:'queued',campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',
     jobId:'11111111-1111-4111-8111-111111111111',allocationId:'22222222-2222-4222-8222-222222222222',
     replayed:false,executionEligible:false,reason:'rangekeeper_live_execution_unavailable'};
   assert.equal(liveSetupAdmissionResult(queued),true);
-  assert.equal(liveSetupAdmissionResult({...queued,executionEligible:true}),false);
-  assert.equal(liveSetupAdmissionResult({...queued,reason:'holding'}),false);
+  // A supervised worker may report different execution fields; acceptance rests on the durable ids.
+  assert.equal(liveSetupAdmissionResult({...queued,executionEligible:true}),true);
+  assert.equal(liveSetupAdmissionResult({...queued,reason:undefined,executionEligible:undefined}),true);
+  assert.equal(liveSetupAdmissionResult({...queued,status:'unavailable'}),false);
   assert.equal(liveSetupAdmissionResult({...queued,jobId:'malformed'}),false);
+  assert.equal(liveSetupAdmissionResult({...queued,allocationId:undefined}),false);
+  assert.equal(liveSetupAdmissionResult({...queued,replayed:'no'}),false);
 });
 
 it('builds retain-only routes and accepts only a current persisted preview, never execution eligibility',()=>{
@@ -178,7 +185,9 @@ it('builds retain-only routes and accepts only a current persisted preview, neve
  assert.equal(liveRetainAcceptResult(queued,id),true);
  assert.equal(liveRetainAcceptResult({...queued,campaignId:'33333333-3333-4333-8333-333333333333'},id),false);
  assert.equal(liveRetainAcceptResult({...queued,status:'failed'},id),false);
- assert.equal(liveRetainAcceptResult({...queued,executionEligible:true},id),false);
+ assert.equal(liveRetainAcceptResult({...queued,executionEligible:true},id),true,'acceptance rests on durable ids, not legacy execution fields');
+ assert.equal(liveRetainAcceptResult({...queued,jobId:'bad'},id),false);
+ assert.equal(liveRetainAcceptResult({...queued,replayed:undefined},id),false);
 });
 
 it('routes the RangeKeeper setup review to its own endpoint', () => {
