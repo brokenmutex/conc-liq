@@ -150,7 +150,7 @@ try{
   const eventsOf=async c=>(await db.query(`SELECT kind,payload->>'kind' payload_kind FROM deployment_live_runtime_events WHERE campaign_id=$1 ORDER BY sequence`,[c.campaignId])).rows;
 
   // ------------------------------------------------------------ canonical-wallet model plumbing (fakes)
-  let signCalls=0,publishCalls=0,reconcileFailures=0,failPublishKind=null,holdPublishKind=null,failBoundKind=null;
+  let signCalls=0,publishCalls=0,reconcileFailures=0,failNextPublish=false,holdPublishKind=null,failBoundKind=null;
   const forceStale=new Set(),unlocked=new Map();
   const kindOfStage=async(jobId,stage)=>(await db.query(`SELECT plan_json->>'kind' kind FROM deployment_live_stage_outbox WHERE job_id=$1 AND stage=$2`,[jobId,stage])).rows[0]?.kind;
   const walletRow=async client=>(await client.query(`SELECT generation,nonce,pending_nonce,native_balance_wei,source_block,source_hash,source_timestamp FROM deployment_live_wallets WHERE chain_id=4663 AND wallet=$1`,[wallet])).rows[0];
@@ -246,7 +246,7 @@ try{
     hasCanonicalReceipt:async({job,stage})=>!(holdPublishKind&&await kindOfStage(job.id,stage)===holdPublishKind),
     signIntent:async intent=>{signCalls++;return signer.signTransaction({type:'eip1559',chainId:4663,nonce:intent.nonce,to:intent.to,data:intent.data,value:0n,
      gas:BigInt(intent.gas),maxFeePerGas:BigInt(intent.maxFeePerGas),maxPriorityFeePerGas:BigInt(intent.maxPriorityFeePerGas)});},
-    publishRaw:async raw=>{publishCalls++;if(failPublishKind){failPublishKind=null;throw Error('HTTP 503 publisher unavailable');}return keccak256(raw);},
+    publishRaw:async raw=>{publishCalls++;if(failNextPublish){failNextPublish=false;throw Error('HTTP 503 publisher unavailable');}return keccak256(raw);},
     settleManagementStage:({job,error})=>settleRangeKeeperLiveManagementStage(db,{job,error,
      readSnapshot:async(campaign,source)=>snapshotAt({block:String(source.block),hash:source.hash,timestamp:source.timestamp},campaign.state.activeTokenId)})};
    return {real,adapters,worker:createRangeKeeperLiveWalletWorker({queue,wallet:walletIdentity,adapters,options:{signerEnabled:true,publisherEnabled:true,
@@ -379,27 +379,10 @@ try{
   assert(aEvents.includes('rangekeeper_live_management_transition_v1')&&aEvents.includes('rangekeeper_live_management_settle_v1')&&
    aEvents.includes('rangekeeper_live_management_replan_v1'),`campaign A records its transition, settlement and replan: ${aEvents}`);
 
-  // ============================================================ S6: A resumes; publish loss, restart and reference outage; gas bound
+  // ============================================================ S6: A resumes; gas bound; blocked A yields to D's converted exit
+  // The re-planned candidate needs no swap in this fixture, so after the approval the next stage is the mint.
   r=await exec();
   assert.equal(r.jobId,jobA.jobId);assert.match(r.stage,/^approve:/,'A continues with its approval, not another withdrawal');
-  holdPublishKind='swap';failPublishKind='swap';
-  // The stage planner grants the remaining mint-leg and router approvals before the swap.
-  let signedBefore=signCalls;
-  for(let i=0;i<4;i++){signedBefore=signCalls;r=await exec();if(!(r.status==='reconciled'&&/^approve:/.test(r.stage??'')))break;}
-  assert.equal(r.status,'blocked',JSON.stringify(r));assert.match(r.reason,/publisher unavailable/);
-  let stages=await stagesOf(jobA.jobId);const swapStage=stages.find(s=>s.plan_json.kind==='swap');
-  assert.equal(swapStage.status,'signed','the signed bytes are durable after an unacknowledged publish');assert.equal(signCalls,signedBefore+1);
-  const costsBeforeRestart=(await campaignOf(A)).state.costEvents.length,generationBefore=(await readWalletState(db,walletIdentity)).generation;
-  // Restart: a fresh worker, the lease already expired, the transaction now mined, and the independent references unavailable.
-  ({real,worker}=buildWorker());holdPublishKind=null;reconcileFailures=1;
-  r=await exec();assert.equal(r.status,'blocked');assert.match(r.reason,/reference outage/);
-  stages=await stagesOf(jobA.jobId);assert.equal(stages.find(s=>s.plan_json.kind==='swap').status,'signed','a failed attribution rolls back completely');
-  assert.equal((await campaignOf(A)).state.costEvents.length,costsBeforeRestart);assert.equal((await readWalletState(db,walletIdentity)).generation,generationBefore);
-  assert.equal(signCalls,signedBefore+1,'persisted signed bytes are reused, never re-signed');
-  r=await exec();assert.equal(r.status,'reconciled',JSON.stringify(r));assert.match(r.stage,/^swap:/);
-  assert.equal(signCalls,signedBefore+1);assert.equal(publishCalls>=1,true);
-  assert.equal((await campaignOf(A)).state.costEvents.length,costsBeforeRestart+1,'the mined swap is attributed exactly once');
-  assert.equal((await campaignOf(A)).state.swapDone,true);
   failBoundKind='mint';
   r=await exec();assert.equal(r.status,'blocked');assert.match(r.reason,/^stage_gas_or_cost_bound_exceeded: Stage would invade reserved exit gas/);
   assert.equal((await stagesOf(jobA.jobId)).some(s=>s.plan_json.kind==='mint'),false,'a bound failure persists no stage');
@@ -417,9 +400,24 @@ try{
   assert.equal((await eventsOf(D)).some(e=>e.kind==='closed'),true);
   assert.equal((await stagesOf(jobD.jobId)).filter(x=>x.plan_json.kind==='withdraw').length,1,'the converted exit never repeats D\'s withdrawal');
 
-  // ============================================================ S7: A re-grants what the wallet-wide cleanup cleared, mints, cleans up and returns to holding
+  // ============================================================ S7: A re-grants the cleared allowance; publish loss, restart and reference outage at the mint
   r=await exec();assert.equal(r.jobId,jobA.jobId);assert.equal(r.status,'reconciled');assert.match(r.stage,/^approve:/);
-  r=await exec();assert.equal(r.status,'reconciled');assert.match(r.stage,/^mint:/);
+  holdPublishKind='mint';failNextPublish=true;
+  const signedBefore=signCalls;
+  r=await exec();assert.equal(r.status,'blocked',JSON.stringify(r));assert.match(r.reason,/publisher unavailable/);
+  let stages=await stagesOf(jobA.jobId);const mintStage=stages.find(x=>x.plan_json.kind==='mint');
+  assert.equal(mintStage.status,'signed','the signed bytes are durable after an unacknowledged publish');assert.equal(signCalls,signedBefore+1);
+  const costsBeforeRestart=(await campaignOf(A)).state.costEvents.length,generationBefore=(await readWalletState(db,walletIdentity)).generation;
+  // Restart: a fresh worker, the lease already expired, the transaction now mined, and the independent references unavailable.
+  ({real,worker}=buildWorker());holdPublishKind=null;reconcileFailures=1;
+  r=await exec();assert.equal(r.status,'blocked');assert.match(r.reason,/reference outage/);
+  stages=await stagesOf(jobA.jobId);assert.equal(stages.find(x=>x.plan_json.kind==='mint').status,'signed','a failed attribution rolls back completely');
+  assert.equal((await campaignOf(A)).state.costEvents.length,costsBeforeRestart);assert.equal((await readWalletState(db,walletIdentity)).generation,generationBefore);
+  assert.equal(signCalls,signedBefore+1,'persisted signed bytes are reused, never re-signed');
+  r=await exec();assert.equal(r.status,'reconciled',JSON.stringify(r));assert.match(r.stage,/^mint:/);
+  assert.equal(signCalls,signedBefore+1);assert.equal(publishCalls,1,'a mined transaction is never republished');
+  assert.equal((await campaignOf(A)).state.costEvents.length,costsBeforeRestart+1,'the mined mint is attributed exactly once');
+  assert.equal((await campaignOf(A)).state.phase,'holding');assert.equal((await campaignOf(A)).state.activeTokenId,99n);
   r=await exec();assert.equal(r.status,'reconciled');assert.match(r.stage,/^approve:/,'allowance cleanup completes the action');
   r=await exec();assert.equal(r.status,'completed',JSON.stringify(r));assert.equal(r.jobId,jobA.jobId);
 
@@ -427,13 +425,13 @@ try{
   const aFinal=await campaignOf(A),s=aFinal.state;
   assert.equal(s.phase,'holding');assert.equal(s.activeTokenId,99n);assert.equal(s.recenters,1,'epoch advances once');assert.equal(s.economicActions,2);
   assert.deepEqual(s.retiredTokenIds,['77']);assert.equal(s.candidate,null);assert.equal(s.swapDone,false);assert.equal(s.withdrawDone,false);
-  assert.equal(s.costEvents.length,6);assert.equal(s.gasSpentWei,300n);
+  assert.equal(s.costEvents.length,5);assert.equal(s.gasSpentWei,250n);
   assert(s.costEvents.every(e=>e.gasValue===50n),'every receipt is valued from its own receipt-block references');
   assert.deepEqual(aFinal.allocation.nftTokenIds,['99']);
   assert.deepEqual((await custodyOf(A)).map(n=>[n.id,n.status]),[['77','retired_empty'],['99','active']]);
-  assert.deepEqual(await liquidOf(A),{[token0]:50n,[token1]:99n},'withdraw, swap and mint settle into the campaign allocation exactly once');
-  assert.equal(BigInt((await allocationRow(A)).native_spend_wei),700n);
-  assert.deepEqual((await stagesOf(jobA.jobId)).map(x=>x.plan_json.kind),['withdraw','approve','swap','approve','mint','approve']);
+  assert.deepEqual(await liquidOf(A),{[token0]:70n,[token1]:80n},'withdraw and mint settle into the campaign allocation exactly once');
+  assert.equal(BigInt((await allocationRow(A)).native_spend_wei),750n);
+  assert.deepEqual((await stagesOf(jobA.jobId)).map(x=>x.plan_json.kind),['withdraw','approve','approve','mint','approve']);
   assert((await stagesOf(jobA.jobId)).every(x=>x.status==='confirmed'));
   assert.equal((await jobRow(jobA.jobId)).status,'succeeded');
   assert.equal((await db.query(`SELECT lifecycle FROM deployment_campaigns WHERE id=$1`,[A.campaignId])).rows[0].lifecycle,'active');
