@@ -38,6 +38,7 @@ import {initializeRangeKeeperLiveCampaignInTransaction,appendRangeKeeperLiveCamp
 import {createRangeKeeperLiveWalletWorker,RangeKeeperLiveStaleManagementReviewError,type RangeKeeperLiveWorkerAdapters,type RangeKeeperLiveWorkerOptions,
  type RangeKeeperManagementSettlement,type RangeKeeperNextStage} from './rangekeeper-live-wallet-worker.js';
 import {classifyRangeKeeperStageError,settleRangeKeeperLiveStageError} from './rangekeeper-live-management-recovery.js';
+import {RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../strategy/rangekeeper/live-stage.js';
 import {createRangeKeeperLivePreparedIntentVerifier,readRangeKeeperLiveStageReferences,verifyRangeKeeperLiveStageReferences} from './rangekeeper-live-references.js';
 import {contentHash} from './contracts.js';
 import {applyRangeKeeperLiveReceiptEffectInTransaction} from './rangekeeper-live-campaign-effects.js';
@@ -483,6 +484,32 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
  };
 }
 
+/** Persist a recoverable stale/infeasible recenter condition as campaign state (replan or retained exit), so a
+ * completed withdrawal or swap is never repeated and the job never loops on the same failure. A bounded post-swap
+ * mint wait is returned without a state write. Any other error is left unsettled, with no reads or writes. */
+export async function settleRangeKeeperLiveManagementStage(pool:Pool,input:{job:LiveJob;error:unknown;
+ readSnapshot:(campaign:LiveCampaign,source:RangeKeeperSource)=>Promise<RangeKeeperSnapshot>;now?:()=>number}):Promise<RangeKeeperManagementSettlement>{
+ const {job,error}=input;
+ if(job.kind!=='change_range'||!(error instanceof RangeKeeperStaleCandidateError||error instanceof RangeKeeperMintUnavailableError))return {kind:'unsettled'};
+ return withLiveWalletTransaction(pool,{chainId:4663,address:job.wallet},async db=>{
+  const campaign=await readRangeKeeperLiveCampaign(db,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision});
+  assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
+  const row=(await db.query<any>(`SELECT source_block,source_hash,source_timestamp FROM deployment_live_wallets WHERE chain_id=4663 AND wallet=$1`,
+   [job.wallet.toLowerCase()])).rows[0];assert(row,'Canonical live wallet snapshot missing');
+  const source:RangeKeeperSource={block:BigInt(row.source_block),hash:row.source_hash,timestamp:Number(row.source_timestamp)};
+  const snapshot=await input.readSnapshot(campaign,source);
+  const settlement=settleRangeKeeperLiveStageError(campaign.state,snapshot,Math.floor((input.now??Date.now)()/1000),error);
+  if(settlement.kind==='unsettled'||settlement.kind==='wait')return settlement;
+  const sourceText={block:String(source.block),hash:source.hash,timestamp:source.timestamp};
+  await appendRangeKeeperLiveCampaignEventInTransaction(db,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision,
+   effectId:contentHash({kind:'rangekeeper_management_settle',jobId:job.id,previousStateHash:campaign.stateHash,action:settlement.kind}),
+   kind:'mark',expectedStateHash:campaign.stateHash,state:settlement.state,source:sourceText,
+   payload:{schemaVersion:1,kind:'rangekeeper_live_management_settle_v1',jobId:job.id,action:settlement.kind,reason:settlement.reason,
+    error:(error instanceof Error?error.message:String(error)).slice(0,300),source:sourceText,previousStateHash:campaign.stateHash}});
+  return {kind:settlement.kind,reason:settlement.reason};
+ });
+}
+
 /** Compose canonical queue adapters with the RangeKeeper worker lifecycle.
  * The composition deliberately supplies no signer or publisher. */
 export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;client:RobinhoodClient;walletAddress:string;
@@ -702,26 +729,9 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
   assert(rows.length<=100,'Finished retained-close recovery bound exceeded');
   for(const row of rows)await releaseLiveWalletAllocation(input.pool,{chainId:4663,address:row.wallet,allocationId:row.allocation_id});
  };
- /** Persist a recoverable stale/infeasible recenter condition as campaign state (replan or retained exit), so a
-  * completed withdrawal or swap is never repeated and the job never loops on the same failure. A bounded post-swap
-  * mint wait is returned without a state write. */
- const settleManagementStage=async({job,error}:{job:LiveJob;error:unknown}):Promise<RangeKeeperManagementSettlement>=>{
-  if(job.kind!=='change_range')return {kind:'unsettled'};
-  return withLiveWalletTransaction(input.pool,{chainId:4663,address:job.wallet},async db=>{
-   const campaign=await campaignFor(job,db);assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
-   const source=await sourceAt(db,job.wallet),profile=marketProfileSchema.parse(campaign.profile);
-   const snapshot=await new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances).snapshot(source,campaign.wallet,campaign.state.activeTokenId);
-   const settlement=settleRangeKeeperLiveStageError(campaign.state,snapshot,Math.floor(Date.now()/1000),error);
-   if(settlement.kind==='unsettled'||settlement.kind==='wait')return settlement;
-   const sourceText={block:String(source.block),hash:source.hash,timestamp:source.timestamp};
-   await appendRangeKeeperLiveCampaignEventInTransaction(db,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision,
-    effectId:contentHash({kind:'rangekeeper_management_settle',jobId:job.id,previousStateHash:campaign.stateHash,action:settlement.kind}),
-    kind:'mark',expectedStateHash:campaign.stateHash,state:settlement.state,source:sourceText,
-    payload:{schemaVersion:1,kind:'rangekeeper_live_management_settle_v1',jobId:job.id,action:settlement.kind,reason:settlement.reason,
-     error:(error instanceof Error?error.message:String(error)).slice(0,300),source:sourceText,previousStateHash:campaign.stateHash}});
-   return {kind:settlement.kind,reason:settlement.reason};
-  });
- };
+ const settleManagementStage=({job,error}:{job:LiveJob;error:unknown})=>settleRangeKeeperLiveManagementStage(input.pool,{job,error,
+  readSnapshot:async(campaign,source)=>new RangeKeeperChain(input.client,marketProfileSchema.parse(campaign.profile).pool,campaign.config.zeroAllowances)
+   .snapshot(source,campaign.wallet,campaign.state!.activeTokenId)});
  const workerAdapters:RangeKeeperLiveWorkerAdapters={initializeOpeningCampaign,nextStage,
   advanceCampaignEffect:async({job,outbox})=>{await withLiveWalletTransaction(input.pool,{chainId:4663,address:job.wallet},
    async db=>{await applyRangeKeeperLiveReceiptEffectInTransaction(db,{job,outbox});});},

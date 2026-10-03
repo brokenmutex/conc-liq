@@ -131,7 +131,8 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
     catch(error){
      const settle=job.kind==='change_range'?input.adapters.settleManagementStage:undefined;
      if(!settle)throw error;
-     const settled=await settle({job,error});
+     // A failure to settle (for example an RPC outage while reading the snapshot) must not mask the original error.
+     const settled=await settle({job,error}).catch(()=>({kind:'unsettled'} as const));
      if(settled.kind==='wait'||settled.kind==='replan')return {kind:'wait',reason:settled.reason};
      if(settled.kind==='exit')return input.adapters.nextStage({job,lastOutbox:last});
      throw error;
