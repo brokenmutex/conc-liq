@@ -96,11 +96,11 @@ try{
   let commitments=await readCommitments(db,walletIdentity),commitmentsHash=liveWalletCommitmentFingerprint(commitments);
   let walletState=await recordWalletSnapshot(db,{...walletIdentity,source,nonce:'5',pendingNonce:'5',nativeBalanceWei:'100000',
    tokens:[{address:token0,balanceRaw:'1000'},{address:token1,balanceRaw:'1000'}],commitmentsHash});
-  // Model a sibling wallet refresh: this allocation retains generation 1 while
-  // the shared wallet reaches a later complete generation with identical funds.
+  // Model a source-only wallet refresh: wallet generation is a content version, so identical funds, nonce and
+  // commitments keep generation 2 (the allocation insert above already advanced it past this allocation's 1).
   walletState=await recordWalletSnapshot(db,{...walletIdentity,source,nonce:'5',pendingNonce:'5',nativeBalanceWei:'100000',
    tokens:[{address:token0,balanceRaw:'1000'},{address:token1,balanceRaw:'1000'}],commitmentsHash});
-  assert.equal(walletState.generation,3);assert.equal(Number((await db.query('SELECT source_generation FROM deployment_live_allocations WHERE id=$1',[allocationId])).rows[0].source_generation),1);
+  assert.equal(walletState.generation,2);assert.equal(Number((await db.query('SELECT source_generation FROM deployment_live_allocations WHERE id=$1',[allocationId])).rows[0].source_generation),1);
 
   const openReview=await recordReview(db,{...walletIdentity,reviewId:openReviewId,payload:setupPayload,payloadHash:contentHash(setupPayload),
    buildId,source,expiresAt:new Date(Date.now()+60_000),walletGeneration:walletState.generation,commitmentsHash});
@@ -130,7 +130,7 @@ try{
   assert.equal((await db.query(`SELECT count(*) n FROM deployment_live_runtime_events WHERE campaign_id=$1 AND kind='mark'`,[campaignId])).rows[0].n,'1');
   // Keep the campaign state snapshot nonce and wallet source in exact agreement.
   let campaign=await readRangeKeeperLiveCampaign(db,{...walletIdentity,campaignId});
-  assert.equal(campaign.allocation.sourceGeneration,1);assert.equal((await readWalletState(db,walletIdentity)).generation,3);
+  assert.equal(campaign.allocation.sourceGeneration,1);assert.equal((await readWalletState(db,walletIdentity)).generation,2);
 
   // Automatic policy observations use the same wallet lock/CAS as lifecycle
   // effects, and the holding valuation callback sees the post-CAS hash. An
@@ -193,7 +193,7 @@ try{
   await assert.rejects(queue.enqueue(jobInput),/expired/i);await db.query('UPDATE deployment_live_reviews SET expires_at=$2,created_at=$3 WHERE id=$1',[preview.previewId,originalTimes.expires_at,originalTimes.created_at]);
   await db.query('UPDATE deployment_live_wallets SET generation=generation+1 WHERE chain_id=4663 AND wallet=$1',[wallet]);
   await assert.rejects(queue.enqueue(jobInput),/wallet\/campaign state/i);
-  await db.query('UPDATE deployment_live_wallets SET generation=3 WHERE chain_id=4663 AND wallet=$1',[wallet]);
+  await db.query('UPDATE deployment_live_wallets SET generation=2 WHERE chain_id=4663 AND wallet=$1',[wallet]);
   await db.query('UPDATE deployment_live_campaign_runtime SET state_hash=$2 WHERE campaign_id=$1',[campaignId,'1'.repeat(64)]);
   await assert.rejects(queue.enqueue(jobInput),/wallet\/campaign state/i);
   await db.query('UPDATE deployment_live_campaign_runtime SET state_hash=$2 WHERE campaign_id=$1',[campaignId,campaign.stateHash]);

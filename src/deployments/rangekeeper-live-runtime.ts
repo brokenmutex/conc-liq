@@ -45,12 +45,13 @@ export function createRangeKeeperLiveRuntime(input:RangeKeeperLiveRuntimeInput){
  if(execution)assert(execution.enabled===true&&typeof execution.signIntent==='function'&&typeof execution.publishRaw==='function',
   'Live execution requires explicit signer and publisher callbacks');
  const wallet:LiveWalletIdentity={chainId:4663,address:input.walletAddress.toLowerCase()};
- let observeAndEnqueueManagement:(()=>Promise<void>)|undefined;
+ let observeAndEnqueueManagement:(()=>Promise<void>)|undefined,refreshWalletSnapshot:(()=>Promise<void>)|undefined;
  const runtime=createRangeKeeperLiveWalletRuntime({pool:input.pool,client:input.client,walletAddress:input.walletAddress,
   transferStore:input.transferStore,loadProfiles:input.loadProfiles,rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary,
   readReferences:input.readReferences,verifyReferences:input.verifyReferences,
   options:{...input.options,signerEnabled:execution!==undefined,publisherEnabled:execution!==undefined},
-  observeAndEnqueueManagement:async()=>{await observeAndEnqueueManagement?.();}});
+  observeAndEnqueueManagement:async()=>{await observeAndEnqueueManagement?.();},
+  refreshWalletSnapshot:async()=>{await refreshWalletSnapshot?.();}});
  if(execution){runtime.adapters.signIntent=execution.signIntent;runtime.adapters.publishRaw=execution.publishRaw;}
  const observer=createRangeKeeperLiveManagementObserver({pool:input.pool,client:input.client,wallet,
   loadProfiles:input.loadProfiles,transferStore:input.transferStore,buildId:input.buildId,rpcUrl:input.rpcUrl,
@@ -60,6 +61,7 @@ export function createRangeKeeperLiveRuntime(input:RangeKeeperLiveRuntimeInput){
   anvilBinary:input.anvilBinary,buildId:input.buildId,observer,queueReady:async()=>runtime.adapters.managementObservationReady?.()??false,
   enqueue:job=>runtime.queue.enqueue(job),enabled:input.managementEnabled===true&&input.persistReviews===true,now:input.now});
  observeAndEnqueueManagement=async()=>{await planner.observeAndEnqueueManagement();};
+ refreshWalletSnapshot=async()=>{await observer.refreshWallet();};
  const management=createRangeKeeperLiveManagementRuntime({pool:input.pool,wallet,buildId:input.buildId,
   persistReviews:input.persistReviews===true,observe:observer.observe,verifyPinned:observer.verifyPinned,
   enqueue:job=>runtime.queue.enqueue(job),now:input.now});

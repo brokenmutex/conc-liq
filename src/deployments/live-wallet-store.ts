@@ -77,6 +77,16 @@ function snapshotHashFor(input:{wallet:LiveWalletIdentity;source:LiveWalletSourc
 }
 
 /** Uses the exact bigint advisory-lock namespace held by legacy live controllers. */
+/** True when the persisted wallet source is the review's pinned source, or a strictly later one. A source-only
+ * advance leaves the wallet content (and therefore its generation) unchanged, so an inert review pinned to an
+ * earlier canonical source remains admissible while a backwards source or a different hash at the same height
+ * never is. The caller still verifies that the persisted source itself is canonical. */
+export function liveWalletSourceNotBefore(current:LiveWalletSource|null|undefined,pinned:LiveWalletSource):boolean{
+  if(!current||!/^(0|[1-9][0-9]*)$/.test(current.block)||!/^(0|[1-9][0-9]*)$/.test(pinned.block))return false;
+  const a=BigInt(current.block),b=BigInt(pinned.block);
+  if(a===b)return current.hash.toLowerCase()===pinned.hash.toLowerCase()&&current.timestamp===pinned.timestamp;
+  return a>b&&current.timestamp>=pinned.timestamp;
+}
 export async function withLiveWalletTransaction<T>(pool: Pool, wallet: LiveWalletIdentity,
   fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const w = normalizeWallet(wallet), client = await pool.connect();
@@ -128,8 +138,11 @@ export async function applyWalletSnapshotInTransaction(client: PoolClient,input:
   if(tokenRows.length<1||tokenRows.length>8)throw new Error("Wallet token inventory is outside the supported complete set");
   if(new Set(tokenRows.map(t=>t.address)).size!==tokenRows.length)throw new Error("Duplicate wallet token");
   tokenRows.forEach(t=>uint(t.balanceRaw,"token balance"));
-  const generationRow=await client.query<any>("SELECT generation,source_block,source_hash FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2 FOR UPDATE",[w.chainId,w.address]);
+  const generationRow=await client.query<any>("SELECT generation,source_block,source_hash,commitments_hash FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2 FOR UPDATE",[w.chainId,w.address]);
   const prior=generationRow.rows[0];
+  // `generation` is a content version: it advances only when nonce, pending nonce, native balance, token balances or
+  // the commitments fingerprint change. A source-only advance keeps it, so equality means "wallet content unchanged".
+  let contentChanged=true;
   if(!input.reorgRecovery&&prior?.source_block!==null&&prior?.source_block!==undefined&&BigInt(source.block)<BigInt(prior.source_block))throw new Error("Wallet source moved backwards; explicit reorg recovery required");
   if(!input.reorgRecovery&&prior?.source_block!==null&&prior?.source_block!==undefined&&BigInt(source.block)===BigInt(prior.source_block)&&prior.source_hash?.toLowerCase()!==source.hash.toLowerCase())throw new Error("Wallet source hash changed at same height; explicit reorg recovery required");
   if(prior){
@@ -139,12 +152,13 @@ export async function applyWalletSnapshotInTransaction(client: PoolClient,input:
     const previous=await client.query<any>("SELECT native_balance_wei,snapshot_hash,nonce,pending_nonce FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2",[w.chainId,w.address]);
     const previousTokens=(await client.query<any>("SELECT token_address,balance_raw FROM deployment_live_wallet_tokens WHERE chain_id=$1 AND wallet=$2 ORDER BY token_address",[w.chainId,w.address])).rows;
     const changed=String(previous.rows[0]?.native_balance_wei)!==input.nativeBalanceWei||String(previous.rows[0]?.nonce)!==input.nonce||String(previous.rows[0]?.pending_nonce)!==input.pendingNonce||stable(previousTokens.map((r:any)=>({address:r.token_address,balanceRaw:String(r.balance_raw)})))!==stable(tokenRows);
+    contentChanged=changed||prior.commitments_hash!==input.commitmentsHash||!(Number(prior.generation)>0);
     if(changed&&allocated.length){const proof=input.effectProof;
       if(!proof||proof.priorSnapshotHash!==previous.rows[0]?.snapshot_hash||!/^([0-9a-f]{64})$/.test(proof.evidenceHash)||!/^[-A-Za-z0-9_:]{1,128}$/.test(proof.operationId))
         throw new Error("Wallet balance delta requires receipt-bound allocation reconciliation");}
   }
   if(liveWalletCommitmentFingerprint(await readCommitments(client,w))!==input.commitmentsHash)throw new Error("Wallet commitment fingerprint does not match persisted allocations");
-  const generation=Number(generationRow.rows[0]?.generation??0)+1;
+  const generation=Number(generationRow.rows[0]?.generation??0)+(contentChanged?1:0);
   const computedSnapshotHash=snapshotHashFor({wallet:w,source,nonce:input.nonce,pendingNonce:input.pendingNonce,nativeBalanceWei:input.nativeBalanceWei,tokens:tokenRows,commitmentsHash:input.commitmentsHash});
   if(input.snapshotHash!==undefined&&input.snapshotHash!==computedSnapshotHash)throw new Error("Wallet snapshot hash mismatch");
   const snapshotHash=computedSnapshotHash;
@@ -179,7 +193,7 @@ export async function recordReview(pool:Pool,input:LiveWalletReviewInput):Promis
     const unresolved=(await c.query<any>(`SELECT EXISTS(SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2
       AND status IN('prepared','signed','blocked') AND canonical_receipt_json IS NULL) AS yes`,[w.chainId,w.address])).rows[0]?.yes;
     if(unresolved)throw new Error("Live review is blocked by an unresolved stage");
-    if(state.status!=="available"||!state.source||state.generation!==input.walletGeneration||state.commitmentsHash!==input.commitmentsHash||state.source.block!==input.source.block||state.source.hash.toLowerCase()!==input.source.hash.toLowerCase()||state.source.timestamp!==input.source.timestamp)throw new Error("Wallet snapshot changed before review persistence");
+    if(state.status!=="available"||!state.source||state.generation!==input.walletGeneration||state.commitmentsHash!==input.commitmentsHash||!liveWalletSourceNotBefore(state.source,input.source))throw new Error("Wallet snapshot changed before review persistence");
     await c.query("INSERT INTO deployment_live_reviews(id,chain_id,wallet,payload,payload_hash,build_id,source_block,source_hash,source_timestamp,wallet_generation,commitments_hash,expires_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)",[id,w.chainId,w.address,input.payload,input.payloadHash,input.buildId,input.source.block,input.source.hash,input.source.timestamp,input.walletGeneration,input.commitmentsHash,expiry.toISOString()]);
     return {...input,address:w.address,reviewId:id,expiresAt:expiry.toISOString(),consumedByJob:null};
   });
@@ -217,12 +231,15 @@ export async function consumeReviewAndReserve(pool:Pool,input:ConsumeReviewAndRe
    const state=await readWalletState(c,w),review=await readReview(c,{...w,reviewId:input.reviewId});
    if(!review||review.consumedByJob)throw new Error("Review missing or already consumed");
    if(review.payloadHash!==input.reviewHash||input.buildId&&review.buildId!==input.buildId)throw new Error("Review binding mismatch");
+   // Generation and commitments equality prove the wallet content is exactly what was reviewed; the persisted source
+   // may only have advanced (and must itself be canonical), never moved backwards or forked at the pinned height.
    if(state.status!=="available"||!state.source||state.generation!==review.walletGeneration||state.commitmentsHash!==review.commitmentsHash||
-      state.source.block!==review.source.block||state.source.hash.toLowerCase()!==review.source.hash.toLowerCase()||state.source.timestamp!==review.source.timestamp)throw new Error("Wallet generation changed since review");
+      !liveWalletSourceNotBefore(state.source,review.source))throw new Error("Wallet generation changed since review");
    const dbNow=(await c.query<any>("SELECT clock_timestamp() AS now")).rows[0].now as Date;
    if(dbNow.valueOf()>=new Date(review.expiresAt).valueOf()||dbNow.valueOf()-review.source.timestamp*1000>180_000||review.source.timestamp*1000>dbNow.valueOf()+5_000)throw new Error("Review source stale or expired");
    if(state.nonce===null||state.pendingNonce===null||state.nonce!==state.pendingNonce)throw new Error("Wallet nonce not canonical");
    await input.verifySource(review.source);
+   if(state.source.block!==review.source.block)await input.verifySource(state.source);
    // Any prior live campaign without a new allocation ledger remains unknown custody.
    const unknownDeployment=(await c.query<any>(`SELECT c.id FROM deployment_campaigns c WHERE c.mode='live' AND lower(c.wallet)=$1
     AND (c.lifecycle NOT IN ('draft','closed') OR EXISTS(SELECT 1 FROM deployment_wallet_reservations r WHERE r.campaign_id=c.id AND r.released_at IS NULL)

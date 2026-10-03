@@ -17,6 +17,7 @@ import {createRangeKeeperLiveReviewRuntime,rangeKeeperPinnedSemanticProofHash} f
 import {deriveRangeKeeperCampaignStageSnapshot,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
  type RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import {readCommitments,readWalletState,withLiveWalletTransaction,type LiveWalletIdentity,type LiveWalletSnapshotInput} from './live-wallet-store.js';
+import {readLiveWalletLane} from './live-wallet-queue.js';
 import {liveWalletCommitmentFingerprint,liveWalletInventoryMatchesState} from './live-wallet-commitment-projection.js';
 import {verifyRangeKeeperWalletCode} from '../strategy/rangekeeper/wallet-code.js';
 import {marketProfileSchema,type MarketProfile} from './market-profile.js';
@@ -88,7 +89,8 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
  };
  const refresh=async(source:RangeKeeperSource,allProfiles:readonly {id:string|null;profile:MarketProfile}[])=>{
   const obs=await observedWallet(source,allProfiles);
-  const reviewRuntime=createRangeKeeperLiveReviewRuntime({pool:input.pool,wallet:input.wallet,buildId:input.buildId,requireIdleQueue:true,
+  // The shared queue may hold queued or campaign-local blocked work; the snapshot writer still refuses any unresolved transaction.
+  const reviewRuntime=createRangeKeeperLiveReviewRuntime({pool:input.pool,wallet:input.wallet,buildId:input.buildId,requireIdleQueue:false,
    observeWallet:async()=>({snapshot:obs.snapshot,complete:true,missing:[],nft:{positionManager:obs.custody.positionManager!,
     completeEvidence:obs.custody as any,positions:obs.positions,retiredEmptyTokenIds:obs.retired}}),
    verifyCanonical:async s=>{const block=await input.client.getBlock({blockNumber:BigInt(s.block)});
@@ -99,8 +101,11 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   return {obs,state:result.state};
  };
  const collect=async(campaign:RangeKeeperLiveCampaign,includeRetainCost:boolean,refreshWallet=true):Promise<RangeKeeperLiveManagementObservation>=>{
-  assert(campaign.state&&campaign.status==='active'&&campaign.state.phase==='holding'&&campaign.state.activeTokenId!==null,
-   'Management observation requires an active held campaign');
+  // A recenter in progress is observed (never retain-priced) so policy exits can still reach a stuck campaign.
+  assert(campaign.state&&campaign.status==='active'&&(campaign.state.phase==='holding'&&campaign.state.activeTokenId!==null||
+   campaign.state.phase==='recenter'&&!includeRetainCost),'Management observation requires an active held campaign');
+  if(refreshWallet){const lane=await readLiveWalletLane(input.pool,input.wallet);
+   assert(!lane.inflight&&!lane.unresolved,'persisted_live_queue_has_priority');}
   const allProfiles=await input.pool.connect().then(async db=>{try{return await profiles(db);}finally{db.release();}});
   const profile=marketProfileSchema.parse(campaign.profile),registered=allProfiles.find(p=>(p.id===null||p.id===campaign.profileId)&&
    contentHash(p.profile)===campaign.profileHash);
@@ -127,18 +132,20 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   assert(await verifyRangeKeeperLiveStageReferences({client:input.client,campaignId:campaign.id,revision:campaign.revision,profile,expected:refs}),
    'Independent source-bound valuation unavailable');
   const mark=await markRangeKeeper(campaign.state,scoped,chain,campaign.config,{price0:refs.price0,price1:refs.price1});
-  const p=scoped.position;assert(p&&p.tokenId===campaign.state.activeTokenId,'Campaign NFT snapshot is unavailable');
-  const feeEvidence={kind:'rangekeeper_live_position_fee_evidence_v1',source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
+  const p=scoped.position,heldTokenId=campaign.state.activeTokenId;
+  assert(heldTokenId===null?p===null:p!==null&&p.tokenId===heldTokenId,'Campaign NFT snapshot is unavailable');
+  // A withdrawn recenter holds loose inventory only: no NFT valuation, but the same canonical wallet and reference proof.
+  const feeEvidence=p?{kind:'rangekeeper_live_position_fee_evidence_v1',source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
    tokenId:String(p.tokenId),liquidityRaw:String(p.liquidity),principal0Raw:String(mark.principal0),principal1Raw:String(mark.principal1),
    uncollected0Raw:String(mark.uncollected0),uncollected1Raw:String(mark.uncollected1),grossFee0Raw:String(mark.grossFee0),
    grossFee1Raw:String(mark.grossFee1),inventory0Raw:String(mark.principal0+mark.uncollected0),inventory1Raw:String(mark.principal1+mark.uncollected1),
-   collectionSimulation:'canonical_eth_call',referenceProofHash:refs.proofHash};
+   collectionSimulation:'canonical_eth_call',referenceProofHash:refs.proofHash}:null;
   const costs=includeRetainCost?await managementCosts(campaign,source,profile,refs):null;
-  const position={tokenId:String(p.tokenId),liquidityRaw:String(p.liquidity),principal0Raw:String(mark.principal0),principal1Raw:String(mark.principal1),
+  const position=p?{tokenId:String(p.tokenId),liquidityRaw:String(p.liquidity),principal0Raw:String(mark.principal0),principal1Raw:String(mark.principal1),
    uncollected0Raw:String(mark.uncollected0),uncollected1Raw:String(mark.uncollected1),inventory0Raw:String(mark.inventory0),inventory1Raw:String(mark.inventory1),
    grossFee0Raw:String(mark.grossFee0),grossFee1Raw:String(mark.grossFee1),gasSpentWei:String(campaign.state.gasSpentWei),
    tokenInventoryValueUsdX18:String(mark.nav),
-   referenceProofHash:refs.proofHash,feeEvidence};
+   referenceProofHash:refs.proofHash,feeEvidence}:null;
   const observationHash=contentHash({source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},snapshot:JSON.parse((await import('../strategy/rangekeeper/live-domain.js')).rangeKeeperJson(snapshot)),
    position,refs:refs.proofHash,costs});
   const dbstate=await readWalletState(input.pool,input.wallet);assert(dbstate.status==='available'&&dbstate.source&&dbstate.commitmentsHash,'Refreshed wallet state unavailable');
@@ -204,14 +211,17 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
  const observeHoldingCampaigns=async()=>{
   if(!await input.queueReady())return {status:'idle' as const,recorded:0,missing:[] as string[]};
   const rows=(await input.pool.query<any>(`SELECT c.id FROM deployment_campaigns c JOIN deployment_revisions r
-   ON r.campaign_id=c.id AND r.revision=c.current_revision WHERE c.chain_id=4663 AND lower(c.wallet)=$1 AND c.mode='live'
-   AND c.lifecycle='active' AND r.strategy_id='rangekeeper_v1' ORDER BY c.id LIMIT 101`,[input.wallet.address.toLowerCase()])).rows;
+   ON r.campaign_id=c.id AND r.revision=c.current_revision JOIN deployment_live_campaign_runtime m ON m.campaign_id=c.id AND m.revision=r.revision
+   WHERE c.chain_id=4663 AND lower(c.wallet)=$1 AND c.mode='live'
+   AND c.lifecycle='active' AND r.strategy_id='rangekeeper_v1' ORDER BY m.updated_at,c.id LIMIT 101`,[input.wallet.address.toLowerCase()])).rows;
   assert(rows.length<=100,'Holding campaign observation bound exceeded');let recorded=0;const missing:string[]=[];
   for(const row of rows){
    if(!await input.queueReady())return {status:'deferred' as const,recorded,missing:[...missing,'wallet_queue_became_busy']};
    let campaign:RangeKeeperLiveCampaign;try{campaign=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,campaignId:row.id});}
    catch{continue;}
    if(!campaign.state||campaign.state.phase!=='holding'||campaign.state.activeTokenId===null)continue;
+   // A campaign with its own queued or blocked job is not marked: its frozen review is bound to the current state hash.
+   if((await readLiveWalletLane(input.pool,input.wallet,campaign.id)).campaignWork)continue;
    try{
     const observation=await collect(campaign,false),profile=marketProfileSchema.parse(campaign.profile);
     const walletRead=await readWalletState(input.pool,input.wallet);
@@ -219,13 +229,8 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
     const chain=new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances);
     const fee=(observation.position as any).feeEvidence;
     await withLiveWalletTransaction(input.pool,input.wallet,async db=>{
-     const ready=(await db.query<any>(`SELECT NOT EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2
-      AND status IN('queued','preflighting','executing','confirming','reconciling','blocked')) AND
-      NOT EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2 AND lease_until>clock_timestamp()) AND
-      NOT EXISTS(SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND
-      (status IN('prepared','signed','blocked') OR (signed_raw IS NOT NULL AND canonical_receipt_json IS NULL))) AS ready`,
-      [input.wallet.chainId,input.wallet.address.toLowerCase()])).rows[0]?.ready;
-     assert(ready===true,'Shared wallet queue became busy');
+     const lane=await readLiveWalletLane(db,input.wallet,campaign.id);
+     assert(!lane.inflight&&!lane.unresolved&&!lane.campaignWork,'Shared wallet queue became busy');
      await recordRangeKeeperLiveValuationMarkInTransaction(db,{wallet:input.wallet,campaignId:campaign.id,revision:campaign.revision,
      snapshot:observation.snapshot,references:observation.references as any,positionFeeEvidence:fee});
     });recorded++;
@@ -233,5 +238,12 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   }
   return {status:'observed' as const,recorded,missing};
  };
- return {observe,observeForManagement,verifyPinned,observeHoldingCampaigns};
+ /** Re-anchor the persisted whole-wallet snapshot to a fresh confirmed source. It refuses any unresolved transaction
+  * and any balance change that lacks receipt attribution, exactly like every other snapshot writer. */
+ const refreshWallet=async()=>{
+  const allProfiles=await input.pool.connect().then(async db=>{try{return await profiles(db);}finally{db.release();}});
+  const source=await sourceNow();
+  return (await refresh(source,allProfiles)).state;
+ };
+ return {observe,observeForManagement,verifyPinned,observeHoldingCampaigns,refreshWallet};
 }

@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import type {Pool} from 'pg';
 import {contentHash} from './contracts.js';
 import type {LiveWalletIdentity} from './live-wallet-store.js';
-import {withLiveWalletTransaction} from './live-wallet-store.js';
+import {readWalletState,withLiveWalletTransaction} from './live-wallet-store.js';
+import {readLiveWalletLane} from './live-wallet-queue.js';
+import {convertRangeKeeperRecenterToRetainExit,deriveRangeKeeperLiveReplanTransition,rangeKeeperLiveCostBudgetExhausted,
+ rangeKeeperLiveRemainingActionBudget} from './rangekeeper-live-management-recovery.js';
+import {isRangeKeeperAwaitingReplan} from './rangekeeper-live-campaign.js';
 import {appendRangeKeeperLiveCampaignEventInTransaction,readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
 import type {RangeKeeperLiveCampaign,RangeKeeperLiveManagementReviewPayload} from './rangekeeper-live-campaign.js';
 import {recordRangeKeeperLiveManagementReview,enqueueRangeKeeperLiveManagementReview,
@@ -29,7 +33,9 @@ export interface RangeKeeperLiveManagementPlannerInput {
  observer:{observeForManagement(campaign:RangeKeeperLiveCampaign):Promise<RangeKeeperLiveManagementPlannerObservation>;
   observe(campaign:RangeKeeperLiveCampaign):Promise<RangeKeeperLiveManagementObservation>;
   verifyPinned(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload):Promise<boolean>;
-  observeHoldingCampaigns?:()=>Promise<unknown>};
+  observeHoldingCampaigns?:()=>Promise<unknown>;
+  /** Re-anchor the persisted wallet snapshot to a fresh confirmed source (never while a transaction is unresolved). */
+  refreshWallet?:()=>Promise<unknown>};
  queueReady:()=>Promise<boolean>;
  enqueue:(job:RangeKeeperLiveManagementQueueInput)=>Promise<{campaignId:string;jobId:string;allocationId?:string;replayed:boolean;status:string}>;
  /** Writes and queue admissions remain opt-in until runtime qualification. */
@@ -62,8 +68,9 @@ export function buildRangeKeeperLivePlannerObservation(campaign:RangeKeeperLiveC
  flags:{continuity?:RangeKeeperObservation['continuity'];safeExitRequired?:boolean}={}):RangeKeeperObservation{
  const p=campaign.config.pool,source=observation.source,snapshot=observation.snapshot,
   position=observation.position as Record<string,unknown>|null;
- assert(position&&typeof position==='object','Campaign position valuation is unavailable');
- const raw=(key:string)=>{const v=position[key];assert(typeof v==='string'&&/^(0|[1-9][0-9]*)$/.test(v),`Management position ${key} is missing`);return BigInt(v);};
+ // A recenter whose NFT is already withdrawn holds loose inventory only: nothing is released by a position.
+ assert(position===null?campaign.state!.activeTokenId===null:typeof position==='object','Campaign position valuation is unavailable');
+ const raw=(key:string)=>{const v=position![key];assert(typeof v==='string'&&/^(0|[1-9][0-9]*)$/.test(v),`Management position ${key} is missing`);return BigInt(v);};
  const allocated0=campaign.allocation.liquidByTokenAddress[p.token0.toLowerCase()],allocated1=campaign.allocation.liquidByTokenAddress[p.token1.toLowerCase()];
  assert(allocated0!==undefined&&allocated1!==undefined,'Campaign token allocation is incomplete');
  const free0=min(snapshot.wallet0,allocated0),free1=min(snapshot.wallet1,allocated1);
@@ -79,7 +86,7 @@ export function buildRangeKeeperLivePlannerObservation(campaign:RangeKeeperLiveC
  const actionCost=cost??limits.maxActionCost;
  return {block:BigInt(source.block),hash:source.hash as `0x${string}`,timestamp:source.timestamp,tick:snapshot.tick,
   sqrtPriceX96:snapshot.sqrtPriceX96,continuity:flags.continuity??'canonical',wallet0:free0,wallet1:free1,
-  released0:raw('principal0Raw')+raw('uncollected0Raw'),released1:raw('principal1Raw')+raw('uncollected1Raw'),nativeWei,requiredExitReserveWei,
+  released0:position?raw('principal0Raw')+raw('uncollected0Raw'):0n,released1:position?raw('principal1Raw')+raw('uncollected1Raw'):0n,nativeWei,requiredExitReserveWei,
   price0:observation.references.price0,price1:observation.references.price1,nativePrice:observation.references.nativePrice,
   position:snapshot.position&&snapshot.position.liquidity>0n?{tokenId:String(snapshot.position.tokenId),
    tickLower:snapshot.position.tickLower,tickUpper:snapshot.position.tickUpper,liquidity:snapshot.position.liquidity}:null,
@@ -91,13 +98,15 @@ export function buildRangeKeeperLivePlannerObservation(campaign:RangeKeeperLiveC
 
 export function buildRangeKeeperLiveManagementForkCost(input:{campaign:RangeKeeperLiveCampaign;observation:RangeKeeperLiveManagementPlannerObservation;
  candidate:RangeKeeperCandidate;report:Awaited<ReturnType<typeof simulateRangeKeeperCandidate>>;
- baseFee:bigint;marketGasPrice:bigint}):ForkCost{
+ baseFee:bigint;marketGasPrice:bigint;
+ /** A re-plan after a confirmed withdrawal rehearses no entry withdrawal: the position is already out. */
+ replan?:boolean}):ForkCost{
  const {campaign,observation,candidate,report}=input;
  assert(sourceEq(report.source,observation.source),'Management fork source changed');
  assert(report.createdTokenId!==null&&report.createdTokenId>0n,'Management fork mint receipt is missing');
  assert(input.baseFee>0n&&input.marketGasPrice>0n&&observation.references.nativePrice>0n,'Management fee/reference unavailable');
  const gas=report.gasByStage;
- assert(gas.some(s=>s.phase==='entry'&&s.kind==='mint')&&gas.some(s=>s.phase==='entry'&&s.kind==='withdraw')&&
+ assert(gas.some(s=>s.phase==='entry'&&s.kind==='mint')&&(input.replan===true||gas.some(s=>s.phase==='entry'&&s.kind==='withdraw'))&&
   gas.some(s=>s.phase==='exit'&&s.kind==='withdraw'),'Owned management fork did not prove recenter and complete exit');
  assert(gas.length>0&&gas.length<=32&&gas.every(s=>s.gasUsed>0n&&s.gasUsed<=8_000_000n&&
   typeof (s as any).estimatedGas==='bigint'&&(s as any).estimatedGas>0n&&
@@ -136,26 +145,38 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
   assert(tip.number>=source.block+64n&&header.hash&&header.hash.toLowerCase()===source.hash.toLowerCase()&&
    Number(header.timestamp)===source.timestamp,'Management source is no longer canonical and confirmed');
  };
- const persistObservation=async(campaign:RangeKeeperLiveCampaign,decision:RangeKeeperDecision,
-  observation:RangeKeeperLiveManagementPlannerObservation)=>{
-  assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
-  const next=structuredClone(campaign.state);next.policy=decision.state;next.lastReason=decision.reason;
-  const observationHash=contentHash(json({source:observation.source,snapshot:observation.snapshot,
+ const hashObservation=(decision:RangeKeeperDecision,observation:RangeKeeperLiveManagementPlannerObservation)=>
+  contentHash(json({source:observation.source,snapshot:observation.snapshot,
    references:{proofHash:observation.references.proofHash,price0:String(observation.references.price0),
     price1:String(observation.references.price1),nativePrice:String(observation.references.nativePrice)},
    decision:decision.action,reason:decision.reason,candidate:decision.candidate}));
+ /** One runtime-event CAS under the wallet lock, for a state change made by the manager outside any stage receipt. */
+ const applyManagerState=async(campaign:RangeKeeperLiveCampaign,state:RangeKeeperLiveCampaign['state'],
+  source:RangeKeeperLiveManagementPlannerObservation['source'],effectId:string,payload:unknown)=>{
+  assert(campaign.stateHash&&state,'Management campaign state is unavailable');
+  await withLiveWalletTransaction(input.pool,input.wallet,async db=>{
+   const current=await readRangeKeeperLiveCampaign(db,{...input.wallet,campaignId:campaign.id,revision:campaign.revision});
+   assert.equal(current.stateHash,campaign.stateHash,'Campaign changed during manager state transition');
+   const lane=await readLiveWalletLane(db,input.wallet,campaign.id);
+   assert(!lane.inflight&&!lane.unresolved,'Shared wallet queue became busy during manager state transition');
+   await appendRangeKeeperLiveCampaignEventInTransaction(db,{...input.wallet,campaignId:campaign.id,revision:campaign.revision,
+    effectId,kind:'mark',expectedStateHash:campaign.stateHash,state,source,payload});
+  });
+ };
+ const persistObservation=async(campaign:RangeKeeperLiveCampaign,decision:RangeKeeperDecision,
+  observation:RangeKeeperLiveManagementPlannerObservation,allowOwnJob=false)=>{
+  assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
+  const next=structuredClone(campaign.state);next.policy=decision.state;next.lastReason=decision.reason;
+  const observationHash=hashObservation(decision,observation);
   if(decision.reason==='duplicate_or_backward_observation')return observationHash;
   if(contentHash(json(next))===contentHash(json(campaign.state)))return observationHash;
   await withLiveWalletTransaction(input.pool,input.wallet,async db=>{
    const current=await readRangeKeeperLiveCampaign(db,{...input.wallet,campaignId:campaign.id,revision:campaign.revision});
    assert.equal(current.stateHash,campaign.stateHash,'Campaign changed during automatic planner observation');
-   const idle=(await db.query<{ready:boolean}>(`SELECT NOT EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2
-    AND status IN('queued','preflighting','executing','confirming','reconciling','blocked')) AND
-    NOT EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2 AND lease_until>clock_timestamp()) AND
-    NOT EXISTS(SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND
-     (status IN('prepared','signed','blocked') OR (signed_raw IS NOT NULL AND canonical_receipt_json IS NULL))) AS ready`,
-    [input.wallet.chainId,input.wallet.address.toLowerCase()])).rows[0]?.ready;
-   assert(idle===true,'Shared wallet queue became busy during management observation');
+   // Sibling queued or blocked work does not stop a policy observation; only an in-flight job, an unresolved
+   // transaction, or pending work of this very campaign (whose frozen review binds its state hash) does.
+   const lane=await readLiveWalletLane(db,input.wallet,campaign.id);
+   assert(!lane.inflight&&!lane.unresolved&&(allowOwnJob||!lane.campaignWork),'Shared wallet queue became busy during management observation');
    await appendRangeKeeperLiveCampaignEventInTransaction(db,{...input.wallet,campaignId:campaign.id,revision:campaign.revision,
     effectId:contentHash({kind:'rangekeeper_live_management_observation_v1',campaignId:campaign.id,
      revision:campaign.revision,source:observation.source,observationHash}),kind:'mark',expectedStateHash:campaign.stateHash,
@@ -167,13 +188,23 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
  const planCampaign=async(campaignId:string)=>{
   if(input.enabled!==true)return {status:'disabled' as const,reason:'automatic_management_disabled',queued:false as const};
   const campaign=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,campaignId});
-  assert(campaign.status==='active'&&campaign.state?.phase==='holding'&&campaign.state.activeTokenId!==null,
-   'Automatic recenter requires an active holding campaign');
+  const state0=campaign.state;
+  // A holding campaign is evaluated for a discretionary recenter or a safety exit. A recenter already in progress
+  // (its job queued or blocked) is only evaluated for a safety exit, except after a confirmed withdrawal whose
+  // candidate went stale: that one is re-planned from fresh observations without repeating the withdrawal.
+  const awaitingReplan=isRangeKeeperAwaitingReplan(state0),inFlightRecenter=state0?.phase==='recenter'&&!awaitingReplan;
+  assert(campaign.status==='active'&&campaign.state&&state0&&(state0.phase==='holding'&&state0.activeTokenId!==null||
+   state0.phase==='recenter'&&state0.desired==='running'),'Automatic management requires an active holding or recentering campaign');
+  if(state0.phase==='recenter'){
+   const persisted=await readWalletState(input.pool,input.wallet);
+   if(!persisted.source||Math.floor(now()/1000)-persisted.source.timestamp>45)await input.observer.refreshWallet?.();
+  }
   const observation=await input.observer.observeForManagement(campaign),profile=marketProfileSchema.parse(campaign.profile);
   assert(sourceEq(observation.source,observation.snapshot.source)&&sourceEq(observation.source,observation.references.source),
    'Management observation source bindings disagree');
-  assert(observation.snapshot.position&&observation.snapshot.position.tokenId===campaign.state.activeTokenId&&
+  if(state0.activeTokenId!==null)assert(observation.snapshot.position&&observation.snapshot.position.tokenId===state0.activeTokenId&&
    observation.snapshot.position.liquidity>0n,'Campaign active NFT is missing from canonical observation');
+  else assert(observation.snapshot.position===null||observation.snapshot.position.liquidity===0n,'Withdrawn campaign NFT still holds liquidity');
   const source:RangeKeeperSource={block:BigInt(observation.source.block),hash:observation.source.hash as `0x${string}`,
    timestamp:observation.source.timestamp};await verifySource(source);
   if(source.block<campaign.state.last.source.block||source.timestamp<campaign.state.last.source.timestamp||
@@ -195,8 +226,12 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
    }catch{continuity='reorg';}
   }
   const maxActions=campaign.config.campaignScope.maxEconomicActions;
+  // Exhausted cost budgets end discretionary management too: nothing further may be spent except the exit itself.
   const safeExitRequired=campaign.state.desired==='stopped'||!observation.snapshot.unlocked||source.timestamp>=campaign.state.expiresAt||
-   (maxActions>0&&campaign.state.economicActions>=maxActions);
+   (maxActions>0&&campaign.state.economicActions>=maxActions)||(!inFlightRecenter&&rangeKeeperLiveCostBudgetExhausted(campaign));
+  // A re-plan can only spend what remains of the recenter's own per-action budget.
+  const planLimits=awaitingReplan?{...campaign.config.limits,maxActionCost:rangeKeeperLiveRemainingActionBudget(campaign)}:campaign.config.limits;
+  const provisionalCost=()=>{const c=rangeKeeperLiveProvisionalActionCost(campaign);return awaitingReplan&&c>planLimits.maxActionCost?planLimits.maxActionCost:c;};
   const costsByCandidate=new Map<string,ForkCost>();
   const runFork= input.runFork??simulateRangeKeeperCandidate;
   const executeFork=async(candidate:RangeKeeperCandidate)=>{
@@ -211,13 +246,15 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
       amount1:min(observation.snapshot.wallet1,campaign.allocation.liquidByTokenAddress[profile.pool.token1.toLowerCase()]!)},
      rehearseExit:{maxPoolDeviationPpm:profile.referencePolicy.maxPoolDeviationPpm}});
     costsByCandidate.set(candidateHash,buildRangeKeeperLiveManagementForkCost({campaign,observation,candidate,report,
-     baseFee:block.baseFeePerGas,marketGasPrice}));
+     baseFee:block.baseFeePerGas,marketGasPrice,replan:awaitingReplan}));
     await verifySource(source);return true;
    }catch{return false;}
   };
-  const observationForPlan=buildRangeKeeperLivePlannerObservation(campaign,observation,campaign.config.limits,
-   rangeKeeperLiveProvisionalActionCost(campaign),0n,0,campaign.config.limits.exitReserveWei,{continuity,safeExitRequired});
-  const plannerInput={state:campaign.state.policy,observation:observationForPlan,limits:campaign.config.limits,
+  const observationForPlan={...buildRangeKeeperLivePlannerObservation(campaign,observation,planLimits,
+   provisionalCost(),0n,0,campaign.config.limits.exitReserveWei,{continuity,safeExitRequired}),
+   // Only safety conditions are evaluated for a recenter whose own stages are still in progress.
+   ...(inFlightRecenter?{entryAllowed:false}:{})};
+  const plannerInput={state:campaign.state.policy,observation:observationForPlan,limits:planLimits,
    spacing:profile.pool.tickSpacing,decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1,
    quoteToken:profile.pool.quoteToken,maxPoolDeviationPpm:profile.referencePolicy.maxPoolDeviationPpm,
    quote:(token:0|1,amount:bigint)=>chain.quote(source,token,amount,observation.references.price0,observation.references.price1),
@@ -226,12 +263,12 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
   if(decision.action==='execute'&&decision.candidate){
    const forkCost=costsByCandidate.get(contentHash(json(decision.candidate)));
    assert(forkCost,'Planner execute is missing its owned-fork proof');
-   const candidate=decision.candidate,active=observation.snapshot.position!;
-   const poolAfter=observation.snapshot.poolLiquidity-(observation.snapshot.tick>=active.tickLower&&
+   const candidate=decision.candidate,active=observation.snapshot.position;
+   const poolAfter=observation.snapshot.poolLiquidity-(active&&active.liquidity>0n&&observation.snapshot.tick>=active.tickLower&&
     observation.snapshot.tick<active.tickUpper?active.liquidity:0n);
    assert(poolAfter>=0n,'Active NFT liquidity exceeds canonical pool liquidity');
    const share=Number(candidate.liquidity*1_000_000n/(poolAfter+candidate.liquidity));
-   const checkedObservation=buildRangeKeeperLivePlannerObservation(campaign,observation,campaign.config.limits,
+   const checkedObservation=buildRangeKeeperLivePlannerObservation(campaign,observation,planLimits,
     BigInt(forkCost.actionCostValue),BigInt(forkCost.actionGasWei),share,BigInt(forkCost.exitReserveWei),
     {continuity,safeExitRequired});
    decision=await planRangeKeeper({...plannerInput,observation:checkedObservation});
@@ -239,6 +276,32 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
     `Measured recenter no longer qualifies: ${decision.reason}`);
   }
   const finalCost=decision.candidate?costsByCandidate.get(contentHash(json(decision.candidate))):undefined;
+  if(state0.phase==='recenter'){
+   const observationHash=hashObservation(decision,observation);
+   if(decision.action==='safety_exit'){
+    // Exits outrank the recenter already in progress: its job continues as a retained exit from the state it is in
+    // (the withdrawal, retired NFT and any completed swap stay recorded; nothing is repeated, converted or approved).
+    const converted=convertRangeKeeperRecenterToRetainExit(campaign.state!,decision.reason,observation.snapshot);
+    await applyManagerState(campaign,converted,observation.source,contentHash({kind:'rangekeeper_live_management_exit_conversion_v1',
+     campaignId:campaign.id,revision:campaign.revision,previousStateHash:campaign.stateHash}),
+     {schemaVersion:1,kind:'rangekeeper_live_management_exit_conversion_v1',reason:decision.reason,observationHash,
+      referenceProofHash:observation.references.proofHash});
+    return {status:'safety_exit',reason:'recenter_converted_to_retain_exit',observationHash,source:observation.source,queued:false as const,
+     converted:true as const};
+   }
+   if(!awaitingReplan)return {status:'wait',reason:'recenter_in_progress',observationHash,source:observation.source,queued:false as const};
+   if(decision.action!=='execute'||!decision.candidate||!finalCost){
+    await persistObservation(campaign,decision,observation,true);
+    return {status:decision.action,reason:decision.reason,observationHash,source:observation.source,queued:false as const};
+   }
+   const next=deriveRangeKeeperLiveReplanTransition(campaign,{source:observation.source,snapshot:observation.snapshot,
+    candidate:decision.candidate,policy:decision.state,costs:finalCost});
+   await applyManagerState(campaign,next,observation.source,contentHash({kind:'rangekeeper_live_management_replan_v1',
+    campaignId:campaign.id,revision:campaign.revision,previousStateHash:campaign.stateHash,observationHash}),
+    {schemaVersion:1,kind:'rangekeeper_live_management_replan_v1',reason:decision.reason,observationHash,
+     candidate:decision.candidate,costs:finalCost,referenceProofHash:observation.references.proofHash});
+   return {status:'replanned',reason:'stale_recenter_replanned',observationHash,source:observation.source,queued:false as const};
+  }
   const observationHash=await persistObservation(campaign,decision,observation);
   if(decision.action==='safety_exit'){
    if(!await input.queueReady())return {status:'deferred',reason:'wallet_queue_busy',observationHash,
@@ -287,12 +350,21 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
    JOIN deployment_live_campaign_runtime m ON m.campaign_id=c.id AND m.revision=r.revision
    WHERE c.chain_id=$1 AND lower(c.wallet)=$2 AND c.mode='live' AND c.lifecycle='active'
-    AND r.strategy_id='rangekeeper_v1' AND m.status='active' AND m.state_json->>'phase'='holding'
-   ORDER BY c.id LIMIT 101`,[input.wallet.chainId,input.wallet.address.toLowerCase()])).rows;
+    AND r.strategy_id='rangekeeper_v1' AND m.status='active' AND m.state_json->>'phase' IN('holding','recenter')
+   ORDER BY m.updated_at,c.id LIMIT 101`,[input.wallet.chainId,input.wallet.address.toLowerCase()])).rows;
   assert(rows.length<=100,'Holding management campaign scan exceeded its bound');
   let processed=0;const results=[] as unknown[];
+  // Every active campaign of the wallet is evaluated each pass, least recently updated first; a campaign whose own
+  // job is pending, or that fails to observe, never delays a sibling's evaluation or exit.
   for(const row of rows){if(!await input.queueReady())break;
-   try{results.push(await planCampaign(row.id));processed++;}catch(error){results.push({campaignId:row.id,status:'unavailable',
+   try{
+    const lane=await readLiveWalletLane(input.pool,input.wallet,row.id);
+    const phase=(await input.pool.query<{phase:string}>(`SELECT state_json->>'phase' AS phase FROM deployment_live_campaign_runtime WHERE campaign_id=$1`,[row.id])).rows[0]?.phase;
+    // A holding campaign with its own queued or blocked job is bound to that job's frozen review; a recenter in
+    // progress is by definition evaluated while its job waits.
+    if(lane.campaignWork&&phase==='holding'){results.push({campaignId:row.id,status:'wait',reason:'campaign_job_pending'});continue;}
+    results.push(await planCampaign(row.id));processed++;
+   }catch(error){results.push({campaignId:row.id,status:'unavailable',
     reason:error instanceof Error?error.message:'management_planner_unavailable'});}}
   // Policy CAS updates the runtime state hash. Record the matching dashboard
   // valuation afterwards, and only while the manager did not enqueue work.

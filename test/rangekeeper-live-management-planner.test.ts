@@ -80,3 +80,24 @@ test('fork cost builder rejects a changed anchor or incomplete cleanup and exit 
   report:{...report,source:{...source,hash:`0x${'2'.repeat(64)}`},gasByStage:[...report.gasByStage,
    {phase:'exit',kind:'withdraw',gasUsed:300n,estimatedGas:300n}]},baseFee:10n,marketGasPrice:12n}),/source changed/);
 });
+
+test('a withdrawn recenter is planned from loose campaign inventory with no released position value',()=>{
+ const c=campaign();c.state!.phase='recenter';c.state!.activeTokenId=null;c.state!.withdrawDone=true;c.allocation.nftTokenIds=[];
+ const o=observation();o.position=null;o.snapshot={...o.snapshot,position:null} as any;
+ const result=buildRangeKeeperLivePlannerObservation(c,o,limits,null,0n,0);
+ assert.equal(result.position,null);assert.equal(result.released0,0n);assert.equal(result.released1,0n);
+ assert.equal(result.wallet0,500n);assert.equal(result.wallet1,700n,'loose inventory stays capped to this campaign allocation');
+ const held=campaign();assert.throws(()=>buildRangeKeeperLivePlannerObservation(held,o,limits,null,0n,0),/position valuation is unavailable/,
+  'a campaign that still holds an NFT cannot be planned without its valuation');
+});
+
+test('a re-plan rehearses no entry withdrawal but still requires the mint and a complete exit',()=>{
+ const report:any={source,createdTokenId:10n,gasByStage:[
+  {phase:'entry',kind:'mint',gasUsed:200n,estimatedGas:200n},{phase:'exit',kind:'withdraw',gasUsed:300n,estimatedGas:300n}]};
+ const c=campaign();c.state!.activeTokenId=null;
+ assert.throws(()=>buildRangeKeeperLiveManagementForkCost({campaign:c,observation:observation(),candidate,report,baseFee:10n,marketGasPrice:12n}),/complete exit/);
+ const result=buildRangeKeeperLiveManagementForkCost({campaign:c,observation:observation(),candidate,report,baseFee:10n,marketGasPrice:12n,replan:true});
+ assert.equal(result.actionGasWei,'3900');assert.equal(result.completeExitGasWei,'5850');assert.equal(result.provenance,'owned_fork_allocated_lifecycle_v1');
+ assert.throws(()=>buildRangeKeeperLiveManagementForkCost({campaign:c,observation:observation(),candidate,replan:true,baseFee:10n,marketGasPrice:12n,
+  report:{...report,gasByStage:[report.gasByStage[1]]}}),/complete exit/,'the mint is always required');
+});

@@ -173,3 +173,69 @@ test('same request id with another digest conflicts and exact replay can bypass 
  const conflict=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},base);
  assert.equal(conflict.status,'request_conflict');
 });
+
+const advanced=(k:number)=>({block:String(100+k*30),hash:`0x${String(k).repeat(64)}`,timestamp:source.timestamp+k*15});
+function admissionDeps(state:()=>RangeKeeperLiveWalletState,canonical:(s:{block:string;hash:string;timestamp:number})=>Promise<void>=async()=>{}){
+ const p=payload(),record=reviewRecord(p),calls:unknown[]=[],verified:string[]=[];
+ const deps:any={wallet,buildId,readReview:async()=>record,readWalletState:async()=>state(),findRequest:async()=>null,
+  verifyCanonical:async(s:{block:string;hash:string;timestamp:number})=>{verified.push(s.block);await canonical(s);},revalidatePinned:async()=>p,
+  consumeReviewAndReserve:async(input:unknown)=>{calls.push(input);return {status:'queued',campaignId:'c',jobId:'j',allocationId:'a',replayed:false};},now:()=>now};
+ return {deps,calls,verified,record};
+}
+
+test('a review followed by source-only wallet refreshes still admits once the later source is canonical',async()=>{
+ for(const k of [1,2,5]){
+  const {deps,calls,verified,record}=admissionDeps(()=>({...walletState(),source:advanced(k)}));
+  const result=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},deps);
+  assert.equal(result.status,'queued',`${k} source-only refreshes: ${JSON.stringify(result)}`);assert.equal(calls.length,1);
+  assert(verified.includes(advanced(k).block),'the advanced persisted source itself must be verified canonical');
+ }
+});
+
+test('review persistence accepts a later persisted source but rejects a backwards or forked one',async()=>{
+ const p=payload(),base={recordReview:async()=>{},now:()=>now};
+ const later=await recordRangeKeeperLiveSetupReview({wallet,reviewId,payload:p},{...base,readWalletState:async()=>({...walletState(),source:advanced(2)})});
+ assert.equal(later.status,'review_recorded',JSON.stringify(later));
+ for(const bad of [{block:'99',hash:`0x${'9'.repeat(64)}`,timestamp:source.timestamp-1},{...source,hash:`0x${'9'.repeat(64)}`}]){
+  const result=await recordRangeKeeperLiveSetupReview({wallet,reviewId,payload:p},{...base,readWalletState:async()=>({...walletState(),source:bad})});
+  assert.equal(result.status,'unavailable');
+ }
+});
+
+test('wallet content changes after the review reject admission as live_wallet_changed_since_review',async()=>{
+ const changes:Array<[string,Partial<RangeKeeperLiveWalletState>]>=[
+  ['generation (sibling receipt-attributed change)',{generation:'3',source:advanced(1),nonce:'6',pendingNonce:'6'}],
+  ['generation only',{generation:'3',source:advanced(1)}],
+  ['commitments',{commitmentsHash:'9'.repeat(64),source:advanced(1)}],
+  ['nonce',{nonce:'6',pendingNonce:'6',source:advanced(1)}],
+  ['pending nonce',{pendingNonce:'6',source:advanced(1)}],
+ ];
+ for(const [name,change] of changes){
+  const {deps,calls,record}=admissionDeps(()=>({...walletState(),...change}));
+  const result=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},deps);
+  assert.equal(result.status,'unavailable',name);
+  assert.deepEqual((result as any).missing,['live_wallet_changed_since_review'],name);assert.equal(calls.length,0,name);
+ }
+});
+
+test('a backwards, forked or non-canonical persisted source never admits',async()=>{
+ const cases:Array<[string,RangeKeeperLiveWalletState,((s:{block:string})=>Promise<void>)?]>=[
+  ['backwards',{...walletState(),source:{block:'99',hash:`0x${'9'.repeat(64)}`,timestamp:source.timestamp-1}}],
+  ['same height other hash',{...walletState(),source:{...source,hash:`0x${'9'.repeat(64)}`}}],
+  ['later but not canonical',{...walletState(),source:advanced(1)},async s=>{if(s.block===advanced(1).block)throw Error('reorged');}],
+ ];
+ for(const [name,state,canonical] of cases){
+  const {deps,calls,record}=admissionDeps(()=>state,canonical as any);
+  const result=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},deps);
+  assert.equal(result.status,'unavailable',name);assert.deepEqual((result as any).missing,['live_wallet_changed_since_review'],name);
+  assert.equal(calls.length,0,name);
+ }
+});
+
+test('review expiry and the 90 second candidate window are unchanged by source-only refreshes',async()=>{
+ const p=payload({candidate:{kind:'open',expiresAt:Math.floor(now/1000)-1,amount0Desired:'500',amount1Desired:'1000'}}),record=reviewRecord(p);
+ const result=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},{wallet,buildId,
+  readReview:async()=>record,readWalletState:async()=>({...walletState(),source:advanced(1)}),findRequest:async()=>null,
+  verifyCanonical:async()=>{},revalidatePinned:async()=>p,consumeReviewAndReserve:async()=>{throw Error('must not reserve');},now:()=>now} as any);
+ assert.equal(result.status,'unavailable');assert.deepEqual((result as any).missing,['live_setup_review_expired_or_stale']);
+});

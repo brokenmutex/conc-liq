@@ -200,6 +200,33 @@ try{
   assert.notEqual(state.snapshotHash,firstSnapshot.snapshotHash);
   const projectedTwice=await readLiveWalletCommitments(db,wallet,{source:{block:BigInt(source.block),hash:source.hash,timestamp:source.timestamp},verifySource:async()=>{}});
   assert.equal(projectedTwice.status,'available');assert.equal(projectedTwice.rows.filter(r=>r.known).length,2);
+  // Wallet generation is a content version: source-only refreshes keep it, so an inert review survives them, while
+  // any change to nonce, balances or commitments (or a backwards/forked source) rejects with the generation error.
+  {
+   const pinnedReview=await makeReview({token0Raw:'1',token1Raw:'0'}),contentBefore=await readWalletState(db,{chainId:4663,address:wallet});
+   const advance=(i,over={})=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{block:String(BigInt(source.block)+BigInt(i)),
+    hash:`0x${String(i).repeat(64)}`,timestamp:source.timestamp+i},nonce:contentBefore.nonce,pendingNonce:contentBefore.pendingNonce,
+    nativeBalanceWei:contentBefore.nativeBalanceWei,tokens:contentBefore.tokens,commitmentsHash:contentBefore.commitmentsHash,...over});
+   for(let i=1;i<=3;i++)assert.equal((await advance(i)).generation,contentBefore.generation,'source-only refresh keeps the generation');
+   const afterRefresh=await readWalletState(db,{chainId:4663,address:wallet});
+   assert.equal(afterRefresh.source.block,String(BigInt(source.block)+3n));assert.notEqual(afterRefresh.snapshotHash,contentBefore.snapshotHash);
+   const verified=[];
+   const survivor=await reserve({requestId:'after-source-refresh',token0Raw:'1',token1Raw:'0',review:pinnedReview,
+    verifySource:async anchor=>{verified.push(anchor.block);}});
+   assert.equal(survivor.status,'queued');assert(verified.includes(source.block)&&verified.includes(afterRefresh.source.block),
+    'both the pinned and the advanced persisted source are verified canonical');
+   const staleReview=await makeReview({token0Raw:'1',token1Raw:'0'});
+   await assert.rejects(()=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{block:String(BigInt(source.block)+2n),
+    hash:`0x${'2'.repeat(64)}`,timestamp:source.timestamp+2},nonce:afterRefresh.nonce,pendingNonce:afterRefresh.pendingNonce,
+    nativeBalanceWei:afterRefresh.nativeBalanceWei,tokens:afterRefresh.tokens,commitmentsHash:afterRefresh.commitmentsHash}),/moved backwards/);
+   const generationBeforeReserve=(await readWalletState(db,{chainId:4663,address:wallet})).generation;
+   await db.query('UPDATE deployment_live_wallets SET generation=generation+1 WHERE chain_id=4663 AND wallet=$1',[wallet]);
+   await assert.rejects(()=>reserve({requestId:'sibling-changed',token0Raw:'1',token1Raw:'0',review:staleReview}),/Wallet generation changed since review/);
+   await db.query('UPDATE deployment_live_wallets SET generation=$2 WHERE chain_id=4663 AND wallet=$1',[wallet,generationBeforeReserve]);
+   await db.query("UPDATE deployment_live_wallets SET source_block=source_block-5 WHERE chain_id=4663 AND wallet=$1",[wallet]);
+   await assert.rejects(()=>reserve({requestId:'source-backwards',token0Raw:'1',token1Raw:'0',review:staleReview}),/Wallet generation changed since review/);
+   await db.query("UPDATE deployment_live_wallets SET source_block=source_block+5 WHERE chain_id=4663 AND wallet=$1",[wallet]);
+  }
   await assert.rejects(()=>releaseLiveWalletAllocation(db,{chainId:4663,address:wallet,allocationId:first.allocationId}),/must be canonically closed/);
   const manager='0x5555555555555555555555555555555555555555';
   await db.query(`INSERT INTO deployment_live_nft_custody(chain_id,wallet,position_manager,token_id,allocation_id,campaign_id,status,liquidity,tokens_owed0,tokens_owed1,source_block,source_hash,source_timestamp)
@@ -221,9 +248,9 @@ try{
     baseline:{requirements:oversubReview.payload.requirements,references:oversubReview.payload.references,source},source},
    allocation:{tokens:[{address:token0,amountRaw:'301'},{address:token1,amountRaw:'1'}],nativeSpendWei:'1',exitReserveWei:'1',nftTokenIds:[]},payload:oversubReview.payload,buildId:'b'.repeat(64),verifySource:async()=>{}}),/oversubscribed/);
   // A fresh report cannot silently drop an address that still backs an allocation.
-  await assert.rejects(()=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{...source,block:'78211394'},nonce:'17',pendingNonce:'17',nativeBalanceWei:'1000',
+  await assert.rejects(()=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{...source,block:'78211400'},nonce:'17',pendingNonce:'17',nativeBalanceWei:'1000',
    tokens:[{address:token1,balanceRaw:'100'}],commitmentsHash:state.commitmentsHash}),/omitted a token/);
-  await assert.rejects(()=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{...source,block:'78211394'},nonce:'18',pendingNonce:'18',nativeBalanceWei:'1000',
+  await assert.rejects(()=>recordWalletSnapshot(db,{chainId:4663,address:wallet,source:{...source,block:'78211400'},nonce:'18',pendingNonce:'18',nativeBalanceWei:'1000',
    tokens:[{address:token0,balanceRaw:'500'},{address:token1,balanceRaw:'100'}],commitmentsHash:afterRelease.commitmentsHash}),/receipt-bound allocation reconciliation/);
   await db.query(`INSERT INTO deployment_campaigns(id,mode,chain_id,wallet,market_profile_id,allocation,lifecycle,current_revision)
    VALUES($1,'live',4663,$2,$3,'{}','active',1)`,[randomUUID(),wallet,profileId]);
