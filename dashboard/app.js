@@ -174,7 +174,7 @@ function deploymentMetrics(p){
   metric('Passive inventory',money(passive),'Fixed initial holdings · current reference')+
   metric('Modeled LP fees',money(p.fees),rangeKeeper?'Hypothetical observed-flow share · retained, not reinvested':'Lower integer fixed-flow allocation')+
   retainedCarry+
-  metric(rangeKeeper?'Modeled execution cost bound':'Modeled gas',money(units(p.deployment.accounting?.modeledCosts?.cumulativeBoundValue)) ,rangeKeeper?'Bounded estimate · not paid; swap shortfall unavailable':'Scoped fork estimate · not paid gas')+costToFeeMetric(p);
+  metric(rangeKeeper?'Modeled execution cost bound':'Modeled gas',money(units(p.deployment.accounting?.modeledCosts?.cumulativeBoundValue)) ,rangeKeeper?'Bounded estimate · not paid':'Scoped fork estimate · not paid gas')+costToFeeMetric(p);
 }
 function conversionAccountingPanel(p){
  const status=p.deployment?.conversionAccountingStatus;

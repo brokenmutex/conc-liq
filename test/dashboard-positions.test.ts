@@ -182,7 +182,7 @@ test('RangeKeeper observed-flow accounting snapshot feeds provisional position a
    created_at:new Date((now-120)*1000),closed_at:null,allocation:{token0Raw:'1000000',token1Raw:'500000000000000000',nativeWei:'1000'},
    runtime_identity:{},profile,strategy_id:'rangekeeper_v1',config:{},mark_id:mark.id,mark_at:mark.at,
    source_block:source.block,source_hash:source.hash,inventory:mark.inventory,economics:mark.economics,
-   provenance:mark.provenance,initial_value:'100000000',operation_id:null,operation_kind:null,
+   provenance:mark.provenance,initial_value:'99000000',operation_id:null,operation_kind:null,
    operation_status:null,operation_stage:null,operation_reason:null,operation_updated_at:null,
    accounting_snapshot:null,accounting_hash:null,rangekeeper_accounting_snapshot:snapshot,
    rangekeeper_accounting_hash:contentHash(snapshot),conversion_accounting_snapshot:null,
@@ -198,6 +198,7 @@ test('RangeKeeper observed-flow accounting snapshot feeds provisional position a
   };
  const valid=await makeDetail(snapshot),validPoint:any=valid.performance.timeline.at(-1);
  assert.equal(valid.position.accounting,'provisional');assert.equal(valid.position.navQuote,'123000000');
+ assert.equal(valid.position.initialQuote,'100000000','the modeled baseline includes initial native inventory');
  assert.equal(valid.position.holdQuote,'120000000');assert.equal(valid.position.feesQuote,'5000000');
  assert.equal(valid.position.swapQuote,null);
  assert.equal(valid.position.deployment.accounting?.modeledCosts?.cumulativeBoundValue,'3000000');
