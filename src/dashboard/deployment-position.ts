@@ -47,6 +47,10 @@ interface DeploymentRow {
  live_mark_hash?:string|null;live_mark_timestamp?:string|number|null;live_runtime_state?:unknown;
  live_runtime_state_hash?:string|null;live_runtime_revision?:number|null;live_runtime_profile_hash?:string|null;
  live_runtime_config_hash?:string|null;live_profile_id?:string|null;
+ live_runtime_status?:string|null;live_job_id?:string|null;live_job_kind?:string|null;
+ live_job_status?:string|null;live_job_resume_stage?:string|null;live_job_attempt?:number|null;
+ live_job_created_at?:Date|null;live_job_updated_at?:Date|null;live_outbox_stage?:string|null;
+ live_outbox_nonce?:string|null;live_outbox_hash?:string|null;live_outbox_status?:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
@@ -149,6 +153,88 @@ function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):Li
     ...(feeEvidenceValid?[]:['position_fee_evidence_unavailable'])])]};
  }catch{return null;}
 }
+export type LiveLifecycle='queued'|'opening'|'holding'|'recentering'|'closing'|'closed'|'blocked';
+const LIVE_IN_FLIGHT=['queued','preflighting','executing','confirming','reconciling'];
+/** Stage names are `${plan.kind}:${hash}`; only the leading kind is meaningful to an operator. */
+export const liveStageKind=(stage:unknown):string|null=>{
+ const kind=typeof stage==='string'?stage.split(':')[0]:null;
+ return kind&&/^[a-z][a-z_]{0,31}$/.test(kind)?kind:null;
+};
+const txHash=(value:unknown):string|null=>typeof value==='string'&&/^0x[0-9a-fA-F]{64}$/.test(value)?value:null;
+export interface LiveJobView{id:string;kind:string;status:string;inFlight:boolean;stage:string|null;
+ stageKind:string|null;stageStatus:string|null;nonce:string|null;txHash:string|null;attempt:number|null;
+ createdAt:string|null;updatedAt:string|null}
+/** Campaign lifecycle for a live RangeKeeper row. The campaign table only moves through
+ * opening/active/blocked/closed for live work, so recentering and closing come from the
+ * current queue job and, when no job is in flight, from the persisted runtime phase. */
+export function deriveLiveLifecycle(input:{campaignLifecycle:string;runtimeStatus?:string|null;
+ phase?:string|null;job?:Pick<LiveJobView,'kind'|'status'>|null}):LiveLifecycle{
+ const {campaignLifecycle,runtimeStatus,phase,job}=input;
+ if(campaignLifecycle==='closed'||runtimeStatus==='closed'||phase==='closed')return 'closed';
+ if(campaignLifecycle==='blocked'||runtimeStatus==='blocked'||phase==='halted'||job?.status==='blocked')return 'blocked';
+ if(job&&LIVE_IN_FLIGHT.includes(job.status)){
+  if(job.kind==='open')return job.status==='queued'?'queued':'opening';
+  if(job.kind==='change_range')return 'recentering';
+  if(job.kind==='close_retain'||job.kind==='close_convert')return 'closing';
+ }
+ if(campaignLifecycle==='closing'||phase==='exit')return 'closing';
+ if(campaignLifecycle==='changing'||phase==='recenter')return 'recentering';
+ if(campaignLifecycle==='opening'||phase==='entry'){
+  // A rejected or cancelled opening job leaves nothing running; do not report it as healthy progress.
+  return job?.kind==='open'&&['rejected','cancelled'].includes(job.status)?'blocked':'opening';
+ }
+ return 'holding';
+}
+function verifiedLiveRuntime(row:DeploymentRow):RangeKeeperLiveState|null{
+ if(row.live_runtime_state==null||Number(row.live_runtime_revision)!==row.current_revision)return null;
+ try{
+  const state=parseRangeKeeperJson<RangeKeeperLiveState>(row.live_runtime_state);
+  return contentHash(JSON.parse(rangeKeeperJson(state)))===row.live_runtime_state_hash?state:null;
+ }catch{return null;}
+}
+const liveJobView=(row:DeploymentRow):LiveJobView|null=>{
+ if(!row.live_job_id||!row.live_job_kind||!row.live_job_status)return null;
+ const stage=row.live_outbox_stage??row.live_job_resume_stage??null;
+ return {id:row.live_job_id,kind:row.live_job_kind,status:row.live_job_status,
+  inFlight:LIVE_IN_FLIGHT.includes(row.live_job_status),stage,stageKind:liveStageKind(stage),
+  stageStatus:row.live_outbox_status??null,nonce:decimal(row.live_outbox_nonce??null),
+  txHash:txHash(row.live_outbox_hash),attempt:Number.isSafeInteger(row.live_job_attempt)?Number(row.live_job_attempt):null,
+  createdAt:row.live_job_created_at instanceof Date?row.live_job_created_at.toISOString():null,
+  updatedAt:row.live_job_updated_at instanceof Date?row.live_job_updated_at.toISOString():null};
+};
+/** Everything the operator sees for a live campaign that does not need a valuation mark. Values
+ * the evidence cannot prove stay null; nothing is zero-filled. */
+function liveCampaignView(row:DeploymentRow,model:LiveMarkModel|null){
+ const runtime=model?.state??verifiedLiveRuntime(row),job=liveJobView(row),phase=runtime?.phase??null;
+ const lifecycle=deriveLiveLifecycle({campaignLifecycle:row.lifecycle,runtimeStatus:row.live_runtime_status,phase,job});
+ const last=record(runtime?.last),lastPosition=record(last.position),
+  fallbackLiquidity=lastPosition.liquidity,
+  fallbackHas=!model&&lastPosition.tokenId!=null&&(typeof fallbackLiquidity==='bigint'?fallbackLiquidity>0n:
+   decimal(fallbackLiquidity)!==null&&BigInt(String(fallbackLiquidity))>0n);
+ const hasPosition=model?model.hasPosition:fallbackHas;
+ const tickLower=model?model.tickLower:fallbackHas&&Number.isInteger(lastPosition.tickLower)?Number(lastPosition.tickLower):null,
+  tickUpper=model?model.tickUpper:fallbackHas&&Number.isInteger(lastPosition.tickUpper)?Number(lastPosition.tickUpper):null,
+  tick=model?model.tick:Number.isInteger(last.tick)?Number(last.tick):null;
+ const modelToken=model?.payload?.snapshot?.position?.tokenId,
+  nftId=model?(modelToken==null?null:String(modelToken)):fallbackHas?String(lastPosition.tokenId):null;
+ const rangeState=!hasPosition?'no_liquidity':tick===null||tickLower===null||tickUpper===null?'unknown':
+  tick>=tickLower&&tick<tickUpper?'inside':'outside';
+ const haltReason=typeof runtime?.haltReason==='string'&&runtime.haltReason?runtime.haltReason:null;
+ const blockedReason=lifecycle!=='blocked'?null:haltReason??
+  (job?.status==='blocked'?`job_blocked${job.stageKind?`:${job.stageKind}`:''}`:
+   job&&['rejected','cancelled'].includes(job.status)?`job_${job.status}`:
+   typeof runtime?.lastReason==='string'&&runtime.lastReason?runtime.lastReason:'blocked_reason_unavailable');
+ const allocation=allocationSchema.safeParse(row.allocation);
+ return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,
+  allocation:allocation.success?allocation.data:null,
+  recenters:runtime&&Number.isSafeInteger(runtime.recenters)?runtime.recenters:null,
+  paidGasWei:runtime&&typeof runtime.gasSpentWei==='bigint'?String(runtime.gasSpentWei):null,
+  runtimeVerified:runtime!==null};
+}
+const LIVE_STATUS:Record<LiveLifecycle,(range:string)=>string>={
+ queued:()=>'waiting',opening:()=>'waiting',recentering:()=>'recentring',closing:()=>'exiting',
+ closed:()=>'closed',blocked:()=>'blocked',
+ holding:range=>range==='inside'?'open':range==='outside'?'outside':'unknown'};
 const key=(mode:string,id:string)=>`${mode}-dep-${id}`;
 const parseKey=(id:string)=>{
  const match=/^(paper|live)-dep-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(id);
@@ -347,13 +433,23 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
  const rows=(await db.query<DeploymentRow>(`
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    c.runtime_identity,
-   ${hasLiveRuntime?`live.profile_id::text AS live_profile_id,live.profile_hash AS live_runtime_profile_hash,
+   ${hasLiveJobs?`live_job.id::text AS live_job_id,live_job.kind AS live_job_kind,live_job.status AS live_job_status,
+    live_job.resume_stage AS live_job_resume_stage,live_job.attempt AS live_job_attempt,
+    live_job.created_at AS live_job_created_at,live_job.updated_at AS live_job_updated_at,
+    live_job.outbox_stage AS live_outbox_stage,live_job.outbox_nonce AS live_outbox_nonce,
+    live_job.outbox_hash AS live_outbox_hash,live_job.outbox_status AS live_outbox_status,`:
+    `NULL::text AS live_job_id,NULL::text AS live_job_kind,NULL::text AS live_job_status,
+    NULL::text AS live_job_resume_stage,NULL::integer AS live_job_attempt,
+    NULL::timestamptz AS live_job_created_at,NULL::timestamptz AS live_job_updated_at,
+    NULL::text AS live_outbox_stage,NULL::text AS live_outbox_nonce,
+    NULL::text AS live_outbox_hash,NULL::text AS live_outbox_status,`}
+   ${hasLiveRuntime?`live.status AS live_runtime_status,live.profile_id::text AS live_profile_id,live.profile_hash AS live_runtime_profile_hash,
     live.config_hash AS live_runtime_config_hash,live.revision AS live_runtime_revision,
     live.state_json AS live_runtime_state,live.state_hash AS live_runtime_state_hash,
     live_mark.payload AS live_mark_payload,live_mark.payload_hash AS live_mark_payload_hash,
     live_mark.source_block::text AS live_mark_block,live_mark.source_hash AS live_mark_hash,
     live_mark.source_timestamp AS live_mark_timestamp,`:
-    `NULL::text AS live_profile_id,NULL::text AS live_runtime_profile_hash,NULL::text AS live_runtime_config_hash,
+    `NULL::text AS live_runtime_status,NULL::text AS live_profile_id,NULL::text AS live_runtime_profile_hash,NULL::text AS live_runtime_config_hash,
     NULL::integer AS live_runtime_revision,NULL::jsonb AS live_runtime_state,NULL::text AS live_runtime_state_hash,
     NULL::jsonb AS live_mark_payload,NULL::text AS live_mark_payload_hash,NULL::text AS live_mark_block,
     NULL::text AS live_mark_hash,NULL::bigint AS live_mark_timestamp,`}
@@ -391,6 +487,14 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   ) operations`:'deployment_operations'}
   WHERE campaign_id=c.id AND (c.lifecycle<>'blocked' OR status='blocked')
    ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
+  ${hasLiveJobs?`LEFT JOIN LATERAL (SELECT j.id,j.kind,j.status,j.resume_stage,j.attempt,j.created_at,j.updated_at,
+    o.stage AS outbox_stage,o.nonce::text AS outbox_nonce,o.signed_raw_hash AS outbox_hash,o.status AS outbox_status
+    FROM deployment_live_jobs j LEFT JOIN LATERAL (SELECT stage,nonce,signed_raw_hash,status
+     FROM deployment_live_stage_outbox WHERE job_id=j.id AND status<>'cancelled'
+     ORDER BY created_at DESC,nonce DESC LIMIT 1) o ON TRUE
+    WHERE j.campaign_id=c.id AND c.mode='live'
+    ORDER BY (j.status IN ('queued','preflighting','executing','confirming','reconciling','blocked')) DESC,
+     j.created_at DESC,j.fairness_sequence DESC LIMIT 1) live_job ON TRUE`:''}
   ${hasLiveRuntime?`LEFT JOIN deployment_live_campaign_runtime live ON live.campaign_id=c.id AND live.revision=c.current_revision
    LEFT JOIN LATERAL (SELECT payload,payload_hash,source_block,source_hash,source_timestamp FROM deployment_live_runtime_events
     WHERE campaign_id=c.id AND revision=c.current_revision AND
@@ -477,6 +581,7 @@ export function deploymentPosition(row:DeploymentRow){
   rangeKeeperModel=latestRangeKeeperModel??(previousSnapshotUsable?previousRangeKeeperModel:null),
   economicsFallback=rangeKeeperModel!==null&&rangeKeeperModel===previousRangeKeeperModel,
   liveModel=row.mode==='live'&&row.strategy_id==='rangekeeper_v1'?liveMarkModel(row,profile):null,
+  liveView=row.mode==='live'&&row.strategy_id==='rangekeeper_v1'?liveCampaignView(row,liveModel):null,
   model=row.mode==='paper'?(rangeKeeperModel??(conversionClose?conversionModel:accounting(row,row.id))):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
@@ -493,27 +598,30 @@ export function deploymentPosition(row:DeploymentRow){
    lowerBoundRaw:row.mode==='live'?liveModel?.amounts[1]??null:decimal(record(inventory.knownLowerBound).token1Raw)??
     decimal(record(inventory.retainedPrincipalLowerBound).token1Raw)}];
  const position=record(inventory.position),liquidity=decimal(position.liquidity),
-  tickLower=liveModel?.tickLower??(typeof position.tickLower==='number'?position.tickLower:null),
-  tickUpper=liveModel?.tickUpper??(typeof position.tickUpper==='number'?position.tickUpper:null),
-  hasLiquidity=liveModel?liveModel.hasPosition:liquidity!==null&&BigInt(liquidity)>0n;
- const tick=liveModel?.tick??(typeof state.tick==='number'?state.tick:null),
+  tickLower=liveView?liveView.tickLower:typeof position.tickLower==='number'?position.tickLower:null,
+  tickUpper=liveView?liveView.tickUpper:typeof position.tickUpper==='number'?position.tickUpper:null,
+  hasLiquidity=liveView?liveView.hasPosition:liquidity!==null&&BigInt(liquidity)>0n;
+ const tick=liveView?liveView.tick:typeof state.tick==='number'?state.tick:null,
   sqrt=liveModel?.sqrt??decimal(state.sqrtPriceX96),liveAt=Number(row.live_mark_timestamp),
   sourceAt=liveModel?new Date(liveModel.source.timestamp*1000).toISOString():
    row.mode==='live'&&Number.isSafeInteger(liveAt)&&liveAt>0?new Date(liveAt*1000).toISOString():sourceTime(provenance);
- const status=row.lifecycle==='closed'?'closed':row.lifecycle==='blocked'?'blocked':
+ const status=liveView?LIVE_STATUS[liveView.lifecycle](liveView.rangeState):
+  row.lifecycle==='closed'?'closed':row.lifecycle==='blocked'?'blocked':
   row.lifecycle==='closing'?'exiting':row.lifecycle==='changing'?'changing':
   row.lifecycle==='paused'?'paused':row.lifecycle==='opening'?'waiting':
   !hasLiquidity?'waiting':row.range_state==='inside'?'open':
   row.range_state==='outside'?'outside':'unknown';
  const reasons:string[]=[];
  if(liveModel)reasons.push(...liveModel.missing);
- if(!row.mark_id)reasons.push('first_model_mark_unavailable');
- if(hasLiquidity&&row.range_state==='outside')reasons.push(
+ if(liveView){
+  if(!liveModel&&['holding','recentering','closing'].includes(liveView.lifecycle))reasons.push('live_valuation_unavailable');
+ }else if(!row.mark_id)reasons.push('first_model_mark_unavailable');
+ if(hasLiquidity&&(liveView?liveView.rangeState:row.range_state)==='outside')reasons.push(
   row.strategy_id==='static_manual_v1'?'outside_range_manual_hold':'outside_range_observed');
  if(sourceAt&&Date.now()-Date.parse(sourceAt)>180000)reasons.push('source_stale');
  if(!sourceAt&&!['opening','closed'].includes(row.lifecycle))reasons.push('source_unavailable');
- if(row.lifecycle==='blocked')reasons.push('operation_blocked');
- if(!model&&(economics.netNav===undefined||economics.netNav===null))
+ if(liveView?liveView.lifecycle==='blocked':row.lifecycle==='blocked')reasons.push('operation_blocked');
+ if(!liveView&&!model&&(economics.netNav===undefined||economics.netNav===null))
   reasons.push('net_economics_unavailable');
  if(row.accounting_invalidated_at)reasons.push('paper_accounting_canonical_anchor_changed');
  if((row.accounting_snapshot||row.rangekeeper_accounting_snapshot)&&!model&&!row.accounting_invalidated_at)
@@ -531,7 +639,8 @@ export function deploymentPosition(row:DeploymentRow){
   }))??null;
  return {id:key(row.mode,row.id),label:`${row.strategy_id==='rangekeeper_v1'?'RK':'Manual'}-${row.id.slice(0,8)}`,
   mode:row.mode,asset:symbol(reference),quote:symbol(quoteRef),fee:p.fee,
-  quoteIsToken0:p.quoteToken===0,hasLiquidity,status,history:row.lifecycle==='closed',
+  quoteIsToken0:p.quoteToken===0,hasLiquidity,status,
+  history:liveView?liveView.lifecycle==='closed':row.lifecycle==='closed',
   initialQuote:liveModel?micro(decimal((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue==null?
    null:String((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue))):rangeKeeperModel?micro(rangeKeeperModel.economics.initialCapitalQuote):micro(row.initial_value),
   navQuote:micro(liveModel?.navQuote??model?.economics.netNavQuote??null),
@@ -559,19 +668,29 @@ export function deploymentPosition(row:DeploymentRow){
    })():model&&modelReferenceEligible?modeledExposure(model,p):null,
    nativeWei:row.mode==='live'?liveModel?.nativeWei??null:liveModel?.nativeWei??model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
-  tokenId:liveModel?.payload.snapshot?.position?.tokenId==null?null:String(liveModel.payload.snapshot.position.tokenId),
+  tokenId:liveView?liveView.nftId:null,
   accounting:liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'recorded':model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
-  nextAction:row.lifecycle==='closed'?null:
-   row.mode==='live'&&row.lifecycle==='opening'?'Live opening queued; inventory and costs await canonical receipts':
+  nextAction:(liveView?liveView.lifecycle==='closed':row.lifecycle==='closed')?null:
+   liveView&&['queued','opening'].includes(liveView.lifecycle)?'Live opening queued; inventory and costs await canonical receipts':
+   liveView?.lifecycle==='recentering'?'Automatic recenter in progress; value and range update after canonical receipts':
+   liveView?.lifecycle==='closing'?'Retain-only close in progress; value is final only after canonical receipts':
+   liveView?.lifecycle==='blocked'?'Live management is blocked; no further action runs until the recorded reason is resolved':
    liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'Canonical live NAV and fee inventory from a source-bound observation; paid gas is separately recorded':
    row.mode==='live'?'Canonical live position observed; independent reference or complete fee evidence is unavailable':
    model?'Provisional modeled scenario; earned fees and paid costs remain unobserved':
     'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
-   lifecycle:row.lifecycle,rangeState:row.range_state,revision:row.current_revision,
-   operation:{id:row.operation_id,kind:row.operation_kind,status:row.operation_status,
-    stage:row.operation_stage,reason:row.operation_reason,
+   lifecycle:row.lifecycle,rangeState:liveView?liveView.rangeState:row.range_state,revision:row.current_revision,
+   operation:liveView?.job?{id:liveView.job.id,kind:liveView.job.kind,status:liveView.job.status,
+    stage:liveView.job.stage,reason:liveView.blockedReason,updatedAt:liveView.job.updatedAt}:
+    {id:row.operation_id,kind:row.operation_kind,status:row.operation_status,
+    stage:row.operation_stage,reason:row.operation_reason??liveView?.blockedReason??null,
     updatedAt:row.operation_updated_at?.toISOString()??null},
+   ...(liveView?{live:{lifecycle:liveView.lifecycle,phase:liveView.phase,job:liveView.job,
+    blockedReason:liveView.blockedReason,nftId:liveView.nftId,
+    range:{state:liveView.rangeState,tick:liveView.tick,tickLower:liveView.tickLower,tickUpper:liveView.tickUpper},
+    allocation:liveView.allocation,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
+    runtimeVerified:liveView.runtimeVerified,valuationAvailable:liveModel?.navQuote!=null}}:{}),
    sourceBlock:liveModel?.source.block??row.source_block,sourceHash:liveModel?.source.hash??row.source_hash,
    rangekeeper:row.strategy_id==='rangekeeper_v1'?{
     currentEpoch:Number.isInteger(provenance.epoch)?provenance.epoch:
@@ -704,6 +823,43 @@ function livePoint(model:LiveMarkModel,profile:MarketProfile,previous:LiveMarkMo
   missing:model.missing};
 }
 
+/** Live work is journaled in the shared-wallet queue, not in deployment_operations. A database
+ * that predates the queue returns an empty history rather than failing. Ordering uses typed
+ * columns (numeric nonce, bigserial sequence) so 999 sorts before 1000. */
+/** Descending order for bigint identifiers carried as text; never compare them as strings. */
+const newestFirst=(a:string|null,b:string|null)=>{
+ const x=BigInt(a??'-1'),y=BigInt(b??'-1');return x===y?0:x>y?-1:1;
+};
+export async function readLiveActivity(db:Pick<PoolClient,'query'>,campaignId:string,since:Date){
+ const present=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_live_jobs')::text AS present")).rows[0]?.present;
+ if(!present)return {events:[],recenterAttempts:0,swaps:0};
+ const jobs=(await db.query<{id:string;kind:string;status:string;resume_stage:string|null;attempt:number;
+  created_at:Date;updated_at:Date;sequence:string}>(`
+  SELECT id::text,kind,status,resume_stage,attempt,created_at,updated_at,fairness_sequence::text AS sequence
+  FROM deployment_live_jobs WHERE campaign_id=$1 AND created_at>=$2
+  ORDER BY created_at DESC,fairness_sequence DESC LIMIT 1001`,[campaignId,since])).rows;
+ const stages=(await db.query<{job_id:string;stage:string;nonce:string;hash:string|null;status:string;
+  created_at:Date;kind:string}>(`
+  SELECT o.job_id::text,o.stage,o.nonce::text,o.signed_raw_hash AS hash,o.status,o.created_at,j.kind
+  FROM deployment_live_stage_outbox o JOIN deployment_live_jobs j ON j.id=o.job_id
+  WHERE j.campaign_id=$1 AND o.created_at>=$2 ORDER BY o.created_at DESC,o.nonce DESC LIMIT 1001`,
+  [campaignId,since])).rows;
+ if(jobs.length>1000||stages.length>1000)throw Error('Live deployment activity exceeds bounded window limit');
+ const events=[...jobs.map(job=>({id:job.id,kind:'job' as const,at:job.created_at.toISOString(),
+   action:job.kind,status:job.status,stage:liveStageKind(job.resume_stage),reason:null,block:null,hash:null,
+   nonce:null,jobId:job.id,attempt:Number.isSafeInteger(job.attempt)?job.attempt:null,sequence:job.sequence,
+   scope:'deployment_live'})),
+  ...stages.map(stage=>({id:`${stage.job_id}:${stage.stage}`,kind:'stage' as const,at:stage.created_at.toISOString(),
+   action:liveStageKind(stage.stage)??'stage',status:stage.status,stage:liveStageKind(stage.stage),reason:null,block:null,
+   hash:txHash(stage.hash),nonce:decimal(stage.nonce),jobId:stage.job_id,attempt:null,sequence:null,
+   scope:'deployment_live'}))]
+  .sort((a,b)=>Date.parse(b.at)-Date.parse(a.at)||(a.kind===b.kind?0:a.kind==='stage'?-1:1)||
+   newestFirst(a.nonce,b.nonce)||newestFirst(a.sequence,b.sequence));
+ return {events,recenterAttempts:jobs.filter(job=>job.kind==='change_range').length,
+  swaps:stages.filter(stage=>liveStageKind(stage.stage)==='swap'&&stage.status==='confirmed').length};
+}
+
 export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours:number){
  const position=deploymentPosition(row),now=Date.now(),ended=position.endedAt?Date.parse(position.endedAt):NaN,
   windowEnd=hours===0&&Number.isFinite(ended)&&ended<=now?ended:now,
@@ -787,6 +943,7 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
    id:`mark-${mark.id}`,at:mark.at.toISOString(),action:'valuation',status:'recorded',
    stage:'principal_only',reason:null,block:mark.source_block,hash:null,
    scope:'deployment_paper_model'}))].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+ const live=row.mode==='live'?await readLiveActivity(db,row.id,cutoffAt):null;
  const rangeKeeperSwaps=marks.filter(mark=>{
   const provenance=record(mark.provenance),kind=provenance.classification;
   const amount=kind==='rangekeeper_paper_recenter_v1'?record(provenance.swap).amountIn:
@@ -794,8 +951,10 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
     kind==='rangekeeper_paper_open_v1'?record(record(rkOpenModel(provenance)?.candidate).swap).amountIn:null;
   const raw=decimal(amount);return raw!==null&&BigInt(raw)>0n;
  }).length;
- return {position,performance,events:activity,
-  counts:{recenters:marks.filter(mark=>record(mark.provenance).classification==='rangekeeper_paper_recenter_v1').length,
+ return {position,performance,events:live?live.events:activity,
+  counts:live?{recenters:position.deployment.live?.recenters??null,recenterAttempts:live.recenterAttempts,
+   swaps:live.swaps}:
+  {recenters:marks.filter(mark=>record(mark.provenance).classification==='rangekeeper_paper_recenter_v1').length,
    recenterAttempts:events.filter(event=>event.kind==='change_range').length,
    swaps:rangeKeeperSwaps+(position.deployment.conversionAccountingStatus==='available'?1:0)},
   limitations:position.accounting==='provisional'?
