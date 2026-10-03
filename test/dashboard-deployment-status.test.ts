@@ -3,18 +3,21 @@ import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import vm from 'node:vm';
 
+// app.js imports its live helpers from tabs.js; hand it the real module so live row formatting is exercised.
+// @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
+const tabsModule=await import('../dashboard/tabs.js');
 const context=vm.createContext({
  document:{querySelector:()=>({addEventListener(){}}),addEventListener(){}},
  window:{addEventListener(){}},
  location:{pathname:'/operator'},
  fetch:()=>new Promise(()=>{}),
  AbortSignal,
+ __tabs:tabsModule,
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
  .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
   'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};')
- .replace(/import \{[^}]+\} from '\.\/tabs\.js';/s,
-  'const liveRetainPreviewPathFor=()=>null,liveRetainOperationPathFor=()=>null,liveRetainPreviewCanBeAccepted=()=>false,liveRetainAcceptPayload=()=>null,liveRetainAcceptResult=()=>false;');
+ .replace(/import (\{[^}]+\}) from '\.\/tabs\.js';/s,'const $1=__tabs;');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 

@@ -87,3 +87,56 @@
 .saved-paper-draft .delete-draft-confirm{display:inline-flex;align-items:center;gap:7px;flex-wrap:wrap;padding:7px 9px;border:1px solid #6a5130;border-radius:6px;color:var(--muted);font-size:11px}.saved-paper-draft .delete-draft-confirm[hidden]{display:none}
 .risk-tally{display:inline-flex;gap:6px;margin-left:auto}.risk-assets{list-style:none;margin:0;padding:0}.risk-asset{padding:14px 18px;border-top:1px solid #242c37}.risk-asset:first-child{border-top:0}.risk-asset-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.risk-symbol{font-size:13px;font-weight:600}.risk-detail{color:var(--muted);font-size:11px}.risk-captured{margin-left:auto;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;white-space:nowrap}.risk-captured.stale{color:var(--amber)}.risk-checks{list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:0}.risk-check{font-size:11px;padding:3px 8px;border-radius:5px;background:#232c38;color:#aabbd0}.risk-check.blocked{background:#3b2029;color:var(--red)}.risk-check.unknown{background:#382c1d;color:var(--amber)}.risk-checks-clear{margin-top:10px;color:var(--muted);font-size:11px}.risk-reasons{margin-top:9px;font-size:11px;color:#c2d0e2;overflow-wrap:anywhere}.risk-reasons span{color:var(--muted);margin-right:6px}.risk-context{margin-top:7px;color:var(--muted);font-size:10px}.risk-empty{padding:20px 18px;font-size:12px}
 @media(max-width:800px){.risk-tally{width:100%;margin:6px 0 0}.risk-asset{padding:13px 14px}.risk-captured{margin-left:0;width:100%}}
+
+/* Live campaign rows: each campaign is a row plus a facts row carrying job, range, funding and the retain-close action. */
+.live-scope-note{padding:12px 18px;border-bottom:1px solid #242c37;color:var(--muted);font-size:12px;line-height:1.5}
+.positions-table tbody tr[data-live-lifecycle]{border-top:0}
+.positions-table tbody tr.live-row-facts{cursor:default}
+.positions-table tbody tr.live-row-facts:hover{background:transparent}
+.positions-table tbody tr.live-row-facts.selected:hover{background:#1a2530}
+.positions-table tbody tr.live-row-facts td{width:auto;padding:0 18px 14px;border-top:0;text-align:left;font-size:12px}
+.live-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px 18px;margin:0}
+.live-facts>div{min-width:0}.live-facts>div.wide{grid-column:1/-1}
+.live-facts dt{color:var(--muted);font-size:10px;letter-spacing:.4px;text-transform:uppercase}
+.live-facts dd{margin:3px 0 0;font-size:12px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.live-worker-note,.live-evidence-note{margin:10px 0 0;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.live-worker-note{color:var(--amber)}.live-evidence-note{color:var(--muted)}
+.live-row-actions{margin-top:10px;font-size:11px}
+.live-retain-action-root{display:flex;align-items:center;gap:8px;flex-wrap:wrap;align-content:flex-start;padding:8px;border:1px solid #32664c;border-radius:7px;background:#101c18;min-width:0}
+.live-retain-action-root button{padding:7px 10px;font-size:12px;font-weight:650;border-color:#398459;background:#173325;color:#d8f5e4}
+.live-retain-action-root button:disabled{opacity:.55;cursor:not-allowed}
+.live-retain-action-root p{flex-basis:100%;margin:3px 0 0;color:var(--muted);font-size:11px;line-height:1.45;overflow-wrap:anywhere}
+.activity-description{overflow-wrap:anywhere}
+
+/* Shared server wallet funding and live approval readiness */
+.live-wallet-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:8px}
+.live-wallet-heading h3{margin:0}
+.live-worker-status[data-state=ready]{background:#1b302a;color:var(--live)}
+.live-worker-status[data-state=blocked]{background:#382c1d;color:var(--amber)}
+.badge[data-state=ready]{background:#1b302a;color:var(--live)}
+.live-readiness-reasons{margin:6px 0 10px;padding:9px 12px 9px 28px;border:1px solid #6a5130;border-radius:6px;background:#241d12;color:#e2ba83;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.live-readiness-reasons[hidden]{display:none}
+.live-wallet-table{width:100%;margin-top:10px;border-collapse:collapse;font-size:12px}
+.live-wallet-table th,.live-wallet-table td{padding:8px 10px;border-top:1px solid var(--border);text-align:right;vertical-align:top;overflow-wrap:anywhere}
+.live-wallet-table thead th{color:var(--muted);font-size:10px;font-weight:500;letter-spacing:.4px;text-transform:uppercase;border-top:0}
+.live-wallet-table th:first-child{text-align:left;font-weight:600}
+.live-wallet-table tr[data-reviewed=true]{background:#1a2c2b}
+.live-wallet-table .row-sub{margin-top:3px;font-size:10px;white-space:normal}
+.live-wallet-summary{margin-top:12px!important}
+.live-wallet-raw{margin-top:12px}.live-wallet-raw summary{cursor:pointer;color:var(--muted);font-size:11px}
+.live-admission-action{margin-top:12px}.live-admission-action p{overflow-wrap:anywhere}
+@media(max-width:600px){
+ .live-wallet-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+ .live-wallet-table,.live-wallet-table tbody,.live-wallet-table tr,.live-wallet-table th,.live-wallet-table td{display:block}
+ .live-wallet-table tr{margin:8px 0;padding:8px 10px;border:1px solid var(--border);border-radius:7px}
+ .live-wallet-table th,.live-wallet-table td{padding:3px 0;border-top:0;text-align:left}
+ .live-wallet-table td{display:flex;justify-content:space-between;gap:14px;text-align:right}
+ .live-wallet-table td::before{content:attr(data-label);color:var(--muted);text-align:left;flex:0 0 42%}
+ .live-wallet-table .row-sub{display:block}
+ .positions-table tbody tr.live-row-facts td:last-child{width:auto;padding:0 12px 14px;font-size:12px}
+ .live-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px 12px}
+ .live-scope-note{padding:10px 12px}
+}
+.live-wallet-table .cell-value{display:block;min-width:0}
+@media(max-width:600px){.live-wallet-table .cell-value{text-align:right}}
+.positions-table .status-sub{overflow-wrap:anywhere}

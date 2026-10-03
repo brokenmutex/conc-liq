@@ -71,16 +71,19 @@ export function liveSetupAdmissionRequest({ preflight, liveAdmission = false, re
     reviewHash: persistence.reviewHash, requestId } };
 }
 
+/** A queued acceptance is identified by its durable ids. `executionEligible` and the legacy
+ * `reason` describe whether the pre-worker server could execute and no longer decide whether
+ * the request was accepted, so a supervised worker cannot make an accepted request look invalid. */
 export function liveSetupAdmissionResult(result) {
   return Boolean(result && result.status === 'queued' && PROFILE_UUID.test(result.campaignId ?? '') &&
     PROFILE_UUID.test(result.jobId ?? '') && PROFILE_UUID.test(result.allocationId ?? '') &&
-    typeof result.replayed === 'boolean' && result.executionEligible === false &&
-    result.reason === 'rangekeeper_live_execution_unavailable');
+    typeof result.replayed === 'boolean');
 }
 
+const LEGACY_EXECUTION_REASON = 'rangekeeper_live_execution_unavailable';
 const liveBlockers = result => [...new Set([...(Array.isArray(result?.missing) ? result.missing : []),
   ...(Array.isArray(result?.blockers) ? result.blockers : []), ...(Array.isArray(result?.reasons) ? result.reasons : []),
-  ...(result?.reason ? [result.reason] : [])])];
+  ...(result?.reason ? [result.reason] : [])])].filter(code => code !== LEGACY_EXECUTION_REASON);
 export function liveSetupPreflightFacts(result) {
   if (!result || typeof result !== 'object') return [];
   const facts = [['Review status', result.status === 'indicative' ? 'Indicative estimate · no action available' : 'Unavailable']];
@@ -139,6 +142,249 @@ export function liveWalletFacts(result) {
   return facts;
 }
 
+// ---- Live capability and readiness -------------------------------------------------
+// The command service reports installed live support per strategy. `liveWorker` is
+// optional: servers that predate the supervised worker omit it, and its absence must
+// not read as "not ready".
+export const LIVE_WORKER_REASON_LABELS = Object.freeze({
+  live_wallet_worker_not_connected: 'The live wallet worker is not connected.',
+  canonical_wallet_snapshot_stale: 'The shared wallet snapshot is stale; the worker has not refreshed it recently.',
+  canonical_wallet_snapshot_unavailable: 'No canonical shared wallet snapshot is available yet.',
+  live_runtime_or_wallet_history_schema_unavailable: 'The live runtime or wallet-history database schema is not installed.',
+  server_operator_wallet_address_invalid: 'The server operator wallet address is not configured correctly.',
+  live_worker_readiness_probe_failed: 'The worker readiness check could not run.',
+  live_worker_readiness_unavailable: 'Worker readiness could not be determined.',
+  live_wallet_worker_not_ready: 'The live wallet worker is not ready.',
+  // Older spellings, kept so a service from before the shared readiness contract still reads well.
+  live_wallet_worker_readiness_probe_failed: 'The worker readiness check could not run.',
+  rangekeeper_live_worker_not_ready: 'The live worker is not ready.',
+});
+
+const humanizeCode = code => String(code ?? '').replace(/[_:]+/g, ' ').trim();
+export function liveWorkerReasonLabel(code) {
+  if (typeof code !== 'string' || !code.trim()) return 'The live worker reported an unspecified problem.';
+  return LIVE_WORKER_REASON_LABELS[code] ?? `Live worker check failed: ${humanizeCode(code)}.`;
+}
+
+/** Normalize one /api/strategies entry for rangekeeper_v1. Approval is enabled only when
+ * live admission is installed and, when the server reports it, the worker is ready. */
+export function liveCapabilityFrom(strategy) {
+  const known = strategy !== null && typeof strategy === 'object';
+  const setup = known && strategy.liveSetup === true, admission = known && strategy.liveAdmission === true;
+  const workerReported = known && strategy.liveWorker !== undefined && strategy.liveWorker !== null;
+  const worker = workerReported && typeof strategy.liveWorker === 'object' ? strategy.liveWorker : null;
+  const workerReady = workerReported ? worker?.ready === true : null;
+  const missing = worker && Array.isArray(worker.missing)
+    ? [...new Set(worker.missing.filter(code => typeof code === 'string' && code.trim()))] : [];
+  const reasons = [];
+  if (!known) reasons.push({ code: 'live_capability_unavailable', label: 'Live capability could not be read from the operator service.' });
+  else {
+    if (!setup) reasons.push({ code: 'live_setup_not_installed', label: 'Live setup review is not installed on this service.' });
+    if (workerReady === false) {
+      if (missing.length) for (const code of missing) reasons.push({ code, label: liveWorkerReasonLabel(code) });
+      else reasons.push({ code: 'live_wallet_worker_not_ready', label: liveWorkerReasonLabel('live_wallet_worker_not_ready') });
+    }
+    if (!admission && reasons.length === 0)
+      reasons.push({ code: 'live_admission_unavailable', label: 'Live admission is not available on this service.' });
+  }
+  const approvalEnabled = setup && admission && workerReady !== false;
+  return { known, setup, admission, live: known && strategy.live === true,
+    worker: { reported: workerReported, ready: workerReady, missing },
+    approvalEnabled, reasons: approvalEnabled ? [] : reasons };
+}
+
+export function liveCapabilityBlockedMessage(capability) {
+  const reasons = capability?.reasons ?? [];
+  return reasons.length ? reasons.map(item => item.label).join(' ') : 'Live admission is not available.';
+}
+
+// ---- Shared server wallet panel ---------------------------------------------------
+const UINT_RAW = /^(0|[1-9][0-9]*)$/;
+const rawBig = value => typeof value === 'string' && UINT_RAW.test(value) ? BigInt(value) : null;
+const unitsText = (value, decimals) => {
+  if (value === null || !Number.isSafeInteger(decimals) || decimals < 0 || decimals > 36) return 'unavailable';
+  return rawToDecimal(String(value), decimals) || 'unavailable';
+};
+const sumRaw = (...values) => values.some(value => value === null) ? null : values.reduce((total, value) => total + value, 0n);
+const tokenLabel = token => {
+  const named = String(token?.symbol ?? token?.reference ?? '').split('/')[0].trim();
+  return named || shortToken(token?.address);
+};
+
+/** Per-token and native funding rows for the shared server wallet: balance, reserved by
+ * existing campaigns, free and, once a live review exists, what that campaign requests.
+ * Only fields the wallet and review endpoints return are used; absent evidence is shown
+ * as unavailable rather than zero. */
+export function liveWalletPanel(wallet, review = null) {
+  const reviewed = review && review.status === 'indicative' && review.kind === 'rangekeeper_live_setup_preflight' ? review : null;
+  const profile = reviewed?.profile ?? null, requirements = reviewed?.requirements ?? null;
+  const reviewTokens = reviewed ? [0, 1].map(index => ({
+    address: profile?.[`token${index}`] ?? null, decimals: profile?.[`decimals${index}`],
+    snapshot: reviewed.wallet?.[`token${index}`] ?? reviewed.wallet?.tokens?.find?.(token =>
+      String(token.address).toLowerCase() === String(profile?.[`token${index}`]).toLowerCase()) ?? null,
+    requestRaw: rawBig(requirements?.[`token${index}Raw`]) })) : [];
+  const walletTokens = Array.isArray(wallet?.tokens) ? wallet.tokens : [];
+  const build = (token, extra = null) => {
+    const decimals = Number.isSafeInteger(token.decimals) ? token.decimals : null;
+    const balance = rawBig(token.balanceRaw), allocated = rawBig(token.allocatedRaw), pending = rawBig(token.pendingRaw),
+      free = rawBig(token.availableRaw ?? token.freeRaw), reserved = sumRaw(allocated, pending);
+    const row = { kind: 'token', address: token.address ?? null, label: tokenLabel(token), reviewed: extra !== null,
+      balance: unitsText(balance, decimals), reserved: unitsText(reserved, decimals),
+      reservedDetail: `allocated ${unitsText(allocated, decimals)} · pending ${unitsText(pending, decimals)}`,
+      free: unitsText(free, decimals), request: null, shortfall: null,
+      raw: { balance: token.balanceRaw ?? null, allocated: token.allocatedRaw ?? null, pending: token.pendingRaw ?? null,
+        free: token.availableRaw ?? token.freeRaw ?? null } };
+    if (extra) {
+      const reviewFree = rawBig(extra.snapshot?.freeRaw ?? extra.snapshot?.availableRaw) ?? free;
+      row.request = unitsText(extra.requestRaw, decimals);
+      row.shortfall = extra.requestRaw === null || reviewFree === null ? 'unavailable'
+        : unitsText(extra.requestRaw > reviewFree ? extra.requestRaw - reviewFree : 0n, decimals);
+    }
+    return row;
+  };
+  const rows = walletTokens.map(token => {
+    const match = reviewTokens.find(item => item.address && String(token.address).toLowerCase() === item.address.toLowerCase());
+    return build(token, match ?? null);
+  });
+  for (const item of reviewTokens) {
+    if (!item.address || rows.some(row => row.address && row.address.toLowerCase() === item.address.toLowerCase())) continue;
+    rows.push(build({ address: item.address, decimals: item.decimals, balanceRaw: item.snapshot?.balanceRaw,
+      allocatedRaw: item.snapshot?.allocatedRaw, pendingRaw: item.snapshot?.pendingRaw,
+      freeRaw: item.snapshot?.freeRaw ?? item.snapshot?.availableRaw }, item));
+  }
+  const nativeSource = wallet?.native ?? reviewed?.wallet?.native ?? null;
+  let native = null;
+  if (nativeSource) {
+    const balance = rawBig(nativeSource.balanceWei), allocated = rawBig(nativeSource.allocatedWei),
+      pending = rawBig(nativeSource.pendingWei), exitReserve = rawBig(nativeSource.exitReserveWei),
+      free = rawBig(nativeSource.availableWei ?? nativeSource.freeWei), reserved = sumRaw(allocated, pending, exitReserve);
+    native = { kind: 'native', address: null, label: 'Native gas', reviewed: reviewed !== null,
+      balance: unitsText(balance, 18), reserved: unitsText(reserved, 18),
+      reservedDetail: `allocated ${unitsText(allocated, 18)} · pending ${unitsText(pending, 18)} · exit reserve ${unitsText(exitReserve, 18)}`,
+      free: unitsText(free, 18), request: null, shortfall: null,
+      raw: { balance: nativeSource.balanceWei ?? null, allocated: nativeSource.allocatedWei ?? null,
+        pending: nativeSource.pendingWei ?? null, exitReserve: nativeSource.exitReserveWei ?? null,
+        free: nativeSource.availableWei ?? nativeSource.freeWei ?? null } };
+    const need = rawBig(requirements?.nativeWei), reviewFree = rawBig(reviewed?.wallet?.native?.freeWei) ?? free;
+    if (reviewed) {
+      native.request = unitsText(need, 18);
+      native.shortfall = need === null || reviewFree === null ? 'unavailable'
+        : unitsText(need > reviewFree ? need - reviewFree : 0n, 18);
+    }
+  }
+  let summary = null;
+  if (reviewed) {
+    const quoteDecimals = profile?.quoteToken === 0 ? profile?.decimals0 : profile?.decimals1;
+    summary = {
+      capital: unitsText(rawBig(reviewed.input?.capitalQuoteRaw), quoteDecimals),
+      allocationValue: unitsText(rawBig(requirements?.quoteValueRaw), quoteDecimals),
+      freeValue: unitsText(rawBig(requirements?.freeQuoteRaw), quoteDecimals),
+      shortfall: unitsText(rawBig(requirements?.shortfallQuoteRaw), quoteDecimals),
+      nativeRequest: unitsText(rawBig(requirements?.nativeWei), 18),
+      exitReserve: unitsText(rawBig(reviewed.costs?.exitReserveWei ?? requirements?.exitReserveWei), 18),
+    };
+  }
+  return { status: wallet?.status ?? 'unavailable', address: wallet?.walletAddress ?? reviewed?.wallet?.address ?? null,
+    rows, native, summary, blockers: liveBlockers(wallet) };
+}
+
+// ---- Live position rows -------------------------------------------------------------
+export const LIVE_LIFECYCLE_LABELS = Object.freeze({ queued: 'Queued', opening: 'Opening', holding: 'Holding',
+  recentering: 'Recentering', closing: 'Closing', closed: 'Closed', blocked: 'Blocked' });
+const LIVE_JOB_KIND_LABELS = Object.freeze({ open: 'Open', change_range: 'Recenter', close_retain: 'Retain-close',
+  close_convert: 'Convert-close', pause: 'Pause', resume: 'Resume' });
+const LIVE_JOB_STATUS_LABELS = Object.freeze({ queued: 'queued', preflighting: 'preflighting', executing: 'executing',
+  confirming: 'confirming', reconciling: 'reconciling', succeeded: 'succeeded', rejected: 'rejected',
+  blocked: 'blocked', cancelled: 'cancelled' });
+const LIVE_STAGE_LABELS = Object.freeze({ approve: 'token approval', swap: 'swap', mint: 'mint position',
+  withdraw: 'withdraw liquidity' });
+export const liveJobKindLabel = kind => LIVE_JOB_KIND_LABELS[kind] ?? (humanizeCode(kind) || 'Job');
+export const liveJobStatusLabel = status => LIVE_JOB_STATUS_LABELS[status] ?? humanizeCode(status);
+export function liveStageLabel(stage) {
+  const kind = typeof stage === 'string' ? stage.split(':')[0] : '';
+  return LIVE_STAGE_LABELS[kind] ?? (kind ? humanizeCode(kind) : null);
+}
+/** Blocked reasons are stored as machine codes that may embed job ids; show the leading
+ * code in words and drop the identifiers. */
+export function liveBlockedReasonLabel(code) {
+  if (typeof code !== 'string' || !code.trim()) return 'reason unavailable';
+  const [head, detail] = code.split(':');
+  const labels = { transaction_reverted: 'a transaction reverted', job_blocked: 'the job is blocked pending reconciliation',
+    job_rejected: 'the job was rejected', job_cancelled: 'the job was cancelled',
+    blocked_reason_unavailable: 'no reason was recorded' };
+  const text = labels[head] ?? humanizeCode(head);
+  const stage = head === 'job_blocked' && detail ? liveStageLabel(detail) : null;
+  return stage ? `${text} (${stage})` : text;
+}
+
+const liveMoney = value => value === null || value === undefined || !Number.isFinite(value) ? null
+  : new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+const UNAVAILABLE = 'unavailable';
+const shortHash = value => typeof value === 'string' && value.length > 18 ? `${value.slice(0, 10)}…${value.slice(-6)}` : value;
+
+/** Display model for one live campaign row. `position` is the dashboard position (with
+ * normalized numeric economics); `capability` is `liveCapabilityFrom` output or null. */
+export function liveRowModel(position, capability = null) {
+  const live = position?.deployment?.live;
+  if (!live) return null;
+  const job = live.job ?? null, inFlight = job?.inFlight === true;
+  const workerDown = capability?.worker?.ready === false;
+  const jobParts = [], summaryParts = [];
+  if (job) {
+    jobParts.push(`${liveJobKindLabel(job.kind)} ${liveJobStatusLabel(job.status)}`);
+    const stage = liveStageLabel(job.stageKind ?? job.stage);
+    if (stage) jobParts.push(`stage ${stage}`);
+    if (job.nonce !== null && job.nonce !== undefined) jobParts.push(`nonce ${job.nonce}`);
+    summaryParts.push(...jobParts);
+    if (job.txHash) { jobParts.push(`tx ${job.txHash}`); summaryParts.push(`tx ${shortHash(job.txHash)}`); }
+    else if (job.stageStatus === 'prepared') { jobParts.push('transaction not yet signed'); summaryParts.push('transaction not yet signed'); }
+  }
+  const rangeText = live.range?.state === 'inside' ? 'in range' : live.range?.state === 'outside' ? 'outside range'
+    : 'range unavailable';
+  let summary;
+  switch (live.lifecycle) {
+    case 'queued': summary = workerDown ? 'Queued · the live worker is not connected, so opening has not started'
+      : 'Queued · waiting for the live worker to start opening'; break;
+    case 'opening': summary = `Opening · ${summaryParts.join(' · ') || 'waiting for canonical receipts'}`; break;
+    case 'holding': summary = `Holding · ${rangeText}${inFlight ? ` · ${summaryParts.join(' · ')}` : ''}`; break;
+    case 'recentering': summary = `Recentering · ${summaryParts.join(' · ') || 'waiting for the next stage'}`; break;
+    case 'closing': summary = `Closing · retain tokens · ${summaryParts.join(' · ') || 'waiting for the next stage'}`; break;
+    case 'closed': summary = 'Closed · retained tokens remain in the shared wallet'; break;
+    case 'blocked': summary = `Blocked · ${liveBlockedReasonLabel(live.blockedReason)}`; break;
+    default: summary = LIVE_LIFECYCLE_LABELS[live.lifecycle] ?? 'State unavailable';
+  }
+  const workerNote = inFlight && workerDown
+    ? `The live worker is not ready: ${(capability.reasons ?? []).map(item => item.label).join(' ') || 'reason unavailable.'} Queued work resumes when it reconnects.` : null;
+  const decimals = [position?.deployment?.token0?.decimals, position?.deployment?.token1?.decimals];
+  const symbols = [position?.deployment?.token0?.symbol, position?.deployment?.token1?.symbol];
+  const allocation = live.allocation;
+  const allocationText = allocation
+    ? `${[0, 1].map(index => `${unitsText(rawBig(allocation[`token${index}Raw`]), decimals[index])} ${symbols[index] ?? `token ${index}`}`).join(' · ')} · ${unitsText(rawBig(allocation.nativeWei), 18)} native gas`
+    : UNAVAILABLE;
+  const pnl = position?.capital == null || position?.initial == null ? null : position.capital - position.initial;
+  const facts = [
+    ['Position NFT', live.nftId ?? (['queued', 'opening'].includes(live.lifecycle) ? 'not minted yet' : 'none')],
+    ['Range', Array.isArray(position?.range) && position.range.every(value => Number.isFinite(value))
+      ? `${liveMoney(position.range[0])} – ${liveMoney(position.range[1])} ${position.quote ?? 'USDG'} · ${rangeText}` : rangeText],
+    ['Allocation', allocationText],
+    ['Net value', liveMoney(position?.capital) ?? UNAVAILABLE],
+    ['LP fees', liveMoney(position?.fees) ?? UNAVAILABLE],
+    ['Gas paid', position?.gas == null ? (live.paidGasWei == null ? UNAVAILABLE : `${unitsText(rawBig(live.paidGasWei), 18)} native`)
+      : `${liveMoney(position.gas)} USD${live.paidGasWei == null ? '' : ` · ${unitsText(rawBig(live.paidGasWei), 18)} native`}`],
+    ['Net P&L', pnl === null ? UNAVAILABLE : `${pnl >= 0 ? '+' : '−'}${liveMoney(Math.abs(pnl))}`],
+  ];
+  if (job) facts.push([inFlight ? 'Current job' : 'Last job', jobParts.join(' · ')]);
+  if (Number.isSafeInteger(live.recenters)) facts.push(['Recenters completed', String(live.recenters)]);
+  const retain = { eligible: live.lifecycle === 'holding' && !inFlight, reason: null };
+  const retainReasons = { holding: 'A retain-close review is unavailable while this campaign has work in progress.',
+    closed: 'This campaign is closed.', blocked: 'This campaign is blocked; resolve the recorded reason first.',
+    closing: 'Retain-close is already in progress.',
+    recentering: 'Recentering is in progress; retain-close can be reviewed when the campaign is holding again.' };
+  if (!retain.eligible) retain.reason = retainReasons[live.lifecycle] ?? 'Retain-close can be reviewed once the campaign is holding.';
+  return { lifecycle: live.lifecycle, label: LIVE_LIFECYCLE_LABELS[live.lifecycle] ?? 'Unknown', summary,
+    workerNote, facts, jobText: jobParts.join(' · '), retain };
+}
+
 export function liveRetainPreviewPathFor(campaignId) {
   if(!PROFILE_UUID.test(campaignId??''))return null;
   return `/api/deployments/${encodeURIComponent(campaignId)}/live/retain-preview`;
@@ -167,8 +413,7 @@ export function liveRetainAcceptResult(result,campaignId) {
   return Boolean(result&&result.status==='queued'&&PROFILE_UUID.test(result.campaignId??'')&&
     result.campaignId===campaignId&&PROFILE_UUID.test(result.jobId??'')&&
     (result.allocationId==null||PROFILE_UUID.test(result.allocationId))&&
-    typeof result.replayed==='boolean'&&result.executionEligible===false&&
-    result.reason==='rangekeeper_live_execution_unavailable');
+    typeof result.replayed==='boolean');
 }
 
 /** RangeKeeper has its own setup draft admission. The static one parses a static
@@ -612,8 +857,12 @@ function bootDashboardTabs() {
   let pendingDraftPersistenceAvailable=true;
   let walletAddressManuallyEdited=false;
   let setupDefaultsLoaded=false;
+  let liveCapability=liveCapabilityFrom(null);
   let liveSetupAvailable=false;
   let liveAdmissionAvailable=false;
+  let lastLiveWallet=null;
+  let liveCapabilityTimer=null;
+  let liveAdmissionBusy=false;
   let pendingLiveAdmission=null;
   let pendingOpenAcceptance=null;
   try{
@@ -640,6 +889,7 @@ function bootDashboardTabs() {
   const setSetupStatus = (message, kind = 'unavailable') => {
     setupNote.textContent = message;
     setupNote.dataset.state = kind;
+    delete setupNote.dataset.capabilityStatus;
     setupNote.setAttribute('role', 'status');
   };
   const operatorSession = createOperatorSession({onChange:setAuthState});
@@ -731,6 +981,7 @@ function bootDashboardTabs() {
     savedDraftId = null; openPreview = null;
     document.getElementById('setup-review').hidden = true;
     document.getElementById('operator-draft-binding').hidden = true;
+    renderLiveWalletPanel();
     setSetupStatus('Selection changed. Review again to request a fresh source and range preflight.');
   }
   document.getElementById('setup-form').addEventListener('input', invalidateReview);
@@ -753,10 +1004,15 @@ function bootDashboardTabs() {
     if(walletPanel)walletPanel.hidden=!live;
     const limitsNote=document.getElementById('setup-limits-note');
     if(limitsNote)limitsNote.textContent=live
-      ? 'Review and edit the limits included in the fresh RangeKeeper live setup review. Displayed costs and funding are evidence for operator review only.'
+      ? 'Review and edit the limits included in the fresh RangeKeeper live setup review. They bound the live campaign the worker manages after approval; displayed costs and funding are evidence for operator review.'
       : 'Some suggestions scale from your capital. Review and edit them before continuing. These are paper setup suggestions, not a profitability recommendation.';
+    refreshSetupBadge();
+    const reviewFootnote=document.getElementById('setup-review-footnote');
+    if(reviewFootnote)reviewFootnote.hidden=live;
+    renderLiveReadiness();
     if(live){
       registeredPools=poolsWithProfiles(); if(registeredPools.length)replacePoolOptions();
+      renderLiveWalletPanel();
       void refreshLiveWallet();
     } else if(registeredPools.length){registeredPools=poolsWithProfiles();replacePoolOptions();}
     applySuggestedLimitValues();
@@ -799,6 +1055,7 @@ function bootDashboardTabs() {
     error.hidden = true;
     currentSetupPreflight = null;
     savedDraftId = null; openPreview = null;
+    renderLiveWalletPanel();
     document.getElementById('operator-draft-binding').hidden = true;
     const facts = [
       ['Pool', poolSelect.selectedOptions[0].textContent],
@@ -924,11 +1181,12 @@ function bootDashboardTabs() {
       : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
   }
 
+  const isIndicativeLiveReview=result=>result?.kind==='rangekeeper_live_setup_preflight'&&
+    result?.mode==='live'&&result?.strategyId==='rangekeeper_v1'&&result?.status==='indicative'&&
+    result?.actionAvailable===false&&result?.draftCreationAvailable===false&&
+    result?.operationAcceptanceAvailable===false&&result?.executionEligible===false;
   function renderLiveSetup(result) {
-    const output=document.getElementById('live-setup-result'),status=result?.kind==='rangekeeper_live_setup_preflight'&&
-      result?.mode==='live'&&result?.strategyId==='rangekeeper_v1'&&result?.status==='indicative'&&
-      result?.actionAvailable===false&&result?.draftCreationAvailable===false&&
-      result?.operationAcceptanceAvailable===false&&result?.executionEligible===false;
+    const output=document.getElementById('live-setup-result'),status=isIndicativeLiveReview(result);
     document.getElementById('live-setup-title').textContent=status?'Indicative live setup review':'Live setup review unavailable';
     const blockers=liveBlockers(result);
     document.getElementById('live-setup-detail').textContent=status
@@ -942,44 +1200,66 @@ function bootDashboardTabs() {
     output.hidden=false;
     currentSetupPreflight=result;
     renderLiveAdmissionAction(output,result,status);
-    setSetupStatus(status?'Review complete. Approval is available only when a server-persisted review and live-admission capability are both present; queued admission does not mean the campaign is holding.':`Live review unavailable: ${blockers.join(', ') || 'required evidence unavailable'}.`);
+    renderLiveWalletPanel();
+    setSetupStatus(status?liveReviewStatusText():`Live review unavailable: ${blockers.join(', ') || 'required evidence unavailable'}.`);
+    if(status)setupNote.dataset.capabilityStatus='review';
   }
+  const liveReviewStatusText=()=>liveCapability.approvalEnabled
+    ?'Review complete. Approve to queue this campaign; it is holding only after the worker confirms its opening transactions.'
+    :`Review complete. Approval is unavailable: ${liveCapabilityBlockedMessage(liveCapability)}`;
 
   function liveAdmissionHost(output){
     let host=output.querySelector('.live-admission-action');
     if(!host){host=document.createElement('div');host.className='live-admission-action';output.append(host);}
     host.replaceChildren();return host;
   }
+  const liveAdmissionAuthenticated=()=>window.concliqOperatorAuthenticated?.()===true;
+  function liveReasonList(reasons){
+    const list=document.createElement('ul');list.className='live-readiness-reasons';
+    list.setAttribute('aria-label','Why live approval is unavailable');
+    for(const item of reasons){const li=document.createElement('li');li.textContent=item.label;list.append(li);}
+    list.hidden=reasons.length===0;return list;
+  }
   function renderLiveAdmissionAction(output,result,indicative){
     const host=liveAdmissionHost(output);
     const limitation=output.querySelector('.inline-note');
-    if(limitation)limitation.textContent='Queueing a persisted review does not mean the campaign is holding. Live execution remains unavailable.';
+    if(limitation)limitation.textContent=liveCapability.approvalEnabled
+      ?'Approval queues the campaign. The supervised live worker then opens and manages it automatically; it is holding only after its opening transactions confirm on chain.'
+      :'This review is read-only. Approval is unavailable until the reasons below clear; no draft or operation was created.';
+    host.dataset.state='ready';
+    const blocked=liveCapability.approvalEnabled?[]:liveCapability.reasons;
     if(pendingLiveAdmission){
+      host.dataset.state='recovery';
       const message=document.createElement('p');
       message.textContent=`Admission for persisted review ${pendingLiveAdmission.reviewId} may already have been accepted. Retry the same request key to reconcile; do not submit a new review yet.`;
-      host.append(message);
+      host.append(message,liveReasonList(blocked));
       const button=document.createElement('button');button.type='button';button.textContent='Retry same live admission';
-      button.disabled=!liveAdmissionAvailable||!window.concliqOperatorAuthenticated?.();host.append(button);
+      button.dataset.liveRetry='';button.disabled=!liveCapability.approvalEnabled||!liveAdmissionAuthenticated();host.append(button);
       const status=document.createElement('p');status.setAttribute('role','status');host.append(status);
       button.addEventListener('click',()=>void submitLiveAdmission(pendingLiveAdmission,button,status));
       return;
     }
-    const admission=liveSetupAdmissionRequest({preflight:result,liveAdmission:liveAdmissionAvailable,
-      requestId:'00000000-0000-4000-8000-000000000000'});
+    const usable=indicative&&liveSetupAdmissionRequest({preflight:result,liveAdmission:true,
+      requestId:'00000000-0000-4000-8000-000000000000'}).available;
     const message=document.createElement('p');
-    message.textContent=indicative&&admission.available
-      ?'This review is persisted by the server. Approval queues a campaign record; it does not mean the campaign is holding or that execution is installed.'
-      :indicative?'Live admission is unavailable on this service. The review remains read-only; no campaign was created.'
-      :'No admission action is available because the review or required evidence is unavailable.';
+    message.textContent=!indicative
+      ?'No admission action is available because the review or required evidence is unavailable.'
+      :!usable
+      ?'This review can no longer be approved: it expired, was not persisted by the server, or was taken while live admission was unavailable. Request a new review.'
+      :liveCapability.approvalEnabled
+      ?'This review is persisted by the server. Approval queues a live campaign; it is not holding until the worker confirms its opening transactions.'
+      :'This review is persisted, but approval is unavailable right now. It becomes available when the reasons below clear.';
     host.append(message);
-    if(!indicative||!admission.available)return;
+    if(!indicative)return;
+    host.append(liveReasonList(blocked));
+    if(!usable)return;
     const button=document.createElement('button');button.type='button';button.textContent='Approve live opening';
-    button.disabled=!window.concliqOperatorAuthenticated?.();host.append(button);
+    button.dataset.liveApprove='';button.disabled=!liveCapability.approvalEnabled||!liveAdmissionAuthenticated();host.append(button);
     const status=document.createElement('p');status.setAttribute('role','status');host.append(status);
     button.addEventListener('click',()=>{
       if(result!==currentSetupPreflight)return;
       const requestId=globalThis.crypto?.randomUUID?.();
-      const request=liveSetupAdmissionRequest({preflight:result,liveAdmission:liveAdmissionAvailable,requestId});
+      const request=liveSetupAdmissionRequest({preflight:result,liveAdmission:liveCapability.approvalEnabled,requestId});
       if(!request.available||!requestId){status.textContent='Admission is unavailable; obtain a fresh persisted review.';return;}
       pendingLiveAdmission={...request.payload};
       try{localStorage.setItem(pendingLiveAdmissionStorageKey,JSON.stringify(pendingLiveAdmission));}
@@ -998,46 +1278,166 @@ function bootDashboardTabs() {
   }
   async function submitLiveAdmission(body,button,status){
     if(!pendingLiveAdmission||JSON.stringify(body)!==JSON.stringify(pendingLiveAdmission)||
-       !liveAdmissionAvailable||!window.concliqOperatorAuthenticated?.())return;
+       liveAdmissionBusy||!liveAdmissionAuthenticated())return;
+    const host=button.closest('.live-admission-action');
+    if(!liveCapability.approvalEnabled){
+      status.textContent=`Admission is unavailable: ${liveCapabilityBlockedMessage(liveCapability)} Nothing was sent.`;
+      button.disabled=!liveCapability.approvalEnabled;return;
+    }
+    liveAdmissionBusy=true;
     button.disabled=true;status.textContent='Submitting the server-persisted review with its durable request key…';
     try{
       const result=await authRequest(LIVE_SETUP_ADMISSION_PATH,{method:'POST',body,csrf:true});
       if(!liveSetupAdmissionResult(result))throw new Error('live_admission_response_invalid');
       try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
-      pendingLiveAdmission=null;
-      status.textContent=`Admission queued for campaign ${result.campaignId} · job ${result.jobId}${result.replayed?' · reconciled existing request':''}. This does not mean the campaign is holding; live execution remains unavailable.`;
+      pendingLiveAdmission=null;if(host)host.dataset.state='done';
+      status.textContent=`Admission queued for campaign ${result.campaignId} · job ${result.jobId}${result.replayed?' · reconciled existing request':''}. It appears under Live positions as Queued; the worker opens it next, and it is holding only after the opening transactions confirm.`;
       button.disabled=true;
       try{window.dispatchEvent(new Event('positions-refresh-requested'));}catch{}
     }catch(error){
       const reason=error?.data?.error??error?.message??'command_failed';
-      if(error?.status>=400&&error.status<500){
+      if(error?.status===503&&error?.data?.status==='unavailable'){
+        // The server refused before admitting anything, so nothing is queued and the key is free.
         try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
-        pendingLiveAdmission=null;button.disabled=true;
+        pendingLiveAdmission=null;button.disabled=true;if(host)host.dataset.state='done';
+        const missing=[...new Set([...(Array.isArray(error.data.liveWorker?.missing)?error.data.liveWorker.missing:[]),
+          ...(Array.isArray(error.data.missing)?error.data.missing:[])].filter(code=>typeof code==='string'&&code))];
+        status.textContent=`The live worker is not ready (${(missing.length?missing:['live_wallet_worker_not_ready']).map(liveWorkerReasonLabel).join(' ')}) Nothing was queued. Request a new review when it is ready.`;
+        void refreshLiveCapability();
+      }else if(error?.status>=400&&error.status<500){
+        try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
+        pendingLiveAdmission=null;button.disabled=true;if(host)host.dataset.state='done';
         status.textContent=`Admission rejected (${reason}). Request a fresh live review before retrying.`;
       }else{
+        if(host)host.dataset.state='recovery';
         status.textContent=`Admission outcome unknown (${reason}). Retry with the same request key; do not request another review until reconciled.`;
         const retry=button.cloneNode(true);retry.textContent='Retry same live admission';retry.disabled=false;
+        retry.removeAttribute('data-live-approve');retry.dataset.liveRetry='';
         button.replaceWith(retry);
         retry.addEventListener('click',()=>void submitLiveAdmission(pendingLiveAdmission,retry,status));
       }
+    }finally{liveAdmissionBusy=false;}
+  }
+
+  // ---- Live capability (strategy catalog + supervised worker readiness) ----
+  window.concliqLiveCapability=()=>liveCapability;
+  async function refreshLiveCapability({initial=false}={}){
+    let next;
+    try{
+      const catalog=await authRequest('/api/strategies');
+      next=liveCapabilityFrom(Array.isArray(catalog?.strategies)?catalog.strategies.find(item=>item?.id==='rangekeeper_v1')??null:null);
+    }catch{next=liveCapabilityFrom(null);}
+    const changed=JSON.stringify(next)!==JSON.stringify(liveCapability);
+    liveCapability=next;liveSetupAvailable=next.setup;liveAdmissionAvailable=next.approvalEnabled;
+    if(changed||initial){
+      applyLiveCapability();
+      try{window.dispatchEvent(new CustomEvent('live-capability-changed',{detail:next}));}catch{}
+    }
+    if(!liveCapabilityTimer&&onOperatorOrigin)liveCapabilityTimer=setInterval(()=>{
+      if(operatorSession.isReady()&&!document.hidden)void refreshLiveCapability();
+    },10_000);
+  }
+  function refreshSetupBadge(){
+    const badge=document.getElementById('setup-capability-badge'),live=setupMode.value==='live';
+    if(!badge)return;
+    badge.textContent=live?(liveCapability.approvalEnabled?'Live approval available':'Live approval unavailable'):'Actions unavailable';
+    badge.dataset.state=live&&liveCapability.approvalEnabled?'ready':'blocked';
+  }
+  function applyLiveCapability(){
+    refreshSetupBadge();
+    renderLiveReadiness();
+    if(setupNote.dataset.capabilityStatus==='review')setupNote.textContent=liveReviewStatusText();
+    const output=document.getElementById('live-setup-result');
+    const host=output?.querySelector('.live-admission-action');
+    if(host?.dataset.state==='ready'&&!output.hidden&&currentSetupPreflight?.kind==='rangekeeper_live_setup_preflight'){
+      renderLiveAdmissionAction(output,currentSetupPreflight,isIndicativeLiveReview(currentSetupPreflight));
+    }else if(host?.dataset.state==='recovery'){
+      const retry=host.querySelector('[data-live-retry]');
+      if(retry&&!liveAdmissionBusy)retry.disabled=!liveCapability.approvalEnabled||!liveAdmissionAuthenticated();
+      const list=host.querySelector('.live-readiness-reasons');
+      if(list){list.replaceChildren(...(liveCapability.approvalEnabled?[]:liveCapability.reasons).map(item=>{
+        const li=document.createElement('li');li.textContent=item.label;return li;}));
+        list.hidden=liveCapability.approvalEnabled||liveCapability.reasons.length===0;}
+    }
+  }
+  function renderLiveReadiness(){
+    const badge=document.getElementById('live-worker-status');
+    if(!badge)return;
+    const worker=liveCapability.worker;
+    const text=!liveCapability.known?'Live capability unavailable':!liveCapability.setup?'Live setup not installed'
+      :worker.ready===true?'Live worker ready':worker.ready===false?'Live worker not ready'
+      :liveCapability.admission?'Live admission available':'Live admission unavailable';
+    badge.textContent=text;badge.dataset.state=liveCapability.approvalEnabled?'ready':'blocked';
+    const list=document.getElementById('live-readiness-reasons');
+    if(list){
+      list.replaceChildren(...liveCapability.reasons.map(item=>{const li=document.createElement('li');li.textContent=item.label;return li;}));
+      list.hidden=liveCapability.reasons.length===0;
     }
   }
 
-  function liveBlockers(result){return [...new Set([...(Array.isArray(result?.missing)?result.missing:[]),
-    ...(Array.isArray(result?.blockers)?result.blockers:[]),...(Array.isArray(result?.reasons)?result.reasons:[]),...(result?.reason?[result.reason]:[])])];}
+  // ---- Shared server wallet panel ----
+  function wallRow(row,reviewed,labels){
+    const tr=document.createElement('tr');tr.dataset.kind=row.kind;if(row.reviewed)tr.dataset.reviewed='true';
+    const head=document.createElement('th');head.scope='row';head.textContent=row.label;
+    if(row.address){head.title=row.address;}
+    const cells=[[row.balance,null,row.raw.balance],[row.reserved,row.reservedDetail,null],[row.free,null,row.raw.free]];
+    if(reviewed)cells.push([row.request??'—',null,null],[row.shortfall??'—',null,null]);
+    tr.append(head,...cells.map(([value,detail,raw],index)=>{
+      const td=document.createElement('td'),cell=document.createElement('span');td.className='num';td.dataset.label=labels[index+1];
+      cell.className='cell-value';cell.textContent=value;td.append(cell);
+      if(raw!==null&&raw!==undefined)td.title=`raw ${raw}`;
+      if(detail){const sub=document.createElement('span');sub.className='row-sub';sub.textContent=detail;cell.append(sub);}
+      if(reviewed&&index===4&&value!=='—'&&value!=='unavailable'&&!/^0(\.0+)?$/.test(value))td.classList.add('negative');
+      return td;
+    }));
+    return tr;
+  }
+  function renderLiveWalletPanel(){
+    const table=document.getElementById('live-wallet-table'),summary=document.getElementById('live-wallet-summary');
+    if(!table)return;
+    const review=currentSetupPreflight?.kind==='rangekeeper_live_setup_preflight'?currentSetupPreflight:null;
+    const panel=liveWalletPanel(lastLiveWallet,review);
+    const reviewed=panel.summary!==null;
+    const head=['Asset','Wallet balance','Reserved by campaigns','Free',...(reviewed?['This campaign needs','Shortfall']:[])];
+    const thead=document.createElement('thead'),headRow=document.createElement('tr');
+    for(const name of head){const th=document.createElement('th');th.scope='col';th.textContent=name;headRow.append(th);}
+    thead.append(headRow);
+    const body=document.createElement('tbody');
+    const rows=[...panel.rows,...(panel.native?[panel.native]:[])];
+    for(const row of rows)body.append(wallRow(row,reviewed,head));
+    if(!rows.length){
+      const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=head.length;
+      td.textContent='Wallet balances are unavailable; amounts are not inferred.';tr.append(td);body.append(tr);
+    }
+    table.replaceChildren(thead,body);
+    table.hidden=false;
+    if(summary){
+      if(!reviewed){summary.replaceChildren();summary.hidden=true;}
+      else{
+        const pairs=[['Capital requested',`${panel.summary.capital} USDG`],['Allocated inventory value',`${panel.summary.allocationValue} USDG`],
+          ['Free inventory value',`${panel.summary.freeValue} USDG`],['Capital shortfall',`${panel.summary.shortfall} USDG`],
+          ['Native gas allocation',panel.summary.nativeRequest],['Exit reserve',panel.summary.exitReserve]];
+        summary.replaceChildren(...pairs.map(([name,value])=>{const row=document.createElement('div'),label=document.createElement('dt'),content=document.createElement('dd');
+          label.textContent=name;content.textContent=value;row.append(label,content);return row;}));
+        summary.hidden=false;
+      }
+    }
+  }
 
   async function refreshLiveWallet(){
     const panel=document.getElementById('live-wallet-review');
     if(!panel||setupMode.value!=='live')return;
     const note=document.getElementById('live-wallet-note'),facts=document.getElementById('live-wallet-facts');
-    if(!onOperatorOrigin||!operatorSession.isReady()){note.textContent='Connect the operator service to read server wallet balances.';facts.replaceChildren();return;}
+    if(!onOperatorOrigin||!operatorSession.isReady()){note.textContent='Connect the operator service to read server wallet balances.';facts.replaceChildren();lastLiveWallet=null;renderLiveWalletPanel();return;}
     note.textContent='Loading reconciled shared-wallet balances…';
     try{
       const result=await authRequest(LIVE_WALLET_PATH);
+      lastLiveWallet=result;
       const values=liveWalletFacts(result);
       facts.replaceChildren(...values.map(([name,value])=>{const row=document.createElement('div'),label=document.createElement('dt'),content=document.createElement('dd');label.textContent=name;content.textContent=value;row.append(label,content);return row;}));
-      note.textContent=result?.status==='available'?'Balances from the registered server wallet. Allocated and pending funds remain reserved across campaigns.':'Wallet funding is unavailable or unreconciled; amounts are not inferred.';
-    }catch(error){facts.replaceChildren();note.textContent=`Wallet balance review unavailable (${error?.data?.error??error?.message??'request_failed'}).`}
+      renderLiveWalletPanel();
+      note.textContent=result?.status==='available'?'Balances from the registered server wallet. Reserved funds belong to existing campaigns and in-flight actions; only the free amount can fund a new campaign.':'Wallet funding is unavailable or unreconciled; amounts are not inferred.';
+    }catch(error){lastLiveWallet=null;facts.replaceChildren();renderLiveWalletPanel();note.textContent=`Wallet balance review unavailable (${error?.data?.error??error?.message??'request_failed'}).`}
   }
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
     maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
@@ -1521,16 +1921,13 @@ function bootDashboardTabs() {
           marketProfiles = response.profiles ?? [];
           profilesLoaded = true;
         }
-        try {
-          const capabilities=await authRequest('/api/strategies');
-          const rangeKeeperCapability=capabilities.strategies?.find(item=>item.id==='rangekeeper_v1');
-          liveSetupAvailable=rangeKeeperCapability?.liveSetup===true;
-          liveAdmissionAvailable=rangeKeeperCapability?.liveAdmission===true;
-        } catch { liveSetupAvailable=false;liveAdmissionAvailable=false; }
+        await refreshLiveCapability({initial:true});
         applyProfileIds();
-        setSetupStatus(liveAdmissionAvailable
-          ?'Verified, indexed profiles are available. Persisted RangeKeeper review admission may be available; live execution remains unavailable.'
-          :'Verified, indexed profiles are available for setup review. Live campaign admission and execution remain unavailable.');
+        setSetupStatus(liveCapability.approvalEnabled
+          ?'Verified, indexed profiles are available. Live RangeKeeper campaigns can be reviewed and approved; the supervised live worker opens and manages approved campaigns.'
+          :liveCapability.setup
+          ?`Verified, indexed profiles are available for setup review. Live approval is unavailable: ${liveCapabilityBlockedMessage(liveCapability)}`
+          :'Verified, indexed profiles are available for setup review. Live setup review is not installed on this service.');
         restorePendingDraftReview();
         if (!draftsLoaded) {
           const loaded = await loadSavedPaperDrafts();

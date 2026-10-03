@@ -32,7 +32,7 @@
           </section>
           <div id="saved-paper-drafts-list"></div>
         </section>
-        <section class="setup-panel" aria-labelledby="setup-title"><div class="setup-heading"><div><span class="eyebrow">NEW POSITION</span><h2 id="setup-title">Set up a position</h2><p>Choose a registered pool, capital, strategy and centered range.</p></div><span class="badge paper">Actions unavailable</span></div>
+        <section class="setup-panel" aria-labelledby="setup-title"><div class="setup-heading"><div><span class="eyebrow">NEW POSITION</span><h2 id="setup-title">Set up a position</h2><p>Choose a registered pool, capital, strategy and centered range.</p></div><span class="badge paper" id="setup-capability-badge">Actions unavailable</span></div>
           <section id="operator-auth" class="operator-auth" aria-labelledby="operator-auth-title" hidden>
             <div><h3 id="operator-auth-title">Operator connection</h3><p id="operator-auth-status" role="status">Waiting for the operator service…</p></div>
             <button id="operator-connect-retry" type="button" hidden>Retry connection</button>
@@ -55,7 +55,7 @@
             <label>Maximum campaign cost · USD<input id="limit-max-campaign-cost" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Native exit reserve · native units<input id="limit-exit-reserve" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Maximum slippage · percent<input id="limit-slippage-bps" type="text" inputmode="decimal" autocomplete="off"></label>
-          </div><div class="limits-grid" id="setup-limits-rangekeeper" hidden><p class="inline-note">RangeKeeper uses these additional limits and caps slippage at 0.5 percent. Live review is indicative only; campaign admission and execution are unavailable.</p>
+          </div><div class="limits-grid" id="setup-limits-rangekeeper" hidden><p class="inline-note">RangeKeeper uses these additional limits and caps slippage at 0.5 percent.</p>
             <label>Minimum deployment · percent of capital<input id="limit-min-deployment-ppm" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Maximum swap input · USD<input id="limit-max-swap-input" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Maximum swap input · percent of capital<input id="limit-max-swap-input-ppm" type="text" inputmode="decimal" autocomplete="off"></label>
@@ -64,8 +64,14 @@
             <label>Maximum pool liquidity share · percent<input id="limit-max-liquidity-share" type="text" inputmode="decimal" autocomplete="off"></label>
             <label>Maximum observation gap · seconds (45-90)<input id="limit-observation-gap" type="text" inputmode="numeric" autocomplete="off" title="RangeKeeper opens on two observations. The kernel refuses a second observation less than 30 seconds after the first, so the window to confirm in is this value minus 30 seconds. Below 45 there is no usable window."></label>
           </div></details><p class="inline-note" id="setup-status" role="status">Tick widths are centered on the observed pool tick. Percentages are approximate and cannot authorize execution.</p><p class="form-error" id="setup-error" role="alert" hidden></p><button type="submit" id="setup-review-button" disabled>Review setup</button></form>
-          <section class="live-wallet-review" id="live-wallet-review" aria-label="Shared server wallet balances" hidden><h3>Shared server wallet</h3><p id="live-wallet-note" role="status">Wallet balance review unavailable.</p><dl id="live-wallet-facts"></dl></section>
-          <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div class="preflight-result live-review-result" id="live-setup-result" hidden><h3 id="live-setup-title"></h3><p id="live-setup-detail"></p><dl id="live-setup-facts"></dl><p class="inline-note">Review only. Campaign creation and execution are unavailable; no draft or operation was created.</p></div><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div>
+          <section class="live-wallet-review" id="live-wallet-review" aria-label="Shared server wallet balances" hidden>
+            <div class="live-wallet-heading"><h3>Shared server wallet</h3><span class="badge live-worker-status" id="live-worker-status" role="status" data-state="blocked">Live capability unavailable</span></div>
+            <ul class="live-readiness-reasons" id="live-readiness-reasons" aria-label="Why live approval is unavailable" hidden></ul>
+            <p id="live-wallet-note" role="status">Wallet balance review unavailable.</p>
+            <div class="live-wallet-table-wrap"><table class="live-wallet-table" id="live-wallet-table" aria-label="Shared server wallet funding per token and native gas" hidden></table></div>
+            <dl class="live-wallet-summary" id="live-wallet-summary" aria-label="Reviewed campaign funding request" hidden></dl>
+            <details class="live-wallet-raw"><summary>Raw wallet amounts</summary><dl id="live-wallet-facts"></dl></details></section>
+          <div class="setup-review" id="setup-review" hidden><h3>Selection summary</h3><dl id="setup-review-facts"></dl><div class="preflight-result live-review-result" id="live-setup-result" hidden><h3 id="live-setup-title"></h3><p id="live-setup-detail"></p><dl id="live-setup-facts"></dl><p class="inline-note">Review only until approved; no draft or operation was created by this review.</p></div><div id="setup-preflight-result" class="preflight-result" hidden><h3 id="setup-preflight-title"></h3><p id="setup-preflight-detail"></p><dl id="setup-preflight-facts"></dl></div>
             <section id="operator-draft-binding" class="operator-draft-binding" aria-labelledby="operator-draft-binding-title" hidden>
               <h3 id="operator-draft-binding-title">Static/manual paper draft</h3>
               <p>Saving re-runs canonical source, registered profile, cost, reserve and policy-limit checks on the authenticated command service. Wallet ownership and funding remain unchecked. Values and costs are never treated as paid or funded.</p>
@@ -86,7 +92,7 @@
               </section>
               <p class="form-note">No wallet balances or funding are inferred. Draft saving creates no operation; opening requires a separate fresh preview and explicit guarded acceptance.</p>
             </section>
-            <p>Setup preflight is read-only. It creates no draft or operation; its costs are provisional and it does not establish wallet funding or admission limits.</p></div>
+            <p id="setup-review-footnote">Setup preflight is read-only. It creates no draft or operation; its costs are provisional and it does not establish wallet funding or admission limits.</p></div>
         </section>
         <footer class="positions-footer">CONC LIQ <span>Live and paper position history</span><button id="diagnostics-button" class="text-button" type="button">Diagnostics</button></footer>
       </section>
