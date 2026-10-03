@@ -55,9 +55,12 @@ export function liveSetupPreflightRequest({ pool, capital, fullWidthSpacings, li
   return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings, limits: normalized } };
 }
 
+/** `liveAdmission` is the current capability (installed and, when reported, worker ready). The review's own
+ * `admissionAvailable` only records readiness at review time, which can span minutes of fork sampling, so it
+ * does not gate approval: the command service re-checks readiness when the request is posted. */
 export function liveSetupAdmissionRequest({ preflight, liveAdmission = false, requestId, now = Date.now() }) {
   const persistence = preflight?.reviewPersistence;
-  if (!liveAdmission || preflight?.admissionAvailable !== true ||
+  if (!liveAdmission ||
       preflight?.kind !== 'rangekeeper_live_setup_preflight' || preflight?.mode !== 'live' ||
       preflight?.strategyId !== 'rangekeeper_v1' || preflight?.status !== 'indicative' ||
       preflight?.actionAvailable !== false || preflight?.draftCreationAvailable !== false ||
@@ -1245,7 +1248,7 @@ function bootDashboardTabs() {
     message.textContent=!indicative
       ?'No admission action is available because the review or required evidence is unavailable.'
       :!usable
-      ?'This review can no longer be approved: it expired, was not persisted by the server, or was taken while live admission was unavailable. Request a new review.'
+      ?'This review can no longer be approved: it expired or was not persisted by the server. Request a new review.'
       :liveCapability.approvalEnabled
       ?'This review is persisted by the server. Approval queues a live campaign; it is not holding until the worker confirms its opening transactions.'
       :'This review is persisted, but approval is unavailable right now. It becomes available when the reasons below clear.';
@@ -1300,8 +1303,9 @@ function bootDashboardTabs() {
         // The server refused before admitting anything, so nothing is queued and the key is free.
         try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
         pendingLiveAdmission=null;button.disabled=true;if(host)host.dataset.state='done';
-        const missing=[...new Set([...(Array.isArray(error.data.liveWorker?.missing)?error.data.liveWorker.missing:[]),
-          ...(Array.isArray(error.data.missing)?error.data.missing:[])].filter(code=>typeof code==='string'&&code))];
+        const reported=Array.isArray(error.data.liveWorker?.missing)&&error.data.liveWorker.missing.length?error.data.liveWorker.missing:
+          Array.isArray(error.data.missing)?error.data.missing:[];
+        const missing=[...new Set(reported.filter(code=>typeof code==='string'&&code))];
         status.textContent=`The live worker is not ready (${(missing.length?missing:['live_wallet_worker_not_ready']).map(liveWorkerReasonLabel).join(' ')}) Nothing was queued. Request a new review when it is ready.`;
         void refreshLiveCapability();
       }else if(error?.status>=400&&error.status<500){

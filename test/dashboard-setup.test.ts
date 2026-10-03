@@ -140,7 +140,10 @@ it('admits only a fresh persisted live review when catalog and preview both expo
   assert.deepEqual(liveSetupAdmissionRequest({preflight,liveAdmission:true,requestId,now}),{available:true,payload:{
     reviewId:preflight.reviewPersistence.reviewId,reviewHash:preflight.reviewPersistence.reviewHash,requestId}});
   assert.equal(liveSetupAdmissionRequest({preflight,liveAdmission:false,requestId,now}).available,false);
-  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:true,requestId,now}).available,false);
+  // admissionAvailable records readiness when the review was taken; the current capability and the server's
+  // own check at POST time decide, so a review that outlived a worker outage can still be approved.
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:true,requestId,now}).available,true);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:false,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,executionEligible:true},liveAdmission:true,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,status:'unavailable'}},liveAdmission:true,requestId,now}).available,false);
   assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,expiresAt:new Date(now-1).toISOString()}},liveAdmission:true,requestId,now}).available,false);
