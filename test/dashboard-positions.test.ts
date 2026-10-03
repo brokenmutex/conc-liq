@@ -13,7 +13,7 @@ import {marketProfileSchema} from '../src/deployments/market-profile.js';
 import {contentHash} from '../src/deployments/contracts.js';
 import {referenceProofHash} from '../src/deployments/market-profile.js';
 import {RANGEKEEPER_PAPER_ACCOUNTING_POLICY} from '../src/deployments/paper-accounting.js';
-import {readDeploymentDetail} from '../src/dashboard/deployment-position.js';
+import {deploymentPosition,readDeploymentDetail} from '../src/dashboard/deployment-position.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
  sourceAt:at,observedAt:at,block:'1',action:'mark',status:'open',economicNavQuote:nav,holdQuote:'100000000',priceQuoteX18:'220000000000000000000',
@@ -240,6 +240,29 @@ test('RangeKeeper observed-flow accounting snapshot feeds provisional position a
   sparse=await makeDetail(snapshot,mark.provenance,[mark,sparseMark]),sparsePoint:any=sparse.performance.timeline.at(-1);
  assert.equal(sparsePoint.economicNavQuote,null);assert.equal(sparsePoint.holdQuote,null);
  assert.equal(sparsePoint.feesThisIntervalQuote,null);assert.equal(sparsePoint.referencePriceQuoteX18,null);
+ const priorSource={...source,block:'90',hash:`0x${'f'.repeat(64)}`,timestamp:now-300},
+  priorMark={...mark,id:'2',at:new Date(priorSource.timestamp*1000),source_block:priorSource.block,
+   source_hash:priorSource.hash,provenance:{...mark.provenance,source:priorSource}},
+  priorSnapshot={...snapshot,source:priorSource,sourceMarkId:priorMark.id},
+  latestSource={...source,block:'103',hash:`0x${'e'.repeat(64)}`,timestamp:source.timestamp+1},
+  pendingRow:any={...row,mark_id:'4',mark_at:new Date(latestSource.timestamp*1000),
+   source_block:latestSource.block,source_hash:latestSource.hash,
+   provenance:{...mark.provenance,source:latestSource},rangekeeper_accounting_snapshot:null,
+   rangekeeper_accounting_hash:null,rk_previous_mark_id:priorMark.id,rk_previous_mark_at:priorMark.at,
+   rk_previous_source_block:priorMark.source_block,rk_previous_source_hash:priorMark.source_hash,
+   rk_previous_inventory:priorMark.inventory,rk_previous_economics:priorMark.economics,
+   rk_previous_provenance:priorMark.provenance,rk_previous_accounting_snapshot:priorSnapshot,
+   rk_previous_accounting_hash:contentHash(priorSnapshot)};
+ const fallback=deploymentPosition(pendingRow);
+ assert.equal(fallback.navQuote,'123000000');
+ assert.equal(fallback.sourceAt,new Date(latestSource.timestamp*1000).toISOString(),
+  'the operational source remains the newest mark');
+ assert.equal(fallback.economicsSourceAt,new Date(priorSource.timestamp*1000).toISOString());
+ assert.equal(fallback.deployment.rangekeeper?.economicsPendingCurrentMark,true);
+ assert.equal(deploymentPosition({...pendingRow,rk_previous_provenance:{...priorMark.provenance,epoch:1}}).navQuote,null,
+  'a different epoch cannot provide the prior economic snapshot');
+ assert.equal(deploymentPosition({...pendingRow,rk_previous_invalidated_at:new Date()}).navQuote,null,
+  'invalidated accounting is never reused');
 });
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');

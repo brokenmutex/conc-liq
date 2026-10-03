@@ -32,6 +32,10 @@ interface DeploymentRow {
  operation_stage:string|null;operation_reason:string|null;operation_updated_at:Date|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
  rangekeeper_accounting_snapshot?:unknown;rangekeeper_accounting_hash?:string|null;
+ rk_previous_mark_id?:string|null;rk_previous_mark_at?:Date|null;rk_previous_source_block?:string|null;
+ rk_previous_source_hash?:string|null;rk_previous_inventory?:unknown;rk_previous_economics?:unknown;
+ rk_previous_provenance?:unknown;rk_previous_accounting_snapshot?:unknown;rk_previous_accounting_hash?:string|null;
+ rk_previous_invalidated_at?:Date|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
@@ -240,9 +244,19 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
     'rk_a.snapshot AS rangekeeper_accounting_snapshot,rk_a.snapshot_hash AS rangekeeper_accounting_hash,'+
+    'rk_previous.id::text AS rk_previous_mark_id,rk_previous.at AS rk_previous_mark_at,'+
+    'rk_previous.source_block::text AS rk_previous_source_block,rk_previous.source_hash AS rk_previous_source_hash,'+
+    'rk_previous.inventory AS rk_previous_inventory,rk_previous.economics AS rk_previous_economics,'+
+    'rk_previous.provenance AS rk_previous_provenance,rk_previous.snapshot AS rk_previous_accounting_snapshot,'+
+    'rk_previous.snapshot_hash AS rk_previous_accounting_hash,rk_previous.invalidated_at AS rk_previous_invalidated_at,'+
     'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash,':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
     'NULL::jsonb AS rangekeeper_accounting_snapshot,NULL::text AS rangekeeper_accounting_hash,'+
+    'NULL::text AS rk_previous_mark_id,NULL::timestamptz AS rk_previous_mark_at,'+
+    'NULL::text AS rk_previous_source_block,NULL::text AS rk_previous_source_hash,'+
+    'NULL::jsonb AS rk_previous_inventory,NULL::jsonb AS rk_previous_economics,'+
+    'NULL::jsonb AS rk_previous_provenance,NULL::jsonb AS rk_previous_accounting_snapshot,'+
+    'NULL::text AS rk_previous_accounting_hash,NULL::timestamptz AS rk_previous_invalidated_at,'+
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash,'}
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
@@ -255,6 +269,27 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    FROM deployment_marks WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
   LEFT JOIN LATERAL (SELECT sum(value_raw)::text AS initial_value FROM deployment_ledger
    WHERE campaign_id=c.id AND kind='capital_in') capital ON TRUE
+  ${hasAccounting?`LEFT JOIN LATERAL (SELECT pm.id,pm.at,pm.source_block,pm.source_hash,pm.inventory,pm.economics,
+   pm.provenance,pa.snapshot,pa.snapshot_hash,
+   ${hasInvalidations?`(SELECT i.recorded_at FROM deployment_paper_accounting_invalidations i
+    JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+    WHERE i.campaign_id=c.id AND bad.source_mark_id<=pm.id ORDER BY bad.source_mark_id LIMIT 1)`:'NULL::timestamptz'} AS invalidated_at
+   FROM deployment_marks pm JOIN deployment_paper_accounting pa ON pa.campaign_id=pm.campaign_id
+    AND pa.source_mark_id=pm.id AND pa.policy_version='rangekeeper_paper_observed_flow_v1'
+   WHERE pm.campaign_id=c.id AND pm.revision=c.current_revision AND pm.id<m.id AND
+    pm.at<=m.at AND pm.source_block IS NOT NULL AND m.source_block IS NOT NULL AND pm.source_block<=m.source_block AND
+    c.mode='paper' AND r.strategy_id='rangekeeper_v1' AND c.lifecycle='active' AND
+    COALESCE(pm.provenance->>'epoch',pm.provenance->'currentEpoch'->>'epoch','0')=
+     COALESCE(m.provenance->>'epoch',m.provenance->'currentEpoch'->>'epoch','0') AND
+    pm.provenance->>'classification' IN ('rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1') AND
+    (pm.inventory->'position'->>'liquidity')=(m.inventory->'position'->>'liquidity') AND
+    (pm.inventory->'position'->>'tickLower')=(m.inventory->'position'->>'tickLower') AND
+    (pm.inventory->'position'->>'tickUpper')=(m.inventory->'position'->>'tickUpper') AND
+    COALESCE((pm.inventory->'position'->>'liquidity')::numeric,0)>0
+    ${hasInvalidations?`AND NOT EXISTS(SELECT 1 FROM deployment_paper_accounting_invalidations i
+     JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+     WHERE i.campaign_id=c.id AND bad.source_mark_id<=pm.id)`:''}
+   ORDER BY pm.id DESC LIMIT 1) rk_previous ON TRUE`:''}
   LEFT JOIN LATERAL (SELECT id,kind,status,stage,reason,updated_at FROM deployment_operations
    WHERE campaign_id=c.id AND (c.lifecycle<>'blocked' OR status='blocked')
    ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
@@ -294,8 +329,28 @@ export function deploymentPosition(row:DeploymentRow){
   conversionClose=isConvertedClose(provenance),
   conversionModel=row.mode==='paper'&&conversionClose?
    conversionAccounting(row,row.id,row.runtime_identity):null,
-  rangeKeeperModel=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1'?
+  latestRangeKeeperModel=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1'?
    rangeKeeperAccounting(row,row.id,profile):null,
+  previousMarkBounded=decimal(row.rk_previous_mark_id)!==null&&decimal(row.mark_id)!==null&&
+   BigInt(String(row.rk_previous_mark_id))<BigInt(String(row.mark_id))&&
+   decimal(row.rk_previous_source_block)!==null&&decimal(row.source_block)!==null&&
+   BigInt(String(row.rk_previous_source_block))<=BigInt(String(row.source_block))&&
+   row.rk_previous_mark_at instanceof Date&&row.mark_at instanceof Date&&row.rk_previous_mark_at<=row.mark_at,
+  previousMarkRow:DeploymentRow|null=previousMarkBounded&&row.rk_previous_mark_id&&row.rk_previous_mark_at&&
+   row.rk_previous_source_block&&row.rk_previous_source_hash?{...row,mark_id:row.rk_previous_mark_id,
+    mark_at:row.rk_previous_mark_at,source_block:row.rk_previous_source_block,source_hash:row.rk_previous_source_hash,
+    inventory:row.rk_previous_inventory,economics:row.rk_previous_economics,provenance:row.rk_previous_provenance,
+    rangekeeper_accounting_snapshot:row.rk_previous_accounting_snapshot,
+    rangekeeper_accounting_hash:row.rk_previous_accounting_hash,
+    accounting_invalidated_at:row.rk_previous_invalidated_at??null,
+    accounting_invalidation_reason:row.rk_previous_invalidated_at?'previous_accounting_invalidated':null}:null,
+  previousRangeKeeperModel=!latestRangeKeeperModel&&row.rangekeeper_accounting_snapshot==null&&
+   !row.accounting_invalidated_at&&previousMarkRow?
+   rangeKeeperAccounting(previousMarkRow,row.id,profile):null,
+  previousSnapshotUsable=previousRangeKeeperModel!==null&&previousRangeKeeperModel.reference.eligible===true&&
+   Date.now()-previousRangeKeeperModel.source.timestamp*1000>0,
+  rangeKeeperModel=latestRangeKeeperModel??(previousSnapshotUsable?previousRangeKeeperModel:null),
+  economicsFallback=rangeKeeperModel!==null&&rangeKeeperModel===previousRangeKeeperModel,
   model=row.mode==='paper'?(rangeKeeperModel??(conversionClose?conversionModel:accounting(row,row.id))):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
@@ -357,6 +412,8 @@ export function deploymentPosition(row:DeploymentRow){
   drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
   sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,
+  economicsSourceAt:economicsFallback&&rangeKeeperModel?
+   new Date(rangeKeeperModel.source.timestamp*1000).toISOString():null,
   invalidatedAt:row.accounting_invalidated_at?.toISOString()??null,
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
@@ -382,7 +439,9 @@ export function deploymentPosition(row:DeploymentRow){
      source_block:row.source_block,source_hash:row.source_hash,inventory:row.inventory,
      economics:row.economics,provenance:row.provenance}):null,
     latestClassification:provenance.classification??null,
-    recenterAvailable:false}:null,
+    recenterAvailable:false,...(economicsFallback?{economicsPendingCurrentMark:true,
+     economicsMarkId:row.rk_previous_mark_id,
+     economicsSourceAt:new Date(rangeKeeperModel!.source.timestamp*1000).toISOString()}:{} )}:null,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
    conversionAccountingStatus:conversionClose?(conversionModel?'available':'unavailable'):'not_applicable',
