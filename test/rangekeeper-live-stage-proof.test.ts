@@ -66,3 +66,14 @@ it('stale observations and mismatched pre-stage sources never produce an admissi
  assert.throws(()=>buildRangeKeeperLiveStageEvidence(r,{...measurement,now:1_090_000}),/stale/);
  assert.throws(()=>buildRangeKeeperLiveStageEvidence({...r,source:{...r.source,block:101n}},measurement),/source differs/);
 });
+
+it('a retained exit stays reachable when the discretionary action budget is exhausted but remains bounded by its native allocation',()=>{
+ const {r,measurement}=fixture(),allocation={...r.allocation,nativeSpendWei:200_000n,exitReserveWei:100_000n};
+ const tight={...r,allocation,config:{...r.config,limits:{...r.config.limits,maxActionCost:1n}},
+  plan:{kind:'approve',token:0,spender:'positionManager',amount:0n} as const};
+ assert.throws(()=>buildRangeKeeperLiveStageEvidence(tight,measurement),/action budget/,'a discretionary stage obeys the action budget');
+ const exit=buildRangeKeeperLiveStageEvidence({...tight,exitSpendAllowed:true},measurement);
+ assert.equal(exit.exitSpendAllowed,true);assert(BigInt(exit.costValue)>1n);
+ assert.throws(()=>buildRangeKeeperLiveStageEvidence({...tight,exitSpendAllowed:true,allocation:{...allocation,nativeSpendWei:1n,exitReserveWei:1n}},measurement),
+  /scoped native allocation/,'the exit is still bounded by the native funds scoped to it');
+});

@@ -37,6 +37,31 @@ export interface LiveWalletQueueAdapters {
 }
 const terminal=new Set<LiveJobStatus>(['succeeded','rejected','blocked','cancelled']);
 const lower=(s:string)=>s.toLowerCase();
+const EXIT_KINDS=['pause','resume','close_retain','close_convert'];
+/** Parked or blocked work is retried no sooner than this after it last yielded the wallet. */
+const PARKED_RETRY_SECONDS=30;
+/** Unresolved wallet transactions: an unsigned intent, signed bytes without a canonical receipt, or a blocked row. */
+const UNRESOLVED_OUTBOX_SQL=`EXISTS(SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND
+ (status IN('prepared','signed','blocked') OR (signed_raw IS NOT NULL AND canonical_receipt_json IS NULL)))`;
+export interface LiveWalletLane {
+ /** A job is between or inside stages and owns the wallet until it finishes, yields or blocks. */
+ inflight:boolean;
+ /** A transaction may exist whose canonical outcome is not yet attributed; the nonce lane is not clean. */
+ unresolved:boolean;
+ /** The named campaign already has queued, running or blocked queue work. */
+ campaignWork:boolean;
+}
+/** Observation writers and management admission may proceed beside queued work and campaign-local blocked work
+ * that holds no unresolved transaction, but never beside an in-flight job or an unresolved transaction. */
+export async function readLiveWalletLane(db:Pick<Pool|PoolClient,'query'>,wallet:LiveWalletIdentity,campaignId?:string):Promise<LiveWalletLane>{
+ const row=(await db.query<any>(`SELECT
+  EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2 AND status IN('preflighting','executing','confirming','reconciling')) AS inflight,
+  ${UNRESOLVED_OUTBOX_SQL} AS unresolved,
+  ($3::uuid IS NOT NULL AND EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2 AND campaign_id=$3::uuid AND
+   status IN('queued','preflighting','executing','confirming','reconciling','blocked'))) AS campaign_work`,
+  [wallet.chainId,lower(wallet.address),campaignId??null])).rows[0];
+ return {inflight:row?.inflight===true,unresolved:row?.unresolved===true,campaignWork:row?.campaign_work===true};
+}
 /** NFT custody uses a canonical lowercase key even when trusted ABI/config
  * evidence carries the checksummed address spelling. */
 export function normalizeLiveCustodyPositionManager(value:string):string{
@@ -116,13 +141,10 @@ export class LiveWalletQueue {
    const walletState=(await c.query<any>(`SELECT generation,status,source_block,source_hash,source_timestamp,commitments_hash
     FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2 FOR UPDATE`,[input.chainId,w])).rows[0];
    assert(walletState?.status==='available','Live wallet is unavailable');
-   const busy=(await c.query<any>(`SELECT
-    EXISTS(SELECT 1 FROM deployment_live_jobs WHERE chain_id=$1 AND wallet=$2 AND status IN
-      ('queued','preflighting','executing','confirming','reconciling','blocked')) AS jobs,
-    EXISTS(SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND
-      (status IN('prepared','signed','blocked') OR (signed_raw IS NOT NULL AND canonical_receipt_json IS NULL))) AS outbox`,
-     [input.chainId,w])).rows[0];
-   assert(!busy?.jobs&&!busy?.outbox,'Management admission requires an idle wallet queue');
+   // Siblings may have queued or campaign-local blocked work; only an in-flight job, an unresolved
+   // transaction, or pending work for this same campaign makes the frozen review unsafe to admit.
+   const lane=await readLiveWalletLane(c,input,input.campaignId);
+   assert(!lane.inflight&&!lane.unresolved&&!lane.campaignWork,'Management admission requires a quiescent wallet queue');
    const campaign=(await c.query<any>(`SELECT c.lifecycle,c.current_revision,c.market_profile_id,p.profile_hash,
     r.strategy_id,r.config revision_config,r.config_hash revision_config_hash,a.state allocation_state,a.allocation_hash,
     m.config_hash,m.state_hash,m.state_revision
@@ -163,36 +185,56 @@ export class LiveWalletQueue {
   });
  }
 
- /** Expired active work always resumes before a new operation. Within queued work, exits win and campaigns rotate to the FIFO tail. */
+ /** Expired active work always resumes before a new operation. Within queued work, exits win and campaigns rotate to the FIFO tail.
+  * A campaign-local block (no unresolved transaction) yields the single active slot to waiting sibling work. */
  async claimNext(wallet:LiveWalletIdentity,leaseMs=30_000,retry=0):Promise<{job:LiveJob;leaseToken:string;outbox:LiveOutbox|null}|null>{
   assert(Number.isInteger(leaseMs)&&leaseMs>=1000&&leaseMs<=300_000);
   try{return await withLiveWalletTransaction(this.pool,wallet,async c=>{
    const w=lower(wallet.address),active=(await c.query<any>(`${selectJob} WHERE chain_id=$1 AND wallet=$2 AND status IN('preflighting','executing','confirming','reconciling','blocked') ORDER BY updated_at LIMIT 1 FOR UPDATE`,[wallet.chainId,w])).rows[0];
-   let row=active;
-   if(active){
+   const queuedPick=async(excludeCampaign:string|null)=>(await c.query<any>(`${selectJob} WHERE chain_id=$1 AND wallet=$2 AND status='queued'
+     AND ($3::uuid IS NULL OR campaign_id<>$3::uuid) AND (attempt=0 OR updated_at<=clock_timestamp()-($4::text||' seconds')::interval)
+     ORDER BY CASE WHEN kind IN('pause','resume','close_retain','close_convert') THEN 0 ELSE 1 END,priority DESC,fairness_sequence LIMIT 1 FOR UPDATE SKIP LOCKED`,
+     [wallet.chainId,w,excludeCampaign,String(PARKED_RETRY_SECONDS)])).rows[0];
+   const walletAvailable=async()=>(await c.query<any>(`SELECT status FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2`,[wallet.chainId,w])).rows[0]?.status==='available';
+   let row=active,yielded=false;
+   if(active?.status==='blocked'&&await walletAvailable()){
+    const unresolved=(await c.query<any>(`SELECT ${UNRESOLVED_OUTBOX_SQL} AS yes`,[wallet.chainId,w])).rows[0]?.yes===true;
+    if(!unresolved){
+     // Nothing is signed or prepared, so the block is local to this campaign. Exits outrank a discretionary block;
+     // otherwise a blocked job gives way to any other campaign's work and returns behind it.
+     const sibling=await queuedPick(active.campaign_id);
+     if(sibling&&(EXIT_KINDS.includes(sibling.kind)||!EXIT_KINDS.includes(active.kind))){
+      await c.query(`UPDATE deployment_live_jobs SET status='queued',lease_token=NULL,lease_until=NULL,completed_at=NULL,
+       fairness_sequence=nextval(pg_get_serial_sequence('deployment_live_jobs','fairness_sequence')),updated_at=clock_timestamp() WHERE id=$1`,[active.id]);
+      row=sibling;yielded=true;
+     }
+    }
+   }
+   if(active&&!yielded){
     if(active.status==='blocked'&&!active.lease_token){
      const pending=(await c.query<any>(`SELECT * FROM deployment_live_stage_outbox WHERE job_id=$1 AND status IN('prepared','signed','blocked') ORDER BY created_at DESC LIMIT 1`,[active.id])).rows[0];
      if(!pending)return null;
     } else if(active.lease_until&&new Date(active.lease_until).valueOf()>Date.now())return null;
-   } else {
-    const walletState=(await c.query<any>(`SELECT status FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2`,[wallet.chainId,w])).rows[0];
-    if(walletState?.status!=='available')return null;
-    row=(await c.query<any>(`${selectJob} WHERE chain_id=$1 AND wallet=$2 AND status='queued'
-      ORDER BY CASE WHEN kind IN('pause','resume','close_retain','close_convert') THEN 0 ELSE 1 END,priority DESC,fairness_sequence LIMIT 1 FOR UPDATE SKIP LOCKED`,[wallet.chainId,w])).rows[0];
+   } else if(!active) {
+    if(!await walletAvailable())return null;
+    row=await queuedPick(null);
     if(!row)return null;
    }
    const token=randomUUID(),status:LiveJobStatus=row.status==='queued'?'preflighting':row.status==='blocked'?'reconciling':row.status;
    const r=await c.query<any>(`UPDATE deployment_live_jobs SET status=$2,lease_token=$3,lease_until=clock_timestamp()+($4::text||' milliseconds')::interval,
     attempt=attempt+1,updated_at=clock_timestamp(),completed_at=NULL WHERE id=$1 RETURNING *`,[row.id,status,token,leaseMs]);
    // Fairness: move other queued jobs from this campaign behind peers after it receives a turn.
-   if(!active)await c.query(`UPDATE deployment_live_jobs SET fairness_sequence=nextval(pg_get_serial_sequence('deployment_live_jobs','fairness_sequence'))
+   if(!active||yielded)await c.query(`UPDATE deployment_live_jobs SET fairness_sequence=nextval(pg_get_serial_sequence('deployment_live_jobs','fairness_sequence'))
      WHERE chain_id=$1 AND wallet=$2 AND campaign_id=$3 AND id<>$4 AND status='queued'`,[wallet.chainId,w,row.campaign_id,row.id]);
    const pending=(await c.query<any>(`SELECT * FROM deployment_live_stage_outbox WHERE job_id=$1 AND status<>'cancelled' ORDER BY created_at DESC LIMIT 1`,[row.id])).rows[0];
    return {job:job(r.rows[0]),leaseToken:token,outbox:pending?outbox(pending):null};
   });}catch(error){if(retry<3&&(error as {code?:string})?.code==='40001')return this.claimNext(wallet,leaseMs,retry+1);throw error;}
  }
 
- async transition(wallet:LiveWalletIdentity,id:string,token:string,status:Extract<LiveJobStatus,'executing'|'confirming'|'reconciling'|'blocked'|'rejected'>,resumeStage?:string){
+ /** `retryAfterMs` re-times a blocked job's retained lease so it is retried soon after a transient condition
+  * instead of waiting out the whole worker lease; ownership is unchanged. */
+ async transition(wallet:LiveWalletIdentity,id:string,token:string,status:Extract<LiveJobStatus,'executing'|'confirming'|'reconciling'|'blocked'|'rejected'>,resumeStage?:string,retryAfterMs?:number){
+  assert(retryAfterMs===undefined||(status==='blocked'&&Number.isInteger(retryAfterMs)&&retryAfterMs>=0&&retryAfterMs<=300_000),'Retry delay applies only to a blocked job');
   return withLiveWalletTransaction(this.pool,wallet,async c=>{const current=await owned(c,wallet,id,token);
    assert(!terminal.has(current.status)||current.status==='blocked');
    if(status==='rejected'){
@@ -201,8 +243,9 @@ export class LiveWalletQueue {
     assert(unsafe===false,'A signed, unresolved, or unreconciled action cannot be rejected');
    }
    const completed=['blocked','rejected'].includes(status);
-   const r=await c.query<any>(`UPDATE deployment_live_jobs SET status=$4,resume_stage=coalesce($5,resume_stage),completed_at=CASE WHEN $6 THEN clock_timestamp() ELSE NULL END,updated_at=clock_timestamp()
-    WHERE id=$1 AND wallet=$2 AND lease_token=$3 RETURNING *`,[id,lower(wallet.address),token,status,resumeStage??null,completed]);assert.equal(r.rowCount,1);return job(r.rows[0]);});
+   const retrySql=retryAfterMs===undefined?'':",lease_until=clock_timestamp()+($7::text||' milliseconds')::interval";
+   const r=await c.query<any>(`UPDATE deployment_live_jobs SET status=$4,resume_stage=coalesce($5,resume_stage),completed_at=CASE WHEN $6 THEN clock_timestamp() ELSE NULL END,updated_at=clock_timestamp()${retrySql}
+    WHERE id=$1 AND wallet=$2 AND lease_token=$3 RETURNING *`,[id,lower(wallet.address),token,status,resumeStage??null,completed,...(retryAfterMs===undefined?[]:[String(retryAfterMs)])]);assert.equal(r.rowCount,1);return job(r.rows[0]);});
  }
 
  /** The persisted before image must bind the observed generation and the exact wallet/allocation snapshot. */
@@ -368,13 +411,16 @@ export class LiveWalletQueue {
    assert(proof.allocationHash===allocation.allocation_hash,'Cleanup allocation hash mismatch');
    assert(String(proof.source.block)===String(state.source_block)&&proof.source.hash.toLowerCase()===String(state.source_hash).toLowerCase()&&
     proof.source.timestamp===Number(state.source_timestamp),'Cleanup evidence source is not the persisted wallet source');
-   assert(current.kind.startsWith('close_')?proof.custodyState==='closed_empty':proof.custodyState==='managed',
+   // A recenter that settled into a retained exit finishes as a close; its cleanup adapter proves that from campaign state.
+   assert(current.kind.startsWith('close_')?proof.custodyState==='closed_empty':
+    proof.custodyState==='managed'||current.kind==='change_range'&&proof.custodyState==='closed_empty',
     'Job-specific terminal custody proof is missing');
    const unresolved=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status IN('prepared','signed','blocked')`,[id])).rows[0].n;
    assert.equal(unresolved,0,'Pending or unknown action owns wallet');
    const walletPending=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND status IN('prepared','signed','blocked')`,[wallet.chainId,lower(wallet.address)])).rows[0].n;
    assert.equal(walletPending,0,'Another wallet action remains unresolved');
-   const badReceipt=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status<>'confirmed'`,[id])).rows[0].n;
+   // A cancelled unsigned intent never reached the chain; it is superseded by a replacement stage.
+   const badReceipt=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status NOT IN('confirmed','cancelled')`,[id])).rows[0].n;
    assert.equal(badReceipt,0,'Only successfully reconciled actions can finish');
    const finalStage=(await c.query<any>(`SELECT stage FROM deployment_live_stage_outbox WHERE job_id=$1 AND status='confirmed' ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,[id])).rows[0];
    assert(finalStage,'No canonical transaction receipt exists for this job');

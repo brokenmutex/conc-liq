@@ -8,6 +8,7 @@ import {readCanonicalPaperOpenFrame,type PaperOpenFrame} from './paper-preview.j
 import {rangeKeeperPinnedSemanticProofHash} from './rangekeeper-live-review-runtime.js';
 import type {RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import type {RangeKeeperLiveManagementReviewPayload} from './rangekeeper-live-campaign.js';
+import {isRangeKeeperRetainedExit} from './rangekeeper-live-campaign.js';
 import {parseRangeKeeperJson,rangeKeeperJson} from '../strategy/rangekeeper/live-domain.js';
 import {readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
 import {marketProfileSchema} from './market-profile.js';
@@ -128,9 +129,10 @@ export function createRangeKeeperLivePreparedIntentVerifier(input:{pool:Pool;cli
      !/^[0-9a-f]{64}$/.test(transition.after_state_hash))return false;
     const current=campaign.state;
     if(!current)return false;
+    // A recenter that can no longer complete settles into a retained exit and its job continues as that exit.
     if(job.kind==='change_range'){
-     if(current.phase!=='recenter'&&current.phase!=='holding')return false;
-    }else if(current.phase!=='exit'||current.desired!=='stopped'||current.exitMode!=='retain')return false;
+     if(current.phase!=='recenter'&&current.phase!=='holding'&&!isRangeKeeperRetainedExit(current))return false;
+    }else if(!isRangeKeeperRetainedExit(current))return false;
    }
    const walletState=await readWalletState(input.pool,input.wallet),commitments=await readCommitments(input.pool,input.wallet),before=outbox.before as any;
    if(walletState.status!=='available'||!walletState.source||walletState.generation!==Number(before.walletGeneration)||

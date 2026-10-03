@@ -138,10 +138,21 @@ export function deriveRangeKeeperLiveClosedState(state:RangeKeeperLiveState,sour
  next.lastReason='retain_close_complete';next.last={...next.last,source:{block:BigInt(source.block),hash:source.hash as `0x${string}`,timestamp:source.timestamp}};
  return next;
 }
-export function deriveRangeKeeperStage(plan:RangeKeeperTxPlan,stateRevision=0):string{
+/** `retry` counts this job's cancelled unsigned intents: a cancelled outbox row keeps its (job,stage) key,
+ * so the replacement stage for the identical plan needs a distinct, deterministic identity. */
+export function deriveRangeKeeperStage(plan:RangeKeeperTxPlan,stateRevision=0,retry=0):string{
  assert(Number.isSafeInteger(stateRevision)&&stateRevision>=0,'Invalid campaign state revision for stage identity');
- return `${plan.kind}:${liveSetupEvidenceHash({plan,stateRevision}).slice(0,32)}`;
+ assert(Number.isSafeInteger(retry)&&retry>=0&&retry<=9999,'Invalid stage retry counter');
+ return `${plan.kind}:${liveSetupEvidenceHash({plan,stateRevision}).slice(0,32)}${retry>0?`:r${retry}`:''}`;
 }
+/** A retained exit is the only state in which the exit reserve is spendable, whichever job kind carries it. */
+export const isRangeKeeperRetainedExit=(state:Pick<RangeKeeperLiveState,'phase'|'desired'|'exitMode'>|null|undefined)=>
+ !!state&&state.phase==='exit'&&state.desired==='stopped'&&state.exitMode==='retain';
+/** A recenter whose withdrawal is reconciled but whose replacement range was discarded as stale. It owns loose
+ * inventory only; the next range must be re-planned from fresh canonical observations. */
+export const isRangeKeeperAwaitingReplan=(state:RangeKeeperLiveState|null|undefined)=>
+ !!state&&state.phase==='recenter'&&state.desired==='running'&&state.withdrawDone&&!state.swapDone&&
+ state.activeTokenId===null&&state.candidate===null;
 /** Cap a whole-wallet pool snapshot to this campaign's remaining liquid and
  * native spend. The canonical snapshot itself stays intact for fork proof. */
 export function deriveRangeKeeperCampaignStageSnapshot(campaign:RangeKeeperLiveCampaign,snapshot:RangeKeeperSnapshot):RangeKeeperSnapshot{
@@ -168,6 +179,8 @@ export interface PrepareRangeKeeperLiveStageInput {
  campaign:RangeKeeperLiveCampaign;snapshot:RangeKeeperSnapshot;source:LiveWalletSource;references:RangeKeeperStageReferences;
  chain:RangeKeeperChain;verifyReferences:(references:RangeKeeperStageReferences)=>Promise<boolean>;
  walletBefore:RangeKeeperStageWalletBefore;stage:string;proposedPlan:RangeKeeperTxPlan;intent:PilotIntent;exitSpendAllowed?:boolean;
+ /** Cancelled unsigned intents already recorded for this job. */
+ stageRetry?:number;
 }
 export interface AuthorizedRangeKeeperLiveStage {
  intent:PilotIntent;plan:RangeKeeperTxPlan;pool:RangeKeeperConfig['pool'];
@@ -216,7 +229,7 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
  const plan=await nextRangeKeeperStage(c.state,strategySnapshot,c.config,input.chain,
   {price0:input.references.price0,price1:input.references.price1});
  assert(plan,'No RangeKeeper stage is currently authorized');
- const stage=deriveRangeKeeperStage(plan,c.stateRevision);assert.equal(input.stage,stage,'Caller stage differs from derived strategy stage');
+ const stage=deriveRangeKeeperStage(plan,c.stateRevision,input.stageRetry??0);assert.equal(input.stage,stage,'Caller stage differs from derived strategy stage');
  assert(sameRangeKeeperPlan(plan,input.proposedPlan),'Caller plan differs from persisted strategy state');
  const allocation={campaignId:c.id,liquidByTokenAddress:c.allocation.liquidByTokenAddress,nativeSpendWei:c.allocation.nativeSpendWei,
   exitReserveWei:c.allocation.exitReserveWei,nftTokenIds:c.allocation.nftTokenIds};
@@ -258,17 +271,21 @@ export async function authorizeRangeKeeperLiveStage(input:PrepareRangeKeeperLive
  const actionStart=c.state!.actionStartCostIndex;
  assert(Number.isSafeInteger(actionStart)&&actionStart>=0&&actionStart<=c.state!.costEvents.length,
   'Campaign action-cost cursor is invalid');
- const actionCost=c.state!.costEvents.slice(actionStart).reduce<bigint|null>((sum,event)=>
-  sum===null||event.gasValue===null||event.swapFeeValue===null||event.swapShortfallValue===null?null:
-   sum+event.gasValue+event.swapFeeValue+event.swapShortfallValue,0n);
- assert(actionCost!==null&&actionCost+stageCost<=c.config.limits.maxActionCost,
-  'Owned-fork stage exceeds per-action cost policy');
- const cumulative=c.state!.costEvents.reduce<bigint|null>((sum,event)=>
-  sum===null||event.gasValue===null||event.swapFeeValue===null||event.swapShortfallValue===null?null:
-   sum+event.gasValue+event.swapFeeValue+event.swapShortfallValue,0n);
- assert(cumulative!==null,'Campaign has incomplete prior cost evidence');
- assert(cumulative+stageCost<=BigInt(c.config.limits.maxCampaignCost)&&
-  cumulative+stageCost<=BigInt(c.config.limits.maxRollingCost),'Owned-fork stage exceeds cumulative campaign cost policy');
+ // Cost policy bounds discretionary actions. A retained exit is bounded by the scoped exit reserve above and
+ // must stay reachable when the campaign budget is exhausted or an earlier receipt could not be valued.
+ if(!retainedExit){
+  const actionCost=c.state!.costEvents.slice(actionStart).reduce<bigint|null>((sum,event)=>
+   sum===null||event.gasValue===null||event.swapFeeValue===null||event.swapShortfallValue===null?null:
+    sum+event.gasValue+event.swapFeeValue+event.swapShortfallValue,0n);
+  assert(actionCost!==null&&actionCost+stageCost<=c.config.limits.maxActionCost,
+   'Owned-fork stage exceeds per-action cost policy');
+  const cumulative=c.state!.costEvents.reduce<bigint|null>((sum,event)=>
+   sum===null||event.gasValue===null||event.swapFeeValue===null||event.swapShortfallValue===null?null:
+    sum+event.gasValue+event.swapFeeValue+event.swapShortfallValue,0n);
+  assert(cumulative!==null,'Campaign has incomplete prior cost evidence');
+  assert(cumulative+stageCost<=BigInt(c.config.limits.maxCampaignCost)&&
+   cumulative+stageCost<=BigInt(c.config.limits.maxRollingCost),'Owned-fork stage exceeds cumulative campaign cost policy');
+ }
  if(plan.kind==='mint')assert(c.config.campaignScope.maxEconomicActions===0||c.state!.economicActions<c.config.campaignScope.maxEconomicActions,
   'Campaign economic action count is exhausted');
  const semanticWallet={operator:strategySnapshot.operator,wallet0:strategySnapshot.wallet0,wallet1:strategySnapshot.wallet1,tick:strategySnapshot.tick,

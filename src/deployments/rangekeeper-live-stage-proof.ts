@@ -91,7 +91,8 @@ export function buildRangeKeeperLiveStageEvidence(r:RangeKeeperLiveStageProofReq
   swapCost=feeValue+shortfall;
  }
  const cost=ceil(gasWei*r.prices.nativePrice,10n**18n)+swapCost;
- assert(cost<=r.config.limits.maxActionCost,'Stage cost exceeds reviewed action budget');
+ // A retained exit is bounded by its scoped native allocation above, never by discretionary action budgets.
+ if(r.exitSpendAllowed!==true)assert(cost<=r.config.limits.maxActionCost,'Stage cost exceeds reviewed action budget');
  const now=measurement.now??Date.now(),expiresAt=Math.min(now+90_000,
   (r.source.timestamp+r.config.limits.maxObservationGapSeconds)*1000);
  assert(expiresAt>now,'Stage canonical observation is stale');
