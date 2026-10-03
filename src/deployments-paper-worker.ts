@@ -192,7 +192,7 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
       }
       const existingAccounting=await recordRangeKeeperEconomics();
       if(existingAccounting.invalidated){invalidated++;continue;}
-      if(existingAccounting.backlog>0){
+      if(existingAccounting.backlog>0||existingAccounting.changed){
        log('info','rangekeeper_paper_accounting_catchup',{campaignId:campaign.id,
         backlog:existingAccounting.backlog});
        continue;

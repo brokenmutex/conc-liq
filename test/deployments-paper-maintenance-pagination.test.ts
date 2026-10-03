@@ -83,7 +83,7 @@ test('preparation exclusive lease skips maintenance mutations after canonical au
  assert.equal(sharedLockAttempts.length,1);assert.deepEqual(writes,[]);
 });
 
-test('RangeKeeper catches up within its budget before creating another observation',async()=>{
+test('RangeKeeper catch-up preserves a completed economic endpoint before another observation',async()=>{
  const campaign:PaperCampaignRow={id:'ffffffff-0000-4000-8000-000000000000',
   lifecycle:'active',strategy_id:'rangekeeper_v1'};
  let projected=0,automatic=0,selected=false;
@@ -97,7 +97,7 @@ test('RangeKeeper catches up within its budget before creating another observati
   async auditPaperAccounting(){return {alreadyInvalidated:false,invalidated:[]};},
   async rangeKeeperPaperFeeSamplingState(){return null;},
   async recordNextRangeKeeperPaperAccounting(){projected++;return {markId:String(projected),snapshotHash:'a'.repeat(64)};},
-  async rangeKeeperPaperAccountingBacklog(){return 5;},
+  async rangeKeeperPaperAccountingBacklog(){return 0;},
  } as unknown as DeploymentStore;
  const chain={getChainId:async()=>4663} as unknown as RobinhoodClient;
  const result=await runPaperMaintenancePass(store,chain,indexer,1,2,false,
