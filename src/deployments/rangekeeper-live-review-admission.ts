@@ -3,7 +3,7 @@ import type {Pool} from 'pg';
 import {ROBINHOOD_CHAIN_ID} from '../constants.js';
 import {contentHash,rangeKeeperLimitsSchema} from './contracts.js';
 import {parseRangeKeeperConfig,rangeKeeperConfigHash} from '../strategy/rangekeeper/config.js';
-import {consumeReviewAndReserve as consumeStoreReviewAndReserve,lookupLiveJobByRequest,
+import {consumeReviewAndReserve as consumeStoreReviewAndReserve,liveWalletSourceNotBefore,lookupLiveJobByRequest,
  readReview as readStoreReview,readWalletState as readStoreWalletState,recordReview as recordStoreReview} from './live-wallet-store.js';
 
 const hash=z.string().regex(/^[a-f0-9]{64}$/);
@@ -230,8 +230,7 @@ export async function recordRangeKeeperLiveSetupReview(input:{wallet:string;revi
  let state:RangeKeeperLiveWalletState|null;
  try{state=await deps.readWalletState(input.wallet);}catch{return unavailable('live_wallet_state_unavailable');}
  if(!state||state.status!=='available'||!state.source||state.wallet.toLowerCase()!==input.wallet.toLowerCase()||
-  state.source.block!==payload.source.block||state.source.hash.toLowerCase()!==payload.source.hash.toLowerCase()||
-  state.source.timestamp!==payload.source.timestamp||state.commitmentsHash!==payload.wallet.commitmentsHash||
+  !liveWalletSourceNotBefore(state.source,payload.source)||state.commitmentsHash!==payload.wallet.commitmentsHash||
   !state.snapshotHash||!hash.safeParse(state.snapshotHash).success||!raw(state.generation)||BigInt(state.generation)<=0n||
   state.nonce!==payload.wallet.nonce||state.pendingNonce!==payload.wallet.nonce||
   state.nativeBalanceWei!==payload.wallet.native.balanceWei||
@@ -293,11 +292,16 @@ export async function admitRangeKeeperLiveSetup(rawInput:unknown,deps:{
   return unavailable('live_setup_review_expiry_exceeds_candidate');
  let state:RangeKeeperLiveWalletState|null;
  try{state=await deps.readWalletState(deps.wallet);}catch{return unavailable('live_wallet_state_unavailable');}
+ // Generation is a wallet content version, so equality plus matching commitments/nonce proves nothing the review
+ // depends on changed. The persisted source may only have advanced; it must not move backwards, fork, or be non-canonical.
  if(!state||state.status!=='available'||state.wallet.toLowerCase()!==deps.wallet.toLowerCase()||
   state.generation!==record.walletGeneration||state.commitmentsHash!==record.commitmentsHash||
-  !state.source||!equalSource(state.source,payload.source)||state.nonce!==payload.wallet.nonce||
+  !state.source||!liveWalletSourceNotBefore(state.source,payload.source)||state.nonce!==payload.wallet.nonce||
   state.pendingNonce!==payload.wallet.nonce)
   return unavailable('live_wallet_changed_since_review');
+ if(!equalSource(state.source,payload.source)){
+  try{await deps.verifyCanonical(state.source);}catch{return unavailable('live_wallet_changed_since_review');}
+ }
  let fresh:RangeKeeperLiveSetupPayload;
  try{fresh=validatedPayload(await deps.revalidatePinned(payload)) as RangeKeeperLiveSetupPayload;
   if(!fresh)return unavailable('fresh_live_setup_revalidation_unavailable');}
