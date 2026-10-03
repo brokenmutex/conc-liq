@@ -12,6 +12,8 @@ export interface RangeKeeperCostEvent {hash:Hex;block:bigint;timestamp:number;ga
 export interface RangeKeeperLiveState {
  version:1;id:string;operator:Address;configHash:Hex;buildId:string;
  phase:RangeKeeperPhase;desired:'running'|'stopped';haltReason:string|null;
+ /** Explicit close mode; absent/null preserves the legacy exit-and-convert policy. */
+ exitMode?:'retain'|'convert'|null;
  createdAt:number;expiresAt:number;economicActions:number;recenters:number;
  policy:RangeKeeperState;last:RangeKeeperSnapshot;activeTokenId:bigint|null;
  retiredTokenIds:string[];legacyNftCount:bigint;

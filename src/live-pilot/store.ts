@@ -4,6 +4,7 @@ import pg,{type PoolClient} from 'pg';
 import type {Hex} from 'viem';
 import {json,type PilotState,type PilotAction,type PilotPlan,type PilotSnapshot} from './domain.js';
 import {verifyPilotSignature,type PilotIntent} from './journal.js';
+import {assertNoSharedRangeKeeperWalletOwnership} from '../strategy/rangekeeper/live-store.js';
 
 /** Live ledger v1. Independent of paper schema/runtime migrations. */
 export class PilotStore {
@@ -29,7 +30,9 @@ export class PilotStore {
  async locked<T>(operator:string,work:(db:PoolClient)=>Promise<T>):Promise<T>{
   const db=await this.pool.connect(),key=`conc-liq-live:4663:${operator.toLowerCase()}`;
   try{const got=(await db.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS locked',[key])).rows[0].locked;
-   assert(got,'Another live controller holds this wallet');try{return await work(db);}finally{await db.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key]);}
+   assert(got,'Another live controller holds this wallet');
+   try{await assertNoSharedRangeKeeperWalletOwnership(db,operator);return await work(db);}
+   finally{await db.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key]);}
   }finally{db.release();}
  }
  async create(db:PoolClient,state:PilotState,config:unknown){await db.query(`INSERT INTO ${this.schema}.campaigns(id,operator,state,config) VALUES($1,$2,$3,$4)`,[state.id,state.operator.toLowerCase(),json(state),json(config)]);}

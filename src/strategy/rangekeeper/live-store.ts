@@ -5,6 +5,19 @@ import {verifyPilotSignature,type PilotIntent} from '../../live-pilot/journal.js
 import {rangeKeeperJson,parseRangeKeeperJson,type RangeKeeperLiveAction,type RangeKeeperLiveState,type RangeKeeperSnapshot} from './live-domain.js';
 import type {RangeKeeperTxPlan} from './calldata.js';
 
+/** The legacy controller owns an entire wallet. It cannot adopt reservations
+ * belonging to the shared executor, including unsigned queued campaigns. */
+export async function assertNoSharedRangeKeeperWalletOwnership(db:Pick<PoolClient,'query'>,operator:string){
+ const present=(await db.query<{present:string|null}>('SELECT to_regclass($1)::text AS present',
+  ['deployment_live_allocations'])).rows[0]?.present;
+ if(!present)return;
+ const owned=(await db.query<{owned:boolean}>(`SELECT EXISTS(
+  SELECT 1 FROM deployment_live_allocations WHERE chain_id=4663 AND wallet=$1 AND state<>'released'
+  UNION ALL SELECT 1 FROM deployment_live_stage_outbox WHERE chain_id=4663 AND wallet=$1
+   AND status IN ('prepared','signed','blocked')) AS owned`,[operator.toLowerCase()])).rows[0]?.owned;
+ assert(owned===false,'Shared wallet executor owns campaign funds or unresolved transactions');
+}
+
 /** Separate v1 ledger with the old pilot's wallet-level advisory lock key. */
 export class RangeKeeperLiveStore {
  readonly pool:pg.Pool;readonly schema='rangekeeper_v1';
@@ -35,7 +48,8 @@ export class RangeKeeperLiveStore {
   try{
    const got=(await db.query('SELECT pg_try_advisory_lock(hashtextextended($1,0)) AS locked',[key])).rows[0]?.locked;
    assert(got,'Another live controller holds this wallet');
-   try{return await work(db);}finally{await db.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key]);}
+   try{await assertNoSharedRangeKeeperWalletOwnership(db,operator);return await work(db);}
+   finally{await db.query('SELECT pg_advisory_unlock(hashtextextended($1,0))',[key]);}
   }finally{db.release();}
  }
  async create(db:PoolClient,state:RangeKeeperLiveState,config:unknown){

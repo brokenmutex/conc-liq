@@ -7,6 +7,9 @@ import {maintainRangeKeeperPaperObservation} from './deployments/rangekeeper-pap
 import {prepareRangeKeeperPaperRecenterPreview} from './deployments/rangekeeper-paper-recenter-runtime.js';
 import {loadRuntimeIdentity} from './runtime/identity.js';
 import {verifyCanonicalPaperAnchors} from './deployments/paper-canonical-anchors.js';
+import {auditCanonicalRangeKeeperPaperAccounting,
+ recordCanonicalNextRangeKeeperPaperAccounting} from './deployments/paper-accounting.js';
+import {recordCanonicalRangeKeeperPaperFeeEvidence} from './deployments/paper-fee-replay.js';
 import {processOnePaperOperation} from './deployments/paper-operation-worker.js';
 import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
 import {DeploymentConflict,DeploymentStore,PAPER_OPERATION_NOTIFY_CHANNEL,
@@ -145,7 +148,7 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
     JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
     WHERE c.mode='paper' AND ((r.strategy_id='static_manual_v1'
       AND c.lifecycle IN ('active','paused','closing','closed','blocked')) OR
-      (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused')))
+      (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused','closed')))
       AND ($1::uuid IS NULL OR c.id>$1::uuid)
     ORDER BY c.id
     LIMIT $2`,[campaignCursor,maxCampaigns])).rows;
@@ -157,7 +160,7 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
      JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
      WHERE c.mode='paper' AND ((r.strategy_id='static_manual_v1'
        AND c.lifecycle IN ('active','paused','closing','closed','blocked')) OR
-       (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused')))
+       (r.strategy_id='rangekeeper_v1' AND c.lifecycle IN ('active','paused','closed')))
        AND c.id<=$1::uuid
      ORDER BY c.id
      LIMIT $2`,[campaignCursor,maxCampaigns-after.length])).rows:[];
@@ -167,6 +170,33 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
    for(const campaign of campaigns){
     try{
      if(campaign.strategy_id==='rangekeeper_v1'){
+      const recordRangeKeeperEconomics=async()=>{
+       const audit=await auditCanonicalRangeKeeperPaperAccounting(store,chain,campaign.id);
+       if(audit.alreadyInvalidated||audit.invalidated.length>0)
+        return {changed:false,backlog:0,invalidated:true};
+       const fee=await recordCanonicalRangeKeeperPaperFeeEvidence(store,chain,indexer,campaign.id);
+       let changed=Boolean(fee);
+       for(let step=0;step<Math.min(maxSteps,16);step++){
+        const accounting=await recordCanonicalNextRangeKeeperPaperAccounting(store,chain,campaign.id);
+        if(!accounting)break;
+        changed=true;
+       }
+       return {changed,backlog:await store.rangeKeeperPaperAccountingBacklog(campaign.id),invalidated:false};
+      };
+      if(campaign.lifecycle==='closed'){
+       const accounting=await recordRangeKeeperEconomics();
+       if(accounting.invalidated){invalidated++;continue;}
+       if(accounting.changed)log('info','rangekeeper_paper_accounting_recorded',{
+        campaignId:campaign.id,backlog:accounting.backlog});
+       continue;
+      }
+      const existingAccounting=await recordRangeKeeperEconomics();
+      if(existingAccounting.invalidated){invalidated++;continue;}
+      if(existingAccounting.backlog>0||existingAccounting.changed){
+       log('info','rangekeeper_paper_accounting_catchup',{campaignId:campaign.id,
+        backlog:existingAccounting.backlog});
+       continue;
+      }
       if(runRangeKeeperAutomatic){
        const result=await runRangeKeeperAutomatic(campaign.id,campaign.lifecycle==='paused');
        if(result.status==='preparation_locked'){preparationSkipped++;continue;}
@@ -178,6 +208,12 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
         reason:result.reason,markId:result.markId,sourceBlock:result.source?.block,
         operationId:result.operationId,nextObservationAt:result.nextObservationAt,
         decision:decision?{action:decision.action,reason:decision.reason}:null});
+       if(result.status!=='preparation_locked'){
+        const accounting=await recordRangeKeeperEconomics();
+        if(accounting.invalidated){invalidated++;continue;}
+        if(accounting.changed)log('info','rangekeeper_paper_accounting_recorded',{
+         campaignId:campaign.id,backlog:accounting.backlog});
+       }
        continue;
       }
       const result=await maintainRangeKeeperPaperObservation(store,chain,indexer,campaign.id,
@@ -187,6 +223,10 @@ export async function runPaperMaintenancePass(store:DeploymentStore,
        campaignId:campaign.id,markId:result.markId,replayed:result.replayed,
        sourceBlock:result.source.block,decision:result.decision,
       });
+      const accounting=await recordRangeKeeperEconomics();
+      if(accounting.invalidated){invalidated++;continue;}
+      if(accounting.changed)log('info','rangekeeper_paper_accounting_recorded',{
+       campaignId:campaign.id,backlog:accounting.backlog});
       continue;
      }
      const result=await maintainCanonicalPaperScenario(store,chain,indexer,

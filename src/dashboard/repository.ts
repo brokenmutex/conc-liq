@@ -1206,10 +1206,14 @@ export class DashboardRepository {
   private readonly researchCapitalCache = new Map<string, ResearchSnapshot>();
 
   public constructor(private readonly config: DashboardConfig) {
+    // Preserve explicitly configured connection options (including an isolated
+    // search_path), while keeping all dashboard reads read-only.
+    let configuredOptions = "";
+    try { configuredOptions = new URL(config.databaseUrl).searchParams.get("options") ?? ""; } catch {}
     this.pool = new Pool({
       connectionString: config.databaseUrl,
       max: 4,
-      options: "-c default_transaction_read_only=on",
+      options: `${configuredOptions} -c default_transaction_read_only=on`.trim(),
     });
   }
 

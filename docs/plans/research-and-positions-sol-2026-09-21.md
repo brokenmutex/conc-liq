@@ -1,5 +1,75 @@
 # Research and Positions — Sol implementation plan
 
+October 3 priority correction: deliver RangeKeeper paper economics in the
+existing dashboard first. That adapter is now deployed on sealed `b7ac60b...`
+(source `4064cd6`) using existing v11 fee/accounting journals without a migration.
+The actual API and desktop/mobile browser show economics for all six campaigns.
+When a newer mark awaits accounting, the last complete valuation remains visible
+with its own timestamp, restricted to the same holding epoch and unchanged range.
+See the [economics release review](../reviews/rangekeeper-paper-economics-2026-10-03.md).
+Next connect bounded multi-pool live opening
+to the shared wallet queue, complete automatic recentering and one retain-only
+safe exit, and qualify the bounded release. Pause/resume, conversion exit and
+broader infrastructure/control work are follow-ups. The operator explicitly
+asked to avoid over engineering; the
+[minimum delivery sequence](rangekeeper-wallet-live-next-steps-2026-10-02.md#next-action-and-readiness-decision)
+supersedes the broader optional release prerequisites below. All registered
+pools and multiple active campaigns on one wallet remain required.
+
+October 3 admission source checkpoint: dashboard approval now composes the
+existing frozen-review/atomic allocation/shared OPEN queue path, with exact-source
+wallet/reference checks and persisted same-key retry. HTTP/PostgreSQL tests cover
+12 synthetic registry configurations and queued Positions visibility; browser
+contract tests pass; full source checks pass 1,177 tests. The real HTTP-to-receipt
+fork path passed first-pool opening and recovery with eight confirmed receipts.
+The second-pool simulator failure was reduced to historical disk serialization
+of accounts sharing a code hash. Bounded in-memory fork history fixes the owned
+qualification without replacing code or skipping token reads. The real HTTP
+two-pool path now passes with sixteen confirmed receipts and unchanged sibling
+allocation/state. Retained withdrawal, cleanup, release, same-key replay and
+actual Positions API terminal economics/history now pass on the owned fork.
+The composed automatic runtime is default-off and has no supervised production
+hookup or completed automatic-recenter fork proof. Full source checks pass
+1,204 tests; final qualification is recorded in the review.
+This live source has not replaced production or enabled execution. See the
+[admission checkpoint](../reviews/rangekeeper-live-dashboard-admission-2026-10-03.md).
+
+Current handoff — October 2, 2026: RangeKeeper paper open, automatic recenter and
+both exits are deployed together on sealed build `0a2a395...`; fresh checks pass
+1,079 tests. One current paper campaign is active and a predecessor is closed
+through conversion. RangeKeeper pause/resume and wallet-backed dashboard live
+operations remain open. The operator selected a dedicated server-side wallet
+for bounded automatic execution. Follow the
+[current review and ordered live delivery plan](rangekeeper-wallet-live-next-steps-2026-10-02.md)
+for RL-1–8, capability-specific acceptance and activation boundaries. The
+operator subsequently deferred private access and requested the same dashboard
+Live workflow for all registered pools with one wallet. That explicit decision
+supersedes older private-access prerequisites for this milestone. The current
+handoff includes the explicitly confirmed per-campaign allocation and one
+wallet transaction queue for multiple active pools. The
+October 2 source checkpoints now include all-pool Live review, v12 durable
+allocation/admission/queue foundations, v13 campaign runtime and stage evidence,
+and an opening worker composed with canonical receipt/custody readers. A fresh,
+one-use owned-fork stage capability replaces the legacy asset-specific cost
+assumption. Production remains on v11; signing, publishing and dashboard
+acceptance remain disabled. A composed one-pool opening now passes against an
+owned fork and isolated v13 PostgreSQL: eight confirmed stages, zero allowances,
+unchanged free capital and recovery after rebuilding the runtime at both lost
+acknowledgement and queue-finish handoff interruptions. Source checks pass
+1,165 tests. A subsequent two-pool composed run also passes: fee-500 and fee-3000
+AAPL campaigns hold separate NFTs, with 16 confirmed transactions, unique wallet
+nonces and zero allowances. The second opening preserves the first allocation,
+state, position and costs. The next source checkpoint adds explicit v14 durable
+wallet-scoped NFT indexing and maintenance, preserving the global index and
+older paper compatibility. Actual chain reads and fresh-store replay pass; source
+checks now pass 1,171 tests. Production remains v11. Continuous index/source
+coordination, command snapshot/review/admission wiring, automatic holding/recenter
+monitoring, lifecycle controls and Positions accounting remain necessary before
+all-profile fork qualification. The
+September status and older task lists below retain their historical evidence;
+they do not describe the current deployment. F4/F5 and the full W4–W7 package
+remain incomplete.
+
 Prepared: 2026-09-21. Revised: 2026-09-27 after the executed production
 cutover, the passwordless operator change and an independent implementation
 review. Static/manual paper remains the first operator MVP. Source `c604cf3`

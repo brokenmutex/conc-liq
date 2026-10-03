@@ -64,7 +64,7 @@ let store,feePool,workerLease,operationNotifier;
 try{
  await admin.query(`CREATE SCHEMA ${schema}`);
  await admin.query(`SET search_path=${schema}`);
- assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8,9,10,11]);
+ assert.deepEqual(await migrateDatabase(admin),[1,2,3,4,5,6,7,8,9,10,11,12,13,14]);
  const url=new URL(process.env.TEST_DATABASE_URL);
  url.searchParams.set('options',`-c search_path=${schema} -c statement_timeout=15000`);
  store=new DeploymentStore(url.toString());

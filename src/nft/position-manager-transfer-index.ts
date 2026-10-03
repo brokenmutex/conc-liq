@@ -8,7 +8,8 @@ const {Pool}=pg;
 const transferAbi=parseAbi(['event Transfer(address indexed from,address indexed to,uint256 indexed tokenId)']);
 const ZERO='0x0000000000000000000000000000000000000000';
 const HASH=/^0x[0-9a-f]{64}$/i;
-const MAX_CHUNK_BLOCKS=10_000n,MAX_BLOCKS_PER_RUN=100_000n,MAX_LOGS_PER_CHUNK=25_000,
+const MAX_CHUNK_BLOCKS=10_000n,MAX_BLOCKS_PER_RUN=100_000n,
+ MAX_WALLET_CHUNK_BLOCKS=10_000_000n,MAX_WALLET_BLOCKS_PER_RUN=100_000_000n,MAX_LOGS_PER_CHUNK=25_000,
  MAX_REPLAY_EVENTS=1_000_000,MAX_REPLAY_CHECKPOINT_BLOCKS=10_000,HEADER_CONCURRENCY=12;
 
 export interface PositionManagerCheckpoint {
@@ -29,6 +30,9 @@ export interface PositionManagerTransferChunk {
  eventBlocks:readonly PositionManagerCheckpoint[];transfers:readonly PositionManagerTransfer[];
 }
 export interface PositionManagerTransferIndexStore {
+ /** When present, replay evidence and scans are complete only for this wallet's
+  * indexed `from`/`to` Transfer union. Generic/global stores omit this field. */
+ walletScope?:Address;
  getCursor(chainId:number,manager:Address,startBlock:bigint):Promise<PositionManagerTransferCursor|null>;
  initializeCursor(chainId:number,manager:Address,startBlock:bigint):Promise<PositionManagerTransferCursor>;
  recentCheckpoints(chainId:number,manager:Address,startBlock:bigint,limit:number):Promise<PositionManagerCheckpoint[]>;
@@ -72,14 +76,15 @@ async function concurrentMap<T,U>(items:readonly T[],limit:number,fn:(item:T)=>P
 /** Scan a contiguous bounded range of Position Manager Transfer logs. The
  * cursor is scoped by exact chain, manager and start block. The index remains
  * diagnostic until a genesis/creation-to-source replay is reconciled. */
-export async function scanPositionManagerTransferHistory(input:{client:RobinhoodClient;
+async function scanPositionManagerTransferHistoryWithBounds(input:{client:RobinhoodClient;
  store:PositionManagerTransferIndexStore;chainId:number;manager:Address;startBlock:bigint;
- source:{block:bigint;hash:Hash;timestamp:number};chunkBlocks?:bigint;maxBlocksPerRun?:bigint}){
+ source:{block:bigint;hash:Hash;timestamp:number};chunkBlocks?:bigint;maxBlocksPerRun?:bigint},bounds:{
+ chunkBlocks:bigint;maxBlocksPerRun:bigint;maxChunkBlocks:bigint;maxRunBlocks:bigint}){
  const {client,store}=input,startBlock=input.startBlock,
-  source=input.source,chunkBlocks=input.chunkBlocks??1_000n,maxRun=input.maxBlocksPerRun??MAX_BLOCKS_PER_RUN;
+  source=input.source,chunkBlocks=input.chunkBlocks??bounds.chunkBlocks,maxRun=input.maxBlocksPerRun??bounds.maxBlocksPerRun;
  if(input.chainId!==ROBINHOOD_CHAIN_ID||!isAddress(input.manager)||startBlock<0n||source.block<startBlock||
   !Number.isSafeInteger(source.timestamp)||source.timestamp<0||chunkBlocks<1n||
-  chunkBlocks>MAX_CHUNK_BLOCKS||maxRun<1n||maxRun>MAX_BLOCKS_PER_RUN||!HASH.test(source.hash))
+  chunkBlocks>bounds.maxChunkBlocks||maxRun<1n||maxRun>bounds.maxRunBlocks||!HASH.test(source.hash))
   return {status:'unavailable' as const,reason:'transfer_scan_scope_invalid',enumerationComplete:false as const,
    actionAvailable:false as const};
  try{
@@ -127,7 +132,36 @@ export async function scanPositionManagerTransferHistory(input:{client:Robinhood
      enumerationComplete:false as const,actionAvailable:false as const};
    const [startHeader,endHeader,rawLogs]=await Promise.all([
     client.getBlock({blockNumber:fromBlock}),client.getBlock({blockNumber:toBlock}),
-    client.getLogs({address:manager,events:transferAbi,fromBlock,toBlock}),
+    (async()=>{
+     if(!store.walletScope)return client.getLogs({address:manager,events:transferAbi,fromBlock,toBlock});
+     if(!isAddress(store.walletScope))throw Error('position_manager_transfer_wallet_scope_invalid');
+     const scope=getAddress(store.walletScope);
+     const getIndexedLogs=client.getLogs as unknown as (args:{address:Address;event:typeof transferAbi[0];
+      args:{from?:Address;to?:Address};fromBlock:bigint;toBlock:bigint})=>Promise<any[]>;
+     const [outgoing,incoming]=await Promise.all([
+      getIndexedLogs({address:manager,event:transferAbi[0]!,args:{from:scope},fromBlock,toBlock}),
+      getIndexedLogs({address:manager,event:transferAbi[0]!,args:{to:scope},fromBlock,toBlock}),
+     ]);
+     if(outgoing.length>MAX_LOGS_PER_CHUNK||incoming.length>MAX_LOGS_PER_CHUNK)
+      throw Error('position_manager_transfer_chunk_log_bound_exceeded');
+     const unique=new Map<string,unknown>();
+     for(const row of [...outgoing,...incoming]){
+      if(!row||typeof row.transactionHash!=='string'||!HASH.test(row.transactionHash)||
+       typeof row.logIndex!=='number'||!Number.isSafeInteger(row.logIndex)||row.logIndex<0)
+       throw Error('position_manager_transfer_log_invalid');
+      const key=`${row.transactionHash.toLowerCase()}:${row.logIndex}`;
+      const prior=unique.get(key) as any;
+      if(prior){
+       const fields=['address','blockNumber','blockHash','transactionHash','transactionIndex','logIndex','removed'];
+       const sameFields=fields.every(field=>String(prior[field]??'').toLowerCase()===String(row[field]??'').toLowerCase())&&
+        String(prior.args?.from??'').toLowerCase()===String(row.args?.from??'').toLowerCase()&&
+        String(prior.args?.to??'').toLowerCase()===String(row.args?.to??'').toLowerCase()&&
+        String(prior.args?.tokenId??'')===String(row.args?.tokenId??'');
+       if(!sameFields)throw Error('position_manager_transfer_duplicate_log');
+      }else unique.set(key,row);
+     }
+     return [...unique.values()];
+    })(),
    ]);
    if(startHeader.number!==fromBlock||endHeader.number!==toBlock||
     (prior&&!same(startHeader.parentHash,prior.hash)))
@@ -137,6 +171,9 @@ export async function scanPositionManagerTransferHistory(input:{client:Robinhood
     return {status:'unavailable' as const,reason:'transfer_scan_chunk_log_bound_exceeded',
      enumerationComplete:false as const,actionAvailable:false as const};
    const parsed=rawLogs.map(log=>parseLog(log,manager,fromBlock,toBlock));
+   if(store.walletScope&&parsed.some(log=>!same(log.from,store.walletScope!)&&!same(log.to,store.walletScope!)))
+    return {status:'unavailable' as const,reason:'transfer_scan_wallet_filter_mismatch',enumerationComplete:false as const,
+     actionAvailable:false as const};
    parsed.sort((a,b)=>a.blockNumber!==b.blockNumber?a.blockNumber<b.blockNumber?-1:1:
     a.transactionIndex-b.transactionIndex||a.logIndex-b.logIndex);
    const keys=new Set<string>();
@@ -176,6 +213,31 @@ export async function scanPositionManagerTransferHistory(input:{client:Robinhood
  }
 }
 
+/** Legacy/global indexing stays deliberately small to respect broad manager
+ * log limits. Wallet-scoped history has a separate durable namespace and may
+ * use the larger bounded window below during explicit maintenance only. */
+export function scanPositionManagerTransferHistory(input:{client:RobinhoodClient;
+ store:PositionManagerTransferIndexStore;chainId:number;manager:Address;startBlock:bigint;
+ source:{block:bigint;hash:Hash;timestamp:number};chunkBlocks?:bigint;maxBlocksPerRun?:bigint}){
+ return scanPositionManagerTransferHistoryWithBounds(input,{chunkBlocks:1_000n,maxBlocksPerRun:MAX_BLOCKS_PER_RUN,
+  maxChunkBlocks:MAX_CHUNK_BLOCKS,maxRunBlocks:MAX_BLOCKS_PER_RUN});
+}
+
+/** Explicit maintenance-only backfill for a dedicated wallet-scoped cursor.
+ * It always starts at genesis, persists resumable canonical chunks and caps
+ * each run at 100M blocks; requests should only read its persisted evidence. */
+export function scanPositionManagerWalletTransferHistory(input:{client:RobinhoodClient;
+ store:PositionManagerTransferIndexStore;chainId:number;manager:Address;
+ source:{block:bigint;hash:Hash;timestamp:number};chunkBlocks?:bigint;maxBlocksPerRun?:bigint}){
+ if(!input.store.walletScope||!isAddress(input.store.walletScope))
+  return Promise.resolve({status:'unavailable' as const,reason:'wallet_scoped_transfer_store_required',
+   enumerationComplete:false as const,actionAvailable:false as const});
+ return scanPositionManagerTransferHistoryWithBounds({...input,startBlock:0n},{
+  chunkBlocks:MAX_WALLET_CHUNK_BLOCKS,maxBlocksPerRun:MAX_WALLET_BLOCKS_PER_RUN,
+  maxChunkBlocks:MAX_WALLET_CHUNK_BLOCKS,maxRunBlocks:MAX_WALLET_BLOCKS_PER_RUN,
+ });
+}
+
 /** Replay every Transfer log in an indexed range. Exact identity and sequence
  * checks make holes, duplicate mints and unknown prior owners unavailable. */
 export function replayPositionManagerOwnerSet(input:{chainId:number;expectedChainId:number;
@@ -212,6 +274,60 @@ export function replayPositionManagerOwnerSet(input:{chainId:number;expectedChai
   .map(([id])=>id).sort((a,b)=>BigInt(a)<BigInt(b)?-1:BigInt(a)>BigInt(b)?1:0);
  return {status:'replayed',owners,operatorTokenIds,enumerationComplete:false,
   missing:['persisted_checkpoint_binding_not_verified','balance_of_and_owner_of_reconciliation_not_run']};
+}
+
+/** Replay a wallet-indexed `from`/`to` log stream from genesis. Events which do
+ * not involve the exact wallet indicate a broken scope filter and invalidate
+ * the entire proof. An incoming event establishes ownership at the first point
+ * it enters the wallet; an outgoing event is allowed only for a token already
+ * owned. Self-transfers must reference an owned token and preserve ownership. */
+export function replayPositionManagerWalletOwnerSet(input:{chainId:number;expectedChainId:number;
+ manager:Address;expectedManager:Address;startBlock:bigint;sourceBlock:bigint;
+ coveredThroughBlock:bigint|null;coveredThroughHash:Hash|null;sourceHash:Hash;sourceCheckpointHash:Hash|null;
+ transfers:readonly PositionManagerTransfer[];operator:Address;walletScope:Address}):
+ {status:'replayed';operatorTokenIds:readonly string[];enumerationComplete:false;missing:string[]}|{
+ status:'unavailable';reason:string;enumerationComplete:false;operatorTokenIds:readonly string[]} {
+ const unavailable=(reason:string)=>({status:'unavailable' as const,reason,enumerationComplete:false as const,
+  operatorTokenIds:[] as string[]});
+ if(input.chainId!==input.expectedChainId||input.chainId!==ROBINHOOD_CHAIN_ID||!same(input.manager,input.expectedManager))
+  return unavailable('transfer_replay_chain_or_manager_mismatch');
+ if(!same(input.operator,input.walletScope))return unavailable('transfer_replay_wallet_scope_mismatch');
+ if(input.startBlock!==0n||input.coveredThroughBlock===null||input.coveredThroughBlock<input.sourceBlock||
+  !input.coveredThroughHash||!HASH.test(input.sourceHash)||!input.sourceCheckpointHash||
+  !same(input.sourceCheckpointHash,input.sourceHash))return unavailable('transfer_replay_genesis_to_source_coverage_incomplete');
+ if(input.transfers.length>MAX_REPLAY_EVENTS)return unavailable('transfer_replay_event_bound_exceeded');
+ if(input.transfers.some(event=>event.blockNumber<0n||event.blockNumber>input.sourceBlock))
+  return unavailable('transfer_replay_event_invalid');
+ const events=[...input.transfers].sort((a,b)=>
+  a.blockNumber!==b.blockNumber?a.blockNumber<b.blockNumber?-1:1:
+   a.transactionIndex-b.transactionIndex||a.logIndex-b.logIndex);
+ const owned=new Set<string>(),seen=new Set<string>();let priorOrder:{block:bigint;tx:number;log:number}|null=null;
+ for(const event of events){
+  if(event.blockNumber<0n||event.blockNumber>input.sourceBlock||!HASH.test(event.blockHash)||
+   !HASH.test(event.transactionHash)||event.tokenId<=0n||!Number.isSafeInteger(event.transactionIndex)||event.transactionIndex<0||
+   !Number.isSafeInteger(event.logIndex)||event.logIndex<0||!isAddress(event.from)||!isAddress(event.to))
+   return unavailable('transfer_replay_event_invalid');
+  const key=`${event.transactionHash.toLowerCase()}:${event.logIndex}`;
+  if(seen.has(key))return unavailable('transfer_replay_duplicate_log');seen.add(key);
+  const order={block:event.blockNumber,tx:event.transactionIndex,log:event.logIndex};
+  if(priorOrder&&(order.block<priorOrder.block||order.block===priorOrder.block&&
+   (order.tx<priorOrder.tx||order.tx===priorOrder.tx&&order.log<=priorOrder.log)))
+   return unavailable('transfer_replay_event_order_invalid');
+  priorOrder=order;
+  const id=event.tokenId.toString(),fromWallet=same(event.from,input.walletScope),toWallet=same(event.to,input.walletScope);
+  if(!fromWallet&&!toWallet)return unavailable('transfer_replay_wallet_scope_event_mismatch');
+  if(same(event.from,ZERO)){
+   if(!toWallet)return unavailable('transfer_replay_wallet_scope_event_mismatch');
+   if(owned.has(id))return unavailable('transfer_replay_duplicate_mint');
+   owned.add(id);continue;
+  }
+  if(fromWallet&&!owned.has(id))return unavailable('transfer_replay_wallet_unknown_prior_owner');
+  if(fromWallet&&toWallet)continue;
+  if(fromWallet){owned.delete(id);continue;}
+  if(toWallet){if(owned.has(id))return unavailable('transfer_replay_wallet_duplicate_acquire');owned.add(id);}
+ }
+ return {status:'replayed',operatorTokenIds:[...owned].sort((a,b)=>BigInt(a)<BigInt(b)?-1:BigInt(a)>BigInt(b)?1:0),
+  enumerationComplete:false,missing:['persisted_checkpoint_binding_not_verified','balance_of_and_owner_of_reconciliation_not_run']};
 }
 
 export async function closePositionManagerTransferIndex(store:PostgresPositionManagerTransferStore){await store.close();}

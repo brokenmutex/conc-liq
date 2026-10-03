@@ -11,6 +11,9 @@ import { INDEXER_EVENT_TIMESTAMPS_SQL } from "./indexer-event-timestamps-migrati
 import { RANGEKEEPER_PAPER_CONFIRMATION_SQL } from "./rangekeeper-paper-confirmation-migration.js";
 import { RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL } from "./rangekeeper-paper-confirmation-provenance-migration.js";
 import { POSITION_MANAGER_TRANSFER_SQL } from "./position-manager-transfer-migration.js";
+import { DEPLOYMENT_LIVE_WALLET_SQL } from "./deployment-live-wallet-migration.js";
+import { DEPLOYMENT_LIVE_RUNTIME_SQL } from "./deployment-live-runtime-migration.js";
+import { POSITION_MANAGER_WALLET_TRANSFER_SQL } from "./position-manager-wallet-transfer-migration.js";
 
 // v1 is the frozen pre-versioning schema. Existing databases are verified and
 // registered, never subjected to its historical UPDATE/DROP statements again.
@@ -33,7 +36,8 @@ export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL
  DEPLOYMENTS_SQL, DEPLOYMENT_PAPER_FEE_SQL, DEPLOYMENT_PAPER_ACCOUNTING_SQL,
  DEPLOYMENT_PAPER_ACCOUNTING_INVALIDATION_SQL, INDEXER_EVENT_TIMESTAMPS_SQL,
  RANGEKEEPER_PAPER_CONFIRMATION_SQL, RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL,
- POSITION_MANAGER_TRANSFER_SQL] as const;
+ POSITION_MANAGER_TRANSFER_SQL, DEPLOYMENT_LIVE_WALLET_SQL, DEPLOYMENT_LIVE_RUNTIME_SQL,
+ POSITION_MANAGER_WALLET_TRANSFER_SQL] as const;
 const identifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const checksum = (sql: string) => createHash("sha256").update(sql).digest("hex");
 

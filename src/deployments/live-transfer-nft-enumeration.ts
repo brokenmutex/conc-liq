@@ -1,7 +1,7 @@
 import {getAddress,isAddress,parseAbi,type Address,type Hash} from 'viem';
 import type {RobinhoodClient} from '../client.js';
 import {ROBINHOOD_CHAIN_ID} from '../constants.js';
-import {replayPositionManagerOwnerSet,type PositionManagerTransferIndexStore} from '../nft/position-manager-transfer-index.js';
+import {replayPositionManagerOwnerSet,replayPositionManagerWalletOwnerSet,type PositionManagerTransferIndexStore} from '../nft/position-manager-transfer-index.js';
 import {nonfungiblePositionManagerReadAbi} from '../nft/abi.js';
 import type {LiveCustodyStrategy,PinnedCustodySource} from './live-custody-snapshot.js';
 
@@ -13,17 +13,18 @@ type Result={kind:'complete_position_manager_nft_custody';status:'available'|'un
  source:{block:string;hash:string;timestamp:number;confirmed:boolean}|null;
  enumerationComplete:boolean;tokenIds:string[]|null;balanceOfCount:{status:'available';value:string}|{status:'unavailable';reason:string};
  knownOwners:{tokenId:string;owner:{status:'available';value:string}|{status:'unavailable';reason:string}}[];
- indexedTransferCoverage:{status:'available';startBlock:string;coveredThroughBlock:string;coveredThroughHash:string;
-  sourceCheckpointHash:string;transferCount:number;checkpointBlockCount:number}|{status:'unavailable';reason:string};
+ indexedTransferCoverage:{status:'available';scope:'global'|'wallet';walletAddress:string|null;startBlock:string;coveredThroughBlock:string;coveredThroughHash:string;
+  sourceCheckpointHash:string;transferCount:number;checkpointBlockCount:number}|{status:'unavailable';reason:string;scope:'global'|'wallet';walletAddress:string|null};
  missing:string[];actionAvailable:false;executionEligible:false};
 
 function failure(input:{strategy:LiveCustodyStrategy|null;operator:string|null;manager:string|null;
- source:PinnedCustodySource|null;reason:string}):Result{
+ source:PinnedCustodySource|null;reason:string;scope?:'global'|'wallet';walletAddress?:string|null}):Result{
+ const scope=input.scope??'global',walletAddress=input.walletAddress??null;
  return {kind:'complete_position_manager_nft_custody',status:'unavailable',targetStrategyId:input.strategy,
   operator:input.operator,positionManager:input.manager,source:input.source?{block:String(input.source.block),
    hash:input.source.hash,timestamp:input.source.timestamp,confirmed:false}:null,enumerationComplete:false,tokenIds:null,
   balanceOfCount:{status:'unavailable',reason:input.reason},knownOwners:[],
-  indexedTransferCoverage:{status:'unavailable',reason:input.reason},missing:[input.reason],
+  indexedTransferCoverage:{status:'unavailable',reason:input.reason,scope,walletAddress},missing:[input.reason],
   actionAvailable:false,executionEligible:false};
 }
 async function mapLimit<T,U>(items:readonly T[],limit:number,work:(item:T)=>Promise<U>):Promise<U[]>{
@@ -44,10 +45,15 @@ export async function readCompletePositionManagerNftCustody(input:{client:Client
  const operator:Address|null=typeof input.operator==='string'&&isAddress(input.operator)?getAddress(input.operator):null;
  const manager:Address|null=typeof input.positionManager==='string'&&isAddress(input.positionManager)?
   getAddress(input.positionManager):null;
- const scope={strategy,operator,manager,source:input.source};
+ const walletScope=input.store.walletScope;
+ const replayScope: 'global'|'wallet'=walletScope?'wallet':'global';
+ const scope={strategy,operator,manager,source:input.source,scope:replayScope,walletAddress:walletScope??null};
+ const failureScope={scope:replayScope,walletAddress:walletScope??null};
  if(!strategy)return failure({...scope,reason:'target_strategy_unsupported'});
  if(!operator)return failure({...scope,reason:'operator_address_invalid'});
  if(!manager)return failure({...scope,reason:'position_manager_address_invalid'});
+ if(walletScope!==undefined&&(!isAddress(walletScope)||!operator||walletScope.toLowerCase()!==operator.toLowerCase()))
+  return failure({...scope,...failureScope,reason:'transfer_replay_wallet_scope_mismatch'});
  if(input.startBlock!==0n)return failure({...scope,reason:'transfer_index_must_start_at_genesis'});
  if(!input.source||input.source.block<0n||!Number.isSafeInteger(input.source.timestamp)||
   !HASH.test(input.source.hash))return failure({...scope,reason:'pinned_canonical_source_invalid'});
@@ -95,10 +101,14 @@ export async function readCompletePositionManagerNftCustody(input:{client:Client
     Number(block.timestamp)===checkpoint.timestamp);
   });
   if(canonical.some(value=>!value))return failure({...scope,reason:'persisted_checkpoint_no_longer_canonical'});
-  const replay=replayPositionManagerOwnerSet({chainId:ROBINHOOD_CHAIN_ID,expectedChainId:ROBINHOOD_CHAIN_ID,
+  const replay=walletScope?replayPositionManagerWalletOwnerSet({chainId:ROBINHOOD_CHAIN_ID,expectedChainId:ROBINHOOD_CHAIN_ID,
    manager,expectedManager:manager,startBlock:0n,sourceBlock:input.source.block,
    coveredThroughBlock:cursor.coveredThroughBlock,coveredThroughHash:cursor.coveredThroughHash,
-   sourceHash:input.source.hash,sourceCheckpointHash:sourceCheckpoint.hash,transfers,operator});
+   sourceHash:input.source.hash,sourceCheckpointHash:sourceCheckpoint.hash,transfers,operator,walletScope}):
+   replayPositionManagerOwnerSet({chainId:ROBINHOOD_CHAIN_ID,expectedChainId:ROBINHOOD_CHAIN_ID,
+    manager,expectedManager:manager,startBlock:0n,sourceBlock:input.source.block,
+    coveredThroughBlock:cursor.coveredThroughBlock,coveredThroughHash:cursor.coveredThroughHash,
+    sourceHash:input.source.hash,sourceCheckpointHash:sourceCheckpoint.hash,transfers,operator});
   if(replay.status!=='replayed')return failure({...scope,reason:replay.reason});
   const tokenIds=[...replay.operatorTokenIds];
   if(tokenIds.length>MAX_OPERATOR_NFTS)
@@ -121,7 +131,7 @@ export async function readCompletePositionManagerNftCustody(input:{client:Client
     timestamp:input.source.timestamp,confirmed:true},enumerationComplete:true,tokenIds,
    balanceOfCount:{status:'available',value:String(balanceOf)},
    knownOwners:owners.map(value=>({tokenId:value.tokenId,owner:{status:'available' as const,value:value.owner}})),
-   indexedTransferCoverage:{status:'available',startBlock:'0',coveredThroughBlock:String(cursor.coveredThroughBlock),
+   indexedTransferCoverage:{status:'available',...failureScope,startBlock:'0',coveredThroughBlock:String(cursor.coveredThroughBlock),
     coveredThroughHash:cursor.coveredThroughHash,sourceCheckpointHash:sourceCheckpoint.hash,
     transferCount:transfers.length,checkpointBlockCount:ordered.length},
    missing:[],actionAvailable:false,executionEligible:false};

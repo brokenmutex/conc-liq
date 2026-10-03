@@ -38,6 +38,139 @@ export function setupPreflightPathFor(strategyId) {
     ? '/api/deployments/rangekeeper/setup-preflight' : SETUP_PREFLIGHT_PATH;
 }
 
+export const LIVE_SETUP_PREFLIGHT_PATH = '/api/deployments/rangekeeper/live-setup-preflight';
+export const LIVE_SETUP_ADMISSION_PATH = '/api/deployments/rangekeeper/live-setup-admit';
+export const LIVE_WALLET_PATH = '/api/deployments/live-wallet';
+
+export function liveSetupPreflightRequest({ pool, capital, fullWidthSpacings, limits, liveSetup = false }) {
+  if (!liveSetup) return { available: false, reason: 'RangeKeeper live review is not installed.' };
+  const profileId = pool?.marketProfileId ?? pool?.profileId;
+  if (typeof profileId !== 'string' || !PROFILE_UUID.test(profileId))
+    return { available: false, reason: 'The registered market profile ID is missing.' };
+  const capitalQuoteRaw = capitalToQuoteRaw(capital), spacings = Number(fullWidthSpacings);
+  const normalized = limits === undefined ? null : normalizeSetupLimits(limits, 'rangekeeper_v1');
+  if (!capitalQuoteRaw || !Number.isSafeInteger(spacings) || spacings < 2 || spacings > 2000 || spacings % 2)
+    return { available: false, reason: 'Choose valid USDG capital and an even full width between 2 and 2000 tick spacings.' };
+  if (!normalized) return { available: false, reason: 'Enter all valid RangeKeeper limits in their displayed units before review.' };
+  return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings, limits: normalized } };
+}
+
+export function liveSetupAdmissionRequest({ preflight, liveAdmission = false, requestId, now = Date.now() }) {
+  const persistence = preflight?.reviewPersistence;
+  if (!liveAdmission || preflight?.admissionAvailable !== true ||
+      preflight?.kind !== 'rangekeeper_live_setup_preflight' || preflight?.mode !== 'live' ||
+      preflight?.strategyId !== 'rangekeeper_v1' || preflight?.status !== 'indicative' ||
+      preflight?.actionAvailable !== false || preflight?.draftCreationAvailable !== false ||
+      preflight?.operationAcceptanceAvailable !== false || preflight?.executionEligible !== false ||
+      persistence?.status !== 'persisted' || !PROFILE_UUID.test(persistence?.reviewId ?? '') ||
+      !/^[0-9a-f]{64}$/.test(persistence?.reviewHash ?? '') ||
+      !Number.isFinite(Date.parse(persistence?.expiresAt ?? '')) || Date.parse(persistence.expiresAt) <= now ||
+      !PROFILE_UUID.test(requestId ?? ''))
+    return { available: false, reason: 'A fresh server-persisted live review and admission capability are required.' };
+  return { available: true, payload: { reviewId: persistence.reviewId,
+    reviewHash: persistence.reviewHash, requestId } };
+}
+
+export function liveSetupAdmissionResult(result) {
+  return Boolean(result && result.status === 'queued' && PROFILE_UUID.test(result.campaignId ?? '') &&
+    PROFILE_UUID.test(result.jobId ?? '') && PROFILE_UUID.test(result.allocationId ?? '') &&
+    typeof result.replayed === 'boolean' && result.executionEligible === false &&
+    result.reason === 'rangekeeper_live_execution_unavailable');
+}
+
+const liveBlockers = result => [...new Set([...(Array.isArray(result?.missing) ? result.missing : []),
+  ...(Array.isArray(result?.blockers) ? result.blockers : []), ...(Array.isArray(result?.reasons) ? result.reasons : []),
+  ...(result?.reason ? [result.reason] : [])])];
+export function liveSetupPreflightFacts(result) {
+  if (!result || typeof result !== 'object') return [];
+  const facts = [['Review status', result.status === 'indicative' ? 'Indicative estimate · no action available' : 'Unavailable']];
+  if (result.wallet?.address) facts.push(['Server wallet', `${result.wallet.address} · ${result.wallet.source ?? 'source unavailable'}`]);
+  if (result.profile) facts.push(['Registered pool / fee tier', `${result.profile.pool ?? 'Unavailable'} · ${result.profile.fee ?? 'Unavailable'}`]);
+  if (result.source?.block != null) facts.push(['Confirmed source block', String(result.source.block)]);
+  if (result.range) facts.push(['Tick bounds', `${result.range.tickLower ?? 'Unavailable'} to ${result.range.tickUpper ?? 'Unavailable'}`]);
+  for (const [label,row] of [['Token 0 requirement',result.requirements?.token0Raw],['Token 1 requirement',result.requirements?.token1Raw]])
+    if (row != null) facts.push([label, `${row} raw`]);
+  if (result.requirements?.quoteValueRaw != null) facts.push(['Estimated inventory value', `${result.requirements.quoteValueRaw} raw USDG`]);
+  if (result.requirements?.freeQuoteRaw != null) facts.push(['Unallocated funding value', `${result.requirements.freeQuoteRaw} raw USDG`]);
+  if (result.requirements?.shortfallQuoteRaw != null) facts.push(['Funding shortfall', `${result.requirements.shortfallQuoteRaw} raw USDG`]);
+  if (result.requirements?.nativeWei != null) facts.push(['Required native gas reserve', `${result.requirements.nativeWei} wei`]);
+  if (result.requirements?.exitReserveWei != null) facts.push(['Required exit reserve', `${result.requirements.exitReserveWei} wei`]);
+  if (result.allocation?.nativeWei != null) facts.push(['Native gas allocation', `${result.allocation.nativeWei} wei`]);
+  const walletTokens = Array.isArray(result.wallet?.tokens) ? result.wallet.tokens :
+    [result.wallet?.token0,result.wallet?.token1].filter(Boolean);
+  for (const token of walletTokens) {
+    const name = token.symbol ?? token.reference ?? token.address ?? 'Token';
+    facts.push([`${name} balance · allocated · pending · available`, [token.balanceRaw,token.allocatedRaw,token.pendingRaw,token.availableRaw ?? token.freeRaw].map(v=>v ?? 'Unavailable').join(' · ')]);
+  }
+  const native = result.wallet?.native;
+  if (native) facts.push(['Native gas · balance / allocated / pending / exit reserve / available',
+    [native.balanceWei,native.allocatedWei,native.pendingWei,native.exitReserveWei,native.availableWei ?? native.freeWei].map(v=>v ?? 'Unavailable').join(' / ')]);
+  if (result.references) facts.push(['Independent references · USD x18', `Token 0 ${result.references.price0 ?? 'Unavailable'} · Token 1 ${result.references.price1 ?? 'Unavailable'}`]);
+  if (result.costs) {
+    const hasEstimate = ['estimated','provisional'].includes(result.costs.status);
+    facts.push(['Estimated action cost · USD', hasEstimate ? formatX18(result.costs.actionCostValue) : 'Unavailable']);
+    facts.push(['Estimated action gas · wei', hasEstimate ? String(result.costs.actionGasWei ?? 'Unavailable') : 'Unavailable']);
+    facts.push(['Estimated complete exit cost · USD', hasEstimate ? formatX18(result.costs.completeExitCostValue) : 'Unavailable']);
+    facts.push(['Estimated complete exit gas · wei', hasEstimate ? String(result.costs.completeExitGasWei ?? 'Unavailable') : 'Unavailable']);
+    facts.push(['Estimated exit reserve · wei', hasEstimate ? String(result.costs.exitReserveWei ?? 'Unavailable') : 'Unavailable']);
+    if (result.costs.managementGasReserveWei != null)
+      facts.push(['Management gas reserve · wei', String(result.costs.managementGasReserveWei)]);
+    if (result.costs.fundedManagementBundles != null)
+      facts.push(['Funded management bundles', Number(result.costs.fundedManagementBundles) === 0
+        ? 'Unlimited by count limit' : String(result.costs.fundedManagementBundles)]);
+    facts.push(['Cost evidence', hasEstimate ? `${result.costs.status} · ${result.costs.source ?? result.costs.provenance ?? 'source unavailable'}` : 'Unavailable']);
+  }
+  const blockers = liveBlockers(result);
+  if (blockers.length) facts.push(['Missing evidence / blockers', blockers.join(', ')]);
+  return facts;
+}
+
+export function liveWalletFacts(result) {
+  if (!result || typeof result !== 'object') return [];
+  const facts = [['Wallet status', result.status ?? 'unavailable']];
+  if (result.walletAddress) facts.push(['Server wallet', `${result.walletAddress} · ${result.source ?? 'source unavailable'}`]);
+  for (const token of (Array.isArray(result.tokens) ? result.tokens : []))
+    facts.push([`${token.symbol ?? token.reference ?? token.address ?? 'Token'} balance / allocated / pending / available · raw`,
+      [token.balanceRaw,token.allocatedRaw,token.pendingRaw,token.availableRaw ?? token.freeRaw].map(v=>v ?? 'Unavailable').join(' / ')]);
+  if (result.native) facts.push(['Native balance / allocated / pending / exit reserve / available',
+    [result.native.balanceWei,result.native.allocatedWei,result.native.pendingWei,result.native.exitReserveWei,result.native.availableWei ?? result.native.freeWei].map(v=>v ?? 'Unavailable').join(' / ')]);
+  const blockers = liveBlockers(result);
+  if (blockers.length) facts.push(['Missing evidence / blockers', blockers.join(', ')]);
+  return facts;
+}
+
+export function liveRetainPreviewPathFor(campaignId) {
+  if(!PROFILE_UUID.test(campaignId??''))return null;
+  return `/api/deployments/${encodeURIComponent(campaignId)}/live/retain-preview`;
+}
+export function liveRetainOperationPathFor(campaignId) {
+  if(!PROFILE_UUID.test(campaignId??''))return null;
+  return `/api/deployments/${encodeURIComponent(campaignId)}/live/retain-operations`;
+}
+export function liveRetainPreviewCanBeAccepted(preview,now=Date.now()) {
+  const source=preview?.source,sourceAt=typeof source?.timestamp==='number'?source.timestamp*1000:NaN;
+  return Boolean(preview?.kind==='rangekeeper_live_retain_preview'&&preview.mode==='live'&&
+    preview.strategyId==='rangekeeper_v1'&&preview.status==='indicative'&&preview.trustedPreviewSaved===true&&
+    PROFILE_UUID.test(preview.previewId??'')&&/^[0-9a-f]{64}$/.test(preview.contentDigest??'')&&
+    Number.isSafeInteger(preview.expectedRevision)&&preview.expectedRevision>0&&
+    Number.isFinite(Date.parse(preview.expiresAt??''))&&Date.parse(preview.expiresAt)>now&&
+    Number.isSafeInteger(source?.timestamp)&&source.timestamp>0&&sourceAt<=now&&now-sourceAt<=180_000&&
+    RAW_INTEGER.test(String(source?.block??''))&&EVM_HASH.test(source?.hash??'')&&
+    preview.executionEligible===false&&preview.actionAvailable===true&&preview.operationAcceptanceAvailable===true);
+}
+export function liveRetainAcceptPayload(preview,idempotencyKey,now=Date.now()) {
+  if(!liveRetainPreviewCanBeAccepted(preview,now)||!PROFILE_UUID.test(idempotencyKey??''))return null;
+  return {previewId:preview.previewId,contentDigest:preview.contentDigest,
+    expectedRevision:preview.expectedRevision,idempotencyKey};
+}
+export function liveRetainAcceptResult(result,campaignId) {
+  return Boolean(result&&result.status==='queued'&&PROFILE_UUID.test(result.campaignId??'')&&
+    result.campaignId===campaignId&&PROFILE_UUID.test(result.jobId??'')&&
+    (result.allocationId==null||PROFILE_UUID.test(result.allocationId))&&
+    typeof result.replayed==='boolean'&&result.executionEligible===false&&
+    result.reason==='rangekeeper_live_execution_unavailable');
+}
+
 /** RangeKeeper has its own setup draft admission. The static one parses a static
  * payload and rejects any other strategy, so a RangeKeeper review posted there
  * fails on input validation rather than on anything the operator can fix. */
@@ -475,9 +608,13 @@ function bootDashboardTabs() {
   let setupReviewSequence = 0;
   const pendingDraftStorageKey='concliq.operator.static-paper-draft.pending.v1';
   const pendingOpenStorageKey='concliq.operator.paper-open.pending.v1';
+  const pendingLiveAdmissionStorageKey='concliq.operator.rangekeeper-live-admission.pending.v1';
   let pendingDraftPersistenceAvailable=true;
   let walletAddressManuallyEdited=false;
   let setupDefaultsLoaded=false;
+  let liveSetupAvailable=false;
+  let liveAdmissionAvailable=false;
+  let pendingLiveAdmission=null;
   let pendingOpenAcceptance=null;
   try{
     const saved=JSON.parse(localStorage.getItem(pendingDraftStorageKey)??'null');
@@ -485,6 +622,11 @@ function bootDashboardTabs() {
       typeof saved.body==='string'&&saved.body.length<16_000&&JSON.parse(saved.body)){
       pendingDraftRequestId=saved.requestId;pendingDraftBody=saved.body;
     }
+  }catch{pendingDraftPersistenceAvailable=false;}
+  try{
+    const saved=JSON.parse(localStorage.getItem(pendingLiveAdmissionStorageKey)??'null');
+    if(saved&&PROFILE_UUID.test(saved.reviewId??'')&&/^[0-9a-f]{64}$/.test(saved.reviewHash??'')&&
+      PROFILE_UUID.test(saved.requestId??''))pendingLiveAdmission=saved;
   }catch{pendingDraftPersistenceAvailable=false;}
   try{
     const saved=JSON.parse(localStorage.getItem(pendingOpenStorageKey)??'null');
@@ -534,7 +676,7 @@ function bootDashboardTabs() {
   function poolsWithProfiles() {
     if (!marketProfiles.length) return researchPools
       .slice().sort((a, b) => a.rwaSymbol.localeCompare(b.rwaSymbol) || a.fee - b.fee);
-    return marketProfiles.filter((profile) => profile.draftAvailable === true).map((profile) => {
+    return marketProfiles.filter((profile) => profile.draftAvailable === true || setupMode?.value === 'live').map((profile) => {
       const pool = researchPools.find((candidate) => candidate.poolAddress?.toLowerCase() === profile.pool?.toLowerCase() && candidate.fee === profile.fee);
       const rwaReference = profile.quoteToken === 0 ? profile.reference1 : profile.reference0;
       const rwaName = String(rwaReference ?? '').split('/')[0];
@@ -599,14 +741,24 @@ function bootDashboardTabs() {
     rangeKeeperWidthRow=document.getElementById('setup-rangekeeper-width-row'),
     staticWidthRow=document.getElementById('setup-static-width-row');
   const updateLimitsVisibility=()=>{
-    const strategy=setupStrategy.value,paper=setupMode.value==='paper',
+    const strategy=setupStrategy.value,paper=setupMode.value==='paper',live=setupMode.value==='live',
       rangeKeeper=strategy==='rangekeeper_v1';
-    setupLimits.hidden=!paper||(strategy!=='static_manual_v1'&&!rangeKeeper);
+    setupLimits.hidden=(!paper&&!live)||(strategy!=='static_manual_v1'&&!rangeKeeper);
     // RangeKeeper centres its own range, so it takes a full width in spacings
     // where static/manual takes a half-width in ticks. Only one applies.
-    if(rangeKeeperRows)rangeKeeperRows.hidden=!rangeKeeper||!paper;
-    if(rangeKeeperWidthRow)rangeKeeperWidthRow.hidden=!rangeKeeper||!paper;
-    if(staticWidthRow)staticWidthRow.hidden=rangeKeeper&&paper;
+    if(rangeKeeperRows)rangeKeeperRows.hidden=!rangeKeeper||(!paper&&!live);
+    if(rangeKeeperWidthRow)rangeKeeperWidthRow.hidden=!rangeKeeper||(!paper&&!live);
+    if(staticWidthRow)staticWidthRow.hidden=rangeKeeper&&(paper||live);
+    const walletPanel=document.getElementById('live-wallet-review');
+    if(walletPanel)walletPanel.hidden=!live;
+    const limitsNote=document.getElementById('setup-limits-note');
+    if(limitsNote)limitsNote.textContent=live
+      ? 'Review and edit the limits included in the fresh RangeKeeper live setup review. Displayed costs and funding are evidence for operator review only.'
+      : 'Some suggestions scale from your capital. Review and edit them before continuing. These are paper setup suggestions, not a profitability recommendation.';
+    if(live){
+      registeredPools=poolsWithProfiles(); if(registeredPools.length)replacePoolOptions();
+      void refreshLiveWallet();
+    } else if(registeredPools.length){registeredPools=poolsWithProfiles();replacePoolOptions();}
     applySuggestedLimitValues();
   };
   setupStrategy.addEventListener('change',updateLimitsVisibility);setupMode.addEventListener('change',updateLimitsVisibility);
@@ -620,6 +772,13 @@ function bootDashboardTabs() {
     const strategyId = document.getElementById('setup-strategy').value;
     const mode = document.getElementById('setup-mode').value;
     const rangeKeeper = strategyId === 'rangekeeper_v1';
+    if(mode==='live'&&pendingLiveAdmission){
+      document.getElementById('setup-review').hidden=false;
+      document.getElementById('live-setup-result').hidden=false;
+      renderLiveAdmissionRecovery();
+      setSetupStatus('A previous live admission outcome is unresolved. Retry that exact request before requesting another review.');
+      return;
+    }
     const fullWidthSpacings = document.getElementById('setup-rangekeeper-width')?.value ?? '';
     const capitalRaw = capitalToQuoteRaw(capital), spacing = Number(pool?.tickSpacing), width = Number(ticks);
     if (rangeKeeper) {
@@ -629,9 +788,12 @@ function bootDashboardTabs() {
         error.textContent = 'Choose an enabled registered pool, valid USDG capital and an even RangeKeeper full width between 2 and 2000 tick spacings.';
         error.hidden = false; return;
       }
-    } else if (!pool || !capitalRaw || !Number.isSafeInteger(spacing) || spacing < 1 ||
-        !Number.isSafeInteger(width) || width < spacing || width % spacing !== 0) {
+    } else if (mode === 'paper' && (!pool || !capitalRaw || !Number.isSafeInteger(spacing) || spacing < 1 ||
+        !Number.isSafeInteger(width) || width < spacing || width % spacing !== 0)) {
       error.textContent = 'Choose an enabled registered pool, valid USDG capital and a half-width aligned to its tick spacing.';
+      error.hidden = false; return;
+    } else if (mode === 'live' && (!pool || !capitalRaw)) {
+      error.textContent = 'Choose a registered pool and valid USDG capital.';
       error.hidden = false; return;
     }
     error.hidden = true;
@@ -643,16 +805,44 @@ function bootDashboardTabs() {
       ['Capital', `${capital} USDG`],
       ...(strategyId === 'rangekeeper_v1'
         ? [['Full width around center', `${fullWidthSpacings} tick spacings (${Number(fullWidthSpacings) * spacing} ticks)`]]
-        : [['Half-width around center', widthSelect.selectedOptions[0].textContent]]),
+        : mode === 'paper' ? [['Half-width around center', widthSelect.selectedOptions[0]?.textContent ?? 'Unavailable']] : []),
       ['Strategy', document.getElementById('setup-strategy').selectedOptions[0].textContent],
       ['Mode', document.getElementById('setup-mode').selectedOptions[0].textContent],
     ];
     renderFacts(facts);
     const output = document.getElementById('setup-preflight-result');
     output.hidden = true;
+    document.getElementById('live-setup-result').hidden=true;
     document.getElementById('setup-review').hidden = false;
     if (!onOperatorOrigin) {
       setSetupStatus('Fresh preflight is unavailable on the public read-only dashboard. Open the operator dashboard to request it; no request was sent.');
+      return;
+    }
+    if (mode === 'live') {
+      if (strategyId !== 'rangekeeper_v1') {
+        setSetupStatus('Live setup review is available for RangeKeeper only. Static/manual live setup is unavailable; no request was sent.');
+        return;
+      }
+      if (!liveSetupAvailable) {
+        setSetupStatus('RangeKeeper live setup review is not installed on this service. No request was sent.');
+        return;
+      }
+      if (!operatorSession.isReady()) { setSetupStatus('Operator session is connecting. Retry after connection is ready.'); return; }
+      const limits=humanSetupLimitsToRaw(readHumanLimitInputs(strategyId),strategyId);
+      const request=liveSetupPreflightRequest({pool,capital,fullWidthSpacings,limits,liveSetup:liveSetupAvailable});
+      if(!request.available){setSetupStatus(`Live review unavailable: ${request.reason}`);return;}
+      setSetupStatus('Reviewing current shared-wallet funding, source, references and estimated costs. This is read-only and cannot create or execute a campaign…','loading');
+      reviewButton.disabled=true;
+      try {
+        const result=await authRequest(LIVE_SETUP_PREFLIGHT_PATH,{method:'POST',body:request.payload,csrf:true,signal:AbortSignal.timeout(360_000)});
+        if(reviewSequence!==setupReviewSequence)return;
+        reviewButton.disabled=false;
+        renderLiveSetup(result);
+      } catch(cause) {
+        if(reviewSequence!==setupReviewSequence)return;
+        reviewButton.disabled=false;
+        setSetupStatus(cause.status===404?'Live setup review route is unavailable on this command service.':`Live setup review failed (${cause.data?.error ?? 'command_failed'}). No campaign or operation was created.`);
+      }
       return;
     }
     if ((strategyId !== 'static_manual_v1' && !rangeKeeper) || mode !== 'paper') {
@@ -732,6 +922,122 @@ function bootDashboardTabs() {
     setSetupStatus(isAvailable
       ? `Preflight completed. The suggested native allocation adds 20% headroom over open cost plus the greater of ${result.strategyId==='rangekeeper_v1'?'retained-exit bound':'close bound'} or the configured and modeled exit reserve. Gas can reprice beyond this cushion; request a fresh open preview before accepting. Admission limits were not evaluated.`
       : `Preflight unavailable: ${missing || 'required evidence unavailable'}.`);
+  }
+
+  function renderLiveSetup(result) {
+    const output=document.getElementById('live-setup-result'),status=result?.kind==='rangekeeper_live_setup_preflight'&&
+      result?.mode==='live'&&result?.strategyId==='rangekeeper_v1'&&result?.status==='indicative'&&
+      result?.actionAvailable===false&&result?.draftCreationAvailable===false&&
+      result?.operationAcceptanceAvailable===false&&result?.executionEligible===false;
+    document.getElementById('live-setup-title').textContent=status?'Indicative live setup review':'Live setup review unavailable';
+    const blockers=liveBlockers(result);
+    document.getElementById('live-setup-detail').textContent=status
+      ? 'Fresh funding, source and cost review only. Funding sufficiency and eligibility do not authorize a campaign or transaction.'
+      : `Required evidence unavailable: ${blockers.join(', ') || 'unknown blocker'}.`;
+    const facts=document.getElementById('live-setup-facts');
+    facts.replaceChildren(...liveSetupPreflightFacts(result).map(([name,value])=>{
+      const row=document.createElement('div'),label=document.createElement('dt'),content=document.createElement('dd');
+      label.textContent=name;content.textContent=value;row.append(label,content);return row;
+    }));
+    output.hidden=false;
+    currentSetupPreflight=result;
+    renderLiveAdmissionAction(output,result,status);
+    setSetupStatus(status?'Review complete. Approval is available only when a server-persisted review and live-admission capability are both present; queued admission does not mean the campaign is holding.':`Live review unavailable: ${blockers.join(', ') || 'required evidence unavailable'}.`);
+  }
+
+  function liveAdmissionHost(output){
+    let host=output.querySelector('.live-admission-action');
+    if(!host){host=document.createElement('div');host.className='live-admission-action';output.append(host);}
+    host.replaceChildren();return host;
+  }
+  function renderLiveAdmissionAction(output,result,indicative){
+    const host=liveAdmissionHost(output);
+    const limitation=output.querySelector('.inline-note');
+    if(limitation)limitation.textContent='Queueing a persisted review does not mean the campaign is holding. Live execution remains unavailable.';
+    if(pendingLiveAdmission){
+      const message=document.createElement('p');
+      message.textContent=`Admission for persisted review ${pendingLiveAdmission.reviewId} may already have been accepted. Retry the same request key to reconcile; do not submit a new review yet.`;
+      host.append(message);
+      const button=document.createElement('button');button.type='button';button.textContent='Retry same live admission';
+      button.disabled=!liveAdmissionAvailable||!window.concliqOperatorAuthenticated?.();host.append(button);
+      const status=document.createElement('p');status.setAttribute('role','status');host.append(status);
+      button.addEventListener('click',()=>void submitLiveAdmission(pendingLiveAdmission,button,status));
+      return;
+    }
+    const admission=liveSetupAdmissionRequest({preflight:result,liveAdmission:liveAdmissionAvailable,
+      requestId:'00000000-0000-4000-8000-000000000000'});
+    const message=document.createElement('p');
+    message.textContent=indicative&&admission.available
+      ?'This review is persisted by the server. Approval queues a campaign record; it does not mean the campaign is holding or that execution is installed.'
+      :indicative?'Live admission is unavailable on this service. The review remains read-only; no campaign was created.'
+      :'No admission action is available because the review or required evidence is unavailable.';
+    host.append(message);
+    if(!indicative||!admission.available)return;
+    const button=document.createElement('button');button.type='button';button.textContent='Approve live opening';
+    button.disabled=!window.concliqOperatorAuthenticated?.();host.append(button);
+    const status=document.createElement('p');status.setAttribute('role','status');host.append(status);
+    button.addEventListener('click',()=>{
+      if(result!==currentSetupPreflight)return;
+      const requestId=globalThis.crypto?.randomUUID?.();
+      const request=liveSetupAdmissionRequest({preflight:result,liveAdmission:liveAdmissionAvailable,requestId});
+      if(!request.available||!requestId){status.textContent='Admission is unavailable; obtain a fresh persisted review.';return;}
+      pendingLiveAdmission={...request.payload};
+      try{localStorage.setItem(pendingLiveAdmissionStorageKey,JSON.stringify(pendingLiveAdmission));}
+      catch{pendingLiveAdmission=null;pendingDraftPersistenceAvailable=false;
+        status.textContent='A durable same-request key could not be saved. No admission request was sent.';return;}
+      button.disabled=true;
+      void submitLiveAdmission(pendingLiveAdmission,button,status);
+    });
+  }
+  function renderLiveAdmissionRecovery(){
+    const output=document.getElementById('live-setup-result');output.hidden=false;
+    document.getElementById('live-setup-title').textContent='Live admission needs reconciliation';
+    document.getElementById('live-setup-detail').textContent='The previous admission response was not confirmed. Retry the exact request key before creating another review.';
+    const facts=document.getElementById('live-setup-facts');facts.replaceChildren();
+    renderLiveAdmissionAction(output,null,false);
+  }
+  async function submitLiveAdmission(body,button,status){
+    if(!pendingLiveAdmission||JSON.stringify(body)!==JSON.stringify(pendingLiveAdmission)||
+       !liveAdmissionAvailable||!window.concliqOperatorAuthenticated?.())return;
+    button.disabled=true;status.textContent='Submitting the server-persisted review with its durable request key…';
+    try{
+      const result=await authRequest(LIVE_SETUP_ADMISSION_PATH,{method:'POST',body,csrf:true});
+      if(!liveSetupAdmissionResult(result))throw new Error('live_admission_response_invalid');
+      try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
+      pendingLiveAdmission=null;
+      status.textContent=`Admission queued for campaign ${result.campaignId} · job ${result.jobId}${result.replayed?' · reconciled existing request':''}. This does not mean the campaign is holding; live execution remains unavailable.`;
+      button.disabled=true;
+      try{window.dispatchEvent(new Event('positions-refresh-requested'));}catch{}
+    }catch(error){
+      const reason=error?.data?.error??error?.message??'command_failed';
+      if(error?.status>=400&&error.status<500){
+        try{localStorage.removeItem(pendingLiveAdmissionStorageKey);}catch{pendingDraftPersistenceAvailable=false;}
+        pendingLiveAdmission=null;button.disabled=true;
+        status.textContent=`Admission rejected (${reason}). Request a fresh live review before retrying.`;
+      }else{
+        status.textContent=`Admission outcome unknown (${reason}). Retry with the same request key; do not request another review until reconciled.`;
+        const retry=button.cloneNode(true);retry.textContent='Retry same live admission';retry.disabled=false;
+        button.replaceWith(retry);
+        retry.addEventListener('click',()=>void submitLiveAdmission(pendingLiveAdmission,retry,status));
+      }
+    }
+  }
+
+  function liveBlockers(result){return [...new Set([...(Array.isArray(result?.missing)?result.missing:[]),
+    ...(Array.isArray(result?.blockers)?result.blockers:[]),...(Array.isArray(result?.reasons)?result.reasons:[]),...(result?.reason?[result.reason]:[])])];}
+
+  async function refreshLiveWallet(){
+    const panel=document.getElementById('live-wallet-review');
+    if(!panel||setupMode.value!=='live')return;
+    const note=document.getElementById('live-wallet-note'),facts=document.getElementById('live-wallet-facts');
+    if(!onOperatorOrigin||!operatorSession.isReady()){note.textContent='Connect the operator service to read server wallet balances.';facts.replaceChildren();return;}
+    note.textContent='Loading reconciled shared-wallet balances…';
+    try{
+      const result=await authRequest(LIVE_WALLET_PATH);
+      const values=liveWalletFacts(result);
+      facts.replaceChildren(...values.map(([name,value])=>{const row=document.createElement('div'),label=document.createElement('dt'),content=document.createElement('dd');label.textContent=name;content.textContent=value;row.append(label,content);return row;}));
+      note.textContent=result?.status==='available'?'Balances from the registered server wallet. Allocated and pending funds remain reserved across campaigns.':'Wallet funding is unavailable or unreconciled; amounts are not inferred.';
+    }catch(error){facts.replaceChildren();note.textContent=`Wallet balance review unavailable (${error?.data?.error??error?.message??'request_failed'}).`}
   }
   const limitInputIds={maxDeploymentValue:'limit-max-deployment',minDeploymentValue:'limit-min-deployment',
     maxExposurePpm:'limit-max-exposure',maxLossValue:'limit-max-loss',maxDrawdownPpm:'limit-max-drawdown',
@@ -1215,8 +1521,16 @@ function bootDashboardTabs() {
           marketProfiles = response.profiles ?? [];
           profilesLoaded = true;
         }
+        try {
+          const capabilities=await authRequest('/api/strategies');
+          const rangeKeeperCapability=capabilities.strategies?.find(item=>item.id==='rangekeeper_v1');
+          liveSetupAvailable=rangeKeeperCapability?.liveSetup===true;
+          liveAdmissionAvailable=rangeKeeperCapability?.liveAdmission===true;
+        } catch { liveSetupAvailable=false;liveAdmissionAvailable=false; }
         applyProfileIds();
-        setSetupStatus('Verified, indexed profiles are available for static/manual paper preflight.');
+        setSetupStatus(liveAdmissionAvailable
+          ?'Verified, indexed profiles are available. Persisted RangeKeeper review admission may be available; live execution remains unavailable.'
+          :'Verified, indexed profiles are available for setup review. Live campaign admission and execution remain unavailable.');
         restorePendingDraftReview();
         if (!draftsLoaded) {
           const loaded = await loadSavedPaperDrafts();
@@ -1241,6 +1555,7 @@ function bootDashboardTabs() {
       // holds a CSRF token, then reloads its operator-owned data.
       await operatorSession.bootstrap({force:retry});
       await loadOperatorDataOnce({refresh:retry});
+      if(setupMode.value==='live')await refreshLiveWallet();
       document.getElementById('operator-auth-status').textContent='Operator connection ready.';
       connectionRetry.hidden=true;
     } catch (cause) {

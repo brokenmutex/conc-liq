@@ -291,3 +291,18 @@ test('the failed 40-tick entry could mint before approval delay and use idle USD
   sqrtPriceX96:4313136158835044232948535785310267n},config,{} as RangeKeeperChain,
   {price0:1000080000000000000n,price1:stockPrice}),RangeKeeperMintUnavailableError);
 });
+test('retained close withdraws and cleans allowances without converting the remaining risky token',async()=>{
+ const state={phase:'exit',desired:'stopped',exitMode:'retain',activeTokenId:null,candidate:null,
+  reserve0:0n,reserve1:0n,reserveNativeWei:0n} as RangeKeeperLiveState;
+ const snapshot={source:{block:10n,hash:`0x${'11'.repeat(32)}` as const,timestamp:100},operator:config.operator!,
+  wallet0:5n,wallet1:7n,nativeWei:10n**16n,position:null,tick:218100,sqrtPriceX96:1n<<96n,
+  allowances:[{token:p.token0,spender:p.router,amount:0n},{token:p.token0,spender:p.positionManager,amount:0n},
+   {token:p.token1,spender:p.router,amount:0n},{token:p.token1,spender:p.positionManager,amount:0n}]} as RangeKeeperSnapshot;
+ const plan=await nextRangeKeeperStage(state,snapshot,config,{} as RangeKeeperChain,{price0,price1});
+ assert.equal(plan,null,'retained-exit inventory stays in its current tokens');
+ const dirty={...snapshot,allowances:[{token:p.token0,spender:p.router,amount:0n},
+  {token:p.token0,spender:p.positionManager,amount:0n},{token:p.token1,spender:p.router,amount:7n},
+  {token:p.token1,spender:p.positionManager,amount:0n}]} as RangeKeeperSnapshot;
+ const cleanup=await nextRangeKeeperStage(state,dirty,config,{} as RangeKeeperChain,{price0,price1});
+ assert.deepEqual(cleanup,{kind:'approve',token:1,spender:'router',amount:0n},'retain still clears token approvals');
+});

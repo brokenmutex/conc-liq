@@ -8,13 +8,19 @@ import {DeploymentConflict} from './store.js';
 import {paperSetupPreflightInput,type PaperSetupPreflightInput} from './paper-setup-preflight.js';
 import {rangeKeeperSetupPreflightInput,
  type RangeKeeperSetupPreflightInput} from './rangekeeper-paper-setup-preflight.js';
+import {rangeKeeperLiveSetupPreflightInput,
+ type RangeKeeperLiveSetupPreflightInput} from './rangekeeper-live-setup-preflight.js';
 import {staticPaperDraftAdmissionInputSchema} from './static-paper-draft-admission.js';
+import {rangeKeeperLiveReviewAdmissionInputSchema,
+ type RangeKeeperLiveReviewAdmissionInput,type RangeKeeperLiveReviewAdmissionResult} from './rangekeeper-live-review-admission.js';
 import {parseResearchDetailsRequest,parseResearchSummaryRequest} from '../dashboard/research-api.js';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sessionInput=z.object({}).strict();
 const paperPreviewInput=z.object({kind:z.enum([
  'open','pause','resume','close_retain','close_convert'])}).strict();
+const liveRetainInput=z.object({previewId:z.uuid(),contentDigest:z.string().regex(/^[0-9a-f]{64}$/),
+ expectedRevision:z.number().int().positive(),idempotencyKey:z.uuid()}).strict();
 const SESSION_SECONDS=4*60*60;
 const MAX_SESSIONS=32;
 const BODY_BYTES=16*1024;
@@ -27,6 +33,12 @@ const RANGEKEEPER_SETUP_STALE_REASONS:readonly string[]=['setup_review_binding_s
  'registered_profile_changed_since_preflight'];
 
 export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:()=>number;
+ liveWalletReview?:()=>Promise<unknown>;
+ rangeKeeperLiveSetupPreflight?:(input:RangeKeeperLiveSetupPreflightInput)=>Promise<unknown>;
+ rangeKeeperLiveSetupAdmission?:(input:RangeKeeperLiveReviewAdmissionInput)=>Promise<RangeKeeperLiveReviewAdmissionResult>;
+ rangeKeeperLiveAdmissionReady?:()=>Promise<boolean>;
+ rangeKeeperLiveRetainPreview?:(campaignId:string)=>Promise<unknown>;
+ rangeKeeperLiveRetainAdmission?:(campaignId:string,input:z.infer<typeof liveRetainInput>)=>Promise<RangeKeeperLiveReviewAdmissionResult>;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
@@ -119,6 +131,10 @@ export function createDeploymentCommandServer(store:CommandStore,
    throw Error('Public operator origin must be an exact HTTPS origin');
  }
  const now=options.now??Date.now;
+ const liveAdmissionReady=async()=>{
+  if(!options.rangeKeeperLiveSetupAdmission||!options.rangeKeeperLiveAdmissionReady)return false;
+  try{return await options.rangeKeeperLiveAdmissionReady()===true;}catch{return false;}
+ };
  const sessions=new Map<string,Session>();
  const removeExpiredSessions=()=>{
   const current=now();
@@ -224,11 +240,19 @@ export function createDeploymentCommandServer(store:CommandStore,
      options.rangeKeeperSetupDraftAdmission&&options.paperSetupDraftList);
     const paperAvailable=(id:string)=>id==='static_manual_v1'?staticPaperAvailable:
      id==='rangekeeper_v1'?rangeKeeperPaperAvailable:false;
+    const liveAdmission=await liveAdmissionReady();
     send(response,200,{strategies:STRATEGY_IDS.map(id=>({id,version:'1.0.0',
-     paper:paperAvailable(id),live:false}))});return;
+     paper:paperAvailable(id),live:false,
+     liveSetup:id==='rangekeeper_v1'&&Boolean(options.liveWalletReview&&options.rangeKeeperLiveSetupPreflight),
+     liveAdmission:id==='rangekeeper_v1'&&liveAdmission
+    }))});return;
    }
    if(path==='/api/deployments/setup-defaults'&&request.method==='GET'){
     send(response,200,options.setupDefaults?.()??{walletAddress:null});return;
+   }
+   if(path==='/api/deployments/live-wallet'&&request.method==='GET'){
+    if(!options.liveWalletReview){send(response,503,{error:'live_wallet_review_unavailable'});return;}
+    send(response,200,await options.liveWalletReview());return;
    }
    if(path==='/api/market-profiles'&&request.method==='GET'){
     send(response,200,{profiles:await store.listMarketProfiles()});return;
@@ -261,6 +285,52 @@ export function createDeploymentCommandServer(store:CommandStore,
     if(!options.rangeKeeperSetupPreflight){
      send(response,503,{error:'rangekeeper_setup_preflight_unavailable'});return;}
     send(response,200,await options.rangeKeeperSetupPreflight(input));return;
+   }
+   if(path==='/api/deployments/rangekeeper/live-setup-preflight'&&request.method==='POST'){
+    const input=rangeKeeperLiveSetupPreflightInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperLiveSetupPreflight){
+     send(response,503,{error:'rangekeeper_live_setup_preflight_unavailable'});return;}
+    const result=await options.rangeKeeperLiveSetupPreflight(input);
+    send(response,200,{...(result as Record<string,unknown>),admissionAvailable:await liveAdmissionReady()});return;
+   }
+   if(path==='/api/deployments/rangekeeper/live-setup-admit'&&request.method==='POST'){
+    const input=rangeKeeperLiveReviewAdmissionInputSchema.parse(await jsonBody(request));
+    if(!await liveAdmissionReady()){
+     send(response,503,{error:'rangekeeper_live_worker_not_ready',status:'unavailable',
+      missing:['rangekeeper_live_worker_not_ready'],actionAvailable:false,executionEligible:false});return;
+    }
+    const result=await options.rangeKeeperLiveSetupAdmission!(input);
+    if(result.status==='queued'){send(response,result.replayed?200:202,result);return;}
+    if(result.status==='request_conflict'){
+     send(response,409,{error:'live_request_id_conflict',...result});return;
+    }
+    if(result.status==='unavailable'){
+     send(response,409,{error:result.missing[0]??'rangekeeper_live_admission_unavailable',...result});return;
+    }
+    send(response,500,{error:'rangekeeper_live_admission_result_invalid'});return;
+   }
+   const liveRetainPreview=path.match(/^\/api\/deployments\/([0-9a-f-]+)\/live\/retain-preview$/i);
+   if(liveRetainPreview&&uuid.test(liveRetainPreview[1]!)&&request.method==='POST'){
+    sessionInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperLiveRetainPreview){send(response,503,{error:'rangekeeper_live_retain_preview_unavailable'});return;}
+    const result=await options.rangeKeeperLiveRetainPreview(liveRetainPreview[1]!);
+    const available=Boolean(options.rangeKeeperLiveRetainAdmission)&&await liveAdmissionReady();
+    send(response,200,{...(result as Record<string,unknown>),
+     operationAcceptanceAvailable:available&&(result as Record<string,unknown>).operationAcceptanceAvailable===true,
+     actionAvailable:available&&(result as Record<string,unknown>).actionAvailable===true,executionEligible:false});return;
+   }
+   const liveRetainAdmission=path.match(/^\/api\/deployments\/([0-9a-f-]+)\/live\/retain-operations$/i);
+   if(liveRetainAdmission&&uuid.test(liveRetainAdmission[1]!)&&request.method==='POST'){
+    const input=liveRetainInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperLiveRetainAdmission||!await liveAdmissionReady()){
+     send(response,503,{error:'rangekeeper_live_worker_not_ready',status:'unavailable',
+      missing:['rangekeeper_live_worker_not_ready'],actionAvailable:false,executionEligible:false});return;
+    }
+    const result=await options.rangeKeeperLiveRetainAdmission(liveRetainAdmission[1]!,input);
+    if(result.status==='queued'){send(response,result.replayed?200:202,result);return;}
+    if(result.status==='request_conflict'){send(response,409,{error:'live_request_id_conflict',...result});return;}
+    send(response,409,{error:result.status==='unavailable'?result.missing[0]??'rangekeeper_live_retain_unavailable':
+     'rangekeeper_live_retain_unavailable',...result});return;
    }
    if(path==='/api/deployments/rangekeeper/setup-drafts'&&request.method==='POST'){
     if(!options.rangeKeeperSetupDraftAdmission){
@@ -300,6 +370,9 @@ export function createDeploymentCommandServer(store:CommandStore,
    }
    if(path==='/api/deployments/drafts'&&request.method==='POST'){
     const input=draftInput.parse(await jsonBody(request));
+    if(input.mode==='live'){
+     send(response,409,{error:'rangekeeper_live_execution_unavailable'});return;
+    }
     if(input.mode==='paper'&&input.strategyId==='static_manual_v1'){
      send(response,409,{error:'static_paper_setup_admission_required'});return;
     }

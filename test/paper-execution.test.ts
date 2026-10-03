@@ -108,6 +108,15 @@ describe("paper transaction boundaries and cost measurements", () => {
     assert.doesNotThrow(() => assertPinnedRead("eth_call", [{}, "0x64", {}], source));
     assert.throws(() => assertPinnedRead("eth_getStorageAt", [account, "0x0", "latest"], source));
     assert.throws(() => assertPinnedRead("eth_call", [{}, "0x65"], source));
+    const hashTag={blockHash:source.hash,requireCanonical:true};
+    for(const method of ["eth_call","eth_estimateGas","eth_getBalance","eth_getCode","eth_getTransactionCount"]){
+      assert.doesNotThrow(()=>assertPinnedRead(method,[{},hashTag],source));
+      assert.throws(()=>assertPinnedRead(method,[{},{blockHash:`0x${'f'.repeat(64)}`}],source));
+      assert.throws(()=>assertPinnedRead(method,[{},{...hashTag,blockNumber:'0x64'}],source));
+      assert.throws(()=>assertPinnedRead(method,[{},{...hashTag,requireCanonical:'false'}],source));
+    }
+    assert.doesNotThrow(()=>assertPinnedRead("eth_getStorageAt",[account,"0x0",hashTag],source));
+    assert.throws(()=>assertPinnedRead("eth_getBlockByNumber",[hashTag,false],source));
   });
   it("uses the total gas estimate once and preserves a measured zero parent component", () => {
     const gas = gasComponents([100000n, 25000n, 123456789n, 10n]);

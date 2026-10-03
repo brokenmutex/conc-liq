@@ -3,11 +3,16 @@ import {allocationSchema} from '../deployments/contracts.js';
 import {contentHash} from '../deployments/contracts.js';
 import {paperAccountingSchema,paperConversionAccountingV2Schema,paperConversionAccountingV3Schema,
  PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
- type PaperAccounting,type PaperConversionAccountingV2,type PaperConversionAccountingV3}
+ RANGEKEEPER_PAPER_ACCOUNTING_POLICY,rangeKeeperPaperAccountingSchema,
+ rangeKeeperPaperReferenceProofFresh,
+ type PaperAccounting,type PaperConversionAccountingV2,type PaperConversionAccountingV3,
+ type RangeKeeperPaperAccounting}
  from '../deployments/paper-accounting.js';
-import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
+import {marketProfileSchema,referenceProofHash,type MarketProfile} from '../deployments/market-profile.js';
 import {amountsForLiquidity,sqrtRatioAtTick} from '../backtest/principal.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
+import {parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js';
+import {rangeKeeperPinnedSemanticProofHash} from '../deployments/rangekeeper-live-review-runtime.js';
 
 const WAD=10n**18n,Q192=1n<<192n;
 const micro=(value:string|null)=>value===null?null:String(BigInt(value)/10n**12n);
@@ -17,6 +22,11 @@ const decimal=(value:unknown):string|null=>typeof value==='string'&&/^(0|[1-9][0
 const sourceTime=(provenance:unknown):string|null=>{
  const n=record(record(provenance).source).timestamp;
  return typeof n==='number'&&Number.isSafeInteger(n)&&n>0?new Date(n*1000).toISOString():null;
+};
+const sameSource=(a:unknown,b:unknown)=>{
+ const x=record(a),y=record(b);
+ return String(x.block)===String(y.block)&&String(x.hash).toLowerCase()===String(y.hash).toLowerCase()&&
+  Number(x.timestamp)===Number(y.timestamp);
 };
 const symbol=(reference:string)=>reference.split('/')[0]??reference;
 
@@ -28,6 +38,15 @@ interface DeploymentRow {
  operation_id:string|null;operation_kind:string|null;operation_status:string|null;
  operation_stage:string|null;operation_reason:string|null;operation_updated_at:Date|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ rangekeeper_accounting_snapshot?:unknown;rangekeeper_accounting_hash?:string|null;
+ rk_previous_mark_id?:string|null;rk_previous_mark_at?:Date|null;rk_previous_source_block?:string|null;
+ rk_previous_source_hash?:string|null;rk_previous_inventory?:unknown;rk_previous_economics?:unknown;
+ rk_previous_provenance?:unknown;rk_previous_accounting_snapshot?:unknown;rk_previous_accounting_hash?:string|null;
+ rk_previous_invalidated_at?:Date|null;
+ live_mark_payload?:unknown;live_mark_payload_hash?:string|null;live_mark_block?:string|null;
+ live_mark_hash?:string|null;live_mark_timestamp?:string|number|null;live_runtime_state?:unknown;
+ live_runtime_state_hash?:string|null;live_runtime_revision?:number|null;live_runtime_profile_hash?:string|null;
+ live_runtime_config_hash?:string|null;live_profile_id?:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
@@ -35,8 +54,100 @@ interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ rangekeeper_accounting_snapshot?:unknown;rangekeeper_accounting_hash?:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
+}
+type LiveMarkModel={payload:any;state:RangeKeeperLiveState;source:{block:string;hash:string;timestamp:number};
+ amounts:[string,string];navQuote:string|null;passiveQuote:string|null;feesQuote:string|null;gasQuote:string|null;swapCostQuote:string|null;
+ pnlQuote:string|null;alphaQuote:string|null;epoch:number;sqrt:string|null;tick:number|null;tickLower:number|null;
+ tickUpper:number|null;hasPosition:boolean;feeEvidenceAvailable:boolean;nativeWei:string;referencesAvailable:boolean;missing:string[];
+ feeRaw:[string,string];costEvents:any[]};
+function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):LiveMarkModel|null{
+ try{
+  if(contentHash(row.live_mark_payload)!==row.live_mark_payload_hash)return null;
+  const stored=parseRangeKeeperJson<any>(row.live_mark_payload),runtime=parseRangeKeeperJson<RangeKeeperLiveState>(row.live_runtime_state),
+   payload=stored?.kind==='rangekeeper_live_valuation_mark_v1'?stored:stored?.terminalValuation;
+  const state=payload?.accountingState??runtime;
+  if(!payload||!state||payload.kind!=='rangekeeper_live_valuation_mark_v1'||payload.schemaVersion!==1||
+   payload.campaignId!==row.id||
+   Number(payload.revision)!==row.current_revision||
+   payload.profileHash!==contentHash(profile)||payload.profileId!==row.live_profile_id||
+   payload.configHash!==row.live_runtime_config_hash||
+   !history&&(Number(row.live_runtime_revision)!==row.current_revision||
+    payload.profileHash!==row.live_runtime_profile_hash||!runtime||
+    contentHash(JSON.parse(rangeKeeperJson(runtime)))!==row.live_runtime_state_hash||
+    payload.runtimeStateHash!==row.live_runtime_state_hash||!sameSource(payload.source,runtime.last?.source))||
+   !sameSource(payload.source,{block:row.live_mark_block,hash:row.live_mark_hash,timestamp:Number(row.live_mark_timestamp)})||
+   !sameSource(payload.source,payload.snapshot?.source)||
+   String(payload.snapshot?.operator).toLowerCase()!==String(runtime?.operator??payload.snapshot?.operator).toLowerCase()||
+   (history&&payload.accountingState==null))return null;
+  const allocation=record(payload.allocation),liquid=record(allocation.liquidByTokenAddress),pool=profile.pool,
+   amount0=decimal(liquid[pool.token0.toLowerCase()]??liquid[pool.token0]),
+   amount1=decimal(liquid[pool.token1.toLowerCase()]??liquid[pool.token1]),
+   native=decimal(allocation.nativeSpendWei),exitReserve=decimal(allocation.exitReserveWei),
+   refs=record(payload.referenceValuation),fee=record(payload.positionFeeEvidence),snapshot=record(payload.snapshot),
+   position=record(snapshot.position),hasPosition=position.tokenId!=null;
+  if(amount0===null||amount1===null||native===null||exitReserve===null||
+   !['available','unavailable'].includes(String(refs.status)))return null;
+  const evidence=record(refs.evidence),prices={price0:String(refs.price0),price1:String(refs.price1),nativePrice:String(refs.nativePrice)};
+  let refsAvailable=refs.status==='available'&&sameSource(payload.source,refs.source)&&
+   /^[0-9a-f]{64}$/.test(String(refs.proofHash))&&[refs.price0,refs.price1,refs.nativePrice].every(v=>{const d=decimal(v);return d!==null&&BigInt(d)>0n;})&&
+   evidence.kind==='rangekeeper_live_independent_reference_v1'&&evidence.campaignId===row.id&&
+   Number(evidence.revision)===row.current_revision&&evidence.profileHash===payload.profileHash&&
+   sameSource(evidence.source,payload.source)&&contentHash(evidence.prices)===contentHash(prices)&&
+   evidence.semanticProofHash===refs.proofHash&&rangeKeeperPinnedSemanticProofHash({profileHash:payload.profileHash,
+    source:payload.source,references:prices,referenceProof:evidence.referenceProof})===refs.proofHash&&
+   rangeKeeperPaperReferenceProofFresh(evidence.referenceProof,Array.isArray(refs.missing)?refs.missing:[]);
+  let principal0='0',principal1='0',fee0='0',fee1='0',feeEvidenceValid=!hasPosition&&state.phase!=='holding';
+  if(hasPosition){
+   if(fee.kind!=='rangekeeper_live_position_fee_evidence_v1'||!sameSource(payload.source,fee.source)||
+    fee.referenceProofHash!==refs.proofHash||String(fee.tokenId)!==String(position.tokenId)||
+    String(fee.liquidityRaw)!==String(position.liquidity)||fee.collectionSimulation!=='canonical_eth_call'||
+    decimal(fee.principal0Raw)===null||decimal(fee.principal1Raw)===null||
+    decimal(fee.uncollected0Raw)===null||decimal(fee.uncollected1Raw)===null||
+    decimal(fee.grossFee0Raw)===null||decimal(fee.grossFee1Raw)===null||
+    decimal(fee.inventory0Raw)===null||decimal(fee.inventory1Raw)===null||
+    BigInt(String(fee.principal0Raw))+BigInt(String(fee.uncollected0Raw))!==BigInt(String(fee.inventory0Raw))||
+    BigInt(String(fee.principal1Raw))+BigInt(String(fee.uncollected1Raw))!==BigInt(String(fee.inventory1Raw)))return null;
+   principal0=String(fee.inventory0Raw);principal1=String(fee.inventory1Raw);
+   fee0=String(fee.grossFee0Raw);fee1=String(fee.grossFee1Raw);
+   feeEvidenceValid=true;
+  }else if(state.phase==='closed'){
+   fee0=String(state.collectedFee0);fee1=String(state.collectedFee1);
+  }
+  const total0=BigInt(amount0)+BigInt(principal0),total1=BigInt(amount1)+BigInt(principal1),
+   nativeTotal=BigInt(native)+BigInt(exitReserve);
+  let navQuote:string|null=null,passiveQuote:string|null=null,feesQuote:string|null=null,gasQuote:string|null=null,swapCostQuote:string|null=null,
+   pnlQuote:string|null=null,alphaQuote:string|null=null;
+  if(refsAvailable&&feeEvidenceValid){
+   const p0=BigInt(String(refs.price0)),p1=BigInt(String(refs.price1)),pn=BigInt(String(refs.nativePrice)),
+    value=(a:bigint,b:bigint,n:bigint)=>a*p0/10n**BigInt(pool.decimals0)+b*p1/10n**BigInt(pool.decimals1)+n*pn/WAD;
+   navQuote=String(value(total0,total1,nativeTotal));
+   passiveQuote=String(value(state.initial0,state.initial1,state.initialNativeWei));
+   feesQuote=String(BigInt(fee0)*p0/10n**BigInt(pool.decimals0)+
+    BigInt(fee1)*p1/10n**BigInt(pool.decimals1));
+   gasQuote=state.costEvents.some((event:any)=>event.gasValue===null)?null:
+    String(state.costEvents.reduce((sum:bigint,event:any)=>sum+(event.gasValue??0n),0n));
+   swapCostQuote=state.costEvents.some((event:any)=>event.swapFeeValue===null||event.swapShortfallValue===null)?null:
+    String(state.costEvents.reduce((sum:bigint,event:any)=>sum+(event.swapFeeValue??0n)+(event.swapShortfallValue??0n),0n));
+   const initialCapitalValue=(state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue,
+    initialCapital=decimal(initialCapitalValue==null?null:String(initialCapitalValue));
+   pnlQuote=initialCapital===null?null:String(BigInt(navQuote)-BigInt(initialCapital));
+   alphaQuote=String(BigInt(navQuote)-BigInt(passiveQuote));
+  }
+  return {payload,state,source:{block:String(payload.source.block),hash:String(payload.source.hash),timestamp:Number(payload.source.timestamp)},
+   amounts:[String(total0),String(total1)],navQuote,passiveQuote,feesQuote,gasQuote,swapCostQuote,pnlQuote,alphaQuote,
+   epoch:Number.isSafeInteger(payload.epoch)&&payload.epoch>=0?payload.epoch:
+    Number.isSafeInteger(state.epoch)&&state.epoch>=0?state.epoch:0,sqrt:decimal(snapshot.sqrtPriceX96),
+   tick:typeof snapshot.tick==='number'?snapshot.tick:null,hasPosition,
+   tickLower:hasPosition&&typeof position.tickLower==='number'?position.tickLower:null,
+   tickUpper:hasPosition&&typeof position.tickUpper==='number'?position.tickUpper:null,
+   nativeWei:String(nativeTotal),referencesAvailable:refsAvailable&&feeEvidenceValid,feeEvidenceAvailable:feeEvidenceValid,
+   feeRaw:[fee0,fee1],costEvents:Array.isArray(state.costEvents)?state.costEvents:[],
+   missing:[...new Set([...(Array.isArray(payload.missing)?payload.missing:[]),...(refsAvailable?[]:['independent_reference_unavailable']),
+    ...(feeEvidenceValid?[]:['position_fee_evidence_unavailable'])])]};
+ }catch{return null;}
 }
 const key=(mode:string,id:string)=>`${mode}-dep-${id}`;
 const parseKey=(id:string)=>{
@@ -121,6 +232,53 @@ const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccou
   parsed.data.source.block===row.source_block&&
    parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
 };
+const rangeKeeperAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
+ profile:MarketProfile):RangeKeeperPaperAccounting|null=>{
+ if(row.accounting_invalidated_at||row.rangekeeper_accounting_snapshot==null)return null;
+ const parsed=rangeKeeperPaperAccountingSchema.safeParse(row.rangekeeper_accounting_snapshot),
+  sourceBlock=row.source_block,sourceHash=row.source_hash,
+  markProvenance=record(row.provenance),markReference=record(markProvenance.reference??
+   record(markProvenance.valuation).reference),
+  referenceUnavailable=record(markProvenance.valuation).referenceUnavailable;
+ if(!parsed.success)return null;
+ try{
+ const markKind=markProvenance.classification==='rangekeeper_paper_open_v1'?'open':
+  markProvenance.classification==='rangekeeper_paper_mark_v1'?'valuation':
+  markProvenance.classification==='rangekeeper_paper_recenter_v1'?'recenter':
+  markProvenance.classification==='rangekeeper_paper_close_retain_v1'?'close_retain':
+  markProvenance.classification==='rangekeeper_paper_close_convert_v1'?'close_convert':null,
+  markEpoch=Number.isInteger(markProvenance.epoch)?markProvenance.epoch:
+   Number.isInteger(record(markProvenance.currentEpoch).epoch)?record(markProvenance.currentEpoch).epoch:0;
+ if(!markKind)return null;
+ const referencesPositive=[parsed.data.reference.price0,parsed.data.reference.price1,
+  parsed.data.reference.nativePrice].every((value):value is string=>
+   value!==null&&decimal(value)!==null&&BigInt(value)>0n);
+ const proofMatches=parsed.data.reference.proof!==null&&
+  referenceProofHash(parsed.data.reference.proof)===parsed.data.reference.proofHash&&
+  parsed.data.reference.proofHash===markReference.proofHash&&
+  contentHash(parsed.data.reference.proof)===contentHash(markReference.proof),
+  matchingReference=parsed.data.reference.price0===markReference.price0&&
+   parsed.data.reference.price1===markReference.price1&&parsed.data.reference.nativePrice===markReference.nativePrice;
+ if(row.rangekeeper_accounting_hash!==contentHash(parsed.data)||
+  parsed.data.policyVersion!==RANGEKEEPER_PAPER_ACCOUNTING_POLICY||
+  parsed.data.campaignId!==campaignId||parsed.data.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
+  parsed.data.markKind!==markKind||parsed.data.epoch!==markEpoch||
+  parsed.data.source.block!==sourceBlock||parsed.data.source.hash.toLowerCase()!==sourceHash?.toLowerCase()||
+  contentHash(parsed.data.source)!==contentHash(markProvenance.source)||
+  parsed.data.profileHash!==contentHash(profile)||parsed.data.reference.proof===null||
+  (parsed.data.reference.eligible&&Array.isArray(referenceUnavailable)&&referenceUnavailable.length>0)||
+  (parsed.data.reference.eligible&&(!referencesPositive||
+   !rangeKeeperPaperReferenceProofFresh(parsed.data.reference.proof,
+    Array.isArray(referenceUnavailable)?referenceUnavailable:[])))||
+  (!parsed.data.reference.eligible&&[
+   parsed.data.economics.netNavQuote,parsed.data.economics.passiveQuote,
+   parsed.data.economics.absolutePnlQuote,parsed.data.economics.alphaQuote,
+   parsed.data.economics.cumulativeFeeValueQuote,parsed.data.economics.intervalFeeAccrualQuote,
+  ].some(value=>value!==null))||
+  !proofMatches||!matchingReference)return null;
+ return parsed.data;
+ }catch{return null;}
+};
 const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
  runtimeIdentity:unknown):PaperConversionAccountingV2|PaperConversionAccountingV3|null=>{
  if(row.accounting_invalidated_at)return null;
@@ -159,9 +317,12 @@ type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native
  amountRaw:string;valueQuote:string};
 const isCapitalOut=(flow:(PaperConversionAccountingV2|PaperConversionAccountingV3)['flows'][number]):flow is PaperCapitalOut=>
  flow.kind==='modeled_capital_out';
-const modeledExposure=(model:PaperAccounting|PaperConversionAccountingV2|PaperConversionAccountingV3,
+type DashboardAccounting=PaperAccounting|PaperConversionAccountingV2|PaperConversionAccountingV3|
+ RangeKeeperPaperAccounting;
+const modeledExposure=(model:DashboardAccounting,
  p:MarketProfile['pool'])=>{
  const risk=p.quoteToken===0?1:0,r=model.reference;
+ if(r.price0===null||r.price1===null)return null;
  const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
   value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
  return value0+value1>0n?String((risk===0?value0:value1)*1_000_000n/(value0+value1)):null;
@@ -178,14 +339,40 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
   "SELECT to_regclass('deployment_paper_fee_evidence')::text AS present")).rows[0]?.present;
  const hasInvalidations=hasAccounting&&(await db.query<{present:string|null}>(
   "SELECT to_regclass('deployment_paper_accounting_invalidations')::text AS present")).rows[0]?.present;
+ const hasLiveJobs=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_live_jobs')::text AS present")).rows[0]?.present;
+ const hasLiveRuntime=(await db.query<{present:string|null}>(
+  "SELECT to_regclass('deployment_live_campaign_runtime')::text AS present")).rows[0]?.present&&
+  (await db.query<{present:string|null}>("SELECT to_regclass('deployment_live_runtime_events')::text AS present")).rows[0]?.present;
  const rows=(await db.query<DeploymentRow>(`
   SELECT c.id,c.mode,c.lifecycle,c.range_state,c.current_revision,c.created_at,c.closed_at,c.allocation,
    c.runtime_identity,
+   ${hasLiveRuntime?`live.profile_id::text AS live_profile_id,live.profile_hash AS live_runtime_profile_hash,
+    live.config_hash AS live_runtime_config_hash,live.revision AS live_runtime_revision,
+    live.state_json AS live_runtime_state,live.state_hash AS live_runtime_state_hash,
+    live_mark.payload AS live_mark_payload,live_mark.payload_hash AS live_mark_payload_hash,
+    live_mark.source_block::text AS live_mark_block,live_mark.source_hash AS live_mark_hash,
+    live_mark.source_timestamp AS live_mark_timestamp,`:
+    `NULL::text AS live_profile_id,NULL::text AS live_runtime_profile_hash,NULL::text AS live_runtime_config_hash,
+    NULL::integer AS live_runtime_revision,NULL::jsonb AS live_runtime_state,NULL::text AS live_runtime_state_hash,
+    NULL::jsonb AS live_mark_payload,NULL::text AS live_mark_payload_hash,NULL::text AS live_mark_block,
+    NULL::text AS live_mark_hash,NULL::bigint AS live_mark_timestamp,`}
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+   'rk_a.snapshot AS rangekeeper_accounting_snapshot,rk_a.snapshot_hash AS rangekeeper_accounting_hash,'+
+    'rk_previous.id::text AS rk_previous_mark_id,rk_previous.at AS rk_previous_mark_at,'+
+    'rk_previous.source_block::text AS rk_previous_source_block,rk_previous.source_hash AS rk_previous_source_hash,'+
+    'rk_previous.inventory AS rk_previous_inventory,rk_previous.economics AS rk_previous_economics,'+
+    'rk_previous.provenance AS rk_previous_provenance,rk_previous.snapshot AS rk_previous_accounting_snapshot,'+
+    'rk_previous.snapshot_hash AS rk_previous_accounting_hash,rk_previous.invalidated_at AS rk_previous_invalidated_at,'+
     'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash,':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS rangekeeper_accounting_snapshot,NULL::text AS rangekeeper_accounting_hash,'+
+    'NULL::text AS rk_previous_mark_id,NULL::timestamptz AS rk_previous_mark_at,'+
+    'NULL::text AS rk_previous_source_block,NULL::text AS rk_previous_source_hash,'+
+    'NULL::jsonb AS rk_previous_inventory,NULL::jsonb AS rk_previous_economics,'+
+    'NULL::jsonb AS rk_previous_provenance,NULL::jsonb AS rk_previous_accounting_snapshot,NULL::text AS rk_previous_accounting_hash,NULL::timestamptz AS rk_previous_invalidated_at,'+
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash,'}
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
@@ -198,11 +385,44 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    FROM deployment_marks WHERE campaign_id=c.id ORDER BY id DESC LIMIT 1) m ON TRUE
   LEFT JOIN LATERAL (SELECT sum(value_raw)::text AS initial_value FROM deployment_ledger
    WHERE campaign_id=c.id AND kind='capital_in') capital ON TRUE
-  LEFT JOIN LATERAL (SELECT id,kind,status,stage,reason,updated_at FROM deployment_operations
-   WHERE campaign_id=c.id AND (c.lifecycle<>'blocked' OR status='blocked')
+  LEFT JOIN LATERAL (SELECT id,kind,status,stage,reason,updated_at FROM ${hasLiveJobs?`(
+   SELECT id,campaign_id,kind,status,stage,reason,updated_at FROM deployment_operations
+   UNION ALL SELECT id,campaign_id,kind,status,resume_stage AS stage,NULL::text AS reason,updated_at FROM deployment_live_jobs
+  ) operations`:'deployment_operations'}
+  WHERE campaign_id=c.id AND (c.lifecycle<>'blocked' OR status='blocked')
    ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
+  ${hasLiveRuntime?`LEFT JOIN deployment_live_campaign_runtime live ON live.campaign_id=c.id AND live.revision=c.current_revision
+   LEFT JOIN LATERAL (SELECT payload,payload_hash,source_block,source_hash,source_timestamp FROM deployment_live_runtime_events
+    WHERE campaign_id=c.id AND revision=c.current_revision AND
+     ((kind='mark' AND payload->>'kind'='rangekeeper_live_valuation_mark_v1') OR
+      (kind='closed' AND payload->'terminalValuation'->>'kind'='rangekeeper_live_valuation_mark_v1'))
+    ORDER BY sequence DESC LIMIT 1) live_mark ON TRUE`:''}
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting rk_a ON rk_a.campaign_id=c.id
+    AND rk_a.source_mark_id=m.id AND rk_a.policy_version='rangekeeper_paper_observed_flow_v1'
+   LEFT JOIN LATERAL (SELECT pm.id,pm.at,pm.source_block,pm.source_hash,pm.inventory,pm.economics,
+    pm.provenance,pa.snapshot,pa.snapshot_hash,
+    ${hasInvalidations?`(SELECT i.recorded_at FROM deployment_paper_accounting_invalidations i
+     JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+     WHERE i.campaign_id=c.id AND bad.source_mark_id<=pm.id ORDER BY bad.source_mark_id LIMIT 1)`:'NULL::timestamptz'} AS invalidated_at
+    FROM deployment_marks pm
+    JOIN deployment_paper_accounting pa ON pa.campaign_id=pm.campaign_id AND pa.source_mark_id=pm.id
+     AND pa.policy_version='rangekeeper_paper_observed_flow_v1'
+    WHERE pm.campaign_id=c.id AND pm.revision=c.current_revision AND pm.id<m.id AND
+     pm.at<=m.at AND pm.source_block IS NOT NULL AND m.source_block IS NOT NULL AND pm.source_block<=m.source_block AND
+     c.mode='paper' AND r.strategy_id='rangekeeper_v1' AND c.lifecycle='active' AND
+     COALESCE(pm.provenance->>'epoch',pm.provenance->'currentEpoch'->>'epoch','0')=
+      COALESCE(m.provenance->>'epoch',m.provenance->'currentEpoch'->>'epoch','0') AND
+     pm.provenance->>'classification' IN ('rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1') AND
+     (pm.inventory->'position'->>'liquidity')=(m.inventory->'position'->>'liquidity') AND
+     (pm.inventory->'position'->>'tickLower')=(m.inventory->'position'->>'tickLower') AND
+     (pm.inventory->'position'->>'tickUpper')=(m.inventory->'position'->>'tickUpper') AND
+     COALESCE((pm.inventory->'position'->>'liquidity')::numeric,0)>0
+     ${hasInvalidations?`AND NOT EXISTS(SELECT 1 FROM deployment_paper_accounting_invalidations i
+      JOIN deployment_paper_accounting bad ON bad.id=i.accounting_id
+      WHERE i.campaign_id=c.id AND bad.source_mark_id<=pm.id)`:''}
+    ORDER BY pm.id DESC LIMIT 1) rk_previous ON TRUE
    LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
     (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=c.id AND source_mark_id=m.id AND policy_version IN
@@ -235,31 +455,58 @@ export function deploymentPosition(row:DeploymentRow){
   conversionClose=isConvertedClose(provenance),
   conversionModel=row.mode==='paper'&&conversionClose?
    conversionAccounting(row,row.id,row.runtime_identity):null,
-  model=row.mode==='paper'?(conversionClose?conversionModel:accounting(row,row.id)):null;
+  latestRangeKeeperModel=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1'?
+   rangeKeeperAccounting(row,row.id,profile):null,
+  priorMarkBounded=decimal(row.rk_previous_mark_id)!==null&&decimal(row.mark_id)!==null&&
+   BigInt(String(row.rk_previous_mark_id))<BigInt(String(row.mark_id))&&
+   decimal(row.rk_previous_source_block)!==null&&decimal(row.source_block)!==null&&
+   BigInt(String(row.rk_previous_source_block))<=BigInt(String(row.source_block))&&
+   row.rk_previous_mark_at instanceof Date&&row.mark_at instanceof Date&&row.rk_previous_mark_at<=row.mark_at,
+  previousMarkRow:DeploymentRow|null=priorMarkBounded&&row.rk_previous_mark_id&&row.rk_previous_mark_at&&
+   row.rk_previous_source_block&&row.rk_previous_source_hash?{...row,mark_id:row.rk_previous_mark_id,
+    mark_at:row.rk_previous_mark_at,source_block:row.rk_previous_source_block,source_hash:row.rk_previous_source_hash,
+    inventory:row.rk_previous_inventory,economics:row.rk_previous_economics,provenance:row.rk_previous_provenance,
+    rangekeeper_accounting_snapshot:row.rk_previous_accounting_snapshot,
+    rangekeeper_accounting_hash:row.rk_previous_accounting_hash,
+    accounting_invalidated_at:row.rk_previous_invalidated_at??null,
+    accounting_invalidation_reason:row.rk_previous_invalidated_at?'previous_accounting_invalidated':null}:null,
+  previousRangeKeeperModel=!latestRangeKeeperModel&&row.rangekeeper_accounting_snapshot==null&&previousMarkRow?
+   rangeKeeperAccounting(previousMarkRow,row.id,profile):null,
+  previousSnapshotUsable=previousRangeKeeperModel!==null&&previousRangeKeeperModel.reference.eligible&&
+   Date.now()-previousRangeKeeperModel.source.timestamp*1000>0,
+  rangeKeeperModel=latestRangeKeeperModel??(previousSnapshotUsable?previousRangeKeeperModel:null),
+  economicsFallback=rangeKeeperModel!==null&&rangeKeeperModel===previousRangeKeeperModel,
+  liveModel=row.mode==='live'&&row.strategy_id==='rangekeeper_v1'?liveMarkModel(row,profile):null,
+  model=row.mode==='paper'?(rangeKeeperModel??(conversionClose?conversionModel:accounting(row,row.id))):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
- const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
-  allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??
+ const isRangeKeeper=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1',
+  modelReferenceEligible=model&&(!('eligible' in model.reference)||model.reference.eligible===true),
+  tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
+  allocatedRaw:allocation.token0Raw,amountRaw:row.mode==='live'?liveModel?.amounts[0]??null:liveModel?.amounts[0]??model?.inventory.token0Raw??
    (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(provenance.classification))?rkBalances?.token0Raw??null:decimal(inventory.token0Raw)),
-  lowerBoundRaw:decimal(record(inventory.knownLowerBound).token0Raw)??
+  lowerBoundRaw:row.mode==='live'?liveModel?.amounts[0]??null:decimal(record(inventory.knownLowerBound).token0Raw)??
    decimal(record(inventory.retainedPrincipalLowerBound).token0Raw)},
   {address:p.token1,symbol:symbol(p.reference1),decimals:p.decimals1,
-  allocatedRaw:allocation.token1Raw,amountRaw:model?.inventory.token1Raw??
+  allocatedRaw:allocation.token1Raw,amountRaw:row.mode==='live'?liveModel?.amounts[1]??null:liveModel?.amounts[1]??model?.inventory.token1Raw??
    (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(provenance.classification))?rkBalances?.token1Raw??null:decimal(inventory.token1Raw)),
-   lowerBoundRaw:decimal(record(inventory.knownLowerBound).token1Raw)??
+   lowerBoundRaw:row.mode==='live'?liveModel?.amounts[1]??null:decimal(record(inventory.knownLowerBound).token1Raw)??
     decimal(record(inventory.retainedPrincipalLowerBound).token1Raw)}];
  const position=record(inventory.position),liquidity=decimal(position.liquidity),
-  tickLower=typeof position.tickLower==='number'?position.tickLower:null,
-  tickUpper=typeof position.tickUpper==='number'?position.tickUpper:null,
-  hasLiquidity=liquidity!==null&&BigInt(liquidity)>0n;
- const tick=typeof state.tick==='number'?state.tick:null,
-  sqrt=decimal(state.sqrtPriceX96),sourceAt=sourceTime(provenance);
+  tickLower=liveModel?.tickLower??(typeof position.tickLower==='number'?position.tickLower:null),
+  tickUpper=liveModel?.tickUpper??(typeof position.tickUpper==='number'?position.tickUpper:null),
+  hasLiquidity=liveModel?liveModel.hasPosition:liquidity!==null&&BigInt(liquidity)>0n;
+ const tick=liveModel?.tick??(typeof state.tick==='number'?state.tick:null),
+  sqrt=liveModel?.sqrt??decimal(state.sqrtPriceX96),liveAt=Number(row.live_mark_timestamp),
+  sourceAt=liveModel?new Date(liveModel.source.timestamp*1000).toISOString():
+   row.mode==='live'&&Number.isSafeInteger(liveAt)&&liveAt>0?new Date(liveAt*1000).toISOString():sourceTime(provenance);
  const status=row.lifecycle==='closed'?'closed':row.lifecycle==='blocked'?'blocked':
   row.lifecycle==='closing'?'exiting':row.lifecycle==='changing'?'changing':
   row.lifecycle==='paused'?'paused':row.lifecycle==='opening'?'waiting':
   !hasLiquidity?'waiting':row.range_state==='inside'?'open':
   row.range_state==='outside'?'outside':'unknown';
  const reasons:string[]=[];
+ if(liveModel)reasons.push(...liveModel.missing);
  if(!row.mark_id)reasons.push('first_model_mark_unavailable');
  if(hasLiquidity&&row.range_state==='outside')reasons.push(
   row.strategy_id==='static_manual_v1'?'outside_range_manual_hold':'outside_range_observed');
@@ -269,11 +516,15 @@ export function deploymentPosition(row:DeploymentRow){
  if(!model&&(economics.netNav===undefined||economics.netNav===null))
   reasons.push('net_economics_unavailable');
  if(row.accounting_invalidated_at)reasons.push('paper_accounting_canonical_anchor_changed');
- if(row.accounting_snapshot&&!model&&!row.accounting_invalidated_at)
+ if((row.accounting_snapshot||row.rangekeeper_accounting_snapshot)&&!model&&!row.accounting_invalidated_at)
   reasons.push('paper_accounting_integrity');
- const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
- const lowerBoundValue=principalValue(inventory,economics,provenance,p),
-  passiveTokenValue=tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
+ const costs=record(provenance.modeledCosts),close=record(costs.closeRetain),
+  rkReferenceEligible=rangeKeeperModel?.reference.eligible===true;
+ const lowerBoundValue=row.mode==='live'?null:isRangeKeeper&&!rkReferenceEligible?null:
+   principalValue(inventory,economics,provenance,p),
+  passiveTokenValue: string|null = row.mode==='live'?micro(liveModel?.passiveQuote??null):economicsFallback&&rangeKeeperModel?
+   micro(rangeKeeperModel.economics.passiveQuote):isRangeKeeper&&!rkReferenceEligible?null:
+   tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
  const conversion=conversionModel?.conversion??null,
   conversionCapitalOut=conversionModel?.flows.filter(isCapitalOut).map(flow=>({
    asset:flow.asset,amountRaw:flow.amountRaw,valueQuote:micro(flow.valueQuote),
@@ -281,25 +532,39 @@ export function deploymentPosition(row:DeploymentRow){
  return {id:key(row.mode,row.id),label:`${row.strategy_id==='rangekeeper_v1'?'RK':'Manual'}-${row.id.slice(0,8)}`,
   mode:row.mode,asset:symbol(reference),quote:symbol(quoteRef),fee:p.fee,
   quoteIsToken0:p.quoteToken===0,hasLiquidity,status,history:row.lifecycle==='closed',
-  initialQuote:micro(row.initial_value),navQuote:micro(model?.economics.netNavQuote??null),
-  holdQuote:micro(model?.economics.passiveQuote??null),
-  feesQuote:micro(model?.economics.cumulativeFeeValueQuote??null),
-  gasQuote:micro(model?.economics.cumulativeGasExpenseQuote??null),
-  swapQuote:conversionClose?micro(conversion?.modeledSwapCostQuote??null):model?'0':null,
+  initialQuote:liveModel?micro(decimal((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue==null?
+   null:String((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue))):rangeKeeperModel?micro(rangeKeeperModel.economics.initialCapitalQuote):micro(row.initial_value),
+  navQuote:micro(liveModel?.navQuote??model?.economics.netNavQuote??null),
+  holdQuote:micro(liveModel?.passiveQuote??model?.economics.passiveQuote??null),
+  feesQuote:micro(liveModel?.feesQuote??model?.economics.cumulativeFeeValueQuote??null),
+  gasQuote:micro(liveModel?.gasQuote??model?.economics.cumulativeGasExpenseQuote??null),
+  swapQuote:liveModel?micro(liveModel.swapCostQuote):conversionClose?micro(conversion?.modeledSwapCostQuote??null):model&&!rangeKeeperModel?'0':null,
   exitEstimateQuote:conversionClose?micro(conversion?.boundGasCostQuote??null):micro(decimal(close.boundValue)),
   drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
-  sourceAt,heartbeatAt:row.mark_at?.toISOString()??null,reasons,
+  sourceAt,heartbeatAt:row.mode==='live'&&Number.isSafeInteger(liveAt)&&liveAt>0?new Date(liveAt*1000).toISOString():row.mark_at?.toISOString()??null,reasons,
+  economicsSourceAt:economicsFallback&&rangeKeeperModel?new Date(rangeKeeperModel.source.timestamp*1000).toISOString():null,
   invalidatedAt:row.accounting_invalidated_at?.toISOString()??null,
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),p):null,
-  referencePriceQuoteX18:referencePrice(provenance,p),
-  inventory:{tokens,exposurePpm:model?modeledExposure(model,p):null,
-   nativeWei:model?.inventory.nativeWei??decimal(inventory.nativeWei),
+  referencePriceQuoteX18:liveModel?liveModel.referencesAvailable?referencePrice({reference:{price0:liveModel.payload.referenceValuation.price0,
+   price1:liveModel.payload.referenceValuation.price1}},p):null:economicsFallback&&rangeKeeperModel?.reference.eligible?
+    referencePrice({reference:{price0:rangeKeeperModel.reference.price0,price1:rangeKeeperModel.reference.price1}},p):
+    isRangeKeeper&&!rkReferenceEligible?null:referencePrice(provenance,p),
+  inventory:{tokens,exposurePpm:liveModel&&liveModel.referencesAvailable?(()=>{
+    const r=liveModel.payload.referenceValuation,v0=BigInt(liveModel.amounts[0])*BigInt(r.price0)/10n**BigInt(p.decimals0),
+     v1=BigInt(liveModel.amounts[1])*BigInt(r.price1)/10n**BigInt(p.decimals1),sum=v0+v1;
+    return sum?String((p.quoteToken===0?v1:v0)*1_000_000n/sum):null;
+   })():model&&modelReferenceEligible?modeledExposure(model,p):null,
+   nativeWei:row.mode==='live'?liveModel?.nativeWei??null:liveModel?.nativeWei??model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
-  tokenId:null,accounting:model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
+  tokenId:liveModel?.payload.snapshot?.position?.tokenId==null?null:String(liveModel.payload.snapshot.position.tokenId),
+  accounting:liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'recorded':model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
   nextAction:row.lifecycle==='closed'?null:
+   row.mode==='live'&&row.lifecycle==='opening'?'Live opening queued; inventory and costs await canonical receipts':
+   liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'Canonical live NAV and fee inventory from a source-bound observation; paid gas is separately recorded':
+   row.mode==='live'?'Canonical live position observed; independent reference or complete fee evidence is unavailable':
    model?'Provisional modeled scenario; earned fees and paid costs remain unobserved':
     'Reference-valued principal is recorded; fee and paid-cost evidence is pending',
   deployment:{campaignId:row.id,chainId:p.chainId,pool:p.pool,strategyId:row.strategy_id,
@@ -307,7 +572,7 @@ export function deploymentPosition(row:DeploymentRow){
    operation:{id:row.operation_id,kind:row.operation_kind,status:row.operation_status,
     stage:row.operation_stage,reason:row.operation_reason,
     updatedAt:row.operation_updated_at?.toISOString()??null},
-   sourceBlock:row.source_block,sourceHash:row.source_hash,
+   sourceBlock:liveModel?.source.block??row.source_block,sourceHash:liveModel?.source.hash??row.source_hash,
    rangekeeper:row.strategy_id==='rangekeeper_v1'?{
     currentEpoch:Number.isInteger(provenance.epoch)?provenance.epoch:
      Number.isInteger(record(provenance.currentEpoch).epoch)?record(provenance.currentEpoch).epoch:0,
@@ -315,24 +580,32 @@ export function deploymentPosition(row:DeploymentRow){
      source_block:row.source_block,source_hash:row.source_hash,inventory:row.inventory,
      economics:row.economics,provenance:row.provenance}):null,
     latestClassification:provenance.classification??null,
-    recenterAvailable:false}:null,
+    recenterAvailable:false,...(economicsFallback?{economicsPendingCurrentMark:true,economicsMarkId:row.rk_previous_mark_id,
+     economicsSourceAt:new Date(rangeKeeperModel!.source.timestamp*1000).toISOString()}:{}),
+    ...(liveModel?{valuationCurrent:liveModel.referencesAvailable,
+     epoch:liveModel.epoch,feeEvidenceAvailable:liveModel.feeEvidenceAvailable,missing:liveModel.missing}: {})}:null,
    token0:tokens[0],token1:tokens[1],poolTick:tick,
    lowerBoundValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue),
    conversionAccountingStatus:conversionClose?(conversionModel?'available':'unavailable'):'not_applicable',
-   accounting:model?{policyVersion:model.policyVersion,classification:model.classification,
+   accounting:liveModel?{policyVersion:'rangekeeper_live_receipt_v1',classification:'canonical_receipt_backed',
+    referenceEligible:liveModel.referencesAvailable,feesAvailable:liveModel.feeEvidenceAvailable,
+    cumulativeGasWei:String(liveModel.state.gasSpentWei),paidGasAvailable:true,
+    limitations:['live_receipt_inventory_and_source_bound_reference','gas_is_measured_receipt_cost',
+     'incomplete_or_stale_reference_withholds_quote_economics']}:model?{policyVersion:model.policyVersion,classification:model.classification,
     feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations,
-    conversion:conversion?{
-     fromAsset:conversion.fromAsset,toAsset:conversion.toAsset,
-     inputAmountRaw:conversion.inputAmountRaw,expectedOutputRaw:conversion.expectedOutputRaw,
-     minimumOutputRaw:conversion.minimumOutputRaw,expectedProceedsQuote:micro(conversion.expectedProceedsQuote),
-     minimumProceedsQuote:micro(conversion.minimumProceedsQuote),
-     modeledSwapCostQuote:micro(conversion.modeledSwapCostQuote),
-     expectedGasCostQuote:micro(conversion.expectedGasCostQuote),
-     boundGasCostQuote:micro(conversion.boundGasCostQuote),
-    }:null,capitalOut:conversionCapitalOut}:null,
+    referenceEligible:'eligible' in model.reference?model.reference.eligible:null,
+    retainedModeledFees:'fee0Raw' in model.inventory?{token0Raw:model.inventory.fee0Raw,
+     token1Raw:model.inventory.fee1Raw}:null,
+    modeledCosts:'modeledCosts' in model?{cumulativeBoundValue:micro(model.modeledCosts.cumulativeBoundValue),
+     cumulativeBoundWei:model.modeledCosts.cumulativeBoundWei,paidCostsAvailable:false}:null,
+    conversion:conversion?{fromAsset:conversion.fromAsset,toAsset:conversion.toAsset,inputAmountRaw:conversion.inputAmountRaw,
+     expectedOutputRaw:conversion.expectedOutputRaw,minimumOutputRaw:conversion.minimumOutputRaw,
+     expectedProceedsQuote:micro(conversion.expectedProceedsQuote),minimumProceedsQuote:micro(conversion.minimumProceedsQuote),
+     modeledSwapCostQuote:micro(conversion.modeledSwapCostQuote),expectedGasCostQuote:micro(conversion.expectedGasCostQuote),
+     boundGasCostQuote:micro(conversion.boundGasCostQuote)}:null,capitalOut:conversionCapitalOut}:null,
    accountingInvalidation:row.accounting_invalidated_at?{
     reason:row.accounting_invalidation_reason,at:row.accounting_invalidated_at.toISOString()}:null,
-   unavailable:model?model.limitations:['fee_capture','paid_gas','net_nav','alpha']}};
+   unavailable:liveModel?liveModel.missing:model?model.limitations:['fee_capture','paid_gas','net_nav','alpha']}};
 }
 
 const point=(mark:DeploymentMark,profile:MarketProfile,
@@ -342,8 +615,8 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
   conversionClose=isConvertedClose(prov),
   rkBalances=rkOpenBalances(inv,prov)??rkObservedBalances(inv,prov),
-  model=conversionClose?conversionAccounting(mark,campaignId,runtimeIdentity):
-   accounting(mark,campaignId),
+  model=rangeKeeperAccounting(mark,campaignId,profile)??(conversionClose?
+   conversionAccounting(mark,campaignId,runtimeIdentity):accounting(mark,campaignId)),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
@@ -364,8 +637,11 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   economicNavQuote:micro(model?.economics.netNavQuote??null),
   holdQuote:micro(model?.economics.passiveQuote??null),
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),profile.pool):null,
-  referencePriceQuoteX18:referencePrice(prov,profile.pool),
-  exposurePpm:model?modeledExposure(model,profile.pool):null,
+  referencePriceQuoteX18:kind?.toString().startsWith('rangekeeper_paper_')&&
+   (!model||!('eligible' in model.reference)||model.reference.eligible!==true)?null:
+   referencePrice(prov,profile.pool),
+  exposurePpm:model&&(!('eligible' in model.reference)||model.reference.eligible===true)?
+   modeledExposure(model,profile.pool):null,
   inRange:tick!==null&&lower!==null&&upper!==null&&tick>=lower&&tick<upper,
   tickLower:lower,tickUpper:upper,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
@@ -379,17 +655,54 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
      (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(kind))?rkBalances?.token1Raw??null:decimal(inv.token1Raw)),
     lowerBoundRaw:decimal(record(inv.knownLowerBound).token1Raw)??
      decimal(record(inv.retainedPrincipalLowerBound).token1Raw)}],
-  principalOnlyValue:micro(principalValue(inv,economics,prov,profile.pool)),
-  passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
+  principalOnlyValue:micro(kind?.toString().startsWith('rangekeeper_paper_')&&!model?null:
+   principalValue(inv,economics,prov,profile.pool)),
+  passiveTokenValue:micro(kind?.toString().startsWith('rangekeeper_paper_')&&!model?null:
+   tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
   feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
   gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
   swapThisMarkQuote:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
    model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?
-   micro(model.economics.modeledSwapCostQuote):model?'0':null,
+   micro(model.economics.modeledSwapCostQuote):model&&
+    model.policyVersion!==RANGEKEEPER_PAPER_ACCOUNTING_POLICY?'0':null,
   swapsThisMark:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
    model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?1:0,
   drawdownPpm:null};
 };
+
+function livePoint(model:LiveMarkModel,profile:MarketProfile,previous:LiveMarkModel|null):PositionPoint{
+ const {payload,state,source}=model,p=profile.pool,refs=record(payload.referenceValuation),
+  sourceAt=new Date(source.timestamp*1000).toISOString(),closed=state.phase==='closed',
+  previousFees=previous?.feeRaw??['0','0'],feeDelta0=BigInt(model.feeRaw[0])-BigInt(previousFees[0]),
+  feeDelta1=BigInt(model.feeRaw[1])-BigInt(previousFees[1]),feeEligible=model.referencesAvailable&&
+   feeDelta0>=0n&&feeDelta1>=0n,
+  feeValue=feeEligible?String(feeDelta0*BigInt(String(refs.price0))/10n**BigInt(p.decimals0)+
+   feeDelta1*BigInt(String(refs.price1))/10n**BigInt(p.decimals1)):null,
+  previousBlock=previous?BigInt(previous.source.block):-1n,
+  intervalCosts=model.costEvents.filter((event:any)=>BigInt(event.block)>previousBlock&&BigInt(event.block)<=BigInt(source.block)),
+  gasValue=intervalCosts.some((event:any)=>event.gasValue===null)?null:
+   String(intervalCosts.reduce((sum:bigint,event:any)=>sum+(event.gasValue??0n),0n)),
+  swapValues=intervalCosts.map((event:any)=>event.swapFeeValue===null||event.swapShortfallValue===null?null:
+   event.swapFeeValue+event.swapShortfallValue),
+  swapValue=swapValues.some((value:bigint|null)=>value===null)?null:String(swapValues.reduce((sum:bigint,value:bigint|null)=>sum+(value??0n),0n)),
+  tickLower=model.tickLower,tickUpper=model.tickUpper,tick=model.tick,
+  tokenBalances=[{address:p.token0,amountRaw:model.amounts[0],lowerBoundRaw:model.amounts[0]},
+   {address:p.token1,amountRaw:model.amounts[1],lowerBoundRaw:model.amounts[1]}],
+  p0=decimal(refs.price0),p1=decimal(refs.price1),exposure=model.referencesAvailable&&p0&&p1?
+   (()=>{const v0=BigInt(model.amounts[0])*BigInt(p0)/10n**BigInt(p.decimals0),v1=BigInt(model.amounts[1])*BigInt(p1)/10n**BigInt(p.decimals1),sum=v0+v1;
+    return sum?String((p.quoteToken===0?v1:v0)*1_000_000n/sum):null;})():null;
+ return {id:`live-mark-${source.block}-${source.hash.slice(2,10)}`,sourceAt,observedAt:sourceAt,block:source.block,
+  action:closed?'exit':'mark',status:closed?'closed':'open',economicNavQuote:micro(model.navQuote),holdQuote:micro(model.passiveQuote),
+  priceQuoteX18:model.sqrt?poolPrice(BigInt(model.sqrt),p):null,
+  referencePriceQuoteX18:model.referencesAvailable?referencePrice({reference:{price0:refs.price0,price1:refs.price1}},p):null,
+  exposurePpm:exposure,inRange:tick!==null&&tickLower!==null&&tickUpper!==null&&tick>=tickLower&&tick<tickUpper,
+  tickLower,tickUpper,rangeQuoteX18:tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
+  tokenBalances,principalOnlyValue:null,passiveTokenValue:micro(model.passiveQuote),feesThisIntervalQuote:micro(feeValue),
+  gasThisMarkQuote:micro(gasValue),swapThisMarkQuote:micro(swapValue),swapsThisMark:intervalCosts.some((event:any)=>event.swapFeeValue!==0n)?1:0,
+  drawdownPpm:null,epoch:model.epoch,sourceHash:source.hash,feesCumulativeQuote:model.feesQuote,
+  cumulativeGasQuote:model.gasQuote,accounting:model.referencesAvailable?'receipt_backed':'unavailable',
+  missing:model.missing};
+}
 
 export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours:number){
  const position=deploymentPosition(row),now=Date.now(),ended=position.endedAt?Date.parse(position.endedAt):NaN,
@@ -403,14 +716,18 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
  const marks=(await db.query<DeploymentMark>(`
   SELECT m.id::text,m.at,m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+    'rk_a.snapshot AS rangekeeper_accounting_snapshot,rk_a.snapshot_hash AS rangekeeper_accounting_hash,'+
     'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS rangekeeper_accounting_snapshot,NULL::text AS rangekeeper_accounting_hash,'+
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash'},
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason'}
   FROM deployment_marks m
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting rk_a ON rk_a.campaign_id=m.campaign_id
+    AND rk_a.source_mark_id=m.id AND rk_a.policy_version='rangekeeper_paper_observed_flow_v1'
    LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
     (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=m.campaign_id AND source_mark_id=m.id AND policy_version IN
@@ -424,7 +741,23 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
   WHERE m.campaign_id=$1 AND (m.provenance->'source'->>'timestamp')::bigint >= $2
   ORDER BY m.id LIMIT 30001`,[row.id,cutoff])).rows;
  if(marks.length>30000)throw Error('Deployment mark history exceeds bounded window limit');
- const points=marks.map(mark=>point(mark,profile,allocation,row.id,row.runtime_identity));
+ let points:PositionPoint[];
+ if(row.mode==='live'&&row.strategy_id==='rangekeeper_v1'){
+  const hasLiveEvents=(await db.query<{present:string|null}>("SELECT to_regclass('deployment_live_runtime_events')::text AS present")).rows[0]?.present;
+  if(hasLiveEvents){
+   const events=(await db.query<any>(`SELECT payload,payload_hash,source_block::text AS source_block,source_hash,
+    source_timestamp FROM deployment_live_runtime_events WHERE campaign_id=$1 AND revision=$2 AND
+     ((kind='mark' AND payload->>'kind'='rangekeeper_live_valuation_mark_v1') OR
+      (kind='closed' AND payload->'terminalValuation'->>'kind'='rangekeeper_live_valuation_mark_v1')) AND source_timestamp >= $3
+    ORDER BY sequence LIMIT 30001`,[row.id,row.current_revision,cutoff])).rows;
+   if(events.length>30000)throw Error('Live RangeKeeper mark history exceeds bounded window limit');
+   const models=events.map(event=>liveMarkModel({...row,live_mark_payload:event.payload,
+    live_mark_payload_hash:event.payload_hash,live_mark_block:event.source_block,live_mark_hash:event.source_hash,
+    live_mark_timestamp:event.source_timestamp},profile,true)).filter((item):item is LiveMarkModel=>item!==null);
+   let previous:LiveMarkModel|null=null;
+   points=models.map(model=>{const result=livePoint(model,profile,previous);previous=model;return result;});
+  }else points=[];
+ }else points=marks.map(mark=>point(mark,profile,allocation,row.id,row.runtime_identity));
  const start=points.reduce((earliest,p)=>{const at=Date.parse(p.sourceAt);return Number.isFinite(at)?Math.min(earliest,at):earliest;},Date.parse(position.createdAt)),
   windowHours=hours===0?Math.max(1,(windowEnd-start)/3600000):hours;
  const baseline=position.initialQuote??'0';
@@ -432,8 +765,10 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
  // marks. Let the first visible mark establish the interval baseline.
  const window=positionWindow(points,windowHours,windowEnd,baseline,
   points[0]?.action==='enter'?position.createdAt:new Date(0).toISOString());
- const performance=points.some(point=>point.economicNavQuote!==null)?window:
-  {...window,rows:window.rows.map(row=>({...row,netPnlQuote:null,alphaQuote:null,
+ const hasValues=points.some(point=>point.economicNavQuote!==null),hasLiveBaseline=row.mode!=='live'||position.initialQuote!==null;
+ const performance=hasValues?hasLiveBaseline?window:{...window,rows:window.rows.map(item=>({...item,
+  netPnlQuote:null,alphaQuote:null,returnBpsPerHour:null}))}:
+  {...window,rows:window.rows.map(item=>({...item,netPnlQuote:null,alphaQuote:null,
    feeIncomeQuote:null,gasQuote:null,swapCostQuote:null,returnBpsPerHour:null}))};
  const events=(await db.query<{id:string;at:Date;kind:string;status:string;stage:string;reason:string|null;
   source_block:string|null}>(`

@@ -42,7 +42,7 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
     min0:haircut(a.amount0,l.maxSlippageBps),min1:haircut(a.amount1,l.maxSlippageBps),deadline};
   }
   const risky:0|1=p.quoteToken===0?1:0;
-  const amount=risky===0?funds.amount0:funds.amount1;
+  const amount=state.exitMode==='retain'?0n:(risky===0?funds.amount0:funds.amount1);
   if(amount>0n){
    // Do not sell a verified asset into a detached or manipulated pool.
    const poolPrice1=((1n<<192n)*10n**BigInt(p.decimals1)*prices.price0)/

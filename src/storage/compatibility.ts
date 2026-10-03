@@ -3,7 +3,11 @@ import type { Pool, PoolClient } from "pg";
 // Exact supported migration history. Change only alongside a reviewed migration.
 // Read-only workers must never repair or bootstrap a database implicitly.
 export const REQUIRED_SCHEMA_VERSION = 3;
-export const DEPLOYMENT_SCHEMA_VERSION = 11;
+export const DEPLOYMENT_SCHEMA_VERSION = 14;
+export const REQUIRED_DEPLOYMENT_SCHEMA_VERSION = 11;
+export const LIVE_WALLET_SCHEMA_VERSION = 12;
+export const LIVE_RUNTIME_SCHEMA_VERSION = 13;
+export const POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION = 14;
 export const SCHEMA_ERROR = "Database schema incompatible; run the release's explicit db:migrate command before starting workers";
 
 export async function assertSchemaReady(db: Pick<Pool | PoolClient, "query">): Promise<void> {
@@ -39,5 +43,32 @@ export async function assertIndexerEventTimestampsSchemaReady(
 export async function assertDeploymentSchemaReady(db: Pick<Pool | PoolClient,"query">):Promise<void>{
  await assertSchemaReady(db);
  const row=(await db.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0];
- if(row?.version!==DEPLOYMENT_SCHEMA_VERSION)throw new Error(SCHEMA_ERROR);
+ if((row?.version??0)<REQUIRED_DEPLOYMENT_SCHEMA_VERSION)throw new Error(SCHEMA_ERROR);
+}
+
+/** Shared-wallet admission/queue workers require their explicit migration.
+ * Earlier paper/read-only deployment services remain compatible with v11. */
+export async function assertLiveWalletSchemaReady(db:Pick<Pool|PoolClient,'query'>):Promise<void>{
+ await assertSchemaReady(db);
+ const row=(await db.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0];
+ if(row?.version!==LIVE_WALLET_SCHEMA_VERSION&&row?.version!==LIVE_RUNTIME_SCHEMA_VERSION&&
+  row?.version!==POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION)throw new Error(SCHEMA_ERROR);
+}
+
+/** Campaign-addressed live RangeKeeper runtime state requires v13. */
+export async function assertLiveRuntimeSchemaReady(db:Pick<Pool|PoolClient,'query'>):Promise<void>{
+ await assertSchemaReady(db);
+ const row=(await db.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0];
+ if(row?.version!==LIVE_RUNTIME_SCHEMA_VERSION&&row?.version!==POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION)
+  throw new Error(SCHEMA_ERROR);
+}
+
+/** Wallet-scoped Position Manager replay writes require their isolated v14
+ * tables. Older global transfer indexes remain readable without this gate. */
+export async function assertPositionManagerWalletTransferSchemaReady(
+ db:Pick<Pool|PoolClient,'query'>,
+):Promise<void>{
+ await assertSchemaReady(db);
+ const row=(await db.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0];
+ if(row?.version!==POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION)throw new Error(SCHEMA_ERROR);
 }

@@ -10,7 +10,11 @@ import {amountsForLiquidity,sqrtRatioAtTick} from '../src/backtest/principal.js'
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
 import {marketProfileSchema} from '../src/deployments/market-profile.js';
-import {readDeploymentDetail} from '../src/dashboard/deployment-position.js';
+import {contentHash} from '../src/deployments/contracts.js';
+import {referenceProofHash} from '../src/deployments/market-profile.js';
+import {RANGEKEEPER_PAPER_ACCOUNTING_POLICY} from '../src/deployments/paper-accounting.js';
+import {readDeploymentDetail,deploymentPosition} from '../src/dashboard/deployment-position.js';
+import {rangeKeeperPinnedSemanticProofHash} from '../src/deployments/rangekeeper-live-review-runtime.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
  sourceAt:at,observedAt:at,block:'1',action:'mark',status:'open',economicNavQuote:nav,holdQuote:'100000000',priceQuoteX18:'220000000000000000000',
@@ -24,6 +28,90 @@ test('week attribution preserves exact net P&L and allocates boundary charges on
  assert.equal(total(w.rows,'netPnlQuote'),1500000n);assert.equal(total(w.rows,'gasQuote'),600000n);assert.equal(total(w.rows,'swapCostQuote'),500000n);
  assert.equal(w.rows.find(r=>r.key==='mixed_boundary')!.netPnlQuote,'3100000');assert.equal(w.rows.find(r=>r.key==='mixed_boundary')!.feeIncomeQuote,'700000');
  assert.equal(total(w.rows,'alphaQuote'),1500000n);assert.equal(w.hours,168);assert(w.sessions.some(s=>s.group==='non_market'));
+});
+test('live RangeKeeper projection values complete source-bound custody and fees, charges receipt gas once, and fails closed on stale or incomplete evidence',async()=>{
+ const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
+  hash=`0x${'a'.repeat(64)}`,source={block:'100',hash:`0x${'b'.repeat(64)}`,timestamp:now-5},
+  profile=marketProfileSchema.parse({pool:{chainId:4663,factory:UNISWAP_V3_FACTORY,pool:address('1'),
+   token0:address('2'),token1:address('3'),quoteToken:0,decimals0:6,decimals1:18,fee:3000,tickSpacing:60,
+   positionManager:NONFUNGIBLE_POSITION_MANAGER,router:PAPER_ROUTER,quoter:PAPER_QUOTER,poolCodeHash:hash,
+   token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,quoterCodeHash:hash,
+   reference0:'USDG/USD',reference1:'AAPL/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+   referencePolicy:{token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+    token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+    nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}}),profileHash=contentHash(profile),
+  prices={price0:'1000000000000000000',price1:'1000000000000000000',nativePrice:'2000000000000000000'},
+  proof={token0:{priceFresh:true},token1:{priceFresh:true},native:{priceFresh:true}},
+  proofHash=rangeKeeperPinnedSemanticProofHash({profileHash,source,references:prices,referenceProof:proof}),
+  evidence={kind:'rangekeeper_live_independent_reference_v1',campaignId:'00000000-0000-4000-8000-000000000001',
+   revision:1,profileHash,source,prices,semanticProofHash:proofHash,referenceProof:proof},
+  accountingState:any={version:1,id:'00000000-0000-4000-8000-000000000001',operator:address('4'),
+   configHash:`0x${'c'.repeat(64)}`,buildId:'test',phase:'holding',desired:'running',haltReason:null,
+   createdAt:now-300,expiresAt:now+300,economicActions:1,recenters:3,policy:{},last:{source,operator:address('4')},
+   activeTokenId:9n,retiredTokenIds:[],legacyNftCount:0n,reserve0:0n,reserve1:0n,reserveNativeWei:0n,
+   initial0:10_000_000n,initial1:20n*10n**18n,initialNativeWei:1n*10n**18n,initialStrategyValue:30n*10n**18n,
+   initialCapitalValue:32n*10n**18n,epoch:3,
+   candidate:null,swapDone:false,swapConfirmedAt:null,withdrawDone:false,actionStartCostIndex:0,reservedActionCost:0n,
+   mintRecoveryAttempts:0,collectedFee0:2_000_000n,collectedFee1:3n*10n**18n,gasSpentWei:5_000_000_000_000_000n,
+   costEvents:[{hash:`0x${'d'.repeat(64)}`,block:99n,timestamp:now-6,gasWei:5_000_000_000_000_000n,gasValue:10_000_000_000_000_000n,
+    swapFeeValue:null,swapShortfallValue:null}],highWaterValue:0n,activeSeconds:0,outsideSeconds:0,
+   lastMarkTimestamp:now-5,lastReason:'holding',closedAt:null},
+  snapshot={source,operator:address('4'),wallet0:13_000_000n,wallet1:24n*10n**18n,nativeWei:995_000_000_000_000_000n,
+   nonce:4,nftCount:1,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),unlocked:true,poolLiquidity:0n,
+   allowances:[],position:{tokenId:9n,owner:address('4'),token0:address('2'),token1:address('3'),fee:3000,
+    tickLower:-60,tickUpper:60,liquidity:1000n,tokensOwed0:1n,tokensOwed1:2n}},
+  positionFeeEvidence={kind:'rangekeeper_live_position_fee_evidence_v1',source,referenceProofHash:proofHash,
+   tokenId:'9',liquidityRaw:'1000',principal0Raw:'999999',principal1Raw:'19999999999999999998',
+   uncollected0Raw:'1',uncollected1Raw:'2',grossFee0Raw:'2000000',grossFee1Raw:'3000000000000000000',
+   inventory0Raw:'1000000',inventory1Raw:'20000000000000000000',collectionSimulation:'canonical_eth_call'},
+  payload:any={schemaVersion:1,kind:'rangekeeper_live_valuation_mark_v1',campaignId:accountingState.id,revision:1,
+   allocationId:'00000000-0000-4000-8000-000000000002',profileId:'00000000-0000-4000-8000-000000000003',
+   profileHash,configHash:'c'.repeat(64),source,snapshot,allocation:{liquidByTokenAddress:{[address('2')]:'3000000',[address('3')]:'4000000000000000000'},
+    nativeSpendWei:'995000000000000000',pendingNativeSpendWei:'0',exitReserveWei:'0',nftTokenIds:['9']},
+   referenceValuation:{status:'available',source,proofHash,...prices,evidence},positionFeeEvidence,
+   accountingState,runtimeStateHash:contentHash(JSON.parse(rangeKeeperJson(accountingState))),missing:[]},
+  row:any={id:accountingState.id,mode:'live',lifecycle:'active',range_state:'inside',current_revision:1,
+   created_at:new Date((now-300)*1000),closed_at:null,allocation:{token0Raw:'0',token1Raw:'0',nativeWei:'0'},
+   runtime_identity:null,profile,strategy_id:'rangekeeper_v1',config:{},mark_id:null,mark_at:null,
+   source_block:null,source_hash:null,inventory:{position:{liquidity:'1000',tickLower:-60,tickUpper:60}},economics:null,
+   provenance:{source},initial_value:null,operation_id:null,operation_kind:null,operation_status:null,
+   operation_stage:null,operation_reason:null,operation_updated_at:null,accounting_snapshot:null,accounting_hash:null,
+   rangekeeper_accounting_snapshot:null,rangekeeper_accounting_hash:null,conversion_accounting_snapshot:null,
+   conversion_accounting_hash:null,accounting_invalidated_at:null,accounting_invalidation_reason:null,
+   live_mark_payload:JSON.parse(rangeKeeperJson(payload)),live_mark_payload_hash:contentHash(JSON.parse(rangeKeeperJson(payload))),live_mark_block:source.block,
+   live_mark_hash:source.hash,live_mark_timestamp:source.timestamp,live_runtime_state:JSON.parse(rangeKeeperJson(accountingState)),
+   live_runtime_state_hash:contentHash(JSON.parse(rangeKeeperJson(accountingState))),live_runtime_revision:1,
+   live_runtime_profile_hash:profileHash,live_runtime_config_hash:payload.configHash,live_profile_id:payload.profileId};
+ const position=deploymentPosition(row);
+ assert.equal(position.accounting,'recorded');assert.equal(position.navQuote,'29990000');
+ assert.equal(position.deployment.rangekeeper?.epoch,3,
+  'live epoch is sourced from the persisted accountingState when the payload has no top-level epoch');
+ assert.equal(position.holdQuote,'32000000');assert.equal(position.initialQuote,'32000000');
+ assert.equal(position.gasQuote,'10000','measured gas is reported separately and not subtracted twice from NAV');
+ assert.equal(position.feesQuote,'5000000');
+ assert.equal(position.inventory.tokens[0]!.amountRaw,'4000000');
+ assert.equal(position.inventory.tokens[1]!.amountRaw,'24000000000000000000');
+ assert.doesNotThrow(()=>JSON.stringify(position),'Positions API projection must be JSON-safe');
+ assert.equal(position.initialQuote,'32000000','opening native reserve is included in the exact opening capital baseline');
+ const stale={...row,live_mark_payload:{...row.live_mark_payload as any,referenceValuation:{...(row.live_mark_payload as any).referenceValuation,
+  source:{...source,block:'99'}}}};
+ stale.live_mark_payload_hash=contentHash(stale.live_mark_payload);
+ const unavailable=deploymentPosition(stale);
+ assert.equal(unavailable.navQuote,null);assert.equal(unavailable.holdQuote,null);assert.equal(unavailable.feesQuote,null);
+ const missingFee={...row,live_mark_payload:{...row.live_mark_payload as any,positionFeeEvidence:null}};
+ missingFee.live_mark_payload_hash=contentHash(missingFee.live_mark_payload);
+ const incomplete=deploymentPosition(missingFee);
+ assert.equal(incomplete.navQuote,null);assert.equal(incomplete.accounting,'unavailable');
+ const history=await readDeploymentDetail({query:async(sql:string)=>({rows:
+  sql.includes("to_regclass('deployment_paper_accounting')")?[{present:null}]:
+  sql.includes("to_regclass('deployment_live_runtime_events')")?[{present:'deployment_live_runtime_events'}]:
+  sql.includes('FROM deployment_live_runtime_events WHERE')?[{payload:row.live_mark_payload,
+   payload_hash:row.live_mark_payload_hash,source_block:source.block,source_hash:source.hash,source_timestamp:source.timestamp}]:[]})} as any,
+  row,24);
+ assert.equal(history.performance.markCount,1);
+ assert.equal(history.performance.timeline[0]?.economicNavQuote,'29990000');
+ assert.equal(history.performance.timeline[0]?.holdQuote,'32000000');
+ assert.equal(history.performance.timeline[0]?.epoch,3);
 });
 test('left-edge partial intervals are excluded, without charging older gas or swaps',()=>{
  const points=[point('2026-09-12T11:30:00Z','100000000'),point('2026-09-12T12:01:00Z','90000000',{gasThisMarkQuote:'2000000'}),point('2026-09-12T12:30:00Z','91000000')];
@@ -138,6 +226,157 @@ test('RangeKeeper recenter marks show the new epoch and exact current inventory 
  assert.equal(detail.position.deployment.rangekeeper?.latestClassification,'rangekeeper_paper_recenter_v1');
  assert.equal(detail.position.deployment.rangekeeper?.recenterAvailable,false);
  assert.equal(detail.counts.recenters,1);
+});
+test('RangeKeeper observed-flow accounting snapshot feeds provisional position and history economics only with eligible mark-bound references',async()=>{
+ const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
+  hash=`0x${'a'.repeat(64)}`,profile=marketProfileSchema.parse({pool:{chainId:4663,
+   factory:UNISWAP_V3_FACTORY,pool:address('1'),token0:address('2'),token1:address('3'),
+   quoteToken:0,decimals0:6,decimals1:18,fee:3000,tickSpacing:60,
+   positionManager:NONFUNGIBLE_POSITION_MANAGER,router:PAPER_ROUTER,quoter:PAPER_QUOTER,
+   poolCodeHash:hash,token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,
+   quoterCodeHash:hash,reference0:'USDG/USD',reference1:'AAPL/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+   referencePolicy:{token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+    token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+    nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}}),sqrt=sqrtRatioAtTick(0),liquidity=10n**12n,
+  source={block:'102',hash:`0x${'d'.repeat(64)}`,timestamp:now-5},campaignId='00000000-0000-4000-8000-000000000003',
+  proof={token0:{asset:{oracle:{flags:{priceFresh:true}}}},token1:{asset:{oracle:{flags:{priceFresh:true}}}},
+   native:{asset:{oracle:{flags:{priceFresh:true}}}}},proofHash=referenceProofHash(proof),
+  reference={price0:'1000000000000000000',price1:'2000000000000000000',nativePrice:'3000000000000000000',
+   proofHash,proof,eligible:true},
+  mark={id:'3',at:new Date(source.timestamp*1000),source_block:source.block,source_hash:source.hash,
+   accounting_snapshot:null,accounting_hash:null,rangekeeper_accounting_snapshot:null,
+   rangekeeper_accounting_hash:null,conversion_accounting_snapshot:null,conversion_accounting_hash:null,
+   accounting_invalidated_at:null,accounting_invalidation_reason:null,
+   inventory:{classification:'rangekeeper_paper_mark_v1',position:{tickLower:-60,tickUpper:60,
+    liquidity:String(liquidity)},idle:{token0:'7',token1:'11'}},economics:{principalOnlyValue:'100000000000000000000'},
+   provenance:{classification:'rangekeeper_paper_mark_v1',epoch:0,source,reference,
+    poolState:{tick:0,sqrtPriceX96:String(sqrt)}}},
+  snapshot={policyVersion:RANGEKEEPER_PAPER_ACCOUNTING_POLICY,classification:'provisional_paper_scenario',
+   campaignId,sourceMarkId:mark.id,markKind:'valuation' as const,source,profileHash:contentHash(profile),epoch:0,
+   reference,feeEvidence:null,modeledCosts:{initialOpenBoundValue:'2000000000000000000',
+    initialOpenBoundWei:'100',cumulativeBoundValue:'3000000000000000000',cumulativeBoundWei:'150',
+    paidCostsAvailable:false as const},inventory:{token0Raw:'1000000',token1Raw:'500000000000000000',
+    nativeWei:'250',principal0Raw:'999995',principal1Raw:'499999999999999995',fee0Raw:'5',fee1Raw:'5',
+    cumulativeGasWei:null,hasLiquidity:true},economics:{initialCapitalQuote:'100000000000000000000',
+    netNavQuote:'123000000000000000000',passiveQuote:'120000000000000000000',absolutePnlQuote:'23000000000000000000',
+    alphaQuote:'3000000000000000000',cumulativeFeeValueQuote:'5000000000000000000',
+    cumulativeGasExpenseQuote:null,intervalFeeAccrualQuote:'1000000000000000000',markGasExpenseQuote:null},
+   limitations:['modeled_hypothetical_fee_share' as const,'modeled_costs_not_paid' as const,
+    'retained_fees_not_reinvested' as const,'lower_integer_allocation_point' as const]},
+  row={id:campaignId,mode:'paper',lifecycle:'active',range_state:'inside',current_revision:1,
+   created_at:new Date((now-120)*1000),closed_at:null,allocation:{token0Raw:'1000000',token1Raw:'500000000000000000',nativeWei:'1000'},
+   runtime_identity:{},profile,strategy_id:'rangekeeper_v1',config:{},mark_id:mark.id,mark_at:mark.at,
+   source_block:source.block,source_hash:source.hash,inventory:mark.inventory,economics:mark.economics,
+   provenance:mark.provenance,initial_value:'99000000',operation_id:null,operation_kind:null,
+   operation_status:null,operation_stage:null,operation_reason:null,operation_updated_at:null,
+   accounting_snapshot:null,accounting_hash:null,rangekeeper_accounting_snapshot:snapshot,
+   rangekeeper_accounting_hash:contentHash(snapshot),conversion_accounting_snapshot:null,
+   conversion_accounting_hash:null,accounting_invalidated_at:null,accounting_invalidation_reason:null},
+  withReference=(value:any)=>({...mark.provenance,reference:value}),
+  makeDetail=async(snapshotValue:any,provenanceValue:any=mark.provenance,historyOverride?:any[])=>{
+   const savedMark={...mark,provenance:provenanceValue,rangekeeper_accounting_snapshot:snapshotValue,
+    rangekeeper_accounting_hash:snapshotValue?contentHash(snapshotValue):null};
+   return readDeploymentDetail({query:async(sql:string)=>({rows:sql.includes('FROM deployment_marks m')?
+    historyOverride??[savedMark]:[]})} as any,
+    {...row,provenance:provenanceValue,rangekeeper_accounting_snapshot:snapshotValue,
+     rangekeeper_accounting_hash:snapshotValue?contentHash(snapshotValue):null} as any,24);
+  };
+ const valid=await makeDetail(snapshot),validPoint:any=valid.performance.timeline.at(-1);
+ assert.equal(valid.position.accounting,'provisional');assert.equal(valid.position.navQuote,'123000000');
+ assert.equal(valid.position.initialQuote,'100000000','the modeled baseline includes initial native inventory');
+ assert.equal(valid.position.holdQuote,'120000000');assert.equal(valid.position.feesQuote,'5000000');
+ assert.equal(valid.position.swapQuote,null);
+ assert.equal(valid.position.deployment.accounting?.modeledCosts?.cumulativeBoundValue,'3000000');
+ assert.equal(valid.position.gasQuote,null);assert.equal(validPoint.economicNavQuote,'123000000');
+ assert.equal(validPoint.holdQuote,'120000000');assert.equal(validPoint.feesThisIntervalQuote,'1000000');
+ const policyProof={token0:{basis:'heartbeat_valid',oracle:{flags:{priceFresh:true}}},
+  token1:{basis:'heartbeat_valid',oracle:{flags:{priceFresh:true}},
+   asset:{oracle:{flags:{priceFresh:false}}}},native:{flags:{priceFresh:true}}},
+  policyReference={...reference,proof:policyProof,proofHash:referenceProofHash(policyProof)};
+ assert.equal((await makeDetail({...snapshot,reference:policyReference},withReference(policyReference))).position.navQuote,
+  '123000000','the unused risk diagnostic oracle cannot override the selected policy-valid oracle');
+ const rejectedProof={...policyProof,token1:{...policyProof.token1,oracle:{flags:{priceFresh:false}}}},
+  rejectedReference={...reference,proof:rejectedProof,proofHash:referenceProofHash(rejectedProof)};
+ assert.equal((await makeDetail({...snapshot,reference:rejectedReference},withReference(rejectedReference))).position.accounting,
+  'unavailable','stale selected reference evidence still fails closed');
+ const staleProof={...proof,token1:{asset:{oracle:{flags:{priceFresh:false}},reasons:['oracle_price_stale']}}},
+  staleReference={...reference,proof:staleProof,proofHash:referenceProofHash(staleProof),eligible:false},
+  staleSnapshot={...snapshot,reference:staleReference,economics:{initialCapitalQuote:null,netNavQuote:null,
+   passiveQuote:null,absolutePnlQuote:null,alphaQuote:null,cumulativeFeeValueQuote:null,
+   cumulativeGasExpenseQuote:null,intervalFeeAccrualQuote:null,markGasExpenseQuote:null}},
+  stale=await makeDetail(staleSnapshot,withReference(staleReference));
+ assert.equal(stale.position.accounting,'provisional');assert.equal(stale.position.navQuote,null);
+ assert.equal(stale.position.holdQuote,null);assert.equal(stale.position.feesQuote,null);
+ assert.equal(stale.position.referencePriceQuoteX18,null);assert.equal(stale.position.deployment.passiveTokenValue,null);
+ assert.equal(stale.position.deployment.accounting?.modeledCosts?.cumulativeBoundValue,'3000000');
+ assert.deepEqual(stale.position.deployment.accounting?.retainedModeledFees,{token0Raw:'5',token1Raw:'5'});
+ assert.equal((await makeDetail(snapshot,withReference(staleReference))).position.accounting,'unavailable');
+ assert.equal((await makeDetail({...snapshot,reference:{...reference,eligible:false},economics:staleSnapshot.economics},withReference({...reference,eligible:false}))).position.accounting,'provisional');
+ assert.equal((await makeDetail(snapshot,withReference({...reference,price1:'3000000000000000000'}))).position.accounting,'unavailable');
+ assert.equal((await makeDetail({...snapshot,source:{...source,block:'103'}})).position.accounting,'unavailable');
+ const weakFreshProof={...proof,token1:{asset:{oracle:{flags:{priceFresh:true,fresh:false}}}}},
+  weakFreshReference={...reference,proof:weakFreshProof,proofHash:referenceProofHash(weakFreshProof)},
+  weakFreshSnapshot={...snapshot,reference:weakFreshReference},
+  weakFreshProvenance=withReference(weakFreshReference);
+ assert.equal((await makeDetail(weakFreshSnapshot,weakFreshProvenance)).position.accounting,'unavailable');
+ const latestSource={...source,block:'103',hash:`0x${'e'.repeat(64)}`,timestamp:source.timestamp+2},
+  latestMark={...mark,id:'4',at:new Date(latestSource.timestamp*1000),source_block:latestSource.block,
+   source_hash:latestSource.hash,provenance:{...mark.provenance,source:latestSource}},
+  pendingRow:any={...row,mark_id:latestMark.id,mark_at:latestMark.at,source_block:latestMark.source_block,
+   source_hash:latestMark.source_hash,inventory:latestMark.inventory,economics:latestMark.economics,
+   provenance:latestMark.provenance,rangekeeper_accounting_snapshot:null,rangekeeper_accounting_hash:null,
+   rk_previous_mark_id:mark.id,rk_previous_mark_at:mark.at,rk_previous_source_block:mark.source_block,
+   rk_previous_source_hash:mark.source_hash,rk_previous_inventory:mark.inventory,
+   rk_previous_economics:mark.economics,rk_previous_provenance:mark.provenance,
+   rk_previous_accounting_snapshot:snapshot,rk_previous_accounting_hash:contentHash(snapshot)},
+  pendingPosition=deploymentPosition(pendingRow);
+ assert.equal(pendingPosition.navQuote,'123000000');
+ assert.equal(pendingPosition.sourceAt,new Date(latestSource.timestamp*1000).toISOString(),
+  'latest operational source remains unchanged');
+ assert.equal(pendingPosition.economicsSourceAt,new Date(source.timestamp*1000).toISOString());
+ assert.equal(pendingPosition.deployment.rangekeeper!.latestMarkId,latestMark.id);
+ assert.equal(pendingPosition.deployment.rangekeeper!.economicsPendingCurrentMark,true);
+ const olderSource={block:'90',hash:`0x${'f'.repeat(64)}`,timestamp:now-300},
+  olderMark={...mark,id:'2',at:new Date(olderSource.timestamp*1000),source_block:olderSource.block,
+   source_hash:olderSource.hash,provenance:{...mark.provenance,source:olderSource}},
+  olderSnapshot={...snapshot,source:olderSource,sourceMarkId:olderMark.id},
+  olderFallback={...pendingRow,rk_previous_mark_id:olderMark.id,rk_previous_mark_at:olderMark.at,
+   rk_previous_source_block:olderMark.source_block,rk_previous_source_hash:olderMark.source_hash,
+   rk_previous_inventory:olderMark.inventory,rk_previous_economics:olderMark.economics,
+   rk_previous_provenance:olderMark.provenance,rk_previous_accounting_snapshot:olderSnapshot,
+   rk_previous_accounting_hash:contentHash(olderSnapshot)},
+  olderPosition=deploymentPosition(olderFallback);
+ assert.equal(olderPosition.navQuote,'123000000','a complete historical mark remains available beyond 180 seconds');
+ assert.equal(olderPosition.economicsSourceAt,new Date(olderSource.timestamp*1000).toISOString());
+ assert.equal(olderPosition.sourceAt,new Date(latestSource.timestamp*1000).toISOString());
+ assert.equal(olderPosition.deployment.rangekeeper!.economicsPendingCurrentMark,true);
+ const futureSource={...olderSource,block:'105',hash:`0x${'8'.repeat(64)}`,timestamp:now+30},
+  futureMark={...olderMark,source_block:futureSource.block,source_hash:futureSource.hash,
+   provenance:{...olderMark.provenance,source:futureSource}},
+  futureSnapshot={...olderSnapshot,source:futureSource},
+  futureFallback={...olderFallback,rk_previous_mark_at:new Date(futureSource.timestamp*1000),
+   rk_previous_source_block:futureSource.block,rk_previous_source_hash:futureSource.hash,
+   rk_previous_provenance:futureMark.provenance,rk_previous_accounting_snapshot:futureSnapshot,
+   rk_previous_accounting_hash:contentHash(futureSnapshot)};
+ assert.equal(deploymentPosition(futureFallback).navQuote,null,'future-dated economic evidence is never displayed');
+ const otherEpoch={...pendingRow,rk_previous_provenance:{...mark.provenance,epoch:1}};
+ assert.equal(deploymentPosition(otherEpoch).navQuote,null,'a prior epoch cannot supply current economics');
+ const ineligiblePreviousReference={...reference,eligible:false},ineligiblePrevious={...pendingRow,
+   rk_previous_provenance:{...mark.provenance,reference:ineligiblePreviousReference},
+   rk_previous_accounting_snapshot:{...snapshot,reference:ineligiblePreviousReference,
+    economics:{initialCapitalQuote:null,netNavQuote:null,passiveQuote:null,absolutePnlQuote:null,
+     alphaQuote:null,cumulativeFeeValueQuote:null,cumulativeGasExpenseQuote:null,
+     intervalFeeAccrualQuote:null,markGasExpenseQuote:null}}};
+ ineligiblePrevious.rk_previous_accounting_hash=contentHash(ineligiblePrevious.rk_previous_accounting_snapshot);
+ assert.equal(deploymentPosition(ineligiblePrevious).navQuote,null,'an ineligible reference cannot supply fallback economics');
+ assert.equal(deploymentPosition({...pendingRow,rk_previous_invalidated_at:new Date()}).navQuote,null,
+  'an invalidated accounting source cannot supply fallback economics');
+ const sparseMark={...mark,id:'4',at:new Date((source.timestamp+1)*1000),source_block:'103',
+  source_hash:`0x${'e'.repeat(64)}`,rangekeeper_accounting_snapshot:null,rangekeeper_accounting_hash:null,
+  provenance:{...mark.provenance,source:{...source,block:'103',hash:`0x${'e'.repeat(64)}`,timestamp:source.timestamp+1}}},
+  sparse=await makeDetail(snapshot,mark.provenance,[mark,sparseMark]),sparsePoint:any=sparse.performance.timeline.at(-1);
+ assert.equal(sparsePoint.economicNavQuote,null);assert.equal(sparsePoint.holdQuote,null);
+ assert.equal(sparsePoint.feesThisIntervalQuote,null);assert.equal(sparsePoint.referencePriceQuoteX18,null);
 });
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');

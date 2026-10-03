@@ -47,7 +47,9 @@ import {buildPaperAccounting,paperAccountingSchema,buildPaperConversionAccountin
  PAPER_CONVERSION_ACCOUNTING_POLICY_V3,paperConversionAccountingV2Schema,
  paperConversionAccountingV3Schema,buildPaperConversionAccountingV2,
  buildPaperConversionAccountingV3,assertPaperConversionV3GasWithinReserve,
- paperAccountingFromConversionV2Snapshot} from './paper-accounting.js';
+ paperAccountingFromConversionV2Snapshot,RANGEKEEPER_PAPER_ACCOUNTING_POLICY,
+ rangeKeeperPaperAccountingSchema,rangeKeeperPaperReferenceProofFresh,
+ type RangeKeeperPaperAccounting} from './paper-accounting.js';
 import {loadRuntimeIdentity,type RuntimeIdentity} from '../runtime/identity.js';
 import type {RobinhoodClient} from '../client.js';
 import type {PaperCloseConvertGasPersistedEvidence} from './paper-gas-source.js';
@@ -896,6 +898,91 @@ export class DeploymentStore {
      liquidity:BigInt(before.position.liquidity)};
    }catch(error){await db.query('ROLLBACK');throw error;}
   }finally{db.release();}
+ }
+
+ /** Returns one adjacent RangeKeeper position epoch interval for the existing
+  * canonical fee sampler. A recenter endpoint is replayed using the prior
+  * mark's position; the following interval starts a fresh carry epoch. */
+ async rangeKeeperPaperFeeSamplingState(id:string){
+  const db=await this.readPool.connect();
+  try{
+   await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+   const campaign=(await db.query<{mode:string;strategy_id:string;profile:unknown;profile_hash:string;
+    evidence:unknown}>(`SELECT c.mode,r.strategy_id,p.profile,p.profile_hash,p.evidence
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id WHERE c.id=$1`,[id])).rows[0];
+   const profile=marketProfileSchema.safeParse(campaign?.profile),evidence=marketProfileEvidenceSchema.safeParse(campaign?.evidence);
+   if(!campaign||campaign.mode!=='paper'||campaign.strategy_id!=='rangekeeper_v1'||
+    !profile.success||!evidence.success||contentHash(profile.data)!==campaign.profile_hash||
+    referenceProofHash(evidence.data.referenceProof)!==evidence.data.references.proofHash)
+    throw new DeploymentConflict('rangekeeper_paper_fee_campaign_unavailable');
+   const marks=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
+    SELECT id::text,revision,source_block::text,source_hash,inventory,provenance
+    FROM deployment_marks WHERE campaign_id=$1 ORDER BY deployment_marks.id LIMIT 10002`,[id])).rows;
+   if(marks.length>10000)throw new DeploymentConflict('rangekeeper_paper_fee_mark_bound');
+   if(!marks.length){await db.query('COMMIT');return null;}
+   const feeRows=(await db.query<{from_mark_id:string;to_mark_id:string}>(`SELECT from_mark_id::text,to_mark_id::text
+    FROM deployment_paper_fee_evidence WHERE campaign_id=$1 ORDER BY deployment_paper_fee_evidence.id`,[id])).rows;
+   const lastFee=feeRows.at(-1),fromIndex=lastFee?marks.findIndex(row=>row.id===lastFee.to_mark_id):0,
+    from=marks[fromIndex],
+    boundaryIndex=marks.findIndex((row,index)=>index>fromIndex&&[
+     'rangekeeper_paper_recenter_v1','rangekeeper_paper_close_retain_v1',
+     'rangekeeper_paper_close_convert_v1'].includes(String(row.provenance.classification))),
+    toIndex=boundaryIndex>=0?boundaryIndex:marks.length-1,to=marks[toIndex];
+   if(!from||!to||from===to||feeRows.some(row=>row.to_mark_id===to.id)){
+    await db.query('COMMIT');return null;
+   }
+   const fromClass=String(from.provenance.classification),toClass=String(to.provenance.classification),
+    rkPositions=['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'];
+   if(!rkPositions.includes(fromClass)||!rkPositions.includes(toClass)&&
+    !['rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1'].includes(toClass)||
+    from.revision!==to.revision)
+    throw new DeploymentConflict('rangekeeper_paper_fee_adjacent_mark_unsupported');
+   const state=(mark:typeof marks[number],requirePosition=true)=>{
+    const source=paperFeeMarkSourceSchema.safeParse(mark.provenance.source),
+     inventory=mark.inventory as {position?:unknown},
+     position=requirePosition?paperFeePositionSchema.safeParse(inventory.position):null;
+    let poolState=mark.provenance.poolState;
+    if(mark.provenance.classification==='rangekeeper_paper_open_v1'){
+     const model=(mark.provenance.confirmedOpen as {model?:{poolState?:unknown}}|undefined)?.model;
+     poolState=model?.poolState;
+    }
+    const parsedState=paperFeeMarkStateSchema.safeParse(poolState);
+    if(!source.success||!parsedState.success||(requirePosition&&!position?.success)||!mark.source_block||!mark.source_hash||
+     source.data.block!==mark.source_block||source.data.hash.toLowerCase()!==mark.source_hash.toLowerCase())
+     throw new DeploymentConflict('rangekeeper_paper_fee_mark_integrity');
+    return {source:source.data,state:parsedState.data,position:position?.data??null};
+   };
+   const a=state(from),closing=['rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1'].includes(toClass);
+   if(!a.position)throw new DeploymentConflict('rangekeeper_paper_fee_source_position_missing');
+   let b:{source:typeof a.source;state:typeof a.state;position:{tickLower:number;tickUpper:number;
+    liquidity:string}|null};
+   if(closing){
+    const source=paperFeeMarkSourceSchema.safeParse(to.provenance.source),
+     parsedState=paperFeeMarkStateSchema.safeParse(to.provenance.poolState);
+    if(!source.success||!parsedState.success||source.data.block!==to.source_block||
+     source.data.hash.toLowerCase()!==to.source_hash?.toLowerCase())
+     throw new DeploymentConflict('rangekeeper_paper_fee_close_integrity');
+    b={source:source.data,state:parsedState.data,position:null};
+   }else b=state(to,toClass!=='rangekeeper_paper_recenter_v1');
+   if(BigInt(b.source.block)<=BigInt(a.source.block)||!closing&&toClass!=='rangekeeper_paper_recenter_v1'&&
+    (a.position.tickLower!==b.position!.tickLower||a.position.tickUpper!==b.position!.tickUpper||
+     a.position.liquidity!==b.position!.liquidity))
+    throw new DeploymentConflict('rangekeeper_paper_fee_position_or_source_changed');
+   await db.query('COMMIT');
+   return {profile:profile.data,stream:evidence.data.streamKey,targetSetHash:evidence.data.indexerTargetSetHash,
+    fromMarkId:from.id,toMarkId:to.id,ending:toClass==='rangekeeper_paper_recenter_v1'?'recenter' as const:
+     toClass==='rangekeeper_paper_close_retain_v1'?'close_retain' as const:
+     toClass==='rangekeeper_paper_close_convert_v1'?'close_convert' as const:'valuation' as const,
+    before:{source:a.source,tick:a.state.tick,sqrtPriceX96:BigInt(a.state.sqrtPriceX96),
+     poolLiquidity:BigInt(a.state.poolLiquidity)},
+    after:{source:b.source,tick:b.state.tick,sqrtPriceX96:BigInt(b.state.sqrtPriceX96),
+     poolLiquidity:BigInt(b.state.poolLiquidity)},
+    range:{tickLower:a.position.tickLower,tickUpper:a.position.tickUpper},liquidity:BigInt(a.position.liquidity)};
+  }catch(error){await db.query('ROLLBACK');throw error;}
+  finally{db.release();}
  }
 
  async listMarketProfiles(){
@@ -4762,6 +4849,95 @@ export class DeploymentStore {
   });
  }
 
+ /** Appends canonical flow evidence for a RangeKeeper epoch. Carry resets at
+  * recenter boundaries; cumulative amounts are kept separate from strategy
+  * inventory and never feed a historical swap or mint. */
+ async recordTrustedRangeKeeperPaperFeeEvidence(campaignId:string,fromMarkId:string,toMarkId:string,
+  interval:CanonicalPaperFeeInterval){
+  const proofHash=contentHash(interval);
+  return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,campaignId);
+   const campaign=(await db.query<{mode:string;strategy_id:string;profile:unknown;profile_hash:string;
+    evidence:unknown}>(`SELECT c.mode,r.strategy_id,p.profile,p.profile_hash,p.evidence
+    FROM deployment_campaigns c JOIN deployment_revisions r
+     ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id WHERE c.id=$1 FOR UPDATE OF c`,
+    [campaignId])).rows[0];
+   const profile=marketProfileSchema.safeParse(campaign?.profile),ev=marketProfileEvidenceSchema.safeParse(campaign?.evidence);
+   if(!campaign||campaign.mode!=='paper'||campaign.strategy_id!=='rangekeeper_v1'||!profile.success||!ev.success||
+    contentHash(profile.data)!==campaign.profile_hash||referenceProofHash(ev.data.referenceProof)!==ev.data.references.proofHash||
+    interval.coverage.stream!==ev.data.streamKey||interval.coverage.targetSetHash!==ev.data.indexerTargetSetHash||
+    interval.pool!==profile.data.pool.pool.toLowerCase()||interval.token0Address!==profile.data.pool.token0.toLowerCase()||
+    interval.token1Address!==profile.data.pool.token1.toLowerCase()||interval.fee!==profile.data.pool.fee||
+    interval.tickSpacing!==profile.data.pool.tickSpacing)
+    throw new DeploymentConflict('rangekeeper_paper_fee_profile_or_coverage_mismatch');
+   const rows=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`SELECT id::text,revision,
+    source_block::text,source_hash,inventory,provenance FROM deployment_marks
+    WHERE campaign_id=$1 AND id IN ($2,$3) ORDER BY deployment_marks.id FOR SHARE`,
+    [campaignId,fromMarkId,toMarkId])).rows;
+   if(rows.length!==2||rows[0]!.id!==fromMarkId||rows[1]!.id!==toMarkId||rows[0]!.revision!==rows[1]!.revision||
+    rows.some(r=>!['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1',
+     'rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1'].includes(String(r.provenance.classification))))
+    throw new DeploymentConflict('rangekeeper_paper_fee_marks_unavailable');
+   const [from,to]=rows as [typeof rows[number],typeof rows[number]],fromSource=paperFeeMarkSourceSchema.safeParse(from.provenance.source),
+    toSource=paperFeeMarkSourceSchema.safeParse(to.provenance.source),pos=paperFeePositionSchema.safeParse(
+     (from.inventory as {position?:unknown}).position);
+   if(!fromSource.success||!toSource.success||!pos.success||from.source_block!==interval.from.block||
+    to.source_block!==interval.to.block||fromSource.data.hash.toLowerCase()!==interval.from.hash.toLowerCase()||
+    toSource.data.hash.toLowerCase()!==interval.to.hash.toLowerCase()||
+    fromSource.data.block!==interval.from.block||toSource.data.block!==interval.to.block||
+    pos.data.tickLower!==interval.range.tickLower||pos.data.tickUpper!==interval.range.tickUpper||
+    pos.data.liquidity!==interval.liquidity)
+    throw new DeploymentConflict('rangekeeper_paper_fee_source_or_position_mismatch');
+   const skipped=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`SELECT id::text,revision,
+    source_block::text,source_hash,inventory,provenance FROM deployment_marks WHERE campaign_id=$1
+    AND id>$2 AND id<$3 ORDER BY deployment_marks.id`,[campaignId,fromMarkId,toMarkId])).rows;
+   if(skipped.length>10000)throw new DeploymentConflict('rangekeeper_paper_fee_skipped_mark_bound');
+   let priorBlock=BigInt(fromSource.data.block);
+   for(const middle of skipped){
+    const source=paperFeeMarkSourceSchema.safeParse(middle.provenance.source),
+     middlePosition=paperFeePositionSchema.safeParse((middle.inventory as {position?:unknown}).position);
+    if(middle.revision!==from.revision||middle.provenance.classification!=='rangekeeper_paper_mark_v1'||
+     Number(middle.provenance.epoch??0)!==Number(from.provenance.epoch??0)||!source.success||
+     source.data.block!==middle.source_block||source.data.hash.toLowerCase()!==middle.source_hash?.toLowerCase()||
+     BigInt(source.data.block)<=priorBlock||BigInt(source.data.block)>=BigInt(toSource.data.block)||
+     !middlePosition.success||middlePosition.data.tickLower!==pos.data.tickLower||
+     middlePosition.data.tickUpper!==pos.data.tickUpper||middlePosition.data.liquidity!==pos.data.liquidity)
+     throw new DeploymentConflict('rangekeeper_paper_fee_skipped_mark_not_unchanged_valuation');
+    priorBlock=BigInt(source.data.block);
+   }
+   const existing=(await db.query<{id:string;from_mark_id:string;proof_hash:string}>(`SELECT id::text,
+    from_mark_id::text,proof_hash FROM deployment_paper_fee_evidence WHERE campaign_id=$1 AND to_mark_id=$2`,
+    [campaignId,toMarkId])).rows[0];
+   if(existing){if(existing.from_mark_id===fromMarkId&&existing.proof_hash===proofHash)
+    return {evidenceId:existing.id,replayed:true};throw new DeploymentConflict('rangekeeper_paper_fee_conflict');}
+   let prior:PaperFeeCarry|null=null,opening:{block:string;hash:string}={
+    block:fromSource.data.block,hash:fromSource.data.hash};
+   if(from.provenance.classification!=='rangekeeper_paper_open_v1'&&
+    from.provenance.classification!=='rangekeeper_paper_recenter_v1'){
+    const p=(await db.query<{proof:CanonicalPaperFeeInterval;proof_hash:string;carry:PaperFeeCarry;carry_hash:string}>(`
+     SELECT proof,proof_hash,carry,carry_hash FROM deployment_paper_fee_evidence
+     WHERE campaign_id=$1 AND to_mark_id=$2`,[campaignId,fromMarkId])).rows[0];
+    if(!p||contentHash(p.proof)!==p.proof_hash||contentHash(p.carry)!==p.carry_hash)
+     throw new DeploymentConflict('rangekeeper_paper_fee_prior_carry_unavailable');
+    prior=p.carry;opening=p.carry.from;
+    if(prior.range.tickLower!==interval.range.tickLower||prior.range.tickUpper!==interval.range.tickUpper||
+     prior.liquidity!==interval.liquidity)
+     throw new DeploymentConflict('rangekeeper_paper_fee_epoch_changed_without_boundary');
+   }
+   let carry:PaperFeeCarry;
+   try{carry=advancePaperFeeCarry(prior,interval,{block:opening.block,hash:opening.hash});}
+   catch{throw new DeploymentConflict('rangekeeper_paper_fee_interval_rejected');}
+   const inserted=(await db.query<{id:string}>(`INSERT INTO deployment_paper_fee_evidence
+    (campaign_id,from_mark_id,to_mark_id,proof,proof_hash,carry,carry_hash)
+    VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id::text`,[campaignId,fromMarkId,toMarkId,
+    JSON.stringify(interval),proofHash,JSON.stringify(carry),contentHash(carry)])).rows[0]!;
+   return {evidenceId:inserted.id,replayed:false};
+  });
+ }
+
  /** Reads and replays the complete append-only fee carry from a static/manual
   * paper open mark through the campaign's exact latest mark. This is read-only;
   * chain anchors still need an external canonical recheck before use. */
@@ -5306,15 +5482,238 @@ export class DeploymentStore {
  /** Rechecks every saved paper-accounting source and permanently revokes the
   * detected snapshot plus its dependent descendants after a canonical hash or
   * timestamp change. RPC/read failures throw and never create a revocation. */
+ /** Appends exactly one RangeKeeper source-mark projection from already
+  * persisted, adjacent fee evidence. No fee interval is inferred here. */
+ async recordNextRangeKeeperPaperAccounting(campaignId:string,
+  verifyAnchors:(chainId:number,sources:readonly {block:string;hash:string;timestamp:number}[])=>Promise<void>){
+  return this.transaction(async db=>{
+   await this.assertPaperPreparationMutationAllowed(db,campaignId);
+   const campaign=(await db.query<{mode:string;chain_id:number;current_revision:number;allocation:unknown;
+    strategy_id:string;profile:unknown;profile_hash:string}>(`SELECT c.mode,c.chain_id,c.current_revision,
+    c.allocation,r.strategy_id,p.profile,p.profile_hash FROM deployment_campaigns c
+    JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
+    JOIN deployment_market_profiles p ON p.id=c.market_profile_id WHERE c.id=$1 FOR UPDATE OF c`,
+    [campaignId])).rows[0];
+   const profile=marketProfileSchema.safeParse(campaign?.profile);
+   if(!campaign||campaign.mode!=='paper'||campaign.strategy_id!=='rangekeeper_v1'||!profile.success||
+    contentHash(profile.data)!==campaign.profile_hash)
+    throw new DeploymentConflict('rangekeeper_paper_accounting_campaign_unavailable');
+   const invalidated=(await db.query<{found:boolean}>(`SELECT EXISTS(SELECT 1 FROM
+    deployment_paper_accounting_invalidations WHERE campaign_id=$1) AS found`,[campaignId])).rows[0]?.found;
+   if(invalidated)throw new DeploymentConflict('rangekeeper_paper_accounting_history_invalidated');
+   const mark=(await db.query<{id:string;revision:number;source_block:string|null;source_hash:string|null;
+    inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`SELECT m.id::text,m.revision,
+    m.source_block::text,m.source_hash,m.inventory,m.provenance FROM deployment_marks m
+    LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id AND a.source_mark_id=m.id
+     AND a.policy_version=$2 WHERE m.campaign_id=$1 AND a.id IS NULL AND
+     (m.provenance->>'classification' IN ('rangekeeper_paper_open_v1','rangekeeper_paper_recenter_v1',
+      'rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1') OR m.id=(
+       SELECT max(latest.id) FROM deployment_marks latest WHERE latest.campaign_id=$1) OR EXISTS(
+       SELECT 1 FROM deployment_paper_fee_evidence f WHERE f.campaign_id=$1 AND f.to_mark_id=m.id))
+     ORDER BY m.id LIMIT 1`,
+    [campaignId,RANGEKEEPER_PAPER_ACCOUNTING_POLICY])).rows[0];
+   if(!mark)return null;
+   if(mark.revision!==campaign.current_revision||!mark.source_block||!mark.source_hash)
+    throw new DeploymentConflict('rangekeeper_paper_accounting_mark_unavailable');
+   const classification=String(mark.provenance.classification),kind:
+    RangeKeeperPaperAccounting['markKind']=classification==='rangekeeper_paper_open_v1'?'open':
+    classification==='rangekeeper_paper_mark_v1'?'valuation':classification==='rangekeeper_paper_recenter_v1'?'recenter':
+    classification==='rangekeeper_paper_close_retain_v1'?'close_retain':
+    classification==='rangekeeper_paper_close_convert_v1'?'close_convert':null as never;
+   if(!kind)throw new DeploymentConflict('rangekeeper_paper_accounting_mark_unsupported');
+   const src=paperFeeMarkSourceSchema.safeParse(mark.provenance.source),
+    referenceUnavailable=Array.isArray(mark.provenance.referenceUnavailable)?mark.provenance.referenceUnavailable:[],
+    rawRef=mark.provenance.reference,
+    ref=rawRef as
+    {price0?:unknown;price1?:unknown;nativePrice?:unknown;eligible?:unknown;proofHash?:unknown;proof?:unknown}|undefined,
+    referenceProof=ref?.proof&&typeof ref.proof==='object'&&!Array.isArray(ref.proof)?ref.proof as Record<string,unknown>:null;
+   if(!src.success||src.data.block!==mark.source_block||src.data.hash.toLowerCase()!==mark.source_hash.toLowerCase()||
+    !ref||typeof ref.proofHash!=='string'||!referenceProof||
+    referenceProofHash(referenceProof)!==ref.proofHash||
+    (ref.price0!==null&&typeof ref.price0!=='string')||(ref.price1!==null&&typeof ref.price1!=='string')||
+    (ref.nativePrice!==null&&typeof ref.nativePrice!=='string'))
+    throw new DeploymentConflict('rangekeeper_paper_accounting_mark_reference_integrity');
+   const proofFresh=rangeKeeperPaperReferenceProofFresh(referenceProof,referenceUnavailable),
+    eligible=(ref.eligible===true||(ref.eligible===undefined&&referenceUnavailable.length===0&&
+     (kind==='valuation'||kind==='recenter'||kind==='close_retain'||kind==='close_convert')))&&proofFresh,
+    sourceRef={price0:ref.price0 as string|null,price1:ref.price1 as string|null,
+    nativePrice:ref.nativePrice as string|null,proofHash:ref.proofHash,
+    eligible:eligible&&Boolean(ref.price0&&ref.price1&&ref.nativePrice)&&
+     [ref.price0,ref.price1,ref.nativePrice].every(value=>typeof value==='string'&&/^[1-9][0-9]*$/.test(value)),
+    proof:referenceProof};
+   const priorMark=(await db.query<{id:string;classification:string}>(`SELECT m.id::text,
+    m.provenance->>'classification' AS classification FROM deployment_paper_accounting a
+    JOIN deployment_marks m ON m.id=a.source_mark_id WHERE a.campaign_id=$1
+     AND a.policy_version=$3 AND m.id<$2 ORDER BY m.id DESC LIMIT 1`,
+    [campaignId,mark.id,RANGEKEEPER_PAPER_ACCOUNTING_POLICY])).rows[0];
+   const prior=priorMark?(await db.query<{snapshot:unknown;snapshot_hash:string}>(`SELECT snapshot,snapshot_hash
+    FROM deployment_paper_accounting WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
+    [campaignId,priorMark.id,RANGEKEEPER_PAPER_ACCOUNTING_POLICY])).rows[0]:null;
+   let priorData:RangeKeeperPaperAccounting|null=null;
+   if(prior){const parsed=rangeKeeperPaperAccountingSchema.safeParse(prior.snapshot);
+    if(!parsed.success||contentHash(parsed.data)!==prior.snapshot_hash||parsed.data.sourceMarkId!==priorMark!.id||
+     parsed.data.campaignId!==campaignId)throw new DeploymentConflict('rangekeeper_paper_accounting_prior_integrity');
+    priorData=parsed.data;}
+   if(kind==='open'?Boolean(priorMark):!priorData)
+    throw new DeploymentConflict('rangekeeper_paper_accounting_prior_missing');
+   let fee:{id:string;from_mark_id:string;proof:CanonicalPaperFeeInterval;proof_hash:string;
+    carry:PaperFeeCarry;carry_hash:string}|undefined;
+   if(kind!=='open'){
+    fee=(await db.query<typeof fee extends infer _T?{id:string;from_mark_id:string;proof:CanonicalPaperFeeInterval;
+     proof_hash:string;carry:PaperFeeCarry;carry_hash:string}:never>(`SELECT id::text,from_mark_id::text,proof,
+     proof_hash,carry,carry_hash FROM deployment_paper_fee_evidence WHERE campaign_id=$1 AND to_mark_id=$2`,
+     [campaignId,mark.id])).rows[0];
+    if(!fee){await db.query('COMMIT');return null;}
+    if(fee.from_mark_id!==priorMark?.id||contentHash(fee.proof)!==fee.proof_hash||
+     contentHash(fee.carry)!==fee.carry_hash)
+     throw new DeploymentConflict('rangekeeper_paper_accounting_fee_evidence_missing');
+   }
+   const open=(await db.query<{inventory:Record<string,unknown>;provenance:Record<string,unknown>}>(`
+    SELECT inventory,provenance FROM deployment_marks WHERE campaign_id=$1
+     AND provenance->>'classification'='rangekeeper_paper_open_v1' ORDER BY id LIMIT 1`,[campaignId])).rows[0];
+   const openModel=(open?.provenance.confirmedOpen as {model?:Record<string,any>}|undefined)?.model,
+    allocation=campaign.allocation as {token0Raw?:string;token1Raw?:string;nativeWei?:string};
+   if(!open||!openModel||!allocation.token0Raw||!allocation.token1Raw||!allocation.nativeWei||
+    !openModel.costs?.open||!openModel.poolState)
+    throw new DeploymentConflict('rangekeeper_paper_accounting_open_baseline_missing');
+   if(open.provenance.modelHash!==contentHash(openModel)||!openModel.reference?.proof||
+    referenceProofHash(openModel.reference.proof)!==openModel.reference.proofHash||
+    openModel.reference.eligible!==true)
+    throw new DeploymentConflict('rangekeeper_paper_accounting_open_baseline_integrity');
+   const epoch=Number(mark.provenance.epoch??
+    (mark.provenance.currentEpoch as {epoch?:unknown}|undefined)?.epoch??0),inv=mark.inventory as Record<string,any>,
+    position=inv.position as {tickLower:number;tickUpper:number;liquidity:string}|null,
+    idle=inv.idle as {token0?:string;token1?:string}|undefined;
+   let principal0=0n,principal1=0n;
+   if(position){const pool=(mark.provenance.poolState??(kind==='open'?openModel.poolState:null)) as
+     {sqrtPriceX96?:string}|undefined;
+    if(!pool?.sqrtPriceX96)throw new DeploymentConflict('rangekeeper_paper_accounting_pool_state_missing');
+    const amounts=principalAmounts({liquidity:BigInt(position.liquidity),sqrtPriceX96:BigInt(pool.sqrtPriceX96),
+     tickLower:position.tickLower,tickUpper:position.tickUpper});principal0=amounts.amount0;principal1=amounts.amount1;}
+   const retained=inv.retainedPrincipalLowerBound as {token0Raw?:string;token1Raw?:string}|undefined,
+    idle0=BigInt(idle?.token0??(position===null?(inv.token0Raw??retained?.token0Raw??'0'):'0')),
+    idle1=BigInt(idle?.token1??(position===null?(inv.token1Raw??retained?.token1Raw??'0'):'0'));
+   let fee0=BigInt(priorData?.inventory.fee0Raw??'0'),fee1=BigInt(priorData?.inventory.fee1Raw??'0'),
+    accruedFee0=0n,accruedFee1=0n;
+   if(fee){
+    const current0=BigInt(fee.carry.token0.lowerAmountRaw),current1=BigInt(fee.carry.token1.lowerAmountRaw),
+     previous0=priorData?.feeEvidence?BigInt((await db.query<{carry:PaperFeeCarry}>(`SELECT carry
+      FROM deployment_paper_fee_evidence WHERE id=$1`,[priorData.feeEvidence.id])).rows[0]?.carry.token0.lowerAmountRaw??'0'):0n,
+     previous1=priorData?.feeEvidence?BigInt((await db.query<{carry:PaperFeeCarry}>(`SELECT carry
+      FROM deployment_paper_fee_evidence WHERE id=$1`,[priorData.feeEvidence.id])).rows[0]?.carry.token1.lowerAmountRaw??'0'):0n;
+    const delta0=current0-previous0;
+    // A recenter closes the prior epoch: its whole carry is new retained fee
+    // cash; within an epoch only the adjacent carry delta is added.
+    const sameFeeEpoch=priorMark?.classification!=='rangekeeper_paper_recenter_v1'&&
+     (kind==='recenter'?priorData?.epoch===epoch-1:priorData?.epoch===epoch);
+    accruedFee0=sameFeeEpoch?delta0:current0;
+    accruedFee1=sameFeeEpoch?current1-previous1:current1;
+    if(accruedFee0<0n||accruedFee1<0n)throw new DeploymentConflict('rangekeeper_paper_fee_carry_regressed');
+    fee0+=accruedFee0;fee1+=accruedFee1;
+   }
+   const ref0=sourceRef.price0&&/^(0|[1-9][0-9]*)$/.test(sourceRef.price0)?BigInt(sourceRef.price0):null,
+    ref1=sourceRef.price1&&/^(0|[1-9][0-9]*)$/.test(sourceRef.price1)?BigInt(sourceRef.price1):null,
+    refNative=sourceRef.nativePrice&&/^(0|[1-9][0-9]*)$/.test(sourceRef.nativePrice)?BigInt(sourceRef.nativePrice):null,
+    p=profile.data.pool,WAD=10n**18n,token0Raw=principal0+idle0+fee0,token1Raw=principal1+idle1+fee1,
+    nativeWei=BigInt((inv.nativeWei as string|undefined)??
+     (kind==='close_retain'||kind==='close_convert'?String(BigInt(priorData?.inventory.nativeWei??'0')-
+      BigInt((mark.provenance.modeledCosts as {boundWei?:string}|undefined)?.boundWei??'0')):
+      (mark.provenance.kernelSnapshot as {nativeWei?:string}|undefined)?.nativeWei??
+       priorData?.inventory.nativeWei??'0')),
+    value=(a:bigint,price:bigint,decimals:number)=>a*price/10n**BigInt(decimals),
+    openingRef=openModel.reference as {price0?:string|null;price1?:string|null;nativePrice?:string|null},
+    openingEligible=Boolean(openingRef.price0&&openingRef.price1&&openingRef.nativePrice&&openModel.reference.eligible),
+    pricesValid=sourceRef.eligible&&ref0!==null&&ref1!==null&&refNative!==null&&openingEligible,
+    initialCapital=openingEligible?value(BigInt(allocation.token0Raw),BigInt(openingRef.price0!),p.decimals0)+
+     value(BigInt(allocation.token1Raw),BigInt(openingRef.price1!),p.decimals1)+
+     value(BigInt(allocation.nativeWei),BigInt(openingRef.nativePrice!),18):null,
+    nav=pricesValid?value(token0Raw,ref0!,p.decimals0)+value(token1Raw,ref1!,p.decimals1)+
+     value(nativeWei,refNative!,18):null,
+    passive=pricesValid?value(BigInt(allocation.token0Raw),ref0!,p.decimals0)+
+     value(BigInt(allocation.token1Raw),ref1!,p.decimals1)+value(BigInt(allocation.nativeWei),refNative!,18):null,
+    cumulativeFee=pricesValid?value(fee0,ref0!,p.decimals0)+value(fee1,ref1!,p.decimals1):null,
+    intervalFee=pricesValid?String(value(accruedFee0,ref0!,p.decimals0)+
+     value(accruedFee1,ref1!,p.decimals1)):null;
+   const initialBound=String(openModel.costs.open.boundValue),initialWei=String(openModel.costs.open.boundWei),
+    operationCosts=mark.provenance.modeledCosts as {boundValue?:string;boundWei?:string}|undefined,
+    recenterBound=classification==='rangekeeper_paper_recenter_v1'?String(operationCosts?.boundValue??''):'0',
+    recenterWei=classification==='rangekeeper_paper_recenter_v1'?String(operationCosts?.boundWei??''):'0',
+    exitBound=kind==='close_retain'||kind==='close_convert'?String(operationCosts?.boundValue??''):'0',
+    exitWei=kind==='close_retain'||kind==='close_convert'?String(operationCosts?.boundWei??''):'0';
+   if([initialBound,initialWei,recenterBound,recenterWei,exitBound,exitWei].some(v=>
+    !/^(0|[1-9][0-9]*)$/.test(v)))throw new DeploymentConflict('rangekeeper_paper_accounting_cost_missing');
+   const
+    cumulativeBoundValue=String(BigInt(priorData?.modeledCosts.cumulativeBoundValue??initialBound)+
+     (kind==='recenter'?BigInt(recenterBound):kind==='close_retain'||kind==='close_convert'?BigInt(exitBound):0n)),
+    cumulativeBoundWei=String(BigInt(priorData?.modeledCosts.cumulativeBoundWei??initialWei)+
+     (kind==='recenter'?BigInt(recenterWei):kind==='close_retain'||kind==='close_convert'?BigInt(exitWei):0n)),
+    snapshot=rangeKeeperPaperAccountingSchema.parse({policyVersion:RANGEKEEPER_PAPER_ACCOUNTING_POLICY,
+     classification:'provisional_paper_scenario',campaignId,sourceMarkId:mark.id,markKind:kind,source:src.data,
+     profileHash:campaign.profile_hash,epoch,reference:sourceRef,
+     feeEvidence:fee?{id:(await db.query<{id:string}>(`SELECT id::text FROM deployment_paper_fee_evidence
+      WHERE campaign_id=$1 AND to_mark_id=$2`,[campaignId,mark.id])).rows[0]!.id,
+      proofHash:fee.proof_hash,carryHash:fee.carry_hash,upper0Raw:fee.carry.token0.upperAmountRaw,
+      upper1Raw:fee.carry.token1.upperAmountRaw}:null,
+     modeledCosts:{initialOpenBoundValue:initialBound,initialOpenBoundWei:initialWei,
+      cumulativeBoundValue,cumulativeBoundWei,paidCostsAvailable:false},
+     inventory:{token0Raw:String(token0Raw),token1Raw:String(token1Raw),nativeWei:String(nativeWei),
+      principal0Raw:String(principal0),principal1Raw:String(principal1),fee0Raw:String(fee0),fee1Raw:String(fee1),
+      cumulativeGasWei:null,hasLiquidity:position!==null},
+     economics:{initialCapitalQuote:initialCapital===null?null:String(initialCapital),
+      netNavQuote:nav===null?null:String(nav),passiveQuote:passive===null?null:String(passive),
+      absolutePnlQuote:initialCapital!==null&&nav!==null?String(nav-initialCapital):null,
+      alphaQuote:nav!==null&&passive!==null?String(nav-passive):null,
+      cumulativeFeeValueQuote:cumulativeFee===null?null:String(cumulativeFee),
+      cumulativeGasExpenseQuote:null,intervalFeeAccrualQuote:intervalFee===null?null:String(intervalFee),
+      markGasExpenseQuote:null},limitations:['modeled_hypothetical_fee_share','modeled_costs_not_paid',
+      'retained_fees_not_reinvested','lower_integer_allocation_point',
+      ...(pricesValid?[]:['independent_reference_unavailable']),
+      ...(!fee&&kind!=='open'?['fee_coverage_unavailable' as const]:[]),
+      ...(!pricesValid?['passive_comparator_unavailable' as const]:[]),
+      ...(kind==='close_retain'||kind==='close_convert'?['terminal_custody_unobserved' as const]:[])]});
+   const sources=[src.data];
+   if(priorData)sources.push(priorData.source);
+   const openSource=paperFeeMarkSourceSchema.parse(openModel.source);sources.push(openSource);
+   await verifyAnchors(campaign.chain_id,sources);
+   const snapshotHash=contentHash(snapshot),insert=(await db.query<{id:string}>(`INSERT INTO deployment_paper_accounting
+    (campaign_id,source_mark_id,policy_version,snapshot,snapshot_hash)
+    VALUES($1,$2,$3,$4,$5) ON CONFLICT(campaign_id,source_mark_id,policy_version) DO NOTHING RETURNING id::text`,
+    [campaignId,mark.id,RANGEKEEPER_PAPER_ACCOUNTING_POLICY,JSON.stringify(snapshot),snapshotHash])).rows[0];
+   if(!insert){const prior=(await db.query<{id:string;snapshot:RangeKeeperPaperAccounting;snapshot_hash:string}>(`
+    SELECT id::text,snapshot,snapshot_hash FROM deployment_paper_accounting
+    WHERE campaign_id=$1 AND source_mark_id=$2 AND policy_version=$3`,
+    [campaignId,mark.id,RANGEKEEPER_PAPER_ACCOUNTING_POLICY])).rows[0];
+    if(!prior||prior.snapshot_hash!==snapshotHash||contentHash(prior.snapshot)!==snapshotHash)
+     throw new DeploymentConflict('rangekeeper_paper_accounting_conflict');
+    return {accountingId:prior.id,markId:mark.id,snapshotHash,replayed:true,snapshot};}
+   return {accountingId:insert.id,markId:mark.id,snapshotHash,replayed:false,snapshot};
+  });
+ }
+
+ async rangeKeeperPaperAccountingBacklog(campaignId:string){
+  const row=(await this.readPool.query<{count:string}>(`SELECT count(*)::text AS count
+   FROM deployment_marks m LEFT JOIN deployment_paper_accounting a
+    ON a.campaign_id=m.campaign_id AND a.source_mark_id=m.id AND a.policy_version=$2
+   WHERE m.campaign_id=$1 AND
+    (m.provenance->>'classification' IN ('rangekeeper_paper_open_v1','rangekeeper_paper_recenter_v1',
+     'rangekeeper_paper_close_retain_v1','rangekeeper_paper_close_convert_v1') OR m.id=(
+      SELECT max(latest.id) FROM deployment_marks latest WHERE latest.campaign_id=$1) OR EXISTS(
+      SELECT 1 FROM deployment_paper_fee_evidence f WHERE f.campaign_id=$1 AND f.to_mark_id=m.id))
+    AND a.id IS NULL`,[campaignId,RANGEKEEPER_PAPER_ACCOUNTING_POLICY])).rows[0];
+  return Number(row?.count??0);
+ }
+
  async auditPaperAccounting(campaignId:string,
   verifyAnchors:(chainId:number,sources:readonly PaperAccountingAnchor[])=>Promise<PaperAccountingAnchorMismatch|null>,
   policyVersion:string=PAPER_ACCOUNTING_POLICY){
   if(![PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY,
-   PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3].includes(policyVersion))
+   PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
+   RANGEKEEPER_PAPER_ACCOUNTING_POLICY].includes(policyVersion))
    throw new DeploymentConflict('paper_accounting_policy_unsupported');
   const conversionPolicy=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY;
   const conversionPolicyV2=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2;
   const conversionPolicyV3=policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3;
+  const rangeKeeperPolicy=policyVersion===RANGEKEEPER_PAPER_ACCOUNTING_POLICY;
   return this.transaction(async db=>{
    const campaign=(await db.query<{mode:string;chain_id:number}>(`
     SELECT mode,chain_id FROM deployment_campaigns WHERE id=$1 FOR UPDATE`,
@@ -5337,6 +5736,7 @@ export class DeploymentStore {
     const parsed=conversionPolicy?paperConversionAccountingSchema.safeParse(row.snapshot):
      conversionPolicyV2?paperConversionAccountingV2Schema.safeParse(row.snapshot):
      conversionPolicyV3?paperConversionAccountingV3Schema.safeParse(row.snapshot):
+     rangeKeeperPolicy?rangeKeeperPaperAccountingSchema.safeParse(row.snapshot):
      paperAccountingSchema.safeParse(row.snapshot);
     if(!parsed.success||contentHash(parsed.data)!==row.snapshot_hash||
      parsed.data.campaignId!==campaignId||parsed.data.sourceMarkId!==row.source_mark_id)

@@ -12,7 +12,9 @@ const context=vm.createContext({
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
  .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
-  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};');
+  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};')
+ .replace(/import \{[^}]+\} from '\.\/tabs\.js';/s,
+  'const liveRetainPreviewPathFor=()=>null,liveRetainOperationPathFor=()=>null,liveRetainPreviewCanBeAccepted=()=>false,liveRetainAcceptPayload=()=>null,liveRetainAcceptResult=()=>false;');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);
 

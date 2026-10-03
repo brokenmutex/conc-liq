@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { it } from 'node:test';
 // @ts-expect-error Dashboard browser module intentionally stays plain JavaScript.
-import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, openAcceptancePathFor, setupDraftPathFor, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits } from '../dashboard/tabs.js';
+import { capitalToQuoteRaw, formatSetupCreatedAt, formatSetupTokenAmount, humanSetupLimitsToRaw, openAcceptancePathFor, setupDraftPathFor, preflightFacts, rawSetupLimitsToHuman, setupNativeAllocationToWei, setupPreflightPathFor, setupPreflightRequest, suggestedNativeAllocationWei, suggestedSetupLimits, LIVE_SETUP_PREFLIGHT_PATH, LIVE_SETUP_ADMISSION_PATH, LIVE_WALLET_PATH, liveSetupAdmissionRequest, liveSetupAdmissionResult, liveSetupPreflightFacts, liveSetupPreflightRequest, liveWalletFacts, liveRetainPreviewPathFor, liveRetainOperationPathFor, liveRetainPreviewCanBeAccepted, liveRetainAcceptPayload, liveRetainAcceptResult } from '../dashboard/tabs.js';
 
 const profile = { poolAddress: '0x1111111111111111111111111111111111111111',
   marketProfileId: '67b2b303-e821-4450-bb7b-27171b12079f', tickSpacing: 60 };
@@ -98,6 +98,87 @@ it('shows fresh bounds and exact inventory facts without implying acceptance', (
 
 const rangeKeeperHumanLimits=()=>({
   ...suggestedSetupLimits('250','rangekeeper_v1') as Record<string,string>,
+});
+
+it('binds live review to a registered profile, RangeKeeper width, capital and complete limits',()=>{
+  const limits=humanSetupLimitsToRaw(rangeKeeperHumanLimits(),'rangekeeper_v1');
+  assert(limits);
+  assert.equal(LIVE_SETUP_PREFLIGHT_PATH,'/api/deployments/rangekeeper/live-setup-preflight');
+  assert.equal(LIVE_WALLET_PATH,'/api/deployments/live-wallet');
+  assert.deepEqual(liveSetupPreflightRequest({pool:profile,capital:'250',fullWidthSpacings:'20',limits,liveSetup:true}),
+    {available:true,payload:{profileId:profile.marketProfileId,capitalQuoteRaw:'250000000',fullWidthSpacings:20,limits}});
+  assert.equal(liveSetupPreflightRequest({pool:profile,capital:'250',fullWidthSpacings:'20',limits,liveSetup:false}).available,false);
+  assert.equal(liveSetupPreflightRequest({pool:profile,capital:'250',fullWidthSpacings:'21',limits,liveSetup:true}).available,false);
+});
+
+it('renders live wallet reserves and live review blockers without implying action availability',()=>{
+  assert.deepEqual(liveWalletFacts({status:'available',walletAddress:'0x1111111111111111111111111111111111111111',source:'canonical',
+    tokens:[{symbol:'USDG',balanceRaw:'100',allocatedRaw:'20',pendingRaw:'5',availableRaw:'75'}],
+    native:{balanceWei:'1000',allocatedWei:'200',pendingWei:'50',exitReserveWei:'100',availableWei:'650'}}),[
+      ['Wallet status','available'],['Server wallet','0x1111111111111111111111111111111111111111 · canonical'],
+      ['USDG balance / allocated / pending / available · raw','100 / 20 / 5 / 75'],
+      ['Native balance / allocated / pending / exit reserve / available','1000 / 200 / 50 / 100 / 650']]);
+  const facts=liveSetupPreflightFacts({kind:'rangekeeper_live_setup_preflight',mode:'live',strategyId:'rangekeeper_v1',status:'indicative',
+    actionAvailable:false,draftCreationAvailable:false,executionEligible:false,missing:['reference_unavailable'],
+    requirements:{token0Raw:'12'},costs:{status:'unavailable'},profile:{pool:'0x222',fee:3000}}) as [string,string][];
+  assert(facts.some(([key,value])=>key==='Review status'&&value==='Indicative estimate · no action available'));
+  assert(facts.some(([key,value])=>key==='Missing evidence / blockers'&&value==='reference_unavailable'));
+  const funding=liveSetupPreflightFacts({status:'indicative',allocation:{nativeWei:'500000000000000000'},
+    costs:{status:'estimated',managementGasReserveWei:'12000000000000000',fundedManagementBundles:0}}) as [string,string][];
+  assert(funding.some(([key,value])=>key==='Native gas allocation'&&value==='500000000000000000 wei'));
+  assert(funding.some(([key,value])=>key==='Management gas reserve · wei'&&value==='12000000000000000'));
+  assert(funding.some(([key,value])=>key==='Funded management bundles'&&value==='Unlimited by count limit'));
+});
+
+it('admits only a fresh persisted live review when catalog and preview both expose admission',()=>{
+  const now=Date.now(),preflight={kind:'rangekeeper_live_setup_preflight',mode:'live',strategyId:'rangekeeper_v1',
+    status:'indicative',actionAvailable:false,draftCreationAvailable:false,operationAcceptanceAvailable:false,
+    executionEligible:false,admissionAvailable:true,reviewPersistence:{status:'persisted',
+      reviewId:'67b2b303-e821-4450-bb7b-27171b12079f',reviewHash:'a'.repeat(64),
+      expiresAt:new Date(now+60_000).toISOString()}},requestId='11111111-1111-4111-8111-111111111111';
+  assert.equal(LIVE_SETUP_ADMISSION_PATH,'/api/deployments/rangekeeper/live-setup-admit');
+  assert.deepEqual(liveSetupAdmissionRequest({preflight,liveAdmission:true,requestId,now}),{available:true,payload:{
+    reviewId:preflight.reviewPersistence.reviewId,reviewHash:preflight.reviewPersistence.reviewHash,requestId}});
+  assert.equal(liveSetupAdmissionRequest({preflight,liveAdmission:false,requestId,now}).available,false);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,admissionAvailable:false},liveAdmission:true,requestId,now}).available,false);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,executionEligible:true},liveAdmission:true,requestId,now}).available,false);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,status:'unavailable'}},liveAdmission:true,requestId,now}).available,false);
+  assert.equal(liveSetupAdmissionRequest({preflight:{...preflight,reviewPersistence:{...preflight.reviewPersistence,expiresAt:new Date(now-1).toISOString()}},liveAdmission:true,requestId,now}).available,false);
+  assert.equal(liveSetupAdmissionRequest({preflight,liveAdmission:true,requestId:'bad',now}).available,false);
+});
+
+it('recognizes queued admission without treating it as execution eligibility',()=>{
+  const queued={status:'queued',campaignId:'67b2b303-e821-4450-bb7b-27171b12079f',
+    jobId:'11111111-1111-4111-8111-111111111111',allocationId:'22222222-2222-4222-8222-222222222222',
+    replayed:false,executionEligible:false,reason:'rangekeeper_live_execution_unavailable'};
+  assert.equal(liveSetupAdmissionResult(queued),true);
+  assert.equal(liveSetupAdmissionResult({...queued,executionEligible:true}),false);
+  assert.equal(liveSetupAdmissionResult({...queued,reason:'holding'}),false);
+  assert.equal(liveSetupAdmissionResult({...queued,jobId:'malformed'}),false);
+});
+
+it('builds retain-only routes and accepts only a current persisted preview, never execution eligibility',()=>{
+ const id='67b2b303-e821-4450-bb7b-27171b12079f',now=Date.now(),preview={kind:'rangekeeper_live_retain_preview',
+  mode:'live',strategyId:'rangekeeper_v1',status:'indicative',trustedPreviewSaved:true,previewId:id,
+  contentDigest:'a'.repeat(64),expectedRevision:2,expiresAt:new Date(now+30_000).toISOString(),
+  source:{block:'123',hash:`0x${'b'.repeat(64)}`,timestamp:Math.floor(now/1000)},
+  actionAvailable:true,operationAcceptanceAvailable:true,executionEligible:false};
+ assert.equal(liveRetainPreviewPathFor(id),`/api/deployments/${id}/live/retain-preview`);
+ assert.equal(liveRetainOperationPathFor(id),`/api/deployments/${id}/live/retain-operations`);
+ assert.equal(liveRetainPreviewCanBeAccepted(preview,now),true);
+ assert.deepEqual(liveRetainAcceptPayload(preview,id,now),{previewId:id,contentDigest:'a'.repeat(64),
+  expectedRevision:2,idempotencyKey:id});
+ assert.equal(liveRetainPreviewCanBeAccepted({...preview,executionEligible:true},now),false);
+ assert.equal(liveRetainPreviewCanBeAccepted({...preview,operationAcceptanceAvailable:false},now),false);
+ assert.equal(liveRetainPreviewCanBeAccepted({...preview,source:{...preview.source,timestamp:Math.floor(now/1000)-181}},now),false);
+ assert.equal(liveRetainPreviewCanBeAccepted({...preview,previewId:'not-a-uuid'},now),false);
+ const queued={status:'queued',campaignId:id,jobId:'11111111-1111-4111-8111-111111111111',
+  allocationId:'22222222-2222-4222-8222-222222222222',replayed:false,executionEligible:false,
+  reason:'rangekeeper_live_execution_unavailable'};
+ assert.equal(liveRetainAcceptResult(queued,id),true);
+ assert.equal(liveRetainAcceptResult({...queued,campaignId:'33333333-3333-4333-8333-333333333333'},id),false);
+ assert.equal(liveRetainAcceptResult({...queued,status:'failed'},id),false);
+ assert.equal(liveRetainAcceptResult({...queued,executionEligible:true},id),false);
 });
 
 it('routes the RangeKeeper setup review to its own endpoint', () => {

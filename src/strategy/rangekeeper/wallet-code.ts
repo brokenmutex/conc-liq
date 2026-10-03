@@ -8,7 +8,7 @@ import type {RangeKeeperSource} from './chain.js';
  * may change without any token or NFT delta, so custody snapshots alone do
  * not prove that its signing/execution boundary is still the reviewed one. */
 export async function verifyRangeKeeperWalletCode(client:RobinhoodClient,source:RangeKeeperSource,
- operator:Address,config:RangeKeeperConfig){
+ operator:Address,config:Pick<RangeKeeperConfig,'walletCode'>){
  const code=await client.getBytecode({address:operator,blockNumber:source.block});
  if(config.walletCode.kind==='eoa')assert(!code||code==='0x','Operator is no longer a plain EOA');
  else{

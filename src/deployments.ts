@@ -1,8 +1,13 @@
 import {once} from 'node:events';
 import {Pool} from 'pg';
 import {z} from 'zod';
+import {isAddress} from 'viem';
 import {DeploymentStore} from './deployments/store.js';
 import {deploymentSetupDefaults} from './deployments/setup-defaults.js';
+import {createRangeKeeperLiveSetupRuntime} from './deployments/rangekeeper-live-setup-runtime.js';
+import {PostgresPositionManagerTransferStore} from './nft/position-manager-transfer-index.js';
+import {PostgresPositionManagerWalletTransferStore} from './nft/position-manager-wallet-transfer-store.js';
+import {POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION} from './storage/compatibility.js';
 import {DeploymentConflict} from './deployments/store.js';
 import {contentHash} from './deployments/contracts.js';
 import {safePaperDiagnosticFailure} from './deployments/paper-diagnostic.js';
@@ -64,6 +69,7 @@ const envSchema=z.object({
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
  DEPLOYMENT_PUBLIC_ORIGIN:z.string().optional(),
  DEPLOYMENT_OPERATOR_WALLET_ADDRESS:z.string().optional(),
+ DEPLOYMENT_LIVE_REVIEW_PERSISTENCE:z.enum(['0','1']).default('0'),
  ROBINHOOD_READ_HTTP_URL:z.url(),
  PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
@@ -82,6 +88,42 @@ async function main(){
  const host=env.DEPLOYMENT_HOST,port=env.DEPLOYMENT_PORT;
  const origin=`http://${host==='::1'?'[::1]':host}:${port}`;
  const client=createRobinhoodClient(env.ROBINHOOD_READ_HTTP_URL,env.DEPLOYMENT_RPC_TIMEOUT_MS);
+ const transferStore=new PostgresPositionManagerTransferStore(env.DATABASE_URL);
+ const schemaProbe=new Pool({connectionString:env.DATABASE_URL,max:1,
+  options:'-c default_transaction_read_only=on'});
+ let walletTransferStore:PostgresPositionManagerWalletTransferStore|null=null;
+ try{
+  const version=Number((await schemaProbe.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0]?.version??0);
+  if(version===POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION&&env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS&&
+   isAddress(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS)){
+   walletTransferStore=new PostgresPositionManagerWalletTransferStore(env.DATABASE_URL,env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS);
+   // v14 must use its isolated wallet-scoped namespace. A missing or broken
+   // v14 store is a startup failure, never a fallback to global history.
+   await walletTransferStore.assertReady();
+  }
+ }catch(error){
+  // This probe runs after the primary stores have been opened. If an exact-v14
+  // scoped store is absent or unhealthy, stop startup and release every pool;
+  // never leave resources behind or fall back to global NFT history.
+  await Promise.allSettled([store.close(),dashboard.close(),indexer.end(),transferStore.close(),
+   walletTransferStore?.close()]);
+  throw error;
+ }finally{await schemaProbe.end();}
+ const setupTransferStore=walletTransferStore??transferStore;
+ const runtime=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'{}') as {buildId?:string};
+ const liveReviewPool=env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE==='1'?
+  new Pool({connectionString:env.DATABASE_URL,max:2,statement_timeout:15000}):undefined;
+ const liveSetup=createRangeKeeperLiveSetupRuntime({store,indexer,client,
+  walletAddress:env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS,buildId:runtime.buildId??'',
+  rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,
+  anvilBinary:process.env.ANVIL_BIN??'/root/.foundry/bin/anvil',transferStore:setupTransferStore,
+  persistReviews:env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE==='1',reviewPool:liveReviewPool});
+ let liveSetupBusy=false;
+ const rangeKeeperLiveSetupPreflight:typeof liveSetup.setupPreflight=async input=>{
+  if(liveSetupBusy)throw new DeploymentConflict('rangekeeper_live_setup_busy');
+  liveSetupBusy=true;
+  try{return await liveSetup.setupPreflight(input);}finally{liveSetupBusy=false;}
+ };
  let previewBusy=false,paperSetupBusy=false;
  const setupDiagnosticsEnabled=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1',
   setupDiagnostic=setupDiagnosticsEnabled?
@@ -578,6 +620,10 @@ async function main(){
   createStaticPaperCloseConvertAcceptance({store,client,indexer,rpcUrl:env.PAPER_FORK_RPC_URL,
    verifyAnchors:(chainId,sources)=>verifyCanonicalPaperAnchors(client,chainId,sources)}):undefined;
  const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,
+  liveWalletReview:()=>liveSetup.walletReview(),rangeKeeperLiveSetupPreflight,
+  rangeKeeperLiveSetupAdmission:input=>liveSetup.admitSetup(input),
+  // Admission stays closed until the supervised management/retain executor
+  // supplies readiness. Persisting a review alone never activates execution.
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,rangeKeeperOpenAcceptance,
@@ -594,7 +640,8 @@ async function main(){
  const stop=(signal:NodeJS.Signals)=>{
   if(stopping)return;stopping=true;
   log('info','deployment_command_api_stopping',{signal});
-  server.close(()=>void Promise.all([store.close(),dashboard.close(),indexer.end()]).then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
+  server.close(()=>void Promise.all([store.close(),dashboard.close(),indexer.end(),transferStore.close(),
+   walletTransferStore?.close(),liveReviewPool?.end()]).then(()=>{process.exitCode=0;}).catch(()=>{process.exitCode=1;}));
  };
  process.once('SIGINT',stop);process.once('SIGTERM',stop);
 }

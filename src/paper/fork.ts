@@ -9,6 +9,7 @@ import { pace } from "../history/client.js";
 export interface ForkSource { number: bigint; hash: Hash; timestamp: bigint }
 export interface ReadBudget { requests:number;rejected:number;methods:Record<string,number>;maxRequests:number }
 export interface ForkReadDiagnostics {
+  rejectedPinnedReads:Record<string,number>;
   uniqueRequestSignatures:number;duplicateRequests:number;duplicateRequestsByMethod:Record<string,number>;
   immutableReadRequests:number;duplicateImmutableReadRequests:number;
   duplicateImmutableReadsByMethod:Record<string,number>;
@@ -20,6 +21,14 @@ export type ForkReadHint = Readonly<{method:"eth_getCode";params:readonly [strin
   {method:"eth_getStorageAt";params:readonly [string,string,string]}>;
 const MAX_PREFETCH_HINTS=256;
 const MAX_PREFETCH_CONCURRENCY=4;
+const ownedForkHandles=new WeakMap<object,()=>void>();
+/** Only a live child created by this module can authorize test publication.
+ * A loopback URL or caller-created object is not evidence of process ownership. */
+export function assertOwnedPaperFork(fork:unknown):asserts fork is PaperFork{
+  const verify=fork&&typeof fork==='object'?ownedForkHandles.get(fork):undefined;
+  assert(verify,"An actual owned paper fork handle is required");
+  verify();
+}
 const addressPattern=/^0x[0-9a-fA-F]{40}$/u;
 const slotPattern=/^0x[0-9a-fA-F]{64}$/u;
 
@@ -85,10 +94,17 @@ const stateIndex: Record<string, number> = {
   eth_getTransactionCount: 1, eth_getBlockByNumber: 0, eth_call: 1, eth_estimateGas: 1,
 };
 const immutableReadMethods=new Set(["eth_getCode","eth_getStorageAt","eth_getBalance","eth_getTransactionCount"]);
+class UnsupportedForkReadMethod extends Error {}
 
 export function assertPinnedRead(method: string, params: readonly unknown[], source: ForkSource) {
   const index = Object.hasOwn(stateIndex, method) ? stateIndex[method] : undefined;
-  if (index === undefined || params[index] !== `0x${source.number.toString(16)}`) {
+  const tag=index===undefined?undefined:params[index];
+  const hashTag=method!=="eth_getBlockByNumber"&&tag!==null&&typeof tag==='object'&&!Array.isArray(tag)
+    ?tag as Record<string,unknown>:null;
+  const exactHash=hashTag&&Object.keys(hashTag).every(key=>key==='blockHash'||key==='requireCanonical')&&
+    typeof hashTag.blockHash==='string'&&hashTag.blockHash.toLowerCase()===source.hash.toLowerCase()&&
+    (hashTag.requireCanonical===undefined||typeof hashTag.requireCanonical==='boolean');
+  if (index === undefined || tag !== `0x${source.number.toString(16)}`&&!exactHash) {
     throw new Error("Only pinned read methods may reach the upstream node");
   }
 }
@@ -106,6 +122,7 @@ async function unusedPort() {
 // transport has a separate whitelist and never forwards a send/sign method.
 export async function openPaperFork(input: {
   source: ForkSource; rpcUrl: string; beforeRead: () => Promise<void>;
+  anvilBinary?: string;
   maxRequests?: number; intervalMs?: number; timeoutMs?: number;
   /** Pin local Anvil time to the canonical fork point and advance one second
    * per mined block. Off by default for existing paper fork consumers. */
@@ -115,8 +132,10 @@ export async function openPaperFork(input: {
   /** Receives the bounded shapes observed during this owned fork, never values. */
   onReadHints?:(hints:readonly ForkReadHint[])=>void;
 }) {
+  // Keep the anchor fixed even if a caller later mutates its request object.
+  input={...input,source:Object.freeze({...input.source})};
   const budget: ReadBudget = {requests:0,rejected:0,methods:{},maxRequests:input.maxRequests??400};
-  const diagnostics:ForkReadDiagnostics={uniqueRequestSignatures:0,duplicateRequests:0,
+  const diagnostics:ForkReadDiagnostics={rejectedPinnedReads:{},uniqueRequestSignatures:0,duplicateRequests:0,
     duplicateRequestsByMethod:{},immutableReadRequests:0,duplicateImmutableReadRequests:0,
     duplicateImmutableReadsByMethod:{},prefetchHintCount:0,prefetchedFreshReads:0,
     prefetchSkipped:0,prefetchFailures:0,prefetchElapsedMs:0};
@@ -128,8 +147,25 @@ export async function openPaperFork(input: {
   const hints=validateForkReadHints(input.prefetchHints??[],blockTag);
   diagnostics.prefetchHintCount=hints.length;
   const read = async (method: string, params: unknown[] = []): Promise<unknown> => {
-    try { assertPinnedRead(method, params, input.source); }
-    catch (error) { budget.rejected++; throw error; }
+    try {
+      if(!Object.hasOwn(stateIndex,method))throw new UnsupportedForkReadMethod("Only pinned read methods may reach the upstream node");
+      assertPinnedRead(method, params, input.source);
+    }
+    catch (error) {
+      budget.rejected++;
+      const tag=params[stateIndex[method]??-1];
+      const tagDescription=typeof tag==='string'&&/^(?:0x[0-9a-f]{1,16}|latest|pending|safe|finalized|earliest)$/iu.test(tag)?tag:
+        tag&&typeof tag==='object'&&'blockHash' in tag?
+          `blockHash_matches_source:${typeof tag.blockHash==='string'&&tag.blockHash.toLowerCase()===input.source.hash.toLowerCase()}`:
+          'unrecognized_block_tag';
+      const key=`${/^[a-zA-Z0-9_]{1,80}$/.test(method)?method:'invalid_method'}:${tagDescription}`;
+      diagnostics.rejectedPinnedReads[key]=(diagnostics.rejectedPinnedReads[key]??0)+1;
+      throw error;
+    }
+    // New Anvil versions use EIP-1898 hash tags for account reads. Once the
+    // hash is bound to this exact fork source, forward its fixed number tag
+    // for archive providers which do not implement the hash form.
+    params=[...params];params[stateIndex[method]!]=blockTag;
     if (Date.now() >= deadline || budget.requests >= budget.maxRequests) throw new Error("Paper fork read/time budget exhausted");
     budget.requests++;
     budget.methods[method] = (budget.methods[method] ?? 0) + 1;
@@ -203,9 +239,11 @@ export async function openPaperFork(input: {
       }
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify({ jsonrpc: "2.0", id, result }));
-    } catch {
+    } catch(error) {
       response.writeHead(200, { "content-type": "application/json" });
-      response.end(JSON.stringify({ jsonrpc: "2.0", id, error: { code: -32600, message: "Bounded read-only paper proxy rejected request" } }));
+      response.end(JSON.stringify({ jsonrpc: "2.0", id, error: {
+        code:error instanceof UnsupportedForkReadMethod?-32601:-32600,
+        message: "Bounded read-only paper proxy rejected request" } }));
     }
   });
   await new Promise<void>(resolve => proxy.listen(0, "127.0.0.1", resolve));
@@ -213,11 +251,17 @@ export async function openPaperFork(input: {
   assert(address && typeof address !== "string");
   const port = await unusedPort();
   const localUrl = `http://127.0.0.1:${port}`;
-  const child = spawn(process.env.ANVIL_BIN ?? "anvil", [
+  const child = spawn(input.anvilBinary ?? process.env.ANVIL_BIN ?? "anvil", [
     "--host", "127.0.0.1", "--port", String(port), "--accounts", "0", "--chain-id", "4663",
     "--fork-url", `http://127.0.0.1:${address.port}`, "--fork-block-number", String(input.source.number),
     ...(input.deterministicClock ? ["--timestamp", String(input.source.timestamp)] : []),
-    "--retries", "0", "--silent",
+    // Foundry's shared disk cache is keyed by chain and block number. Owned
+    // histories can have different state at those same keys; the bounded
+    // read proxy already provides reuse bound to this exact source.
+    // Keep the bounded qualification history in memory. This avoids v1.7.1's
+    // disk-state serialization dropping shared code hashes from account records.
+    // The limit covers confirmed multi-campaign workflows without disk snapshots.
+    "--prune-history", "4096", "--no-storage-caching", "--retries", "0", "--silent",
   ], { stdio: "ignore" });
   let spawnError = false;
   child.on("error", () => { spawnError = true; });
@@ -276,7 +320,12 @@ export async function openPaperFork(input: {
     const metadata = await rpc<{ forkedNetwork?: { forkBlockNumber?: number; forkBlockHash?: string } }>("anvil_metadata");
     assert.equal(metadata.forkedNetwork?.forkBlockNumber, Number(input.source.number));
     assert.equal(metadata.forkedNetwork?.forkBlockHash?.toLowerCase(), input.source.hash.toLowerCase());
-    return { rpc, read, close, source: input.source, blockTag, budget, diagnostics, localUrl };
+    const handle=Object.freeze({ rpc, read, close, source: input.source, blockTag, budget, diagnostics, localUrl });
+    ownedForkHandles.set(handle,()=>{
+      assert(!spawnError&&child.exitCode===null&&child.signalCode===null,"Owned paper Anvil is not running");
+      assert(Date.now()<deadline,"Paper fork time budget exhausted");
+    });
+    return handle;
   } catch (error) { try{await close();}catch{/* Preserve the startup failure. */} throw error; }
 }
 export type PaperFork = Awaited<ReturnType<typeof openPaperFork>>;

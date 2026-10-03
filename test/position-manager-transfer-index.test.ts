@@ -6,7 +6,8 @@ import {POSITION_MANAGER_TRANSFER_SQL} from '../src/storage/position-manager-tra
 import {MIGRATIONS} from '../src/storage/migrations.js';
 import {
  PositionManagerTransferIndexStore,PositionManagerTransferCursor,PositionManagerCheckpoint,
- PositionManagerTransfer,scanPositionManagerTransferHistory,replayPositionManagerOwnerSet,
+ PositionManagerTransfer,scanPositionManagerTransferHistory,scanPositionManagerWalletTransferHistory,replayPositionManagerOwnerSet,
+ replayPositionManagerWalletOwnerSet,
 } from '../src/nft/position-manager-transfer-index.js';
 import {readCompletePositionManagerNftCustody} from '../src/deployments/live-transfer-nft-enumeration.js';
 
@@ -22,6 +23,7 @@ const header=(number:bigint,epoch=0)=>{
 };
 
 class MemoryIndex implements PositionManagerTransferIndexStore {
+ walletScope?:Address;
  cursor:PositionManagerTransferCursor|null=null;
  checkpoints:PositionManagerCheckpoint[]=[];
  transfers:PositionManagerTransfer[]=[];
@@ -78,7 +80,7 @@ function mockClient(epoch=0,logs:boolean=true,balance=1n,owner:Address=alice){
 }
 
 test('migration 11 is additive and uses dedicated manager-history tables',()=>{
- assert.equal(MIGRATIONS.length,11);
+ assert.equal(MIGRATIONS[10],POSITION_MANAGER_TRANSFER_SQL);
  assert.match(POSITION_MANAGER_TRANSFER_SQL,/CREATE TABLE position_manager_transfer_cursors/);
  assert.match(POSITION_MANAGER_TRANSFER_SQL,/CREATE TABLE position_manager_transfer_checkpoints/);
  assert.match(POSITION_MANAGER_TRANSFER_SQL,/CREATE TABLE position_manager_transfers/);
@@ -116,6 +118,54 @@ test('scanner rewinds to the newest canonical checkpoint after a reorg',async()=
  assert.equal(result.enumerationComplete,false);
 });
 
+test('wallet-scoped scanner uses viem indexed event args and stores only the filtered union',async()=>{
+ const store=new MemoryIndex();store.walletScope=alice;const calls:any[]=[];
+ const client=mockClient() as any;
+ const mint={address:manager,eventName:'Transfer',blockNumber:1n,blockHash:header(1n).hash,transactionHash:hash(500),
+  transactionIndex:0,logIndex:0,removed:false,args:{from:getAddress('0x0000000000000000000000000000000000000000'),to:alice,tokenId:7n}};
+ client.getLogs=async(args:any)=>{calls.push(args);const from=args.args?.from,to=args.args?.to;
+  return (!from||from.toLowerCase()===mint.args.from.toLowerCase())&&(!to||to.toLowerCase()===mint.args.to.toLowerCase())?[mint]:[];};
+ const source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ const result=await scanPositionManagerTransferHistory({client,store,chainId:4663,manager,startBlock:0n,source,
+  chunkBlocks:4n,maxBlocksPerRun:4n});
+ assert.equal(result.status,'scanned');assert.equal(store.transfers.length,1);
+ assert.equal(calls.length,2);assert(calls.every(row=>row.event.name==='Transfer'));
+ assert.equal(calls[0].args.from,alice);assert.equal(calls[1].args.to,alice);
+});
+
+test('wallet maintenance scanner fixes genesis scope and accepts only the larger bounded profile',async()=>{
+ const store=new MemoryIndex();store.walletScope=alice;
+ const source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ const result=await scanPositionManagerWalletTransferHistory({client:mockClient(0,false),store,chainId:4663,manager,source,
+  chunkBlocks:2n,maxBlocksPerRun:2n});
+ assert.equal(result.status,'scanned');assert.equal(result.completeThroughSource,false);
+ assert.equal(store.cursor?.startBlock,0n);assert.equal(store.cursor?.coveredThroughBlock,1n);
+ const noScope=await scanPositionManagerWalletTransferHistory({client:mockClient(0,false),store:new MemoryIndex(),
+  chainId:4663,manager,source});
+ assert.equal(noScope.status,'unavailable');if(noScope.status==='unavailable')
+  assert.equal(noScope.reason,'wallet_scoped_transfer_store_required');
+ const globalTooWide=await scanPositionManagerTransferHistory({client:mockClient(0,false),store:new MemoryIndex(),
+  chainId:4663,manager,startBlock:0n,source,chunkBlocks:10_000_001n});
+ assert.equal(globalTooWide.status,'unavailable');
+});
+
+test('wallet log directions are individually bounded before overlap deduplication and malformed keys fail closed',async()=>{
+ const store=new MemoryIndex();store.walletScope=alice;const source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ const client=mockClient(0,false) as any;
+ client.getLogs=async(args:any)=>args.args?.from?Array.from({length:25_001},()=>({transactionHash:hash(1),logIndex:1})):
+  [];
+ const tooMany=await scanPositionManagerWalletTransferHistory({client,store,chainId:4663,manager,source,chunkBlocks:4n,maxBlocksPerRun:4n});
+ assert.equal(tooMany.status,'unavailable');if(tooMany.status==='unavailable')
+  assert.equal(tooMany.reason,'position_manager_transfer_chunk_log_bound_exceeded');
+ const malformedClient=mockClient(0,false) as any;
+ malformedClient.getLogs=async(args:any)=>args.args?.from?[{transactionHash:'bad',logIndex:0}]:[];
+ const malformedStore=new MemoryIndex();malformedStore.walletScope=alice;
+ const malformed=await scanPositionManagerWalletTransferHistory({client:malformedClient,store:malformedStore,
+  chainId:4663,manager,source,chunkBlocks:4n,maxBlocksPerRun:4n});
+ assert.equal(malformed.status,'unavailable');if(malformed.status==='unavailable')
+  assert.equal(malformed.reason,'position_manager_transfer_log_invalid');
+});
+
 test('owner replay requires genesis coverage and validates each previous owner',()=>{
  const transfer=(from:Address,to:Address,block:number,logIndex:number):PositionManagerTransfer=>({
   blockNumber:BigInt(block),blockHash:hash(block+1),transactionHash:hash(600+block),transactionIndex:0,
@@ -137,6 +187,57 @@ test('owner replay requires genesis coverage and validates each previous owner',
  assert.equal(partial.status,'unavailable');
  const wrongSource=replayPositionManagerOwnerSet({...common,sourceCheckpointHash:hash(12),transfers:[]});
  assert.equal(wrongSource.status,'unavailable');
+});
+
+test('wallet-scoped replay handles incoming, outgoing, self-transfer and burn transitions rigorously',()=>{
+ const transfer=(from:Address,to:Address,block:number,logIndex=0):PositionManagerTransfer=>({
+  blockNumber:BigInt(block),blockHash:hash(block+1),transactionHash:hash(700+block),transactionIndex:0,logIndex,from,to,tokenId:7n,
+ });
+ const common={chainId:4663,expectedChainId:4663,manager,expectedManager:manager,startBlock:0n,sourceBlock:10n,
+  coveredThroughBlock:10n,coveredThroughHash:hash(11),sourceHash:hash(11),sourceCheckpointHash:hash(11),
+  operator:alice,walletScope:alice};
+ const valid=replayPositionManagerWalletOwnerSet({...common,transfers:[
+  transfer(getAddress('0x0000000000000000000000000000000000000000'),alice,1),transfer(alice,bob,2),
+  transfer(bob,alice,3),transfer(alice,alice,4),transfer(alice,getAddress('0x0000000000000000000000000000000000000000'),5),
+ ]});
+ assert.equal(valid.status,'replayed');assert.deepEqual(valid.operatorTokenIds,[]);
+ const unknownOut=replayPositionManagerWalletOwnerSet({...common,transfers:[transfer(alice,bob,2)]});
+ assert.equal(unknownOut.status,'unavailable');if(unknownOut.status==='unavailable')
+  assert.equal(unknownOut.reason,'transfer_replay_wallet_unknown_prior_owner');
+ const repeatedInbound=replayPositionManagerWalletOwnerSet({...common,transfers:[transfer(bob,alice,1),transfer(bob,alice,2)]});
+ assert.equal(repeatedInbound.status,'unavailable');if(repeatedInbound.status==='unavailable')
+  assert.equal(repeatedInbound.reason,'transfer_replay_wallet_duplicate_acquire');
+ const selfUnknown=replayPositionManagerWalletOwnerSet({...common,transfers:[transfer(alice,alice,1)]});
+ assert.equal(selfUnknown.status,'unavailable');
+ const outOfScope=replayPositionManagerWalletOwnerSet({...common,transfers:[transfer(bob,getAddress('0xcccccccccccccccccccccccccccccccccccccccc'),1)]});
+ assert.equal(outOfScope.status,'unavailable');if(outOfScope.status==='unavailable')
+  assert.equal(outOfScope.reason,'transfer_replay_wallet_scope_event_mismatch');
+ const repeatedLog=transfer(bob,alice,1);
+ const duplicate=replayPositionManagerWalletOwnerSet({...common,transfers:[repeatedLog,repeatedLog]});
+ assert.equal(duplicate.status,'unavailable');if(duplicate.status==='unavailable')assert.equal(duplicate.reason,'transfer_replay_duplicate_log');
+ const beyondSource=replayPositionManagerWalletOwnerSet({...common,transfers:[transfer(bob,alice,11)]});
+ assert.equal(beyondSource.status,'unavailable');if(beyondSource.status==='unavailable')assert.equal(beyondSource.reason,'transfer_replay_event_invalid');
+ assert.equal(replayPositionManagerWalletOwnerSet({...common,walletScope:bob,transfers:[]}).status,'unavailable');
+});
+
+test('scoped resolver binds coverage to exact wallet and uses the filtered owner replay',async()=>{
+ const store=new MemoryIndex();store.walletScope=alice;
+ const source={block:3n,hash:header(3n).hash,timestamp:Number(header(3n).timestamp)};
+ store.cursor={chainId:4663,manager,startBlock:0n,nextBlock:4n,coveredThroughBlock:3n,
+  coveredThroughHash:header(3n).hash,lastScannedBlock:3n,lastScannedHash:header(3n).hash};
+ store.transfers=[{blockNumber:1n,blockHash:header(1n).hash,transactionHash:hash(500),transactionIndex:0,logIndex:0,
+  from:getAddress('0x0000000000000000000000000000000000000000'),to:alice,tokenId:7n}];
+ store.checkpoints=[...[1n,3n].map(number=>{const h=header(number);return {number,hash:h.hash,parentHash:h.parentHash,timestamp:Number(h.timestamp)};})];
+ const result=await readCompletePositionManagerNftCustody({client:mockClient(),store,targetStrategyId:'rangekeeper_v1',
+  operator:alice,positionManager:manager,startBlock:0n,source});
+ assert.equal(result.status,'available',result.missing.join(','));assert.equal(result.indexedTransferCoverage.status,'available');
+ if(result.indexedTransferCoverage.status==='available'){
+  assert.equal(result.indexedTransferCoverage.scope,'wallet');assert.equal(result.indexedTransferCoverage.walletAddress,alice);
+ }
+ const mismatch=await readCompletePositionManagerNftCustody({client:mockClient(),store,targetStrategyId:'rangekeeper_v1',
+  operator:bob,positionManager:manager,startBlock:0n,source});
+ assert.equal(mismatch.status,'unavailable');assert.equal(mismatch.indexedTransferCoverage.scope,'wallet');
+ assert.equal(mismatch.indexedTransferCoverage.walletAddress,alice);
 });
 
 test('pinned-source resolver reconciles canonical indexed ownership with balanceOf and ownerOf',async()=>{
