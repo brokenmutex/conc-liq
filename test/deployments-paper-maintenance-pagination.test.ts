@@ -82,3 +82,27 @@ test('preparation exclusive lease skips maintenance mutations after canonical au
  assert.equal(result.processed,1);assert.equal(result.preparationSkipped,1);
  assert.equal(sharedLockAttempts.length,1);assert.deepEqual(writes,[]);
 });
+
+test('RangeKeeper catches up within its budget before creating another observation',async()=>{
+ const campaign:PaperCampaignRow={id:'ffffffff-0000-4000-8000-000000000000',
+  lifecycle:'active',strategy_id:'rangekeeper_v1'};
+ let projected=0,automatic=0,selected=false;
+ const session={release(){},on(){return this;},off(){return this;},async query(sql:string){
+  if(sql.includes('pg_try_advisory_lock($1::int'))return {rows:[{acquired:true}]};
+  if(sql.includes('pg_advisory_unlock'))return {rows:[{unlocked:true}]};
+  if(selected)return {rows:[]};selected=true;return {rows:[campaign]};
+ }};
+ const indexer={connect:async()=>session} as unknown as Pool;
+ const store={
+  async auditPaperAccounting(){return {alreadyInvalidated:false,invalidated:[]};},
+  async rangeKeeperPaperFeeSamplingState(){return null;},
+  async recordNextRangeKeeperPaperAccounting(){projected++;return {markId:String(projected),snapshotHash:'a'.repeat(64)};},
+  async rangeKeeperPaperAccountingBacklog(){return 5;},
+ } as unknown as DeploymentStore;
+ const chain={getChainId:async()=>4663} as unknown as RobinhoodClient;
+ const result=await runPaperMaintenancePass(store,chain,indexer,1,2,false,
+  async()=>{automatic++;return {status:'observed'};});
+ assert.equal(result.failed,0);
+ assert.equal(projected,2);
+ assert.equal(automatic,0);
+});

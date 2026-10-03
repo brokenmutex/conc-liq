@@ -3,9 +3,12 @@ import {allocationSchema} from '../deployments/contracts.js';
 import {contentHash} from '../deployments/contracts.js';
 import {paperAccountingSchema,paperConversionAccountingV2Schema,paperConversionAccountingV3Schema,
  PAPER_ACCOUNTING_POLICY,PAPER_CONVERSION_ACCOUNTING_POLICY_V2,PAPER_CONVERSION_ACCOUNTING_POLICY_V3,
- type PaperAccounting,type PaperConversionAccountingV2,type PaperConversionAccountingV3}
+ RANGEKEEPER_PAPER_ACCOUNTING_POLICY,rangeKeeperPaperAccountingSchema,
+ rangeKeeperPaperReferenceProofFresh,
+ type PaperAccounting,type PaperConversionAccountingV2,type PaperConversionAccountingV3,
+ type RangeKeeperPaperAccounting}
  from '../deployments/paper-accounting.js';
-import {marketProfileSchema,type MarketProfile} from '../deployments/market-profile.js';
+import {marketProfileSchema,referenceProofHash,type MarketProfile} from '../deployments/market-profile.js';
 import {amountsForLiquidity,sqrtRatioAtTick} from '../backtest/principal.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
 
@@ -28,6 +31,7 @@ interface DeploymentRow {
  operation_id:string|null;operation_kind:string|null;operation_status:string|null;
  operation_stage:string|null;operation_reason:string|null;operation_updated_at:Date|null;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ rangekeeper_accounting_snapshot?:unknown;rangekeeper_accounting_hash?:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
@@ -35,6 +39,7 @@ interface DeploymentMark {
  id:string;at:Date;source_block:string|null;source_hash:string|null;
  inventory:unknown;economics:unknown;provenance:unknown;
  accounting_snapshot:unknown;accounting_hash:string|null;
+ rangekeeper_accounting_snapshot?:unknown;rangekeeper_accounting_hash?:string|null;
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
@@ -121,6 +126,53 @@ const accounting=(row:DeploymentRow|DeploymentMark,campaignId:string):PaperAccou
   parsed.data.source.block===row.source_block&&
    parsed.data.source.hash.toLowerCase()===row.source_hash?.toLowerCase()?parsed.data:null;
 };
+const rangeKeeperAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
+ profile:MarketProfile):RangeKeeperPaperAccounting|null=>{
+ if(row.accounting_invalidated_at||row.rangekeeper_accounting_snapshot==null)return null;
+ const parsed=rangeKeeperPaperAccountingSchema.safeParse(row.rangekeeper_accounting_snapshot),
+  sourceBlock=row.source_block,sourceHash=row.source_hash,
+  markProvenance=record(row.provenance),markReference=record(markProvenance.reference??
+   record(markProvenance.valuation).reference),
+  referenceUnavailable=record(markProvenance.valuation).referenceUnavailable;
+ if(!parsed.success)return null;
+ try{
+ const markKind=markProvenance.classification==='rangekeeper_paper_open_v1'?'open':
+  markProvenance.classification==='rangekeeper_paper_mark_v1'?'valuation':
+  markProvenance.classification==='rangekeeper_paper_recenter_v1'?'recenter':
+  markProvenance.classification==='rangekeeper_paper_close_retain_v1'?'close_retain':
+  markProvenance.classification==='rangekeeper_paper_close_convert_v1'?'close_convert':null,
+  markEpoch=Number.isInteger(markProvenance.epoch)?markProvenance.epoch:
+   Number.isInteger(record(markProvenance.currentEpoch).epoch)?record(markProvenance.currentEpoch).epoch:0;
+ if(!markKind)return null;
+ const referencesPositive=[parsed.data.reference.price0,parsed.data.reference.price1,
+  parsed.data.reference.nativePrice].every((value):value is string=>
+   value!==null&&decimal(value)!==null&&BigInt(value)>0n);
+ const proofMatches=parsed.data.reference.proof!==null&&
+  referenceProofHash(parsed.data.reference.proof)===parsed.data.reference.proofHash&&
+  parsed.data.reference.proofHash===markReference.proofHash&&
+  contentHash(parsed.data.reference.proof)===contentHash(markReference.proof),
+  matchingReference=parsed.data.reference.price0===markReference.price0&&
+   parsed.data.reference.price1===markReference.price1&&parsed.data.reference.nativePrice===markReference.nativePrice;
+ if(row.rangekeeper_accounting_hash!==contentHash(parsed.data)||
+  parsed.data.policyVersion!==RANGEKEEPER_PAPER_ACCOUNTING_POLICY||
+  parsed.data.campaignId!==campaignId||parsed.data.sourceMarkId!==('mark_id' in row?row.mark_id:row.id)||
+  parsed.data.markKind!==markKind||parsed.data.epoch!==markEpoch||
+  parsed.data.source.block!==sourceBlock||parsed.data.source.hash.toLowerCase()!==sourceHash?.toLowerCase()||
+  contentHash(parsed.data.source)!==contentHash(markProvenance.source)||
+  parsed.data.profileHash!==contentHash(profile)||parsed.data.reference.proof===null||
+  (parsed.data.reference.eligible&&Array.isArray(referenceUnavailable)&&referenceUnavailable.length>0)||
+  (parsed.data.reference.eligible&&(!referencesPositive||
+   !rangeKeeperPaperReferenceProofFresh(parsed.data.reference.proof,
+    Array.isArray(referenceUnavailable)?referenceUnavailable:[])))||
+  (!parsed.data.reference.eligible&&[
+   parsed.data.economics.netNavQuote,parsed.data.economics.passiveQuote,
+   parsed.data.economics.absolutePnlQuote,parsed.data.economics.alphaQuote,
+   parsed.data.economics.cumulativeFeeValueQuote,parsed.data.economics.intervalFeeAccrualQuote,
+  ].some(value=>value!==null))||
+  !proofMatches||!matchingReference)return null;
+ return parsed.data;
+ }catch{return null;}
+};
 const conversionAccounting=(row:DeploymentRow|DeploymentMark,campaignId:string,
  runtimeIdentity:unknown):PaperConversionAccountingV2|PaperConversionAccountingV3|null=>{
  if(row.accounting_invalidated_at)return null;
@@ -159,9 +211,12 @@ type PaperCapitalOut={kind:'modeled_capital_out';asset:'token0'|'token1'|'native
  amountRaw:string;valueQuote:string};
 const isCapitalOut=(flow:(PaperConversionAccountingV2|PaperConversionAccountingV3)['flows'][number]):flow is PaperCapitalOut=>
  flow.kind==='modeled_capital_out';
-const modeledExposure=(model:PaperAccounting|PaperConversionAccountingV2|PaperConversionAccountingV3,
+type DashboardAccounting=PaperAccounting|PaperConversionAccountingV2|PaperConversionAccountingV3|
+ RangeKeeperPaperAccounting;
+const modeledExposure=(model:DashboardAccounting,
  p:MarketProfile['pool'])=>{
  const risk=p.quoteToken===0?1:0,r=model.reference;
+ if(r.price0===null||r.price1===null)return null;
  const value0=BigInt(model.inventory.token0Raw)*BigInt(r.price0)/10n**BigInt(p.decimals0),
   value1=BigInt(model.inventory.token1Raw)*BigInt(r.price1)/10n**BigInt(p.decimals1);
  return value0+value1>0n?String((risk===0?value0:value1)*1_000_000n/(value0+value1)):null;
@@ -184,8 +239,10 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    p.profile,r.strategy_id,r.config,m.id::text AS mark_id,m.at AS mark_at,
    m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    capital.initial_value,${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+    'rk_a.snapshot AS rangekeeper_accounting_snapshot,rk_a.snapshot_hash AS rangekeeper_accounting_hash,'+
     'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash,':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS rangekeeper_accounting_snapshot,NULL::text AS rangekeeper_accounting_hash,'+
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash,'}
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason,':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason,'}
@@ -203,6 +260,8 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
    ORDER BY updated_at DESC,id DESC LIMIT 1) latest_operation ON TRUE
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=c.id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting rk_a ON rk_a.campaign_id=c.id
+    AND rk_a.source_mark_id=m.id AND rk_a.policy_version='rangekeeper_paper_observed_flow_v1'
    LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
     (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=c.id AND source_mark_id=m.id AND policy_version IN
@@ -235,10 +294,14 @@ export function deploymentPosition(row:DeploymentRow){
   conversionClose=isConvertedClose(provenance),
   conversionModel=row.mode==='paper'&&conversionClose?
    conversionAccounting(row,row.id,row.runtime_identity):null,
-  model=row.mode==='paper'?(conversionClose?conversionModel:accounting(row,row.id)):null;
+  rangeKeeperModel=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1'?
+   rangeKeeperAccounting(row,row.id,profile):null,
+  model=row.mode==='paper'?(rangeKeeperModel??(conversionClose?conversionModel:accounting(row,row.id))):null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
- const tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
+ const isRangeKeeper=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1',
+  modelReferenceEligible=model&&(!('eligible' in model.reference)||model.reference.eligible===true),
+  tokens=[{address:p.token0,symbol:symbol(p.reference0),decimals:p.decimals0,
   allocatedRaw:allocation.token0Raw,amountRaw:model?.inventory.token0Raw??
    (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(provenance.classification))?rkBalances?.token0Raw??null:decimal(inventory.token0Raw)),
   lowerBoundRaw:decimal(record(inventory.knownLowerBound).token0Raw)??
@@ -269,11 +332,14 @@ export function deploymentPosition(row:DeploymentRow){
  if(!model&&(economics.netNav===undefined||economics.netNav===null))
   reasons.push('net_economics_unavailable');
  if(row.accounting_invalidated_at)reasons.push('paper_accounting_canonical_anchor_changed');
- if(row.accounting_snapshot&&!model&&!row.accounting_invalidated_at)
+ if((row.accounting_snapshot||row.rangekeeper_accounting_snapshot)&&!model&&!row.accounting_invalidated_at)
   reasons.push('paper_accounting_integrity');
- const costs=record(provenance.modeledCosts),close=record(costs.closeRetain);
- const lowerBoundValue=principalValue(inventory,economics,provenance,p),
-  passiveTokenValue=tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
+ const costs=record(provenance.modeledCosts),close=record(costs.closeRetain),
+  rkReferenceEligible=rangeKeeperModel?.reference.eligible===true;
+ const lowerBoundValue=isRangeKeeper&&!rkReferenceEligible?null:
+   principalValue(inventory,economics,provenance,p),
+  passiveTokenValue=isRangeKeeper&&!rkReferenceEligible?null:
+   tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,provenance,p);
  const conversion=conversionModel?.conversion??null,
   conversionCapitalOut=conversionModel?.flows.filter(isCapitalOut).map(flow=>({
    asset:flow.asset,amountRaw:flow.amountRaw,valueQuote:micro(flow.valueQuote),
@@ -285,7 +351,7 @@ export function deploymentPosition(row:DeploymentRow){
   holdQuote:micro(model?.economics.passiveQuote??null),
   feesQuote:micro(model?.economics.cumulativeFeeValueQuote??null),
   gasQuote:micro(model?.economics.cumulativeGasExpenseQuote??null),
-  swapQuote:conversionClose?micro(conversion?.modeledSwapCostQuote??null):model?'0':null,
+  swapQuote:conversionClose?micro(conversion?.modeledSwapCostQuote??null):model&&!rangeKeeperModel?'0':null,
   exitEstimateQuote:conversionClose?micro(conversion?.boundGasCostQuote??null):micro(decimal(close.boundValue)),
   drawdownPpm:null,
   createdAt:row.created_at.toISOString(),endedAt:row.closed_at?.toISOString()??null,
@@ -294,8 +360,8 @@ export function deploymentPosition(row:DeploymentRow){
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),p):null,
-  referencePriceQuoteX18:referencePrice(provenance,p),
-  inventory:{tokens,exposurePpm:model?modeledExposure(model,p):null,
+  referencePriceQuoteX18:isRangeKeeper&&!rkReferenceEligible?null:referencePrice(provenance,p),
+  inventory:{tokens,exposurePpm:model&&modelReferenceEligible?modeledExposure(model,p):null,
    nativeWei:model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
   tokenId:null,accounting:model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
@@ -321,6 +387,11 @@ export function deploymentPosition(row:DeploymentRow){
    conversionAccountingStatus:conversionClose?(conversionModel?'available':'unavailable'):'not_applicable',
    accounting:model?{policyVersion:model.policyVersion,classification:model.classification,
     feeEvidenceId:model.feeEvidence?.id??null,limitations:model.limitations,
+    referenceEligible:'eligible' in model.reference?model.reference.eligible:null,
+    retainedModeledFees:'fee0Raw' in model.inventory?{token0Raw:model.inventory.fee0Raw,
+     token1Raw:model.inventory.fee1Raw}:null,
+    modeledCosts:'modeledCosts' in model?{cumulativeBoundValue:micro(model.modeledCosts.cumulativeBoundValue),
+     cumulativeBoundWei:model.modeledCosts.cumulativeBoundWei,paidCostsAvailable:false}:null,
     conversion:conversion?{
      fromAsset:conversion.fromAsset,toAsset:conversion.toAsset,
      inputAmountRaw:conversion.inputAmountRaw,expectedOutputRaw:conversion.expectedOutputRaw,
@@ -342,8 +413,8 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
   conversionClose=isConvertedClose(prov),
   rkBalances=rkOpenBalances(inv,prov)??rkObservedBalances(inv,prov),
-  model=conversionClose?conversionAccounting(mark,campaignId,runtimeIdentity):
-   accounting(mark,campaignId),
+  model=rangeKeeperAccounting(mark,campaignId,profile)??(conversionClose?
+   conversionAccounting(mark,campaignId,runtimeIdentity):accounting(mark,campaignId)),
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
@@ -364,8 +435,11 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   economicNavQuote:micro(model?.economics.netNavQuote??null),
   holdQuote:micro(model?.economics.passiveQuote??null),
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),profile.pool):null,
-  referencePriceQuoteX18:referencePrice(prov,profile.pool),
-  exposurePpm:model?modeledExposure(model,profile.pool):null,
+  referencePriceQuoteX18:kind?.toString().startsWith('rangekeeper_paper_')&&
+   (!model||!('eligible' in model.reference)||model.reference.eligible!==true)?null:
+   referencePrice(prov,profile.pool),
+  exposurePpm:model&&(!('eligible' in model.reference)||model.reference.eligible===true)?
+   modeledExposure(model,profile.pool):null,
   inRange:tick!==null&&lower!==null&&upper!==null&&tick>=lower&&tick<upper,
   tickLower:lower,tickUpper:upper,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
@@ -379,13 +453,16 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
      (['rangekeeper_paper_open_v1','rangekeeper_paper_mark_v1','rangekeeper_paper_recenter_v1'].includes(String(kind))?rkBalances?.token1Raw??null:decimal(inv.token1Raw)),
     lowerBoundRaw:decimal(record(inv.knownLowerBound).token1Raw)??
      decimal(record(inv.retainedPrincipalLowerBound).token1Raw)}],
-  principalOnlyValue:micro(principalValue(inv,economics,prov,profile.pool)),
-  passiveTokenValue:micro(tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
+  principalOnlyValue:micro(kind?.toString().startsWith('rangekeeper_paper_')&&!model?null:
+   principalValue(inv,economics,prov,profile.pool)),
+  passiveTokenValue:micro(kind?.toString().startsWith('rangekeeper_paper_')&&!model?null:
+   tokenReferenceValue(allocation.token0Raw,allocation.token1Raw,prov,profile.pool)),
   feesThisIntervalQuote:micro(model?.economics.intervalFeeAccrualQuote??null),
   gasThisMarkQuote:micro(model?.economics.markGasExpenseQuote??null),
   swapThisMarkQuote:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
    model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?
-   micro(model.economics.modeledSwapCostQuote):model?'0':null,
+   micro(model.economics.modeledSwapCostQuote):model&&
+    model.policyVersion!==RANGEKEEPER_PAPER_ACCOUNTING_POLICY?'0':null,
   swapsThisMark:model&&(model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V2||
    model.policyVersion===PAPER_CONVERSION_ACCOUNTING_POLICY_V3)?1:0,
   drawdownPpm:null};
@@ -403,14 +480,18 @@ export async function readDeploymentDetail(db:PoolClient,row:DeploymentRow,hours
  const marks=(await db.query<DeploymentMark>(`
   SELECT m.id::text,m.at,m.source_block::text,m.source_hash,m.inventory,m.economics,m.provenance,
    ${hasAccounting?'a.snapshot AS accounting_snapshot,a.snapshot_hash AS accounting_hash,'+
+    'rk_a.snapshot AS rangekeeper_accounting_snapshot,rk_a.snapshot_hash AS rangekeeper_accounting_hash,'+
     'a2.snapshot AS conversion_accounting_snapshot,a2.snapshot_hash AS conversion_accounting_hash':
     'NULL::jsonb AS accounting_snapshot,NULL::text AS accounting_hash,'+
+    'NULL::jsonb AS rangekeeper_accounting_snapshot,NULL::text AS rangekeeper_accounting_hash,'+
     'NULL::jsonb AS conversion_accounting_snapshot,NULL::text AS conversion_accounting_hash'},
    ${hasInvalidations?'invalidated.recorded_at AS accounting_invalidated_at,invalidated.reason AS accounting_invalidation_reason':
     'NULL::timestamptz AS accounting_invalidated_at,NULL::text AS accounting_invalidation_reason'}
   FROM deployment_marks m
   ${hasAccounting?`LEFT JOIN deployment_paper_accounting a ON a.campaign_id=m.campaign_id
    AND a.source_mark_id=m.id AND a.policy_version='${PAPER_ACCOUNTING_POLICY}'
+   LEFT JOIN deployment_paper_accounting rk_a ON rk_a.campaign_id=m.campaign_id
+    AND rk_a.source_mark_id=m.id AND rk_a.policy_version='rangekeeper_paper_observed_flow_v1'
    LEFT JOIN LATERAL (SELECT (array_agg(snapshot))[1] AS snapshot,
     (array_agg(snapshot_hash))[1] AS snapshot_hash FROM deployment_paper_accounting
     WHERE campaign_id=m.campaign_id AND source_mark_id=m.id AND policy_version IN

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {z} from 'zod';
 import {contentHash} from './contracts.js';
-import type {MarketProfile} from './market-profile.js';
+import {referenceProofHash,type MarketProfile} from './market-profile.js';
 import type {PaperOpenModel} from './paper-open-model.js';
 import type {PaperCloseRetainModel} from './paper-close-model.js';
 import {paperCloseConvertQuoteSchema,verifyCanonicalPaperCloseConvertQuote,
@@ -21,6 +21,10 @@ export const PAPER_ACCOUNTING_POLICY='paper_fixed_flow_lower_v1';
 export const PAPER_CONVERSION_ACCOUNTING_POLICY='paper_fixed_flow_convert_v1';
 export const PAPER_CONVERSION_ACCOUNTING_POLICY_V2='paper_fixed_flow_convert_v2';
 export const PAPER_CONVERSION_ACCOUNTING_POLICY_V3='paper_fixed_flow_convert_v3';
+/** RangeKeeper uses canonical observed-flow fee evidence, while all fees and
+ * operation costs remain hypothetical paper quantities. This policy is
+ * deliberately separate from the frozen static/manual schemas. */
+export const RANGEKEEPER_PAPER_ACCOUNTING_POLICY='rangekeeper_paper_observed_flow_v1';
 const Q128=1n<<128n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/);
 const signed=z.string().regex(/^(0|-?[1-9][0-9]*)$/);
@@ -56,6 +60,80 @@ export const paperAccountingSchema=z.object({
   z.literal('failure_expense_unmodeled'),z.literal('close_convert_unavailable')]),
 }).strict();
 export type PaperAccounting=z.infer<typeof paperAccountingSchema>;
+
+const rkRawNullable=raw.nullable();
+/** One immutable RangeKeeper mark projection. Fee token balances represent
+ * retained modeled carry, never earned cash or strategy reinvestment. */
+export const rangeKeeperPaperAccountingSchema=z.object({
+ policyVersion:z.literal(RANGEKEEPER_PAPER_ACCOUNTING_POLICY),
+ classification:z.literal('provisional_paper_scenario'),campaignId:z.uuid(),sourceMarkId:raw,
+ markKind:z.enum(['open','valuation','recenter','close_retain','close_convert']),
+ source,profileHash:z.string().regex(/^[0-9a-f]{64}$/),epoch:z.number().int().nonnegative(),
+ reference:z.object({price0:rkRawNullable,price1:rkRawNullable,nativePrice:rkRawNullable,
+  proofHash:z.string().regex(/^[0-9a-f]{64}$/),eligible:z.boolean(),proof:z.record(z.string(),z.unknown()).nullable()}).strict(),
+ feeEvidence:z.object({id:raw,proofHash:z.string().regex(/^[0-9a-f]{64}$/),
+  carryHash:z.string().regex(/^[0-9a-f]{64}$/),upper0Raw:raw,upper1Raw:raw}).strict().nullable(),
+ modeledCosts:z.object({initialOpenBoundValue:raw,initialOpenBoundWei:raw,
+  cumulativeBoundValue:raw,cumulativeBoundWei:raw,paidCostsAvailable:z.literal(false)}).strict(),
+ inventory:z.object({token0Raw:raw,token1Raw:raw,nativeWei:raw,principal0Raw:raw,
+  principal1Raw:raw,fee0Raw:raw,fee1Raw:raw,cumulativeGasWei:z.null(),hasLiquidity:z.boolean()}).strict(),
+ economics:z.object({initialCapitalQuote:rkRawNullable,netNavQuote:rkRawNullable,
+  passiveQuote:rkRawNullable,absolutePnlQuote:signed.nullable(),alphaQuote:signed.nullable(),
+  cumulativeFeeValueQuote:rkRawNullable,cumulativeGasExpenseQuote:rkRawNullable,
+  intervalFeeAccrualQuote:rkRawNullable,markGasExpenseQuote:rkRawNullable}).strict(),
+ limitations:z.array(z.enum(['modeled_hypothetical_fee_share','modeled_costs_not_paid',
+  'retained_fees_not_reinvested','lower_integer_allocation_point',
+  'independent_reference_unavailable','fee_coverage_unavailable',
+  'passive_comparator_unavailable','terminal_custody_unobserved'])).min(3),
+}).strict().superRefine((value,ctx)=>{
+ const required=['modeled_hypothetical_fee_share','modeled_costs_not_paid',
+  'retained_fees_not_reinvested','lower_integer_allocation_point'] as const;
+ if(required.some(item=>!value.limitations.includes(item)))
+  ctx.addIssue({code:'custom',message:'rangekeeper_paper_accounting_limitations_missing'});
+ if(BigInt(value.modeledCosts.cumulativeBoundValue)<BigInt(value.modeledCosts.initialOpenBoundValue)||
+  BigInt(value.modeledCosts.cumulativeBoundWei)<BigInt(value.modeledCosts.initialOpenBoundWei))
+  ctx.addIssue({code:'custom',message:'rangekeeper_paper_accounting_cost_regressed'});
+ if(value.reference.eligible){
+  if(!value.reference.price0||!value.reference.price1||!value.reference.nativePrice||
+   !value.reference.proof||[value.reference.price0,value.reference.price1,value.reference.nativePrice]
+    .some(price=>price==='0'))
+   ctx.addIssue({code:'custom',message:'rangekeeper_paper_accounting_reference_incomplete'});
+  else if(referenceProofHash(value.reference.proof)!==value.reference.proofHash)
+   ctx.addIssue({code:'custom',message:'rangekeeper_paper_accounting_reference_hash_mismatch'});
+ }else if(value.economics.netNavQuote!==null||value.economics.passiveQuote!==null||
+  value.economics.absolutePnlQuote!==null||value.economics.alphaQuote!==null||
+  value.economics.cumulativeFeeValueQuote!==null||value.economics.intervalFeeAccrualQuote!==null)
+  ctx.addIssue({code:'custom',message:'rangekeeper_paper_accounting_ineligible_reference_values'});
+});
+export type RangeKeeperPaperAccounting=z.infer<typeof rangeKeeperPaperAccountingSchema>;
+
+/** Check the oracle evidence selected by RangeKeeper's reference policy.
+ * Asset diagnostics also retain a separately evaluated oracle using the risk
+ * collector's default age limit; that unused copy must not override the
+ * policy-specific token oracle or a validated held equity reference. */
+export function rangeKeeperPaperReferenceProofFresh(proof:unknown,reasons:readonly unknown[]=[]){
+ if(!proof||typeof proof!=='object'||Array.isArray(proof))return false;
+ const visit=(value:unknown):boolean=>{
+  if(Array.isArray(value))return value.every(visit);
+  if(!value||typeof value!=='object')return true;
+  for(const [key,entry] of Object.entries(value as Record<string,unknown>)){
+   if(key==='priceFresh'&&entry!==true)return false;
+   if(key==='fresh'&&entry===false)return false;
+   if(!visit(entry))return false;
+  }
+  return true;
+ };
+ const refs=proof as Record<string,unknown>;
+ if(refs.token0&&refs.token1&&refs.native){
+  for(const name of ['token0','token1'] as const){
+   const selected=refs[name] as Record<string,unknown>;
+   if(selected.basis==='unavailable'||!visit(selected.oracle??selected))return false;
+  }
+  if(!visit(refs.native))return false;
+ }else if(!visit(proof))return false;
+ return reasons.every(reason=>typeof reason==='string'&&
+  !/(?:oracle_)?price_(?:stale|unavailable)|reference_unavailable/i.test(reason));
+}
 
 /** A separately versioned replay policy for campaigns closed through an
  * explicitly quoted token conversion. The v1 schema and policy remain frozen. */
@@ -707,6 +785,39 @@ export async function recordCanonicalNextPaperAccounting(store:DeploymentStore,
  });
 }
 
+/** Adds at most one canonical, independently source-checked RangeKeeper
+ * accounting snapshot. It does not alter the frozen static/manual policy. */
+export async function recordCanonicalNextRangeKeeperPaperAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return store.recordNextRangeKeeperPaperAccounting(campaignId,async(chainId,sources)=>{
+  assert.equal(await client.getChainId(),chainId,'RangeKeeper accounting chain changed');
+  const checked=new Map<string,string>();
+  for(const source of sources){
+   const prior=checked.get(source.block);
+   if(prior!==undefined){assert.equal(prior,`${source.hash.toLowerCase()}:${source.timestamp}`,
+    'RangeKeeper accounting same-block source conflict');continue;}
+   const block=await client.getBlock({blockNumber:BigInt(source.block)});
+   assert.equal(block.hash.toLowerCase(),source.hash.toLowerCase(),
+    'RangeKeeper accounting source reorged');
+   assert.equal(Number(block.timestamp),source.timestamp,'RangeKeeper accounting timestamp changed');
+   checked.set(source.block,`${source.hash.toLowerCase()}:${source.timestamp}`);
+  }
+  for(const [number,identity] of checked){
+   const block=await client.getBlock({blockNumber:BigInt(number)});
+   assert.equal(`${block.hash.toLowerCase()}:${Number(block.timestamp)}`,identity,
+    'RangeKeeper accounting source changed during verification');
+  }
+ });
+}
+
+/** Audits persisted RangeKeeper snapshots before the maintenance worker adds
+ * more history. A changed canonical anchor revokes that suffix in the
+ * existing invalidation journal; RPC failures remain ordinary unavailable. */
+export async function auditCanonicalRangeKeeperPaperAccounting(store:DeploymentStore,
+ client:RobinhoodClient,campaignId:string){
+ return auditCanonicalPaperAccounting(store,client,campaignId,RANGEKEEPER_PAPER_ACCOUNTING_POLICY);
+}
+
 /** V2 is intentionally opt-in. Its terminal close quote is derived from the
  * persisted lower-fee carry inside the store transaction, then replayed at
  * the exact saved block before the versioned scenario can be appended. */
@@ -780,7 +891,7 @@ export async function recordCanonicalNextPaperConversionAccountingV2(store:Deplo
  * A provider failure or a chain change during the audit rejects the run and
  * cannot create a permanent revocation. */
 export async function auditCanonicalPaperAccounting(store:DeploymentStore,
- client:RobinhoodClient,campaignId:string){
+ client:RobinhoodClient,campaignId:string,policyVersion:string=PAPER_ACCOUNTING_POLICY){
  return store.auditPaperAccounting(campaignId,async(chainId,sources)=>{
   assert.equal(await client.getChainId(),chainId,'Paper accounting audit chain changed');
   const read=async(source:PaperAccountingAnchor)=>{
@@ -801,7 +912,7 @@ export async function auditCanonicalPaperAccounting(store:DeploymentStore,
     return {accountingId:source.accountingId,actual};
   }
   return null;
- });
+ },policyVersion);
 }
 
 /** Audits the independent v2 projection. Its append-only invalidation is

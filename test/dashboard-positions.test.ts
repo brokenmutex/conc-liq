@@ -10,6 +10,9 @@ import {amountsForLiquidity,sqrtRatioAtTick} from '../src/backtest/principal.js'
 import {NONFUNGIBLE_POSITION_MANAGER,UNISWAP_V3_FACTORY} from '../src/constants.js';
 import {PAPER_QUOTER,PAPER_ROUTER} from '../src/paper/execution-abi.js';
 import {marketProfileSchema} from '../src/deployments/market-profile.js';
+import {contentHash} from '../src/deployments/contracts.js';
+import {referenceProofHash} from '../src/deployments/market-profile.js';
+import {RANGEKEEPER_PAPER_ACCOUNTING_POLICY} from '../src/deployments/paper-accounting.js';
 import {readDeploymentDetail} from '../src/dashboard/deployment-position.js';
 
 function point(at:string,nav:string,extra:Partial<PositionPoint>={}):PositionPoint{return {
@@ -138,6 +141,104 @@ test('RangeKeeper recenter marks show the new epoch and exact current inventory 
  assert.equal(detail.position.deployment.rangekeeper?.latestClassification,'rangekeeper_paper_recenter_v1');
  assert.equal(detail.position.deployment.rangekeeper?.recenterAvailable,false);
  assert.equal(detail.counts.recenters,1);
+});
+test('RangeKeeper observed-flow accounting snapshot feeds provisional position and history economics only with eligible mark-bound references',async()=>{
+ const now=Math.floor(Date.now()/1000),address=(digit:string)=>`0x${digit.repeat(40)}`,
+  hash=`0x${'a'.repeat(64)}`,profile=marketProfileSchema.parse({pool:{chainId:4663,
+   factory:UNISWAP_V3_FACTORY,pool:address('1'),token0:address('2'),token1:address('3'),
+   quoteToken:0,decimals0:6,decimals1:18,fee:3000,tickSpacing:60,
+   positionManager:NONFUNGIBLE_POSITION_MANAGER,router:PAPER_ROUTER,quoter:PAPER_QUOTER,
+   poolCodeHash:hash,token0CodeHash:hash,token1CodeHash:hash,managerCodeHash:hash,
+   quoterCodeHash:hash,reference0:'USDG/USD',reference1:'AAPL/USD',nativeReference:'ETH/USD',numeraire:'USD'},
+   referencePolicy:{token0:{kind:'stablecoin',maxAgeSeconds:180,session:'verified_24_7',corporateAction:'reject_pending'},
+    token1:{kind:'stock_token',maxAgeSeconds:180,session:'latest_equity_session',corporateAction:'reject_pending'},
+    nativeMaxAgeSeconds:180,maxPoolDeviationPpm:10_000}}),sqrt=sqrtRatioAtTick(0),liquidity=10n**12n,
+  source={block:'102',hash:`0x${'d'.repeat(64)}`,timestamp:now-5},campaignId='00000000-0000-4000-8000-000000000003',
+  proof={token0:{asset:{oracle:{flags:{priceFresh:true}}}},token1:{asset:{oracle:{flags:{priceFresh:true}}}},
+   native:{asset:{oracle:{flags:{priceFresh:true}}}}},proofHash=referenceProofHash(proof),
+  reference={price0:'1000000000000000000',price1:'2000000000000000000',nativePrice:'3000000000000000000',
+   proofHash,proof,eligible:true},
+  mark={id:'3',at:new Date(source.timestamp*1000),source_block:source.block,source_hash:source.hash,
+   accounting_snapshot:null,accounting_hash:null,rangekeeper_accounting_snapshot:null,
+   rangekeeper_accounting_hash:null,conversion_accounting_snapshot:null,conversion_accounting_hash:null,
+   accounting_invalidated_at:null,accounting_invalidation_reason:null,
+   inventory:{classification:'rangekeeper_paper_mark_v1',position:{tickLower:-60,tickUpper:60,
+    liquidity:String(liquidity)},idle:{token0:'7',token1:'11'}},economics:{principalOnlyValue:'100000000000000000000'},
+   provenance:{classification:'rangekeeper_paper_mark_v1',epoch:0,source,reference,
+    poolState:{tick:0,sqrtPriceX96:String(sqrt)}}},
+  snapshot={policyVersion:RANGEKEEPER_PAPER_ACCOUNTING_POLICY,classification:'provisional_paper_scenario',
+   campaignId,sourceMarkId:mark.id,markKind:'valuation' as const,source,profileHash:contentHash(profile),epoch:0,
+   reference,feeEvidence:null,modeledCosts:{initialOpenBoundValue:'2000000000000000000',
+    initialOpenBoundWei:'100',cumulativeBoundValue:'3000000000000000000',cumulativeBoundWei:'150',
+    paidCostsAvailable:false as const},inventory:{token0Raw:'1000000',token1Raw:'500000000000000000',
+    nativeWei:'250',principal0Raw:'999995',principal1Raw:'499999999999999995',fee0Raw:'5',fee1Raw:'5',
+    cumulativeGasWei:null,hasLiquidity:true},economics:{initialCapitalQuote:'100000000000000000000',
+    netNavQuote:'123000000000000000000',passiveQuote:'120000000000000000000',absolutePnlQuote:'23000000000000000000',
+    alphaQuote:'3000000000000000000',cumulativeFeeValueQuote:'5000000000000000000',
+    cumulativeGasExpenseQuote:null,intervalFeeAccrualQuote:'1000000000000000000',markGasExpenseQuote:null},
+   limitations:['modeled_hypothetical_fee_share' as const,'modeled_costs_not_paid' as const,
+    'retained_fees_not_reinvested' as const,'lower_integer_allocation_point' as const]},
+  row={id:campaignId,mode:'paper',lifecycle:'active',range_state:'inside',current_revision:1,
+   created_at:new Date((now-120)*1000),closed_at:null,allocation:{token0Raw:'1000000',token1Raw:'500000000000000000',nativeWei:'1000'},
+   runtime_identity:{},profile,strategy_id:'rangekeeper_v1',config:{},mark_id:mark.id,mark_at:mark.at,
+   source_block:source.block,source_hash:source.hash,inventory:mark.inventory,economics:mark.economics,
+   provenance:mark.provenance,initial_value:'100000000',operation_id:null,operation_kind:null,
+   operation_status:null,operation_stage:null,operation_reason:null,operation_updated_at:null,
+   accounting_snapshot:null,accounting_hash:null,rangekeeper_accounting_snapshot:snapshot,
+   rangekeeper_accounting_hash:contentHash(snapshot),conversion_accounting_snapshot:null,
+   conversion_accounting_hash:null,accounting_invalidated_at:null,accounting_invalidation_reason:null},
+  withReference=(value:any)=>({...mark.provenance,reference:value}),
+  makeDetail=async(snapshotValue:any,provenanceValue:any=mark.provenance,historyOverride?:any[])=>{
+   const savedMark={...mark,provenance:provenanceValue,rangekeeper_accounting_snapshot:snapshotValue,
+    rangekeeper_accounting_hash:snapshotValue?contentHash(snapshotValue):null};
+   return readDeploymentDetail({query:async(sql:string)=>({rows:sql.includes('FROM deployment_marks m')?
+    historyOverride??[savedMark]:[]})} as any,
+    {...row,provenance:provenanceValue,rangekeeper_accounting_snapshot:snapshotValue,
+     rangekeeper_accounting_hash:snapshotValue?contentHash(snapshotValue):null} as any,24);
+  };
+ const valid=await makeDetail(snapshot),validPoint:any=valid.performance.timeline.at(-1);
+ assert.equal(valid.position.accounting,'provisional');assert.equal(valid.position.navQuote,'123000000');
+ assert.equal(valid.position.holdQuote,'120000000');assert.equal(valid.position.feesQuote,'5000000');
+ assert.equal(valid.position.swapQuote,null);
+ assert.equal(valid.position.deployment.accounting?.modeledCosts?.cumulativeBoundValue,'3000000');
+ assert.equal(valid.position.gasQuote,null);assert.equal(validPoint.economicNavQuote,'123000000');
+ assert.equal(validPoint.holdQuote,'120000000');assert.equal(validPoint.feesThisIntervalQuote,'1000000');
+ const policyProof={token0:{basis:'heartbeat_valid',oracle:{flags:{priceFresh:true}}},
+  token1:{basis:'heartbeat_valid',oracle:{flags:{priceFresh:true}},
+   asset:{oracle:{flags:{priceFresh:false}}}},native:{flags:{priceFresh:true}}},
+  policyReference={...reference,proof:policyProof,proofHash:referenceProofHash(policyProof)};
+ assert.equal((await makeDetail({...snapshot,reference:policyReference},withReference(policyReference))).position.navQuote,
+  '123000000','the unused risk diagnostic oracle cannot override the selected policy-valid oracle');
+ const rejectedProof={...policyProof,token1:{...policyProof.token1,oracle:{flags:{priceFresh:false}}}},
+  rejectedReference={...reference,proof:rejectedProof,proofHash:referenceProofHash(rejectedProof)};
+ assert.equal((await makeDetail({...snapshot,reference:rejectedReference},withReference(rejectedReference))).position.accounting,
+  'unavailable','stale selected reference evidence still fails closed');
+ const staleProof={...proof,token1:{asset:{oracle:{flags:{priceFresh:false}},reasons:['oracle_price_stale']}}},
+  staleReference={...reference,proof:staleProof,proofHash:referenceProofHash(staleProof),eligible:false},
+  staleSnapshot={...snapshot,reference:staleReference,economics:{initialCapitalQuote:null,netNavQuote:null,
+   passiveQuote:null,absolutePnlQuote:null,alphaQuote:null,cumulativeFeeValueQuote:null,
+   cumulativeGasExpenseQuote:null,intervalFeeAccrualQuote:null,markGasExpenseQuote:null}},
+  stale=await makeDetail(staleSnapshot,withReference(staleReference));
+ assert.equal(stale.position.accounting,'provisional');assert.equal(stale.position.navQuote,null);
+ assert.equal(stale.position.holdQuote,null);assert.equal(stale.position.feesQuote,null);
+ assert.equal(stale.position.referencePriceQuoteX18,null);assert.equal(stale.position.deployment.passiveTokenValue,null);
+ assert.equal(stale.position.deployment.accounting?.modeledCosts?.cumulativeBoundValue,'3000000');
+ assert.deepEqual(stale.position.deployment.accounting?.retainedModeledFees,{token0Raw:'5',token1Raw:'5'});
+ assert.equal((await makeDetail(snapshot,withReference(staleReference))).position.accounting,'unavailable');
+ assert.equal((await makeDetail({...snapshot,reference:{...reference,eligible:false},economics:staleSnapshot.economics},withReference({...reference,eligible:false}))).position.accounting,'provisional');
+ assert.equal((await makeDetail(snapshot,withReference({...reference,price1:'3000000000000000000'}))).position.accounting,'unavailable');
+ assert.equal((await makeDetail({...snapshot,source:{...source,block:'103'}})).position.accounting,'unavailable');
+ const weakFreshProof={...proof,token1:{asset:{oracle:{flags:{priceFresh:true,fresh:false}}}}},
+  weakFreshReference={...reference,proof:weakFreshProof,proofHash:referenceProofHash(weakFreshProof)},
+  weakFreshSnapshot={...snapshot,reference:weakFreshReference},
+  weakFreshProvenance=withReference(weakFreshReference);
+ assert.equal((await makeDetail(weakFreshSnapshot,weakFreshProvenance)).position.accounting,'unavailable');
+ const sparseMark={...mark,id:'4',at:new Date((source.timestamp+1)*1000),source_block:'103',
+  source_hash:`0x${'e'.repeat(64)}`,rangekeeper_accounting_snapshot:null,rangekeeper_accounting_hash:null,
+  provenance:{...mark.provenance,source:{...source,block:'103',hash:`0x${'e'.repeat(64)}`,timestamp:source.timestamp+1}}},
+  sparse=await makeDetail(snapshot,mark.provenance,[mark,sparseMark]),sparsePoint:any=sparse.performance.timeline.at(-1);
+ assert.equal(sparsePoint.economicNavQuote,null);assert.equal(sparsePoint.holdQuote,null);
+ assert.equal(sparsePoint.feesThisIntervalQuote,null);assert.equal(sparsePoint.referencePriceQuoteX18,null);
 });
 test('downsampling preserves full performance totals and entry / recenter markers',()=>{
  const start=Date.parse('2026-09-12T12:00:00Z');

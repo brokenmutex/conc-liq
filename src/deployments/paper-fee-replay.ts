@@ -303,6 +303,18 @@ export async function recordCanonicalPaperFeeEvidence(store:DeploymentStore,
  return store.recordTrustedPaperFeeEvidence(campaignId,state.fromMarkId,state.toMarkId,proof);
 }
 
+/** RangeKeeper has its own epoch boundaries and append-only evidence policy;
+ * the existing sampler is reused, but the store validates campaign lineage. */
+export async function recordCanonicalRangeKeeperPaperFeeEvidence(store:DeploymentStore,
+ client:RobinhoodClient,indexer:Pool,campaignId:string){
+ const state=await store.rangeKeeperPaperFeeSamplingState(campaignId);
+ if(!state)return null;
+ const proof=await readCanonicalPaperFeeInterval(client,indexer,state.stream,
+  state.targetSetHash,state.profile,state.before,state.after,state.range,state.liquidity);
+ return store.recordTrustedRangeKeeperPaperFeeEvidence(campaignId,state.fromMarkId,
+  state.toMarkId,proof);
+}
+
 export interface PaperFeeCarry {
  kind:'paper_fee_carry_v1';pool:string;token0Address:string;token1Address:string;
  fee:number;tickSpacing:number;range:{tickLower:number;tickUpper:number};liquidity:string;
