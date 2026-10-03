@@ -283,11 +283,13 @@ try{
   // ------------------------------------------------------------ planner with fake observation and owned fork
   const synthetic=(campaign)=>{
    const last=campaign.state.last.source,pass=campaign.state.policy.confirmation?2:1;
-   return registerBlock(sourceAt(last.block+BigInt(pass*10),last.timestamp+(pass===1?10:45)));
+   // The first fresh observation must clear the planner's 30 s decision interval after the
+   // last eligible decision; the second stays inside the 90 s confirmation window.
+   return registerBlock(sourceAt(last.block+BigInt(pass*10),last.timestamp+(pass===1?31:62)));
   };
   const observer={
    observeForManagement:async campaign=>{
-    const state=campaign.state,isLocked=unlocked.get(campaign.campaignId)===false;
+    const state=campaign.state,isLocked=unlocked.get(campaign.id??campaign.campaignId)===false;
     if(state.phase==='recenter'){
      const source=synthetic(campaign);
      return {source,snapshot:snapshotAt(source,state.activeTokenId,!isLocked),references:refsAt(source),position:state.activeTokenId===null?null:positionValuation(state.activeTokenId),
@@ -381,8 +383,10 @@ try{
   r=await exec();
   assert.equal(r.jobId,jobA.jobId);assert.match(r.stage,/^approve:/,'A continues with its approval, not another withdrawal');
   holdPublishKind='swap';failPublishKind='swap';
-  const signedBefore=signCalls;
-  r=await exec();assert.equal(r.status,'blocked',JSON.stringify(r));assert.match(r.reason,/publisher unavailable/);
+  // The stage planner grants the remaining mint-leg and router approvals before the swap.
+  let signedBefore=signCalls;
+  for(let i=0;i<4;i++){signedBefore=signCalls;r=await exec();if(!(r.status==='reconciled'&&/^approve:/.test(r.stage??'')))break;}
+  assert.equal(r.status,'blocked',JSON.stringify(r));assert.match(r.reason,/publisher unavailable/);
   let stages=await stagesOf(jobA.jobId);const swapStage=stages.find(s=>s.plan_json.kind==='swap');
   assert.equal(swapStage.status,'signed','the signed bytes are durable after an unacknowledged publish');assert.equal(signCalls,signedBefore+1);
   const costsBeforeRestart=(await campaignOf(A)).state.costEvents.length,generationBefore=(await readWalletState(db,walletIdentity)).generation;
