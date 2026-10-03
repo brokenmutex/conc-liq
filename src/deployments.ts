@@ -5,6 +5,9 @@ import {isAddress} from 'viem';
 import {DeploymentStore} from './deployments/store.js';
 import {deploymentSetupDefaults} from './deployments/setup-defaults.js';
 import {createRangeKeeperLiveSetupRuntime} from './deployments/rangekeeper-live-setup-runtime.js';
+import {createRangeKeeperLiveRuntime} from './deployments/rangekeeper-live-runtime.js';
+import {readLiveWorkerReadiness} from './deployments/live-worker-readiness.js';
+import {createLiveCommandWiring,resolveLiveReviewPersistence} from './deployments/live-command-wiring.js';
 import {PostgresPositionManagerTransferStore} from './nft/position-manager-transfer-index.js';
 import {PostgresPositionManagerWalletTransferStore} from './nft/position-manager-wallet-transfer-store.js';
 import {POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION} from './storage/compatibility.js';
@@ -69,7 +72,7 @@ const envSchema=z.object({
  DEPLOYMENT_PORT:z.coerce.number().int().min(1).max(65535).default(4174),
  DEPLOYMENT_PUBLIC_ORIGIN:z.string().optional(),
  DEPLOYMENT_OPERATOR_WALLET_ADDRESS:z.string().optional(),
- DEPLOYMENT_LIVE_REVIEW_PERSISTENCE:z.enum(['0','1']).default('0'),
+ DEPLOYMENT_LIVE_REVIEW_PERSISTENCE:z.enum(['0','1']).optional(),
  ROBINHOOD_READ_HTTP_URL:z.url(),
  PAPER_FORK_RPC_URL:z.url().optional(),
  DEPLOYMENT_RPC_TIMEOUT_MS:z.coerce.number().int().min(1000).max(30000).default(12000),
@@ -91,9 +94,9 @@ async function main(){
  const transferStore=new PostgresPositionManagerTransferStore(env.DATABASE_URL);
  const schemaProbe=new Pool({connectionString:env.DATABASE_URL,max:1,
   options:'-c default_transaction_read_only=on'});
- let walletTransferStore:PostgresPositionManagerWalletTransferStore|null=null;
+ let walletTransferStore:PostgresPositionManagerWalletTransferStore|null=null,schemaVersion=0;
  try{
-  const version=Number((await schemaProbe.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0]?.version??0);
+  const version=schemaVersion=Number((await schemaProbe.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0]?.version??0);
   if(version===POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION&&env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS&&
    isAddress(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS)){
    walletTransferStore=new PostgresPositionManagerWalletTransferStore(env.DATABASE_URL,env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS);
@@ -111,19 +114,42 @@ async function main(){
  }finally{await schemaProbe.end();}
  const setupTransferStore=walletTransferStore??transferStore;
  const runtime=JSON.parse(process.env.CONC_LIQ_RUNTIME_IDENTITY??'{}') as {buildId?:string};
- const liveReviewPool=env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE==='1'?
+ // Unset follows the proven schema (v14 and a configured wallet); '0'/'1' stay explicit.
+ const persistLiveReviews=resolveLiveReviewPersistence(env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE,walletTransferStore!==null);
+ const liveReviewPool=persistLiveReviews?
   new Pool({connectionString:env.DATABASE_URL,max:2,statement_timeout:15000}):undefined;
  const liveSetup=createRangeKeeperLiveSetupRuntime({store,indexer,client,
   walletAddress:env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS,buildId:runtime.buildId??'',
   rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,
   anvilBinary:process.env.ANVIL_BIN??'/root/.foundry/bin/anvil',transferStore:setupTransferStore,
-  persistReviews:env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE==='1',reviewPool:liveReviewPool});
+  persistReviews:persistLiveReviews,reviewPool:liveReviewPool});
  let liveSetupBusy=false;
  const rangeKeeperLiveSetupPreflight:typeof liveSetup.setupPreflight=async input=>{
   if(liveSetupBusy)throw new DeploymentConflict('rangekeeper_live_setup_busy');
   liveSetupBusy=true;
   try{return await liveSetup.setupPreflight(input);}finally{liveSetupBusy=false;}
  };
+ // Live execution belongs to the separately supervised live worker, which alone
+ // holds the signer and the readiness lease. This process only reads that proof
+ // and queues reviewed retained exits; it has no signer, publisher or DDL. The
+ // runtime exists only when the exact v14 wallet-scoped schema and a valid
+ // operator wallet were proven above, so v11 keeps serving paper unchanged.
+ const liveWiring=createLiveCommandWiring({schemaVersion,
+  walletIdentity:walletTransferStore?{chainId:4663 as const,address:env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS!.toLowerCase()}:null,
+  readiness:wallet=>readLiveWorkerReadiness(indexer,wallet),
+  // The setup runtime's registered-profile scope, so previews see the same registry.
+  createRuntime:()=>createRangeKeeperLiveRuntime({pool:liveReviewPool??indexer,client,
+   walletAddress:env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS!,transferStore:walletTransferStore!,
+   loadProfiles:async()=>{
+    const catalog=await store.listMarketProfiles();
+    const loaded=await Promise.all(catalog.filter(row=>row.draftAvailable).map(row=>store.paperSetupProfile(row.id)));
+    return loaded.filter(row=>row!==null);
+   },rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,anvilBinary:process.env.ANVIL_BIN??'/root/.foundry/bin/anvil',
+   buildId:runtime.buildId??'',persistReviews:persistLiveReviews,managementEnabled:false}),
+  onRuntimeFailure:error=>log('warn','deployment_live_retain_runtime_unavailable',
+   {reason:error instanceof Error?error.message:'unknown'})});
+ log('info','deployment_live_command_wiring',{schemaVersion,liveRuntime:liveWiring.runtimeAvailable,
+  reviewPersistence:persistLiveReviews});
  let previewBusy=false,paperSetupBusy=false;
  const setupDiagnosticsEnabled=process.env.DEPLOYMENT_PAPER_SETUP_DIAGNOSTICS==='1',
   setupDiagnostic=setupDiagnosticsEnabled?
@@ -622,8 +648,13 @@ async function main(){
  const server=createDeploymentCommandServer(store,{origin,publicOrigin:env.DEPLOYMENT_PUBLIC_ORIGIN,
   liveWalletReview:()=>liveSetup.walletReview(),rangeKeeperLiveSetupPreflight,
   rangeKeeperLiveSetupAdmission:input=>liveSetup.admitSetup(input),
-  // Admission stays closed until the supervised management/retain executor
-  // supplies readiness. Persisting a review alone never activates execution.
+  // Admission opens only while the supervised worker holds its lease and a
+  // fresh canonical wallet snapshot exists; any probe error is closed.
+  // Persisting a review alone never activates execution. Retained exits are
+  // queued without that readiness (the worker runs them when it returns).
+  rangeKeeperLiveAdmissionReady:async()=>(await liveWiring.workerReadiness()).ready,
+  rangeKeeperLiveWorkerReadiness:liveWiring.workerReadiness,
+  rangeKeeperLiveRetainPreview:liveWiring.retainPreview,rangeKeeperLiveRetainAdmission:liveWiring.retainAdmission,
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,rangeKeeperOpenAcceptance,
