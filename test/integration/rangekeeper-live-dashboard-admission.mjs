@@ -126,6 +126,7 @@ try{
    const catalog=await fetch(`${origin}/api/strategies`,{headers:{Cookie:cookie}}).then(r=>r.json());
    const rk=catalog.strategies.find(x=>x.id==='rangekeeper_v1');assert.equal(rk.live,false);
    assert.equal(rk.liveAdmission,true,'test-only readiness reports admission surface; strategy execution remains disabled');
+   assert.deepEqual(rk.liveWorker,{ready:true,missing:[]},'boolean readiness is reported as the worker state');
    const beforeBad=await db.query('SELECT count(*)::int AS n FROM deployment_live_jobs');
    assert.equal((await post({reviewId:randomUUID(),reviewHash:'x',requestId:randomUUID()},{'x-csrf-token':'0'.repeat(64)})).status,403);
    assert.equal((await post({reviewId:randomUUID(),reviewHash:'a'.repeat(64),requestId:randomUUID(),wallet})).status,400,
@@ -198,9 +199,11 @@ try{
    ready=false;const callsBeforeClosed=callbackCalls;
    const closedCatalog=await fetch(`${origin}/api/strategies`,{headers:{Cookie:cookie}}).then(r=>r.json());
    assert.equal(closedCatalog.strategies.find(x=>x.id==='rangekeeper_v1').liveAdmission,false);
+   assert.deepEqual(closedCatalog.strategies.find(x=>x.id==='rangekeeper_v1').liveWorker,{ready:false,missing:['live_wallet_worker_not_ready']});
    const closed=await post({reviewId:staleId,reviewHash:staleReview.reviewHash,requestId:randomUUID()});
    assert.equal(closed.status,503);assert.equal(callbackCalls,callsBeforeClosed,'readiness gate precedes admission callback');
    const closedBody=await closed.json();assert.equal(closedBody.actionAvailable,false);
+   assert.deepEqual(closedBody.liveWorker,{ready:false,missing:['live_wallet_worker_not_ready']});
    assert.equal((await db.query('SELECT count(*)::int AS n FROM deployment_live_jobs')).rows[0].n,beforeStale.rows[0].n);
    console.log('RangeKeeper live dashboard admission isolated HTTP/PG integration passed (12 profiles, 12 allocations/jobs, replay, stale-source/readiness/CSRF guards)');
   }finally{await new Promise(resolve=>server.close(resolve));}
