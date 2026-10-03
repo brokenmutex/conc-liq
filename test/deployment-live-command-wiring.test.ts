@@ -161,3 +161,20 @@ it('v14 command queues an exit while the worker is away and reports readiness se
   workerUp=true;rk=await strategy();assert.equal(rk.live,true);assert.deepEqual(rk.liveWorker,{ready:true,missing:[]});
  }finally{await app.close();}
 });
+
+it('the composed runtime the command builds has no signer or publisher and answers closed without a database',async()=>{
+ const {createRangeKeeperLiveRuntime}=await import('../src/deployments/rangekeeper-live-runtime.js');
+ const failing=()=>{throw Error('database unavailable');};
+ const pool={query:failing,connect:failing} as never;
+ for(const persistReviews of [false,true]){
+  const runtime=createRangeKeeperLiveRuntime({pool,client:{} as never,walletAddress:wallet.address,transferStore:{} as never,
+   loadProfiles:async()=>[],rpcUrl:'http://127.0.0.1:1',anvilBinary:'/unused',buildId:'b'.repeat(64),persistReviews,
+   managementEnabled:false});
+  assert.equal(runtime.adapters.signIntent,undefined);assert.equal(runtime.adapters.publishRaw,undefined);
+  assert.equal((await runtime.workerReadiness()).executionConfigured,false);
+  const preview=await runtime.retainPreview(campaignId);
+  assert.equal(preview.status,'unavailable');assert.equal(preview.actionAvailable,false);assert.equal(preview.executionEligible,false);
+  const admission=await runtime.retainOperation(campaignId,retainBody);
+  assert.equal(admission.status,'unavailable');assert.equal(admission.executionEligible,false);
+ }
+});
