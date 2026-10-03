@@ -7,6 +7,7 @@ verifyRelease(release);
 const commands={
  'conc-liq-deployment-command.service':['deployments'],
  'conc-liq-paper-operation-worker.service':['deployments-paper-worker'],
+ 'conc-liq-rangekeeper.service':['deployments-live-worker'],
  'conc-liq-paper.service':['paper tick'],
  'conc-liq-dashboard.service':['dashboard'],
  'conc-liq-tail.service':['tail'],
