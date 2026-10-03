@@ -603,8 +603,8 @@
       "path": "scripts/render-release-units.mjs",
       "category": "operations",
       "lifecycle": "supported_operations",
-      "sha256": "5e98bbfcc479113616c8876fb3d1bbff5e4c5384e1fbeb61ba5fad468cb397f2",
-      "bytes": 3493
+      "sha256": "cc885a723426e4f14b659a2d9196415ab7bd98ba17f642ce65425a137e59ac40",
+      "bytes": 3554
     },
     {
       "path": "scripts/replay-offhours-caps.mjs",

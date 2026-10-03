@@ -1,0 +1,34 @@
+# Rendering template: use scripts/render-release-units.mjs; do not install directly.
+# The rendered ExecStart runs the deployments-live-worker entry. launch.mjs strips
+# inherited Environment= values and loads the private runtime env file, which carries
+# DATABASE_URL, the read/broadcast endpoints, the operator wallet address and the
+# DEPLOYMENT_LIVE_* settings (see ops/rangekeeper/live-worker.env.template). The signing
+# key lives in a separate 0600 file named by DEPLOYMENT_LIVE_SIGNER_FILE, never in the
+# unit or the runtime env file. With DEPLOYMENT_LIVE_EXECUTION=0 this unit is observe-only.
+[Unit]
+Description=conc-liq supervised RangeKeeper live wallet worker
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+Conflicts=conc-liq-live-pilot.service
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Service]
+Type=simple
+WorkingDirectory=/root/conc-liq
+EnvironmentFile=/root/conc-liq/.env
+Environment=PATH=/root/conc-liq/.tools/node/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+ExecStart=/bin/false
+Restart=on-failure
+RestartSec=15s
+TimeoutStopSec=90s
+KillSignal=SIGTERM
+KillMode=control-group
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
