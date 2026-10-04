@@ -168,6 +168,10 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
   observation:RangeKeeperLiveManagementPlannerObservation,allowOwnJob=false)=>{
   assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
   const next=structuredClone(campaign.state);next.policy=decision.state;next.lastReason=decision.reason;
+  // A recenter in progress is never valuation-marked, so its recorded snapshot would otherwise age forever and every later
+  // observation would look discontinuous (source_gap), blocking both the re-plan and the safety-exit conversion. Each
+  // persisted observation therefore re-anchors the campaign snapshot, exactly as the valuation mark does for a holding one.
+  if(campaign.state.phase==='recenter')next.last=structuredClone(observation.snapshot);
   const observationHash=hashObservation(decision,observation);
   if(decision.reason==='duplicate_or_backward_observation')return observationHash;
   if(contentHash(json(next))===contentHash(json(campaign.state)))return observationHash;
@@ -290,7 +294,11 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
     return {status:'safety_exit',reason:'recenter_converted_to_retain_exit',observationHash,source:observation.source,queued:false as const,
      converted:true as const};
    }
-   if(!awaitingReplan)return {status:'wait',reason:'recenter_in_progress',observationHash,source:observation.source,queued:false as const};
+   if(!awaitingReplan){
+    // A blocked in-flight recenter stays evaluable for a safety exit: a discontinuity resets policy and re-anchors the snapshot.
+    if(decision.reason.startsWith('source_'))await persistObservation(campaign,decision,observation,true);
+    return {status:'wait',reason:'recenter_in_progress',observationHash,source:observation.source,queued:false as const};
+   }
    if(decision.action!=='execute'||!decision.candidate||!finalCost){
     await persistObservation(campaign,decision,observation,true);
     return {status:decision.action,reason:decision.reason,observationHash,source:observation.source,queued:false as const};
