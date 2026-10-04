@@ -7,7 +7,7 @@ import {decodeFunctionData,encodeFunctionData,keccak256} from 'viem';
 import pg from 'pg';
 import {migrateDatabase} from '../../src/storage/migrations.ts';
 import {DeploymentStore,DeploymentConflict,PAPER_OPERATION_NOTIFY_CHANNEL,
- PAPER_OPERATION_READINESS_LOCK} from '../../src/deployments/store.ts';
+ PAPER_OPERATION_READINESS_LOCK,runtimeEnvConfigHash} from '../../src/deployments/store.ts';
 import {createDeploymentCommandServer} from '../../src/deployments/server.ts';
 import {contentHash,previewDigest} from '../../src/deployments/contracts.ts';
 import {marketProfileSchema,referenceProofHash} from '../../src/deployments/market-profile.ts';
@@ -55,6 +55,11 @@ import {readPositionOverview,readPositionDetail} from '../../src/dashboard/posit
 import {createDashboardServer} from '../../src/dashboard/server.ts';
 import {readIndexedPaperFeeInterval,replayPaperFeeInterval} from '../../src/deployments/paper-fee-replay.ts';
 import {readStaticPaperCloseConvertFeeContext} from '../../src/deployments/paper-close-convert-fee-reader.ts';
+// The RangeKeeper fixture's runtime configHash is the launcher digest of this env, so an
+// endpoint-only env change can later be proven against it.
+const rkFixtureEnv={DATABASE_URL:'postgresql://fixture/conc_liq',DEPLOYMENT_PORT:'4174',
+ ROBINHOOD_READ_HTTP_URL:'https://provider.example/v2/fixture-key',PAPER_FORK_RPC_URL:'https://provider.example/v2/fixture-key'};
+const rkFixtureConfigHash=runtimeEnvConfigHash(rkFixtureEnv);
 
 if(!process.env.TEST_DATABASE_URL)throw Error('Set TEST_DATABASE_URL to a database where isolated schemas may be created');
 const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:4});
@@ -299,7 +304,7 @@ try{
   verifyRkAnchors=async(chainId,sources)=>{assert.equal(chainId,4663);assert.deepEqual(
    sources.map(source=>source.block),['200','201']);};
  const priorRkMarkRuntime=process.env.CONC_LIQ_RUNTIME_IDENTITY,
-  rkMarkRuntime={buildId:rkBuildId,configHash:'f'.repeat(64),nodeVersion:process.version};
+  rkMarkRuntime={buildId:rkBuildId,configHash:rkFixtureConfigHash,nodeVersion:process.version};
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkMarkRuntime);
  await admin.query('UPDATE deployment_campaigns SET runtime_identity=$2 WHERE id=$1',
   [rkDraft.id,JSON.stringify(rkMarkRuntime)]);
@@ -410,7 +415,7 @@ try{
  assert.equal(dashboardRkConfirmation.envelopeHash,rkConfirmation.envelopeHash);
  assert.equal(dashboardRkConfirmation.actionAvailable,false);
  const priorRkIdentity=process.env.CONC_LIQ_RUNTIME_IDENTITY,
-  rkRuntimeIdentity={buildId:rkBuildId,configHash:'f'.repeat(64),nodeVersion:process.version};
+  rkRuntimeIdentity={buildId:rkBuildId,configHash:rkFixtureConfigHash,nodeVersion:process.version};
  await admin.query('UPDATE deployment_campaigns SET runtime_identity=$2::jsonb WHERE id=$1',
   [rkDraft.id,JSON.stringify(rkRuntimeIdentity)]);
  await admin.query("UPDATE deployment_campaigns SET lifecycle='draft' WHERE id=$1",[rkDraft.id]);
@@ -651,6 +656,51 @@ try{
  assert.deepEqual((await admin.query('SELECT inventory,economics,provenance FROM deployment_marks WHERE id=$1',
   [rkLatestForAdoption.id])).rows[0],{inventory:rkLatestForAdoption.inventory,
    economics:rkLatestForAdoption.economics,provenance:rkLatestForAdoption.provenance});
+ // An RPC-endpoint-only env change may cross adoption only when both env files reproduce their
+ // recorded hashes. The ledger records key names, never endpoint values; other changes are refused.
+ const rkEnvMoved={...rkFixtureEnv,ROBINHOOD_READ_HTTP_URL:'http://10.0.0.7:8547',PAPER_FORK_RPC_URL:'http://10.0.0.7:8547'},
+  rkRuntimeMoved={...rkRuntimeFinal,configHash:runtimeEnvConfigHash(rkEnvMoved)},
+  rkMovedInput=(endpointChange,toRuntimeIdentity=rkRuntimeMoved)=>({campaignId:rkDraft.id,actor:'operator',
+   fromRuntimeIdentity:rkRuntimeFinal,toRuntimeIdentity,
+   expectedLatestMark:{id:rkLatestForAdoption.id,markHash:rkAdoptionMarkHash,source:rkAdoptionSource},
+   releaseProof:{manifestHash:'d'.repeat(64),buildId:rkRuntimeFinal.buildId},
+   compatibilityProof:{schemaVersion:1,kind:'rangekeeper_paper_runtime_compatibility_v1',
+    fromBuildId:rkRuntimeFinal.buildId,toBuildId:toRuntimeIdentity.buildId,strategyId:'rangekeeper_v1',
+    configHash:rkAdoptionBinding.config_hash,profileHash:rkAdoptionBinding.profile_hash,
+    latestMarkHash:rkAdoptionMarkHash,openModelHash:rkOpeningModelHash,
+    historicalKernelBuildId:rkHistoricalKernelBuildId,validatorVersion:'test-fixture-v1'},
+   verifyPinnedRelease:async()=>{},verifyAnchors:async()=>{},...(endpointChange?{endpointChange}:{})});
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeMoved);
+ const rkConfigRefusal=/rangekeeper_runtime_adoption_changes_config_or_node/;
+ await assert.rejects(store.adoptRangeKeeperPaperRuntime(rkMovedInput()),rkConfigRefusal,'a config change needs a proof');
+ await assert.rejects(store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:{...rkFixtureEnv,DEPLOYMENT_PORT:'4175'},
+  toEnv:rkEnvMoved})),rkConfigRefusal,'the predecessor env must reproduce its recorded hash');
+ const rkEnvPortMoved={...rkEnvMoved,DEPLOYMENT_PORT:'4175'};
+ await assert.rejects(store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:rkFixtureEnv,toEnv:rkEnvPortMoved},
+  {...rkRuntimeMoved,configHash:runtimeEnvConfigHash(rkEnvPortMoved)})),rkConfigRefusal,'non-endpoint keys stay bound');
+ const rkEnvAdded={...rkFixtureEnv,DEPLOYMENT_RPC_TIMEOUT_MS:'12000'};
+ await assert.rejects(store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:rkFixtureEnv,toEnv:rkEnvAdded},
+  {...rkRuntimeMoved,configHash:runtimeEnvConfigHash(rkEnvAdded)})),rkConfigRefusal,'added keys stay bound');
+ const rkEnvBadUrl={...rkFixtureEnv,PAPER_FORK_RPC_URL:'file:///etc/passwd'};
+ await assert.rejects(store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:rkFixtureEnv,toEnv:rkEnvBadUrl},
+  {...rkRuntimeMoved,configHash:runtimeEnvConfigHash(rkEnvBadUrl)})),rkConfigRefusal,'endpoints must be http(s)');
+ const rkMoved=await store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:rkFixtureEnv,toEnv:rkEnvMoved}));
+ assert.equal(rkMoved.replayed,false);
+ const rkMovedRow=(await admin.query('SELECT source FROM deployment_ledger WHERE campaign_id=$1 AND entry_key=$2',
+  [rkDraft.id,`rangekeeper_runtime_adoption:${rkMoved.adoptionHash}`])).rows[0].source;
+ assert.deepEqual(rkMovedRow.endpointChange,{schemaVersion:1,kind:'runtime_endpoint_env_change_v1',
+  changedKeys:['PAPER_FORK_RPC_URL','ROBINHOOD_READ_HTTP_URL'],fromConfigHash:rkFixtureConfigHash,
+  toConfigHash:rkRuntimeMoved.configHash});
+ assert(!JSON.stringify(rkMovedRow).includes('10.0.0.7')&&!JSON.stringify(rkMovedRow).includes('fixture-key'),
+  'endpoint values never reach the ledger');
+ assert.deepEqual(await store.adoptRangeKeeperPaperRuntime(rkMovedInput({fromEnv:rkFixtureEnv,toEnv:rkEnvMoved})),
+  {...rkMoved,replayed:true});
+ const rkMovedSnapshot=await store.rangeKeeperPaperEpochSnapshot(rkDraft.id);
+ assert.equal(rkMovedSnapshot.runtimeIdentity.configHash,rkRuntimeMoved.configHash);
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
+ await assert.rejects(store.rangeKeeperPaperEpochSnapshot(rkDraft.id),undefined,
+  'the pre-change identity no longer matches the campaign');
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeMoved);
  // Real SQL acceptance/claim/terminal booking. Chain values here are explicit
  // fixtures; canonical RPC/fork acceptance is a separate lifecycle harness.
  const rkRow=(await admin.query(`SELECT r.config_hash,p.profile_hash,o.id::text AS open_id,
@@ -694,7 +744,7 @@ try{
  process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify({...rkMarkRuntime,buildId:'0'.repeat(64)});
  await assert.rejects(store.completeRangeKeeperPaperConfirmedExit(rkAccepted.id,rkWorker,async()=>{}),
   /rangekeeper_paper_exit_runtime_mismatch/);
- process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeFinal);
+ process.env.CONC_LIQ_RUNTIME_IDENTITY=JSON.stringify(rkRuntimeMoved);
  await assert.rejects(store.completeRangeKeeperPaperConfirmedExit(rkAccepted.id,rkWorker,
   async()=>assert.fail('changed anchor')),/rangekeeper_paper_exit_source_not_canonical/);
  assert.equal((await admin.query('SELECT count(*)::int AS n FROM deployment_ledger WHERE operation_id=$1',

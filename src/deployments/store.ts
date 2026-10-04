@@ -1,4 +1,4 @@
-import {randomUUID} from 'node:crypto';
+import {createHash,randomUUID} from 'node:crypto';
 import {AssertionError} from 'node:assert';
 import pg,{type PoolClient} from 'pg';
 import {assertDeploymentSchemaReady} from '../storage/compatibility.js';
@@ -198,6 +198,32 @@ async function replayPaperCloseConvert(db:PoolClient,model:PaperCloseConvertMode
  return {profileIds,costs,rebuilt};
 }
 
+/** Runtime env keys that only select an RPC endpoint. A paper campaign's runtime
+ * identity binds the whole env file hash; adoption may cross a change limited
+ * to these keys when both env files reproduce their recorded hashes. */
+export const RUNTIME_ENDPOINT_ENV_KEYS=['PAPER_FORK_RPC_URL','ROBINHOOD_READ_HTTP_URL'] as const;
+/** Same digest as the sealed launcher's CONC_LIQ_RUNTIME_IDENTITY.configHash. */
+export const runtimeEnvConfigHash=(env:Readonly<Record<string,string>>)=>createHash('sha256').update(
+ JSON.stringify(Object.fromEntries(Object.entries(env).sort(([a],[b])=>a.localeCompare(b,'en'))))).digest('hex');
+export type RuntimeEndpointEnvChange={schemaVersion:1;kind:'runtime_endpoint_env_change_v1';
+ changedKeys:string[];fromConfigHash:string;toConfigHash:string};
+/** Records key names only; endpoint values (which may carry credentials) never reach the ledger. */
+export function verifyRuntimeEndpointEnvChange(fromConfigHash:string,toConfigHash:string,
+ change:{fromEnv:Readonly<Record<string,string>>;toEnv:Readonly<Record<string,string>>}|undefined):RuntimeEndpointEnvChange|null{
+ if(!change||runtimeEnvConfigHash(change.fromEnv)!==fromConfigHash||runtimeEnvConfigHash(change.toEnv)!==toConfigHash)return null;
+ const {fromEnv,toEnv}=change,allowed:readonly string[]=RUNTIME_ENDPOINT_ENV_KEYS;
+ const changedKeys=[...new Set([...Object.keys(fromEnv),...Object.keys(toEnv)])].filter(k=>fromEnv[k]!==toEnv[k]).sort();
+ if(!changedKeys.length||changedKeys.some(k=>!allowed.includes(k)||typeof fromEnv[k]!=='string'||typeof toEnv[k]!=='string'))return null;
+ for(const k of changedKeys){try{if(!['http:','https:'].includes(new URL(toEnv[k]!).protocol))return null;}catch{return null;}}
+ return {schemaVersion:1,kind:'runtime_endpoint_env_change_v1',changedKeys,fromConfigHash,toConfigHash};
+}
+function runtimeConfigTransitionValid(from:{configHash:string},to:{configHash:string},endpointChange:unknown){
+ if(from.configHash===to.configHash)return endpointChange===undefined;
+ const c=endpointChange as Partial<RuntimeEndpointEnvChange>|undefined,allowed:readonly string[]=RUNTIME_ENDPOINT_ENV_KEYS;
+ return !!c&&c.schemaVersion===1&&c.kind==='runtime_endpoint_env_change_v1'&&c.fromConfigHash===from.configHash&&
+  c.toConfigHash===to.configHash&&Array.isArray(c.changedKeys)&&c.changedKeys.length>0&&
+  new Set(c.changedKeys).size===c.changedKeys.length&&c.changedKeys.every(k=>allowed.includes(k));
+}
 async function campaignEffectiveRuntimeIdentity(db:PoolClient,campaignId:string,stored:unknown){
  const parsed=sealedRuntimeIdentitySchema.safeParse(stored);
  if(!parsed.success)return null;
@@ -217,8 +243,8 @@ async function campaignEffectiveRuntimeIdentity(db:PoolClient,campaignId:string,
    !body||typeof body!=='object'||(body as Record<string,unknown>).kind!==
     'rangekeeper_paper_runtime_adoption_v1'||
    !from.success||!to.success||fromHash!==contentHash(from.data)||toHash!==contentHash(to.data)||
-   from.data.configHash!==to.data.configHash||from.data.nodeVersion!==to.data.nodeVersion||
-   contentHash(from.data)!==contentHash(expected))return null;
+   !runtimeConfigTransitionValid(from.data,to.data,(body as Record<string,unknown>).endpointChange)||
+   from.data.nodeVersion!==to.data.nodeVersion||contentHash(from.data)!==contentHash(expected))return null;
   expected=to.data;
  }
  const final=sealedRuntimeIdentitySchema.safeParse(expected);
@@ -2280,13 +2306,17 @@ export class DeploymentStore {
   fromRuntimeIdentity:unknown;toRuntimeIdentity:unknown;expectedLatestMark:{id:string;markHash:string;
    source:{block:string;hash:string;timestamp:number}};releaseProof:unknown;compatibilityProof:unknown;
   verifyPinnedRelease:(identity:ReturnType<typeof sealedRuntimeIdentitySchema.parse>,proof:unknown)=>Promise<void>;
-  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>}){
+  verifyAnchors:(chainId:number,sources:readonly PaperCanonicalAnchor[])=>Promise<void>;
+  endpointChange?:{fromEnv:Readonly<Record<string,string>>;toEnv:Readonly<Record<string,string>>}}){
   if(!/^[a-z][a-z0-9_-]{0,63}$/.test(input.actor))throw new DeploymentConflict('invalid_actor');
   const from=sealedRuntimeIdentitySchema.safeParse(input.fromRuntimeIdentity),to=sealedRuntimeIdentitySchema.safeParse(
    input.toRuntimeIdentity),current=loadRuntimeIdentity();
   if(!from.success||!to.success)
    throw new DeploymentConflict('rangekeeper_runtime_adoption_identity_invalid');
-  if(from.data.configHash!==to.data.configHash||from.data.nodeVersion!==to.data.nodeVersion)
+  // Only an RPC-endpoint-only env change, proven against both recorded hashes, may change configHash.
+  const endpointChange=from.data.configHash===to.data.configHash?undefined:
+   verifyRuntimeEndpointEnvChange(from.data.configHash,to.data.configHash,input.endpointChange)??null;
+  if(endpointChange===null||from.data.nodeVersion!==to.data.nodeVersion)
    throw new DeploymentConflict('rangekeeper_runtime_adoption_changes_config_or_node');
   const compatibility=z.object({schemaVersion:z.literal(1),kind:z.literal('rangekeeper_paper_runtime_compatibility_v1'),
    fromBuildId:z.string().regex(/^[a-f0-9]{64}$/),toBuildId:z.string().regex(/^[a-f0-9]{64}$/),
@@ -2335,7 +2365,8 @@ export class DeploymentStore {
     revision:row.revision,fromRuntimeIdentity:from.data,toRuntimeIdentity:to.data,
     fromIdentityHash:contentHash(from.data),toIdentityHash:contentHash(to.data),
     configHash:row.config_hash,profileHash:row.profile_hash,
-    latestMark:input.expectedLatestMark,releaseProof:input.releaseProof,compatibilityProof:compatibility.data};
+    latestMark:input.expectedLatestMark,releaseProof:input.releaseProof,compatibilityProof:compatibility.data,
+    ...(endpointChange?{endpointChange}:{})};
    const adoptionHash=contentHash(body),entryKey=`rangekeeper_runtime_adoption:${adoptionHash}`;
    const existing=(await db.query<{source:Record<string,unknown>}>(`SELECT source FROM deployment_ledger
     WHERE campaign_id=$1 AND entry_key=$2`,[input.campaignId,entryKey])).rows[0];
