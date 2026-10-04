@@ -18,6 +18,10 @@ import {randomUUID} from 'node:crypto';
 import {rangeKeeperLiveSetupPreflightInput} from '../../src/deployments/rangekeeper-live-setup-preflight.ts';
 import {liveWalletCommitmentFingerprint} from '../../src/deployments/live-wallet-commitment-projection.ts';
 import {isRangeKeeperAwaitingReplan,isRangeKeeperRetainedExit} from '../../src/deployments/rangekeeper-live-campaign.ts';
+import {RANGEKEEPER_ALLOWANCE_POLICY,RANGEKEEPER_ALLOWANCE_CAP_MULTIPLE,assertAllowancesWithinCaps,assertWalletAllowancesInPolicy}
+ from '../../src/strategy/rangekeeper/allowance-policy.ts';
+import {buildWalletAllowanceScope,readRangeKeeperWalletAllowanceUses} from '../../src/deployments/live-wallet-allowance-scope.ts';
+import {marketProfileSchema} from '../../src/deployments/market-profile.ts';
 import {bootstrapManagementFork,UpstreamBlockedError} from './helpers/management-fork-bootstrap.mjs';
 import {createInspector,decodeBigints} from './helpers/management-fork-inspect.mjs';
 import {createManagementRuntimeFactory,createExecutionStats,createDriver,jsonSafe} from './helpers/management-fork-runtime.mjs';
@@ -68,46 +72,83 @@ const poolOf=row=>row.profile.pool;
 const kindsOf=stages=>stages.map(s=>s.kind);
 
 // ------------------------------------------------------------------------------------------ allowance policy
-/** EVERY allowance/approval-specific expectation of this qualification lives in this one helper, so WP-A's new policy can be
- * switched here without touching the scenarios. CURRENT policy (pre-WP-A): stage cleanup is wallet-wide (an exit zeroes any
- * non-zero allowance on the pool tokens/spenders it observes), so a sibling campaign's in-flight grant on a shared
- * token/router/manager pair is zeroed by another campaign's cleanup and must be re-granted. */
-const ALLOWANCE_POLICY={name:'wallet_wide_cleanup_v1',siblingCleanupZeroesOtherCampaignGrant:true};
+/** EVERY allowance/approval-specific expectation of this qualification lives in this one helper. POLICY persistent_capped_v1
+ * (src/strategy/rangekeeper/allowance-policy.ts): approvals persist between stages and are capped at CAP_MULTIPLE x the
+ * largest exposure; there is no per-stage zero cleanup; a close zeroes only the non-zero pairs no other active campaign uses
+ * (beside a same-token sibling it only withdraws; the last user withdraws and zeroes each non-zero pair). Invariant: every
+ * allowance is zero, or on a registered token+spender pair used by an active campaign, and within its cap. */
+const ALLOWANCE_POLICY={name:RANGEKEEPER_ALLOWANCE_POLICY,capMultiple:String(RANGEKEEPER_ALLOWANCE_CAP_MULTIPLE),
+ siblingExitZeroesOtherCampaignAllowance:false};
+const pairLabel=(token,spender)=>`${token}:${spender}`.toLowerCase();
 async function allowanceChecks(kind,input={}){
  const pairs=new Map();
  for(const row of [ctx.p500,ctx.p3000])for(const pair of await readAllowancePairs(ctx.local,ctx.wallet,poolOf(row)))
-  pairs.set(`${pair.token}:${pair.spender}`.toLowerCase(),{...pair,key:`${pair.token}:${pair.spender}`.toLowerCase(),label:pair.key});
+  pairs.set(pairLabel(pair.token,pair.spender),{...pair,key:pairLabel(pair.token,pair.spender),label:pair.key});
  const observed=[...pairs.values()],nonZero=observed.filter(p=>p.amount>0n);
- if(kind==='observe')return {policy:ALLOWANCE_POLICY.name,pairsChecked:observed.length,
-  nonZero:nonZero.map(p=>({key:p.key,label:p.label,amount:String(p.amount)}))};
+ const summary=rows=>rows.map(p=>({key:p.key,label:p.label,amount:String(p.amount)}));
+ if(kind==='observe')return {policy:ALLOWANCE_POLICY.name,pairsChecked:observed.length,nonZero:summary(nonZero)};
  if(kind==='all_zero'){
-  assert.equal(nonZero.length,0,`${input.when}: a stage allowance survived (${JSON.stringify(jsonSafe(nonZero.map(p=>[p.label,p.amount])))})`);
+  assert.equal(nonZero.length,0,`${input.when}: an allowance survived the last user's close (${JSON.stringify(jsonSafe(summary(nonZero)))})`);
   return {policy:ALLOWANCE_POLICY.name,pairsChecked:observed.length,allZero:true};
+ }
+ if(kind==='in_policy'){
+  const uses=await readRangeKeeperWalletAllowanceUses(ctx.db,ctx.wallet);
+  const scope=buildWalletAllowanceScope(uses,ctx.profileRows.map(r=>marketProfileSchema.parse(r.profile)));
+  assertWalletAllowancesInPolicy(observed.map(({token,spender,amount})=>({token,spender,amount})),scope);
+  // Independent cap check from the raw per-campaign exposure (not the product's own ceiling map).
+  const exposure=new Map();
+  for(const use of uses)[use.pool.token0,use.pool.token1].forEach((token,i)=>{
+   const key=token.toLowerCase(),prior=exposure.get(key)??0n;if(use.exposure[i]>prior)exposure.set(key,use.exposure[i]);});
+  for(const p of nonZero)assert(p.amount<=RANGEKEEPER_ALLOWANCE_CAP_MULTIPLE*(exposure.get(p.token.toLowerCase())??0n),
+   `${input.when}: allowance ${p.label} exceeds ${RANGEKEEPER_ALLOWANCE_CAP_MULTIPLE}x its exposure`);
+  const unusedNonZero=nonZero.filter(p=>!scope.used.has(p.key));
+  assert.equal(unusedNonZero.length,0,`${input.when}: non-zero allowance on a pair no active campaign uses`);
+  return {policy:ALLOWANCE_POLICY.name,pairsChecked:observed.length,nonZero:summary(nonZero),activeCampaigns:uses.filter(u=>u.lifecycle!=='closed').length};
  }
  if(kind==='job_cleanup_proof'){
   const final=input.stages.filter(s=>s.status==='confirmed').at(-1),proof=final?.allowance_cleanup_json;
   assert(proof&&proof.verified===true&&proof.noPendingAction===true,`${input.when}: the final stage lacks a verified cleanup proof`);
-  assert(proof.allowances.length>0&&proof.allowances.every(a=>BigInt(a.amount)===0n),`${input.when}: the cleanup proof lists a non-zero allowance`);
-  return {cleanupAllowanceIdentities:proof.allowances.length,custodyState:proof.custodyState};
+  assert.equal(proof.allowancePolicy?.kind,RANGEKEEPER_ALLOWANCE_POLICY,`${input.when}: the cleanup proof carries no ${RANGEKEEPER_ALLOWANCE_POLICY} policy`);
+  assert(proof.allowances.length>0,`${input.when}: the cleanup proof lists no allowance identity`);
+  assertAllowancesWithinCaps(proof.allowances,proof.allowancePolicy.caps);
+  if(input.expectAllZero)assert(proof.allowances.every(a=>BigInt(a.amount)===0n),`${input.when}: the last user's close left a non-zero allowance`);
+  return {cleanupAllowanceIdentities:proof.allowances.length,cappedPairs:proof.allowancePolicy.caps.length,
+   nonZeroAtCleanup:proof.allowances.filter(a=>BigInt(a.amount)>0n).length,custodyState:proof.custodyState};
  }
- if(kind==='recenter_stage_pattern'){
-  // Current policy: approvals precede the swap/mint they fund and the job ends with zero-amount cleanup approvals.
+ if(kind==='stage_pattern'){
   const plans=input.stages.filter(s=>s.status==='confirmed').map(s=>s.plan),kinds=plans.map(p=>p.kind);
-  const firstSwap=kinds.indexOf('swap'),mint=kinds.indexOf('mint'),lastNonApprove=kinds.findLastIndex(k=>k!=='approve');
-  if(input.expectSwap)assert(firstSwap>0&&kinds.slice(0,firstSwap).includes('approve'),`${input.when}: no approval precedes the swap`);
-  assert(mint>=0&&kinds.slice(0,mint).includes('approve'),`${input.when}: no approval precedes the mint`);
-  const tail=plans.slice(lastNonApprove+1);
-  assert(tail.length>=1&&tail.every(p=>p.kind==='approve'&&p.amount===0n),`${input.when}: the job does not end with zero-amount cleanup approvals`);
-  return {approveStages:kinds.filter(k=>k==='approve').length,cleanupTail:tail.length};
+  const approves=plans.filter(p=>p.kind==='approve'),core=kinds.filter(k=>k!=='approve');
+  const label=p=>`${p.token}:${p.spender}`;
+  const result={job:input.job,kinds,approvals:approves.length};
+  if(input.job==='open_fresh_wallet'){
+   assert.deepEqual(kinds,['approve','approve','approve','swap','mint'],`${input.when}: unexpected fresh-wallet open ${kinds}`);
+   assert.deepEqual(approves.map(label),['0:positionManager','1:positionManager','0:router'],`${input.when}: unexpected first approvals`);
+  }else if(input.job==='open_shared_pair'){
+   assert.deepEqual(core,['swap','mint'],`${input.when}: unexpected open ${kinds}`);
+   if(input.strict)assert.equal(approves.length,0,`${input.when}: a sibling pair open must reuse the persisted allowances`);
+   assert(approves.length<=2,`${input.when}: too many top-up approvals ${kinds}`);
+  }else if(input.job==='recenter'){
+   assert.deepEqual(core,['withdraw','swap','mint'],`${input.when}: unexpected recenter ${kinds}`);
+   assert(approves.length<=1,`${input.when}: more than one top-up approval ${kinds}`);
+  }else if(input.job==='close_beside_sibling'){
+   assert.deepEqual(kinds,['withdraw'],`${input.when}: a close beside a sibling must only withdraw ${kinds}`);
+  }else if(input.job==='close_last_user'){
+   assert.equal(kinds[0],'withdraw');
+   assert(plans.slice(1).every(p=>p.kind==='approve'&&p.amount===0n),`${input.when}: the last close does more than zero the pairs ${kinds}`);
+   assert.equal(approves.length,input.nonZeroBefore,`${input.when}: expected one zero approval per non-zero pair`);
+  }else throw Error(`Unknown stage pattern ${input.job}`);
+  // Every approval grants a positive finite amount (never the maximum sentinel); only a last-user close approves zero.
+  for(const a of approves)assert(input.job==='close_last_user'?a.amount===0n:a.amount>0n&&a.amount<(1n<<255n),`${input.when}: unexpected approval amount ${a.amount}`);
+  return {...result,approvalAmounts:approves.map(a=>`${label(a)}=${a.amount}`)};
  }
  if(kind==='sibling_probe'){
   const {before,after}=input;
-  assert(before.length>0,'The probe needs the other campaign to hold an outstanding grant');
-  const zeroed=before.every(b=>!after.some(a=>a.key===b.key&&BigInt(a.amount)>0n));
-  const result={policy:ALLOWANCE_POLICY.name,grantBefore:before.map(b=>b.label),afterSiblingCleanup:after.map(a=>a.label),
-   siblingCleanupZeroedOtherCampaignGrant:zeroed};
-  assert.equal(zeroed,ALLOWANCE_POLICY.siblingCleanupZeroesOtherCampaignGrant,
-   `Observed cross-campaign cleanup behaviour differs from policy ${ALLOWANCE_POLICY.name}: ${JSON.stringify(result)}`);
+  assert(before.length>0,'The probe needs the other campaign to hold persisted allowances');
+  const unchanged=before.every(b=>after.some(a=>a.key===b.key&&a.amount===b.amount))&&after.length===before.length;
+  const result={policy:ALLOWANCE_POLICY.name,beforeSiblingExit:before.map(b=>`${b.label}=${b.amount}`),afterSiblingExit:after.map(a=>`${a.label}=${a.amount}`),
+   siblingExitLeftOtherCampaignAllowancesUntouched:unchanged};
+  assert.equal(!unchanged,ALLOWANCE_POLICY.siblingExitZeroesOtherCampaignAllowance,
+   `Observed cross-campaign exit behaviour differs from policy ${ALLOWANCE_POLICY.name}: ${JSON.stringify(result)}`);
   return result;
  }
  throw Error(`Unknown allowance check ${kind}`);
@@ -177,21 +218,22 @@ async function verifyHolding(c,when){
  assert.equal((await inspector.allocationRow(c.campaignId)).state,'active');
  return {nft,state:s};
 }
-async function verifyOpened(c){
+async function verifyOpened(c,{job,strict=false}){
  const {nft,state}=await verifyHolding(c,`open ${c.label}`);
  assert.equal((await inspector.jobRow(c.jobId)).status,'succeeded');
  const stages=await inspector.stagesOf(c.jobId);
- assert(stages.length>=3,`Expected swap/mint/cleanup lifecycle stages, got ${kindsOf(stages)}`);
+ assert(stages.length>=2,`Expected at least swap and mint stages, got ${kindsOf(stages)}`);
  assert(stages.every(r=>r.status==='confirmed'&&r.canonical_receipt_json&&r.effect_evidence_json),'Every opening stage needs canonical receipt evidence');
  assert.equal(new Set(stages.map(r=>r.signed_raw_hash)).size,stages.length,'Opening transaction hashes must be unique');
  assert(kindsOf(stages).includes('mint'));
  assert.equal(state.economicActions,1);assert.equal(state.recenters,0);assert.deepEqual(state.retiredTokenIds,[]);
  const costs=await assertCostsAttributedOnce(c,`open ${c.label}`);
- const allowances=await allowanceChecks('all_zero',{when:`open ${c.label}`});
+ const pattern=await allowanceChecks('stage_pattern',{when:`open ${c.label}`,stages,job,strict});
+ const allowances=await allowanceChecks('in_policy',{when:`open ${c.label}`});
  const cleanup=await allowanceChecks('job_cleanup_proof',{when:`open ${c.label}`,stages});
  return {campaignId:c.campaignId,jobId:c.jobId,pool:poolOf(c.row).pool,fee:poolOf(c.row).fee,tokenId:String(state.activeTokenId),
   range:{tickLower:nft.tickLower,tickUpper:nft.tickUpper},liquidity:String(nft.liquidity),stageKinds:kindsOf(stages),
-  txCount:stages.length,...costs,allowances,cleanup};
+  txCount:stages.length,approvals:pattern.approvals,approvalAmounts:pattern.approvalAmounts,...costs,allowances,cleanup};
 }
 
 // ------------------------------------------------------------------------------------------ sibling isolation
@@ -215,7 +257,7 @@ async function checkSibling(when){
   assert.deepEqual(nft.raw,b.nft,`${when}: the sibling NFT position changed on chain`);
   const events=await inspector.eventsOf(b.campaign.campaignId,b.sequence);
   assert(events.every(e=>e.kind==='mark'),`${when}: the sibling received a non-observation event: ${events.map(e=>e.kind)}`);
-  const allowances=await allowanceChecks('all_zero',{when:`${when} (a holding sibling relies on no allowance)`});
+  const allowances=await allowanceChecks('in_policy',{when:`${when} (every allowance is zero or within policy)`});
   const entry={when,marksSinceBaseline:events.length,tokenId:b.tokenId,liquidity:nft.raw[7],allowances};
   siblingChecks.push(entry);log('sibling_checked',entry);return entry;
  }catch(error){
@@ -315,11 +357,11 @@ async function flowOpen(){
  await scenario(1,async ev=>{
   const B=await admitCampaign('B',{row:ctx.p3000,capitalQuoteRaw:'30000000'});
   await runOpenToHolding(B);
-  ev.B=await verifyOpened(B);
+  ev.B=await verifyOpened(B,{job:'open_fresh_wallet'});
   await captureSibling(B);
   const A=await admitCampaign('A',{row:ctx.p500,capitalQuoteRaw:'50000000'});
   await runOpenToHolding(A);
-  ev.A=await verifyOpened(A);
+  ev.A=await verifyOpened(A,{job:'open_shared_pair',strict:true});
   await checkSibling('after A opened');
   ev.httpAdmission={preflightPersisted:true,admission:'202',exactReplay:'200 identical result',executionEligible:false};
  });
@@ -393,12 +435,11 @@ async function flowAutomaticRecenter(){
   const stages=await inspector.stagesOf(jobId);
   assert(stages.every(r=>r.status==='confirmed'&&r.canonical_receipt_json&&r.effect_evidence_json),'A recenter stage lacks canonical receipt evidence');
   assert.equal(new Set(stages.map(r=>r.signed_raw_hash)).size,stages.length);
-  const kinds=kindsOf(stages),core=kinds.filter(k=>k!=='approve');
+  const kinds=kindsOf(stages);
   assert.equal(kinds[0],'withdraw');assert.equal(kinds.filter(k=>k==='withdraw').length,1);
-  assert.deepEqual(core,queued.payload.candidate.swap?['withdraw','swap','mint']:['withdraw','mint'],`Unexpected recenter stage order ${kinds}`);
-  const pattern=await allowanceChecks('recenter_stage_pattern',{when:'A recenter',stages,expectSwap:Boolean(queued.payload.candidate.swap)});
+  const pattern=await allowanceChecks('stage_pattern',{when:'A recenter',stages,job:'recenter'});
   const cleanup=await allowanceChecks('job_cleanup_proof',{when:'A recenter',stages});
-  const allowances=await allowanceChecks('all_zero',{when:'A recenter'});
+  const allowances=await allowanceChecks('in_policy',{when:'A recenter'});
   assert.notEqual(String(s.activeTokenId),tokenBefore,'The recenter reused the old NFT');
   newTokenId=String(s.activeTokenId);
   assert.equal(s.recenters,beforeState.recenters+1,'The campaign epoch did not advance by exactly one');
@@ -425,7 +466,7 @@ async function flowAutomaticRecenter(){
   assert.equal((await inspector.walletRow()).commitments_hash,liveWalletCommitmentFingerprint(await inspector.commitments()),'The wallet commitments fingerprint is stale');
   Object.assign(ev,{jobId,stageKinds:kinds,txCount:stages.length,oldTokenId:tokenBefore,newTokenId:String(s.activeTokenId),epoch:s.recenters,
    retiredTokenIds:s.retiredTokenIds,newRange:{tickLower:newNft.tickLower,tickUpper:newNft.tickUpper},newLiquidity:String(newNft.liquidity),
-   poolTickAfter:slot.tick,costEventsTotal:costs.costEvents,allocationHashChanged:true,allowancePattern:pattern,cleanup,allowances});
+   poolTickAfter:slot.tick,costEventsTotal:costs.costEvents,allocationHashChanged:true,approvals:pattern.approvals,approvalAmounts:pattern.approvalAmounts,cleanup,allowances});
  });
  await checkSibling('after A recenter');
  // The campaign is now at its economic-action budget (open + one recenter): the planner exits it with a retained close.
@@ -435,9 +476,9 @@ async function flowAutomaticRecenter(){
   const closeJobs=await inspector.jobsOf(A.campaignId,'close_retain');
   assert.equal(closeJobs.length,1);
   const closed=await closedCampaignChecks(A,closeJobs[0].id,{retired:[tokenBefore,newTokenId],when:'A action-budget exit'});
-  assert(kindsOf(closed.stages).every(k=>k==='withdraw'||k==='approve'),'The retained exit converted or minted');
-  await allowanceChecks('all_zero',{when:'A action-budget exit'});
-  ev.actionBudgetExit={jobId:closeJobs[0].id,idempotencyKey:closeJobs[0].idempotency_key,stageKinds:kindsOf(closed.stages),
+  const exitPattern=await allowanceChecks('stage_pattern',{when:'A action-budget exit',stages:closed.stages,job:'close_beside_sibling'});
+  await allowanceChecks('in_policy',{when:'A action-budget exit'});
+  ev.actionBudgetExit={jobId:closeJobs[0].id,idempotencyKey:closeJobs[0].idempotency_key,stageKinds:kindsOf(closed.stages),siblingsKeptAllowances:exitPattern,
    observations:observationTrail(await inspector.eventsOf(A.campaignId,exitSeq)),retiredTokenIds:closed.state.retiredTokenIds,allocationReleased:true};
  });
  await checkSibling('after A closed');
@@ -447,7 +488,7 @@ async function flowAutomaticRecenter(){
  * retained exit when a safety condition appears (the pool reentrancy lock, read from canonical slot0), then closes. */
 async function flowConversion(){
  const X=await admitCampaign('X',{row:ctx.p500,capitalQuoteRaw:'50000000'});
- await runOpenToHolding(X);await verifyOpened(X);
+ await runOpenToHolding(X);await verifyOpened(X,{job:'open_shared_pair'});
  const pool=poolOf(X.row);
  const tokenBefore=String((await inspector.campaign(X.campaignId)).state.activeTokenId);
  await scenario(4,async ev=>{
@@ -482,21 +523,24 @@ async function flowConversion(){
   const closed=await closedCampaignChecks(X,jobId,{retired:[tokenBefore],when:'X converted exit'});
   assert.equal(kindsOf(closed.stages).filter(k=>k==='withdraw').length,1,'The converted exit repeated the withdrawal');
   assert(!kindsOf(closed.stages).includes('swap')&&!kindsOf(closed.stages).includes('mint'),'The converted exit traded or minted');
-  const allowances=await allowanceChecks('all_zero',{when:'X converted exit'});
+  const exitPattern=await allowanceChecks('stage_pattern',{when:'X converted exit',stages:closed.stages,job:'close_beside_sibling'});
+  const allowances=await allowanceChecks('in_policy',{when:'X converted exit'});
   const cleanup=await allowanceChecks('job_cleanup_proof',{when:'X converted exit',stages:closed.stages});
   assert.equal((await inspector.jobRow(jobId)).status,'succeeded');
   Object.assign(ev,{conversion:{jobId,attempts,stageKinds:kindsOf(closed.stages),retired:closed.state.retiredTokenIds,allocationReleased:true,
-   condition:'pool_reentrancy_lock_read_from_slot0',lockRestored:(await readSlot0(ctx.local,pool.pool)).unlocked},drift,allowances,cleanup});
+   condition:'pool_reentrancy_lock_read_from_slot0',lockRestored:(await readSlot0(ctx.local,pool.pool)).unlocked,siblingKeptAllowances:exitPattern},drift,allowances,cleanup});
  });
  await checkSibling('after X converted');
 }
 
-/** Scenarios 3 and 5 (and the scenario-7 allowance probe): S goes stale twice after its confirmed withdraw, holding a grant
- * the second time, while the operator retains sibling B through the HTTP routes; B's exit outranks the blocked recenter and
- * its cleanup runs against the wallet-wide allowances. S then re-plans from fresh observations and completes. */
+/** Scenarios 3 and 5 (and the scenario-7 allowance probe): S goes stale after its confirmed withdraw and stays blocked while the
+ * operator retains sibling B through the HTTP routes; B's exit outranks the blocked recenter and, beside a same-token sibling,
+ * only withdraws, leaving every persisted allowance untouched. S then re-plans from fresh observations (the planner's
+ * continuity anchor was re-established after the long sibling job) and completes; its close, as the last user of the token
+ * pairs, withdraws and zeroes each non-zero pair. */
 async function flowStaleReplan(){
  const S=await admitCampaign('S',{row:ctx.p500,capitalQuoteRaw:'50000000'});
- await runOpenToHolding(S);await verifyOpened(S);
+ await runOpenToHolding(S);await verifyOpened(S,{job:'open_shared_pair'});
  const B=campaigns.B,pool=poolOf(S.row);
  const tokenBefore=String((await inspector.campaign(S.campaignId)).state.activeTokenId);
  let jobId,probeBefore=null;
@@ -506,18 +550,11 @@ async function flowStaleReplan(){
   jobId=queued.job.id;
   await driveJobUntil(jobId,'S recenter until the withdraw is confirmed',confirmedKind(jobId,'withdraw'));
   const costsAtWithdraw=(await inspector.campaign(S.campaignId)).state.costEvents.length;
-  ev.firstStale=await induceStaleCandidate(S,jobId,'S stale #1');
-  assert.equal(ev.firstStale.costEventsAtStale,costsAtWithdraw,'A stale settlement changed attributed costs');
-  ev.firstReplan=await driveToReplan(S,'S replan #1');
-  // The re-planned job resumes with an approval for the swap; it must not withdraw again.
-  await driveJobUntil(jobId,'S first approval after the re-plan',async()=>{
-   const confirmed=await inspector.confirmedStagesOf(jobId);
-   return confirmed.length>=2&&confirmed.at(-1).kind==='approve'&&confirmed.at(-1).plan.amount>0n;
-  });
-  ev.secondStale=await induceStaleCandidate(S,jobId,'S stale #2');
+  ev.stale=await induceStaleCandidate(S,jobId,'S stale');
+  assert.equal(ev.stale.costEventsAtStale,costsAtWithdraw,'A stale settlement changed attributed costs');
   probeBefore=(await allowanceChecks('observe')).nonZero;
-  assert(probeBefore.length>0,'The second stale candidate must leave an outstanding grant on chain');
-  Object.assign(ev,{drift,jobId,outstandingGrantAtSecondStale:probeBefore.map(p=>p.label)});
+  assert(probeBefore.length>0,'The wallet must hold persisted allowances while S is blocked');
+  Object.assign(ev,{drift,jobId,persistedAllowancesWhileBlocked:probeBefore.map(p=>`${p.label}=${p.amount}`)});
  });
  // Operator retain of B while S is blocked: HTTP preview, operation, exact replay, exit priority over the blocked recenter.
  const beforeS=await inspector.strategicFingerprint(S.campaignId);
@@ -539,42 +576,52 @@ async function flowStaleReplan(){
   await driver.driveUntil('B closed',async()=>(await inspector.lifecycleOf(B.campaignId))==='closed',{timeoutSec:600,tickSeconds});
   const {state:bState,stages:bStages}=await closedCampaignChecks(B,bJobId,{retired:[siblingBaseline.tokenId],when:'B operator retain'});
   assert(bStages.length>=1&&bStages.every(r=>r.status==='confirmed'),'Retain receipts are incomplete');
-  assert(bStages.every(r=>r.plan.kind==='withdraw'||r.plan.kind==='approve'&&r.plan.amount===0n),'Retain converted risky tokens or granted an allowance');
+  const pattern=await allowanceChecks('stage_pattern',{when:'B operator retain',stages:bStages,job:'close_beside_sibling'});
   assert.equal(bState.costEvents.length,(await inspector.confirmedStagesOf(B.jobId)).length+bStages.length,'Retain receipt costs were omitted or duplicated');
   const replayAfter=await post(path,input);assert.equal(replayAfter.status,200);assert.equal(replayAfter.body.jobId,bJobId,'A closed campaign retry created a new job');
+  await allowanceChecks('in_policy',{when:'after B operator retain'});
   const probe=await allowanceChecks('sibling_probe',{before:probeBefore,after:(await allowanceChecks('observe')).nonZero});
   Object.assign(ev,{previewId:input.previewId,jobId:bJobId,stageKinds:kindsOf(bStages),txCount:bStages.length,closed:true,allocationReleased:true,
-   replayBeforeCompletion:true,replayAfterClosure:true,retiredTokenIds:bState.retiredTokenIds,
+   replayBeforeCompletion:true,replayAfterClosure:true,retiredTokenIds:bState.retiredTokenIds,approvals:pattern.approvals,
    retainedExitRanAheadOfBlockedRecenter:true,blockedRecenterStageCountUnchanged:true,allowanceProbe:probe});
   evidence(7).allowanceProbe=probe;
  });
+ let nonZeroBeforeLastClose=0;
  await scenario(3,async ev=>{
   const afterS=await inspector.strategicFingerprint(S.campaignId);
   assert.deepEqual(afterS.state,beforeS.state,"The sibling's exit changed the blocked recenter's campaign state");
-  ev.secondReplan=await driveToReplan(S,'S replan #2');
+  ev.replan=await driveToReplan(S,'S replan');
   await driveJobUntil(jobId,'S recenter job completes',jobSucceeded,{timeoutSec:1500});
   const cp=await inspector.campaign(S.campaignId),s=cp.state,stages=await inspector.stagesOf(jobId);
   assert.equal(s.phase,'holding');assert(s.activeTokenId!==null);assert.notEqual(String(s.activeTokenId),tokenBefore);
   assert.equal(kindsOf(stages).filter(k=>k==='withdraw').length,1,'The confirmed withdrawal was repeated');
   assert(stages.every(r=>r.status==='confirmed'),'Every stage of the re-planned recenter needs a confirmed receipt');
-  assert.deepEqual(kindsOf(stages).filter(k=>k!=='approve'),['withdraw','swap','mint'],`Unexpected stage order after the re-plans: ${kindsOf(stages)}`);
+  const pattern=await allowanceChecks('stage_pattern',{when:'S recenter',stages,job:'recenter'});
   assert.equal(s.recenters,1);assert.deepEqual(s.retiredTokenIds,[tokenBefore]);
   assert.equal(s.candidate,null);assert.equal(s.withdrawDone,false);assert.equal(s.swapDone,false);
   const events=await inspector.eventsOf(S.campaignId,0);
-  assert.equal(events.filter(e=>e.payloadKind==='rangekeeper_live_management_replan_v1').length,2,'Expected exactly two persisted re-plans');
-  assert.equal(events.filter(e=>e.payloadKind==='rangekeeper_live_management_settle_v1'&&e.action==='replan').length,2);
+  assert.equal(events.filter(e=>e.payloadKind==='rangekeeper_live_management_replan_v1').length,1,'Expected exactly one persisted re-plan');
+  assert.equal(events.filter(e=>e.payloadKind==='rangekeeper_live_management_settle_v1'&&e.action==='replan').length,1);
   const nft=await readNft(ctx.local,pool.positionManager,s.activeTokenId);
   assert.equal(nft.owner,ctx.wallet);assert(nft.liquidity>0n);
   const costs=await assertCostsAttributedOnce(S,'S recenter');
   const cleanup=await allowanceChecks('job_cleanup_proof',{when:'S recenter',stages});
-  const allowances=await allowanceChecks('all_zero',{when:'S recenter'});
-  const approveStages=kindsOf(stages).filter(k=>k==='approve').length;
+  const allowances=await allowanceChecks('in_policy',{when:'S recenter'});
+  nonZeroBeforeLastClose=allowances.nonZero.length;
   Object.assign(ev,{stageKinds:kindsOf(stages),txCount:stages.length,newTokenId:String(s.activeTokenId),retired:s.retiredTokenIds,epoch:s.recenters,
-   withdrawStages:1,approveStages,costEvents:costs.costEvents,cleanup,allowances});
-  evidence(7).allowanceProbe={...(evidence(7).allowanceProbe??{}),otherCampaignRegranted:{approveStagesInJob:approveStages}};
+   withdrawStages:1,approvals:pattern.approvals,approvalAmounts:pattern.approvalAmounts,costEvents:costs.costEvents,cleanup,allowances});
  });
+ // S is now the last active user of the shared token/router/manager pairs: its action-budget exit withdraws and zeroes each non-zero pair.
+ const lastExitSeq=await inspector.lastSequence(S.campaignId);
  await driver.driveUntil('S action-budget safety exit closes',async()=>(await inspector.lifecycleOf(S.campaignId))==='closed',{timeoutSec:1500,tickSeconds});
- assert.equal((await inspector.allocationRow(S.campaignId)).state,'released');
+ const closeJobs=await inspector.jobsOf(S.campaignId,'close_retain');
+ assert.equal(closeJobs.length,1);
+ const lastClose=await closedCampaignChecks(S,closeJobs[0].id,{retired:[tokenBefore,String((await inspector.stateOf(S.campaignId)).state.retiredTokenIds[1])],when:'S last-user close'});
+ const lastPattern=await allowanceChecks('stage_pattern',{when:'S last-user close',stages:lastClose.stages,job:'close_last_user',nonZeroBefore:nonZeroBeforeLastClose});
+ await allowanceChecks('job_cleanup_proof',{when:'S last-user close',stages:lastClose.stages,expectAllZero:true});
+ await allowanceChecks('all_zero',{when:'S last-user close'});
+ evidence(7).lastUserClose={jobId:closeJobs[0].id,stageKinds:kindsOf(lastClose.stages),zeroApprovals:lastPattern.approvals,nonZeroBefore:nonZeroBeforeLastClose,
+  observations:observationTrail(await inspector.eventsOf(S.campaignId,lastExitSeq))};
 }
 
 async function finalChecks(){
@@ -589,7 +636,7 @@ async function finalChecks(){
   const commitments=await inspector.commitments();
   assert.equal(wallet.commitments_hash,liveWalletCommitmentFingerprint(commitments));
   assert.equal(commitments.allocations.length,0,'An allocation remains reserved after every campaign closed');
-  ev.finalAllowances=await allowanceChecks('all_zero',{when:'final'});
+  ev.finalAllowances=await allowanceChecks('all_zero',{when:'final (every campaign is closed)'});
   ev.walletTransactions=nonces.length;
   assert(ev.allowanceProbe,'The allowance probe did not run');
  });
@@ -601,7 +648,7 @@ function printPlan(){
  const flows=[['open',[1,2,3,4,5,6,7],'B (AAPL fee 3000, 30 USDG) then A (AAPL fee 500, 50 USDG): HTTP preflight + admission + replay, worker to holding'],
   ['recenter',[2,6],'drift A below its range, real planner persistence (>=300 s) and two confirmations (30-90 s apart), change_range job; lost mint publish ack + runtime rebuild + expired lease; action-budget retained exit'],
   ['conversion',[4],'open X (fee 500); stale candidate after the confirmed withdraw; pool lock read from slot0; planner converts the recenter to a retained exit; closes'],
-  ['stale',[3,5,7],'open S (fee 500); stale twice after the confirmed withdraw (second time holding a grant); operator HTTP retain of B outranks the blocked recenter and its cleanup runs wallet-wide; S re-plans and completes']];
+  ['stale',[3,5,7],'open S (fee 500); stale after the confirmed withdraw; operator HTTP retain of B outranks the blocked recenter and leaves S\'s persisted allowances untouched; S re-plans and completes; its last-user close zeroes each non-zero pair']];
  console.log(JSON.stringify({event:'rangekeeper_management_fork_plan',selectedScenarios:[...selected],tickSeconds,liquiditySharePpm,archiveEnvName,
   timeModel:'wall clock (every canonical source must be recent); expect roughly 60-90 minutes for all scenarios',
   flows:flows.filter(([,scenarios])=>scenarios.some(n=>selected.has(n))).map(([flow,scenarios,does])=>({flow,scenarios,does})),
