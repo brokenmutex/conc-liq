@@ -48,7 +48,7 @@ import {loadDashboardConfig} from '../../src/dashboard/config.ts';
 import {createRangeKeeperLiveManagementRuntime} from '../../src/deployments/rangekeeper-live-management.ts';
 import {createRangeKeeperLiveManagementObserver} from '../../src/deployments/rangekeeper-live-management-observer.ts';
 import {DEFAULT_MATRIX,DEFAULT_CONCURRENCY,describeProfile,selectProfiles,runProfileMatrix,runConcurrencyScenarios,
- refreshLocalSource,diagnoseLatestMark} from './helpers/rangekeeper-live-pool-matrix.mjs';
+ refreshLocalSource,diagnoseLatestMark,marketClosedStaleReference} from './helpers/rangekeeper-live-pool-matrix.mjs';
 import {assertAllowancePolicyAfterJob,assertAllowancePolicyAfterClose,assertOpenApprovalShapes,assertRetainStagePlans,
  assertFreshWalletAllowances,readNonzeroAllowanceKeys,probeNonzeroToNonzeroApprove,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
 
@@ -624,9 +624,13 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(positionsResponse.status,200,JSON.stringify(positionsBody));
   const holdings=positionsBody.positions.filter(position=>finalCampaignIds.includes(position.deployment?.campaignId));
   assert.equal(holdings.length,2,'Actual Positions API omitted a concurrent live campaign');
+  const projectionMarketBlocks=[];
   for(const position of holdings){
-   if(position.accounting!=='recorded')console.error(JSON.stringify({event:'live_holding_projection_diagnostic',campaignId:position.deployment?.campaignId,
-    reasons:position.reasons,mark:await diagnoseLatestMark(db,position.deployment.campaignId,decodeBigints)}));
+   if(position.accounting!=='recorded'){
+    const diagnostic=await diagnoseLatestMark(db,position.deployment.campaignId,decodeBigints);
+    console.error(JSON.stringify({event:'live_holding_projection_diagnostic',campaignId:position.deployment?.campaignId,reasons:position.reasons,mark:diagnostic}));
+    if(marketClosedStaleReference(diagnostic)){projectionMarketBlocks.push({campaignId:position.deployment.campaignId,phase:'holding',staleFlags:diagnostic.staleFlags});continue;}
+   }
    assert.equal(position.accounting,'recorded',JSON.stringify(position.reasons));
    assert([position.navQuote,position.feesQuote,position.gasQuote,position.holdQuote].every(value=>typeof value==='string'),
     `Holding economics remain unavailable: ${JSON.stringify(position)}`);
@@ -677,13 +681,23 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
    writeFileSync('/tmp/conc-liq-live-retain-terminal-diagnostic-20261003.json',
     JSON.stringify({position:detail.position,terminal},null,2).replace(/https?:\/\/[^"\s]+/g,'[redacted-url]'),{mode:0o600});
   }
-  assert.equal(detail.position.status,'closed');assert.equal(detail.position.accounting,'recorded',JSON.stringify(detail.position));
-  assert(typeof detail.position.navQuote==='string'&&typeof detail.position.gasQuote==='string','Terminal economics were not retained');
-  assert(detail.performance?.markCount>=2&&detail.performance?.rows?.some(row=>typeof row.netPnlQuote==='string'),
-   `Live history remains unavailable: ${JSON.stringify(detail.performance)}`);
+  assert.equal(detail.position.status,'closed');
+  let terminalEconomicsRecorded=true;
+  if(detail.position.accounting!=='recorded'){
+   const diagnostic=await diagnoseLatestMark(db,campaignId,decodeBigints);
+   console.error(JSON.stringify({event:'live_terminal_projection_diagnostic',reasons:detail.position.reasons,mark:diagnostic}));
+   assert(marketClosedStaleReference(diagnostic),`Terminal economics unavailable: ${JSON.stringify(detail.position.reasons)}`);
+   terminalEconomicsRecorded=false;projectionMarketBlocks.push({campaignId,phase:'closed',staleFlags:diagnostic.staleFlags});
+  }else{
+   assert.equal(detail.position.accounting,'recorded',JSON.stringify(detail.position));
+   assert(typeof detail.position.navQuote==='string'&&typeof detail.position.gasQuote==='string','Terminal economics were not retained');
+   assert(detail.performance?.markCount>=2&&detail.performance?.rows?.some(row=>typeof row.netPnlQuote==='string'),
+    `Live history remains unavailable: ${JSON.stringify(detail.performance)}`);
+  }
   retainedClosureEvidence={jobId:retained.jobId,campaignId,stageCount:retainStages.length,closeShape,closeAllowance,siblingAllocationUnchanged:true,
    replayAfterClosure:true,holdingEconomicsCount:holdings.length,terminalNavQuote:detail.position.navQuote,
-   terminalNativeWei:detail.position.inventory.nativeWei,terminalEconomicsRecorded:true};
+   terminalNativeWei:detail.position.inventory.nativeWei,terminalEconomicsRecorded,
+   projectionMarketBlocks:projectionMarketBlocks.length?projectionMarketBlocks:undefined};
   finalWalletState=await readWalletState(db,identity);
  }
  const report={event:'rangekeeper_shared_wallet_worker_fork_verified',chainId:4663,wallet,profileId:profileRow.id,
