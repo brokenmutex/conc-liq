@@ -1,6 +1,8 @@
 // Isolated PostgreSQL qualification of automatic RangeKeeper management completeness at the store, queue and
 // campaign-effect level: a full change_range lifecycle, stale-candidate re-planning after a confirmed withdrawal,
-// safety-exit priority and non-starvation, restart/lease recovery mid-recenter, and multi-campaign isolation.
+// safety-exit priority and non-starvation, restart/lease recovery mid-recenter, multi-campaign isolation, and the
+// persistent_capped_v1 allowance policy (no per-stage cleanup, a close never zeroes a sibling's pair, the last user's
+// close does, and every finish() proves zero-or-in-policy allowances from the real wallet allowance scope).
 //
 // The real LiveWalletQueue, worker, receipt-effect reducer, management transition/settlement/lifecycle code,
 // planner and allocation store run against the database. Only the chain is modelled: stage planning, owned-fork
@@ -22,7 +24,10 @@ import {readRangeKeeperLiveCampaign,persistRangeKeeperLiveStageAuthorizationInTr
 import {applyRangeKeeperLiveReceiptEffectInTransaction} from '../../src/deployments/rangekeeper-live-campaign-effects.ts';
 import {createRangeKeeperLiveManagementPlanner} from '../../src/deployments/rangekeeper-live-management-planner.ts';
 import {createRangeKeeperLiveWalletWorker} from '../../src/deployments/rangekeeper-live-wallet-worker.ts';
-import {createRangeKeeperLiveWalletWorkerAdapters,settleRangeKeeperLiveManagementStage} from '../../src/deployments/rangekeeper-live-queue-adapters.ts';
+import {createRangeKeeperLiveWalletWorkerAdapters,settleRangeKeeperLiveManagementStage,readRangeKeeperAllowanceScope,
+ rangeKeeperAllowanceCleanupProof} from '../../src/deployments/rangekeeper-live-queue-adapters.ts';
+import {allowancePolicyFromUses,readRangeKeeperWalletAllowanceUses} from '../../src/deployments/live-wallet-allowance-scope.ts';
+import {allowancePairKey,persistentAllowanceGrant} from '../../src/strategy/rangekeeper/allowance-policy.ts';
 import {isRangeKeeperAwaitingReplan,isRangeKeeperRetainedExit} from '../../src/deployments/rangekeeper-live-campaign.ts';
 import {liveSetupEvidenceHash} from '../../src/deployments/rangekeeper-live-setup-simulation.ts';
 import {RangeKeeperStaleCandidateError} from '../../src/strategy/rangekeeper/live-stage.ts';
@@ -150,7 +155,7 @@ try{
   const eventsOf=async c=>(await db.query(`SELECT kind,payload->>'kind' payload_kind FROM deployment_live_runtime_events WHERE campaign_id=$1 ORDER BY sequence`,[c.campaignId])).rows;
 
   // ------------------------------------------------------------ canonical-wallet model plumbing (fakes)
-  let signCalls=0,publishCalls=0,reconcileFailures=0,failNextPublish=false,holdPublishKind=null,failBoundKind=null;
+  let signCalls=0,publishCalls=0,reconcileFailures=0,failNextPublish=false,holdPublishKind=null,failBoundKind=null,tamperCaps=false;
   const forceStale=new Set(),unlocked=new Map();
   const kindOfStage=async(jobId,stage)=>(await db.query(`SELECT plan_json->>'kind' kind FROM deployment_live_stage_outbox WHERE job_id=$1 AND stage=$2`,[jobId,stage])).rows[0]?.kind;
   const walletRow=async client=>(await client.query(`SELECT generation,nonce,pending_nonce,native_balance_wei,source_block,source_hash,source_timestamp FROM deployment_live_wallets WHERE chain_id=4663 AND wallet=$1`,[wallet])).rows[0];
@@ -160,7 +165,9 @@ try{
     model.active.set(campaignId,null);out.retired=[id];out.fees={fee0:'3',fee1:'4'};}
    else if(plan.kind==='approve')model.allowances.set(`${plan.token===0?token0:token1}:${plan.spender}`,plan.amount);
    else if(plan.kind==='swap'){model.t0-=plan.amountIn;model.t1+=plan.minOut+1n;}
-   else if(plan.kind==='mint'){const id=String(model.nextNft++);model.nfts.set(id,nftOf(5_000n));model.active.set(campaignId,id);model.t0-=60n;model.t1-=60n;}
+   else if(plan.kind==='mint'){const id=String(model.nextNft++);model.nfts.set(id,nftOf(5_000n));model.active.set(campaignId,id);model.t0-=60n;model.t1-=60n;
+    // The position manager pulls through its allowance, which therefore depletes exactly like the canonical token.
+    for(const token of [token0,token1]){const key=`${token}:positionManager`,current=model.allowances.get(key)??0n;if(current>=60n)model.allowances.set(key,current-60n);}}
    return out;
   };
   const queueAdapters={
@@ -205,33 +212,48 @@ try{
      position:activeAfter?positionOf(activeAfter):null};
    },
    afterReceipt:async(client,args)=>{await applyRangeKeeperLiveReceiptEffectInTransaction(client,args);},
+   // The real wallet allowance scope (PostgreSQL) and cleanup invariant; only the chain read is modelled.
    verifyCleanup:async(client,{job,allocation,walletState})=>{
     const campaign=await readRangeKeeperLiveCampaign(client,{...walletIdentity,campaignId:job.campaignId,revision:job.revision});
     const closed=job.kind.startsWith('close_')||isRangeKeeperRetainedExit(campaign.state);
-    return {allowances:[{token:token0,spender:manager,amount:'0'}],allocationHash:allocation.allocation_hash,
+    const scope=await readRangeKeeperAllowanceScope(client,wallet,[profile],closed?job.campaignId:undefined);
+    const allowances=allowanceList().map(a=>({token:a.token,spender:a.spender,amount:String(a.amount)}));
+    const proof=rangeKeeperAllowanceCleanupProof(allowances,scope);
+    return {allowances,allowancePolicy:tamperCaps?{...proof,caps:[]}:proof,allocationHash:allocation.allocation_hash,
      source:{block:String(walletState.source_block),hash:walletState.source_hash,timestamp:Number(walletState.source_timestamp)},
      noPendingAction:true,custodyState:closed?'closed_empty':'managed'};
    },
   };
   const queue=new LiveWalletQueue(db,queueAdapters);
 
-  // Stage planning: withdraw -> approve -> swap -> mint -> cleanup (recenter); withdraw -> cleanup (exit).
+  // Stage planning under persistent_capped_v1: withdraw -> approve only if short -> swap -> mint (recenter, no cleanup);
+  // withdraw -> zero only the pairs no sibling uses (exit). The policy comes from the real wallet allowance scope.
   const nextStage=async({job})=>{
    const campaign=await campaignOf({campaignId:job.campaignId}),s=campaign.state;
+   const policy=allowancePolicyFromUses(await readRangeKeeperWalletAllowanceUses(db,wallet),job.campaignId);
+   const grant=(index,needed)=>{
+    const token=index===0?token0:token1,amount=persistentAllowanceGrant({current:model.allowances.get(`${token}:positionManager`)??0n,needed,exposure:policy.exposure[index]});
+    return amount===null?null:{kind:'approve',token:index,spender:'positionManager',amount};
+   };
+   const zeroUnused=()=>{
+    for(const [index,token] of [token0,token1].entries())
+     if((model.allowances.get(`${token}:positionManager`)??0n)>0n&&!policy.retain.has(allowancePairKey(token,manager)))
+      return {kind:'approve',token:index,spender:'positionManager',amount:0n};
+    return null;
+   };
    if(isRangeKeeperAwaitingReplan(s))return {kind:'wait',reason:'awaiting_replan'};
    if(forceStale.has(job.campaignId)&&s.phase==='recenter'&&s.withdrawDone&&!s.swapDone&&s.activeTokenId===null&&s.candidate){
     forceStale.delete(job.campaignId);throw new RangeKeeperStaleCandidateError('Current swap would leave the approved range');
    }
-   const allowed=(token,key)=>(model.allowances.get(`${token}:${key}`)??0n)>0n;
    let plan=null;
    if(s.phase==='recenter'||s.phase==='exit'){
     if(s.activeTokenId!==null)plan={kind:'withdraw',tokenId:s.activeTokenId,liquidity:model.nfts.get(String(s.activeTokenId)).liquidity,min0:0n,min1:0n,deadline:BigInt(clock+300)};
     else if(s.phase==='recenter'&&s.candidate){
-     if(!allowed(token0,'positionManager'))plan={kind:'approve',token:0,spender:'positionManager',amount:100n};
-     else if(s.candidate.swap&&!s.swapDone)plan={kind:'swap',token:0,amountIn:20n,minOut:18n,deadline:BigInt(clock+300)};
-     else plan={kind:'mint',candidate:s.candidate,deadline:BigInt(clock+300)};
-    }else if(s.phase==='exit'&&allowed(token0,'positionManager'))plan={kind:'approve',token:0,spender:'positionManager',amount:0n};
-   }else if(s.phase==='holding'&&allowed(token0,'positionManager'))plan={kind:'approve',token:0,spender:'positionManager',amount:0n};
+     plan=grant(0,100n);
+     if(!plan&&s.candidate.swap&&!s.swapDone)plan={kind:'swap',token:0,amountIn:20n,minOut:18n,deadline:BigInt(clock+300)};
+     else if(!plan)plan={kind:'mint',candidate:s.candidate,deadline:BigInt(clock+300)};
+    }else if(s.phase==='exit')plan=zeroUnused();
+   }
    if(!plan)return {kind:'complete'};
    if(failBoundKind===plan.kind){failBoundKind=null;throw Error('Stage would invade reserved exit gas');}
    const row=await walletRow(db);
@@ -383,25 +405,29 @@ try{
   // The re-planned candidate needs no swap in this fixture, so after the approval the next stage is the mint.
   r=await exec();
   assert.equal(r.jobId,jobA.jobId);assert.match(r.stage,/^approve:/,'A continues with its approval, not another withdrawal');
+  const pmAllowance=()=>model.allowances.get(`${token0}:positionManager`)??0n;
+  const aGrant=pmAllowance();
+  // The persistent cap is 5x the campaign's exposure (frozen deployment cap 1000 at price 1 -> 10^9 raw USDG), not the inventory.
+  assert.equal(aGrant,5n*10n**9n,'one capped approval, far above the 100 raw units the mint needs');
   failBoundKind='mint';
   r=await exec();assert.equal(r.status,'blocked');assert.match(r.reason,/^stage_gas_or_cost_bound_exceeded: Stage would invade reserved exit gas/);
   assert.equal((await stagesOf(jobA.jobId)).some(s=>s.plan_json.kind==='mint'),false,'a bound failure persists no stage');
   const boundJob=await jobRow(jobA.jobId);assert.equal(boundJob.status,'blocked');
   assert((await db.query(`SELECT lease_until>clock_timestamp()+interval '60 seconds' AS slow FROM deployment_live_jobs WHERE id=$1`,[jobA.jobId])).rows[0].slow,
    'a deterministic bound retries slowly instead of looping');
-  // A's blocked recenter yields to D, whose converted exit finishes first: its cleanup clears the wallet-wide allowance A had
-  // granted (cleanup is wallet-wide by design), then it closes and releases like any retained close.
-  r=await exec();assert.equal(r.jobId,jobD.jobId,'a blocked campaign does not starve another campaign');
-  assert.equal(r.status,'reconciled',JSON.stringify(r));assert.match(r.stage,/^approve:/);assert.equal((await jobRow(jobA.jobId)).status,'queued');
-  r=await exec();assert.equal(r.status,'completed',JSON.stringify(r));assert.equal(r.jobId,jobD.jobId);
+  // A's blocked recenter yields to D, whose converted exit finishes first. D's close must not clear the allowance A granted
+  // (A still uses the pair): it plans no cleanup at all, and the queue's finish() accepts the in-policy non-zero allowance.
+  r=await exec();assert.equal(r.jobId,jobD.jobId,'a blocked campaign does not starve another campaign');assert.equal(r.status,'completed',JSON.stringify(r));
+  assert.equal(pmAllowance(),aGrant,"a sibling's close never zeroes a pair another campaign uses");
+  assert.equal((await stagesOf(jobD.jobId)).filter(x=>x.plan_json.kind==='approve').length,0,'the converted exit plans no cleanup while a sibling uses the pair');
+  assert.equal((await jobRow(jobA.jobId)).status,'queued');
   assert.equal((await db.query(`SELECT lifecycle FROM deployment_campaigns WHERE id=$1`,[D.campaignId])).rows[0].lifecycle,'closed');
   assert.equal((await allocationRow(D)).state,'released','a converted recenter closes and releases like a retained close');
   assert.equal((await jobRow(jobD.jobId)).status,'succeeded');
   assert.equal((await eventsOf(D)).some(e=>e.kind==='closed'),true);
   assert.equal((await stagesOf(jobD.jobId)).filter(x=>x.plan_json.kind==='withdraw').length,1,'the converted exit never repeats D\'s withdrawal');
 
-  // ============================================================ S7: A re-grants the cleared allowance; publish loss, restart and reference outage at the mint
-  r=await exec();assert.equal(r.jobId,jobA.jobId);assert.equal(r.status,'reconciled');assert.match(r.stage,/^approve:/);
+  // ============================================================ S7: A keeps its allowance; publish loss, restart and reference outage at the mint
   holdPublishKind='mint';failNextPublish=true;
   const signedBefore=signCalls;
   r=await exec();assert.equal(r.status,'blocked',JSON.stringify(r));assert.match(r.reason,/publisher unavailable/);
@@ -418,20 +444,26 @@ try{
   assert.equal(signCalls,signedBefore+1);assert.equal(publishCalls,1,'a mined transaction is never republished');
   assert.equal((await campaignOf(A)).state.costEvents.length,costsBeforeRestart+1,'the mined mint is attributed exactly once');
   assert.equal((await campaignOf(A)).state.phase,'holding');assert.equal((await campaignOf(A)).state.activeTokenId,99n);
-  r=await exec();assert.equal(r.status,'reconciled');assert.match(r.stage,/^approve:/,'allowance cleanup completes the action');
+  assert.equal(pmAllowance(),aGrant-60n,'the mint spent exactly its pull from the persistent allowance');
+  // A tampered cleanup proof that omits the allowed pair is re-checked by finish() itself and blocks the job; the honest proof passes.
+  tamperCaps=true;
+  r=await exec();assert.equal(r.status,'blocked',JSON.stringify(r));assert.equal(r.jobId,jobA.jobId);
+  assert.match(r.reason,/no active campaign uses/,'finish() re-checks the allowed pairs independently of the adapter');
+  tamperCaps=false;
   r=await exec();assert.equal(r.status,'completed',JSON.stringify(r));assert.equal(r.jobId,jobA.jobId);
+  assert.equal(pmAllowance(),aGrant-60n,'a holding campaign keeps its allowance: no per-stage cleanup');
 
   // ============================================================ final assertions
   const aFinal=await campaignOf(A),s=aFinal.state;
   assert.equal(s.phase,'holding');assert.equal(s.activeTokenId,99n);assert.equal(s.recenters,1,'epoch advances once');assert.equal(s.economicActions,2);
   assert.deepEqual(s.retiredTokenIds,['77']);assert.equal(s.candidate,null);assert.equal(s.swapDone,false);assert.equal(s.withdrawDone,false);
-  assert.equal(s.costEvents.length,5);assert.equal(s.gasSpentWei,250n);
+  assert.equal(s.costEvents.length,3);assert.equal(s.gasSpentWei,150n);
   assert(s.costEvents.every(e=>e.gasValue===50n),'every receipt is valued from its own receipt-block references');
   assert.deepEqual(aFinal.allocation.nftTokenIds,['99']);
   assert.deepEqual((await custodyOf(A)).map(n=>[n.id,n.status]),[['77','retired_empty'],['99','active']]);
   assert.deepEqual(await liquidOf(A),{[token0]:70n,[token1]:80n},'withdraw and mint settle into the campaign allocation exactly once');
-  assert.equal(BigInt((await allocationRow(A)).native_spend_wei),750n);
-  assert.deepEqual((await stagesOf(jobA.jobId)).map(x=>x.plan_json.kind),['withdraw','approve','approve','mint','approve']);
+  assert.equal(BigInt((await allocationRow(A)).native_spend_wei),850n);
+  assert.deepEqual((await stagesOf(jobA.jobId)).map(x=>x.plan_json.kind),['withdraw','approve','mint'],'recenter: withdraw, one capped approval, mint');
   assert((await stagesOf(jobA.jobId)).every(x=>x.status==='confirmed'));
   assert.equal((await jobRow(jobA.jobId)).status,'succeeded');
   assert.equal((await db.query(`SELECT lifecycle FROM deployment_campaigns WHERE id=$1`,[A.campaignId])).rows[0].lifecycle,'active');
@@ -449,6 +481,44 @@ try{
   assert.equal(wfinal.commitmentsHash,liveWalletCommitmentFingerprint(await readCommitments(db,walletIdentity)));
   assert.equal((await real.managementObservationReady()),true);
   assert.equal((await db.query(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE status IN('prepared','signed','blocked')`)).rows[0].n,0);
+
+  // ============================================================ S8: allowances end only with their last user
+  const held=pmAllowance();assert(held>0n);
+  const scopeNow=await readRangeKeeperAllowanceScope(db,wallet,[profile]);
+  const one=(token,spender,amount)=>[{token,spender,amount:String(amount)}];
+  assert.doesNotThrow(()=>rangeKeeperAllowanceCleanupProof(one(token0,manager,held),scopeNow));
+  assert.throws(()=>rangeKeeperAllowanceCleanupProof(one(token0,manager,10n**30n),scopeNow),/above_cap/,'an allowance above its cap is a wallet-integrity block');
+  assert.throws(()=>rangeKeeperAllowanceCleanupProof(one(token0,addr(999),1n),scopeNow),/unregistered_spender/,'a spender outside the registered scope is a block');
+  // A closes while C still uses the pair: nothing is revoked and its allowance stays exactly as granted.
+  const enqueueRetain=async c=>{
+   const campaign=await campaignOf(c),source=(await readWalletState(db,walletIdentity)).source,id=model.active.get(c.campaignId);
+   const review=await recordRangeKeeperLiveManagementReview(db,{wallet:walletIdentity,campaign,operationKind:'close_retain',source,
+    snapshot:snapshotAt(source,id),references:refsAt(source),position:positionValuation(id),
+    decision:{reason:'operator_exit',observationHash:'f'.repeat(64)},candidate:null,policy:null,costs:frozenCosts(source,'200','200'),
+    expiresAt:source.timestamp+90},{buildId,verifyPinned:async()=>true});
+   assert.equal(review.status,'indicative',JSON.stringify(review));
+   return enqueueRangeKeeperLiveManagementReview({wallet:walletIdentity,campaignId:c.campaignId,previewId:review.previewId,
+    contentDigest:review.contentDigest,expectedRevision:1,idempotencyKey:`retain-${c.label}-${randomUUID()}`,expectedOperationKind:'close_retain'},deps);
+  };
+  const exitA=[{id:(await enqueueRetain(A)).jobId}];
+  r=await exec();assert.equal(r.jobId,exitA[0].id);assert.match(r.stage,/^withdraw:/);
+  r=await exec();assert.equal(r.status,'completed',JSON.stringify(r));
+  assert.deepEqual((await stagesOf(exitA[0].id)).map(x=>x.plan_json.kind),['withdraw'],'a close beside an active sibling has no cleanup stage');
+  assert.equal(pmAllowance(),held);assert.equal((await allocationRow(A)).state,'released');
+  // C is the last user: its close revokes the pair and finish() proves an empty allowed set with a zero wallet.
+  const exitC=[{id:(await enqueueRetain(C)).jobId}];
+  r=await exec();assert.equal(r.jobId,exitC[0].id);assert.match(r.stage,/^withdraw:/);
+  r=await exec();assert.equal(r.status,'reconciled',JSON.stringify(r));assert.match(r.stage,/^approve:/);
+  r=await exec();assert.equal(r.status,'completed',JSON.stringify(r));
+  const cStages=await stagesOf(exitC[0].id);
+  assert.deepEqual(cStages.map(x=>x.plan_json.kind),['withdraw','approve']);assert.equal(cStages[1].plan_json.amount.__rangekeeper_bigint_v1__,'0','the last user zeroes the pair');
+  assert.equal(pmAllowance(),0n);
+  const cleanup=(await db.query(`SELECT allowance_cleanup_json FROM deployment_live_stage_outbox WHERE job_id=$1 ORDER BY created_at DESC LIMIT 1`,[exitC[0].id])).rows[0].allowance_cleanup_json;
+  assert.equal(cleanup.verified,true);assert.deepEqual(cleanup.allowancePolicy.caps,[],'no active campaign remains: nothing may stay approved');
+  assert(cleanup.allowances.every(a=>a.amount==='0'));
+  // After the last user closed, any surviving allowance is out of policy.
+  const emptyScope=await readRangeKeeperAllowanceScope(db,wallet,[profile]);
+  assert.throws(()=>rangeKeeperAllowanceCleanupProof(one(token0,manager,1n),emptyScope),/unused_pair/);
   console.log('RangeKeeper live recenter lifecycle isolated PostgreSQL integration passed');
  }finally{await db.end();}
 }finally{await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await root.end();}
