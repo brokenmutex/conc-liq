@@ -11,6 +11,7 @@ import {readCommitments,type LiveWalletCommitments,type LiveWalletIdentity} from
 import {readLiveWalletAllocation,resolveLiveWalletAddress,type LiveWalletReview} from './live-wallet-reader.js';
 import {readCompletePositionManagerNftCustody} from './live-transfer-nft-enumeration.js';
 import type {RangeKeeperWholeWalletSnapshot} from './rangekeeper-live-wallet-reconcile.js';
+import type {WalletAllowanceScope} from '../strategy/rangekeeper/allowance-policy.js';
 
 export interface RangeKeeperLiveWalletChainResult {
  status:'available'|'unavailable'; source:RangeKeeperSource; wallet:RangeKeeperWholeWalletSnapshot|null;
@@ -36,7 +37,7 @@ export function mergeAllowanceTargetsBySpender(targets:readonly {address:string;
  * position-manager owner set must reconcile to the persisted custody ledger. */
 export async function readRangeKeeperLiveWallet(input:{client:RobinhoodClient;pool:Pool;walletAddress:unknown;
  source:RangeKeeperSource;profiles:readonly MarketProfile[];transferStore:PositionManagerTransferIndexStore;
- allowanceTargets?:readonly {address:string;label:string}[]}):Promise<RangeKeeperLiveWalletChainResult>{
+ allowanceTargets?:readonly {address:string;label:string}[];allowanceScope?:WalletAllowanceScope}):Promise<RangeKeeperLiveWalletChainResult>{
  const reasons:string[]=[];
  const wallet=resolveLiveWalletAddress(input.walletAddress);
  if(!wallet)reasons.push('server_operator_wallet_address_invalid');
@@ -80,6 +81,7 @@ export async function readRangeKeeperLiveWallet(input:{client:RobinhoodClient;po
  try{review=await readLiveWalletAllocation({walletAddress:wallet,client:input.client,source:input.source,
   profiles:input.profiles,commitments:commitmentRead,
   allowanceTargets:mergeAllowanceTargetsBySpender([...targets.values(),...(input.allowanceTargets??[])]),
+  allowanceScope:input.allowanceScope,
   readCompleteNftCustody:async request=>{
    const evidence=await readCompletePositionManagerNftCustody({...request,targetStrategyId:'rangekeeper_v1',
     store:input.transferStore,startBlock:0n});

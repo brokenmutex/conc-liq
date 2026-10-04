@@ -49,6 +49,15 @@ it('stage proofs cannot invade sibling tokens, the exit reserve or the reviewed 
   limits:{...r.config.limits,maxActionCost:1n}}},measurement),/action budget/);
 });
 
+it('a persistent allowance ceiling bounds an approval above the inventory and is bound into the request hash',()=>{
+ const {r,measurement}=fixture(),plan={kind:'approve' as const,token:0 as const,spender:'router' as const,amount:500n};
+ assert.throws(()=>buildRangeKeeperLiveStageEvidence({...r,plan},measurement),/Approval exceeds/,'inventory is 100 raw units');
+ const capped=buildRangeKeeperLiveStageEvidence({...r,plan,allowanceCeiling:[500n,500n]},measurement);
+ assert.throws(()=>buildRangeKeeperLiveStageEvidence({...r,plan:{...plan,amount:501n},allowanceCeiling:[500n,500n]},measurement),/Approval exceeds/);
+ assert.notEqual(capped.requestHash,buildRangeKeeperLiveStageEvidence({...r,plan,allowanceCeiling:[600n,600n]},measurement).requestHash,
+  'the capability is bound to the exact ceiling it was proven under');
+});
+
 it('retained close may spend exit reserve only through explicitly bound withdraw or allowance cleanup stages',()=>{
  const {r,measurement}=fixture(),allocation={...r.allocation,nativeSpendWei:100_000n,exitReserveWei:100_000n};
  assert.throws(()=>buildRangeKeeperLiveStageEvidence({...r,allocation},measurement),/exit gas/);

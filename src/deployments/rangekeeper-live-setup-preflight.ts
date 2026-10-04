@@ -10,6 +10,7 @@ import {parseRangeKeeperConfig,rangeKeeperConfigHash,type RangeKeeperConfig} fro
 import type {RangeKeeperCandidate,RangeKeeperLimits} from '../strategy/rangekeeper/domain.js';
 import {allocateRangeKeeperFunding} from '../strategy/rangekeeper/funding.js';
 import type {LiveWalletAllocationSnapshot} from './live-wallet-allocation.js';
+import type {LiveWalletReview} from './live-wallet-reader.js';
 import {liveSetupEvidenceHash,type LiveSetupSimulationRequest} from './rangekeeper-live-setup-simulation.js';
 import {rangeKeeperPinnedSemanticIdentity} from './rangekeeper-live-review-runtime.js';
 
@@ -26,6 +27,8 @@ export type RangeKeeperLiveSetupQuote=(token:0|1,amountIn:bigint)=>Promise<{
  sourceBlock:bigint;sourceHash:string}>;
 export type RangeKeeperLiveSetupSnapshot=LiveWalletAllocationSnapshot&{source:PaperOpenFrame['source'];
  status:'available'|'unavailable';canonical:boolean;nonce:string|null;
+ /** Existing wallet allowances reported by the review: zero required, or the in-policy persistent ones accepted. */
+ allowancePolicy?:LiveWalletReview['allowancePolicy'];
  nftCustody:{status:'available'|'unavailable';enumerationComplete:boolean;tokenIds:readonly string[]|null}};
 
 const ceil=(n:bigint,d:bigint)=>n===0n?0n:(n+d-1n)/d;
@@ -308,7 +311,8 @@ export async function buildRangeKeeperLiveSetupPreflight(input:RangeKeeperLiveSe
    token1:{balanceRaw:token1.balanceRaw,allocatedRaw:token1.allocatedRaw,pendingRaw:token1.pendingRaw,freeRaw:token1.availableRaw},
    native:{balanceWei:snapshot.native.balanceWei,allocatedWei:snapshot.native.allocatedWei,
     pendingWei:snapshot.native.pendingWei,exitReserveWei:snapshot.native.exitReserveWei,freeWei:snapshot.native.availableWei},
-   commitmentsHash:snapshot.commitmentsHash},
+   commitmentsHash:snapshot.commitmentsHash,
+   ...(snapshot.allowancePolicy?{allowancePolicy:snapshot.allowancePolicy}:{})},
   requirements,
   range:{tickLower:range.tickLower,tickUpper:range.tickUpper,centerTick:frame.tick,fullWidthSpacings:input.fullWidthSpacings},
   candidate:candidateOut,references:{price0:String(price0),price1:String(price1),nativePrice:String(nativePrice),

@@ -44,6 +44,8 @@ import {contentHash} from './contracts.js';
 import {applyRangeKeeperLiveReceiptEffectInTransaction} from './rangekeeper-live-campaign-effects.js';
 import {deriveRangeKeeperLiveManagementTransition,deriveRangeKeeperLiveClosedState,
  type RangeKeeperLiveManagementReviewPayload} from './rangekeeper-live-campaign.js';
+import {allowancePolicyFromUses,buildWalletAllowanceScope,readRangeKeeperWalletAllowanceUses} from './live-wallet-allowance-scope.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY,assertWalletAllowancesInPolicy,walletAllowanceCaps,type WalletAllowanceScope} from '../strategy/rangekeeper/allowance-policy.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const uint=(v:unknown)=>typeof v==='bigint'?v:BigInt(String(v));
@@ -161,6 +163,18 @@ export function assertCleanupAllowanceIdentityCoverage(expected:readonly {token:
  const expectedKeys=keys(expected),observedKeys=keys(observed);
  for(const key of expectedKeys)assert(observedKeys.has(key),`Cleanup snapshot omitted a persisted allowance identity: ${key}`);
 }
+/** Wallet allowance scope for a cleanup proof. `closingCampaignId` removes a closing campaign from the pairs still in use:
+ * whatever it leaves non-zero must then be a pair a sibling campaign still uses. */
+export async function readRangeKeeperAllowanceScope(db:Pick<PoolClient,'query'>,wallet:string,profiles:readonly MarketProfile[],
+ closingCampaignId?:string):Promise<WalletAllowanceScope>{
+ return buildWalletAllowanceScope(await readRangeKeeperWalletAllowanceUses(db,wallet),profiles,closingCampaignId);
+}
+/** Terminal allowance invariant: every observed allowance is zero or within the cap of a pair an active campaign uses. The
+ * returned allowed-pair caps are persisted with the cleanup proof so the queue re-checks them independently. */
+export function rangeKeeperAllowanceCleanupProof(allowances:readonly {token:string;spender:string;amount:string}[],scope:WalletAllowanceScope){
+ assertWalletAllowancesInPolicy(allowances.map(a=>({token:a.token,spender:a.spender,amount:BigInt(a.amount)})),scope);
+ return {kind:RANGEKEEPER_ALLOWANCE_POLICY,caps:walletAllowanceCaps(scope)};
+}
 async function walletAllowanceTargets(client:PoolClient,wallet:string,profiles:readonly MarketProfile[]){
  const rows=await client.query<any>(`SELECT r.config FROM deployment_campaigns c
   JOIN deployment_revisions r ON r.campaign_id=c.id AND r.revision=c.current_revision
@@ -172,7 +186,8 @@ async function walletAllowanceTargets(client:PoolClient,wallet:string,profiles:r
  return configuredAllowanceTargets(entries,registeredTokens);
 }
 async function assertExecutionWallet(input:{db:PoolClient;pool:Pool;client:RobinhoodClient;wallet:string;source:RangeKeeperSource;
- profiles:readonly MarketProfile[];transferStore:PositionManagerTransferIndexStore;allowanceTargets:readonly {address:`0x${string}`;label:string}[]}){
+ profiles:readonly MarketProfile[];transferStore:PositionManagerTransferIndexStore;allowanceTargets:readonly {address:`0x${string}`;label:string}[];
+ allowanceScope:WalletAllowanceScope}){
  const identity:LiveWalletIdentity={chainId:4663,address:input.wallet},state=await readWalletState(input.db,identity),
   commitments=await readCommitments(input.db,identity);
  assert(state.status==='available'&&state.source&&state.snapshotHash&&state.commitmentsHash,'Persisted wallet is not available');
@@ -225,6 +240,9 @@ async function assertExecutionWallet(input:{db:PoolClient;pool:Pool;client:Robin
   assert.equal(a.amount,amount,'Observed allowance differs from canonical stage receipt history');expected.delete(key);
  }
  assert.equal(expected.size,0,'Persisted allowance receipt scope was omitted by wallet reader');
+ // persistent_capped_v1: whatever the receipts explain must also be in policy (registered spender, a pair an active
+ // campaign uses, within its cap); anything else is a wallet-integrity block, exactly like an unexplained change.
+ assertWalletAllowancesInPolicy(observed.allowances,input.allowanceScope);
  return {state,commitments,observed};
 }
 function wholeWallet(value:any):RangeKeeperWholeWalletSnapshot{
@@ -339,8 +357,10 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
    const source:RangeKeeperSource={block:BigInt(walletStateRow.source_block),hash:walletStateRow.source_hash,
     timestamp:Number(walletStateRow.source_timestamp)};
    const registered=await profiles(client),extraAllowanceTargets=await walletAllowanceTargets(client,job.wallet,registered),
+    uses=await readRangeKeeperWalletAllowanceUses(client,job.wallet),
     observed=await assertExecutionWallet({db:client,pool:input.pool,client:input.client,wallet:job.wallet,source,
-     profiles:registered,transferStore:input.transferStore,allowanceTargets:extraAllowanceTargets});
+     profiles:registered,transferStore:input.transferStore,allowanceTargets:extraAllowanceTargets,
+     allowanceScope:buildWalletAllowanceScope(uses,registered)});
    const generation=Number(walletStateRow.generation);
    const storedWallet=await client.query<any>(`SELECT nonce,pending_nonce,native_balance_wei,source_block,source_hash,source_timestamp
     FROM deployment_live_wallets WHERE chain_id=$1 AND wallet=$2`,[4663,job.wallet.toLowerCase()]);
@@ -363,13 +383,14 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
     nativeWei:observed.observed.nativeWei,tokens:observed.observed.tokens,nftTokenIds:observed.observed.nftTokenIds,
     allowances:observed.observed.allowances}};
    const prepared=await prepareRangeKeeperLiveStageAuthorization({campaign,snapshot,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
-    references,chain,walletBefore,stage,proposedPlan:plan as any,intent,verifyReferences,exitSpendAllowed,stageRetry});
+    references,chain,walletBefore,stage,proposedPlan:plan as any,intent,verifyReferences,exitSpendAllowed,stageRetry,
+    allowancePolicy:allowancePolicyFromUses(uses,job.campaignId)});
    const cacheKey=rangeKeeperLiveCapabilityCacheKey(job.id,stage,intent,plan);
    const proof=capabilityCache.get(cacheKey);assert(proof,'Exact cached owned-fork stage capability is unavailable; derive a fresh stage proposal');
    capabilityCache.delete(cacheKey);
    return authorizeRangeKeeperLiveStage({campaign,snapshot,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
     references,chain,walletBefore,stage,proposedPlan:plan as any,intent,capability:proof,verifyReferences,
-    exitSpendAllowed,stageRetry});
+    exitSpendAllowed,stageRetry,allowancePolicy:allowancePolicyFromUses(uses,job.campaignId)});
   },
   reconcile:async(client,{job,outbox,allocation})=>{
    assert(outbox.hash,'Signed transaction hash is required for receipt reconciliation');
@@ -447,13 +468,17 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
    const identity:LiveWalletIdentity={chainId:4663,address:job.wallet};
    const campaign=await readRangeKeeperLiveCampaign(client,{...identity,campaignId:job.campaignId,revision:job.revision});
    const catalog=await profiles(client),extraAllowanceTargets=await walletAllowanceTargets(client,job.wallet,catalog);
+   const custodyState=job.kind==='close_retain'||job.kind==='close_convert'||isRangeKeeperRetainedExit(campaign.state)?'closed_empty':'managed';
+   // A closing campaign no longer uses its pool's pairs: whatever it leaves non-zero must be a sibling's still-used pair.
+   const allowanceScope=await readRangeKeeperAllowanceScope(client,job.wallet,catalog,custodyState==='closed_empty'?job.campaignId:undefined);
    assert(walletState.source_block!==undefined&&/^0x[0-9a-f]{64}$/i.test(String(walletState.source_hash))&&
     Number.isSafeInteger(Number(walletState.source_timestamp)),'Persisted wallet source is incomplete');
    const source={block:BigInt(walletState.source_block),hash:walletState.source_hash as `0x${string}`,
     timestamp:Number(walletState.source_timestamp)};
    const physical=await readRangeKeeperLiveWallet({client:input.client,pool:input.pool,walletAddress:job.wallet,
-    source,profiles:catalog,transferStore:input.transferStore,allowanceTargets:extraAllowanceTargets});
-   assert(physical.status==='available'&&physical.review&&physical.commitments,'Wallet custody is not fully reconciled');
+    source,profiles:catalog,transferStore:input.transferStore,allowanceTargets:extraAllowanceTargets,allowanceScope});
+   assert(physical.status==='available'&&physical.review&&physical.commitments,
+    `Wallet custody is not fully reconciled${physical.reasons.length?`: ${physical.reasons.slice(0,8).join(',')}`:''}`);
    const allowances=physical.review.allowances.map(a=>{
     assert(a.raw.status==='available');return {token:a.token,spender:a.spender,amount:a.raw.value};
    });
@@ -464,16 +489,16 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
    const expectedAllowances=lastEvidence?.afterWallet?.allowances;
    assert(Array.isArray(expectedAllowances),'Final canonical receipt lacks its complete allowance identity set');
    assertCleanupAllowanceIdentityCoverage(expectedAllowances,allowances);
+   const allowancePolicy=rangeKeeperAllowanceCleanupProof(allowances,allowanceScope);
    const owned=physical.commitments.nftCustody.filter(n=>n.campaignId===job.campaignId);
    const active=owned.filter(n=>n.status==='active');
-   const custodyState=job.kind==='close_retain'||job.kind==='close_convert'||isRangeKeeperRetainedExit(campaign.state)?'closed_empty':'managed';
    if(custodyState==='closed_empty')assert.equal(active.length,0,'Closed campaign still owns an active position');
    else assert(active.length===1&&campaign.allocation.nftTokenIds.includes(active[0]!.tokenId),
     'Opening campaign does not own its verified active RangeKeeper position');
    const allocationHash=String(allocationRow.allocation_hash);
    assert(/^[0-9a-f]{64}$/.test(allocationHash));
-   return {allowances,allocationHash,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
-    noPendingAction:true as const,custodyState};
+   return {allowances,allowancePolicy,allocationHash,
+    source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},noPendingAction:true as const,custodyState};
   },
   persistStageAuthorization:async(client,{job,outbox,authorized})=>{
    const campaign=await readRangeKeeperLiveCampaign(client,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision});
@@ -564,15 +589,16 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
    if(isRangeKeeperAwaitingReplan(campaign.state))return {kind:'wait' as const,reason:'awaiting_replan'};
    const source=await sourceAt(db,job.wallet),profile=marketProfileSchema.parse(campaign.profile),registered=await input.loadProfiles(db),
     parsed=registered.map(row=>marketProfileSchema.parse((row as any)?.profile??row)),
-    extra=await walletAllowanceTargets(db,job.wallet,parsed);
+    extra=await walletAllowanceTargets(db,job.wallet,parsed),uses=await readRangeKeeperWalletAllowanceUses(db,job.wallet);
    const walletCheck=await assertExecutionWallet({db,pool:input.pool,client:input.client,wallet:job.wallet,source,
-    profiles:parsed,transferStore:input.transferStore,allowanceTargets:extra});
+    profiles:parsed,transferStore:input.transferStore,allowanceTargets:extra,allowanceScope:buildWalletAllowanceScope(uses,parsed)});
+   const allowancePolicy=allowancePolicyFromUses(uses,job.campaignId);
    const snapshot=await new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances).snapshot(source,campaign.wallet,campaign.state.activeTokenId);
    const references=await readReferences({campaignId:job.campaignId,revision:job.revision,profile,source});
    assert(await verifyReferences(references),'Independent pinned reference verification failed');
    const strategySnapshot=deriveRangeKeeperCampaignStageSnapshot(campaign,snapshot),plan=await nextRangeKeeperStage(campaign.state,
     strategySnapshot,campaign.config,new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances),
-    {price0:references.price0,price1:references.price1});
+    {price0:references.price0,price1:references.price1},allowancePolicy);
    if(!plan)return {kind:'complete' as const};
    const stageRetry=await cancelledStageCount(db,job.id),exitSpendAllowed=job.kind==='close_retain'||isRangeKeeperRetainedExit(campaign.state);
    const stage=deriveRangeKeeperStage(plan,campaign.stateRevision,stageRetry),call=encodeRangeKeeperTx(profile.pool,campaign.wallet,plan),nonce=walletCheck.observed.nonce;
@@ -585,7 +611,7 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
     value:'0' as const,gas:'8000000',maxFeePerGas:'1',maxPriorityFeePerGas:'0',sourceBlock:String(source.block),sourceHash:source.hash};
    const prepared=await prepareRangeKeeperLiveStageAuthorization({campaign,snapshot,source:sourceText,references,chain:new RangeKeeperChain(
     input.client,profile.pool,campaign.config.zeroAllowances),walletBefore,stage,proposedPlan:plan,intent:placeholder,verifyReferences,
-    exitSpendAllowed,stageRetry});
+    exitSpendAllowed,stageRetry,allowancePolicy});
    // A router price failure for the mint is a pre-signing timing condition, not a custody or authorization fault.
    const proof=await simulateRangeKeeperLiveStage(prepared.request,{client:input.client,rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary})
     .catch(error=>{throw classifyRangeKeeperStageError(plan,error);});
