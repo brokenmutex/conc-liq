@@ -5,6 +5,7 @@ import type {MarketProfile} from './market-profile.js';
 import {marketProfileSchema} from './market-profile.js';
 import {readLiveCustodySnapshot,type PinnedCustodySource} from './live-custody-snapshot.js';
 import {allocateLiveWalletBalances,type LiveWalletCommitment,type LiveWalletAllocationSnapshot} from './live-wallet-allocation.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY,walletAllowanceViolation,type WalletAllowanceScope} from '../strategy/rangekeeper/allowance-policy.js';
 
 export type LiveWalletCommitmentRead={status:'available';rows:readonly LiveWalletCommitment[]}|{
  status:'unavailable';reasons:readonly string[];rows?:readonly LiveWalletCommitment[]};
@@ -18,6 +19,8 @@ export type LiveWalletReview={kind:'live_wallet_review';status:'available'|'unav
   nonce:{status:'available';value:string}|{status:'unavailable';reason:string};
   pendingNonce:{status:'available';value:string}|{status:'unavailable';reason:string}};
  allowances:{token:string;spender:string;label:string;raw:{status:'available';value:string}|{status:'unavailable';reason:string}}[];
+ /** `zero_required` without an allowance scope; under persistent_capped_v1 the non-zero allowances accepted as in policy. */
+ allowancePolicy:{kind:'zero_required'}|{kind:typeof RANGEKEEPER_ALLOWANCE_POLICY;accepted:{token:string;spender:string;label:string;amountRaw:string}[]};
  nftCustody:CompleteNftCustodyEvidence|null;commitmentsHash:string;allocationSnapshot:LiveWalletAllocationSnapshot;
  blockers:string[];reasons:string[];actionAvailable:false;executionEligible:false};
 
@@ -38,6 +41,8 @@ export function resolveLiveWalletAddress(configured:unknown):Address|null{
 export async function readLiveWalletAllocation(input:{walletAddress:unknown;client:RobinhoodClient;
  source:PinnedCustodySource;profiles:readonly unknown[];commitments:LiveWalletCommitmentRead;
  allowanceTargets?:readonly {address:string;label:string}[];
+ /** Shared-wallet persistent allowance scope. Absent, any non-zero allowance blocks the review. */
+ allowanceScope?:WalletAllowanceScope;
  readCompleteNftCustody?:(input:{client:RobinhoodClient;operator:Address;positionManager:Address;
   source:PinnedCustodySource})=>Promise<CompleteNftCustodyEvidence>}):Promise<LiveWalletReview>{
  const wallet=resolveLiveWalletAddress(input.walletAddress),blockers:string[]=[],reasons:string[]=[];
@@ -47,7 +52,7 @@ export async function readLiveWalletAllocation(input:{walletAddress:unknown;clie
   native:{...emptyAllocation.native,
    nonce:{status:'unavailable' as const,reason:'wallet_snapshot_unavailable'} as LiveWalletReview['native']['nonce'],
    pendingNonce:{status:'unavailable' as const,reason:'wallet_snapshot_unavailable'} as LiveWalletReview['native']['pendingNonce']},
-  allowances:[],
+  allowances:[],allowancePolicy:{kind:'zero_required' as const},
   nftCustody:null as CompleteNftCustodyEvidence|null,commitmentsHash:'',allocationSnapshot:emptyAllocation,
   tokens:[] as LiveWalletAllocationSnapshot['tokens'],
   actionAvailable:false as const,executionEligible:false as const};
@@ -123,11 +128,20 @@ export async function readLiveWalletAllocation(input:{walletAddress:unknown;clie
  base.allocationSnapshot=alloc;base.tokens=alloc.tokens;base.native={...alloc.native,nonce:snapshot.nonce,pendingNonce};
  base.commitmentsHash=alloc.commitmentsHash;blockers.push(...alloc.blockers);
  base.allowances=snapshot.allowances;
+ const accepted:{token:string;spender:string;label:string;amountRaw:string}[]=[];
  for(const allowance of snapshot.allowances){
   if(allowance.raw.status==='unavailable')blockers.push(allowance.raw.reason);
   else if(!/^(0|[1-9][0-9]*)$/.test(allowance.raw.value))blockers.push('wallet_allowance_value_malformed');
-  else if(BigInt(allowance.raw.value)!==0n)blockers.push(`wallet_preexisting_allowance_not_zero:${allowance.token.toLowerCase()}:${allowance.label}`);
+  else if(BigInt(allowance.raw.value)!==0n){
+   if(!input.allowanceScope)blockers.push(`wallet_preexisting_allowance_not_zero:${allowance.token.toLowerCase()}:${allowance.label}`);
+   else{
+    const violation=walletAllowanceViolation({token:allowance.token,spender:allowance.spender,amount:BigInt(allowance.raw.value)},input.allowanceScope);
+    if(violation)blockers.push(`wallet_allowance_${violation}:${allowance.token.toLowerCase()}:${allowance.label}`);
+    else accepted.push({token:allowance.token,spender:allowance.spender,label:allowance.label,amountRaw:allowance.raw.value});
+   }
+  }
  }
+ if(input.allowanceScope)base.allowancePolicy={kind:RANGEKEEPER_ALLOWANCE_POLICY,accepted};
  if(snapshot.nonce.status==='available'&&pendingNonce.status==='available'&&snapshot.nonce.value!==pendingNonce.value)
   blockers.push('wallet_canonical_pending_nonce_mismatch');
  if(pendingNonce.status==='unavailable')blockers.push(pendingNonce.reason);

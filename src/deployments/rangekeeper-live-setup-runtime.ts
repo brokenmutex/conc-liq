@@ -14,6 +14,8 @@ import {allocateLiveWalletBalances} from './live-wallet-allocation.js';
 import {readWalletState} from './live-wallet-store.js';
 import {liveWalletInventoryMatchesState} from './live-wallet-commitment-projection.js';
 import {readLiveWalletAllocation,resolveLiveWalletAddress,type LiveWalletReview} from './live-wallet-reader.js';
+import {buildWalletAllowanceScope,readRangeKeeperWalletAllowanceUses} from './live-wallet-allowance-scope.js';
+import type {WalletAllowanceScope} from '../strategy/rangekeeper/allowance-policy.js';
 import {readCompletePositionManagerNftCustody} from './live-transfer-nft-enumeration.js';
 import {buildRangeKeeperLiveSetupPreflight,type RangeKeeperLiveSetupPreflightInput} from './rangekeeper-live-setup-preflight.js';
 import {liveSetupEvidenceHash,simulateLiveSetupCandidate} from './rangekeeper-live-setup-simulation.js';
@@ -119,8 +121,12 @@ export function createRangeKeeperLiveSetupRuntime(deps:{store:DeploymentStore;in
     throw Error('live_wallet_allocation_anchor_changed');
   }}):
    {status:'unavailable' as const,reasons:['server_operator_wallet_address_invalid']};
+  // In-policy persistent allowances of active campaigns are accepted and reported; an unreadable scope keeps zero required.
+  let allowanceScope:WalletAllowanceScope|undefined;
+  if(wallet)try{allowanceScope=buildWalletAllowanceScope(await readRangeKeeperWalletAllowanceUses(deps.indexer,wallet),registered);}
+  catch{allowanceScope=undefined;}
   const observed=await readLiveWalletAllocation({walletAddress:wallet,client:deps.client,source,
-   profiles:registered,commitments,readCompleteNftCustody:async input=>{
+   profiles:registered,commitments,allowanceScope,readCompleteNftCustody:async input=>{
     const evidence=await readCompletePositionManagerNftCustody({...input,
      targetStrategyId:'rangekeeper_v1',store:deps.transferStore,startBlock:0n});
     if(evidence.status!=='available'||!evidence.tokenIds)return evidence;
@@ -309,6 +315,7 @@ export function createRangeKeeperLiveSetupRuntime(deps:{store:DeploymentStore;in
     const currentReview=currentObservation.review,nonce=currentReview.native.nonce;
     return {...currentReview.allocationSnapshot,status:currentReview.status,blockers:currentReview.blockers,
      source:frame.source,canonical:currentReview.source.confirmed,nonce:nonce.status==='available'?nonce.value:null,
+     allowancePolicy:currentReview.allowancePolicy,
      nftCustody:currentReview.nftCustody??{status:'unavailable' as const,enumerationComplete:false,tokenIds:null}};
    },
    readGasPrice:async()=>{const [latest,price]=await Promise.all([deps.client.getBlock(),deps.client.getGasPrice()]);

@@ -11,11 +11,11 @@ import {reconcileRangeKeeperWalletReceipt,type RangeKeeperWholeWalletSnapshot} f
 const config=parseRangeKeeperConfig(JSON.parse(readFileSync('config/rangekeeper-v1-aapl-disabled.json','utf8')));
 const pool=config.pool,operator=config.operator!,sibling='0x7000000000000000000000000000000000000001' as Address;
 const hash=(s:string)=>`0x${s.repeat(64)}` as Hex;
-function fixture(reverted=false){
- const plan={kind:'approve' as const,token:0 as const,spender:'positionManager' as const,amount:10n};
+function fixture(reverted=false,amount=10n){
+ const plan={kind:'approve' as const,token:0 as const,spender:'positionManager' as const,amount};
  const call=encodeRangeKeeperTx(pool,operator,plan);
  const allowances=[pool.token0,pool.token1].flatMap(token=>[pool.router,pool.positionManager].map(spender=>({token,spender,amount:0n})));
- const afterAllowances=allowances.map(a=>({...a,amount:!reverted&&a.token===pool.token0&&a.spender===pool.positionManager?10n:0n}));
+ const afterAllowances=allowances.map(a=>({...a,amount:!reverted&&a.token===pool.token0&&a.spender===pool.positionManager?amount:0n}));
  const start={block:100n,hash:hash('a'),timestamp:1000},end={block:101n,hash:hash('b'),timestamp:1001};
  const beforePool={source:start,operator,wallet0:100n,wallet1:50n,nativeWei:1000n,nonce:4,nftCount:0n,
   tick:0,sqrtPriceX96:1n<<96n,unlocked:true,poolLiquidity:100n,allowances,position:null} satisfies RangeKeeperSnapshot;
@@ -55,6 +55,19 @@ it('canonical wallet receipt charges only the initiating campaign and preserves 
  assert.equal(result.status,'success');assert.equal(result.gasWei,10n);assert.equal(result.nextNativeSpendWei,40n);
  assert.equal(result.nextExitReserveWei,100n);assert.deepEqual(result.nextLiquidByTokenAddress,before.liquidByTokenAddress);
  assert.deepEqual(f.input.allocation,before);assert.match(result.proofHash,/^[a-f0-9]{64}$/);
+});
+
+it('a persistent capped approval far above the campaign allocation is gas only and never sibling P&L',async()=>{
+ const f=fixture(false,10_000n),before=structuredClone(f.input.allocation),result=await reconcileRangeKeeperWalletReceipt(f.input);
+ assert.equal(result.status,'success');assert.equal(result.gasWei,10n);assert.equal(result.nextNativeSpendWei,40n,'the initiating campaign pays the approval gas');
+ assert.deepEqual(result.nextLiquidByTokenAddress,before.liquidByTokenAddress,'an allowance is not inventory: no token is attributed');
+ assert.equal(result.afterWallet.allowances.find(a=>a.token===pool.token0&&a.spender===pool.positionManager)!.amount,10_000n);
+ // The same receipt cannot also move an allowance outside this pool's token/spender pairs.
+ const other=fixture(false,10_000n),strange='0x7000000000000000000000000000000000000009' as Address;
+ const extra={token:pool.token0,spender:strange};
+ other.input.beforeWallet.allowances=[...other.input.beforeWallet.allowances,{...extra,amount:0n}];
+ other.input.afterWallet.allowances=[...other.input.afterWallet.allowances,{...extra,amount:5n}];
+ await assert.rejects(()=>reconcileRangeKeeperWalletReceipt(other.input),/Another operation allowance changed/);
 });
 
 it('canonical reverted receipts charge gas once without changing capital or NFT custody',async()=>{

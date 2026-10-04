@@ -18,6 +18,8 @@ export interface RangeKeeperLiveStageProofRequest {
  profileHash:string;allocationHash:string;config:RangeKeeperConfig;source:RangeKeeperSource;
  plan:RangeKeeperTxPlan;beforePool:RangeKeeperSnapshot;allocation:RangeKeeperWalletCampaignAllocation;
  prices:{price0:bigint;price1:bigint;nativePrice:bigint};referenceProofHash:string;futureApprovalCap?:bigint;
+ /** persistent_capped_v1: per-token raw ceiling an approval may reach (5x the initiating campaign's exposure). */
+ allowanceCeiling?:readonly [bigint,bigint];
  /** True only for a retained close whose persisted campaign state is exit/stopped/retain. */
  exitSpendAllowed?:boolean;
 }
@@ -59,7 +61,7 @@ function assertRequest(r:RangeKeeperLiveStageProofRequest){
  authorizeRangeKeeperTx(p,{operator:r.beforePool.operator,wallet0:amount0,wallet1:amount1,
   tick:r.beforePool.tick,sqrtPriceX96:r.beforePool.sqrtPriceX96,timestamp:r.source.timestamp,
   position:r.beforePool.position?{...r.beforePool.position,tokenId:r.beforePool.position.tokenId!}:null},r.plan,
-  r.config.limits.maxSlippageBps,r.config.limits.fullWidthSpacings,r.futureApprovalCap??0n);
+  r.config.limits.maxSlippageBps,r.config.limits.fullWidthSpacings,r.futureApprovalCap??0n,r.allowanceCeiling);
 }
 
 /** Evidence construction is public for auditing/tests. This alone has no

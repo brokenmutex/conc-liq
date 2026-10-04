@@ -143,6 +143,17 @@ test('live setup preflight fails closed when commitments or complete NFT custody
  assert(custody.missing.some(reason=>reason==='complete_nft_custody_unavailable'));
 });
 
+test('live setup preflight reports the in-policy persistent allowances the wallet review accepted',async()=>{
+ const f=fixture(0),input=preflightInput('00000000-0000-4000-8000-000000000001');
+ const accepted=[{token:f.profile.pool.token0,spender:f.profile.pool.router,label:'router',amountRaw:'1000'}];
+ const reported={...f.snapshot,allowancePolicy:{kind:'persistent_capped_v1' as const,accepted}};
+ const result=await buildRangeKeeperLiveSetupPreflight(input,deps(f,{readWalletSnapshot:async()=>reported}));
+ assert.equal(result.status,'indicative',JSON.stringify(result.missing));
+ assert.deepEqual((result.wallet as {allowancePolicy?:unknown}).allowancePolicy,{kind:'persistent_capped_v1',accepted});
+ const zero=await buildRangeKeeperLiveSetupPreflight(input,deps(f));
+ assert.equal('allowancePolicy' in (zero.wallet as object),false,'a snapshot without a report adds nothing to the frozen review');
+});
+
 test('live setup allocation never exceeds free inventory and reports an inventory shortfall',async()=>{
  const f=fixture(0),input=preflightInput('00000000-0000-4000-8000-000000000001');
  const small=allocateLiveWalletBalances({tokens:[

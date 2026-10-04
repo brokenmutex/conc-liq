@@ -10,6 +10,8 @@ import {authorizeRangeKeeperTx,encodeRangeKeeperTx,type RangeKeeperTxPlan} from 
 import type {RangeKeeperCandidate,RangeKeeperLimits,RangeKeeperPool} from './domain.js';
 import {mintedRangeKeeperTokenId,reconcileRangeKeeperAction} from './live-reconcile.js';
 import {nextRangeKeeperStage} from './live-stage.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY,allowanceCeiling,persistentAllowanceGrant,rangeKeeperAllowanceExposure,
+ type RangeKeeperAllowancePolicy} from './allowance-policy.js';
 import type {RangeKeeperLiveState} from './live-domain.js';
 import type {RangeKeeperConfig} from './config.js';
 import {openPaperFork} from '../../paper/fork.js';
@@ -28,7 +30,11 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
  activeTokenId:bigint|null;prices:{price0:bigint;price1:bigint};
  /** Limit a dashboard review to its campaign's liquid allocation. */
  allocation?:{amount0:bigint;amount1:bigint};
- rehearseExit?:{maxPoolDeviationPpm:number}}){
+ rehearseExit?:{maxPoolDeviationPpm:number};
+ /** Shared-wallet persistent allowances: approvals are planned only where the wallet's canonical allowance falls short,
+  * nothing is revoked between entry and exit, and the exit rehearses the final cleanup of every non-zero pair (the
+  * conservative last-user case). Absent, the legacy zero-at-rest sequence is simulated. */
+ allowancePolicy?:typeof RANGEKEEPER_ALLOWANCE_POLICY}){
  const {source,pool,limits,operator,candidate}=input;
  assert(input.rpcUrl&&input.anvilBinary&&candidate.sourceBlock<=source.block&&source.timestamp<=candidate.expiresAt);
  const port=await freePort(),url=`http://127.0.0.1:${port}`;
@@ -62,13 +68,17 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
   }
   const reserve0=allocation?current.wallet0-allocation.amount0:0n,
    reserve1=allocation?current.wallet1-allocation.amount1:0n;
+  const policy:RangeKeeperAllowancePolicy|undefined=input.allowancePolicy===RANGEKEEPER_ALLOWANCE_POLICY?{kind:RANGEKEEPER_ALLOWANCE_POLICY,
+   exposure:rangeKeeperAllowanceExposure({initial:[allocation?.amount0??current.wallet0,allocation?.amount1??current.wallet1],
+    maxDeploymentValue:limits.maxDeploymentValue,decimals:[pool.decimals0,pool.decimals1],prices:[input.prices.price0,input.prices.price1]})}:undefined;
+  const ceiling=policy?[allowanceCeiling(policy.exposure[0]),allowanceCeiling(policy.exposure[1])] as const:undefined;
   let phase:'entry'|'exit'='entry';
   const gasByStage:{kind:string;gasUsed:bigint;estimatedGas?:bigint;phase:'entry'|'exit'}[]=[];
   const send=async(plan:RangeKeeperTxPlan,futureApprovalCap=0n)=>{
    authorizeRangeKeeperTx(pool,{operator,wallet0:current.wallet0,wallet1:current.wallet1,tick:current.tick,
     sqrtPriceX96:current.sqrtPriceX96,timestamp:current.source.timestamp,
     position:current.position?{...current.position,tokenId:current.position.tokenId!}:null},plan,
-    limits.maxSlippageBps,limits.fullWidthSpacings,futureApprovalCap);
+    limits.maxSlippageBps,limits.fullWidthSpacings,futureApprovalCap,ceiling);
    const call=encodeRangeKeeperTx(pool,operator,plan);
    await client.call({account:operator,to:call.to,data:call.data});
    const estimated=await client.estimateGas({account:operator,to:call.to,data:call.data});
@@ -93,6 +103,10 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
    const tokenAddress=token===0?pool.token0:pool.token1,spenderAddress=spender==='router'?pool.router:pool.positionManager;
    const allowance=current.allowances.find(a=>same(a.token,tokenAddress)&&same(a.spender,spenderAddress));assert(allowance);
    if(allowance.amount>=amount)return;
+   if(policy){
+    await send({kind:'approve',token,spender,amount:persistentAllowanceGrant({current:allowance.amount,needed:amount,exposure:policy.exposure[token]})!},futureApprovalCap);
+    return;
+   }
    if(allowance.amount>0n)await send({kind:'approve',token,spender,amount:0n});
    await send({kind:'approve',token,spender,amount},futureApprovalCap);
   };
@@ -120,7 +134,7 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
   if(candidate.swap){
    const state={phase:'entry',candidate,swapDone:true,activeTokenId:null,reserve0,reserve1,
     reserveNativeWei:0n} as RangeKeeperLiveState;
-   const plan=await nextRangeKeeperStage(state,current,{pool,limits} as RangeKeeperConfig,chain,input.prices);
+   const plan=await nextRangeKeeperStage(state,current,{pool,limits} as RangeKeeperConfig,chain,input.prices,policy);
    assert(plan?.kind==='mint','Post-swap fork mint is infeasible or missing a preapproval');
    mintPlan=plan;
   }else{
@@ -138,14 +152,14 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
    const config={pool,limits,referencePolicy:{maxPoolDeviationPpm:input.rehearseExit.maxPoolDeviationPpm}} as RangeKeeperConfig;
    let cleaned=false;
    for(let i=0;i<8;i++){
-    const plan=await nextRangeKeeperStage(state,current,config,chain,input.prices);
+    const plan=await nextRangeKeeperStage(state,current,config,chain,input.prices,policy);
     if(!plan){cleaned=true;break;}await send(plan);
    }
    assert(cleaned,'Entry allowance cleanup did not terminate');
    state.phase='exit';phase='exit';
    let exited=false;
    for(let i=0;i<16;i++){
-    const plan=await nextRangeKeeperStage(state,current,config,chain,input.prices);
+    const plan=await nextRangeKeeperStage(state,current,config,chain,input.prices,policy);
     if(!plan){exited=true;break;}await send(plan);
     if(plan.kind==='withdraw')state.activeTokenId=null;
    }

@@ -10,6 +10,7 @@ import {liveSetupEvidenceHash} from './rangekeeper-live-setup-simulation.js';
 import {nextRangeKeeperStage} from '../strategy/rangekeeper/live-stage.js';
 import {authorizeRangeKeeperTx,encodeRangeKeeperTx} from '../strategy/rangekeeper/calldata.js';
 import {strategyBalances} from '../strategy/rangekeeper/funding.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY,allowanceCeiling,rangeKeeperAllowanceExposure,type RangeKeeperAllowancePolicy} from '../strategy/rangekeeper/allowance-policy.js';
 import {consumeRangeKeeperLiveStageProof,type RangeKeeperLiveStageProof,type RangeKeeperLiveStageProofRequest,type RangeKeeperLiveStageEvidence}
  from './rangekeeper-live-stage-proof.js';
 import type {RangeKeeperChain} from '../strategy/rangekeeper/chain.js';
@@ -181,6 +182,8 @@ export interface PrepareRangeKeeperLiveStageInput {
  walletBefore:RangeKeeperStageWalletBefore;stage:string;proposedPlan:RangeKeeperTxPlan;intent:PilotIntent;exitSpendAllowed?:boolean;
  /** Cancelled unsigned intents already recorded for this job. */
  stageRetry?:number;
+ /** Shared-wallet allowance policy with the pairs sibling campaigns still use; defaults to no retained pair. */
+ allowancePolicy?:RangeKeeperAllowancePolicy;
 }
 export interface AuthorizedRangeKeeperLiveStage {
  intent:PilotIntent;plan:RangeKeeperTxPlan;pool:RangeKeeperConfig['pool'];
@@ -190,6 +193,18 @@ export interface AuthorizedRangeKeeperLiveStage {
   prices:{price0:string;price1:string;nativePrice:string};profileId:string;revision:number;allocationId:string};
 }
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
+/** persistent_capped_v1 for one campaign. Exposure uses only immutable persisted inputs (initial allocation, deployment cap,
+ * frozen review prices), never live prices or balances, so every stage and integrity check derives the same cap. */
+export function rangeKeeperCampaignAllowancePolicy(campaign:Pick<RangeKeeperLiveCampaign,'config'|'state'|'allocation'|'reviewPayload'>,
+ retain:ReadonlySet<string>=new Set()):RangeKeeperAllowancePolicy{
+ const p=campaign.config.pool,liquid=campaign.allocation.liquidByTokenAddress,refs=(campaign.reviewPayload as any)?.references;
+ const price=(value:unknown)=>typeof value==='string'&&/^[1-9][0-9]*$/.test(value)?BigInt(value):null,
+  price0=price(refs?.price0),price1=price(refs?.price1);
+ return {kind:RANGEKEEPER_ALLOWANCE_POLICY,retain,exposure:rangeKeeperAllowanceExposure({
+  initial:campaign.state?[campaign.state.initial0,campaign.state.initial1]:[liquid[p.token0.toLowerCase()]??0n,liquid[p.token1.toLowerCase()]??0n],
+  maxDeploymentValue:campaign.config.limits.maxDeploymentValue,decimals:[p.decimals0,p.decimals1],
+  prices:price0!==null&&price1!==null?[price0,price1]:null})};
+}
 function futureApprovalCap(campaign:RangeKeeperLiveCampaign,snapshot:RangeKeeperSnapshot,plan:RangeKeeperTxPlan,prices:RangeKeeperPrices){
  const state=campaign.state;if(!state||plan.kind!=='approve'||plan.spender!=='positionManager'||!state.candidate?.swap)return 0n;
  const acquired:0|1=state.candidate.swap.token===0?1:0;if(plan.token!==acquired)return 0n;
@@ -226,8 +241,9 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
  const retainedExit=c.state.phase==='exit'&&c.state.desired==='stopped'&&c.state.exitMode==='retain';
  assert(input.exitSpendAllowed!==true||retainedExit,'Exit reserve is spendable only for a retained close');
  const exitSpendAllowed=input.exitSpendAllowed===true&&retainedExit;
+ const allowancePolicy=input.allowancePolicy??rangeKeeperCampaignAllowancePolicy(c);
  const plan=await nextRangeKeeperStage(c.state,strategySnapshot,c.config,input.chain,
-  {price0:input.references.price0,price1:input.references.price1});
+  {price0:input.references.price0,price1:input.references.price1},allowancePolicy);
  assert(plan,'No RangeKeeper stage is currently authorized');
  const stage=deriveRangeKeeperStage(plan,c.stateRevision,input.stageRetry??0);assert.equal(input.stage,stage,'Caller stage differs from derived strategy stage');
  assert(sameRangeKeeperPlan(plan,input.proposedPlan),'Caller plan differs from persisted strategy state');
@@ -237,7 +253,8 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
   buildId:String((c.reviewPayload as any)?.binding?.buildId),profileHash:c.profileHash,allocationHash:c.allocation.allocationHash,
   config:c.config,source:{block:BigInt(input.source.block),hash:input.source.hash as Hex,timestamp:input.source.timestamp},plan,beforePool:input.snapshot,
   allocation,prices:{price0:input.references.price0,price1:input.references.price1,nativePrice:input.references.nativePrice},
-  referenceProofHash:input.references.proofHash,futureApprovalCap:futureApprovalCap(c,strategySnapshot,plan,input.references),exitSpendAllowed};
+  referenceProofHash:input.references.proofHash,futureApprovalCap:futureApprovalCap(c,strategySnapshot,plan,input.references),
+  allowanceCeiling:[allowanceCeiling(allowancePolicy.exposure[0]),allowanceCeiling(allowancePolicy.exposure[1])],exitSpendAllowed};
  return {stage,plan,request};
 }
 
@@ -291,7 +308,8 @@ export async function authorizeRangeKeeperLiveStage(input:PrepareRangeKeeperLive
  const semanticWallet={operator:strategySnapshot.operator,wallet0:strategySnapshot.wallet0,wallet1:strategySnapshot.wallet1,tick:strategySnapshot.tick,
   sqrtPriceX96:strategySnapshot.sqrtPriceX96,timestamp:strategySnapshot.source.timestamp,
   position:strategySnapshot.position?{...strategySnapshot.position,tokenId:strategySnapshot.position.tokenId!}:null};
- authorizeRangeKeeperTx(c.config.pool,semanticWallet,plan,c.config.limits.maxSlippageBps,c.config.limits.fullWidthSpacings,request.futureApprovalCap);
+ authorizeRangeKeeperTx(c.config.pool,semanticWallet,plan,c.config.limits.maxSlippageBps,c.config.limits.fullWidthSpacings,
+  request.futureApprovalCap,request.allowanceCeiling);
  const allocation={campaignId:c.id,liquidByTokenAddress:c.allocation.liquidByTokenAddress,nativeSpendWei:c.allocation.nativeSpendWei,
   exitReserveWei:c.allocation.exitReserveWei,nftTokenIds:c.allocation.nftTokenIds};
  const before={...input.walletBefore,snapshot:input.snapshot,allocation};

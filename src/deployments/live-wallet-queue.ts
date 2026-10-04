@@ -7,6 +7,7 @@ import {applyWalletSnapshotInTransaction,readCommitments,readReview,withLiveWall
 import {liveWalletCommitmentFingerprint} from './live-wallet-commitment-projection.js';
 import {pilotIntentSchema,verifyPilotSignature,type PilotIntent} from '../live-pilot/journal.js';
 import {parseRangeKeeperJson,rangeKeeperJson} from '../strategy/rangekeeper/live-domain.js';
+import {assertAllowancesWithinCaps,RANGEKEEPER_ALLOWANCE_POLICY} from '../strategy/rangekeeper/allowance-policy.js';
 
 export type LiveJobKind='open'|'pause'|'resume'|'change_range'|'close_retain'|'close_convert';
 export type LiveJobStatus='queued'|'preflighting'|'executing'|'confirming'|'reconciling'|'succeeded'|'rejected'|'blocked'|'cancelled';
@@ -32,8 +33,11 @@ export interface LiveWalletQueueAdapters {
  reconcile:(client:PoolClient,input:{job:LiveJob;outbox:LiveOutbox;allocation:unknown;walletState:unknown})=>Promise<VerifiedQueueReceipt>;
  /** Apply campaign state/cost effects in the receipt's allocation transaction. */
  afterReceipt?:(client:PoolClient,input:{job:LiveJob;outbox:LiveOutbox;verified:VerifiedQueueReceipt})=>Promise<void>;
- /** Must reread canonical allowances/source and prove terminal operation custody; never trust caller fields. */
- verifyCleanup:(client:PoolClient,input:{job:LiveJob;allocation:unknown;walletState:unknown})=>Promise<{allowances:{token:string;spender:string;amount:string}[];allocationHash:string;source:{block:string;hash:string;timestamp:number};noPendingAction:true;custodyState:'managed'|'closed_empty'}>;
+ /** Must reread canonical allowances/source and prove terminal operation custody; never trust caller fields.
+  * Under persistent_capped_v1 the proof also carries the allowed pairs and their caps; without it every allowance must be zero. */
+ verifyCleanup:(client:PoolClient,input:{job:LiveJob;allocation:unknown;walletState:unknown})=>Promise<{allowances:{token:string;spender:string;amount:string}[];
+  allowancePolicy?:{kind:typeof RANGEKEEPER_ALLOWANCE_POLICY;caps:{token:string;spender:string;cap:string}[]};
+  allocationHash:string;source:{block:string;hash:string;timestamp:number};noPendingAction:true;custodyState:'managed'|'closed_empty'}>;
 }
 const terminal=new Set<LiveJobStatus>(['succeeded','rejected','blocked','cancelled']);
 const lower=(s:string)=>s.toLowerCase();
@@ -407,7 +411,10 @@ export class LiveWalletQueue {
    const proof=await this.adapters.verifyCleanup(c,{job:current,allocation,walletState:state});
    assert(proof.noPendingAction===true&&/^[0-9a-f]{64}$/.test(proof.allocationHash)&&proof.allowances.length>0&&proof.allowances.length<=64,
     'Nonempty canonical cleanup evidence is required');
-   assert(proof.allowances.every(a=>/^(0|[1-9][0-9]*)$/.test(a.amount)&&BigInt(a.amount)===0n));
+   // Zero-at-rest, or persistent_capped_v1: every allowance is zero or within the cap of a pair an active campaign still uses.
+   if(proof.allowancePolicy===undefined)assert(proof.allowances.every(a=>/^(0|[1-9][0-9]*)$/.test(a.amount)&&BigInt(a.amount)===0n));
+   else{assert(proof.allowancePolicy.kind===RANGEKEEPER_ALLOWANCE_POLICY&&proof.allowancePolicy.caps.length<=64,'Unsupported allowance policy proof');
+    assertAllowancesWithinCaps(proof.allowances,proof.allowancePolicy.caps);}
    assert(proof.allocationHash===allocation.allocation_hash,'Cleanup allocation hash mismatch');
    assert(String(proof.source.block)===String(state.source_block)&&proof.source.hash.toLowerCase()===String(state.source_hash).toLowerCase()&&
     proof.source.timestamp===Number(state.source_timestamp),'Cleanup evidence source is not the persisted wallet source');

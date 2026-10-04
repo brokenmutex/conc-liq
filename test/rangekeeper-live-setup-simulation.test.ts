@@ -55,7 +55,9 @@ it('review confines the fork to its initial allocation and rejects a post-fork c
   runFork:async input=>{
    calls++;assert.deepEqual(input.allocation,{amount0:100_000_000n,amount1:0n});
    assert.equal(input.operator.toLowerCase(),(request.operator as Address).toLowerCase());
-   assert(input.rehearseExit);return report;
+   assert(input.rehearseExit);
+   assert.equal(input.allowancePolicy,'persistent_capped_v1','the shared wallet review simulates persistent capped allowances');
+   return report;
   }}),/source changed/);
  assert.equal(calls,1);
 });

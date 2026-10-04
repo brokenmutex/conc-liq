@@ -4,6 +4,7 @@ import {getAddress,keccak256,type Address} from 'viem';
 import type {RobinhoodClient} from '../src/client.js';
 import {marketProfileSchema} from '../src/deployments/market-profile.js';
 import {readLiveWalletAllocation,type CompleteNftCustodyEvidence} from '../src/deployments/live-wallet-reader.js';
+import type {WalletAllowanceScope} from '../src/strategy/rangekeeper/allowance-policy.js';
 
 const wallet='0x1111111111111111111111111111111111111111' as Address;
 const token0='0x2222222222222222222222222222222222222222' as Address;
@@ -121,6 +122,28 @@ test('pre-existing nonzero router or manager allowance blocks the wallet review'
  const review=await read({client:mockClient({allowance:1n})});
  assert.equal(review.status,'unavailable');
  assert(review.blockers.some(reason=>reason.startsWith('wallet_preexisting_allowance_not_zero:')));
+});
+
+test('in-policy persistent allowances of an active campaign are accepted and reported, anything else still blocks',async()=>{
+ const pair=(token:string,spender:string)=>`${token.toLowerCase()}:${spender.toLowerCase()}`;
+ const scope=(overrides:Partial<WalletAllowanceScope>={}):WalletAllowanceScope=>({tokens:new Set([token0,token1].map(a=>a.toLowerCase())),
+  spenders:new Set([router,manager].map(a=>a.toLowerCase())),
+  used:new Set([token0,token1].flatMap(t=>[router,manager].map(s=>pair(t,s)))),
+  ceiling:new Map([[token0.toLowerCase(),50n],[token1.toLowerCase(),50n]]),...overrides});
+ const accepted=await read({client:mockClient({allowance:10n}),allowanceScope:scope()});
+ assert.equal(accepted.status,'available',accepted.blockers.join(','));
+ assert.equal(accepted.allowancePolicy.kind,'persistent_capped_v1');
+ assert.equal(accepted.allowancePolicy.kind==='persistent_capped_v1'&&accepted.allowancePolicy.accepted.length,4);
+ assert(accepted.allowancePolicy.kind==='persistent_capped_v1'&&accepted.allowancePolicy.accepted.every(a=>a.amountRaw==='10'));
+ const above=await read({client:mockClient({allowance:51n}),allowanceScope:scope()});
+ assert.equal(above.status,'unavailable');assert(above.blockers.some(b=>b.startsWith('wallet_allowance_above_cap:')));
+ const unused=await read({client:mockClient({allowance:1n}),allowanceScope:scope({used:new Set()})});
+ assert(unused.blockers.some(b=>b.startsWith('wallet_allowance_unused_pair:')),'a pair no active campaign uses stays blocked');
+ const stranger=await read({client:mockClient({allowance:1n}),allowanceScope:scope({spenders:new Set()})});
+ assert(stranger.blockers.some(b=>b.startsWith('wallet_allowance_unregistered_spender:')));
+ const zero=await read({client:mockClient({allowance:0n}),allowanceScope:scope({used:new Set()})});
+ assert.equal(zero.status,'available','zero is always in policy');
+ assert.equal((await read()).allowancePolicy.kind,'zero_required','without a scope the review keeps requiring zero');
 });
 
 test('source reorganization during inventory reads makes the review unavailable',async()=>{

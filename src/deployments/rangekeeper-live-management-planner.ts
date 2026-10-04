@@ -18,6 +18,7 @@ import {RangeKeeperChain,type RangeKeeperSource} from '../strategy/rangekeeper/c
 import {planRangeKeeper} from '../strategy/rangekeeper/planner.js';
 import type {RangeKeeperCandidate,RangeKeeperDecision,RangeKeeperLimits,RangeKeeperObservation,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import {simulateRangeKeeperCandidate} from '../strategy/rangekeeper/fork-simulator.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY} from '../strategy/rangekeeper/allowance-policy.js';
 
 const ceil=(a:bigint,b:bigint)=>a===0n?0n:(a+b-1n)/b;
 const min=(a:bigint,b:bigint)=>a<b?a:b;
@@ -244,7 +245,7 @@ export function createRangeKeeperLiveManagementPlanner(input:RangeKeeperLiveMana
      prices:{price0:observation.references.price0,price1:observation.references.price1},
      allocation:{amount0:min(observation.snapshot.wallet0,campaign.allocation.liquidByTokenAddress[profile.pool.token0.toLowerCase()]!),
       amount1:min(observation.snapshot.wallet1,campaign.allocation.liquidByTokenAddress[profile.pool.token1.toLowerCase()]!)},
-     rehearseExit:{maxPoolDeviationPpm:profile.referencePolicy.maxPoolDeviationPpm}});
+     rehearseExit:{maxPoolDeviationPpm:profile.referencePolicy.maxPoolDeviationPpm},allowancePolicy:RANGEKEEPER_ALLOWANCE_POLICY});
     costsByCandidate.set(candidateHash,buildRangeKeeperLiveManagementForkCost({campaign,observation,candidate,report,
      baseFee:block.baseFeePerGas,marketGasPrice,replan:awaitingReplan}));
     await verifySource(source);return true;

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {deriveRangeKeeperCampaignStageSnapshot,deriveRangeKeeperLiveManagementTransition,deriveRangeKeeperStage,
+import {deriveRangeKeeperCampaignStageSnapshot,deriveRangeKeeperLiveManagementTransition,deriveRangeKeeperStage,rangeKeeperCampaignAllowancePolicy,
  type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload} from '../src/deployments/rangekeeper-live-campaign.js';
 
 test('live campaign stage keys distinguish positive approval, cleanup, and later state revisions',()=>{
@@ -9,6 +9,25 @@ test('live campaign stage keys distinguish positive approval, cleanup, and later
  const first=deriveRangeKeeperStage(positive,1),clear=deriveRangeKeeperStage(cleanup,2),later=deriveRangeKeeperStage(positive,3);
  assert(first.length<=64&&clear.length<=64&&later.length<=64);
  assert.notEqual(first,clear);assert.notEqual(first,later);assert.notEqual(clear,later);
+});
+
+test('campaign allowance policy uses only immutable persisted inputs: initial allocation, deployment cap and frozen review prices',()=>{
+ const token0='0x1111111111111111111111111111111111111111',token1='0x2222222222222222222222222222222222222222';
+ const campaign=(overrides:Record<string,unknown>={})=>({config:{pool:{token0,token1,decimals0:6,decimals1:18},
+  limits:{maxDeploymentValue:250n*10n**18n}},allocation:{liquidByTokenAddress:{[token0]:100n,[token1]:0n}},
+  reviewPayload:{references:{price0:String(10n**18n),price1:String(250n*10n**18n)}},
+  state:{initial0:300n*10n**6n,initial1:0n,reserve0:0n,reserve1:0n},...overrides}) as unknown as RangeKeeperLiveCampaign;
+ const policy=rangeKeeperCampaignAllowancePolicy(campaign());
+ assert.equal(policy.kind,'persistent_capped_v1');
+ assert.deepEqual(policy.exposure,[300n*10n**6n,10n**18n],'USDG: initial allocation; stock: $250 at the frozen price');
+ assert.equal(policy.retain?.size,0);
+ const drifted=rangeKeeperCampaignAllowancePolicy(campaign({allocation:{liquidByTokenAddress:{[token0]:1n,[token1]:99n}}}));
+ assert.deepEqual(drifted.exposure,policy.exposure,'current allocation drift never moves the cap');
+ const opening=rangeKeeperCampaignAllowancePolicy(campaign({state:null}),new Set(['a:b']));
+ assert.deepEqual(opening.exposure,[250n*10n**6n,10n**18n],'an opening campaign has only its reserved allocation and the deployment cap');
+ assert(opening.retain!.has('a:b'));
+ const unpriced=rangeKeeperCampaignAllowancePolicy(campaign({reviewPayload:{}}));
+ assert.deepEqual(unpriced.exposure,[300n*10n**6n,0n],'without frozen prices only the allocation counts');
 });
 
 test('strategy stage snapshot exposes only this campaign remaining liquid and spendable native allocation',()=>{

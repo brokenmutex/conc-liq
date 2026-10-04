@@ -16,6 +16,9 @@ const pool=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:6});
 const admin=await pool.connect(),schema=`live_queue_${randomUUID().replaceAll('-','')}`;let scoped;
 const signer=privateKeyToAccount(`0x${'1'.padStart(64,'0')}`),wallet=signer.address.toLowerCase(),token0='0x2222222222222222222222222222222222222222';
 let verifiedFixture,verifyCalls=0,effectCalls=0,failNextReconciliation=true,failFirstEffect=true;
+// The terminal allowance evidence verifyCleanup reports; finish() must accept only zero allowances or, under persistent_capped_v1, in-cap pairs.
+const spender0='0x5555555555555555555555555555555555555555';
+let cleanupAllowances=[{token:token0,spender:spender0,amount:'0'}],cleanupPolicy;
 const unavailableAdapters={authorizeStage:async(client,{job,intent,plan,allocation,walletState})=>{
  const tokens=(await client.query(`SELECT token_address,balance_raw FROM deployment_live_wallet_tokens WHERE chain_id=4663 AND wallet=$1`,[wallet])).rows;
  const allocationTokens=(await client.query(`SELECT token_address,allocated_raw FROM deployment_live_allocation_tokens WHERE allocation_id=$1`,[job.allocationId])).rows;
@@ -29,7 +32,7 @@ const unavailableAdapters={authorizeStage:async(client,{job,intent,plan,allocati
   assert(outbox.effects.afterWallet,'Complete receipt wallet after image must be durable before campaign effects');
   await client.query('INSERT INTO test_campaign_effects(job_id) VALUES($1)',[job.id]);
   if(failFirstEffect){failFirstEffect=false;throw Error('fixture campaign effect unavailable');}},
- verifyCleanup:async(_client,{job,allocation,walletState})=>({allowances:[{token:token0,spender:'0x5555555555555555555555555555555555555555',amount:'0'}],allocationHash:allocation.allocation_hash,
+ verifyCleanup:async(_client,{job,allocation,walletState})=>({allowances:cleanupAllowances,...(cleanupPolicy?{allowancePolicy:cleanupPolicy}:{}),allocationHash:allocation.allocation_hash,
   source:{block:String(walletState.source_block),hash:walletState.source_hash,timestamp:Number(walletState.source_timestamp)},noPendingAction:true,custodyState:job.kind.startsWith('close_')?'closed_empty':'managed'})};
 const queue=new LiveWalletQueue(pool,unavailableAdapters),build='a'.repeat(64),source={block:'100',hash:`0x${'b'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 try{
@@ -156,7 +159,23 @@ try{
  assert.notEqual(immediateResume?.leaseToken,recovered.leaseToken);
  await assert.rejects(()=>scopedQueue.yieldAfterConfirmedReceipt(identity,active.job.id,'open-mint-retry',recovered.leaseToken),/Lease lost|expired/);
  assert.equal((await scoped.query(`SELECT status FROM deployment_live_jobs WHERE id=$1`,[first.id])).rows[0].status,'queued');
- console.log('live wallet queue integration: wallet-wide claims, exit priority, stale lease fencing/recovery, immediate confirmed-stage lease yield, nonce uniqueness, immutable signed raw, no signed cancel, follow-on admission fail-closed, atomic revert/gas attribution and receipt replay passed');
+ // finish() cleanup invariant: zero allowances, or persistent_capped_v1 allowances within the cap of a pair an active campaign still uses.
+ const lease=immediateResume.leaseToken,finishWith=(allowances,policy)=>{cleanupAllowances=allowances;cleanupPolicy=policy;
+  return scopedQueue.finish(identity,active.job.id,lease);};
+ const live=amount=>[{token:token0,spender:spender0,amount}],caps=cap=>({kind:'persistent_capped_v1',caps:[{token:token0,spender:spender0,cap}]});
+ await assert.rejects(()=>finishWith(live('1')),assert.AssertionError,'without a persistent policy proof any non-zero allowance is refused');
+ await assert.rejects(()=>finishWith(live('1'),{kind:'persistent_capped_v1',caps:[]}),/no active campaign uses/,'an allowance left after the last user closed is refused');
+ await assert.rejects(()=>finishWith(live('101'),caps('100')),/exceeds the persistent_capped_v1 cap/,'an allowance above its cap is refused');
+ await assert.rejects(()=>finishWith(live('1'),{...caps('100'),kind:'infinite_v9'}),/Unsupported allowance policy proof/);
+ await assert.rejects(()=>finishWith([{token:token0,spender:'0x6666666666666666666666666666666666666666',amount:'1'}],caps('100')),/no active campaign uses/,
+  'a different spender than the allowed pair is refused');
+ assert.equal((await scoped.query(`SELECT status FROM deployment_live_jobs WHERE id=$1`,[active.job.id])).rows[0].status,'reconciling',
+  'a refused cleanup proof leaves the job unfinished and the wallet owned');
+ const finished=await finishWith(live('100'),caps('100'));
+ assert.equal(finished.status,'succeeded');assert.equal(finished.cleanup.allowancePolicy.caps[0].cap,'100','the allowed pair caps are persisted with the proof');
+ const stored=(await scoped.query(`SELECT allowance_cleanup_json FROM deployment_live_stage_outbox WHERE job_id=$1 AND stage='open-mint-retry'`,[active.job.id])).rows[0].allowance_cleanup_json;
+ assert.equal(stored.verified,true);assert.equal(stored.allowances[0].amount,'100');
+ console.log('live wallet queue integration: wallet-wide claims, exit priority, stale lease fencing/recovery, immediate confirmed-stage lease yield, nonce uniqueness, immutable signed raw, no signed cancel, follow-on admission fail-closed, atomic revert/gas attribution, receipt replay and the zero-or-in-cap allowance finish proof passed');
 }finally{
  try{await scoped?.end();await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);}finally{admin.release();await pool.end();}
 }

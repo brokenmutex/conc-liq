@@ -7,14 +7,19 @@ import type {RangeKeeperConfig} from './config.js';
 import type {RangeKeeperChain} from './chain.js';
 import type {RangeKeeperTxPlan} from './calldata.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from './live-domain.js';
+import {allowancePairKey,persistentAllowanceGrant,type RangeKeeperAllowancePolicy} from './allowance-policy.js';
 
 const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const haircut=(n:bigint,bps:number)=>n*(10_000n-BigInt(bps))/10_000n;
 export class RangeKeeperStaleCandidateError extends Error {}
 export class RangeKeeperMintUnavailableError extends Error {}
 
+/** Without `allowancePolicy` this is the legacy zero-at-rest planner (live CLI controller, paper sampler, fork tests).
+ * The shared live wallet passes `persistent_capped_v1`: approvals persist and are capped, there is no per-stage cleanup,
+ * and only an exit zeroes the pairs no other active campaign still uses. */
 export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKeeperSnapshot,
- config:RangeKeeperConfig,chain:RangeKeeperChain,prices:{price0:bigint;price1:bigint}):Promise<RangeKeeperTxPlan|null>{
+ config:RangeKeeperConfig,chain:RangeKeeperChain,prices:{price0:bigint;price1:bigint},
+ allowancePolicy?:RangeKeeperAllowancePolicy):Promise<RangeKeeperTxPlan|null>{
  const p=config.pool,l=config.limits;
  const funds=strategyBalances(s,{reserve0:state.reserve0,reserve1:state.reserve1,reserveNativeWei:state.reserveNativeWei});
  const token=(i:0|1)=>i===0?p.token0:p.token1;
@@ -28,9 +33,18 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   assert(needed>=0n&&needed<=cap&&cap>=available);
   const current=allowance(i,kind);
   if(current>=needed)return null;
+  if(allowancePolicy)return {kind:'approve',token:i,spender:kind,
+   amount:persistentAllowanceGrant({current,needed,exposure:allowancePolicy.exposure[i]})!};
   // Grant the current strategy inventory once, so a fresh quote that needs
   // slightly more input does not incur a reset and second approval.
   return {kind:'approve',token:i,spender:kind,amount:current>0n?0n:cap};
+ };
+ // Zero every non-zero pool pair, except those another active campaign still uses under the persistent policy.
+ const zeroUnusedAllowance=():RangeKeeperTxPlan|null=>{
+  for(const i of [0,1] as const)for(const kind of ['router','positionManager'] as const)
+   if(allowance(i,kind)>0n&&!allowancePolicy?.retain?.has(allowancePairKey(token(i),spender(kind))))
+    return {kind:'approve',token:i,spender:kind,amount:0n};
+  return null;
  };
  const deadline=BigInt(s.source.timestamp+300);
  if(state.phase==='exit'){
@@ -55,15 +69,12 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
    assert(quote.amountOut>0n&&quote.shortfallValue<=l.maxSwapShortfallValue,'Exit quote unavailable or excessive shortfall');
    return {kind:'swap',token:risky,amountIn:amount,minOut:haircut(quote.amountOut,l.maxSlippageBps),deadline};
   }
-  for(const i of [0,1] as const)for(const kind of ['router','positionManager'] as const)
-   if(allowance(i,kind)>0n)return {kind:'approve',token:i,spender:kind,amount:0n};
-  return null;
+  return zeroUnusedAllowance();
  }
  if(state.phase==='holding'){
-  // Cleanup is part of the completed economic action, never a fee harvest.
-  for(const i of [0,1] as const)for(const kind of ['router','positionManager'] as const)
-   if(allowance(i,kind)>0n)return {kind:'approve',token:i,spender:kind,amount:0n};
-  return null;
+  // Persistent policy: nothing is revoked while the campaign is alive. Legacy cleanup is part of the completed
+  // economic action, never a fee harvest.
+  return allowancePolicy?null:zeroUnusedAllowance();
  }
  if(state.phase!=='entry'&&state.phase!=='recenter')return null;
  const c=state.candidate;if(!c)return null;

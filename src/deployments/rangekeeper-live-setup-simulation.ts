@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import type {Address,Hex} from 'viem';
 import type {RobinhoodClient} from '../client.js';
 import {simulateRangeKeeperCandidate} from '../strategy/rangekeeper/fork-simulator.js';
+import {RANGEKEEPER_ALLOWANCE_POLICY} from '../strategy/rangekeeper/allowance-policy.js';
 import type {RangeKeeperCandidate,RangeKeeperLimits} from '../strategy/rangekeeper/domain.js';
 import {contentHash} from './contracts.js';
 import type {MarketProfile} from './market-profile.js';
@@ -79,7 +80,8 @@ export async function simulateLiveSetupCandidate(request:LiveSetupSimulationRequ
   operator:request.operator,candidate:request.candidate,activeTokenId:null,
   prices:request.prices,allocation:{amount0:BigInt(request.allocation.token0Raw),
    amount1:BigInt(request.allocation.token1Raw)},
-  rehearseExit:{maxPoolDeviationPpm:request.profile.referencePolicy.maxPoolDeviationPpm}});
+  rehearseExit:{maxPoolDeviationPpm:request.profile.referencePolicy.maxPoolDeviationPpm},
+  allowancePolicy:RANGEKEEPER_ALLOWANCE_POLICY});
  await verify();
  return buildLiveSetupSimulationEvidence(request,report);
 }
