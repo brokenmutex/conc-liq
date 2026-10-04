@@ -10,7 +10,8 @@
 // two-confirmation window elapse in wall-clock time because every canonical source must be recent (see helpers/chain).
 //
 // Usage: node --import tsx test/integration/rangekeeper-live-management-fork.mjs <fork-env-file>
-//   [--scenarios=1,2,3,4,5,6,7] [--archive-env=RH_ARCHIVE_RPC_URL] [--tick-seconds=20] [--liquidity-share-ppm=200000]
+//   [--scenarios=1,2,3,4,5,6,7] [--archive-env=RH_ARCHIVE_RPC_URL] [--tick-seconds=20] [--liquidity-share-ppm=200000] [--print-plan]
+// --archive-env names the env-file key that holds the read-only archive URL (a replacement endpoint can use another key).
 // Requires TEST_DATABASE_URL (disposable database; one isolated schema is created and dropped).
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
@@ -595,7 +596,20 @@ async function finalChecks(){
 }
 
 // ------------------------------------------------------------------------------------------ main
+/** `--print-plan` needs no network, database or fork: it prints what a run would do so the plan can be reviewed offline. */
+function printPlan(){
+ const flows=[['open',[1,2,3,4,5,6,7],'B (AAPL fee 3000, 30 USDG) then A (AAPL fee 500, 50 USDG): HTTP preflight + admission + replay, worker to holding'],
+  ['recenter',[2,6],'drift A below its range, real planner persistence (>=300 s) and two confirmations (30-90 s apart), change_range job; lost mint publish ack + runtime rebuild + expired lease; action-budget retained exit'],
+  ['conversion',[4],'open X (fee 500); stale candidate after the confirmed withdraw; pool lock read from slot0; planner converts the recenter to a retained exit; closes'],
+  ['stale',[3,5,7],'open S (fee 500); stale twice after the confirmed withdraw (second time holding a grant); operator HTTP retain of B outranks the blocked recenter and its cleanup runs wallet-wide; S re-plans and completes']];
+ console.log(JSON.stringify({event:'rangekeeper_management_fork_plan',selectedScenarios:[...selected],tickSeconds,liquiditySharePpm,archiveEnvName,
+  timeModel:'wall clock (every canonical source must be recent); expect roughly 60-90 minutes for all scenarios',
+  flows:flows.filter(([,scenarios])=>scenarios.some(n=>selected.has(n))).map(([flow,scenarios,does])=>({flow,scenarios,does})),
+  allowancePolicy:ALLOWANCE_POLICY,
+  safety:{signer:'throwaway key, never production',publisher:'branded owned fork only (assertOwnedPaperFork before every sign/publish)',upstream:'read-only pinned reads',database:'isolated schema in TEST_DATABASE_URL only'}},null,1));
+}
 async function main(){
+ if(args.includes('--print-plan')){printPlan();return;}
  try{
   ctx=await bootstrapManagementFork({envFile,testUrl:process.env.TEST_DATABASE_URL,archiveEnvName,buildId,log,
    operatorConfigPath:'config/rangekeeper-v1-aapl-disabled.json'});
