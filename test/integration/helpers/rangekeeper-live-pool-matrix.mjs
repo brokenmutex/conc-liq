@@ -301,6 +301,28 @@ async function verifyOpened(ctx,runtime,{campaignId,jobId,body,view,tokensBefore
   stages:receiptRows(ctx,live),cancelledStages:stages.cancelled,stageKinds:kinds,allowance,approvalShape,stageCount:live.length,costHashes};
 }
 
+/** Why a campaign's latest valuation mark is not usable by the projection: reference status, missing reasons
+ * and every stale/unfresh flag inside the stored reference proof. Diagnostic only. */
+export async function diagnoseLatestMark(db,campaignId,decode){
+ const row=(await db.query(`SELECT payload,source_block FROM deployment_live_runtime_events WHERE campaign_id=$1 AND kind='mark'
+  ORDER BY sequence DESC LIMIT 1`,[campaignId])).rows[0];
+ if(!row)return {mark:null};
+ const payload=decode(row.payload),refs=payload.referenceValuation??{},stale=[];
+ const visit=(value,path)=>{
+  if(Array.isArray(value))return value.forEach((entry,index)=>visit(entry,`${path}[${index}]`));
+  if(!value||typeof value!=='object')return;
+  for(const [key,entry] of Object.entries(value)){
+   if(key==='priceFresh'&&entry!==true||key==='fresh'&&entry===false)stale.push(`${path}.${key}=${entry}`);
+   visit(entry,`${path}.${key}`);
+  }
+ };
+ visit(refs.evidence?.referenceProof,'referenceProof');
+ return {kind:payload.kind,referenceStatus:refs.status,missing:payload.missing,referenceMissing:refs.missing,
+  hasPosition:payload.snapshot?.position!=null,positionFeeEvidenceKind:payload.positionFeeEvidence?.kind??payload.positionFeeEvidence?.status??null,
+  positionFeeMissing:payload.positionFeeEvidence?.missing,staleFlags:stale.slice(0,12),
+  proofSource:refs.source,markSource:payload.source,evidenceKind:refs.evidence?.kind};
+}
+
 /** Dashboard projections of a holding campaign (Positions API). Reported as a soft check. */
 async function checkHoldingProjection(ctx,campaignIds){
  const response=await getJson(ctx,'/api/positions');
@@ -308,7 +330,9 @@ async function checkHoldingProjection(ctx,campaignIds){
  const holdings=response.body.positions.filter(position=>campaignIds.includes(position.deployment?.campaignId));
  assert.equal(holdings.length,campaignIds.length,'Actual Positions API omitted a live campaign');
  for(const position of holdings){
-  assert.equal(position.accounting,'recorded',JSON.stringify(position));
+  if(position.accounting!=='recorded')
+   throw new Error(`Holding economics unavailable for ${position.deployment?.campaignId}: ${JSON.stringify(position.reasons)} mark=${
+    JSON.stringify(await diagnoseLatestMark(ctx.db,position.deployment.campaignId,ctx.decodeBigints))}`);
   assert([position.navQuote,position.feesQuote,position.gasQuote,position.holdQuote].every(value=>typeof value==='string'),
    `Holding economics remain unavailable: ${JSON.stringify(position)}`);
  }

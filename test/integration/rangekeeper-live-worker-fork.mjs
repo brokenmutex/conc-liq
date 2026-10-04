@@ -48,7 +48,7 @@ import {loadDashboardConfig} from '../../src/dashboard/config.ts';
 import {createRangeKeeperLiveManagementRuntime} from '../../src/deployments/rangekeeper-live-management.ts';
 import {createRangeKeeperLiveManagementObserver} from '../../src/deployments/rangekeeper-live-management-observer.ts';
 import {DEFAULT_MATRIX,DEFAULT_CONCURRENCY,describeProfile,selectProfiles,runProfileMatrix,runConcurrencyScenarios,
- refreshLocalSource} from './helpers/rangekeeper-live-pool-matrix.mjs';
+ refreshLocalSource,diagnoseLatestMark} from './helpers/rangekeeper-live-pool-matrix.mjs';
 import {assertAllowancePolicyAfterJob,assertAllowancePolicyAfterClose,assertOpenApprovalShapes,assertRetainStagePlans,
  assertFreshWalletAllowances,readNonzeroAllowanceKeys,probeNonzeroToNonzeroApprove,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
 
@@ -625,7 +625,9 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   const holdings=positionsBody.positions.filter(position=>finalCampaignIds.includes(position.deployment?.campaignId));
   assert.equal(holdings.length,2,'Actual Positions API omitted a concurrent live campaign');
   for(const position of holdings){
-   assert.equal(position.accounting,'recorded',JSON.stringify(position));
+   if(position.accounting!=='recorded')console.error(JSON.stringify({event:'live_holding_projection_diagnostic',campaignId:position.deployment?.campaignId,
+    reasons:position.reasons,mark:await diagnoseLatestMark(db,position.deployment.campaignId,decodeBigints)}));
+   assert.equal(position.accounting,'recorded',JSON.stringify(position.reasons));
    assert([position.navQuote,position.feesQuote,position.gasQuote,position.holdQuote].every(value=>typeof value==='string'),
     `Holding economics remain unavailable: ${JSON.stringify(position)}`);
   }
