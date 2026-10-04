@@ -420,10 +420,10 @@ async function flowAutomaticRecenter(){
   assert.equal(receipt.status,'success');assert.equal(receipt.transactionHash.toLowerCase(),signed.signed_raw_hash.toLowerCase());
   const nonces=(await inspector.allOutbox()).filter(o=>o.status!=='cancelled').map(o=>o.nonce);
   assert.equal(new Set(nonces).size,nonces.length,'Wallet-wide transaction nonces collided');
-  assert.deepEqual([...nonces].sort((a,b)=>a-b),nonces.map((_,i)=>i),'Wallet nonces are not contiguous');
+  assert.deepEqual([...nonces].sort((a,b)=>a-b),nonces.map((_,i)=>ctx.baseNonce+i),'Wallet nonces are not contiguous from the wallet start nonce');
   const walletAfter=await inspector.walletRow();
   assert(Number(walletAfter.nonce)===Number(walletBefore.nonce)+1,'The wallet nonce did not advance exactly once for the recovered stage');
-  Object.assign(ev,{lostStage:signed.stage,mintNonce:signed.nonce,signedHash:signed.signed_raw_hash,signerCallsUnchanged:true,
+  Object.assign(ev,{walletStartNonce:ctx.baseNonce,lostStage:signed.stage,mintNonce:signed.nonce,signedHash:signed.signed_raw_hash,signerCallsUnchanged:true,
    publishCallsUnchanged:true,reconciledBlock:String(receipt.blockNumber),walletTransactions:nonces.length,
    staleLeaseRecovered:true,ackLosses:stats.ackLosses});
  });
@@ -629,10 +629,10 @@ async function finalChecks(){
   Object.assign(ev,{siblingChecks});
   assert(siblingChecks.length>=3,'Too few sibling checkpoints were recorded');
   const outbox=await inspector.allOutbox(),nonces=outbox.filter(o=>o.status!=='cancelled').map(o=>o.nonce);
-  assert.equal(new Set(nonces).size,nonces.length);assert.deepEqual([...nonces].sort((a,b)=>a-b),nonces.map((_,i)=>i));
+  assert.equal(new Set(nonces).size,nonces.length);assert.deepEqual([...nonces].sort((a,b)=>a-b),nonces.map((_,i)=>ctx.baseNonce+i));
   assert(outbox.every(o=>o.status==='confirmed'||o.status==='cancelled'),'Unresolved stage rows remain');
   const wallet=await inspector.walletRow();
-  assert.equal(wallet.nonce,String(nonces.length));assert.equal(wallet.pending_nonce,wallet.nonce);
+  assert.equal(wallet.nonce,String(ctx.baseNonce+nonces.length));assert.equal(wallet.pending_nonce,wallet.nonce);
   const commitments=await inspector.commitments();
   assert.equal(wallet.commitments_hash,liveWalletCommitmentFingerprint(commitments));
   assert.equal(commitments.allocations.length,0,'An allocation remains reserved after every campaign closed');

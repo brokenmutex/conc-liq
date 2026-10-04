@@ -144,8 +144,16 @@ export async function bootstrapManagementFork({envFile,testUrl,archiveEnvName='R
   const runtimeStore={listMarketProfiles:async()=>profileRows.map(row=>({id:row.id,draftAvailable:true})),paperSetupProfile:async id=>{
    const row=profileRows.find(item=>item.id===id);return row?{id,profile:row.profile,profileHash:row.profile_hash}:null;
   }};
+  // Production keeps the wallet's NFT transfer index current from the supervised worker's maintenance loop. This harness mines
+  // fresh confirmation batches before every admission, so the setup runtime extends the same index to its pinned source first.
+  const ensureWalletHistory=async({source:pinned})=>{
+   const result=await scanPositionManagerTransferHistory({client:local,store:transferStore,chainId:4663,manager:operatorConfig.pool.positionManager,
+    startBlock:0n,source:{block:BigInt(pinned.block),hash:pinned.hash,timestamp:pinned.timestamp},chunkBlocks:1_000n,maxBlocksPerRun:100_000n});
+   return result.status==='scanned'&&result.completeThroughSource?{status:'available',completeThroughSource:true}:
+    {status:'unavailable',reason:`wallet_history_incomplete_at_source:${result.reason??result.status}`};
+  };
   const setup=createRangeKeeperLiveSetupRuntime({store:runtimeStore,indexer:db,client:local,walletAddress:wallet,buildId,rpcUrl:fork.localUrl,
-   anvilBinary,transferStore,persistReviews:true,
+   anvilBinary,transferStore,persistReviews:true,ensureWalletHistory,
    onSimulationFailure:error=>log('live_setup_fork_feasibility_failed',{reason:redact(error instanceof Error?error.stack:String(error)).slice(0,1500)})});
   const runtimeRef={current:null},state={commandReady:true};
   const origin='http://127.0.0.1:4174';
@@ -162,7 +170,9 @@ export async function bootstrapManagementFork({envFile,testUrl,archiveEnvName='R
   assert.equal(session.status,200);
   const commandHeaders={origin,'content-type':'application/json',cookie:session.headers.get('set-cookie').split(';')[0],
    'x-csrf-token':(await session.json()).csrfToken};
-  return {env:{archiveEnvName},anvilBinary,schema,db,fork,local,clock,mover,account,wallet,profileRows,p500,p3000,operatorConfig,transferStore,
+  // The throwaway wallet address may already carry canonical history (a public test key); nonces are asserted relative to its start.
+  const baseNonce=await local.getTransactionCount({address:wallet});
+  return {baseNonce,env:{archiveEnvName},anvilBinary,schema,db,fork,local,clock,mover,account,wallet,profileRows,p500,p3000,operatorConfig,transferStore,
    setup,runtimeRef,state,commandServer,commandUrl,commandHeaders,counters,buildId,
    funding:{wallet:walletFunding,mover:moverFunding},source:{block:String(source.number),hash:source.hash,timestamp:Number(source.timestamp)},
    localSource:{block:String(localSource.block),hash:localSource.hash,timestamp:localSource.timestamp},
