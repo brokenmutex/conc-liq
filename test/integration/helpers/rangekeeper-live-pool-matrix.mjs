@@ -146,7 +146,7 @@ async function campaignFingerprint(ctx,campaignId){
  let chain=null;
  if(tokenId!==null){const {position,owner}=await readPosition(ctx,campaign.config.pool.positionManager,tokenId);
   chain={owner:owner===null?null:lower(owner),tuple:position.map(String)};}
- return {status:campaign.status,phase:campaign.state?.phase??null,stateHash:campaign.stateHash,tokenId,
+ return {pool:campaign.config.pool,status:campaign.status,phase:campaign.state?.phase??null,stateHash:campaign.stateHash,tokenId,
   allocation:commitments.allocations.find(row=>row.campaignId===campaignId)??null,
   nftCustody:commitments.nftCustody.filter(row=>row.campaignId===campaignId),chain};
 }
@@ -257,7 +257,7 @@ function assertReservation(ctx,{freeBefore,freeAfter,commitments,campaignId,requ
 }
 
 /** Verify an opened campaign against the frozen review and canonical chain state. */
-async function verifyOpened(ctx,runtime,{campaignId,jobId,body,view,tokensBefore,involvedTokens,freeAfterAdmission,label}){
+async function verifyOpened(ctx,runtime,{campaignId,jobId,body,view,tokensBefore,involvedTokens,freeAfterAdmission,label,activePools,initialNonzero,checkAllowances=true}){
  let campaign=await readRangeKeeperLiveCampaign(ctx.db,{...identityOf(ctx),campaignId,revision:1});
  for(let attempt=0;attempt<2&&campaign.status==='opening';attempt++){
   // Queue finish and the campaign handoff are separate idempotent effects.
@@ -291,9 +291,14 @@ async function verifyOpened(ctx,runtime,{campaignId,jobId,body,view,tokensBefore
   if(involved.has(address))continue;
   assert.equal(balance,tokensBefore.get(address),`${label}: unrelated registered token balance changed: ${address}`);
  }
- const allowance=await allowancePolicy.assertAllowancePolicyAfterJob(ctx,{label:`${label}:open`,stages:live});
- return {campaign,tokenId:String(state.activeTokenId),liquidity:String(position[7]),tickLower:position[5],tickUpper:position[6],
-  stages:receiptRows(ctx,live),cancelledStages:stages.cancelled,stageKinds:kinds,allowance,stageCount:live.length,costHashes};
+ // The wallet-wide allowance state corresponds to the proof of the LAST job that ran, so concurrent
+ // jobs are checked once, by the caller, against the final executed job.
+ const allowance=checkAllowances?await allowancePolicy.assertAllowancePolicyAfterJob(ctx,{label:`${label}:open`,stages:live,activePools:activePools??[pool]}):null;
+ // A single job is shape-checked here; concurrent jobs are checked together, in execution order, by the caller.
+ const approvalShape=initialNonzero?allowancePolicy.assertOpenApprovalShapes([{label,stages:live,pool,candidate:body.candidate}],
+  {decode:ctx.decodeBigints,initialNonzero})[0]:null;
+ return {campaign,pool,rawStages:live,tokenId:String(state.activeTokenId),liquidity:String(position[7]),tickLower:position[5],tickUpper:position[6],
+  stages:receiptRows(ctx,live),cancelledStages:stages.cancelled,stageKinds:kinds,allowance,approvalShape,stageCount:live.length,costHashes};
 }
 
 /** Dashboard projections of a holding campaign (Positions API). Reported as a soft check. */
@@ -322,6 +327,7 @@ async function checkClosedProjection(ctx,campaignId){
 /** HTTP retained close of one campaign beside optional active siblings. */
 export async function retainClose(ctx,runtime,{campaignId,label,openCostEvents,siblingIds=[],phase}){
  const evidence={campaignId};
+ const nonzeroBefore=await allowancePolicy.readNonzeroAllowanceKeys(ctx);
  await refreshLocalSource(ctx);
  const observed=await ctx.observer.observeHoldingCampaigns();
  assert.equal(observed.status,'observed',JSON.stringify(observed));
@@ -358,7 +364,9 @@ export async function retainClose(ctx,runtime,{campaignId,label,openCostEvents,s
  const closedState=ctx.decodeBigints(closed.state_json);
  assert.equal(closedState.phase,'closed');assert.equal(closedState.activeTokenId,null);
  const stages=await readStages(ctx,retained.body.jobId);
- allowancePolicy.assertRetainStagePlans(stages.live,{decode:ctx.decodeBigints,label});
+ const siblingPools=[...siblingsBefore.values()].map(item=>item.pool);
+ evidence.closeShape=allowancePolicy.assertRetainStagePlans(stages.live,{decode:ctx.decodeBigints,label,nonzeroBefore,
+  closingPool:positionBefore.pool,siblingPools});
  assert.equal(closedState.costEvents.length,openCostEvents+stages.live.length,`${label}: retain receipt costs were omitted or duplicated`);
  assert.equal(new Set(closedState.costEvents.map(event=>event.hash)).size,closedState.costEvents.length);
  assert.equal((await ctx.db.query('SELECT state FROM deployment_live_allocations WHERE campaign_id=$1',[campaignId])).rows[0]?.state,'released',
@@ -368,7 +376,7 @@ export async function retainClose(ctx,runtime,{campaignId,label,openCostEvents,s
  const retiredRow=commitments.nftCustody.find(row=>row.tokenId===positionBefore.tokenId);
  assert.equal(retiredRow?.status,'retired_empty',`${label}: closed campaign NFT is not retired_empty`);
  assert.equal(BigInt(retiredRow.liquidity),0n);
- evidence.allowance=await allowancePolicy.assertAllowancePolicyAfterClose(ctx,{label:`${label}:close`,retainStages:stages.live});
+ evidence.allowance=await allowancePolicy.assertAllowancePolicyAfterClose(ctx,{label:`${label}:close`,retainStages:stages.live,siblingPools});
  for(const [id,before] of siblingsBefore)assertFingerprintUnchanged(before,await campaignFingerprint(ctx,id),`${label}: sibling ${id}`);
  const replayAfter=await http(ctx,path,input);
  assert.equal(replayAfter.status,200);assert.equal(replayAfter.body.jobId,retained.body.jobId,`${label}: closed campaign retry created a new job`);
@@ -411,6 +419,7 @@ export async function runProfileLifecycle(ctx,selected,options){
    liquidity:body.candidate.liquidity,deployedValue:body.candidate.deployedValue,
    costs:{actionGasWei:body.costs.actionGasWei,managementGasReserveWei:body.costs.managementGasReserveWei,exitReserveWei:body.costs.exitReserveWei}};
   const freeBefore=await ctx.readFreeCapital();
+  const initialNonzero=await allowancePolicy.readNonzeroAllowanceKeys(ctx);
   const admission=await phase('admission',()=>admitReview(ctx,persisted));
   rec.admitted=true;rec.campaignId=admission.campaignId;rec.jobId=admission.jobId;
   const freeAfterAdmission=await ctx.readFreeCapital();
@@ -419,17 +428,18 @@ export async function runProfileLifecycle(ctx,selected,options){
   const opened=await phase('open',async()=>{
    const driven=await driveJobs(ctx,ctx.worker,[admission.jobId],{label:`${label}:open`});
    if(!driven.ok){const error=new Error(`open_worker_${driven.kind}: ${driven.reason}`);error.workerBlock=driven;throw error;}
-   return verifyOpened(ctx,ctx.worker,{campaignId:admission.campaignId,jobId:admission.jobId,body,view,tokensBefore,freeAfterAdmission,label});
+   return verifyOpened(ctx,ctx.worker,{campaignId:admission.campaignId,jobId:admission.jobId,body,view,tokensBefore,freeAfterAdmission,label,initialNonzero});
   });
   rec.openStages=opened.stages;rec.openStageKinds=opened.stageKinds.kinds;rec.tokenId=opened.tokenId;rec.liquidity=opened.liquidity;
   rec.minted={tickLower:opened.tickLower,tickUpper:opened.tickUpper};rec.cancelledOpenStages=opened.cancelledStages;
-  rec.allowanceObservations=[opened.allowance];
+  rec.allowanceObservations=[opened.allowance];rec.openApprovalShape=opened.approvalShape;
+  rec.nonzeroApproveProbe=await phase('nonzero_approve_probe',()=>allowancePolicy.probeNonzeroToNonzeroApprove(ctx));
   const closeResult=await phase('retain_close',async()=>{
    const result=await retainClose(ctx,ctx.worker,{campaignId:admission.campaignId,label,openCostEvents:opened.stageCount,phase});
    if(!result.ok){const error=new Error(`retain_worker_${result.driven.kind}: ${result.driven.reason}`);error.workerBlock=result.driven;throw error;}
    return result;
   });
-  rec.closeStages=closeResult.evidence.stages;rec.closeEvidence={jobId:closeResult.evidence.jobId,turns:closeResult.evidence.turns,
+  rec.closeStages=closeResult.evidence.stages;rec.closeApprovalShape=closeResult.evidence.closeShape;rec.closeEvidence={jobId:closeResult.evidence.jobId,turns:closeResult.evidence.turns,
    holdingProjection:closeResult.evidence.holdingProjection,closedProjection:closeResult.evidence.closedProjection};
   rec.allowanceObservations.push(closeResult.evidence.allowance);
   rec.closed=true;
@@ -502,6 +512,7 @@ export async function runConcurrencyScenarios(ctx,selections,options){
   out.nativeCalibration={perMemberReservationWei:requirements.map(String),combinedWei:String(total),walletNativeWei:String(nativeTarget)};
   await ctx.fork.rpc('anvil_setBalance',[ctx.wallet,`0x${nativeTarget.toString(16)}`]);
   const nonceBeforeAdmissions=await ctx.local.getTransactionCount({address:ctx.wallet});
+  const initialNonzeroKeys=await allowancePolicy.readNonzeroAllowanceKeys(ctx);
   // (a) back-to-back admissions: preflight -> persisted review -> HTTP admission, no worker turns between.
   const admitted=[];
   for(const [index,selected] of selections.entries()){
@@ -567,11 +578,20 @@ export async function runConcurrencyScenarios(ctx,selections,options){
    stageInterleavingAcrossJobs:interleaved,turns:driven.turns.length};
   const opened=[];
   const involvedTokens=new Set(admitted.flatMap(item=>[lower(item.view.token0),lower(item.view.token1)]));
+  const activePools=[];
+  for(const item of admitted)activePools.push((await readRangeKeeperLiveCampaign(ctx.db,{...identityOf(ctx),campaignId:item.admission.campaignId})).config.pool);
   for(const item of admitted){
    const verified=await phase(`verify_open_${item.label}`,()=>verifyOpened(ctx,ctx.worker,{campaignId:item.admission.campaignId,jobId:item.admission.jobId,
-    body:item.body,view:item.view,tokensBefore,involvedTokens,freeAfterAdmission:null,label:item.label}));
+    body:item.body,view:item.view,tokensBefore,involvedTokens,freeAfterAdmission:null,label:item.label,activePools,checkAllowances:false}));
    opened.push({...item,verified});
   }
+  // Approval counts per job, replayed in execution order from the wallet's allowance state before the jobs ran.
+  const ordered=[...opened].sort((a,b)=>new Date(a.verified.rawStages[0].created_at)-new Date(b.verified.rawStages[0].created_at));
+  out.checks.walletAllowancesAfterOpens=await allowancePolicy.assertAllowancePolicyAfterJob(ctx,{label:'concurrency:opens',
+   stages:ordered.at(-1).verified.rawStages,activePools});
+  out.checks.openApprovalShapes=allowancePolicy.assertOpenApprovalShapes(ordered.map(item=>({label:item.label,stages:item.verified.rawStages,
+   pool:item.verified.pool,candidate:item.body.candidate})),{decode:ctx.decodeBigints,initialNonzero:initialNonzeroKeys});
+  out.checks.nonzeroApproveProbe=await phase('nonzero_approve_probe',()=>allowancePolicy.probeNonzeroToNonzeroApprove(ctx));
   out.members=out.members.map(member=>{const item=opened.find(entry=>entry.label===member.label);
    return {...member,tokenId:item.verified.tokenId,liquidity:item.verified.liquidity,openStages:item.verified.stages,openStageKinds:item.verified.stageKinds.kinds};});
   assert.deepEqual(await ctx.readFreeCapital(),admitted.at(-1).freeAfter,'Concurrent opens spent capital outside their reserved allocations');
@@ -616,7 +636,8 @@ export async function runConcurrencyScenarios(ctx,selections,options){
     return closed;
    });
    remaining.delete(item.admission.campaignId);
-   out.closes.push({label:item.label,campaignId:item.admission.campaignId,stages:result.evidence.stages,siblingsActiveAndUnchanged:siblings.length,
+   out.closes.push({label:item.label,campaignId:item.admission.campaignId,stages:result.evidence.stages,closeShape:result.evidence.closeShape,
+    siblingsActiveAndUnchanged:siblings.length,
     holdingMarks:result.evidence.holdingMarksRecorded});
   }
   out.checks.closeWhileOthersActive={order:closeOrder.map(index=>opened[index].label),firstCloseSiblingsUnchanged:true};
