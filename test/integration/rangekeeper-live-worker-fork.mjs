@@ -1,5 +1,18 @@
 // Composed RangeKeeper shared-wallet worker exercise. All signing, token funding,
 // publication, and block production terminate at one owned loopback Anvil fork.
+//
+// Modes (all use the same owned fork, HTTP command server and shared-wallet queue):
+//   default / --two-pools / --dashboard-admission / --retain-first   AAPL qualification flow
+//   --matrix | --profiles=AAPL:500,NVDA:3000,...   profile matrix: every selected REAL registered
+//        profile runs HTTP preflight -> persisted review -> HTTP admission -> worker open ->
+//        holding -> HTTP retain preview/operation -> closed with allocation released
+//   --concurrency [--concurrency-profiles=A:500,B:3000,C:500]   three campaigns on one wallet
+//        (back-to-back admission, single queue, shared risky token, close beside siblings,
+//        native gas shortfall)
+//   --print-plan   resolve the selection against the registry snapshot and exit (no upstream use)
+// Options: --widths=AAPL:500=20,...  --capital-usdg=N  --fund-usdg=N  --fork-timeout-minutes=N
+//          --continue-after-failure  --strict-market
+// Token approval policy assertions live ONLY in helpers/rangekeeper-live-allowance-policy.mjs.
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
@@ -33,6 +46,10 @@ import {rangeKeeperLiveSetupPreflightInput} from '../../src/deployments/rangekee
 import {DashboardRepository} from '../../src/dashboard/repository.ts';
 import {loadDashboardConfig} from '../../src/dashboard/config.ts';
 import {createRangeKeeperLiveManagementRuntime} from '../../src/deployments/rangekeeper-live-management.ts';
+import {createRangeKeeperLiveManagementObserver} from '../../src/deployments/rangekeeper-live-management-observer.ts';
+import {DEFAULT_MATRIX,DEFAULT_CONCURRENCY,describeProfile,selectProfiles,runProfileMatrix,runConcurrencyScenarios,
+ refreshLocalSource} from './helpers/rangekeeper-live-pool-matrix.mjs';
+import {assertAllowancePolicyAfterJob,assertRetainStagePlans,assertFreshWalletAllowances,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
 
 const env=parseEnv(readFileSync(process.argv[2]??'.env','utf8'));
 const testUrl=process.env.TEST_DATABASE_URL;
@@ -43,13 +60,33 @@ const decodeBigints=value=>Array.isArray(value)?value.map(decodeBigints):value&&
   BigInt(v.$bigint):v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).length===1&&'__rangekeeper_bigint_v1__'in v?
    BigInt(v.__rangekeeper_bigint_v1__):decodeBigints(v)])):value;
 const operatorConfig=parseRangeKeeperConfig(JSON.parse(readFileSync('config/rangekeeper-v1-aapl-disabled.json','utf8')));
+const argValue=name=>{const arg=process.argv.find(item=>item.startsWith(`--${name}=`));return arg===undefined?undefined:arg.slice(name.length+3);};
 const twoPools=process.argv.includes('--two-pools');
-const dashboardAdmission=process.argv.includes('--dashboard-admission');
+const profilesOption=argValue('profiles');
+const matrixMode=process.argv.includes('--matrix')||profilesOption!==undefined;
+const concurrencyMode=process.argv.includes('--concurrency');
+const printPlan=process.argv.includes('--print-plan');
+// The matrix and concurrency drivers always use the actual HTTP command server.
+const dashboardAdmission=process.argv.includes('--dashboard-admission')||matrixMode||concurrencyMode;
 const retainFirst=process.argv.includes('--retain-first');
 assert(!retainFirst||twoPools&&dashboardAdmission,'Retain qualification requires two pools and actual dashboard admission');
+assert(!(matrixMode&&concurrencyMode),'Run --matrix and --concurrency as separate invocations: retained inventory would change the concurrency start state');
+assert(!((matrixMode||concurrencyMode)&&(twoPools||retainFirst)),'--matrix/--concurrency replace the legacy --two-pools/--retain-first flow');
 const widthOption=process.argv.find(arg=>arg.startsWith('--full-width-spacings='));
 const fullWidthSpacings=widthOption?Number(widthOption.split('=')[1]):operatorConfig.limits.fullWidthSpacings;
 assert(Number.isSafeInteger(fullWidthSpacings)&&fullWidthSpacings>=2&&fullWidthSpacings<=2000&&fullWidthSpacings%2===0);
+const numberOption=(name,fallback)=>{const text=argValue(name);if(text===undefined)return fallback;const value=Number(text);
+ assert(Number.isFinite(value)&&value>0,`--${name} must be a positive number`);return value;};
+const forkTimeoutMs=Math.round(numberOption('fork-timeout-minutes',matrixMode||concurrencyMode?300:10)*60_000);
+const capitalUsdg=numberOption('capital-usdg',concurrencyMode?30:50),fundUsdg=numberOption('fund-usdg',125);
+const widthOverrides=new Map();
+for(const item of (argValue('widths')??'').split(',').filter(Boolean)){
+ const match=/^([A-Za-z0-9]+:\d+)=(\d+)$/.exec(item);assert(match,`Malformed --widths entry: ${item}`);
+ const width=Number(match[2]);assert(width>=2&&width<=2000&&width%2===0,`--widths ${item} must be an even width in tick spacings`);
+ widthOverrides.set(match[1].toUpperCase(),[width]);
+}
+const continueAfterFailure=process.argv.includes('--continue-after-failure'),strictMarket=process.argv.includes('--strict-market');
+const planSentinel=Symbol('plan printed');
 const anvilBinary=process.env.ANVIL_BINARY_TEST??env.ANVIL_BINARY??'/root/.foundry/bin/anvil';
 const {Pool}=pg,root=new Pool({connectionString:testUrl,max:8}),admin=await root.connect(),schema=`rk_worker_fork_${randomUUID().replaceAll('-','')}`;
 let db,fork,commandServer,dashboardRepository,managementRuntime;
@@ -71,8 +108,29 @@ try{
  const secondProfileRow=profileRows.find(row=>row.id!==profileRow.id&&row.profile.pool.reference0==='USDG/USD'&&
   row.profile.pool.reference1==='AAPL/USD'&&row.profile.pool.fee===3000);
  if(twoPools)assert(secondProfileRow,'Registered second AAPL fee-3000 pool is unavailable');
- const upstream=createRobinhoodClient(env.RH_ARCHIVE_RPC_URL,20_000,{retryCount:0,beforeRequest:async()=>{}});
- const publicRpcUrl=env.RH_PUBLIC_RPC_URL??'https://rpc.mainnet.chain.robinhood.com',publicClient=createRobinhoodClient(publicRpcUrl,20_000,{retryCount:0,beforeRequest:async()=>{}});
+ const matrixSelections=matrixMode?selectProfiles(profileRows,profilesOption!==undefined?profilesOption.split(',').filter(Boolean):DEFAULT_MATRIX):[];
+ const concurrencySelections=concurrencyMode?selectProfiles(profileRows,(argValue('concurrency-profiles')?.split(',').filter(Boolean))??DEFAULT_CONCURRENCY):[];
+ assert(!concurrencyMode||concurrencySelections.length===3&&new Set(concurrencySelections.map(item=>item.row.id)).size===3,
+  'Concurrency needs three distinct registered profiles');
+ if(matrixMode)assert(new Set(matrixSelections.map(item=>item.row.id)).size===matrixSelections.length,'Duplicate profile in the matrix selection');
+ if(printPlan){
+  const classes=new Map();
+  for(const item of [...matrixSelections,...concurrencySelections])classes.set(`${item.view.quoteSide}/fee${item.view.fee}/spacing${item.view.tickSpacing}`,item.view.symbol);
+  console.log(JSON.stringify({event:'rangekeeper_pool_matrix_plan',registeredProfileCount:profileRows.length,
+   registered:profileRows.map(row=>describeProfile(row)),matrix:matrixSelections.map(item=>item.view),
+   concurrency:concurrencySelections.map(item=>item.view),structuralClasses:[...classes.keys()],capitalUsdg,fundUsdg,
+   widthOverrides:Object.fromEntries(widthOverrides),forkTimeoutMs,allowancePolicy:ALLOWANCE_POLICY}));
+  throw planSentinel;
+ }
+ const upstreamReads={archive:{},public:{}};
+ const countingFetch=label=>async(input,init)=>{
+  try{const body=JSON.parse(String(init?.body??'{}'));
+   for(const item of Array.isArray(body)?body:[body])upstreamReads[label][item?.method??'unknown']=(upstreamReads[label][item?.method??'unknown']??0)+1;
+  }catch{upstreamReads[label].unparsed=(upstreamReads[label].unparsed??0)+1;}
+  return fetch(input,init);
+ };
+ const upstream=createRobinhoodClient(env.RH_ARCHIVE_RPC_URL,20_000,{retryCount:0,beforeRequest:async()=>{},fetchFn:countingFetch('archive')});
+ const publicRpcUrl=env.RH_PUBLIC_RPC_URL??'https://rpc.mainnet.chain.robinhood.com',publicClient=createRobinhoodClient(publicRpcUrl,20_000,{retryCount:0,beforeRequest:async()=>{},fetchFn:countingFetch('public')});
  const [archiveHead,publicHead]=await Promise.all([upstream.getBlockNumber(),publicClient.getBlockNumber()]);
  const baselineBlock=(archiveHead<publicHead?archiveHead:publicHead)-128n;assert(baselineBlock>0n);
  const [archiveSource,publicSource]=await Promise.all([upstream.getBlock({blockNumber:baselineBlock}),publicClient.getBlock({blockNumber:baselineBlock})]);
@@ -91,7 +149,7 @@ try{
  const pinned=await upstream.getBlock({blockNumber:source.number});assert.equal(pinned.hash.toLowerCase(),source.hash.toLowerCase());
  assert.equal(Number(pinned.timestamp),Number(source.timestamp));
  fork=await openPaperFork({source,rpcUrl:env.RH_ARCHIVE_RPC_URL,beforeRead:async()=>{},
-  anvilBinary,timeoutMs:600_000,maxRequests:100_000});
+  anvilBinary,timeoutMs:forkTimeoutMs,maxRequests:100_000});
  assert(Object.isFrozen(fork.source),'Owned fork did not freeze its canonical source anchor');
  assert.equal(fork.source.number,source.number);assert.equal(fork.source.hash.toLowerCase(),source.hash.toLowerCase());
  const local=createRobinhoodClient(fork.localUrl,30_000,{retryCount:0,beforeRequest:async()=>{}});
@@ -120,7 +178,9 @@ try{
  }
  // Warm only immutable slot and oracle reads at the fork anchor, before
  // local confirmations. Fresh-source eligibility is still checked normally.
- for(const selected of [profileRow,...(twoPools?[secondProfileRow]:[])]){
+ const warmSelections=new Map([profileRow,...(twoPools?[secondProfileRow]:[]),
+  ...[...matrixSelections,...concurrencySelections].map(item=>item.row)].map(row=>[row.id,row]));
+ for(const selected of warmSelections.values()){
   const anchored={block:source.number,hash:source.hash,timestamp:Number(source.timestamp)};
   await local.readContract({address:selected.profile.pool.pool,abi:parseAbi([
    'function slot0() view returns(uint160,int24,uint16,uint16,uint16,uint8,bool)']),functionName:'slot0',blockNumber:source.number});
@@ -133,7 +193,7 @@ try{
  // funding block to current time; no upstream state is ever changed.
  await fork.rpc('anvil_setBlockTimestampInterval',[0]);
  await fork.rpc('anvil_mine',['0x40','0x0']);
- const usdToken=operatorConfig.pool.token0,donor=operatorConfig.operator,amount=125_000_000n;
+ const usdToken=operatorConfig.pool.token0,donor=operatorConfig.operator,amount=BigInt(Math.round(fundUsdg*10**operatorConfig.pool.decimals0));
  await fork.rpc('anvil_setBalance',[wallet,'0x56bc75e2d63100000']);
  await fork.rpc('anvil_impersonateAccount',[donor]);await fork.rpc('anvil_setBalance',[donor,'0x56bc75e2d63100000']);
  const transfer=encodeFunctionData({abi:parseAbi(['function transfer(address to,uint256 amount) returns (bool)']),functionName:'transfer',
@@ -211,6 +271,105 @@ const setup=createRangeKeeperLiveSetupRuntime({store:runtimeStore,indexer:db,cli
   assert.equal(replay.status,200);assert.deepEqual(await replay.json(),{...result,replayed:true});return result;
  };
 
+ const registeredTokenMetadata=new Map();
+ for(const row of profileRows)for(const [address,decimals] of [[row.profile.pool.token0,row.profile.pool.decimals0],[row.profile.pool.token1,row.profile.pool.decimals1]]){
+  const key=address.toLowerCase(),previous=registeredTokenMetadata.get(key);assert(previous===undefined||previous===decimals,'Registered token decimals conflict');
+  registeredTokenMetadata.set(key,decimals);
+ }
+ const readFreeCapital=async()=>{
+  const identity={chainId:4663,address:wallet},[walletState,commitments]=await Promise.all([readWalletState(db,identity),readCommitments(db,identity)]);
+  assert.equal(walletState.status,'available');
+  const allocation=allocateLiveWalletBalances({nativeBalanceWei:walletState.nativeBalanceWei,
+   tokens:walletState.tokens.map(token=>({address:token.address,decimals:registeredTokenMetadata.get(token.address.toLowerCase()),
+    symbol:token.address,balanceRaw:token.balanceRaw})),commitments:projectLiveWalletCommitmentRows(commitments),commitmentsStatus:'available'});
+  assert.equal(allocation.status,'available',allocation.blockers.join(','));
+  return {nativeWei:allocation.native.availableWei,tokens:Object.fromEntries(allocation.tokens.map(token=>[token.address.toLowerCase(),token.availableRaw]))};
+ };
+ let signerCalls=0,rawSigned=[];
+ const withWorkerDiagnostics=runtime=>{
+  const wrap=(owner,key,phase)=>{const original=owner[key];if(typeof original!=='function')return;
+   owner[key]=async function(...args){try{return await original.apply(this,args);}catch(error){
+    console.error(JSON.stringify({event:'live_worker_phase_error',phase,stack:(error instanceof Error?error.stack:String(error))
+     .replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,3000)}));throw error;}};};
+  for(const key of ['initializeOpeningCampaign','nextStage','verifyPreparedIntent','completeOpeningLifecycle'])wrap(runtime.adapters,key,`adapter.${key}`);
+  for(const key of ['prepareStage','recordSigned','reconcileStage','finish'])wrap(runtime.queue,key,`queue.${key}`);
+  for(const key of ['signIntent','publishRaw','waitForCanonicalReceipt'])wrap(runtime.adapters,key,`adapter.${key}`);
+  return runtime;
+ };
+ const createWorkerRuntime=(failAckAfterPublishOnce,extra={})=>withWorkerDiagnostics(createRangeKeeperLiveWalletRuntime({pool:db,client:local,walletAddress:wallet,transferStore,
+  loadProfiles:async()=>profileRows.map(row=>({profile:row.profile})),rpcUrl:fork.localUrl,anvilBinary,...extra,
+  options:{signerEnabled:true,publisherEnabled:true,leaseMs:300_000},
+  testHooks:{enabled:true,fork,mineConfirmations:64,failAckAfterPublishOnce,signIntent:async intent=>{
+   // Pin the next local block to wall-clock time before the stage is signed;
+   // interval=0 then keeps all 64 confirmation headers at this same timestamp.
+   await fork.rpc('anvil_setNextBlockTimestamp',[Math.floor(Date.now()/1000)]);
+   signerCalls++;
+   const values={nonce:intent.nonce,value:intent.value,gas:intent.gas,maxFeePerGas:intent.maxFeePerGas,
+    maxPriorityFeePerGas:intent.maxPriorityFeePerGas};
+   try{
+    for(const [key,value] of Object.entries(values))assert(value!==undefined&&value!==null,`Synthetic signer received missing ${key}`);
+    const raw=await syntheticAccount.signTransaction({chainId:4663,type:'eip1559',nonce:intent.nonce,
+     to:intent.to,data:intent.data,value:BigInt(intent.value),gas:BigInt(intent.gas),
+     maxFeePerGas:BigInt(intent.maxFeePerGas),maxPriorityFeePerGas:BigInt(intent.maxPriorityFeePerGas),accessList:[]});
+    rawSigned.push(raw);return raw;
+   }catch(error){console.error(JSON.stringify({event:'live_worker_signer_error',fields:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value==null?null:String(value)])),
+     stack:error instanceof Error?error.stack:String(error)}));throw error;}
+  }}}));
+const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploymentValue),minDeploymentValue:'1',
+  minDeploymentPpm:operatorConfig.limits.minDeploymentPpm,maxSwapInputValue:String(operatorConfig.limits.maxSwapInputValue),
+  maxSwapInputPpm:operatorConfig.limits.maxSwapInputPpm,maxSwapShortfallValue:String(operatorConfig.limits.maxSwapShortfallValue),
+  maxRecenters:operatorConfig.limits.maxRecenters,maxLiquiditySharePpm:operatorConfig.limits.maxLiquiditySharePpm,
+  maxObservationGapSeconds:operatorConfig.limits.maxObservationGapSeconds,
+  maxExposurePpm:operatorConfig.limits.maxExposurePpm,maxLossValue:String(operatorConfig.limits.maxLossValue),
+  maxDrawdownPpm:operatorConfig.limits.maxDrawdownPpm,maxActionCost:String(operatorConfig.limits.maxActionCost),
+  maxRollingCost:String(operatorConfig.limits.maxRollingCost),maxCampaignCost:String(operatorConfig.limits.maxCampaignCost),
+  exitReserveWei:String(operatorConfig.limits.exitReserveWei),maxSlippageBps:operatorConfig.limits.maxSlippageBps};
+
+ if(matrixMode||concurrencyMode){
+  // Profile matrix / shared-wallet concurrency qualification (see header). All
+  // transactions are signed by the synthetic local account and published only to
+  // the owned fork; the upstream stays read-only behind the bounded fork proxy.
+  const identity={chainId:4663,address:wallet};
+  const emit=(event,fields={})=>console.error(JSON.stringify({event,...fields,at:new Date().toISOString()}));
+  const matrixCtx={wallet,identity,local,fork,db,setup,commandUrl,commandHeaders,profileRows,operatorConfig,transferStore,anvilBinary,
+   preflightLimits,readFreeCapital,decodeBigints,emit,worker:null,observer:null};
+  let observer=null;
+  // Same wiring as production: a non-open job re-anchors a stale wallet snapshot before planning.
+  matrixCtx.worker=createWorkerRuntime(false,{refreshWalletSnapshot:async()=>{await refreshLocalSource(matrixCtx);await observer.refreshWallet();}});
+  observer=createRangeKeeperLiveManagementObserver({pool:db,client:local,wallet:identity,
+   loadProfiles:async()=>profileRows.map(row=>({id:row.id,profile:row.profile,profileHash:row.profile_hash})),transferStore,
+   buildId:'e'.repeat(64),rpcUrl:fork.localUrl,anvilBinary,enqueue:input=>matrixCtx.worker.queue.enqueue(input),
+   queueReady:matrixCtx.worker.adapters.managementObservationReady});
+  matrixCtx.observer=observer;
+  managementRuntime=createRangeKeeperLiveManagementRuntime({pool:db,wallet:identity,buildId:'e'.repeat(64),persistReviews:true,
+   observe:observer.observe,verifyPinned:observer.verifyPinned,enqueue:input=>matrixCtx.worker.queue.enqueue(input)});
+  const initialInventory=await setup.walletReview();assert.equal(initialInventory.status,'available',initialInventory.blockers.join(','));
+  await assertFreshWalletAllowances({local,wallet,profileRows,operatorConfig});
+  const capitalQuoteRaw=String(Math.round(capitalUsdg*10**operatorConfig.pool.decimals0));
+  const runOptions={capitalQuoteRaw,widthOverrides,continueAfterFailure};
+  const profiles=matrixMode?await runProfileMatrix(matrixCtx,matrixSelections,runOptions):undefined;
+  const concurrency=concurrencyMode?await runConcurrencyScenarios(matrixCtx,concurrencySelections,runOptions):undefined;
+  const outcomes=[...(profiles??[]).map(item=>item.outcome),...(concurrency?[concurrency.outcome]:[])];
+  const count=name=>outcomes.filter(outcome=>outcome===name).length;
+  const failed=outcomes.some(outcome=>['FAIL','FIXTURE_BLOCK','INFRA_BLOCK','NOT_RUN'].includes(outcome))||
+   strictMarket&&outcomes.includes('MARKET_BLOCK');
+  const matrixReport={event:failed?'rangekeeper_live_pool_matrix_failed':'rangekeeper_live_pool_matrix_verified',chainId:4663,wallet,
+   mode:{matrix:matrixMode,concurrency:concurrencyMode},allowancePolicy:ALLOWANCE_POLICY,capitalUsdg,fundUsdg,
+   source:{block:String(localSource.block),hash:localSource.hash,timestamp:localSource.timestamp},custodyBaseline:walletTransferFixture.baseline,
+   registeredProfileCount:profileRows.length,
+   structuralClasses:[...new Set([...matrixSelections,...concurrencySelections].map(item=>`${item.view.quoteSide}/fee${item.view.fee}/spacing${item.view.tickSpacing}`))],
+   summary:{pass:count('PASS'),fail:count('FAIL'),marketBlock:count('MARKET_BLOCK'),fixtureBlock:count('FIXTURE_BLOCK'),
+    infraBlock:count('INFRA_BLOCK'),notRun:count('NOT_RUN')},
+   table:(profiles??[]).map(item=>({profile:item.label,quoteSide:item.profile.quoteSide,fee:item.profile.fee,tickSpacing:item.profile.tickSpacing,
+    width:item.width??null,open:(item.openStages??[]).map(stage=>`${stage.kind}:${stage.gasUsed}`),
+    close:(item.closeStages??[]).map(stage=>`${stage.kind}:${stage.gasUsed}`),outcome:item.outcome,reason:item.reason??null})),
+   profiles,concurrency,signerCalls,
+   forkReadBudget:fork.budget,forkReadDiagnostics:fork.diagnostics,directUpstreamReads:upstreamReads,upstreamMutations:0,
+   upstreamMutationBoundary:{signer:'synthetic_local_account_only',publisher:'branded_owned_fork_only',upstreamClient:'read_only'}};
+  console.log(JSON.stringify(matrixReport,(_,value)=>typeof value==='bigint'?String(value):value));
+  if(failed)process.exitCode=1;
+ }
+ if(!matrixMode&&!concurrencyMode){
  const diagnosticFrame=await readCanonicalPaperOpenFrame(local,profile,{block:String(localSource.block),hash:localSource.hash,timestamp:localSource.timestamp});
  if(!diagnosticFrame.referenceEligible){
   const oracle=diagnosticFrame.referenceProof?.token0?.oracle;
@@ -222,15 +381,6 @@ const setup=createRangeKeeperLiveSetupRuntime({store:runtimeStore,indexer:db,cli
   `Funded local source lacks independent references: ${JSON.stringify({source:diagnosticFrame.source,reasons:diagnosticFrame.referenceReasons})}`);
  const initialInventory=await setup.walletReview();assert.equal(initialInventory.status,'available',initialInventory.blockers.join(','));
  const initialBalanceByAddress=new Map(initialInventory.tokens.map(token=>[token.address.toLowerCase(),token.balanceRaw]));
-const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploymentValue),minDeploymentValue:'1',
-  minDeploymentPpm:operatorConfig.limits.minDeploymentPpm,maxSwapInputValue:String(operatorConfig.limits.maxSwapInputValue),
-  maxSwapInputPpm:operatorConfig.limits.maxSwapInputPpm,maxSwapShortfallValue:String(operatorConfig.limits.maxSwapShortfallValue),
-  maxRecenters:operatorConfig.limits.maxRecenters,maxLiquiditySharePpm:operatorConfig.limits.maxLiquiditySharePpm,
-  maxObservationGapSeconds:operatorConfig.limits.maxObservationGapSeconds,
-  maxExposurePpm:operatorConfig.limits.maxExposurePpm,maxLossValue:String(operatorConfig.limits.maxLossValue),
-  maxDrawdownPpm:operatorConfig.limits.maxDrawdownPpm,maxActionCost:String(operatorConfig.limits.maxActionCost),
-  maxRollingCost:String(operatorConfig.limits.maxRollingCost),maxCampaignCost:String(operatorConfig.limits.maxCampaignCost),
-  exitReserveWei:String(operatorConfig.limits.exitReserveWei),maxSlippageBps:operatorConfig.limits.maxSlippageBps};
  const preflightInput=rangeKeeperLiveSetupPreflightInput.parse({profileId:profileRow.id,capitalQuoteRaw:'50000000',
   fullWidthSpacings,limits:preflightLimits});
  const preflight=await reviewSetup(preflightInput);
@@ -264,51 +414,7 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   },verifyCanonical:async s=>{
    const h=await local.getBlock({blockNumber:BigInt(s.block)});assert.equal(h.hash.toLowerCase(),s.hash.toLowerCase());}});
  assert.equal(admission.status,'queued',JSON.stringify(admission));
- const registeredTokenMetadata=new Map();
- for(const row of profileRows)for(const [address,decimals] of [[row.profile.pool.token0,row.profile.pool.decimals0],[row.profile.pool.token1,row.profile.pool.decimals1]]){
-  const key=address.toLowerCase(),previous=registeredTokenMetadata.get(key);assert(previous===undefined||previous===decimals,'Registered token decimals conflict');
-  registeredTokenMetadata.set(key,decimals);
- }
- const readFreeCapital=async()=>{
-  const identity={chainId:4663,address:wallet},[walletState,commitments]=await Promise.all([readWalletState(db,identity),readCommitments(db,identity)]);
-  assert.equal(walletState.status,'available');
-  const allocation=allocateLiveWalletBalances({nativeBalanceWei:walletState.nativeBalanceWei,
-   tokens:walletState.tokens.map(token=>({address:token.address,decimals:registeredTokenMetadata.get(token.address.toLowerCase()),
-    symbol:token.address,balanceRaw:token.balanceRaw})),commitments:projectLiveWalletCommitmentRows(commitments),commitmentsStatus:'available'});
-  assert.equal(allocation.status,'available',allocation.blockers.join(','));
-  return {nativeWei:allocation.native.availableWei,tokens:Object.fromEntries(allocation.tokens.map(token=>[token.address.toLowerCase(),token.availableRaw]))};
- };
  const freeCapitalAfterAdmission=await readFreeCapital();
- let signerCalls=0,rawSigned=[];
- const withWorkerDiagnostics=runtime=>{
-  const wrap=(owner,key,phase)=>{const original=owner[key];if(typeof original!=='function')return;
-   owner[key]=async function(...args){try{return await original.apply(this,args);}catch(error){
-    console.error(JSON.stringify({event:'live_worker_phase_error',phase,stack:(error instanceof Error?error.stack:String(error))
-     .replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,3000)}));throw error;}};};
-  for(const key of ['initializeOpeningCampaign','nextStage','verifyPreparedIntent','completeOpeningLifecycle'])wrap(runtime.adapters,key,`adapter.${key}`);
-  for(const key of ['prepareStage','recordSigned','reconcileStage','finish'])wrap(runtime.queue,key,`queue.${key}`);
-  for(const key of ['signIntent','publishRaw','waitForCanonicalReceipt'])wrap(runtime.adapters,key,`adapter.${key}`);
-  return runtime;
- };
- const createWorkerRuntime=failAckAfterPublishOnce=>withWorkerDiagnostics(createRangeKeeperLiveWalletRuntime({pool:db,client:local,walletAddress:wallet,transferStore,
-  loadProfiles:async()=>profileRows.map(row=>({profile:row.profile})),rpcUrl:fork.localUrl,anvilBinary,
-  options:{signerEnabled:true,publisherEnabled:true,leaseMs:300_000},
-  testHooks:{enabled:true,fork,mineConfirmations:64,failAckAfterPublishOnce,signIntent:async intent=>{
-   // Pin the next local block to wall-clock time before the stage is signed;
-   // interval=0 then keeps all 64 confirmation headers at this same timestamp.
-   await fork.rpc('anvil_setNextBlockTimestamp',[Math.floor(Date.now()/1000)]);
-   signerCalls++;
-   const values={nonce:intent.nonce,value:intent.value,gas:intent.gas,maxFeePerGas:intent.maxFeePerGas,
-    maxPriorityFeePerGas:intent.maxPriorityFeePerGas};
-   try{
-    for(const [key,value] of Object.entries(values))assert(value!==undefined&&value!==null,`Synthetic signer received missing ${key}`);
-    const raw=await syntheticAccount.signTransaction({chainId:4663,type:'eip1559',nonce:intent.nonce,
-     to:intent.to,data:intent.data,value:BigInt(intent.value),gas:BigInt(intent.gas),
-     maxFeePerGas:BigInt(intent.maxFeePerGas),maxPriorityFeePerGas:BigInt(intent.maxPriorityFeePerGas),accessList:[]});
-    rawSigned.push(raw);return raw;
-   }catch(error){console.error(JSON.stringify({event:'live_worker_signer_error',fields:Object.fromEntries(Object.entries(values).map(([key,value])=>[key,value==null?null:String(value)])),
-     stack:error instanceof Error?error.stack:String(error)}));throw error;}
-  }}}));
  let runtime=createWorkerRuntime(true);
  const first=await runtime.worker.execute();
  if(first.status!=='blocked'||!first.reason?.match(/injected_owned_fork_publish_ack_loss/)){
@@ -363,7 +469,6 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   FROM deployment_live_stage_outbox WHERE job_id=$1 ORDER BY created_at,stage`,[jobId])).rows;
  assert(stages.length>=3,`Expected swap/mint/cleanup lifecycle stages, got ${stages.map(s=>s.stage).join(',')}`);
  assert(stages.every(row=>row.status==='confirmed'&&row.canonical_receipt_json&&row.effect_evidence_json),'Every submitted stage needs canonical receipt evidence');
- assert(stages.at(-1).allowance_cleanup_json,'Final allowance cleanup proof is missing');
  assert.equal(new Set(stages.map(row=>row.signed_raw_hash)).size,stages.length,'Stage transaction hashes must be unique');
  const state=campaign.state,costHashes=state.costEvents.map(cost=>String(cost.hash).toLowerCase());
  assert.equal(costHashes.length,stages.length,'Every canonical stage receipt must be charged exactly once');
@@ -383,14 +488,8 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
  for(const token of finalWalletState.tokens){if(!selectedTokens.has(token.address.toLowerCase()))
   assert.equal(token.balanceRaw,initialBalanceByAddress.get(token.address.toLowerCase()),
    `Unrelated registered-pool token balance changed: ${token.address}`);}
- const allowancePairs=new Map();
- for(const registered of profileRows)for(const token of [registered.profile.pool.token0,registered.profile.pool.token1])
-  for(const spender of [registered.profile.pool.router,registered.profile.pool.positionManager])
-   allowancePairs.set(`${token.toLowerCase()}:${spender.toLowerCase()}`,{token,spender});
- for(const item of operatorConfig.zeroAllowances)allowancePairs.set(`${item.token.toLowerCase()}:${item.spender.toLowerCase()}`,item);
- let allowances=await Promise.all([...allowancePairs.values()].map(async item=>BigInt(await local.readContract({address:item.token,
-  abi:parseAbi(['function allowance(address owner,address spender) view returns (uint256)']),functionName:'allowance',args:[wallet,item.spender]}))));
- assert(allowances.every(value=>value===0n),'A stage allowance survived confirmed cleanup');
+ const allowanceCtx={local,wallet,profileRows,operatorConfig};
+ let allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'AAPL open',stages});
  let secondCampaignEvidence=null,finalCampaignIds=[campaignId];
  if(twoPools){
   const secondCanonicalProfile=secondProfileRow.profile,secondProfile=secondCanonicalProfile.pool;
@@ -461,7 +560,6 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
    FROM deployment_live_stage_outbox WHERE job_id=$1 ORDER BY created_at,stage`,[secondAdmission.jobId])).rows;
   assert(secondStages.length>=3&&secondStages.every(row=>row.status==='confirmed'&&row.canonical_receipt_json&&row.effect_evidence_json),
    'Second campaign lacks complete canonical stage receipt evidence');
-  assert(secondStages.at(-1).allowance_cleanup_json,'Second campaign allowance cleanup proof is missing');
   const secondCostHashes=secondCampaign.state.costEvents.map(cost=>String(cost.hash).toLowerCase());
   assert.equal(secondCostHashes.length,secondStages.length,'Second campaign receipt costs were omitted or double-counted');
   assert.deepEqual(new Set(secondCostHashes),new Set(secondStages.map(row=>String(row.signed_raw_hash).toLowerCase())));
@@ -493,10 +591,8 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(new Set(allWalletOutbox.map(row=>String(row.nonce))).size,allWalletOutbox.length,'Wallet-wide transaction nonces collided');
   const freeAfterSecondOpen=await readFreeCapital();
   assert.deepEqual(freeAfterSecondOpen,freeAfterSecondAdmission,'Second open spent capital outside its own reserved allocation');
-  const allowancesAfterSecond=await Promise.all([...allowancePairs.values()].map(async item=>BigInt(await local.readContract({address:item.token,
-   abi:parseAbi(['function allowance(address owner,address spender) view returns (uint256)']),functionName:'allowance',args:[wallet,item.spender]}))));
-  assert(allowancesAfterSecond.every(value=>value===0n),'A second-pool allowance survived cleanup');
-  allowances=allowancesAfterSecond;finalWalletState=await readWalletState(db,{chainId:4663,address:wallet});
+  allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'second pool open',stages:secondStages});
+  finalWalletState=await readWalletState(db,{chainId:4663,address:wallet});
   secondCampaignEvidence={profileId:secondProfileRow.id,pool:secondProfile.pool,jobId:secondAdmission.jobId,campaignId:secondAdmission.campaignId,
    stageCount:secondStages.length,tokenId:secondTokenId,liquidity:String(secondPosition[7]),freeCapitalConserved:true,
    firstCampaignStateHashUnchanged:firstAfterSecond.stateHash===firstStateHashBefore,firstAllocationUnchanged:true,
@@ -547,9 +643,7 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(closedState.phase,'closed');assert.equal(closedState.activeTokenId,null);
   const retainStages=(await db.query(`SELECT stage,status,plan_json,signed_raw_hash FROM deployment_live_stage_outbox
    WHERE job_id=$1 ORDER BY created_at`,[retained.jobId])).rows;
-  assert(retainStages.length>=1&&retainStages.every(row=>row.status==='confirmed'),'Retain receipts are incomplete');
-  assert(retainStages.every(row=>{const plan=decodeBigints(row.plan_json);return plan.kind==='withdraw'||plan.kind==='approve'&&plan.amount===0n;}),
-   'Retain operation converted risky tokens or granted an allowance');
+  assertRetainStagePlans(retainStages,{decode:decodeBigints,label:'AAPL retain'});
   assert.equal(closedState.costEvents.length,stages.length+retainStages.length,'Retain receipt costs were omitted or duplicated');
   assert.equal(new Set(closedState.costEvents.map(event=>event.hash)).size,closedState.costEvents.length);
   assert.equal((await db.query('SELECT state FROM deployment_live_allocations WHERE campaign_id=$1',[campaignId])).rows[0]?.state,'released');
@@ -586,17 +680,20 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   dashboardHttpAdmission:dashboardAdmission,registeredProfileCount:profileRows.length,registeredTokenCount:initialBalanceByAddress.size,
   freeCapitalUnchanged:true,
   untouchedSiblingTokenAddresses:[...initialBalanceByAddress.keys()].filter(address=>!selectedTokens.has(address)),
-  allowancesZero:allowances.every(value=>value===0n),walletGeneration:String(finalWalletState.generation),
+  allowancePolicy:allowanceObservation,walletGeneration:String(finalWalletState.generation),
   pools:{count:finalCampaignIds.length,campaignIds:finalCampaignIds,second:secondCampaignEvidence},
   retainedClosure:retainedClosureEvidence,
   forkReadBudget:fork.budget,forkReadDiagnostics:fork.diagnostics,upstreamMutations:0,
   upstreamMutationBoundary:{signer:'synthetic_local_account_only',publisher:'branded_owned_fork_only',
    upstreamClient:'read_only',rejectedPinnedReadMethods:Object.keys(fork.diagnostics.rejectedPinnedReads)}};
  console.log(JSON.stringify(report,(_,value)=>typeof value==='bigint'?String(value):value));
+ }
 }catch(error){
- console.error(JSON.stringify({error:(error instanceof Error?error.stack:String(error)).replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,1200),
-  forkBudget:fork?.budget??null,forkDiagnostics:fork?.diagnostics??null}));
- process.exitCode=1;
+ if(error!==planSentinel){
+  console.error(JSON.stringify({error:(error instanceof Error?error.stack:String(error)).replace(/https?:\/\/\S+/gi,'[redacted-url]').slice(0,1200),
+   forkBudget:fork?.budget??null,forkDiagnostics:fork?.diagnostics??null}));
+  process.exitCode=1;
+ }
 }finally{
  if(commandServer){commandServer.closeAllConnections();commandServer.close();await once(commandServer,'close');}
  try{if(fork)await fork.close();}catch{}
