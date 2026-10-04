@@ -48,7 +48,7 @@ import {loadDashboardConfig} from '../../src/dashboard/config.ts';
 import {createRangeKeeperLiveManagementRuntime} from '../../src/deployments/rangekeeper-live-management.ts';
 import {createRangeKeeperLiveManagementObserver} from '../../src/deployments/rangekeeper-live-management-observer.ts';
 import {DEFAULT_MATRIX,DEFAULT_CONCURRENCY,describeProfile,selectProfiles,runProfileMatrix,runConcurrencyScenarios,
- refreshLocalSource,shortError} from './helpers/rangekeeper-live-pool-matrix.mjs';
+ refreshLocalSource} from './helpers/rangekeeper-live-pool-matrix.mjs';
 import {assertAllowancePolicyAfterJob,assertRetainStagePlans,assertFreshWalletAllowances,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
 
 const env=parseEnv(readFileSync(process.argv[2]??'.env','utf8'));
@@ -357,8 +357,12 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
    mode:{matrix:matrixMode,concurrency:concurrencyMode},allowancePolicy:ALLOWANCE_POLICY,capitalUsdg,fundUsdg,
    source:{block:String(localSource.block),hash:localSource.hash,timestamp:localSource.timestamp},custodyBaseline:walletTransferFixture.baseline,
    registeredProfileCount:profileRows.length,
+   structuralClasses:[...new Set([...matrixSelections,...concurrencySelections].map(item=>`${item.view.quoteSide}/fee${item.view.fee}/spacing${item.view.tickSpacing}`))],
    summary:{pass:count('PASS'),fail:count('FAIL'),marketBlock:count('MARKET_BLOCK'),fixtureBlock:count('FIXTURE_BLOCK'),
     infraBlock:count('INFRA_BLOCK'),notRun:count('NOT_RUN')},
+   table:(profiles??[]).map(item=>({profile:item.label,quoteSide:item.profile.quoteSide,fee:item.profile.fee,tickSpacing:item.profile.tickSpacing,
+    width:item.width??null,open:(item.openStages??[]).map(stage=>`${stage.kind}:${stage.gasUsed}`),
+    close:(item.closeStages??[]).map(stage=>`${stage.kind}:${stage.gasUsed}`),outcome:item.outcome,reason:item.reason??null})),
    profiles,concurrency,signerCalls,
    forkReadBudget:fork.budget,forkReadDiagnostics:fork.diagnostics,directUpstreamReads:upstreamReads,upstreamMutations:0,
    upstreamMutationBoundary:{signer:'synthetic_local_account_only',publisher:'branded_owned_fork_only',upstreamClient:'read_only'}};

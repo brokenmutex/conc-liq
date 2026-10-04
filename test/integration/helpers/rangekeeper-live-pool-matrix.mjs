@@ -170,6 +170,16 @@ export async function driveJobs(ctx,runtime,jobIds,{label,maxTurns=160}={}){
    if(row?.status==='succeeded')pending.delete(id);
   }
   if(!pending.size)return {ok:true,turns};
+  // An opening job is authorized against the persisted wallet snapshot and must start within the frozen
+  // observation gap of it. Production re-anchors that snapshot between jobs in its observation turns; the
+  // fork has no block production, so do the same before a job's first stage (never mid-job).
+  if(turn===0||turns.at(-1)?.status!=='reconciled'){
+   const state=await readWalletState(ctx.db,identityOf(ctx));
+   if(!state.source||Math.floor(Date.now()/1000)-state.source.timestamp>30){
+    try{await refreshLocalSource(ctx);await ctx.observer.refreshWallet();ctx.emit('matrix_wallet_snapshot_refreshed',{label,turn});}
+    catch(error){ctx.emit('matrix_wallet_snapshot_refresh_failed',{label,turn,error:shortError(error)});}
+   }
+  }
   const result=await runtime.worker.execute();
   const inflight=Number((await ctx.db.query(`SELECT count(*)::int n FROM deployment_live_jobs WHERE chain_id=4663 AND wallet=$1
    AND status IN('preflighting','executing','confirming','reconciling')`,[ctx.wallet])).rows[0].n);
@@ -185,10 +195,16 @@ export async function driveJobs(ctx,runtime,jobIds,{label,maxTurns=160}={}){
  return {ok:false,kind:'structural',reason:'worker turn limit reached',turns};
 }
 
+/** The first preflight of a pool pays for its cold state reads through the bounded upstream proxy and can
+ * outlive the 90-second candidate or 180-second source window; the fork then holds that state in memory,
+ * so the same width is retried (twice at most) before the block is reported as a fixture timing block. */
+const TIMING_BLOCKS=[/^owned_fork_candidate_confirmation_expired$/,/^fresh_source_stale$/];
 async function preflightLadder(ctx,selected,options,label){
  const {row,view}=selected,attempts=[];
  const widths=options.widths?.length?options.widths:defaultWidthLadder(view.tickSpacing);
- for(const width of widths){
+ let index=0,warmRetries=0;
+ while(index<widths.length){
+  const width=widths[index];
   await refreshLocalSource(ctx);
   const started=Date.now();
   const input=rangeKeeperLiveSetupPreflightInput.parse({profileId:row.id,capitalQuoteRaw:String(options.capitalQuoteRaw),
@@ -206,8 +222,10 @@ async function preflightLadder(ctx,selected,options,label){
   }
   const reason=String(body.missing?.[0]??'unknown'),klass=classifyPreflightBlock(reason);
   attempts.push({width,status:body.status,missing:body.missing,class:klass,ms:Date.now()-started});
-  ctx.emit('matrix_preflight_block',{label,width,reason,class:klass});
+  ctx.emit('matrix_preflight_block',{label,width,reason,class:klass,ms:Date.now()-started});
+  if(klass==='fixture'&&TIMING_BLOCKS.some(pattern=>pattern.test(reason))&&warmRetries<2){warmRetries++;continue;}
   if(klass!=='market_width_sensitive')break;
+  index++;
  }
  return {body:null,attempts};
 }
@@ -376,7 +394,6 @@ export async function runProfileLifecycle(ctx,selected,options){
  };
  try{
   const quiet=await phase('quiescent',()=>assertQuiescent(ctx,label));rec.walletNonceBefore=quiet.nonce;
-  const tokensBefore=await walletTokenMap(ctx);
   const ladder=await phase('preflight',()=>preflightLadder(ctx,selected,options,label));
   rec.attempts=ladder.attempts;
   if(!ladder.body){
@@ -386,6 +403,8 @@ export async function runProfileLifecycle(ctx,selected,options){
    return rec;
   }
   const body=ladder.body;rec.width=ladder.width;
+  // The preflight persisted the first wallet snapshot (when none existed): inventory baseline for this profile.
+  const tokensBefore=await walletTokenMap(ctx);
   const persisted=body.reviewPersistence;assert.equal(persisted?.status,'persisted',JSON.stringify(persisted));
   rec.review={source:body.source,requirements:body.requirements,range:body.range,
    swap:body.candidate.swap?{token:body.candidate.swap.token,amountIn:body.candidate.swap.amountIn}:null,
@@ -467,7 +486,6 @@ export async function runConcurrencyScenarios(ctx,selections,options){
  };
  try{
   const quiet=await phase('quiescent',()=>assertQuiescent(ctx,'concurrency'));out.walletNonceBefore=quiet.nonce;
-  const tokensBefore=await walletTokenMap(ctx);
   // Calibrate native gas: one non-admitted probe preflight per member gives its exact reservation.
   const widths=[],requirements=[];
   const probes=[];
@@ -476,6 +494,8 @@ export async function runConcurrencyScenarios(ctx,selections,options){
    assert(probe.body,`${labels[index]}: probe preflight blocked: ${JSON.stringify(probe.attempts)}`);
    widths.push(probe.width);requirements.push(BigInt(probe.body.requirements.nativeWei));probes.push(probe.attempts);
   }
+  // Probes persisted the first wallet snapshot: inventory baseline for the unrelated-token check.
+  const tokensBefore=await walletTokenMap(ctx);
   const minimum=requirements.reduce((a,b)=>a<b?a:b),total=requirements.reduce((a,b)=>a+b,0n);
   // Free native for exactly three reservations plus 40% of the smallest one: a fourth must be refused.
   const nativeTarget=total+minimum*4n/10n;
