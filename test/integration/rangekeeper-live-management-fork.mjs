@@ -359,10 +359,14 @@ async function flowOpen(){
   await runOpenToHolding(B);
   ev.B=await verifyOpened(B,{job:'open_fresh_wallet'});
   await captureSibling(B);
-  const A=await admitCampaign('A',{row:ctx.p500,capitalQuoteRaw:'50000000'});
-  await runOpenToHolding(A);
-  ev.A=await verifyOpened(A,{job:'open_shared_pair',strict:true});
-  await checkSibling('after A opened');
+  // A is the recenter subject of scenarios 2 and 6; a run of only the later flows must not leave it holding on the pool
+  // the next flow drifts (the planner would recenter it concurrently).
+  if(selected.has(1)||selected.has(2)||selected.has(6)){
+   const A=await admitCampaign('A',{row:ctx.p500,capitalQuoteRaw:'50000000'});
+   await runOpenToHolding(A);
+   ev.A=await verifyOpened(A,{job:'open_shared_pair',strict:true});
+   await checkSibling('after A opened');
+  }
   ev.httpAdmission={preflightPersisted:true,admission:'202',exactReplay:'200 identical result',executionEligible:false};
  });
 }
