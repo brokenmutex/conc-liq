@@ -38,6 +38,18 @@ test('future acquired-token approval is finite and restricted to the position ma
   /Only position-manager approval/);
 });
 
+test('persistent allowance ceiling lets an approval reach its cap per token but never beyond or on a swap',()=>{
+ const wallet={operator:addr(10),wallet0:100n,wallet1:0n,tick:0,sqrtPriceX96:sqrtRatioAtTick(0),timestamp:1000,position:null};
+ const grant=(token:0|1,spender:'router'|'positionManager',amount:bigint)=>({kind:'approve' as const,token,spender,amount});
+ const ceiling=[500n,800n] as const;
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,grant(0,'router',500n),50,20),/bounded future strategy token/,'no ceiling: inventory only');
+ assert.doesNotThrow(()=>authorizeRangeKeeperTx(pool,wallet,grant(0,'router',500n),50,20,0n,ceiling));
+ assert.doesNotThrow(()=>authorizeRangeKeeperTx(pool,wallet,grant(1,'positionManager',800n),50,20,0n,ceiling),'the stock token is capped by its own entry');
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,grant(0,'router',501n),50,20,0n,ceiling),/bounded future strategy token/);
+ assert.throws(()=>authorizeRangeKeeperTx(pool,wallet,grant(1,'positionManager',801n),50,20,0n,ceiling),/bounded future strategy token/);
+ assert.doesNotThrow(()=>authorizeRangeKeeperTx(pool,wallet,grant(0,'router',0n),50,20,0n,ceiling),'zero cleanup is always allowed');
+});
+
 test('generic receipt recognizes raw token deltas by address with reversed quote order',()=>{
  const abi=parseAbi(['event Transfer(address indexed from,address indexed to,uint256 value)']);
  const operator=addr(10),router=pool.router;

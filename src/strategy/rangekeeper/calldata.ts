@@ -20,14 +20,17 @@ export interface RangeKeeperWallet {
 }
 
 /** Semantic authorization is mandatory immediately before signing. The caller
- * must also bind this calldata to a canonical source, nonce, and gas envelope. */
-export function authorizeRangeKeeperTx(pool:RangeKeeperPool,wallet:RangeKeeperWallet,plan:RangeKeeperTxPlan,slippageBps:number,fullWidthSpacings:number,futureApprovalCap=0n){
+ * must also bind this calldata to a canonical source, nonce, and gas envelope.
+ * `allowanceCeiling` (persistent_capped_v1) lets an approval reach its per-token cap above the current inventory. */
+export function authorizeRangeKeeperTx(pool:RangeKeeperPool,wallet:RangeKeeperWallet,plan:RangeKeeperTxPlan,slippageBps:number,fullWidthSpacings:number,futureApprovalCap=0n,
+ allowanceCeiling?:readonly [bigint,bigint]){
  assert(Number.isInteger(slippageBps)&&slippageBps>0&&slippageBps<=50);
  const token=(index:0|1)=>index===0?pool.token0:pool.token1;
  const available=(index:0|1)=>index===0?wallet.wallet0:wallet.wallet1;
  if(plan.kind==='approve'){
   assert(futureApprovalCap>=0n);
-  assert(plan.amount>=0n&&plan.amount<=available(plan.token)+futureApprovalCap,
+  assert(plan.amount>=0n&&(plan.amount<=available(plan.token)+futureApprovalCap||
+   allowanceCeiling!==undefined&&plan.amount<=allowanceCeiling[plan.token]),
    'Approval exceeds available or bounded future strategy token');
   assert(futureApprovalCap===0n||plan.spender==='positionManager',
    'Only position-manager approval may anticipate swap inventory');
