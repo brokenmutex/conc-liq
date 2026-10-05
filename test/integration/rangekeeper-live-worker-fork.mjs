@@ -380,12 +380,19 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
  }
  assert(diagnosticFrame.referenceEligible&&diagnosticFrame.price0&&diagnosticFrame.price1&&diagnosticFrame.nativePrice,
   `Funded local source lacks independent references: ${JSON.stringify({source:diagnosticFrame.source,reasons:diagnosticFrame.referenceReasons})}`);
+ // In production the worker extends wallet history on its own cadence, so the head is
+ // past the newest checkpoint whenever an operator reviews. Advance the fork head (same
+ // timestamp) and require the review to anchor at the checkpoint rather than head-64.
+ await fork.rpc('anvil_mine',['0x20','0x0']);
+ assert((await rangeKeeperConfirmedSource(local)).block>localSource.block,'Fork head did not advance past the history checkpoint');
  const initialInventory=await setup.walletReview();assert.equal(initialInventory.status,'available',initialInventory.blockers.join(','));
  const initialBalanceByAddress=new Map(initialInventory.tokens.map(token=>[token.address.toLowerCase(),token.balanceRaw]));
  const preflightInput=rangeKeeperLiveSetupPreflightInput.parse({profileId:profileRow.id,capitalQuoteRaw:'50000000',
   fullWidthSpacings,limits:preflightLimits});
  const preflight=await reviewSetup(preflightInput);
  assert.equal(preflight.status,'indicative',JSON.stringify(preflight.missing));assert.equal(preflight.executionEligible,false);
+ assert.equal(preflight.source.block,String(localSource.block),'Setup review did not anchor at the history checkpoint');
+ assert.equal(initialInventory.source.block,String(localSource.block),'Wallet review did not anchor at the history checkpoint');
  const persisted=preflight.reviewPersistence;
  assert.equal(persisted?.status,'persisted',JSON.stringify(persisted));
  const reviewStore=createRangeKeeperLiveReviewStoreAdapter(db,wallet);

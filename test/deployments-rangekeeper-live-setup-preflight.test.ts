@@ -306,3 +306,34 @@ test('open-ended scope does not change funding: reserves are sized by the count 
  assert.deepEqual(open.requirements,legacy.requirements);assert.deepEqual(open.costs,legacy.costs);
  assert.equal((open.policy as any).config.limits.maxRecenters,5,'the max-recenters bound is untouched');
 });
+
+test('live setup reviews anchor at the newest wallet-history checkpoint, not a fresh head-64 block',async()=>{
+ // The worker checkpointed block 900; the chain head is 1000, so a fresh confirmed source would be 936.
+ // Complete NFT custody is provable only at a persisted checkpoint, so the review must use 900.
+ const f=fixture(0),timestamp=Math.floor(Date.now()/1000)-10,requested:string[]=[];
+ const hashOf=(n:bigint)=>`0x${n.toString(16).padStart(64,'0')}`;
+ const client={getChainId:async()=>4663,getBlock:async({blockNumber}:{blockNumber?:bigint}={})=>{
+  requested.push(blockNumber===undefined?'latest':String(blockNumber));const n=blockNumber??1000n;
+  return {number:n,hash:hashOf(n),timestamp:BigInt(timestamp)};},getBytecode:async()=>undefined};
+ const store={listMarketProfiles:async()=>[{id:'p',draftAvailable:true}],
+  paperSetupProfile:async()=>({id:'p',profile:f.profile,profileHash:contentHash(f.profile)})};
+ const wallet='0x9000000000000000000000000000000000000001';
+ const runtime=(transferStore:unknown)=>createRangeKeeperLiveSetupRuntime({store:store as any,
+  indexer:{query:async()=>{throw Error('unused');}} as any,client:client as any,walletAddress:wallet,buildId:'b'.repeat(64),
+  rpcUrl:'',anvilBinary:'',transferStore:transferStore as any});
+ const scoped=(cursor:unknown)=>({walletScope:wallet,getCursor:async(chainId:number,manager:string,startBlock:bigint)=>{
+  assert.equal(chainId,4663);assert.equal(manager,NONFUNGIBLE_POSITION_MANAGER);assert.equal(startBlock,0n);return cursor;}});
+
+ const anchored=await runtime(scoped({coveredThroughBlock:900n,coveredThroughHash:hashOf(900n)})).walletReview();
+ assert.equal(anchored.source.block,'900');assert.equal(anchored.source.hash,hashOf(900n));
+ assert.deepEqual(requested,['900'],'the head is never read to choose the review source');
+
+ requested.length=0;
+ const global=await runtime({}).walletReview();
+ assert.equal(global.source.block,'936','a global (pre-v14) store keeps the fresh confirmed source');
+
+ await assert.rejects(runtime(scoped({coveredThroughBlock:900n,coveredThroughHash:hashOf(901n)})).walletReview(),
+  /wallet_history_checkpoint_not_canonical/);
+ await assert.rejects(runtime(scoped(null)).walletReview(),/wallet_history_uninitialized/);
+ await assert.rejects(runtime(scoped({coveredThroughBlock:null,coveredThroughHash:null})).walletReview(),/wallet_history_uninitialized/);
+});

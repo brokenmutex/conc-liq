@@ -102,12 +102,29 @@ export function createRangeKeeperLiveSetupRuntime(deps:{store:DeploymentStore;in
    .map(row=>deps.store.paperSetupProfile(row.id)));
   return loaded.filter(row=>row!==null).map(row=>row.profile);
  };
+ /** Source for an unpinned review: the newest block the supervised worker has
+  * checkpointed in the wallet-scoped Position Manager history. Complete NFT
+  * custody is provable only at a persisted checkpoint and the worker extends
+  * history on its own cadence, so a fresh head-64 block almost never is one.
+  * A global (pre-v14) transfer store keeps the fresh confirmed source. */
+ const reviewSource=async(registered:readonly MarketProfile[]):Promise<PaperOpenFrame['source']|undefined>=>{
+  if(!deps.transferStore.walletScope)return undefined;
+  const managers=[...new Set(registered.map(profile=>getAddress(profile.pool.positionManager)))];
+  if(managers.length!==1)throw Error('registered_position_manager_scope_ambiguous');
+  const cursor=await deps.transferStore.getCursor(4663,managers[0]!,0n);
+  if(cursor?.coveredThroughBlock===null||cursor?.coveredThroughBlock===undefined||!cursor.coveredThroughHash)
+   throw Error('wallet_history_uninitialized');
+  const block=await deps.client.getBlock({blockNumber:cursor.coveredThroughBlock});
+  if(!block.hash||block.hash.toLowerCase()!==cursor.coveredThroughHash.toLowerCase())
+   throw Error('wallet_history_checkpoint_not_canonical');
+  return {block:cursor.coveredThroughBlock.toString(),hash:block.hash,timestamp:Number(block.timestamp)};
+ };
  type WalletObservation={review:LiveWalletReview;nft:CompleteRangeKeeperNftEvidence|null;positions:RangeKeeperNftPosition[]};
  const readWalletObservation=async(pinned?:PaperOpenFrame['source'],selected?:MarketProfile):Promise<WalletObservation>=>{
   let completeNft:CompleteRangeKeeperNftEvidence|null=null,positionRows:RangeKeeperNftPosition[]=[];
-  const source=pinned?{block:BigInt(pinned.block),hash:pinned.hash as Hex,timestamp:pinned.timestamp}:
+  const registered=await profiles(),anchor=pinned??await reviewSource(registered);
+  const source=anchor?{block:BigInt(anchor.block),hash:anchor.hash as Hex,timestamp:anchor.timestamp}:
    await rangeKeeperConfirmedSource(deps.client);
-  const registered=await profiles();
   if(selected&&!registered.some(p=>contentHash(p)===contentHash(selected)))
    throw Error('registered_market_profile_changed_since_review');
   if(deps.ensureWalletHistory){
@@ -302,7 +319,8 @@ export function createRangeKeeperLiveSetupRuntime(deps:{store:DeploymentStore;in
     return {id:'operator-1',address:wallet,walletCode};
    },
    loadProfile:id=>deps.store.paperSetupProfile(id),
-   readFrame:async selected=>{profile=selected;frame=await readCanonicalPaperOpenFrame(deps.client,selected);return frame;},
+   readFrame:async selected=>{profile=selected;
+    frame=await readCanonicalPaperOpenFrame(deps.client,selected,await reviewSource(await profiles()));return frame;},
    readWalletSnapshot:async selected=>{
     if(!frame)throw Error('live_setup_pinned_frame_unavailable');
     profile=selected;
