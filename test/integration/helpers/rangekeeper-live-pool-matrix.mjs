@@ -13,6 +13,8 @@ import {parseAbi} from 'viem';
 import {readRangeKeeperLiveCampaign} from '../../../src/deployments/rangekeeper-live-campaign-store.ts';
 import {readCommitments,readWalletState} from '../../../src/deployments/live-wallet-store.ts';
 import {readLiveWalletLane} from '../../../src/deployments/live-wallet-queue.ts';
+import {rangeKeeperConfirmedSource} from '../../../src/strategy/rangekeeper/source.ts';
+import {scanPositionManagerTransferHistory} from '../../../src/nft/position-manager-transfer-index.ts';
 import {rangeKeeperLiveSetupPreflightInput} from '../../../src/deployments/rangekeeper-live-setup-preflight.ts';
 import * as allowancePolicy from './rangekeeper-live-allowance-policy.mjs';
 
@@ -101,6 +103,13 @@ export async function refreshLocalSource(ctx){
  const now=Math.floor(Date.now()/1000),next=Math.max(now,Number(latest.timestamp));
  await ctx.fork.rpc('anvil_setNextBlockTimestamp',[next]);
  await ctx.fork.rpc('anvil_mine',['0x41','0x0']);
+ // Production's wallet-history indexer keeps the NFT transfer cursor current. The owned fork has no
+ // background indexer, so extend the wallet-scoped cursor over the new confirmed blocks (local logs only).
+ const source=await rangeKeeperConfirmedSource(ctx.local);
+ const scan=await scanPositionManagerTransferHistory({client:ctx.local,store:ctx.transferStore,chainId:4663,
+  manager:ctx.operatorConfig.pool.positionManager,startBlock:0n,source,chunkBlocks:1_000n,maxBlocksPerRun:100_000n});
+ if(!(scan.status==='scanned'&&scan.completeThroughSource))
+  throw new Error(`Wallet NFT transfer index did not reach the refreshed source: ${JSON.stringify(scan,(_,value)=>typeof value==='bigint'?String(value):value)}`);
 }
 
 async function assertQuiescent(ctx,label){
