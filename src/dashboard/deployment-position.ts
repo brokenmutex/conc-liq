@@ -13,6 +13,8 @@ import {amountsForLiquidity,sqrtRatioAtTick} from '../backtest/principal.js';
 import {positionWindow,type PositionPoint} from './position-performance.js';
 import {parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js';
 import {rangeKeeperPinnedSemanticProofHash} from '../deployments/rangekeeper-live-review-runtime.js';
+import {classifyReferenceBasis,poolImpliedValue,valueInventory,
+ type ReferenceBasis,type ReferenceBasisKind} from './reference-basis.js';
 
 const WAD=10n**18n,Q192=1n<<192n;
 const micro=(value:string|null)=>value===null?null:String(BigInt(value)/10n**12n);
@@ -66,7 +68,7 @@ type LiveMarkModel={payload:any;state:RangeKeeperLiveState;source:{block:string;
  amounts:[string,string];navQuote:string|null;passiveQuote:string|null;feesQuote:string|null;gasQuote:string|null;swapCostQuote:string|null;
  pnlQuote:string|null;alphaQuote:string|null;epoch:number;sqrt:string|null;tick:number|null;tickLower:number|null;
  tickUpper:number|null;hasPosition:boolean;feeEvidenceAvailable:boolean;nativeWei:string;referencesAvailable:boolean;missing:string[];
- feeRaw:[string,string];costEvents:any[]};
+ feeRaw:[string,string];costEvents:any[];referenceBasis:ReferenceBasis;nativeTotalWei:string};
 function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):LiveMarkModel|null{
  try{
   if(contentHash(row.live_mark_payload)!==row.live_mark_payload_hash)return null;
@@ -95,14 +97,23 @@ function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):Li
   if(amount0===null||amount1===null||native===null||exitReserve===null||
    !['available','unavailable'].includes(String(refs.status)))return null;
   const evidence=record(refs.evidence),prices={price0:String(refs.price0),price1:String(refs.price1),nativePrice:String(refs.nativePrice)};
-  let refsAvailable=refs.status==='available'&&sameSource(payload.source,refs.source)&&
+  // The reference is bound to this mark's source when every identity and hash check passes. Freshness is judged
+  // separately: a bound reference whose oracle is past its age limit can still be valued at its last answer.
+  const bound=refs.status==='available'&&sameSource(payload.source,refs.source)&&
    /^[0-9a-f]{64}$/.test(String(refs.proofHash))&&[refs.price0,refs.price1,refs.nativePrice].every(v=>{const d=decimal(v);return d!==null&&BigInt(d)>0n;})&&
    evidence.kind==='rangekeeper_live_independent_reference_v1'&&evidence.campaignId===row.id&&
    Number(evidence.revision)===row.current_revision&&evidence.profileHash===payload.profileHash&&
    sameSource(evidence.source,payload.source)&&contentHash(evidence.prices)===contentHash(prices)&&
    evidence.semanticProofHash===refs.proofHash&&rangeKeeperPinnedSemanticProofHash({profileHash:payload.profileHash,
-    source:payload.source,references:prices,referenceProof:evidence.referenceProof})===refs.proofHash&&
-   rangeKeeperPaperReferenceProofFresh(evidence.referenceProof,Array.isArray(refs.missing)?refs.missing:[]);
+    source:payload.source,references:prices,referenceProof:evidence.referenceProof})===refs.proofHash;
+  const fresh=bound&&rangeKeeperPaperReferenceProofFresh(evidence.referenceProof,Array.isArray(refs.missing)?refs.missing:[]);
+  const classified=bound?classifyReferenceBasis({proof:evidence.referenceProof,reasons:[],
+   sourceTimestamp:Number(payload.source.timestamp),persistedPrices:prices}):null;
+  const referenceBasis:ReferenceBasis=fresh?{...(classified??{feeds:[],asOf:null,freshnessReasons:[],structuralReasons:[]}),
+   kind:'oracle_fresh',prices:{price0:BigInt(prices.price0),price1:BigInt(prices.price1),nativePrice:BigInt(prices.nativePrice)}}:
+   classified??{kind:'unavailable',prices:null,feeds:[],asOf:null,freshnessReasons:[],
+    structuralReasons:Array.isArray(refs.missing)&&refs.missing.length?refs.missing.map(String):['independent_reference_unavailable']};
+  let refsAvailable=fresh||referenceBasis.kind==='last_oracle_price';
   let principal0='0',principal1='0',fee0='0',fee1='0',feeEvidenceValid=!hasPosition&&state.phase!=='holding';
   if(hasPosition){
    if(fee.kind!=='rangekeeper_live_position_fee_evidence_v1'||!sameSource(payload.source,fee.source)||
@@ -141,9 +152,10 @@ function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):Li
    alphaQuote=String(BigInt(navQuote)-BigInt(passiveQuote));
   }
   return {payload,state,source:{block:String(payload.source.block),hash:String(payload.source.hash),timestamp:Number(payload.source.timestamp)},
+   referenceBasis,nativeTotalWei:String(nativeTotal),
    amounts:[String(total0),String(total1)],navQuote,passiveQuote,feesQuote,gasQuote,swapCostQuote,pnlQuote,alphaQuote,
    epoch:Number.isSafeInteger(payload.epoch)&&payload.epoch>=0?payload.epoch:
-    Number.isSafeInteger(state.epoch)&&state.epoch>=0?state.epoch:0,sqrt:decimal(snapshot.sqrtPriceX96),
+    Number.isSafeInteger(state.epoch)&&state.epoch>=0?state.epoch:0,sqrt:decimal(typeof snapshot.sqrtPriceX96==='bigint'?String(snapshot.sqrtPriceX96):snapshot.sqrtPriceX96),
    tick:typeof snapshot.tick==='number'?snapshot.tick:null,hasPosition,
    tickLower:hasPosition&&typeof position.tickLower==='number'?position.tickLower:null,
    tickUpper:hasPosition&&typeof position.tickUpper==='number'?position.tickUpper:null,
@@ -225,7 +237,20 @@ function liveCampaignView(row:DeploymentRow,model:LiveMarkModel|null){
    job&&['rejected','cancelled'].includes(job.status)?`job_${job.status}`:
    typeof runtime?.lastReason==='string'&&runtime.lastReason?runtime.lastReason:'blocked_reason_unavailable');
  const allocation=allocationSchema.safeParse(row.allocation);
- return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,
+ // The operator's campaign scope is frozen in the campaign parameters; the runtime records the resulting expiry.
+ // A campaign admitted before the scope was an operator input has no recorded limit, which stays unavailable.
+ const configured=record(record(row.config).campaignScope),
+  maxDuration=Number.isSafeInteger(configured.maxDurationSeconds)&&Number(configured.maxDurationSeconds)>=0&&Number(configured.maxDurationSeconds)<=86_400?
+   Number(configured.maxDurationSeconds):null,
+  maxActions=Number.isSafeInteger(configured.maxEconomicActions)&&Number(configured.maxEconomicActions)>=0&&Number(configured.maxEconomicActions)<=10?
+   Number(configured.maxEconomicActions):null,
+  expiresAt=runtime&&typeof runtime.expiresAt==='number'?runtime.expiresAt:null,
+  openEnded=expiresAt!==null?expiresAt===Number.MAX_SAFE_INTEGER:maxDuration===null?null:maxDuration===0,
+  scope={maxDurationSeconds:maxDuration,maxEconomicActions:maxActions,openEnded,
+   expiresAt:expiresAt!==null&&expiresAt!==Number.MAX_SAFE_INTEGER&&Number.isSafeInteger(expiresAt)&&expiresAt>0&&expiresAt<4_102_444_800?
+    new Date(expiresAt*1000).toISOString():null,
+   economicActions:runtime&&Number.isSafeInteger(runtime.economicActions)&&runtime.economicActions>=0?runtime.economicActions:null};
+ return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,scope,
   allocation:allocation.success?allocation.data:null,
   recenters:runtime&&Number.isSafeInteger(runtime.recenters)?runtime.recenters:null,
   paidGasWei:runtime&&typeof runtime.gasSpentWei==='bigint'?String(runtime.gasSpentWei):null,
@@ -551,6 +576,49 @@ export async function readDeploymentRows(db:PoolClient):Promise<DeploymentRow[]>
  return rows;
 }
 
+/** Reason codes recorded with a RangeKeeper paper mark when its reference was withheld. */
+const markReferenceReasons=(provenance:unknown):unknown[]=>{
+ const p=record(provenance),recorded=record(p.valuation).referenceUnavailable??p.referenceUnavailable;
+ return Array.isArray(recorded)?recorded:[];
+};
+type PoolView=MarketProfile['pool'];
+const bigOrZero=(value:unknown)=>typeof value==='string'&&/^(0|[1-9][0-9]*)$/.test(value)?BigInt(value):0n;
+/** The accounting snapshot's own formulas, applied to the last oracle answers instead of a fresh reference. Only
+ * called for a snapshot whose reference was withheld solely for freshness. */
+function heldPaperEconomics(model:RangeKeeperPaperAccounting,allocation:{token0Raw:string;token1Raw:string;nativeWei:string},
+ prices:{price0:bigint;price1:bigint;nativePrice:bigint},pool:PoolView){
+ const amounts={token0Raw:bigOrZero(model.inventory.token0Raw),token1Raw:bigOrZero(model.inventory.token1Raw),
+  nativeWei:bigOrZero(model.inventory.nativeWei)};
+ const nav=valueInventory(amounts,prices,pool),
+  passive=valueInventory({token0Raw:bigOrZero(allocation.token0Raw),token1Raw:bigOrZero(allocation.token1Raw),
+   nativeWei:bigOrZero(allocation.nativeWei)},prices,pool),
+  fees=valueInventory({token0Raw:bigOrZero(model.inventory.fee0Raw),token1Raw:bigOrZero(model.inventory.fee1Raw),nativeWei:0n},prices,pool),
+  initial=model.economics.initialCapitalQuote;
+ return {initialCapitalQuote:initial,netNavQuote:String(nav),passiveQuote:String(passive),
+  absolutePnlQuote:initial===null?null:String(nav-BigInt(initial)),alphaQuote:String(nav-passive),
+  cumulativeFeeValueQuote:String(fees),intervalFeeAccrualQuote:null,cumulativeGasExpenseQuote:null,markGasExpenseQuote:null};
+}
+const exposureAt=(amounts:{token0Raw:bigint;token1Raw:bigint},prices:{price0:bigint;price1:bigint},pool:PoolView)=>{
+ const v0=amounts.token0Raw*prices.price0/10n**BigInt(pool.decimals0),v1=amounts.token1Raw*prices.price1/10n**BigInt(pool.decimals1),sum=v0+v1;
+ return sum>0n?String((pool.quoteToken===0?v1:v0)*1_000_000n/sum):null;
+};
+/** The valuation block every RangeKeeper position carries: which oracle basis the headline numbers use, the age of
+ * those prices, and the secondary pool-implied (indicative) NAV. */
+function valuationView(input:{basis:ReferenceBasis|null;kind:ReferenceBasisKind;pool:PoolView;
+ amounts:{token0Raw:bigint;token1Raw:bigint;nativeWei:bigint}|null;sqrtPriceX96:bigint|null;
+ symbols:[string,string]}){
+ const {basis,pool}=input,usable=(name:'token0'|'token1'|'native')=>{
+  const price=basis?.feeds.find(feed=>feed.name===name)?.price;return price?BigInt(price):null;};
+ const implied=input.amounts?poolImpliedValue({amounts:input.amounts,sqrtPriceX96:input.sqrtPriceX96,pool,
+  quoteUsdX18:usable(pool.quoteToken===0?'token0':'token1'),nativeUsdX18:usable('native')}):null;
+ return {basis:input.kind,
+  priceAsOf:basis?.asOf?.updatedAt??null,priceAgeAtMarkSeconds:basis?.asOf?.ageSeconds??null,
+  feeds:(basis?.feeds??[]).map(feed=>({name:feed.name,symbol:feed.name==='native'?'ETH':input.symbols[feed.name==='token0'?0:1],
+   state:feed.state,updatedAt:feed.updatedAt,ageSeconds:feed.ageSeconds,strategyBasis:feed.strategyBasis})),
+  freshnessReasons:basis?.freshnessReasons??[],structuralReasons:basis?.structuralReasons??[],
+  poolImplied:implied?{navQuote:micro(String(implied.valueX18)),priceQuoteX18:String(implied.priceQuoteX18)}:null};
+}
+
 export function deploymentPosition(row:DeploymentRow){
  const profile=marketProfileSchema.parse(row.profile),p=profile.pool;
  const allocation=allocationSchema.parse(row.allocation),inventory=record(row.inventory),
@@ -583,6 +651,18 @@ export function deploymentPosition(row:DeploymentRow){
   liveModel=row.mode==='live'&&row.strategy_id==='rangekeeper_v1'?liveMarkModel(row,profile):null,
   liveView=row.mode==='live'&&row.strategy_id==='rangekeeper_v1'?liveCampaignView(row,liveModel):null,
   model=row.mode==='paper'?(rangeKeeperModel??(conversionClose?conversionModel:accounting(row,row.id))):null;
+ // Display-only valuation basis for the latest RangeKeeper paper snapshot. A snapshot that withheld its economics
+ // only because an oracle is past its age limit is valued at the last oracle answers; structural failures stay unavailable.
+ const paperRk=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1'&&latestRangeKeeperModel!==null?latestRangeKeeperModel:null,
+  paperClassified=paperRk?classifyReferenceBasis({proof:paperRk.reference.proof,reasons:markReferenceReasons(provenance),
+   sourceTimestamp:paperRk.source.timestamp,persistedPrices:paperRk.reference}):null,
+  paperBasis:ReferenceBasis|null=paperRk&&paperClassified?(paperRk.reference.eligible?{...paperClassified,kind:'oracle_fresh',
+   prices:paperClassified.prices??{price0:BigInt(paperRk.reference.price0!),price1:BigInt(paperRk.reference.price1!),
+    nativePrice:BigInt(paperRk.reference.nativePrice!)}}:paperClassified):null,
+  paperHeld=paperRk&&paperBasis?.kind==='last_oracle_price'&&paperBasis.prices?paperBasis.prices:null,
+  heldEconomics=paperRk&&paperHeld?heldPaperEconomics(paperRk,allocation,paperHeld,profile.pool):null,
+  modelEconomics=(heldEconomics&&model===paperRk?heldEconomics:model?.economics??null) as
+   Record<string,string|null>|null;
  const riskIndex=p.quoteToken===0?1:0,reference=riskIndex===0?p.reference0:p.reference1,
   quoteRef=p.quoteToken===0?p.reference0:p.reference1;
  const isRangeKeeper=row.mode==='paper'&&row.strategy_id==='rangekeeper_v1',
@@ -613,6 +693,7 @@ export function deploymentPosition(row:DeploymentRow){
   row.range_state==='outside'?'outside':'unknown';
  const reasons:string[]=[];
  if(liveModel)reasons.push(...liveModel.missing);
+ if((liveModel?.referenceBasis??paperBasis)?.kind==='last_oracle_price')reasons.push('valued_at_last_oracle_price');
  if(liveView){
   if(!liveModel&&['holding','recentering','closing'].includes(liveView.lifecycle))reasons.push('live_valuation_unavailable');
  }else if(!row.mark_id)reasons.push('first_model_mark_unavailable');
@@ -643,10 +724,10 @@ export function deploymentPosition(row:DeploymentRow){
   history:liveView?liveView.lifecycle==='closed':row.lifecycle==='closed',
   initialQuote:liveModel?micro(decimal((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue==null?
    null:String((liveModel.state as RangeKeeperLiveState&{initialCapitalValue?:unknown}).initialCapitalValue))):rangeKeeperModel?micro(rangeKeeperModel.economics.initialCapitalQuote):micro(row.initial_value),
-  navQuote:micro(liveModel?.navQuote??model?.economics.netNavQuote??null),
-  holdQuote:micro(liveModel?.passiveQuote??model?.economics.passiveQuote??null),
-  feesQuote:micro(liveModel?.feesQuote??model?.economics.cumulativeFeeValueQuote??null),
-  gasQuote:micro(liveModel?.gasQuote??model?.economics.cumulativeGasExpenseQuote??null),
+  navQuote:micro(liveModel?.navQuote??modelEconomics?.netNavQuote??null),
+  holdQuote:micro(liveModel?.passiveQuote??modelEconomics?.passiveQuote??null),
+  feesQuote:micro(liveModel?.feesQuote??modelEconomics?.cumulativeFeeValueQuote??null),
+  gasQuote:micro(liveModel?.gasQuote??modelEconomics?.cumulativeGasExpenseQuote??null),
   swapQuote:liveModel?micro(liveModel.swapCostQuote):conversionClose?micro(conversion?.modeledSwapCostQuote??null):model&&!rangeKeeperModel?'0':null,
   exitEstimateQuote:conversionClose?micro(conversion?.boundGasCostQuote??null):micro(decimal(close.boundValue)),
   drawdownPpm:null,
@@ -660,15 +741,24 @@ export function deploymentPosition(row:DeploymentRow){
   referencePriceQuoteX18:liveModel?liveModel.referencesAvailable?referencePrice({reference:{price0:liveModel.payload.referenceValuation.price0,
    price1:liveModel.payload.referenceValuation.price1}},p):null:economicsFallback&&rangeKeeperModel?.reference.eligible?
     referencePrice({reference:{price0:rangeKeeperModel.reference.price0,price1:rangeKeeperModel.reference.price1}},p):
+    paperHeld?referencePrice({reference:{price0:String(paperHeld.price0),price1:String(paperHeld.price1)}},p):
     isRangeKeeper&&!rkReferenceEligible?null:referencePrice(provenance,p),
   inventory:{tokens,exposurePpm:liveModel&&liveModel.referencesAvailable?(()=>{
     const r=liveModel.payload.referenceValuation,v0=BigInt(liveModel.amounts[0])*BigInt(r.price0)/10n**BigInt(p.decimals0),
      v1=BigInt(liveModel.amounts[1])*BigInt(r.price1)/10n**BigInt(p.decimals1),sum=v0+v1;
     return sum?String((p.quoteToken===0?v1:v0)*1_000_000n/sum):null;
-   })():model&&modelReferenceEligible?modeledExposure(model,p):null,
+   })():paperHeld&&paperRk&&model===paperRk?exposureAt({token0Raw:bigOrZero(paperRk.inventory.token0Raw),
+    token1Raw:bigOrZero(paperRk.inventory.token1Raw)},paperHeld,p):model&&modelReferenceEligible?modeledExposure(model,p):null,
    nativeWei:row.mode==='live'?liveModel?.nativeWei??null:liveModel?.nativeWei??model?.inventory.nativeWei??decimal(inventory.nativeWei),
    principalOnlyValue:micro(lowerBoundValue),passiveTokenValue:micro(passiveTokenValue)},
   tokenId:liveView?liveView.nftId:null,
+  valuation:row.strategy_id==='rangekeeper_v1'?valuationView({pool:p,symbols:[symbol(p.reference0),symbol(p.reference1)],
+   basis:liveModel?liveModel.referenceBasis:paperBasis,
+   kind:liveModel?liveModel.referenceBasis.kind:paperBasis?paperBasis.kind:economicsFallback?'oracle_fresh':'unavailable',
+   amounts:liveModel?{token0Raw:BigInt(liveModel.amounts[0]),token1Raw:BigInt(liveModel.amounts[1]),nativeWei:BigInt(liveModel.nativeTotalWei)}:
+    paperRk&&model===paperRk?{token0Raw:bigOrZero(paperRk.inventory.token0Raw),token1Raw:bigOrZero(paperRk.inventory.token1Raw),
+     nativeWei:bigOrZero(paperRk.inventory.nativeWei)}:null,
+   sqrtPriceX96:sqrt?BigInt(sqrt):null}):null,
   accounting:liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'recorded':model?'provisional':row.accounting_invalidated_at?'invalid':'unavailable',
   nextAction:(liveView?liveView.lifecycle==='closed':row.lifecycle==='closed')?null:
    liveView&&['queued','opening'].includes(liveView.lifecycle)?'Live opening queued; inventory and costs await canonical receipts':
@@ -689,7 +779,7 @@ export function deploymentPosition(row:DeploymentRow){
    ...(liveView?{live:{lifecycle:liveView.lifecycle,phase:liveView.phase,job:liveView.job,
     blockedReason:liveView.blockedReason,nftId:liveView.nftId,
     range:{state:liveView.rangeState,tick:liveView.tick,tickLower:liveView.tickLower,tickUpper:liveView.tickUpper},
-    allocation:liveView.allocation,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
+    allocation:liveView.allocation,scope:liveView.scope,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
     runtimeVerified:liveView.runtimeVerified,valuationAvailable:liveModel?.navQuote!=null}}:{}),
    sourceBlock:liveModel?.source.block??row.source_block,sourceHash:liveModel?.source.hash??row.source_hash,
    rangekeeper:row.strategy_id==='rangekeeper_v1'?{
@@ -728,7 +818,7 @@ export function deploymentPosition(row:DeploymentRow){
 }
 
 const point=(mark:DeploymentMark,profile:MarketProfile,
- allocation:{token0Raw:string;token1Raw:string},campaignId:string,
+ allocation:{token0Raw:string;token1Raw:string;nativeWei:string},campaignId:string,
  runtimeIdentity:unknown):PositionPoint=>{
  const inv=record(mark.inventory),prov=record(mark.provenance),economics=record(mark.economics),
   sourceAt=sourceTime(prov),state=markPoolState(prov),sqrt=decimal(state.sqrtPriceX96),
@@ -739,6 +829,14 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   position=record(inv.position),lower=typeof position.tickLower==='number'?position.tickLower:null,
   upper=typeof position.tickUpper==='number'?position.tickUpper:null,
   tick=typeof state.tick==='number'?state.tick:null;
+ // RangeKeeper marks whose reference was withheld only for freshness are charted at the last oracle answers.
+ const rkModel=model&&'markKind' in model&&model.policyVersion===RANGEKEEPER_PAPER_ACCOUNTING_POLICY?
+   model as RangeKeeperPaperAccounting:null,
+  heldBasis=rkModel&&!rkModel.reference.eligible?classifyReferenceBasis({proof:rkModel.reference.proof,
+   reasons:markReferenceReasons(mark.provenance),sourceTimestamp:rkModel.source.timestamp,persistedPrices:rkModel.reference}):null,
+  heldPrices=heldBasis?.kind==='last_oracle_price'?heldBasis.prices:null,
+  pointEconomics=(rkModel&&heldPrices?heldPaperEconomics(rkModel,allocation,heldPrices,profile.pool):model?.economics??null) as
+   Record<string,string|null>|null;
  if(!sourceAt||!mark.source_block||!mark.source_hash)throw Error('Deployment mark source unavailable');
  const kind=prov.classification,action=kind==='paper_model_provisional'||kind==='rangekeeper_paper_open_v1'?'enter':
   kind==='paper_model_partial_close'||kind==='paper_model_converted_close'||
@@ -753,14 +851,17 @@ const point=(mark:DeploymentMark,profile:MarketProfile,
   action,status:action==='exit'?'closed':'open',
   ...(kind==='rangekeeper_paper_recenter_v1'&&Number.isInteger(prov.epoch)?{epoch:prov.epoch,
    previousEpoch:prov.previousEpoch,candidateHash:prov.candidateHash}:{}),
-  economicNavQuote:micro(model?.economics.netNavQuote??null),
-  holdQuote:micro(model?.economics.passiveQuote??null),
+  economicNavQuote:micro(pointEconomics?.netNavQuote??null),
+  holdQuote:micro(pointEconomics?.passiveQuote??null),
+  ...(rkModel?{valuationBasis:rkModel.reference.eligible?'oracle_fresh':heldBasis?.kind??'unavailable'}:{}),
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),profile.pool):null,
   referencePriceQuoteX18:kind?.toString().startsWith('rangekeeper_paper_')&&
-   (!model||!('eligible' in model.reference)||model.reference.eligible!==true)?null:
+   (!model||!('eligible' in model.reference)||model.reference.eligible!==true)?
+    (heldPrices?referencePrice({reference:{price0:String(heldPrices.price0),price1:String(heldPrices.price1)}},profile.pool):null):
    referencePrice(prov,profile.pool),
   exposurePpm:model&&(!('eligible' in model.reference)||model.reference.eligible===true)?
-   modeledExposure(model,profile.pool):null,
+   modeledExposure(model,profile.pool):rkModel&&heldPrices?exposureAt({token0Raw:bigOrZero(rkModel.inventory.token0Raw),
+    token1Raw:bigOrZero(rkModel.inventory.token1Raw)},heldPrices,profile.pool):null,
   inRange:tick!==null&&lower!==null&&upper!==null&&tick>=lower&&tick<upper,
   tickLower:lower,tickUpper:upper,
   rangeQuoteX18:lower!==null&&upper!==null?rangePrices(lower,upper,profile.pool):null,
@@ -820,7 +921,7 @@ function livePoint(model:LiveMarkModel,profile:MarketProfile,previous:LiveMarkMo
   gasThisMarkQuote:micro(gasValue),swapThisMarkQuote:micro(swapValue),swapsThisMark:intervalCosts.some((event:any)=>event.swapFeeValue!==0n)?1:0,
   drawdownPpm:null,epoch:model.epoch,sourceHash:source.hash,feesCumulativeQuote:model.feesQuote,
   cumulativeGasQuote:model.gasQuote,accounting:model.referencesAvailable?'receipt_backed':'unavailable',
-  missing:model.missing};
+  valuationBasis:model.referenceBasis.kind,missing:model.missing};
 }
 
 /** Live work is journaled in the shared-wallet queue, not in deployment_operations. A database

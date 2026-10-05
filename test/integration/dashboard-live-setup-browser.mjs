@@ -41,9 +41,20 @@ const hashOf=c=>`0x${c.repeat(64)}`;
 const nowIso=new Date().toISOString();
 const iso=ms=>new Date(Date.now()-ms).toISOString();
 const emptyJob=null;
+// The valuation block the projection attaches to every RangeKeeper row: which oracle basis the headline numbers use.
+const hoursAgoIso=hours=>new Date(Date.now()-hours*3_600_000).toISOString();
+const valuationOf=(basis,{ageHours=38,symbol='AAPL',poolImplied='189500000',reasons=[]}={})=>basis==='oracle_fresh'?
+ {basis,priceAsOf:iso(30_000),priceAgeAtMarkSeconds:30,feeds:[{name:'token0',symbol:'USDG',state:'fresh'},{name:'token1',symbol,state:'fresh'},{name:'native',symbol:'ETH',state:'fresh'}],
+  freshnessReasons:[],structuralReasons:[],poolImplied:{navQuote:poolImplied,priceQuoteX18:'219000000000000000000'}}:
+ basis==='last_oracle_price'?{basis,priceAsOf:hoursAgoIso(ageHours),priceAgeAtMarkSeconds:ageHours*3600,
+  feeds:[{name:'token0',symbol:'USDG',state:'fresh'},{name:'token1',symbol,state:'stale',updatedAt:hoursAgoIso(ageHours)},{name:'native',symbol:'ETH',state:'fresh'}],
+  freshnessReasons:['token1_reference_age_unacceptable'],structuralReasons:[],poolImplied:{navQuote:poolImplied,priceQuoteX18:'219000000000000000000'}}:
+ {basis:'unavailable',priceAsOf:null,priceAgeAtMarkSeconds:null,feeds:[],freshnessReasons:[],structuralReasons:reasons,
+  poolImplied:poolImplied===null?null:{navQuote:poolImplied,priceQuoteX18:'219000000000000000000'}};
 // One mock row per live lifecycle. Economics the server could not prove are null, never zero.
 function livePosition({n,asset,label,lifecycle,status,rangeState='inside',job=emptyJob,nftId=null,nav=null,fees=null,gas=null,
- range=null,blockedReason=null,history=false,recenters=null,paidGasWei=null,nextAction=null,accounting='unavailable'}){
+ range=null,blockedReason=null,history=false,recenters=null,paidGasWei=null,nextAction=null,accounting='unavailable',valuation=null,
+ scope={maxDurationSeconds:0,maxEconomicActions:0,openEnded:true,expiresAt:null,economicActions:null}}){
  const id=`live-dep-${campaignId(n)}`;
  return {id,label,mode:'live',asset,quote:'USDG',fee:3000,quoteIsToken0:true,hasLiquidity:nftId!==null&&lifecycle!=='closed',status,history,
   initialQuote:nav===null?'250000000':'250000000',navQuote:nav,holdQuote:nav,feesQuote:fees,gasQuote:gas,swapQuote:null,exitEstimateQuote:null,drawdownPpm:null,
@@ -53,7 +64,7 @@ function livePosition({n,asset,label,lifecycle,status,rangeState='inside',job=em
   inventory:{tokens:[{address:token(1),symbol:'USDG',decimals:6,allocatedRaw:'200000000',amountRaw:null,lowerBoundRaw:null},
    {address:token(208),symbol:asset,decimals:18,allocatedRaw:'340000000000000000',amountRaw:null,lowerBoundRaw:null}],
    exposurePpm:null,nativeWei:null,principalOnlyValue:null,passiveTokenValue:null},
-  tokenId:nftId,accounting,nextAction,
+  tokenId:nftId,accounting,nextAction,...(valuation?{valuation}:{}),
   deployment:{campaignId:campaignId(n),chainId:4663,pool:token(108),strategyId:'rangekeeper_v1',lifecycle:history?'closed':lifecycle==='queued'||lifecycle==='opening'?'opening':lifecycle==='blocked'?'blocked':'active',
    rangeState,revision:1,operation:{id:job?.id??null,kind:job?.kind??null,status:job?.status??null,stage:job?.stage??null,reason:blockedReason,updatedAt:nowIso},
    sourceBlock:nav===null?null:'12345',sourceHash:nav===null?null:hashOf('a'),rangekeeper:{currentEpoch:0,latestMarkId:null},
@@ -62,28 +73,57 @@ function livePosition({n,asset,label,lifecycle,status,rangeState='inside',job=em
    poolTick:0,lowerBoundValue:null,passiveTokenValue:null,conversionAccountingStatus:'not_applicable',accounting:null,accountingInvalidation:null,unavailable:['net_nav'],
    live:{lifecycle,phase:lifecycle==='holding'?'holding':null,job,blockedReason,nftId,
     range:{state:rangeState,tick:0,tickLower:range?-600:null,tickUpper:range?600:null},
-    allocation:{token0Raw:'200000000',token1Raw:'340000000000000000',nativeWei:'6000000000000000'},recenters,paidGasWei,runtimeVerified:true,valuationAvailable:nav!==null}}};
+    allocation:{token0Raw:'200000000',token1Raw:'340000000000000000',nativeWei:'6000000000000000'},scope,recenters,paidGasWei,runtimeVerified:true,valuationAvailable:nav!==null}}};
 }
 const liveJob=(extra)=>({id:'55555555-5555-4555-8555-555555555500',kind:'open',status:'succeeded',inFlight:false,stage:null,stageKind:null,stageStatus:null,
  nonce:null,txHash:null,attempt:1,createdAt:iso(3_000_000),updatedAt:iso(2_000_000),...extra});
 const multiPositions=()=>[
  livePosition({n:1,asset:'AAPL',label:'RK-aaaaaaaa',lifecycle:retainQueued?'closing':'holding',status:retainQueued?'exiting':'open',nftId:'1000',nav:'251250000',fees:'1800000',gas:'120000',
-  range:['210000000000000000000','230000000000000000000'],recenters:2,paidGasWei:'120000000000000',accounting:'recorded',
+  range:['210000000000000000000','230000000000000000000'],recenters:2,paidGasWei:'120000000000000',accounting:'recorded',valuation:valuationOf('oracle_fresh'),scope:{maxDurationSeconds:0,maxEconomicActions:0,openEnded:true,expiresAt:null,economicActions:3},
   job:retainQueued?liveJob({id:'55555555-5555-4555-8555-555555555501',kind:'close_retain',status:'queued',inFlight:true,createdAt:nowIso,updatedAt:nowIso}):liveJob({nonce:'998',txHash:hashOf('1'),stageKind:'approve',stageStatus:'confirmed'})}),
  livePosition({n:2,asset:'NVDA',label:'RK-aaaaaaab',lifecycle:'holding',status:'outside',rangeState:'outside',nftId:'999',nav:'249000000',fees:'900000',gas:'90000',
-  range:['120000000000000000000','140000000000000000000'],recenters:0,paidGasWei:'90000000000000',accounting:'recorded',job:liveJob({nonce:'997',txHash:hashOf('2')})}),
+  range:['120000000000000000000','140000000000000000000'],recenters:0,paidGasWei:'90000000000000',accounting:'recorded',valuation:valuationOf('last_oracle_price',{ageHours:38,symbol:'NVDA',poolImplied:'248500000'}),
+  scope:{maxDurationSeconds:43200,maxEconomicActions:4,openEnded:false,expiresAt:new Date(Date.now()+5*3600_000).toISOString(),economicActions:1},job:liveJob({nonce:'997',txHash:hashOf('2')})}),
  livePosition({n:3,asset:'GOOGL',label:'RK-aaaaaaac',lifecycle:'recentering',status:'recentring',nftId:'1001',nav:'250100000',fees:'400000',gas:'100000',range:['150000000000000000000','170000000000000000000'],
-  recenters:1,paidGasWei:'200000000000000',accounting:'recorded',
+  recenters:1,paidGasWei:'200000000000000',accounting:'recorded',valuation:valuationOf('last_oracle_price',{ageHours:38,symbol:'GOOGL',poolImplied:'250400000'}),
   job:liveJob({id:'55555555-5555-4555-8555-555555555503',kind:'change_range',status:'executing',inFlight:true,stage:`withdraw:${'e'.repeat(32)}`,stageKind:'withdraw',stageStatus:'signed',nonce:'1000',txHash:hashOf('3')})}),
- livePosition({n:4,asset:'SPY',label:'RK-aaaaaaad',lifecycle:'queued',status:'waiting',rangeState:'no_liquidity',nextAction:'Live opening queued; inventory and costs await canonical receipts',
+ livePosition({n:4,asset:'SPY',label:'RK-aaaaaaad',lifecycle:'queued',status:'waiting',rangeState:'no_liquidity',nextAction:'Live opening queued; inventory and costs await canonical receipts',valuation:valuationOf('unavailable',{poolImplied:null}),
+  scope:{maxDurationSeconds:7200,maxEconomicActions:4,openEnded:false,expiresAt:null,economicActions:null},
   job:liveJob({id:'55555555-5555-4555-8555-555555555504',kind:'open',status:'queued',inFlight:true,createdAt:nowIso,updatedAt:nowIso})}),
- livePosition({n:5,asset:'QQQ',label:'RK-aaaaaaae',lifecycle:'blocked',status:'blocked',rangeState:'unknown',blockedReason:`transaction_reverted:55555555-5555-4555-8555-555555555505:mint`,
+ livePosition({n:5,asset:'QQQ',label:'RK-aaaaaaae',lifecycle:'blocked',status:'blocked',rangeState:'unknown',blockedReason:`transaction_reverted:55555555-5555-4555-8555-555555555505:mint`,valuation:valuationOf('unavailable',{reasons:['token1_asset_health'],poolImplied:null}),
   job:liveJob({id:'55555555-5555-4555-8555-555555555505',kind:'open',status:'blocked',inFlight:false,stage:`mint:${'f'.repeat(32)}`,stageKind:'mint',stageStatus:'blocked',nonce:'12',txHash:hashOf('4')})}),
  livePosition({n:6,asset:'MSFT',label:'RK-aaaaaaaf',lifecycle:'closed',status:'closed',history:true,rangeState:'no_liquidity',nav:'252000000',fees:'2500000',gas:'200000',
-  recenters:3,paidGasWei:'300000000000000',accounting:'recorded',job:liveJob({kind:'close_retain',status:'succeeded'})}),
+  recenters:3,paidGasWei:'300000000000000',accounting:'recorded',valuation:valuationOf('last_oracle_price',{ageHours:60,symbol:'MSFT'}),job:liveJob({kind:'close_retain',status:'succeeded'})}),
+];
+// RangeKeeper paper rows: one valued at the last oracle price, one whose oracle failed a structural check.
+function paperPosition({n,asset,valuation,nav,hold,fees}){
+ const id=campaignId(n+20);
+ return {id:`paper-dep-${id}`,label:`RK-bbbbbbb${n}`,mode:'paper',asset,quote:'USDG',fee:3000,quoteIsToken0:true,hasLiquidity:true,status:'open',history:false,
+  initialQuote:'170000000',navQuote:nav,holdQuote:hold,feesQuote:fees,gasQuote:null,swapQuote:null,exitEstimateQuote:null,drawdownPpm:null,
+  createdAt:iso(3_600_000),endedAt:null,sourceAt:iso(20_000),heartbeatAt:iso(20_000),reasons:[],economicsSourceAt:null,invalidatedAt:null,reserveQuote:null,
+  strategy:{live:false},range:['210000000000000000000','230000000000000000000'],priceQuoteX18:'219000000000000000000',
+  referencePriceQuoteX18:nav===null?null:'200000000000000000000',
+  inventory:{tokens:[{address:token(1),symbol:'USDG',decimals:6,allocatedRaw:'40000000',amountRaw:'50000000',lowerBoundRaw:null},
+   {address:token(208),symbol:asset,decimals:18,allocatedRaw:'400000000000000000',amountRaw:'500000000000000000',lowerBoundRaw:null}],
+   exposurePpm:nav===null?null:'666666',nativeWei:'10000000000000000',principalOnlyValue:null,passiveTokenValue:null},
+  tokenId:null,accounting:'provisional',nextAction:'Provisional modeled scenario; earned fees and paid costs remain unobserved',valuation,
+  deployment:{campaignId:id,chainId:4663,pool:token(108),strategyId:'rangekeeper_v1',lifecycle:'active',rangeState:'inside',revision:1,
+   operation:{id:null,kind:null,status:null,stage:null,reason:null,updatedAt:null},sourceBlock:'12345',sourceHash:hashOf('a'),
+   rangekeeper:{currentEpoch:0,latestMarkId:'5',latestMarkHash:null,latestClassification:'rangekeeper_paper_mark_v1',recenterAvailable:false},
+   token0:{address:token(1),symbol:'USDG',decimals:6,allocatedRaw:'40000000',amountRaw:'50000000',lowerBoundRaw:null},
+   token1:{address:token(208),symbol:asset,decimals:18,allocatedRaw:'400000000000000000',amountRaw:'500000000000000000',lowerBoundRaw:null},
+   poolTick:222390,lowerBoundValue:null,passiveTokenValue:null,conversionAccountingStatus:'not_applicable',
+   accounting:{policyVersion:'rangekeeper_paper_observed_flow_v1',classification:'provisional_paper_scenario',feeEvidenceId:null,limitations:[],
+    referenceEligible:nav!==null,retainedModeledFees:{token0Raw:'1000000',token1Raw:'5000000000000000'},
+    modeledCosts:{cumulativeBoundValue:'3000000',cumulativeBoundWei:'150',paidCostsAvailable:false},conversion:null,capitalOut:null},
+   accountingInvalidation:null,unavailable:[]}};
+}
+const paperPositions=()=>[
+ paperPosition({n:1,asset:'AAPL',nav:'180000000',hold:'150000000',fees:'2000000',valuation:valuationOf('last_oracle_price',{ageHours:38,symbol:'AAPL'})}),
+ paperPosition({n:2,asset:'NVDA',nav:null,hold:null,fees:null,valuation:valuationOf('unavailable',{reasons:['token1_oracle_description_mismatch'],poolImplied:'189500000'})}),
 ];
 const detailFor=position=>({position,performance:{from:iso(86_400_000),through:nowIso,sourceThrough:nowIso,coveredStart:iso(86_400_000),markCount:0,sampled:false,
- timeline:[],sessions:[],rows:[],gaps:[]},events:[],counts:{recenters:position.deployment.live.recenters,recenterAttempts:0,swaps:0},limitations:[]});
+ timeline:[],sessions:[],rows:[],gaps:[]},events:[],counts:{recenters:position.deployment.live?.recenters??null,recenterAttempts:0,swaps:0},limitations:[]});
 const response=(res,status,body,headers={})=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(body));};
 const sendLiveWallet=(res)=>{
  if(walletMode==='unavailable')return response(res,200,{kind:'live_wallet_review',status:'unavailable',walletAddress:token(900),source:null,
@@ -119,6 +159,7 @@ const validLivePreflight=body=>({kind:'rangekeeper_live_setup_preflight',mode:'l
   completeExitCostValue:'2000000000000000',completeExitGasWei:'1000000000000000',exitReserveWei:'4000000000000000',missing:[]},
  missing:[],blockers:[],actionAvailable:false,draftCreationAvailable:false,operationAcceptanceAvailable:false,
  executionEligible:false,admissionAvailable:workerAdmission(),
+ policy:{config:{campaignScope:body.campaignScope},parameters:{campaignScope:body.campaignScope}},
  reviewPersistence:{status:'persisted',reviewId:'33333333-3333-4333-8333-333333333333',reviewHash:'c'.repeat(64),
   expiresAt:new Date(Date.now()+60_000).toISOString(),missing:[]},reason:'rangekeeper_live_execution_unavailable'});
 const mockServer=createServer(async(req,res)=>{
@@ -135,9 +176,9 @@ const mockServer=createServer(async(req,res)=>{
   let body='';for await(const chunk of req)body+=chunk;
   const parsed=body?JSON.parse(body):null;apiCalls.push({method:req.method,path:url.pathname,body:parsed,csrf:req.headers['x-csrf-token']??null});
   if(url.pathname==='/api/session'&&req.method==='POST')return response(res,200,{csrfToken:'fixture-csrf'}, {'set-cookie':'cq_session=fixture; Path=/; SameSite=Strict'});
-  if(url.pathname==='/api/positions')return response(res,200,{serverTime:nowIso,positions:positionsMode==='multi'?multiPositions():[],riskAssets:[],riskFreshnessSeconds:120});
+  if(url.pathname==='/api/positions')return response(res,200,{serverTime:nowIso,positions:positionsMode==='multi'?[...multiPositions(),...paperPositions()]:[],riskAssets:[],riskFreshnessSeconds:120});
   if(url.pathname.startsWith('/api/positions/')&&req.method==='GET'){
-   const found=multiPositions().find(item=>item.id===decodeURIComponent(url.pathname.slice('/api/positions/'.length)));
+   const found=[...multiPositions(),...paperPositions()].find(item=>item.id===decodeURIComponent(url.pathname.slice('/api/positions/'.length)));
    return found?response(res,200,detailFor(found)):response(res,404,{error:'position_not_found'});
   }
   const retainPreview=url.pathname.match(/^\/api\/deployments\/([0-9a-f-]{36})\/live\/retain-preview$/);
@@ -170,7 +211,11 @@ const mockServer=createServer(async(req,res)=>{
   if(url.pathname==='/api/deployments/live-wallet'&&req.method==='GET')return sendLiveWallet(res);
   if(url.pathname==='/api/deployments/rangekeeper/live-setup-preflight'&&req.method==='POST'){
    if(req.headers['x-csrf-token']!=='fixture-csrf')return response(res,403,{error:'csrf_required'});
-   if(!parsed||Object.keys(parsed).sort().join(',')!=='capitalQuoteRaw,fullWidthSpacings,limits,profileId')return response(res,400,{error:'body_shape_invalid'});
+   if(!parsed||Object.keys(parsed).sort().join(',')!=='campaignScope,capitalQuoteRaw,fullWidthSpacings,limits,profileId')return response(res,400,{error:'body_shape_invalid'});
+   const scope=parsed.campaignScope;
+   if(!scope||Object.keys(scope).sort().join(',')!=='maxDurationSeconds,maxEconomicActions'||!Number.isInteger(scope.maxDurationSeconds)||
+    scope.maxDurationSeconds<0||scope.maxDurationSeconds>86400||!Number.isInteger(scope.maxEconomicActions)||scope.maxEconomicActions<0||scope.maxEconomicActions>10)
+    return response(res,400,{error:'campaign_scope_invalid'});
    if(preflightMode==='stale'||(preflightMode==='wallet-dependent'&&walletMode!=='available')){
     const walletBlocker=walletMode==='stale'?'wallet_snapshot_stale':walletMode==='malformed'?'wallet_response_malformed':'wallet_snapshot_unavailable';
     return response(res,200,{kind:'rangekeeper_live_setup_preflight',mode:'live',strategyId:'rangekeeper_v1',status:'unavailable',
@@ -249,6 +294,29 @@ try{
   `(()=>{const q=document.querySelector('#live tr[data-live-lifecycle="queued"]');const f=q.nextElementSibling;return q.querySelectorAll(".muted").length>=3&&q.textContent.includes("unavailable")&&!/0[.]00/.test(q.cells[2].textContent+q.cells[3].textContent+q.cells[4].textContent)&&f.textContent.includes("not minted yet")&&f.textContent.includes("unavailable")})()`);
  await check('a blocked row shows its recorded reason without raw identifiers',
   `(()=>{const r=document.querySelector('#live tr[data-live-lifecycle="blocked"]');return r.textContent.includes("a transaction reverted")&&!r.textContent.includes("55555555-5555")})()`);
+ await check('every live row carries its valuation basis: oracle fresh, last oracle price with age, unavailable; a queued campaign has none',
+  `JSON.stringify([...document.querySelectorAll("#live tr[data-live-lifecycle]")].map(r=>r.querySelector(".basis-badge")?.textContent??null))===${JSON.stringify(JSON.stringify(['Oracle fresh','Last oracle price · 38h old','Last oracle price · 38h old',null,'Valuation unavailable']))}`);
+ await check('a held live row keeps its headline NAV and states the price time, age and the indicative pool-implied figure',
+  `(()=>{const rows=[...document.querySelectorAll("#live tr[data-live-lifecycle]")];const held=rows[1],f=held.nextElementSibling.textContent;return held.cells[2].textContent.includes("249.00")&&/Valuation basisLast oracle price, \\w{3} \\d\\d:\\d\\d ET, 38h old/.test(f)&&f.includes("Pool-implied NAV (indicative)248.50 · not used for P&L")&&held.querySelector(".basis-badge").title.includes("not updating")})()`);
+ await check('live row facts say when each campaign expires and how many economic actions it has used',
+  `(()=>{const rows=[...document.querySelectorAll("#live tr[data-live-lifecycle]")];const text=i=>rows[i].nextElementSibling.textContent;return text(0).includes("ExpiresOpen-ended")&&text(0).includes("Economic actions3 of unlimited")&&/ExpiresOct \\d+, \\d\\d:\\d\\d ET/.test(text(1))&&text(1).includes("Economic actions1 of 4")&&text(3).includes("Expires2 hours after opening")&&text(3).includes("Economic actions0 of 4")})()`);
+ await check('a fresh live row says oracle fresh and a blocked row has no oracle value but never zero-fills',
+  `(()=>{const rows=[...document.querySelectorAll("#live tr[data-live-lifecycle]")];return rows[0].nextElementSibling.textContent.includes("Valuation basisOracle fresh")&&rows[4].nextElementSibling.textContent.includes("Valuation basisOracle valuation unavailable")&&rows[4].nextElementSibling.textContent.includes("Pool-implied NAV (indicative)unavailable")})()`);
+ await waitFor('document.querySelectorAll("#paper tr[data-position]").length===2&&document.querySelector("#paper-detail .basis-alert")!==null');
+ await shot('paper-last-oracle-price-1440','#paper');
+ await check('paper rows carry the same basis badge; the selected held row shows the alert, held-price notes and the pool-implied metric',
+  `(()=>{const rows=[...document.querySelectorAll("#paper tr[data-position]")];const d=document.querySelector("#paper-detail").textContent;return rows.map(r=>r.querySelector(".basis-badge")?.textContent).join("|")==="Last oracle price · 38h old|Valuation unavailable"&&rows[0].cells[2].textContent.includes("180.00")&&d.includes("Valued at last oracle price")&&/Provisional · last oracle price · 38h old/.test(d)&&d.includes("Pool-implied NAV (indicative)")&&d.includes("189.50")&&d.includes("Last oracle price · USDG")})()`);
+ await evaluate('document.querySelectorAll("#paper .position-select")[1].click()');
+ await waitFor('document.querySelector("#paper-detail .basis-alert.unavailable")!==null');
+ await check('a structurally unavailable paper row shows no oracle NAV, says why in words, and keeps the pool-implied figure',
+  `(()=>{const rows=[...document.querySelectorAll("#paper tr[data-position]")];const d=document.querySelector("#paper-detail").textContent;return rows[1].cells[2].textContent.includes("unavailable")===false&&rows[1].cells[2].textContent.trim().startsWith("—")&&d.includes("risk token: the oracle feed description does not match")&&d.includes("Pool-implied NAV (indicative)")&&d.includes("189.50")&&!d.includes("Last oracle price · 38h")})()`);
+ await click('#paper .position-select');
+ await click('#live .view-switch button[data-value="history"]');
+ await waitFor('document.querySelectorAll("#live tr[data-live-lifecycle]").length===1');
+ await check('a closed live campaign keeps the basis it was last valued on in History',
+  'document.querySelector("#live tr[data-live-lifecycle]").querySelector(".basis-badge").textContent==="Last oracle price · 60h old"||document.querySelector("#live tr[data-live-lifecycle]").querySelector(".basis-badge").textContent==="Last oracle price · 2d 12h old"');
+ await click('#live .view-switch button[data-value="active"]');
+ await waitFor('document.querySelectorAll("#live tr[data-live-lifecycle]").length===5');
  await check('while the worker is not connected a queued row says it will not start and why',
   `document.querySelector('#live tr[data-live-lifecycle="queued"]').textContent.includes("live worker is not connected")&&document.querySelector('#live tr[data-live-lifecycle="queued"]').nextElementSibling.textContent.includes("The live wallet worker is not connected.")`);
  await click('#live .view-switch button[data-value="history"]');
@@ -281,9 +349,21 @@ try{
   'document.querySelector("#live-wallet-review input")===null&&document.querySelector("#setup-wallet-address").closest("#operator-draft-binding").hidden');
  await check('wallet panel shows balance, reserved by campaigns and free per token and for native gas',
   `(()=>{const rows=Object.fromEntries([...document.querySelectorAll("#live-wallet-table tbody tr")].map(r=>[r.querySelector("th").textContent,[...r.querySelectorAll("td")].map(td=>td.textContent)]));return document.querySelectorAll("#live-wallet-table thead th").length===4&&rows.USDG[0].startsWith("500")&&rows.USDG[1].startsWith("125")&&rows.USDG[1].includes("allocated 100")&&rows.USDG[1].includes("pending 25")&&rows.USDG[2].startsWith("375")&&rows.AAPL[2].startsWith("8")&&rows["Native gas"][0].startsWith("0.02")&&rows["Native gas"][1].startsWith("0.0071")&&rows["Native gas"][1].includes("exit reserve 0.005")&&rows["Native gas"][2].startsWith("0.0129")})()`);
+ await check('the campaign scope inputs appear for live RangeKeeper only and are prefilled open-ended with their meaning in words',
+  `(()=>{const d=document.querySelector("#setup-campaign-duration"),a=document.querySelector("#setup-campaign-actions");return !document.querySelector("#setup-campaign-duration-row").hidden&&!document.querySelector("#setup-campaign-actions-row").hidden&&d.value==="0"&&a.value==="0"&&document.querySelector("#setup-campaign-duration-hint").textContent==="Open-ended · no expiry"&&document.querySelector("#setup-campaign-actions-hint").textContent.startsWith("Unlimited")&&document.querySelector("#setup-campaign-duration-row").textContent.includes("Campaign duration")&&document.querySelector("#setup-campaign-actions-row").textContent.includes("Max economic actions")})()`);
+ await select('#setup-strategy','static_manual_v1');
+ await check('the scope inputs are hidden for another strategy and for paper',
+  'document.querySelector("#setup-campaign-duration-row").hidden&&document.querySelector("#setup-campaign-actions-row").hidden');
+ await select('#setup-strategy','rangekeeper_v1');await select('#setup-mode','paper');
+ await check('paper RangeKeeper setup has no campaign scope inputs',
+  'document.querySelector("#setup-campaign-duration-row").hidden&&document.querySelector("#setup-campaign-actions-row").hidden');
+ await select('#setup-mode','live');
+ await waitFor('document.querySelector("#live-wallet-note").textContent.includes("Balances from the registered server wallet")');
  await select('#setup-pool',profiles[8].pool);await fill('#setup-capital','250');await fill('#setup-rangekeeper-width','20');
  await click('#setup-review-button');
  await waitFor('document.querySelector("#live-setup-title").textContent==="Indicative live setup review"');
+ await check('the default review posts an open-ended, unlimited scope and states it in the summary and the frozen review',
+  `(()=>{const r=${JSON.stringify(apiCalls)}.filter(x=>x.path==="/api/deployments/rangekeeper/live-setup-preflight").at(-1);const t=document.querySelector("#setup-review-facts").textContent+document.querySelector("#live-setup-facts").textContent;return r.body.campaignScope.maxDurationSeconds===0&&r.body.campaignScope.maxEconomicActions===0&&t.includes("Campaign durationOpen-ended")&&t.includes("Campaign durationOpen-ended · no expiry")&&t.includes("Max economic actionsUnlimited")})()`);
  await check('Live review posts exact registered profile, raw capital, width and limits to its route',
   `(()=>{const c=${JSON.stringify(apiCalls)};const r=c.find(x=>x.path==="/api/deployments/rangekeeper/live-setup-preflight");return !!r&&r.method==="POST"&&r.csrf==="fixture-csrf"&&r.body.profileId===${JSON.stringify(profiles[8].id)}&&r.body.capitalQuoteRaw==="250000000"&&r.body.fullWidthSpacings===20&&!!r.body.limits.maxObservationGapSeconds})()`);
  await check('review renders returned token requirements, allocation balances and gas estimates in their raw units',
@@ -321,7 +401,7 @@ try{
  for(const width of [1440,390]){
   await page.send('Emulation.setDeviceMetricsOverride',{width,height:width===390?844:1000,deviceScaleFactor:1,mobile:width===390});
   await check(`live rows, wallet funding and approval fit ${width}px without horizontal overflow`,
-   (await shot(`live-rows-${width}`,'#live'),await shot(`live-wallet-${width}`,'#live-wallet-review'),`(()=>{const w=innerWidth;const inside=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.left>=-1&&r.right<=w+1};return document.documentElement.scrollWidth<=w+1&&document.body.scrollWidth<=w+1&&inside(document.querySelector("#live .positions-table"))&&inside(document.querySelector("#live-wallet-table"))&&inside(document.querySelector("#live-setup-result button"))&&[...document.querySelectorAll("#live .live-facts dd")].every(inside)})()`));
+   (await shot(`live-rows-${width}`,'#live'),await shot(`live-wallet-${width}`,'#live-wallet-review'),await shot(`live-setup-scope-${width}`,'#setup-form'),`(()=>{const w=innerWidth;const inside=e=>{const r=e.getBoundingClientRect();return r.width>0&&r.left>=-1&&r.right<=w+1};return document.documentElement.scrollWidth<=w+1&&document.body.scrollWidth<=w+1&&inside(document.querySelector("#live .positions-table"))&&inside(document.querySelector("#live-wallet-table"))&&inside(document.querySelector("#live-setup-result button"))&&[...document.querySelectorAll("#live .live-facts dd")].every(inside)&&inside(document.querySelector("#paper .positions-table"))&&[...document.querySelectorAll(".basis-badge,.basis-alert")].every(inside)&&inside(document.querySelector("#setup-campaign-duration"))&&inside(document.querySelector("#setup-campaign-actions"))})()`));
  }
  await page.send('Emulation.setDeviceMetricsOverride',{width:1440,height:1000,deviceScaleFactor:1,mobile:false});
 
@@ -347,6 +427,33 @@ try{
  await waitFor('document.querySelector("#live-setup-title").textContent==="Live setup review unavailable"');
  await check('a malformed indicative response with actionAvailable true is rejected as unavailable',
   'document.querySelector("#live-setup-detail").textContent.includes("unsafe_flag_fixture")&&document.querySelector("#operator-draft-binding").hidden&&document.querySelector("#save-paper-draft").disabled');
+
+ // The operator chooses a bounded campaign: 12 hours and 2 economic actions. Invalid values never leave the page, and any
+ // change to the scope discards the review it was reviewed under.
+ await evaluate(`fetch('/__fixture-control?wallet=available&preflight=valid&worker=ready')`);
+ await select('#setup-mode','paper');await select('#setup-mode','live');
+ await waitFor('document.querySelector("#live-wallet-note").textContent.includes("Balances from the registered server wallet")');
+ await select('#setup-pool',profiles[8].pool);
+ await fill('#setup-campaign-duration','12');await fill('#setup-campaign-actions','2');
+ await check('entered scope values are restated in words next to the inputs',
+  'document.querySelector("#setup-campaign-duration-hint").textContent==="12 hours after opening, then retain-close"&&document.querySelector("#setup-campaign-actions-hint").textContent==="2 including the opening, then retain-close"');
+ await click('#setup-review-button');
+ await waitFor('document.querySelector("#live-setup-title").textContent==="Indicative live setup review"&&document.querySelector("#live-setup-facts").textContent.includes("12 hours after opening")');
+ await check('a bounded scope is posted exactly and shown in the summary and the frozen review',
+  `(()=>{const r=${JSON.stringify(apiCalls)}.filter(x=>x.path==="/api/deployments/rangekeeper/live-setup-preflight").at(-1);const sum=document.querySelector("#setup-review-facts").textContent,rev=document.querySelector("#live-setup-facts").textContent;return r.body.campaignScope.maxDurationSeconds===43200&&r.body.campaignScope.maxEconomicActions===2&&sum.includes("Campaign duration12 hours")&&sum.includes("Max economic actions2")&&rev.includes("Campaign duration12 hours after opening, then retain-close")&&rev.includes("Max economic actions2 including the opening, then retain-close")})()`);
+ await shot('live-setup-scope-review-1440','.setup-panel');
+ await fill('#setup-campaign-actions','3');
+ await check('changing the scope after a review discards that review and its approval',
+  'document.querySelector("#setup-review").hidden');
+ const scopeCallsBefore=apiCalls.filter(call=>call.path==='/api/deployments/rangekeeper/live-setup-preflight').length;
+ for(const [duration,actions] of [['25','2'],['12','11'],['abc','2'],['12','-1'],['','2']]){
+  await fill('#setup-campaign-duration',duration);await fill('#setup-campaign-actions',actions);
+  await click('#setup-review-button');
+  await waitFor('document.querySelector("#setup-error").hidden===false');
+  await check(`an invalid scope (${duration||'blank'} h, ${actions}) is explained and nothing is sent`,
+   `document.querySelector("#setup-error").textContent.length>30&&document.querySelector("#setup-status").textContent.includes("No request was sent")&&${JSON.stringify(apiCalls)}.filter(call=>call.path==="/api/deployments/rangekeeper/live-setup-preflight").length===${scopeCallsBefore}`);
+ }
+ await fill('#setup-campaign-duration','0');await fill('#setup-campaign-actions','0');
 
  // The worker drops between the last readiness poll and the click. The service refuses with its closed reasons,
  // nothing is queued, and the operator is told why in words.
@@ -387,7 +494,7 @@ try{
   `(()=>{const r=${JSON.stringify(apiCalls)}.filter(x=>x.path==="/api/deployments/setup-preflight").at(-1);return !!r&&r.method==="POST"&&r.csrf==="fixture-csrf"&&r.body.profileId===${JSON.stringify(profiles[0].id)}&&r.body.capitalQuoteRaw==="250000000"&&Number.isSafeInteger(r.body.halfWidthTicks)})()`);
  assert.equal(apiCalls.some(call=>call.method==='POST'&&(/setup-drafts|open-operations|\/previews/.test(call.path))),false,
   'live review does not submit a draft, open operation, or preview acceptance');
- assert.equal(apiCalls.filter(call=>call.path==='/api/deployments/rangekeeper/live-setup-preflight').length,6,
+ assert.equal(apiCalls.filter(call=>call.path==='/api/deployments/rangekeeper/live-setup-preflight').length,7,
   'only explicit live review clicks submit the live preflight route');
  assert.deepEqual(runtimeErrors,[],'browser completed without uncaught JavaScript exceptions');
 } finally {

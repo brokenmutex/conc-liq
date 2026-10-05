@@ -239,3 +239,44 @@ test('review expiry and the 90 second candidate window are unchanged by source-o
   verifyCanonical:async()=>{},revalidatePinned:async()=>p,consumeReviewAndReserve:async()=>{throw Error('must not reserve');},now:()=>now} as any);
  assert.equal(result.status,'unavailable');assert.deepEqual((result as any).missing,['live_setup_review_expired_or_stale']);
 });
+
+const withScope=(scope:{maxDurationSeconds:number;maxEconomicActions:number})=>{
+ const p=structuredClone(payload()) as any;p.policy.config.campaignScope=scope;p.input.campaignScope=scope;
+ p.policy.parameters.campaignScope=scope;const config=parseRangeKeeperConfig(p.policy.config);
+ p.policy.configHash=rangeKeeperConfigHash(config).slice(2);p.policy.parametersHash=contentHash(p.policy.parameters);
+ p.binding.configHash=p.policy.configHash;return rebind(p);
+};
+const OPEN_ENDED={maxDurationSeconds:0,maxEconomicActions:0};
+
+test('an operator campaign scope is frozen into the reviewed config and carried into the admitted campaign',async()=>{
+ const p=withScope(OPEN_ENDED),record=reviewRecord(p),calls:any[]=[];
+ const recorded:any[]=[];
+ const review=await recordRangeKeeperLiveSetupReview({wallet,reviewId,payload:p},{readWalletState:async()=>walletState(),
+  recordReview:async row=>{recorded.push(row);},now:()=>now});
+ assert.equal(review.status,'review_recorded',JSON.stringify(review));
+ assert.deepEqual(recorded[0].payload.policy.config.campaignScope,OPEN_ENDED);
+ const deps:any={wallet,buildId,readReview:async()=>record,readWalletState:async()=>walletState(),findRequest:async()=>null,
+  verifyCanonical:async()=>{},revalidatePinned:async()=>p,consumeReviewAndReserve:async(input:unknown)=>{calls.push(input);
+   return {status:'queued',campaignId:'campaign-1',jobId:'job-1',allocationId:'allocation-1',replayed:false};},now:()=>now};
+ const result=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},deps);
+ assert.equal(result.status,'queued',JSON.stringify(result));
+ assert.deepEqual(calls[0].campaign.config.campaignScope,OPEN_ENDED,'the campaign revision config records the scope');
+ assert.equal(calls[0].campaign.configHash,contentHash(calls[0].campaign.config));
+ assert.notEqual(calls[0].campaign.configHash,(()=>{const legacy=payload();return contentHash({...legacy.policy.parameters,
+  strategyId:'rangekeeper_v1',strategyVersion:'1.0.0',stateSchemaVersion:1});})(),'a different scope is a different campaign config');
+});
+
+test('a campaign scope that disagrees with its frozen hash is not recorded, and a drifted scope never admits',async()=>{
+ const tampered=structuredClone(withScope(OPEN_ENDED)) as any;
+ tampered.policy.config.campaignScope={maxDurationSeconds:86_400,maxEconomicActions:10};rebind(tampered);
+ const recorded:any[]=[];
+ const rejected=await recordRangeKeeperLiveSetupReview({wallet,reviewId,payload:tampered},{readWalletState:async()=>walletState(),
+  recordReview:async row=>{recorded.push(row);},now:()=>now});
+ assert.equal(rejected.status,'unavailable');assert.equal(recorded.length,0,'the scope cannot change without the config hash changing');
+ const p=withScope(OPEN_ENDED),record=reviewRecord(p);let reserves=0;
+ const base:any={wallet,buildId,readReview:async()=>record,readWalletState:async()=>walletState(),findRequest:async()=>null,
+  verifyCanonical:async()=>{},consumeReviewAndReserve:async()=>{reserves++;return {status:'queued',campaignId:'c',jobId:'j',allocationId:'a',replayed:false};},now:()=>now};
+ const drifted=await admitRangeKeeperLiveSetup({reviewId,reviewHash:record.payloadHash,requestId},
+  {...base,revalidatePinned:async()=>withScope({maxDurationSeconds:43_200,maxEconomicActions:2})});
+ assert.notEqual(drifted.status,'queued',JSON.stringify(drifted));assert.equal(reserves,0);
+});
