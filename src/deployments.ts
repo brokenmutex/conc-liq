@@ -97,7 +97,7 @@ async function main(){
  let walletTransferStore:PostgresPositionManagerWalletTransferStore|null=null,schemaVersion=0;
  try{
   const version=schemaVersion=Number((await schemaProbe.query<{version:number}>('SELECT max(version)::int AS version FROM schema_migrations')).rows[0]?.version??0);
-  if(version===POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION&&env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS&&
+  if(version>=POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION&&env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS&&
    isAddress(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS)){
    walletTransferStore=new PostgresPositionManagerWalletTransferStore(env.DATABASE_URL,env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS);
    // v14 must use its isolated wallet-scoped namespace. A missing or broken

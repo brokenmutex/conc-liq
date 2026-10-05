@@ -24,7 +24,7 @@ export interface LiveCommandRuntime {
 export function createLiveCommandWiring(input:{schemaVersion:number;walletIdentity:LiveWalletIdentity|null;
  readiness:(wallet:LiveWalletIdentity)=>Promise<LiveWorkerReadiness>;createRuntime:()=>LiveCommandRuntime;
  onRuntimeFailure?:(error:unknown)=>void}){
- const schemaUnavailable=input.schemaVersion!==POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION;
+ const schemaUnavailable=input.schemaVersion<POSITION_MANAGER_WALLET_TRANSFER_SCHEMA_VERSION;
  let runtime:LiveCommandRuntime|null=null,failed=false;
  if(input.walletIdentity&&!schemaUnavailable){
   // Composition only; the caller supplies no execution and no management.

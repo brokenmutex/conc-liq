@@ -132,7 +132,7 @@ try{
  await admin.query(`CREATE SCHEMA "${upgradeSchema}"`);await admin.query(`SET search_path="${upgradeSchema}"`);
  await admin.query(`CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,checksum TEXT NOT NULL,
   applied_at TIMESTAMPTZ NOT NULL DEFAULT clock_timestamp(),method TEXT NOT NULL CHECK(method IN ('applied','verified_baseline')))`);
- assert.equal(MIGRATIONS.length,14);assert.equal(MIGRATION_CHECKSUMS.length,14);
+ assert(MIGRATIONS.length>=14);assert.equal(MIGRATION_CHECKSUMS.length,MIGRATIONS.length);
  for(let index=0;index<13;index++){
   await admin.query(MIGRATIONS[index]);
   await admin.query('INSERT INTO schema_migrations(version,checksum,method) VALUES($1,$2,$3)',[index+1,MIGRATION_CHECKSUMS[index],'applied']);
@@ -145,7 +145,8 @@ try{
   oldEvents=await upgradeGlobal.loadTransfers(4663,manager,0n,5n,20);
  assert(oldCursor&&oldEvents.length===5&&oldCheckpoints.length>0);
  await upgradeGlobal.close();upgradeGlobal=undefined;
- assert.deepEqual(await migrateDatabase(admin),[14],'v13-to-v14 upgrade applies only the wallet-history migration');
+ assert.deepEqual(await migrateDatabase(admin),Array.from({length:MIGRATIONS.length-13},(_,i)=>14+i),
+  'v13 upgrade applies the wallet-history migration and only later checked migrations');
  upgradeGlobal=new PostgresPositionManagerTransferStore(upgradeConnection);
  upgradeWallet=new PostgresPositionManagerWalletTransferStore(upgradeConnection,walletA);
  await upgradeWallet.assertReady();

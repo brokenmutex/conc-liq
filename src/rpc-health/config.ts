@@ -18,7 +18,7 @@ const monitorEnvironmentSchema = z.object({
   RPC_HEALTH_HARD_LATENCY_MS: positiveInteger.default(5_000),
   RPC_HEALTH_POLL_INTERVAL_MS: positiveInteger.default(10_000),
   RPC_HEALTH_RECOVERY_SAMPLES: positiveInteger.default(12),
-  RPC_HEALTH_REFERENCE_QUORUM: positiveInteger.default(2),
+  RPC_HEALTH_REFERENCE_QUORUM: positiveInteger.default(1),
   RPC_HEALTH_REFERENCE_URLS: z.string().min(1).default(
     DEFAULT_RPC_HEALTH_REFERENCES.join(","),
   ),

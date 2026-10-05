@@ -187,7 +187,7 @@ describe("RPC health configuration", () => {
       RH_INDEXER_RPC_URL: "http://private-node:8547",
     });
     assert.equal(result.referenceUrls.length, 2);
-    assert.equal(result.referenceQuorum, 2);
+    assert.equal(result.referenceQuorum, 1);
     assert.equal(result.hardLagBlocks, 100n);
   });
 

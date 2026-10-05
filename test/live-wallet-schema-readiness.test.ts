@@ -29,8 +29,15 @@ it('paper and campaign services remain compatible through v14 while wallet trans
  assert([...old.sql,...current.sql].every(sql=>sql.startsWith('SELECT')));
 });
 
+it('v15 keeps every earlier live capability; gates require a minimum checked version, not an exact one',async()=>{
+ const quorum=database(15);await assertSchemaReady(quorum.db);await assertDeploymentSchemaReady(quorum.db);
+ await assertLiveWalletSchemaReady(quorum.db);await assertLiveRuntimeSchemaReady(quorum.db);
+ await assertPositionManagerWalletTransferSchemaReady(quorum.db);
+ assert(quorum.sql.every(sql=>sql.startsWith('SELECT')));
+});
+
 it('an unknown or modified migration never qualifies the shared wallet or existing services',async()=>{
- for(const fixture of [database(12,true),database(13,true),database(14,true),database(15)]){
+ for(const fixture of [database(12,true),database(13,true),database(14,true),database(15,true),database(16)]){
   await assert.rejects(()=>assertSchemaReady(fixture.db),/schema incompatible/);
   await assert.rejects(()=>assertLiveWalletSchemaReady(fixture.db),/schema incompatible/);
   await assert.rejects(()=>assertLiveRuntimeSchemaReady(fixture.db),/schema incompatible/);

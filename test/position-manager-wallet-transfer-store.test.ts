@@ -8,7 +8,7 @@ import {POSITION_MANAGER_WALLET_TRANSFER_SQL} from '../src/storage/position-mana
 import {PostgresPositionManagerWalletTransferStore} from '../src/nft/position-manager-wallet-transfer-store.js';
 
 test('v14 wallet transfer migration is append-only and checksum-bound',()=>{
- assert.equal(MIGRATIONS.length,14);assert.equal(MIGRATIONS[13],POSITION_MANAGER_WALLET_TRANSFER_SQL);
+ assert(MIGRATIONS.length>=14);assert.equal(MIGRATIONS[13],POSITION_MANAGER_WALLET_TRANSFER_SQL);
  assert.equal(createHash('sha256').update(MIGRATIONS[13]!).digest('hex'),MIGRATION_CHECKSUMS[13]);
  assert.match(POSITION_MANAGER_WALLET_TRANSFER_SQL,/PRIMARY KEY \(chain_id, position_manager, wallet_address, start_block\)/);
  assert.match(POSITION_MANAGER_WALLET_TRANSFER_SQL,/PRIMARY KEY \(chain_id, position_manager, wallet_address, start_block, block_number\)/);

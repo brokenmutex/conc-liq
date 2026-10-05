@@ -13,6 +13,7 @@ import { RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL } from "./rangekeeper-pap
 import { POSITION_MANAGER_TRANSFER_SQL } from "./position-manager-transfer-migration.js";
 import { DEPLOYMENT_LIVE_WALLET_SQL } from "./deployment-live-wallet-migration.js";
 import { DEPLOYMENT_LIVE_RUNTIME_SQL } from "./deployment-live-runtime-migration.js";
+import { RPC_HEALTH_SINGLE_REFERENCE_QUORUM_SQL } from "./rpc-health-single-reference-quorum-migration.js";
 import { POSITION_MANAGER_WALLET_TRANSFER_SQL } from "./position-manager-wallet-transfer-migration.js";
 
 // v1 is the frozen pre-versioning schema. Existing databases are verified and
@@ -37,7 +38,7 @@ export const MIGRATIONS = [SCHEMA_SQL, RUNTIME_IDENTITY_SQL, COVERAGE_CURSOR_SQL
  DEPLOYMENT_PAPER_ACCOUNTING_INVALIDATION_SQL, INDEXER_EVENT_TIMESTAMPS_SQL,
  RANGEKEEPER_PAPER_CONFIRMATION_SQL, RANGEKEEPER_PAPER_CONFIRMATION_PROVENANCE_SQL,
  POSITION_MANAGER_TRANSFER_SQL, DEPLOYMENT_LIVE_WALLET_SQL, DEPLOYMENT_LIVE_RUNTIME_SQL,
- POSITION_MANAGER_WALLET_TRANSFER_SQL] as const;
+ POSITION_MANAGER_WALLET_TRANSFER_SQL, RPC_HEALTH_SINGLE_REFERENCE_QUORUM_SQL] as const;
 const identifier = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const checksum = (sql: string) => createHash("sha256").update(sql).digest("hex");
 

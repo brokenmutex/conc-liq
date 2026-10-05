@@ -1,3 +1,4 @@
+import {DEPLOYMENT_SCHEMA_VERSION} from '../storage/compatibility.js';
 import type {Pool} from 'pg';
 import {contentHash} from './contracts.js';
 import {applyWalletSnapshotInTransaction,readCommitments,recordReview,readWalletState,withLiveWalletTransaction,
@@ -65,7 +66,7 @@ export function createRangeKeeperLiveReviewRuntime(input:{pool:Pool;wallet:LiveW
  const refreshSnapshot=async():Promise<RangeKeeperReviewRuntimeResult>=>{
   let version:number;try{version=await readSchemaVersion();}catch{return {status:'read_only',state:null,missing:['schema_version_unavailable']};}
   if(version<12)return {status:'read_only',state:null,missing:['live_wallet_v12_required_for_snapshot_persistence']};
-  if(version!==12&&version!==13&&version!==14)return {status:'unavailable',state:null,missing:['unsupported_live_wallet_schema_version']};
+  if(version>DEPLOYMENT_SCHEMA_VERSION)return {status:'unavailable',state:null,missing:['unsupported_live_wallet_schema_version']};
   let state:LiveWalletState|null=null;
   try{state=await readWalletState(input.pool,input.wallet);}catch{return {status:'read_only',state:null,missing:['live_wallet_schema_unavailable']};}
   if(version===12)return {status:'read_only',state,missing:['live_runtime_v13_required_for_nft_snapshot_persistence']};
@@ -118,7 +119,7 @@ export function createRangeKeeperLiveReviewRuntime(input:{pool:Pool;wallet:LiveW
  const persistReview=async(reviewId:string,payload:unknown):Promise<RangeKeeperLiveReviewAdmissionResult>=>{
   let version:number;try{version=await readSchemaVersion();}catch{return {status:'unavailable',missing:['schema_version_unavailable'],actionAvailable:false,executionEligible:false};}
   if(version<12)return {status:'unavailable',missing:['live_wallet_v12_required_for_review_persistence'],actionAvailable:false,executionEligible:false};
-  if(version!==12&&version!==13&&version!==14)return {status:'unavailable',missing:['unsupported_live_wallet_schema_version'],actionAvailable:false,executionEligible:false};
+  if(version>DEPLOYMENT_SCHEMA_VERSION)return {status:'unavailable',missing:['unsupported_live_wallet_schema_version'],actionAvailable:false,executionEligible:false};
   const parsed=payload as RangeKeeperLiveReviewPayload;
   const semanticHash=(parsed?.references as Record<string,unknown>|undefined)?.semanticProofHash;
   const payloadBuild=(parsed?.binding as Record<string,unknown>|undefined)?.buildId;
