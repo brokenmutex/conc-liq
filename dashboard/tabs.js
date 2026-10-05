@@ -291,6 +291,78 @@ export function liveWalletPanel(wallet, review = null) {
     rows, native, summary, blockers: liveBlockers(wallet) };
 }
 
+// ---- Valuation basis (oracle fresh / last oracle price / unavailable) --------------
+// The projection reports which oracle basis the headline NAV and P&L use. Display only.
+export function valuationAgeText(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return 'age unavailable';
+  const s = Math.floor(seconds);
+  if (s < 120) return `${s}s`;
+  if (s < 7200) return `${Math.floor(s / 60)}m`;
+  if (s < 48 * 3600) return `${Math.floor(s / 3600)}h`;
+  return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
+}
+export function easternWeekdayTime(iso) {
+  const at = Date.parse(String(iso ?? ''));
+  if (!Number.isFinite(at)) return 'time unavailable';
+  return `${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: '2-digit',
+    minute: '2-digit', hour12: false }).format(at)} ET`;
+}
+const REFERENCE_REASON_LABELS = Object.freeze({
+  market_session_unverified: 'the market session could not be verified',
+  risk_source_identity: 'the risk source identity does not match',
+  reference_proof_incomplete: 'the stored oracle evidence is incomplete',
+  reference_proof_inconsistent: 'the stored oracle evidence contradicts itself',
+  independent_reference_unavailable: 'no independent oracle evidence was recorded',
+});
+const FEED_LABELS = Object.freeze({ token0: 'quote token', token1: 'risk token', native: 'native gas' });
+/** Plain-language form of a structural reference reason code. */
+export function referenceReasonLabel(code) {
+  if (typeof code !== 'string' || !code) return 'an unknown reference problem';
+  if (REFERENCE_REASON_LABELS[code]) return REFERENCE_REASON_LABELS[code];
+  const match = /^(token0|token1|native)_(.+)$/.exec(code);
+  const feed = match ? FEED_LABELS[match[1]] : null;
+  const detail = match ? match[2] : code;
+  const phrases = {
+    asset_health: 'asset health check failed (paused oracle, corporate action or trading status)',
+    asset_identity: 'the asset identity does not match', unsupported_stablecoin: 'the stablecoin is not supported',
+    oracle_missing: 'the oracle feed is missing', oracle_identity: 'the oracle feed identity does not match',
+    oracle_description_mismatch: 'the oracle feed description does not match', oracle_decimals_mismatch: 'the oracle feed decimals do not match',
+    oracle_round_incomplete: 'the oracle round is incomplete', oracle_timestamp_future: 'the oracle timestamp is in the future',
+    oracle_answer_nonpositive: 'the oracle answer is not positive', oracle_read_failed: 'the oracle could not be read',
+    oracle_unreadable: 'the oracle evidence is unreadable', oracle_older_than_hold_limit: 'the last oracle answer is older than 7 days',
+    reference_price_mismatch: 'the recorded price disagrees with the oracle evidence',
+  };
+  const text = phrases[detail] ?? humanizeCode(detail);
+  return feed ? `${feed}: ${text}` : text;
+}
+/** Display model for a RangeKeeper row's valuation basis. Returns null when the position carries no basis or has
+ * nothing to value yet (a queued or opening live campaign). `now` is injectable for tests. */
+export function valuationBasisModel(position, now = Date.now()) {
+  const valuation = position?.valuation;
+  if (!valuation || typeof valuation !== 'object') return null;
+  const live = position?.deployment?.live;
+  if (live && ['queued', 'opening'].includes(live.lifecycle)) return null;
+  const kind = ['oracle_fresh', 'last_oracle_price', 'unavailable'].includes(valuation.basis) ? valuation.basis : 'unavailable';
+  const asOfMs = Date.parse(String(valuation.priceAsOf ?? ''));
+  const ageNow = Number.isFinite(asOfMs) ? Math.max(0, (now - asOfMs) / 1000) : null;
+  const poolImpliedNav = valuation.poolImplied?.navQuote != null && /^(0|[1-9][0-9]*)$/.test(String(valuation.poolImplied.navQuote))
+    ? Number(valuation.poolImplied.navQuote) / 1e6 : null;
+  const base = { kind, poolImpliedNav, asOfIso: valuation.priceAsOf ?? null, ageSeconds: ageNow,
+    freshnessReasons: valuation.freshnessReasons ?? [], structuralReasons: valuation.structuralReasons ?? [] };
+  if (kind === 'oracle_fresh') return { ...base, label: 'Oracle fresh', summary: 'Oracle fresh',
+    detail: 'Valued at current independent oracle prices, each within its age limit.' };
+  if (kind === 'last_oracle_price') {
+    const age = valuationAgeText(ageNow ?? valuation.priceAgeAtMarkSeconds), when = easternWeekdayTime(valuation.priceAsOf);
+    const stale = (valuation.feeds ?? []).filter(feed => feed.state === 'stale').map(feed => feed.symbol).filter(Boolean);
+    return { ...base, label: `Last oracle price · ${age} old`, summary: `Last oracle price, ${when}, ${age} old`,
+      detail: `Valued at last oracle price, ${when}, ${age} old${stale.length ? ` (${stale.join(', ')} oracle past its age limit)` : ''}. The oracle is not updating, typically a closed or slow off-hours market.` };
+  }
+  const reasons = (valuation.structuralReasons ?? []).map(referenceReasonLabel);
+  return { ...base, label: 'Valuation unavailable', summary: 'Oracle valuation unavailable',
+    detail: reasons.length ? `Oracle valuation is unavailable: ${[...new Set(reasons)].join('; ')}.`
+      : 'Oracle valuation is unavailable: no usable oracle evidence has been recorded for this mark.' };
+}
+
 // ---- Live position rows -------------------------------------------------------------
 export const LIVE_LIFECYCLE_LABELS = Object.freeze({ queued: 'Queued', opening: 'Opening', holding: 'Holding',
   recentering: 'Recentering', closing: 'Closing', closed: 'Closed', blocked: 'Blocked' });
@@ -327,7 +399,7 @@ const shortHash = value => typeof value === 'string' && value.length > 18 ? `${v
 
 /** Display model for one live campaign row. `position` is the dashboard position (with
  * normalized numeric economics); `capability` is `liveCapabilityFrom` output or null. */
-export function liveRowModel(position, capability = null) {
+export function liveRowModel(position, capability = null, now = Date.now()) {
   const live = position?.deployment?.live;
   if (!live) return null;
   const job = live.job ?? null, inFlight = job?.inFlight === true;
@@ -365,12 +437,15 @@ export function liveRowModel(position, capability = null) {
     ? `${[0, 1].map(index => `${unitsText(rawBig(allocation[`token${index}Raw`]), decimals[index])} ${symbols[index] ?? `token ${index}`}`).join(' · ')} · ${unitsText(rawBig(allocation.nativeWei), 18)} native gas`
     : UNAVAILABLE;
   const pnl = position?.capital == null || position?.initial == null ? null : position.capital - position.initial;
+  const basis = valuationBasisModel(position, now);
   const facts = [
     ['Position NFT', live.nftId ?? (['queued', 'opening'].includes(live.lifecycle) ? 'not minted yet' : 'none')],
     ['Range', Array.isArray(position?.range) && position.range.every(value => Number.isFinite(value))
       ? `${liveMoney(position.range[0])} – ${liveMoney(position.range[1])} ${position.quote ?? 'USDG'} · ${rangeText}` : rangeText],
     ['Allocation', allocationText],
     ['Net value', liveMoney(position?.capital) ?? UNAVAILABLE],
+    ...(basis ? [['Valuation basis', basis.summary],
+      ['Pool-implied NAV (indicative)', basis.poolImpliedNav === null ? UNAVAILABLE : `${liveMoney(basis.poolImpliedNav)} · not used for P&L`]] : []),
     ['LP fees', liveMoney(position?.fees) ?? UNAVAILABLE],
     ['Gas paid', position?.gas == null ? (live.paidGasWei == null ? UNAVAILABLE : `${unitsText(rawBig(live.paidGasWei), 18)} native`)
       : `${liveMoney(position.gas)} USD${live.paidGasWei == null ? '' : ` · ${unitsText(rawBig(live.paidGasWei), 18)} native`}`],
@@ -385,7 +460,7 @@ export function liveRowModel(position, capability = null) {
     recentering: 'Recentering is in progress; retain-close can be reviewed when the campaign is holding again.' };
   if (!retain.eligible) retain.reason = retainReasons[live.lifecycle] ?? 'Retain-close can be reviewed once the campaign is holding.';
   return { lifecycle: live.lifecycle, label: LIVE_LIFECYCLE_LABELS[live.lifecycle] ?? 'Unknown', summary,
-    workerNote, facts, jobText: jobParts.join(' · '), retain };
+    workerNote, facts, jobText: jobParts.join(' · '), retain, basis };
 }
 
 export function liveRetainPreviewPathFor(campaignId) {

@@ -272,3 +272,103 @@ test('live retain actions are omitted on the public dashboard and unauthenticate
  assert.match(html,/Live actions are available on the operator dashboard/);
  assert.equal(run('lifecycleControls(p)'),'','live positions get no pause or convert controls');
 });
+
+// ---- valuation basis ----
+const {valuationAgeText,easternWeekdayTime,referenceReasonLabel,valuationBasisModel}=tabs as any;
+const FRIDAY_CLOSE='2026-10-03T00:00:00.000Z';// Fri 20:00 ET
+const feedsStale=[{name:'token0',symbol:'USDG',state:'fresh'},{name:'token1',symbol:'AAPL',state:'stale',updatedAt:FRIDAY_CLOSE},{name:'native',symbol:'ETH',state:'fresh'}];
+const heldValuation={basis:'last_oracle_price',priceAsOf:FRIDAY_CLOSE,priceAgeAtMarkSeconds:38*3600,feeds:feedsStale,
+ freshnessReasons:['token1_reference_age_unacceptable'],structuralReasons:[],poolImplied:{navQuote:'189500000',priceQuoteX18:'219000000000000000000'}};
+
+test('formats the age and Eastern time of a held oracle price',()=>{
+ assert.equal(valuationAgeText(45),'45s');assert.equal(valuationAgeText(600),'10m');assert.equal(valuationAgeText(3*3600),'3h');
+ assert.equal(valuationAgeText(38*3600),'38h');assert.equal(valuationAgeText(50*3600),'2d 2h');
+ for(const bad of [NaN,-1,null,undefined,'x'])assert.equal(valuationAgeText(bad),'age unavailable');
+ assert.equal(easternWeekdayTime(FRIDAY_CLOSE),'Fri 20:00 ET');assert.equal(easternWeekdayTime('2026-01-05T01:30:00Z'),'Sun 20:30 ET');
+ assert.equal(easternWeekdayTime('nope'),'time unavailable');
+});
+
+test('maps structural reference codes to words, naming the feed',()=>{
+ assert.equal(referenceReasonLabel('token1_oracle_description_mismatch'),'risk token: the oracle feed description does not match');
+ assert.equal(referenceReasonLabel('token0_oracle_round_incomplete'),'quote token: the oracle round is incomplete');
+ assert.equal(referenceReasonLabel('native_oracle_timestamp_future'),'native gas: the oracle timestamp is in the future');
+ assert.match(referenceReasonLabel('token1_asset_health'),/risk token: asset health check failed .*corporate action/);
+ assert.equal(referenceReasonLabel('token1_oracle_older_than_hold_limit'),'risk token: the last oracle answer is older than 7 days');
+ assert.equal(referenceReasonLabel('market_session_unverified'),'the market session could not be verified');
+ assert.equal(referenceReasonLabel('reference_proof_inconsistent'),'the stored oracle evidence contradicts itself');
+ assert.equal(referenceReasonLabel('brand_new_reason'),'brand new reason');assert.equal(referenceReasonLabel(undefined),'an unknown reference problem');
+ for(const code of ['token1_asset_identity','token0_unsupported_stablecoin','token1_oracle_missing','native_oracle_read_failed','token1_reference_price_mismatch'])
+  assert.doesNotMatch(referenceReasonLabel(code),/_/,code);
+});
+
+test('builds the basis badge model: fresh, last oracle price with age, unavailable, or nothing to value',()=>{
+ const now=Date.parse(FRIDAY_CLOSE)+38*3600*1000;
+ const fresh=valuationBasisModel({valuation:{basis:'oracle_fresh',priceAsOf:FRIDAY_CLOSE,priceAgeAtMarkSeconds:20,feeds:[],freshnessReasons:[],structuralReasons:[],poolImplied:null}},now);
+ assert.equal(fresh.kind,'oracle_fresh');assert.equal(fresh.label,'Oracle fresh');assert.equal(fresh.poolImpliedNav,null);
+ const held=valuationBasisModel({valuation:heldValuation},now);
+ assert.equal(held.kind,'last_oracle_price');assert.equal(held.label,'Last oracle price · 38h old');
+ assert.match(held.detail,/^Valued at last oracle price, Fri 20:00 ET, 38h old \(AAPL oracle past its age limit\)\./);
+ assert.equal(held.summary,'Last oracle price, Fri 20:00 ET, 38h old');assert.equal(held.poolImpliedNav,189.5);
+ const later=valuationBasisModel({valuation:heldValuation},now+5*3600*1000);
+ assert.equal(later.label,'Last oracle price · 43h old','the age keeps counting from the price time, not the mark');
+ const unavailable=valuationBasisModel({valuation:{basis:'unavailable',priceAsOf:null,feeds:[],freshnessReasons:[],
+  structuralReasons:['token1_oracle_description_mismatch','token1_asset_health'],poolImplied:{navQuote:'1',priceQuoteX18:'1'}}},now);
+ assert.equal(unavailable.label,'Valuation unavailable');
+ assert.match(unavailable.detail,/risk token: the oracle feed description does not match; risk token: asset health check failed/);
+ assert.equal(valuationBasisModel({valuation:{basis:'unavailable',structuralReasons:[]}},now).detail,
+  'Oracle valuation is unavailable: no usable oracle evidence has been recorded for this mark.');
+ assert.equal(valuationBasisModel({valuation:{basis:'mystery'}},now).kind,'unavailable','an unknown basis fails closed');
+ assert.equal(valuationBasisModel({},now),null);assert.equal(valuationBasisModel(null,now),null);
+ assert.equal(valuationBasisModel({valuation:heldValuation,deployment:{live:{lifecycle:'queued'}}},now),null,'nothing to value while queued');
+ assert.equal(valuationBasisModel({valuation:heldValuation,deployment:{live:{lifecycle:'opening'}}},now),null);
+ assert.equal(valuationBasisModel({valuation:heldValuation,deployment:{live:{lifecycle:'holding'}}},now).kind,'last_oracle_price');
+ assert.equal(valuationBasisModel({valuation:{...heldValuation,poolImplied:{navQuote:'x'}}},now).poolImpliedNav,null);
+});
+
+test('live row facts state the basis, the held price time and the pool-implied figure',()=>{
+ const now=Date.parse(FRIDAY_CLOSE)+38*3600*1000;
+ const model=liveRowModel(livePosition('holding',{},{valuation:heldValuation}),null,now);
+ const fact=(name:string)=>model.facts.find(([key]:[string,string])=>key===name)?.[1];
+ assert.equal(fact('Valuation basis'),'Last oracle price, Fri 20:00 ET, 38h old');
+ assert.equal(fact('Pool-implied NAV (indicative)'),'189.50 · not used for P&L');
+ assert.equal(model.basis.kind,'last_oracle_price');
+ const none=liveRowModel(livePosition('holding',{},{valuation:{basis:'unavailable',structuralReasons:['market_session_unverified'],poolImplied:null}}),null,now);
+ assert.equal(none.facts.find(([key]:[string,string])=>key==='Valuation basis')[1],'Oracle valuation unavailable');
+ assert.equal(none.facts.find(([key]:[string,string])=>key==='Pool-implied NAV (indicative)')[1],'unavailable');
+ const queued=liveRowModel(livePosition('queued',{job:{...baseJob,status:'queued',inFlight:true},nftId:null},{valuation:{basis:'unavailable',poolImplied:null}}),null,now);
+ assert.equal(queued.facts.some(([key]:[string,string])=>key==='Valuation basis'),false,'a queued campaign has no basis to report');
+ assert.equal(liveRowModel(livePosition('holding'),null,now).facts.some(([key]:[string,string])=>key==='Valuation basis'),false,'older projections without a valuation block render unchanged');
+});
+
+test('rows show a basis badge, a held-price alert and the pool-implied metric in the detail',()=>{
+ const {context,run}=appContext(null);
+ const paper:any=serverPosition(7,'holding','open',{nftId:'1000',range:{state:'inside'},job:{...baseJob}},{mode:'paper',navQuote:'180000000',holdQuote:'150000000',
+  initialQuote:'170000000',feesQuote:'2000000',accounting:'provisional',sourceAt:new Date().toISOString(),valuation:{...heldValuation,
+  priceAsOf:new Date(Date.now()-38*3600*1000).toISOString()}});
+ paper.deployment={...paper.deployment,strategyId:'rangekeeper_v1',lifecycle:'active',live:undefined,
+  accounting:{policyVersion:'rangekeeper_paper_observed_flow_v1',modeledCosts:{cumulativeBoundValue:'3000000'},retainedModeledFees:{token0Raw:'1',token1Raw:'1'}},
+  token0:{symbol:'USDG',decimals:6},token1:{symbol:'AAPL',decimals:18}};
+ Object.assign(context,{paper});context.p=run('normalize(paper)');
+ const row=run('row(p,null)') as string;
+ assert.match(row,/<span class="basis-badge last_oracle_price" title="[^"]*Valued at last oracle price[^"]*">Last oracle price · 38h old<\/span>/);
+ assert.match(row,/180\.00/);
+ const metrics=run('deploymentMetrics(p)') as string;
+ assert.match(metrics,/Pool-implied NAV \(indicative\)[\s\S]*189\.50[\s\S]*never used for P&amp;L|never used for P&L/);
+ assert.match(metrics,/Provisional · last oracle price · 38h old/);
+ assert.match(run('basisAlert(p)') as string,/class="alert neutral basis-alert last_oracle_price"><strong>Last oracle price · 38h old<\/strong>/);
+ const fresh:any={...paper,valuation:{basis:'oracle_fresh',priceAsOf:new Date().toISOString(),priceAgeAtMarkSeconds:10,feeds:[],freshnessReasons:[],structuralReasons:[],poolImplied:null}};
+ Object.assign(context,{fresh});context.q=run('normalize(fresh)');
+ assert.match(run('row(q,null)') as string,/class="basis-badge oracle_fresh"[^>]*>Oracle fresh<\/span>/);
+ assert.equal(run('basisAlert(q)'),'','a fresh basis needs no extra alert');
+ assert.match(run('poolImpliedMetric(q)') as string,/Pool-implied NAV \(indicative\)[\s\S]*—/,'a missing pool-implied figure is a dash with the reason');
+ const unavailable:any={...paper,navQuote:null,holdQuote:null,feesQuote:null,valuation:{basis:'unavailable',priceAsOf:null,feeds:[],freshnessReasons:[],
+  structuralReasons:['token1_asset_health'],poolImplied:{navQuote:'189500000',priceQuoteX18:'1'}}};
+ Object.assign(context,{unavailable});context.r=run('normalize(unavailable)');
+ const unavailableRow=run('row(r,null)') as string;
+ assert.match(unavailableRow,/class="basis-badge unavailable"[^>]*>Valuation unavailable<\/span>/);
+ assert.doesNotMatch(unavailableRow,/Last oracle price/);
+ assert.match(run('deploymentMetrics(r)') as string,/Pool-implied NAV \(indicative\)[\s\S]*189\.50/,'the indicative figure survives when the oracle headline is unavailable');
+ assert.match(run('basisAlert(r)') as string,/risk token: asset health check failed/);
+ const plain:any={...paper,valuation:undefined};Object.assign(context,{plain});context.s=run('normalize(plain)');
+ assert.doesNotMatch(run('row(s,null)') as string,/basis-badge/,'positions without a valuation block (static rows) show no badge');
+});

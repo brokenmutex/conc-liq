@@ -140,3 +140,12 @@
 .live-wallet-table .cell-value{display:block;min-width:0}
 @media(max-width:600px){.live-wallet-table .cell-value{text-align:right}}
 .positions-table .status-sub{overflow-wrap:anywhere}
+
+/* Valuation basis: oracle fresh, last oracle price (with age), or unavailable. */
+.basis-line{margin-top:6px}
+.basis-badge{display:inline-block;max-width:100%;padding:2px 7px;border:1px solid transparent;border-radius:5px;font-size:10px;font-weight:600;line-height:1.4;letter-spacing:.2px;white-space:normal;overflow-wrap:anywhere}
+.basis-badge.oracle_fresh{background:#1b302a;color:var(--live);border-color:#2d5a49}
+.basis-badge.last_oracle_price{background:#382c1d;color:var(--amber);border-color:#6a5130}
+.basis-badge.unavailable{background:#232c38;color:#aabbd0;border-color:#3a4658}
+.basis-alert.last_oracle_price{border-color:#6a5130}
+.basis-alert strong,.basis-alert small{overflow-wrap:anywhere}
