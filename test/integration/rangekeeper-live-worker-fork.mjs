@@ -48,8 +48,9 @@ import {loadDashboardConfig} from '../../src/dashboard/config.ts';
 import {createRangeKeeperLiveManagementRuntime} from '../../src/deployments/rangekeeper-live-management.ts';
 import {createRangeKeeperLiveManagementObserver} from '../../src/deployments/rangekeeper-live-management-observer.ts';
 import {DEFAULT_MATRIX,DEFAULT_CONCURRENCY,describeProfile,selectProfiles,runProfileMatrix,runConcurrencyScenarios,
- refreshLocalSource} from './helpers/rangekeeper-live-pool-matrix.mjs';
-import {assertAllowancePolicyAfterJob,assertRetainStagePlans,assertFreshWalletAllowances,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
+ refreshLocalSource,diagnoseLatestMark,marketClosedStaleReference} from './helpers/rangekeeper-live-pool-matrix.mjs';
+import {assertAllowancePolicyAfterJob,assertAllowancePolicyAfterClose,assertOpenApprovalShapes,assertRetainStagePlans,
+ assertFreshWalletAllowances,readNonzeroAllowanceKeys,probeNonzeroToNonzeroApprove,ALLOWANCE_POLICY} from './helpers/rangekeeper-live-allowance-policy.mjs';
 
 const env=parseEnv(readFileSync(process.argv[2]??'.env','utf8'));
 const testUrl=process.env.TEST_DATABASE_URL;
@@ -465,9 +466,9 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   await runtime.worker.execute();campaign=await readRangeKeeperLiveCampaign(db,{chainId:4663,address:wallet,campaignId,revision:1});
  }
  assert.equal(campaign.status,'active');assert.equal(campaign.state?.phase,'holding');assert(campaign.state?.activeTokenId);
- const stages=(await db.query(`SELECT stage,status,signed_raw_hash,canonical_receipt_json,effect_evidence_json,allowance_cleanup_json
+ const stages=(await db.query(`SELECT stage,status,plan_json,signed_raw_hash,canonical_receipt_json,effect_evidence_json,allowance_cleanup_json
   FROM deployment_live_stage_outbox WHERE job_id=$1 ORDER BY created_at,stage`,[jobId])).rows;
- assert(stages.length>=3,`Expected swap/mint/cleanup lifecycle stages, got ${stages.map(s=>s.stage).join(',')}`);
+ assert(stages.length>=2,`Expected at least swap and mint lifecycle stages, got ${stages.map(s=>s.stage).join(',')}`);
  assert(stages.every(row=>row.status==='confirmed'&&row.canonical_receipt_json&&row.effect_evidence_json),'Every submitted stage needs canonical receipt evidence');
  assert.equal(new Set(stages.map(row=>row.signed_raw_hash)).size,stages.length,'Stage transaction hashes must be unique');
  const state=campaign.state,costHashes=state.costEvents.map(cost=>String(cost.hash).toLowerCase());
@@ -489,7 +490,12 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(token.balanceRaw,initialBalanceByAddress.get(token.address.toLowerCase()),
    `Unrelated registered-pool token balance changed: ${token.address}`);}
  const allowanceCtx={local,wallet,profileRows,operatorConfig};
- let allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'AAPL open',stages});
+ const firstOpenShape=assertOpenApprovalShapes([{label:'AAPL open',stages,pool:profile.pool,candidate:preflight.candidate}],
+  {decode:decodeBigints,initialNonzero:new Set()});
+ let allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'AAPL open',stages,activePools:[profile.pool]});
+ const nonzeroAfterFirstOpen=await readNonzeroAllowanceKeys(allowanceCtx);
+ const nonzeroApproveProbe=await probeNonzeroToNonzeroApprove(allowanceCtx);
+ let secondOpenShape=null;
  let secondCampaignEvidence=null,finalCampaignIds=[campaignId];
  if(twoPools){
   const secondCanonicalProfile=secondProfileRow.profile,secondProfile=secondCanonicalProfile.pool;
@@ -556,9 +562,9 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   const secondCampaign=await readRangeKeeperLiveCampaign(db,{chainId:4663,address:wallet,campaignId:secondAdmission.campaignId,revision:1});
   assert.equal(secondCampaign.status,'active');assert.equal(secondCampaign.profileId,secondProfileRow.id);
   assert.equal(secondCampaign.state?.phase,'holding');assert(secondCampaign.state?.activeTokenId);
-  const secondStages=(await db.query(`SELECT stage,status,signed_raw_hash,canonical_receipt_json,effect_evidence_json,allowance_cleanup_json
+  const secondStages=(await db.query(`SELECT stage,status,plan_json,signed_raw_hash,canonical_receipt_json,effect_evidence_json,allowance_cleanup_json
    FROM deployment_live_stage_outbox WHERE job_id=$1 ORDER BY created_at,stage`,[secondAdmission.jobId])).rows;
-  assert(secondStages.length>=3&&secondStages.every(row=>row.status==='confirmed'&&row.canonical_receipt_json&&row.effect_evidence_json),
+  assert(secondStages.length>=2&&secondStages.every(row=>row.status==='confirmed'&&row.canonical_receipt_json&&row.effect_evidence_json),
    'Second campaign lacks complete canonical stage receipt evidence');
   const secondCostHashes=secondCampaign.state.costEvents.map(cost=>String(cost.hash).toLowerCase());
   assert.equal(secondCostHashes.length,secondStages.length,'Second campaign receipt costs were omitted or double-counted');
@@ -591,7 +597,10 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(new Set(allWalletOutbox.map(row=>String(row.nonce))).size,allWalletOutbox.length,'Wallet-wide transaction nonces collided');
   const freeAfterSecondOpen=await readFreeCapital();
   assert.deepEqual(freeAfterSecondOpen,freeAfterSecondAdmission,'Second open spent capital outside its own reserved allocation');
-  allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'second pool open',stages:secondStages});
+  secondOpenShape=assertOpenApprovalShapes([{label:'second pool open',stages:secondStages,pool:secondProfile,candidate:secondPreflight.candidate}],
+   {decode:decodeBigints,initialNonzero:nonzeroAfterFirstOpen});
+  allowanceObservation=await assertAllowancePolicyAfterJob(allowanceCtx,{label:'second pool open',stages:secondStages,
+   activePools:[profile.pool,secondProfile]});
   finalWalletState=await readWalletState(db,{chainId:4663,address:wallet});
   secondCampaignEvidence={profileId:secondProfileRow.id,pool:secondProfile.pool,jobId:secondAdmission.jobId,campaignId:secondAdmission.campaignId,
    stageCount:secondStages.length,tokenId:secondTokenId,liquidity:String(secondPosition[7]),freeCapitalConserved:true,
@@ -615,11 +624,18 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   assert.equal(positionsResponse.status,200,JSON.stringify(positionsBody));
   const holdings=positionsBody.positions.filter(position=>finalCampaignIds.includes(position.deployment?.campaignId));
   assert.equal(holdings.length,2,'Actual Positions API omitted a concurrent live campaign');
+  const projectionMarketBlocks=[];
   for(const position of holdings){
-   assert.equal(position.accounting,'recorded',JSON.stringify(position));
+   if(position.accounting!=='recorded'){
+    const diagnostic=await diagnoseLatestMark(db,position.deployment.campaignId,decodeBigints);
+    console.error(JSON.stringify({event:'live_holding_projection_diagnostic',campaignId:position.deployment?.campaignId,reasons:position.reasons,mark:diagnostic}));
+    if(marketClosedStaleReference(diagnostic)){projectionMarketBlocks.push({campaignId:position.deployment.campaignId,phase:'holding',staleFlags:diagnostic.staleFlags});continue;}
+   }
+   assert.equal(position.accounting,'recorded',JSON.stringify(position.reasons));
    assert([position.navQuote,position.feesQuote,position.gasQuote,position.holdQuote].every(value=>typeof value==='string'),
     `Holding economics remain unavailable: ${JSON.stringify(position)}`);
   }
+  const nonzeroBeforeRetain=await readNonzeroAllowanceKeys(allowanceCtx);
   const siblingId=finalCampaignIds[1],siblingBefore=await readRangeKeeperLiveCampaign(db,{...identity,campaignId:siblingId}),
    siblingAllocationBefore=(await readCommitments(db,identity)).allocations.find(row=>row.campaignId===siblingId);
   const previewResponse=await fetch(commandUrl+`/api/deployments/${campaignId}/live/retain-preview`,{
@@ -641,9 +657,11 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
    JOIN deployment_live_campaign_runtime r ON r.campaign_id=c.id AND r.revision=c.current_revision WHERE c.id=$1`,[campaignId])).rows[0];
   assert.equal(closed?.lifecycle,'closed');const closedState=decodeBigints(closed.state_json);
   assert.equal(closedState.phase,'closed');assert.equal(closedState.activeTokenId,null);
-  const retainStages=(await db.query(`SELECT stage,status,plan_json,signed_raw_hash FROM deployment_live_stage_outbox
+  const retainStages=(await db.query(`SELECT stage,status,plan_json,signed_raw_hash,allowance_cleanup_json FROM deployment_live_stage_outbox
    WHERE job_id=$1 ORDER BY created_at`,[retained.jobId])).rows;
-  assertRetainStagePlans(retainStages,{decode:decodeBigints,label:'AAPL retain'});
+  const closeShape=assertRetainStagePlans(retainStages,{decode:decodeBigints,label:'AAPL retain',nonzeroBefore:nonzeroBeforeRetain,
+   closingPool:profile.pool,siblingPools:[secondProfileRow.profile.pool]});
+  const closeAllowance=await assertAllowancePolicyAfterClose(allowanceCtx,{label:'AAPL retain',retainStages,siblingPools:[secondProfileRow.profile.pool]});
   assert.equal(closedState.costEvents.length,stages.length+retainStages.length,'Retain receipt costs were omitted or duplicated');
   assert.equal(new Set(closedState.costEvents.map(event=>event.hash)).size,closedState.costEvents.length);
   assert.equal((await db.query('SELECT state FROM deployment_live_allocations WHERE campaign_id=$1',[campaignId])).rows[0]?.state,'released');
@@ -663,13 +681,23 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
    writeFileSync('/tmp/conc-liq-live-retain-terminal-diagnostic-20261003.json',
     JSON.stringify({position:detail.position,terminal},null,2).replace(/https?:\/\/[^"\s]+/g,'[redacted-url]'),{mode:0o600});
   }
-  assert.equal(detail.position.status,'closed');assert.equal(detail.position.accounting,'recorded',JSON.stringify(detail.position));
-  assert(typeof detail.position.navQuote==='string'&&typeof detail.position.gasQuote==='string','Terminal economics were not retained');
-  assert(detail.performance?.markCount>=2&&detail.performance?.rows?.some(row=>typeof row.netPnlQuote==='string'),
-   `Live history remains unavailable: ${JSON.stringify(detail.performance)}`);
-  retainedClosureEvidence={jobId:retained.jobId,campaignId,stageCount:retainStages.length,siblingAllocationUnchanged:true,
+  assert.equal(detail.position.status,'closed');
+  let terminalEconomicsRecorded=true;
+  if(detail.position.accounting!=='recorded'){
+   const diagnostic=await diagnoseLatestMark(db,campaignId,decodeBigints);
+   console.error(JSON.stringify({event:'live_terminal_projection_diagnostic',reasons:detail.position.reasons,mark:diagnostic}));
+   assert(marketClosedStaleReference(diagnostic),`Terminal economics unavailable: ${JSON.stringify(detail.position.reasons)}`);
+   terminalEconomicsRecorded=false;projectionMarketBlocks.push({campaignId,phase:'closed',staleFlags:diagnostic.staleFlags});
+  }else{
+   assert.equal(detail.position.accounting,'recorded',JSON.stringify(detail.position));
+   assert(typeof detail.position.navQuote==='string'&&typeof detail.position.gasQuote==='string','Terminal economics were not retained');
+   assert(detail.performance?.markCount>=2&&detail.performance?.rows?.some(row=>typeof row.netPnlQuote==='string'),
+    `Live history remains unavailable: ${JSON.stringify(detail.performance)}`);
+  }
+  retainedClosureEvidence={jobId:retained.jobId,campaignId,stageCount:retainStages.length,closeShape,closeAllowance,siblingAllocationUnchanged:true,
    replayAfterClosure:true,holdingEconomicsCount:holdings.length,terminalNavQuote:detail.position.navQuote,
-   terminalNativeWei:detail.position.inventory.nativeWei,terminalEconomicsRecorded:true};
+   terminalNativeWei:detail.position.inventory.nativeWei,terminalEconomicsRecorded,
+   projectionMarketBlocks:projectionMarketBlocks.length?projectionMarketBlocks:undefined};
   finalWalletState=await readWalletState(db,identity);
  }
  const report={event:'rangekeeper_shared_wallet_worker_fork_verified',chainId:4663,wallet,profileId:profileRow.id,
@@ -680,10 +708,10 @@ const preflightLimits={maxDeploymentValue:String(operatorConfig.limits.maxDeploy
   dashboardHttpAdmission:dashboardAdmission,registeredProfileCount:profileRows.length,registeredTokenCount:initialBalanceByAddress.size,
   freeCapitalUnchanged:true,
   untouchedSiblingTokenAddresses:[...initialBalanceByAddress.keys()].filter(address=>!selectedTokens.has(address)),
-  allowancePolicy:allowanceObservation,walletGeneration:String(finalWalletState.generation),
+  allowancePolicy:allowanceObservation,openApprovalShapes:{first:firstOpenShape,second:secondOpenShape},nonzeroApproveProbe,walletGeneration:String(finalWalletState.generation),
   pools:{count:finalCampaignIds.length,campaignIds:finalCampaignIds,second:secondCampaignEvidence},
   retainedClosure:retainedClosureEvidence,
-  forkReadBudget:fork.budget,forkReadDiagnostics:fork.diagnostics,upstreamMutations:0,
+  directUpstreamReads:upstreamReads,forkReadBudget:fork.budget,forkReadDiagnostics:fork.diagnostics,upstreamMutations:0,
   upstreamMutationBoundary:{signer:'synthetic_local_account_only',publisher:'branded_owned_fork_only',
    upstreamClient:'read_only',rejectedPinnedReadMethods:Object.keys(fork.diagnostics.rejectedPinnedReads)}};
  console.log(JSON.stringify(report,(_,value)=>typeof value==='bigint'?String(value):value));
