@@ -55,7 +55,7 @@ async function probeUpstream(name,url,{attempts=4,baseDelayMs=5000}={}){
 export const walletSecret=`0x${'6'.repeat(64)}`;
 
 export async function bootstrapManagementFork({envFile,testUrl,archiveEnvName='RH_ARCHIVE_RPC_URL',operatorConfigPath,buildId,log,
- walletUsdg=400_000_000n,moverUsdg=60_000_000_000n,forkBudgetMs=4*60*60*1000}){
+ walletUsdg=400_000_000n,moverUsdg=400_000_000_000n,forkBudgetMs=4*60*60*1000}){
  const env=parseEnv(readFileSync(envFile,'utf8'));
  const archiveUrl=env[archiveEnvName];
  assert(testUrl,'TEST_DATABASE_URL must name the disposable PostgreSQL test database');
