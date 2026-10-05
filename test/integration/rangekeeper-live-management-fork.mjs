@@ -62,6 +62,9 @@ const scenario=async(n,fn)=>{
 };
 
 let ctx,inspector,factory,driver,stats,faults;
+/** Flows that completed and whether recenter subject A was opened: they decide how many sibling checkpoints scenario 7 must hold. */
+const ranFlows=new Set();
+let openedA=false;
 const runtimeNow=()=>ctx.runtimeRef.current;
 const campaigns={};
 const post=async(path,body)=>{
@@ -363,6 +366,7 @@ async function flowOpen(){
   // the next flow drifts (the planner would recenter it concurrently).
   if(selected.has(1)||selected.has(2)||selected.has(6)){
    const A=await admitCampaign('A',{row:ctx.p500,capitalQuoteRaw:'50000000'});
+   openedA=true;
    await runOpenToHolding(A);
    ev.A=await verifyOpened(A,{job:'open_shared_pair',strict:true});
    await checkSibling('after A opened');
@@ -631,7 +635,11 @@ async function flowStaleReplan(){
 async function finalChecks(){
  await scenario(7,async ev=>{
   Object.assign(ev,{siblingChecks});
-  assert(siblingChecks.length>=3,'Too few sibling checkpoints were recorded');
+  // One checkpoint per sibling-bearing step of the flows that ran: A opened, A recentered, A closed, X converted, before the operator retain.
+  const expectedCheckpoints=(openedA?1:0)+(ranFlows.has('recenter')?2:0)+(ranFlows.has('conversion')?1:0)+(ranFlows.has('stale')?1:0);
+  assert(expectedCheckpoints>=1,'No flow with a sibling checkpoint ran');
+  assert.equal(siblingChecks.length,expectedCheckpoints,`Expected ${expectedCheckpoints} sibling checkpoints, recorded ${siblingChecks.length}`);
+  ev.expectedSiblingCheckpoints=expectedCheckpoints;
   const outbox=await inspector.allOutbox(),nonces=outbox.filter(o=>o.status!=='cancelled').map(o=>o.nonce);
   assert.equal(new Set(nonces).size,nonces.length);assert.deepEqual([...nonces].sort((a,b)=>a-b),nonces.map((_,i)=>ctx.baseNonce+i));
   assert(outbox.every(o=>o.status==='confirmed'||o.status==='cancelled'),'Unresolved stage rows remain');
@@ -683,7 +691,7 @@ async function main(){
   const flows=[['open',flowOpen,[1,2,3,4,5,6,7]],['recenter',flowAutomaticRecenter,[2,6]],['conversion',flowConversion,[4]],['stale',flowStaleReplan,[3,5,7]]];
   for(const [flowName,flow,scenarios] of flows){
    if(aborted||!scenarios.some(n=>selected.has(n)))continue;
-   try{await flow();}catch(error){aborted={flowName,error};log('flow_aborted',{flow:flowName,error:String(error?.stack??error).slice(0,1500)});}
+   try{await flow();ranFlows.add(flowName);}catch(error){aborted={flowName,error};log('flow_aborted',{flow:flowName,error:String(error?.stack??error).slice(0,1500)});}
   }
   if(!aborted&&selected.has(7))await finalChecks().catch(error=>{aborted={flowName:'final',error};});
  }catch(error){aborted={flowName:'harness',error};log('harness_error',{error:String(error?.stack??error).slice(0,2000)});}
