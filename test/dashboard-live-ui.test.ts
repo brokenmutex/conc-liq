@@ -372,3 +372,99 @@ test('rows show a basis badge, a held-price alert and the pool-implied metric in
  const plain:any={...paper,valuation:undefined};Object.assign(context,{plain});context.s=run('normalize(plain)');
  assert.doesNotMatch(run('row(s,null)') as string,/basis-badge/,'positions without a valuation block (static rows) show no badge');
 });
+
+// ---- campaign scope ----
+const {campaignScopeFromInputs,campaignScopeLabels,campaignScopeIsValid,CAMPAIGN_SCOPE_DEFAULT,liveSetupPreflightRequest,
+ liveSetupPreflightFacts,easternDateTime}=tabs as any;
+const registeredPool={marketProfileId:'67b2b303-e821-4450-bb7b-27171b12079f',poolAddress:'0x1111111111111111111111111111111111111111',tickSpacing:60};
+const reviewLimits={maxDeploymentValue:'1',minDeploymentValue:'1',maxExposurePpm:1,maxLossValue:'1',maxDrawdownPpm:1,maxActionCost:'1',
+ maxRollingCost:'1',maxCampaignCost:'1',exitReserveWei:'1',maxSlippageBps:50,minDeploymentPpm:1,maxSwapInputValue:'1',maxSwapInputPpm:1,
+ maxSwapShortfallValue:'1',maxRecenters:2,maxLiquiditySharePpm:1,maxObservationGapSeconds:60};
+
+test('campaign scope inputs default open-ended and validate against the kernel bounds',()=>{
+ assert.deepEqual(CAMPAIGN_SCOPE_DEFAULT,{maxDurationSeconds:0,maxEconomicActions:0});
+ const ok=(durationHours:string,maxActions:string)=>campaignScopeFromInputs({durationHours,maxActions});
+ assert.deepEqual(ok('0','0'),{ok:true,scope:{maxDurationSeconds:0,maxEconomicActions:0}},'the prefilled values are open-ended and unlimited');
+ assert.deepEqual(ok('12','2').scope,{maxDurationSeconds:43_200,maxEconomicActions:2});
+ assert.deepEqual(ok('24','10').scope,{maxDurationSeconds:86_400,maxEconomicActions:10},'the upper bounds are accepted');
+ assert.deepEqual(ok('1.5','1').scope,{maxDurationSeconds:5_400,maxEconomicActions:1});
+ assert.deepEqual(ok('0.01','0').scope,{maxDurationSeconds:36,maxEconomicActions:0},'two decimals always make whole seconds');
+ assert.deepEqual(ok(' 6 ',' 3 ').scope,{maxDurationSeconds:21_600,maxEconomicActions:3});
+ for(const [hours,actions] of [['24.01','0'],['25','0'],['100','0'],['-1','0'],['1.234','0'],['1e1','0'],['abc','0'],['','0'],[' ','0'],['1,5','0'],
+  ['0','11'],['0','-1'],['0','1.5'],['0','x'],['0',''],['0','2e0'],['0','010x']]){
+  const result=ok(hours!,actions!);assert.equal(result.ok,false,`${hours}/${actions}`);assert(result.reason.length>20,'a failed input explains itself');
+ }
+ assert.match(ok('25','0').reason,/cannot exceed 24 hours/);assert.match(ok('0','11').reason,/0 to 10/);
+ assert.equal(ok('0','010').ok,true,'leading zeros are the same whole number');
+ assert.equal(campaignScopeIsValid({maxDurationSeconds:0,maxEconomicActions:0}),true);
+ for(const bad of [null,undefined,{},{maxDurationSeconds:0},{maxDurationSeconds:86_401,maxEconomicActions:0},{maxDurationSeconds:0,maxEconomicActions:11},
+  {maxDurationSeconds:1.5,maxEconomicActions:0},{maxDurationSeconds:0,maxEconomicActions:0,extra:1},{maxDurationSeconds:'0',maxEconomicActions:0}])
+  assert.equal(campaignScopeIsValid(bad),false,JSON.stringify(bad));
+});
+
+test('campaign scope labels read Open-ended and Unlimited, and state finite values in words',()=>{
+ assert.deepEqual(campaignScopeLabels({maxDurationSeconds:0,maxEconomicActions:0}),{duration:'Open-ended',actions:'Unlimited'});
+ assert.deepEqual(campaignScopeLabels({maxDurationSeconds:43_200,maxEconomicActions:2}),{duration:'12 hours',actions:'2'});
+ assert.equal(campaignScopeLabels({maxDurationSeconds:3_600,maxEconomicActions:1}).duration,'1 hour');
+ assert.equal(campaignScopeLabels({maxDurationSeconds:5_400,maxEconomicActions:1}).duration,'1.5 hours');
+ assert.equal(campaignScopeLabels({maxDurationSeconds:36,maxEconomicActions:1}).duration,'0.01 hours');
+ assert.deepEqual(campaignScopeLabels({maxDurationSeconds:-1,maxEconomicActions:0}),{duration:'Unavailable',actions:'Unavailable'});
+ assert.deepEqual(campaignScopeLabels(null),{duration:'Unavailable',actions:'Unavailable'});
+});
+
+test('the live review request carries the validated scope and rejects an invalid one before anything is sent',()=>{
+ const scope={maxDurationSeconds:0,maxEconomicActions:0};
+ const request=liveSetupPreflightRequest({pool:registeredPool,capital:'250',fullWidthSpacings:'20',limits:reviewLimits,liveSetup:true,campaignScope:scope});
+ assert.equal(request.available,true,JSON.stringify(request));
+ assert.deepEqual(request.payload.campaignScope,scope);
+ assert.deepEqual(Object.keys(request.payload).sort(),['campaignScope','capitalQuoteRaw','fullWidthSpacings','limits','profileId']);
+ assert.notEqual(request.payload.campaignScope,scope,'the payload carries a copy, not the caller object');
+ const finite=liveSetupPreflightRequest({pool:registeredPool,capital:'250',fullWidthSpacings:'20',limits:reviewLimits,liveSetup:true,
+  campaignScope:{maxDurationSeconds:43_200,maxEconomicActions:2}});
+ assert.deepEqual(finite.payload.campaignScope,{maxDurationSeconds:43_200,maxEconomicActions:2});
+ for(const bad of [{maxDurationSeconds:90_000,maxEconomicActions:0},{maxDurationSeconds:0,maxEconomicActions:11},{maxDurationSeconds:0},null,'open'])
+  assert.equal(liveSetupPreflightRequest({pool:registeredPool,capital:'250',fullWidthSpacings:'20',limits:reviewLimits,liveSetup:true,campaignScope:bad}).available,false,JSON.stringify(bad));
+ const without=liveSetupPreflightRequest({pool:registeredPool,capital:'250',fullWidthSpacings:'20',limits:reviewLimits,liveSetup:true});
+ assert.equal('campaignScope' in without.payload,false,'a caller that does not choose a scope sends none');
+});
+
+test('the review summary states the frozen campaign scope in words',()=>{
+ const facts=(result:unknown)=>Object.fromEntries(liveSetupPreflightFacts(result) as [string,string][]);
+ const base={status:'indicative'};
+ const open=facts({...base,policy:{config:{campaignScope:{maxDurationSeconds:0,maxEconomicActions:0}}}});
+ assert.equal(open['Campaign duration'],'Open-ended · no expiry');
+ assert.equal(open['Max economic actions'],'Unlimited · bounded by the cost, loss and recenter limits');
+ const finite=facts({...base,policy:{config:{campaignScope:{maxDurationSeconds:43_200,maxEconomicActions:2}}}});
+ assert.equal(finite['Campaign duration'],'12 hours after opening, then retain-close');
+ assert.equal(finite['Max economic actions'],'2 including the opening, then retain-close');
+ const echoed=facts({...base,input:{campaignScope:{maxDurationSeconds:3_600,maxEconomicActions:1}}});
+ assert.equal(echoed['Campaign duration'],'1 hour after opening, then retain-close');
+ const both=facts({...base,policy:{config:{campaignScope:{maxDurationSeconds:0,maxEconomicActions:0}}},input:{campaignScope:{maxDurationSeconds:3_600,maxEconomicActions:1}}});
+ assert.equal(both['Campaign duration'],'Open-ended · no expiry','the frozen kernel config wins over the echoed request');
+ assert.equal('Campaign duration' in facts({...base,policy:{config:{campaignScope:{maxDurationSeconds:-5,maxEconomicActions:0}}}}),false,'an invalid scope is not shown');
+ assert.equal('Campaign duration' in facts(base),false);
+});
+
+test('live row facts show when a campaign expires and how many economic actions it has used',()=>{
+ const scope=(extra:Record<string,unknown>)=>({maxDurationSeconds:0,maxEconomicActions:0,openEnded:true,expiresAt:null,economicActions:3,...extra});
+ const fact=(model:any,name:string)=>model.facts.find(([key]:[string,string])=>key===name)?.[1];
+ const open=liveRowModel(livePosition('holding',{scope:scope({})}));
+ assert.equal(fact(open,'Expires'),'Open-ended');assert.equal(fact(open,'Economic actions'),'3 of unlimited');
+ const expiry=new Date(Date.now()+5*3600*1000).toISOString();
+ const finite=liveRowModel(livePosition('holding',{scope:scope({maxDurationSeconds:43_200,maxEconomicActions:2,openEnded:false,expiresAt:expiry,economicActions:2})}));
+ assert.equal(fact(finite,'Expires'),easternDateTime(expiry));assert.match(fact(finite,'Expires'),/ET$/);
+ assert.equal(fact(finite,'Economic actions'),'2 of 2');
+ const queued=liveRowModel(livePosition('queued',{job:{...baseJob,status:'queued',inFlight:true},nftId:null,
+  scope:scope({maxDurationSeconds:7_200,maxEconomicActions:4,openEnded:false,expiresAt:null,economicActions:null})}));
+ assert.equal(fact(queued,'Expires'),'2 hours after opening','a campaign that has not opened has no date yet');
+ assert.equal(fact(queued,'Economic actions'),'0 of 4');
+ const queuedOpen=liveRowModel(livePosition('queued',{job:{...baseJob,status:'queued',inFlight:true},nftId:null,
+  scope:scope({economicActions:null})}));
+ assert.equal(fact(queuedOpen,'Expires'),'Open-ended');assert.equal(fact(queuedOpen,'Economic actions'),'0 of unlimited');
+ const legacy=liveRowModel(livePosition('holding',{scope:scope({maxDurationSeconds:null,maxEconomicActions:null,openEnded:false,expiresAt:expiry,economicActions:1})}));
+ assert.equal(fact(legacy,'Economic actions'),'1 (limit not recorded)');
+ const unknown=liveRowModel(livePosition('holding',{scope:scope({maxDurationSeconds:null,maxEconomicActions:null,openEnded:null,expiresAt:null,economicActions:null})}));
+ assert.equal(fact(unknown,'Expires'),'unavailable');assert.equal(fact(unknown,'Economic actions'),'unavailable');
+ assert.equal(liveRowModel(livePosition('holding',{scope:undefined})).facts.some(([key]:[string,string])=>key==='Expires'),false,
+  'an older projection without a scope renders unchanged');
+});

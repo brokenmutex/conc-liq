@@ -237,7 +237,20 @@ function liveCampaignView(row:DeploymentRow,model:LiveMarkModel|null){
    job&&['rejected','cancelled'].includes(job.status)?`job_${job.status}`:
    typeof runtime?.lastReason==='string'&&runtime.lastReason?runtime.lastReason:'blocked_reason_unavailable');
  const allocation=allocationSchema.safeParse(row.allocation);
- return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,
+ // The operator's campaign scope is frozen in the campaign parameters; the runtime records the resulting expiry.
+ // A campaign admitted before the scope was an operator input has no recorded limit, which stays unavailable.
+ const configured=record(record(row.config).campaignScope),
+  maxDuration=Number.isSafeInteger(configured.maxDurationSeconds)&&Number(configured.maxDurationSeconds)>=0&&Number(configured.maxDurationSeconds)<=86_400?
+   Number(configured.maxDurationSeconds):null,
+  maxActions=Number.isSafeInteger(configured.maxEconomicActions)&&Number(configured.maxEconomicActions)>=0&&Number(configured.maxEconomicActions)<=10?
+   Number(configured.maxEconomicActions):null,
+  expiresAt=runtime&&typeof runtime.expiresAt==='number'?runtime.expiresAt:null,
+  openEnded=expiresAt!==null?expiresAt===Number.MAX_SAFE_INTEGER:maxDuration===null?null:maxDuration===0,
+  scope={maxDurationSeconds:maxDuration,maxEconomicActions:maxActions,openEnded,
+   expiresAt:expiresAt!==null&&expiresAt!==Number.MAX_SAFE_INTEGER&&Number.isSafeInteger(expiresAt)&&expiresAt>0&&expiresAt<4_102_444_800?
+    new Date(expiresAt*1000).toISOString():null,
+   economicActions:runtime&&Number.isSafeInteger(runtime.economicActions)&&runtime.economicActions>=0?runtime.economicActions:null};
+ return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,scope,
   allocation:allocation.success?allocation.data:null,
   recenters:runtime&&Number.isSafeInteger(runtime.recenters)?runtime.recenters:null,
   paidGasWei:runtime&&typeof runtime.gasSpentWei==='bigint'?String(runtime.gasSpentWei):null,
@@ -766,7 +779,7 @@ export function deploymentPosition(row:DeploymentRow){
    ...(liveView?{live:{lifecycle:liveView.lifecycle,phase:liveView.phase,job:liveView.job,
     blockedReason:liveView.blockedReason,nftId:liveView.nftId,
     range:{state:liveView.rangeState,tick:liveView.tick,tickLower:liveView.tickLower,tickUpper:liveView.tickUpper},
-    allocation:liveView.allocation,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
+    allocation:liveView.allocation,scope:liveView.scope,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
     runtimeVerified:liveView.runtimeVerified,valuationAvailable:liveModel?.navQuote!=null}}:{}),
    sourceBlock:liveModel?.source.block??row.source_block,sourceHash:liveModel?.source.hash??row.source_hash,
    rangekeeper:row.strategy_id==='rangekeeper_v1'?{

@@ -248,3 +248,61 @@ test('live setup preflight rechecks the canonical anchor and blocks a changed re
  const mismatched=await buildRangeKeeperLiveSetupPreflight(input,deps(f,{readFrame:async()=>changed}));
  assert.equal(mismatched.status,'unavailable');assert(mismatched.missing.some(reason=>reason==='wallet_snapshot_source_mismatch'));
 });
+
+const SCOPE_PROFILE='00000000-0000-4000-8000-000000000001';
+const scopeInput=(campaignScope?:unknown)=>({profileId:SCOPE_PROFILE,capitalQuoteRaw:'100000000',fullWidthSpacings:120,limits,
+ ...(campaignScope===undefined?{}:{campaignScope})});
+
+test('campaign scope input accepts the kernel bounds and rejects anything outside them',()=>{
+ const parse=(scope:unknown)=>rangeKeeperLiveSetupPreflightInput.safeParse(scopeInput(scope));
+ for(const scope of [{maxDurationSeconds:0,maxEconomicActions:0},{maxDurationSeconds:86_400,maxEconomicActions:10},
+  {maxDurationSeconds:43_200,maxEconomicActions:2},{maxDurationSeconds:1,maxEconomicActions:1}])
+  assert(parse(scope).success,JSON.stringify(scope));
+ for(const scope of [{maxDurationSeconds:86_401,maxEconomicActions:0},{maxDurationSeconds:-1,maxEconomicActions:0},
+  {maxDurationSeconds:1.5,maxEconomicActions:0},{maxDurationSeconds:0,maxEconomicActions:11},{maxDurationSeconds:0,maxEconomicActions:-1},
+  {maxDurationSeconds:0,maxEconomicActions:2.5},{maxDurationSeconds:'0',maxEconomicActions:0},{maxDurationSeconds:0},
+  {maxEconomicActions:0},{maxDurationSeconds:0,maxEconomicActions:0,extra:1},null,[],'open-ended'])
+  assert.equal(parse(scope).success,false,JSON.stringify(scope));
+ assert.equal(parse(undefined).success,true,'a request that omits the scope is still valid');
+ assert.equal(rangeKeeperLiveSetupPreflightInput.safeParse({...scopeInput(),wallet:'0x1'}).success,false,'the request stays strict');
+});
+
+test('an omitted campaign scope keeps the bounded legacy behavior; an explicit one is frozen into the reviewed config',async()=>{
+ const f=fixture(0);
+ const legacy=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(scopeInput()),deps(f));
+ assert.equal(legacy.status,'indicative',JSON.stringify(legacy.missing));
+ assert.deepEqual((legacy.policy as any).config.campaignScope,{maxDurationSeconds:43_200,maxEconomicActions:2});
+ const scope={maxDurationSeconds:0,maxEconomicActions:0};
+ const open=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(scopeInput(scope)),deps(f));
+ assert.equal(open.status,'indicative',JSON.stringify(open.missing));
+ assert.deepEqual((open.policy as any).config.campaignScope,scope,'the kernel config carries the operator scope');
+ assert.deepEqual((open.policy as any).parameters.campaignScope,scope,'the campaign parameters carry it too');
+ assert.deepEqual(open.input.campaignScope,scope,'the review echoes the requested scope');
+ assert.deepEqual(legacy.input.campaignScope,{maxDurationSeconds:43_200,maxEconomicActions:2});
+ const bounded=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(
+  scopeInput({maxDurationSeconds:7_200,maxEconomicActions:4})),deps(f));
+ assert.deepEqual((bounded.policy as any).config.campaignScope,{maxDurationSeconds:7_200,maxEconomicActions:4});
+ // The scope is a hashed input: the kernel config hash, parameters hash, binding and review hash all move with it.
+ const hashes=(result:any)=>[result.policy.configHash,result.policy.parametersHash,result.binding.configHash,result.binding.reviewHash];
+ const a=hashes(legacy),b=hashes(open),c=hashes(bounded);
+ for(let index=0;index<4;index++){assert.notEqual(a[index],b[index],`hash ${index} binds the scope`);
+  assert.notEqual(b[index],c[index]);assert.notEqual(a[index],c[index]);}
+ const again=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(scopeInput(scope)),deps(f));
+ assert.deepEqual(hashes(again),b,'the same scope reproduces the same hashes');
+ // The frozen config re-hashes to the recorded hash, so a changed scope cannot hide behind an old hash.
+ const {parseRangeKeeperConfig,rangeKeeperConfigHash}=await import('../src/strategy/rangekeeper/config.js');
+ for(const result of [legacy,open,bounded])assert.equal(rangeKeeperConfigHash(parseRangeKeeperConfig((result.policy as any).config)).slice(2),
+  (result.policy as any).configHash);
+ const unavailable=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(scopeInput(scope)),
+  deps(f,{readGasPrice:async()=>{throw Error('down');}}));
+ assert.equal(unavailable.status,'unavailable');assert.deepEqual(unavailable.input.campaignScope,scope,'an unavailable review still reports what was asked');
+});
+
+test('open-ended scope does not change funding: reserves are sized by the count limits, not the scope',async()=>{
+ const f=fixture(0);
+ const legacy=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(scopeInput()),deps(f));
+ const open=await buildRangeKeeperLiveSetupPreflight(rangeKeeperLiveSetupPreflightInput.parse(
+  scopeInput({maxDurationSeconds:0,maxEconomicActions:0})),deps(f));
+ assert.deepEqual(open.requirements,legacy.requirements);assert.deepEqual(open.costs,legacy.costs);
+ assert.equal((open.policy as any).config.limits.maxRecenters,5,'the max-recenters bound is untouched');
+});

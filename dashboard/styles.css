@@ -149,3 +149,4 @@
 .basis-badge.unavailable{background:#232c38;color:#aabbd0;border-color:#3a4658}
 .basis-alert.last_oracle_price{border-color:#6a5130}
 .basis-alert strong,.basis-alert small{overflow-wrap:anywhere}
+.field-hint{color:var(--muted);font-size:11px;line-height:1.4;overflow-wrap:anywhere}

@@ -226,3 +226,27 @@ test('live activity orders nonces and queue sequences numerically across the 999
  const absent=await readLiveActivity({query:async()=>({rows:[{present:null}]})} as any,campaignId,new Date(0));
  assert.deepEqual(absent,{events:[],recenterAttempts:0,swaps:0});
 });
+
+test('live rows report the frozen campaign scope: open-ended, finite expiry, actions taken and the recorded limit',()=>{
+ const holding=(config:unknown,state:Record<string,unknown>={})=>deploymentPosition(liveRow({lifecycle:'active',config,...job('open','succeeded')},runtimeState(state)));
+ const open=holding({campaignScope:{maxDurationSeconds:0,maxEconomicActions:0}},{expiresAt:Number.MAX_SAFE_INTEGER,economicActions:3});
+ assert.deepEqual(open.deployment.live!.scope,{maxDurationSeconds:0,maxEconomicActions:0,openEnded:true,expiresAt:null,economicActions:3});
+ const finiteAt=now+5*3600;
+ const finite=holding({campaignScope:{maxDurationSeconds:43_200,maxEconomicActions:2}},{expiresAt:finiteAt,economicActions:2});
+ assert.deepEqual(finite.deployment.live!.scope,{maxDurationSeconds:43_200,maxEconomicActions:2,openEnded:false,
+  expiresAt:new Date(finiteAt*1000).toISOString(),economicActions:2});
+ // Open-ended is read from the runtime's recorded expiry even for a campaign admitted before the scope was configurable.
+ const legacy=holding({},{expiresAt:finiteAt,economicActions:1});
+ assert.deepEqual(legacy.deployment.live!.scope,{maxDurationSeconds:null,maxEconomicActions:null,openEnded:false,
+  expiresAt:new Date(finiteAt*1000).toISOString(),economicActions:1},'a limit that was never recorded is unavailable, not guessed');
+ // Out-of-range or malformed recorded values are dropped rather than displayed.
+ const bad=holding({campaignScope:{maxDurationSeconds:86_401,maxEconomicActions:11}});
+ assert.equal(bad.deployment.live!.scope.maxDurationSeconds,null);assert.equal(bad.deployment.live!.scope.maxEconomicActions,null);
+ // A campaign that has not opened has no runtime yet; the configured duration still says what will happen.
+ const queuedOpen=deploymentPosition(liveRow({lifecycle:'opening',config:{campaignScope:{maxDurationSeconds:0,maxEconomicActions:0}},...job('open','queued')}));
+ assert.deepEqual(queuedOpen.deployment.live!.scope,{maxDurationSeconds:0,maxEconomicActions:0,openEnded:true,expiresAt:null,economicActions:null});
+ const queuedFinite=deploymentPosition(liveRow({lifecycle:'opening',config:{campaignScope:{maxDurationSeconds:7_200,maxEconomicActions:4}},...job('open','queued')}));
+ assert.equal(queuedFinite.deployment.live!.scope.openEnded,false);assert.equal(queuedFinite.deployment.live!.scope.expiresAt,null);
+ assert.equal(deploymentPosition(liveRow({lifecycle:'opening',...job('open','queued')})).deployment.live!.scope.openEnded,null);
+ assert.doesNotThrow(()=>JSON.stringify(open));
+});

@@ -17,9 +17,19 @@ import {rangeKeeperPinnedSemanticIdentity} from './rangekeeper-live-review-runti
 const MAX_CAPITAL_QUOTE=100_000n*10n**6n;
 const raw=z.string().regex(/^(0|[1-9][0-9]*)$/).max(12)
  .refine(v=>BigInt(v)>0n&&BigInt(v)<=MAX_CAPITAL_QUOTE);
+/** How long a live campaign may run and how many economic actions (open, each recenter) it may take.
+ * Bounds mirror the kernel config schema. 0 means open-ended (no expiry) and unlimited actions. */
+export const rangeKeeperLiveCampaignScopeInput=z.object({maxDurationSeconds:z.number().int().min(0).max(86_400),
+ maxEconomicActions:z.number().int().min(0).max(10)}).strict();
+export type RangeKeeperLiveCampaignScope=z.infer<typeof rangeKeeperLiveCampaignScopeInput>;
+/** Applied when a request omits the scope, so a client that predates the field keeps the bounded behavior
+ * every live campaign had before the scope became an operator input. The operator dashboard always sends it. */
+export const RANGEKEEPER_LIVE_LEGACY_CAMPAIGN_SCOPE:RangeKeeperLiveCampaignScope=
+ Object.freeze({maxDurationSeconds:43_200,maxEconomicActions:2});
 export const rangeKeeperLiveSetupPreflightInput=z.object({profileId:z.uuid(),capitalQuoteRaw:raw,
- fullWidthSpacings:z.number().int().min(2).max(2000).refine(v=>v%2===0),limits:rangeKeeperLimitsSchema}).strict();
-export type RangeKeeperLiveSetupPreflightInput=z.infer<typeof rangeKeeperLiveSetupPreflightInput>;
+ fullWidthSpacings:z.number().int().min(2).max(2000).refine(v=>v%2===0),limits:rangeKeeperLimitsSchema,
+ campaignScope:rangeKeeperLiveCampaignScopeInput.optional()}).strict();
+export type RangeKeeperLiveSetupPreflightInput=z.input<typeof rangeKeeperLiveSetupPreflightInput>;
 
 export type RangeKeeperLiveSetupWallet={id:string;address:Address;walletCode?:RangeKeeperConfig['walletCode']};
 export type RangeKeeperLiveSetupQuote=(token:0|1,amountIn:bigint)=>Promise<{
@@ -57,7 +67,8 @@ const serialCandidate=(c:RangeKeeperCandidate)=>({kind:c.kind,range:c.range,
 function unavailable(input:RangeKeeperLiveSetupPreflightInput,reason:string){return {
  schemaVersion:1 as const,kind:'rangekeeper_live_setup_preflight' as const,mode:'live' as const,
  strategyId:'rangekeeper_v1' as const,status:'unavailable' as const,profileId:input.profileId,
- input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits:input.limits},
+ input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,
+  campaignScope:input.campaignScope??RANGEKEEPER_LIVE_LEGACY_CAMPAIGN_SCOPE},
  profile:null,source:null,wallet:null,requirements:null,range:null,candidate:null,references:null,policy:null,costs:{status:'unavailable' as const},
  binding:null,missing:[reason],reason:'rangekeeper_live_execution_unavailable',actionAvailable:false,
  draftCreationAvailable:false,operationAcceptanceAvailable:false,executionEligible:false};}
@@ -154,10 +165,12 @@ export async function buildRangeKeeperLiveSetupPreflight(input:RangeKeeperLiveSe
  const submittedLimits={...kernelLimits,fullWidthSpacings:input.fullWidthSpacings,
   maxDeploymentValue:(BigInt(input.limits.maxDeploymentValue)<budgetLimitValue?BigInt(input.limits.maxDeploymentValue):budgetLimitValue).toString(),
   maxSwapInputValue:(BigInt(input.limits.maxSwapInputValue)<budgetLimitValue?BigInt(input.limits.maxSwapInputValue):budgetLimitValue).toString()};
+ // Frozen into the kernel config (and so its hash, the binding and the review hash) and into the campaign parameters.
+ const campaignScope=input.campaignScope??RANGEKEEPER_LIVE_LEGACY_CAMPAIGN_SCOPE;
  const configInput={schemaVersion:1 as const,policyId:'rangekeeper_v1' as const,strategyVersion:'1.0.0' as const,
   broadcastEnabled:false,operator:getAddress(wallet.address),pool:p,limits:submittedLimits,
   signer:null,walletCode:wallet.walletCode??{kind:'eoa' as const},zeroAllowances:[],legacyRetiredTokenIds:[],
-  campaignScope:{maxDurationSeconds:43200,maxEconomicActions:2},referencePolicy:profile.referencePolicy,
+  campaignScope,referencePolicy:profile.referencePolicy,
   campaignValue:String(strategyValueUsdX18+rawValue(nativeFree,nativePrice,18)),
   strategyFundingValue:String(strategyValueUsdX18),nativeFundingValue:String(rawValue(nativeFree,nativePrice,18))};
  let config;
@@ -257,7 +270,7 @@ export async function buildRangeKeeperLiveSetupPreflight(input:RangeKeeperLiveSe
   broadcastEnabled:false as const,signer:null};
  const finalLimits:RangeKeeperLimits=finalConfig.limits,finalConfigHash=rangeKeeperConfigHash(finalConfig);
  const policyConfig=JSON.parse(JSON.stringify(finalConfig,(_,value)=>typeof value==='bigint'?String(value):value)) as Record<string,unknown>;
- const parameters={fullWidthSpacings:input.fullWidthSpacings,limits:input.limits};
+ const parameters={fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,campaignScope};
  const finalState={...state,configHash:finalConfigHash};
  const finalObservation={...observation,nativeWei:allocation.nativeWei,liquiditySharePpm:Number(share),
   actionCost:actionCostValue,actionGasWei,requiredExitReserveWei:exitReserveWei};
@@ -302,7 +315,7 @@ export async function buildRangeKeeperLiveSetupPreflight(input:RangeKeeperLiveSe
  const binding={...bindingBase,reviewHash:contentHash(bindingBase)};
  return {schemaVersion:1 as const,kind:'rangekeeper_live_setup_preflight' as const,mode:'live' as const,
   strategyId:'rangekeeper_v1' as const,status:'indicative' as const,profileId:registered.id,profileHash:registered.profileHash,
-  input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits:input.limits},
+  input:{capitalQuoteRaw:input.capitalQuoteRaw,fullWidthSpacings:input.fullWidthSpacings,limits:input.limits,campaignScope},
   profile:{pool:p.pool,fee:p.fee,tickSpacing:p.tickSpacing,token0:p.token0,token1:p.token1,
    quoteToken:p.quoteToken,decimals0:p.decimals0,decimals1:p.decimals1},source:frame.source,
   wallet:{id:wallet.id,address:wallet.address,source:snapshot.source,nonce:snapshot.nonce,

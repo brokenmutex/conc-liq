@@ -42,7 +42,41 @@ export const LIVE_SETUP_PREFLIGHT_PATH = '/api/deployments/rangekeeper/live-setu
 export const LIVE_SETUP_ADMISSION_PATH = '/api/deployments/rangekeeper/live-setup-admit';
 export const LIVE_WALLET_PATH = '/api/deployments/live-wallet';
 
-export function liveSetupPreflightRequest({ pool, capital, fullWidthSpacings, limits, liveSetup = false }) {
+// ---- Live campaign scope (duration and economic-action count) -------------------------
+// Both default to open-ended: 0 hours means no expiry and 0 actions means unlimited. Bounds mirror the kernel
+// config schema (duration 0..86400 seconds, actions 0..10); the service validates them again.
+export const CAMPAIGN_SCOPE_MAX_SECONDS = 86_400;
+export const CAMPAIGN_SCOPE_MAX_ACTIONS = 10;
+export const CAMPAIGN_SCOPE_DEFAULT = Object.freeze({ maxDurationSeconds: 0, maxEconomicActions: 0 });
+const isScopeInteger = (value, max) => Number.isSafeInteger(value) && value >= 0 && value <= max;
+export function campaignScopeIsValid(scope) {
+  return Boolean(scope && typeof scope === 'object' && Object.keys(scope).sort().join(',') === 'maxDurationSeconds,maxEconomicActions' &&
+    isScopeInteger(scope.maxDurationSeconds, CAMPAIGN_SCOPE_MAX_SECONDS) && isScopeInteger(scope.maxEconomicActions, CAMPAIGN_SCOPE_MAX_ACTIONS));
+}
+/** Parse the two setup inputs. Hours may carry up to two decimals so the result is a whole number of seconds. */
+export function campaignScopeFromInputs({ durationHours, maxActions }) {
+  const hoursText = String(durationHours ?? '').trim(), actionsText = String(maxActions ?? '').trim();
+  const hours = /^(\d+)(?:\.(\d{1,2}))?$/.exec(hoursText);
+  if (!hours) return { ok: false, reason: 'Enter the campaign duration in hours (up to two decimals), or 0 for open-ended.' };
+  const seconds = Number(BigInt(hours[1]) * 3600n + BigInt((hours[2] ?? '').padEnd(2, '0') || '0') * 36n);
+  if (!Number.isSafeInteger(seconds) || seconds > CAMPAIGN_SCOPE_MAX_SECONDS)
+    return { ok: false, reason: `Campaign duration cannot exceed ${CAMPAIGN_SCOPE_MAX_SECONDS / 3600} hours. Use 0 for open-ended.` };
+  if (!/^\d+$/.test(actionsText) || Number(actionsText) > CAMPAIGN_SCOPE_MAX_ACTIONS)
+    return { ok: false, reason: `Enter the maximum economic actions as a whole number from 0 to ${CAMPAIGN_SCOPE_MAX_ACTIONS}. Use 0 for unlimited.` };
+  return { ok: true, scope: { maxDurationSeconds: seconds, maxEconomicActions: Number(actionsText) } };
+}
+const hoursText = seconds => {
+  const hours = seconds / 3600;
+  return `${Number.isInteger(hours) ? hours : String(Number(hours.toFixed(2)))} hour${hours === 1 ? '' : 's'}`;
+};
+/** Words for a scope. `open` forms read "Open-ended" and "Unlimited"; finite ones state their number. */
+export function campaignScopeLabels(scope) {
+  if (!campaignScopeIsValid(scope)) return { duration: 'Unavailable', actions: 'Unavailable' };
+  return { duration: scope.maxDurationSeconds === 0 ? 'Open-ended' : hoursText(scope.maxDurationSeconds),
+    actions: scope.maxEconomicActions === 0 ? 'Unlimited' : String(scope.maxEconomicActions) };
+}
+
+export function liveSetupPreflightRequest({ pool, capital, fullWidthSpacings, limits, liveSetup = false, campaignScope }) {
   if (!liveSetup) return { available: false, reason: 'RangeKeeper live review is not installed.' };
   const profileId = pool?.marketProfileId ?? pool?.profileId;
   if (typeof profileId !== 'string' || !PROFILE_UUID.test(profileId))
@@ -52,7 +86,10 @@ export function liveSetupPreflightRequest({ pool, capital, fullWidthSpacings, li
   if (!capitalQuoteRaw || !Number.isSafeInteger(spacings) || spacings < 2 || spacings > 2000 || spacings % 2)
     return { available: false, reason: 'Choose valid USDG capital and an even full width between 2 and 2000 tick spacings.' };
   if (!normalized) return { available: false, reason: 'Enter all valid RangeKeeper limits in their displayed units before review.' };
-  return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings, limits: normalized } };
+  if (campaignScope !== undefined && !campaignScopeIsValid(campaignScope))
+    return { available: false, reason: 'Choose a campaign duration of 0 to 24 hours and 0 to 10 economic actions.' };
+  return { available: true, payload: { profileId, capitalQuoteRaw, fullWidthSpacings: spacings, limits: normalized,
+    ...(campaignScope === undefined ? {} : { campaignScope: { ...campaignScope } }) } };
 }
 
 /** `liveAdmission` is the current capability (installed and, when reported, worker ready). The review's own
@@ -96,6 +133,14 @@ export function liveSetupPreflightFacts(result) {
   if (result.range) facts.push(['Tick bounds', `${result.range.tickLower ?? 'Unavailable'} to ${result.range.tickUpper ?? 'Unavailable'}`]);
   for (const [label,row] of [['Token 0 requirement',result.requirements?.token0Raw],['Token 1 requirement',result.requirements?.token1Raw]])
     if (row != null) facts.push([label, `${row} raw`]);
+  const reviewedScope = result.policy?.config?.campaignScope ?? result.input?.campaignScope;
+  if (campaignScopeIsValid(reviewedScope)) {
+    facts.push(['Campaign duration', reviewedScope.maxDurationSeconds === 0 ? 'Open-ended · no expiry'
+      : `${hoursText(reviewedScope.maxDurationSeconds)} after opening, then retain-close`]);
+    facts.push(['Max economic actions', reviewedScope.maxEconomicActions === 0
+      ? 'Unlimited · bounded by the cost, loss and recenter limits'
+      : `${reviewedScope.maxEconomicActions} including the opening, then retain-close`]);
+  }
   if (result.requirements?.quoteValueRaw != null) facts.push(['Estimated inventory value', `${result.requirements.quoteValueRaw} raw USDG`]);
   if (result.requirements?.freeQuoteRaw != null) facts.push(['Unallocated funding value', `${result.requirements.freeQuoteRaw} raw USDG`]);
   if (result.requirements?.shortfallQuoteRaw != null) facts.push(['Funding shortfall', `${result.requirements.shortfallQuoteRaw} raw USDG`]);
@@ -301,6 +346,12 @@ export function valuationAgeText(seconds) {
   if (s < 48 * 3600) return `${Math.floor(s / 3600)}h`;
   return `${Math.floor(s / 86400)}d ${Math.floor((s % 86400) / 3600)}h`;
 }
+export function easternDateTime(iso) {
+  const at = Date.parse(String(iso ?? ''));
+  if (!Number.isFinite(at)) return 'time unavailable';
+  return `${new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric', hour: '2-digit',
+    minute: '2-digit', hour12: false }).format(at)} ET`;
+}
 export function easternWeekdayTime(iso) {
   const at = Date.parse(String(iso ?? ''));
   if (!Number.isFinite(at)) return 'time unavailable';
@@ -451,6 +502,18 @@ export function liveRowModel(position, capability = null, now = Date.now()) {
       : `${liveMoney(position.gas)} USD${live.paidGasWei == null ? '' : ` · ${unitsText(rawBig(live.paidGasWei), 18)} native`}`],
     ['Net P&L', pnl === null ? UNAVAILABLE : `${pnl >= 0 ? '+' : '−'}${liveMoney(Math.abs(pnl))}`],
   ];
+  const scope = live.scope;
+  if (scope) {
+    const opened = !['queued', 'opening'].includes(live.lifecycle);
+    const expires = scope.openEnded === true ? 'Open-ended'
+      : scope.expiresAt ? easternDateTime(scope.expiresAt)
+        : Number.isSafeInteger(scope.maxDurationSeconds) && scope.maxDurationSeconds > 0 ? `${hoursText(scope.maxDurationSeconds)} after opening` : UNAVAILABLE;
+    const limit = Number.isSafeInteger(scope.maxEconomicActions) ? (scope.maxEconomicActions === 0 ? 'unlimited' : String(scope.maxEconomicActions)) : null;
+    const taken = Number.isSafeInteger(scope.economicActions) ? scope.economicActions : opened ? null : 0;
+    facts.push(['Expires', expires]);
+    facts.push(['Economic actions', taken === null ? (limit === null ? UNAVAILABLE : `limit ${limit}`)
+      : limit === null ? `${taken} (limit not recorded)` : `${taken} of ${limit}`]);
+  }
   if (job) facts.push([inFlight ? 'Current job' : 'Last job', jobParts.join(' · ')]);
   if (Number.isSafeInteger(live.recenters)) facts.push(['Recenters completed', String(live.recenters)]);
   const retain = { eligible: live.lifecycle === 'holding' && !inFlight, reason: null };
@@ -1080,6 +1143,9 @@ function bootDashboardTabs() {
     if(staticWidthRow)staticWidthRow.hidden=rangeKeeper&&(paper||live);
     const walletPanel=document.getElementById('live-wallet-review');
     if(walletPanel)walletPanel.hidden=!live;
+    for(const id of ['setup-campaign-duration-row','setup-campaign-actions-row']){
+      const row=document.getElementById(id);if(row)row.hidden=!(live&&rangeKeeper);
+    }
     const limitsNote=document.getElementById('setup-limits-note');
     if(limitsNote)limitsNote.textContent=live
       ? 'Review and edit the limits included in the fresh RangeKeeper live setup review. They bound the live campaign the worker manages after approval; displayed costs and funding are evidence for operator review.'
@@ -1096,6 +1162,18 @@ function bootDashboardTabs() {
     applySuggestedLimitValues();
   };
   setupStrategy.addEventListener('change',updateLimitsVisibility);setupMode.addEventListener('change',updateLimitsVisibility);
+  // Duration and action-count hints restate the entered value in words, so 0 reads "Open-ended" / "Unlimited".
+  function updateScopeHints(){
+    const durationHint=document.getElementById('setup-campaign-duration-hint'),actionsHint=document.getElementById('setup-campaign-actions-hint');
+    const parsed=campaignScopeFromInputs({durationHours:document.getElementById('setup-campaign-duration')?.value,
+      maxActions:document.getElementById('setup-campaign-actions')?.value});
+    if(durationHint)durationHint.textContent=parsed.ok?(parsed.scope.maxDurationSeconds===0?'Open-ended · no expiry'
+      :`${campaignScopeLabels(parsed.scope).duration} after opening, then retain-close`):'0 for open-ended, otherwise 0.01 to 24 hours';
+    if(actionsHint)actionsHint.textContent=parsed.ok?(parsed.scope.maxEconomicActions===0?'Unlimited · bounded by the cost, loss and recenter limits'
+      :`${parsed.scope.maxEconomicActions} including the opening, then retain-close`):'0 for unlimited, otherwise 1 to 10';
+  }
+  for(const id of ['setup-campaign-duration','setup-campaign-actions'])document.getElementById(id)?.addEventListener('input',updateScopeHints);
+  updateScopeHints();
   async function runSetupReview(event) {
     event.preventDefault();
     const reviewSequence=++setupReviewSequence;
@@ -1143,6 +1221,12 @@ function bootDashboardTabs() {
         : mode === 'paper' ? [['Half-width around center', widthSelect.selectedOptions[0]?.textContent ?? 'Unavailable']] : []),
       ['Strategy', document.getElementById('setup-strategy').selectedOptions[0].textContent],
       ['Mode', document.getElementById('setup-mode').selectedOptions[0].textContent],
+      ...(mode === 'live' && rangeKeeper ? (() => {
+        const requested = campaignScopeFromInputs({ durationHours: document.getElementById('setup-campaign-duration')?.value,
+          maxActions: document.getElementById('setup-campaign-actions')?.value });
+        return requested.ok ? [['Campaign duration', campaignScopeLabels(requested.scope).duration],
+          ['Max economic actions', campaignScopeLabels(requested.scope).actions]] : [];
+      })() : []),
     ];
     renderFacts(facts);
     const output = document.getElementById('setup-preflight-result');
@@ -1164,7 +1248,10 @@ function bootDashboardTabs() {
       }
       if (!operatorSession.isReady()) { setSetupStatus('Operator session is connecting. Retry after connection is ready.'); return; }
       const limits=humanSetupLimitsToRaw(readHumanLimitInputs(strategyId),strategyId);
-      const request=liveSetupPreflightRequest({pool,capital,fullWidthSpacings,limits,liveSetup:liveSetupAvailable});
+      const scopeInput=campaignScopeFromInputs({durationHours:document.getElementById('setup-campaign-duration')?.value,
+        maxActions:document.getElementById('setup-campaign-actions')?.value});
+      if(!scopeInput.ok){error.textContent=scopeInput.reason;error.hidden=false;setSetupStatus(`Live review unavailable: ${scopeInput.reason} No request was sent.`);return;}
+      const request=liveSetupPreflightRequest({pool,capital,fullWidthSpacings,limits,liveSetup:liveSetupAvailable,campaignScope:scopeInput.scope});
       if(!request.available){setSetupStatus(`Live review unavailable: ${request.reason}`);return;}
       setSetupStatus('Reviewing current shared-wallet funding, source, references and estimated costs. This is read-only and cannot create or execute a campaign…','loading');
       reviewButton.disabled=true;
