@@ -306,3 +306,83 @@ it('live retain routes report closed unavailability when no runtime is wired',as
   assert.equal(body.executionEligible,false);
  }finally{await app.close();}
 });
+
+it('live convert routes queue reviewed convert exits and map every admission outcome without claiming execution',async()=>{
+ const campaignId='10000000-0000-4000-8000-000000000001',jobId='20000000-0000-4000-8000-000000000002';
+ type Outcome='queued'|'replayed'|'conflict'|'unavailable'|'busy';let outcome:Outcome='queued',previews=0,admissions=0,retainCalls=0;
+ const app=await serve({rangeKeeperLiveWorkerReadiness:async()=>({ready:false,missing:['live_wallet_worker_not_connected']}),
+  rangeKeeperLiveRetainPreview:async()=>{retainCalls++;return {status:'unavailable'};},
+  rangeKeeperLiveRetainAdmission:async()=>{retainCalls++;throw Error('the retain runtime must not serve a convert');},
+  rangeKeeperLiveConvertPreview:async id=>{assert.equal(id,campaignId);previews++;
+   if(outcome==='busy')throw new DeploymentConflict('rangekeeper_live_convert_preview_busy');
+   if(outcome==='unavailable')return {kind:'rangekeeper_live_convert_preview',status:'unavailable',trustedPreviewSaved:false,
+    missing:['live_campaign_unavailable'],actionAvailable:false,operationAcceptanceAvailable:false,executionEligible:true};
+   return {kind:'rangekeeper_live_convert_preview',status:'indicative',trustedPreviewSaved:true,
+    actionAvailable:true,operationAcceptanceAvailable:true,executionEligible:false};},
+  rangeKeeperLiveConvertAdmission:async id=>{assert.equal(id,campaignId);admissions++;
+   if(outcome==='conflict')return {status:'request_conflict' as const,requestId:'k',missing:['live_request_id_conflict'] as ['live_request_id_conflict'],
+    executionEligible:false as const};
+   if(outcome==='unavailable')return {status:'unavailable' as const,missing:['Convert exit could not be re-validated against a fresh canonical source'],
+    actionAvailable:false as const,executionEligible:false as const};
+   return {status:'queued' as const,campaignId,jobId,replayed:outcome==='replayed',executionEligible:false as const,
+    reason:'rangekeeper_live_execution_unavailable' as const};}});
+ const preview=`/api/deployments/${campaignId}/live/convert-preview`,accept=`/api/deployments/${campaignId}/live/convert-operations`;
+ try{
+  // Worker away: the convert exit is still previewed and queued, and says so; it is never executed by the command service.
+  let response=await app.post(preview,{},app.headers);assert.equal(response.status,200);
+  let body=await response.json() as Record<string,any>;
+  assert.equal(body.kind,'rangekeeper_live_convert_preview');assert.equal(body.actionAvailable,true);assert.equal(body.operationAcceptanceAvailable,true);
+  assert.equal(body.executionEligible,false);assert.deepEqual(body.liveWorker,{ready:false,missing:['live_wallet_worker_not_connected']});
+  response=await app.post(accept,retainInput,app.headers);assert.equal(response.status,202);
+  body=await response.json();assert.equal(body.status,'queued');assert.equal(body.jobId,jobId);
+  assert.equal(body.executionEligible,false);assert.deepEqual(body.liveWorker,{ready:false,missing:['live_wallet_worker_not_connected']});
+  outcome='replayed';response=await app.post(accept,retainInput,app.headers);assert.equal(response.status,200);
+  assert.equal((await response.json() as {replayed:boolean}).replayed,true);
+  outcome='conflict';response=await app.post(accept,retainInput,app.headers);assert.equal(response.status,409);
+  body=await response.json();assert.equal(body.error,'live_request_id_conflict');assert.equal(body.executionEligible,false);
+  outcome='unavailable';response=await app.post(accept,retainInput,app.headers);assert.equal(response.status,409);
+  body=await response.json();assert.match(body.error,/re-validated against a fresh canonical source/);
+  assert.equal(body.actionAvailable,false);assert.equal(body.executionEligible,false);
+  // A preview the runtime could not save is never offered, even if the runtime wrongly claims eligibility.
+  response=await app.post(preview,{},app.headers);body=await response.json();
+  assert.equal(body.status,'unavailable');assert.equal(body.actionAvailable,false);assert.equal(body.executionEligible,false);
+  outcome='busy';response=await app.post(preview,{},app.headers);assert.equal(response.status,409);
+  assert.deepEqual(await response.json(),{error:'rangekeeper_live_convert_preview_busy'});
+  assert.equal(previews,3);assert.equal(admissions,4);
+  // Malformed ids and bodies never reach the runtime; the retain runtime is never consulted.
+  assert.equal((await app.post('/api/deployments/not-a-uuid/live/convert-operations',retainInput,app.headers)).status,404);
+  assert.equal((await app.post(accept,{...retainInput,expectedRevision:0},app.headers)).status,400);
+  assert.equal((await app.post(accept,{...retainInput,idempotencyKey:'not-a-uuid'},app.headers)).status,400);
+  for(const extra of [{kind:'close_retain'},{calldata:'0x'},{wallet:'0x'+'1'.repeat(40)},{minOut:'1'},{slippageBps:500}])
+   assert.equal((await app.post(accept,{...retainInput,...extra},app.headers)).status,400,'the request carries no tunable economics');
+  assert.equal((await app.post(preview,{wallet:'0x'+'1'.repeat(40)},app.headers)).status,400);
+  assert.equal(admissions,4);assert.equal(retainCalls,0);
+ }finally{await app.close();}
+});
+
+it('live convert routes enforce origin, session and CSRF before any runtime call and fail closed when unwired',async()=>{
+ const campaignId='10000000-0000-4000-8000-000000000001';let calls=0;
+ const app=await serve({rangeKeeperLiveConvertPreview:async()=>{calls++;return {status:'unavailable'};},
+  rangeKeeperLiveConvertAdmission:async()=>{calls++;throw Error('must not run');}});
+ try{
+  for(const [path,body] of [[`/api/deployments/${campaignId}/live/convert-preview`,{}],
+   [`/api/deployments/${campaignId}/live/convert-operations`,retainInput]] as const){
+   assert.equal((await app.post(path,body,{origin:app.origin})).status,401);
+   assert.equal((await app.post(path,body,{origin:app.origin,cookie:app.cookie})).status,403);
+   assert.equal((await app.post(path,body,{...app.headers,'x-csrf-token':'0'.repeat(64)})).status,403);
+   assert.equal((await app.post(path,body,{...app.headers,origin:'https://other.example'})).status,403);
+   assert.equal((await fetch(app.url+path,{method:'POST',headers:{origin:app.origin,cookie:app.cookie,
+    'x-csrf-token':app.headers['x-csrf-token']},body:JSON.stringify(body)})).status,415);
+  }
+  assert.equal((await fetch(app.url+`/api/deployments/${campaignId}/live/convert-preview`,{headers:{cookie:app.cookie}})).status,404);
+  assert.equal(calls,0);
+ }finally{await app.close();}
+ const unwired=await serve({});
+ try{
+  let response=await unwired.post(`/api/deployments/${campaignId}/live/convert-preview`,{},unwired.headers);
+  assert.equal(response.status,503);assert.deepEqual(await response.json(),{error:'rangekeeper_live_convert_preview_unavailable'});
+  response=await unwired.post(`/api/deployments/${campaignId}/live/convert-operations`,retainInput,unwired.headers);
+  assert.equal(response.status,503);const body=await response.json() as Record<string,unknown>;
+  assert.equal(body.error,'rangekeeper_live_convert_unavailable');assert.equal(body.actionAvailable,false);assert.equal(body.executionEligible,false);
+ }finally{await unwired.close();}
+});

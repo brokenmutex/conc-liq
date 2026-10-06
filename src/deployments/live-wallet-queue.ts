@@ -124,11 +124,11 @@ export class LiveWalletQueue {
 
  /** Enqueue a management action against an existing campaign allocation. The
   * management review is single-use; this creates no campaign or reservation. */
- async enqueue(input:LiveWalletIdentity&{campaignId:string;revision:number;allocationId:string;reviewId:string;kind:'change_range'|'close_retain';
+ async enqueue(input:LiveWalletIdentity&{campaignId:string;revision:number;allocationId:string;reviewId:string;kind:'change_range'|'close_retain'|'close_convert';
   priority?:number;payload:unknown;buildId:string;idempotencyKey:string;requestDigest:string}):Promise<{
    campaignId:string;jobId:string;allocationId:string;status:string;replayed:boolean;
  }>{
-  assert(input.kind==='change_range'||input.kind==='close_retain');
+  assert(input.kind==='change_range'||input.kind==='close_retain'||input.kind==='close_convert');
   assert(Number.isSafeInteger(input.revision)&&input.revision>0&&/^[0-9a-f]{64}$/.test(input.buildId)&&
    /^[0-9a-f]{64}$/.test(input.requestDigest)&&/^[A-Za-z0-9._:-]{1,128}$/.test(input.idempotencyKey));
   assert(Number.isInteger(input.priority??0)&&(input.priority??0)>=0&&(input.priority??0)<=100);
@@ -427,9 +427,16 @@ export class LiveWalletQueue {
    const walletPending=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE chain_id=$1 AND wallet=$2 AND status IN('prepared','signed','blocked')`,[wallet.chainId,lower(wallet.address)])).rows[0].n;
    assert.equal(walletPending,0,'Another wallet action remains unresolved');
    // A cancelled unsigned intent never reached the chain; it is superseded by a replacement stage.
-   const badReceipt=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status NOT IN('confirmed','cancelled')`,[id])).rows[0].n;
+   // The one exception is the reverted risky-leg sale of a convert exit: its gas is attributed, campaign state degraded
+   // to a retained exit and every remaining stage (allowance cleanup) reconciled, so the job may finish as that close.
+   const badReceipt=(await c.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status NOT IN('confirmed','cancelled')
+    AND NOT ($2::boolean AND status='reverted' AND plan_json->>'kind'='swap' AND canonical_receipt_json IS NOT NULL AND effect_evidence_json IS NOT NULL)`,
+    [id,current.kind==='close_convert'])).rows[0].n;
    assert.equal(badReceipt,0,'Only successfully reconciled actions can finish');
-   const finalStage=(await c.query<any>(`SELECT stage FROM deployment_live_stage_outbox WHERE job_id=$1 AND status='confirmed' ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,[id])).rows[0];
+   // The cleanup proof is stored on the job's last attributed row: a confirmed stage or, for a degraded convert exit, its reverted sale.
+   const finalStage=(await c.query<any>(`SELECT stage FROM deployment_live_stage_outbox WHERE job_id=$1 AND (status='confirmed' OR
+    ($2::boolean AND status='reverted' AND plan_json->>'kind'='swap' AND canonical_receipt_json IS NOT NULL AND effect_evidence_json IS NOT NULL))
+    ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,[id,current.kind==='close_convert'])).rows[0];
    assert(finalStage,'No canonical transaction receipt exists for this job');
    const actual=(await c.query<any>(`SELECT allocation_hash FROM deployment_live_allocations WHERE id=$1 AND chain_id=$2 AND wallet=$3 FOR UPDATE`,[current.allocationId,wallet.chainId,lower(wallet.address)])).rows[0];
    assert(actual&&actual.allocation_hash===proof.allocationHash,'Allocation accounting proof mismatch');

@@ -33,12 +33,17 @@ it('live review persistence follows the schema when unset and honours explicit 0
 });
 
 function fakeRuntime(){
- const calls={previews:[] as string[],operations:[] as string[]};let release:(()=>void)|null=null,hold=false;
+ const calls={previews:[] as string[],operations:[] as string[],convertPreviews:[] as string[],convertOperations:[] as string[]};let release:(()=>void)|null=null,hold=false;
  const runtime:LiveCommandRuntime={
   async retainPreview(id){calls.previews.push(id);if(hold)await new Promise<void>(resolve=>{release=resolve;});
    return {kind:'rangekeeper_live_retain_preview',status:'indicative',trustedPreviewSaved:true,actionAvailable:true,
     operationAcceptanceAvailable:true,executionEligible:false};},
   async retainOperation(id){calls.operations.push(id);return {status:'queued',campaignId:id,jobId:'20000000-0000-4000-8000-000000000001',
+   replayed:false,executionEligible:false,reason:'rangekeeper_live_execution_unavailable'};},
+  async convertPreview(id){calls.convertPreviews.push(id);if(hold)await new Promise<void>(resolve=>{release=resolve;});
+   return {kind:'rangekeeper_live_convert_preview',status:'indicative',trustedPreviewSaved:true,actionAvailable:true,
+    operationAcceptanceAvailable:true,executionEligible:false};},
+  async convertOperation(id){calls.convertOperations.push(id);return {status:'queued',campaignId:id,jobId:'20000000-0000-4000-8000-000000000002',
    replayed:false,executionEligible:false,reason:'rangekeeper_live_execution_unavailable'};},
  };
  return {runtime,calls,holdPreviews:()=>{hold=true;},resume:()=>{hold=false;release?.();}};
@@ -57,6 +62,12 @@ it('v11 or non-v14 wiring never builds a runtime and reports specific closed rea
   assert.equal(preview.actionAvailable,false);assert.equal(preview.operationAcceptanceAvailable,false);
   assert.equal(preview.executionEligible,false);assert.equal(preview.trustedPreviewSaved,false);
   assert.deepEqual(await wiring.retainAdmission(campaignId,retainBody),
+   {status:'unavailable',missing:[SCHEMA_REASON],actionAvailable:false,executionEligible:false});
+  const convert=await wiring.convertPreview(campaignId) as Record<string,unknown>;
+  assert.equal(convert.kind,'rangekeeper_live_convert_preview');assert.equal(convert.status,'unavailable');assert.deepEqual(convert.missing,[SCHEMA_REASON]);
+  assert.equal(convert.actionAvailable,false);assert.equal(convert.operationAcceptanceAvailable,false);
+  assert.equal(convert.executionEligible,false);assert.equal(convert.trustedPreviewSaved,false);
+  assert.deepEqual(await wiring.convertAdmission(campaignId,retainBody),
    {status:'unavailable',missing:[SCHEMA_REASON],actionAvailable:false,executionEligible:false});
  }
  // v14 without a usable operator wallet is closed with its own reason.
@@ -80,13 +91,21 @@ it('v14 wiring delegates to the composed runtime, serialises exit previews and f
  // A worker that is away never blocks the exit path.
  assert.equal(((await wiring.retainPreview(campaignId)) as {status:string}).status,'indicative');
  assert.equal((await wiring.retainAdmission(campaignId,retainBody)).status,'queued');
- assert.deepEqual(fake.calls,{previews:[campaignId],operations:[campaignId]});
+ assert.deepEqual(fake.calls,{previews:[campaignId],operations:[campaignId],convertPreviews:[],convertOperations:[]});
+ assert.equal(((await wiring.convertPreview(campaignId)) as {status:string}).status,'indicative');
+ assert.equal((await wiring.convertAdmission(campaignId,retainBody)).status,'queued');
+ assert.deepEqual(fake.calls,{previews:[campaignId],operations:[campaignId],convertPreviews:[campaignId],convertOperations:[campaignId]},
+  'the convert exit is delegated to its own runtime callbacks, never to the retain ones');
  fake.holdPreviews();const first=wiring.retainPreview(campaignId);
  await assert.rejects(wiring.retainPreview(campaignId),(error:unknown)=>error instanceof DeploymentConflict&&
   error.code==='rangekeeper_live_retain_preview_busy');
+ // One owned fork at a time across both exit previews.
+ await assert.rejects(wiring.convertPreview(campaignId),(error:unknown)=>error instanceof DeploymentConflict&&
+  error.code==='rangekeeper_live_convert_preview_busy');
  fake.resume();await first;
  assert.equal(((await wiring.retainPreview(campaignId)) as {status:string}).status,'indicative');
  assert.equal(fake.calls.previews.length,3,'The rejected concurrent preview must not reach the runtime');
+ assert.equal(fake.calls.convertPreviews.length,1,'The rejected concurrent convert preview must not reach the runtime');
 });
 
 it('a failing runtime constructor leaves startup healthy with a specific closed reason',async()=>{
@@ -97,6 +116,8 @@ it('a failing runtime constructor leaves startup healthy with a specific closed 
  assert.equal(wiring.unavailableReason,'live_retain_runtime_unavailable');
  assert.deepEqual((await wiring.retainPreview(campaignId) as {missing:string[]}).missing,['live_retain_runtime_unavailable']);
  assert.equal((await wiring.retainAdmission(campaignId,retainBody)).status,'unavailable');
+ assert.deepEqual((await wiring.convertPreview(campaignId) as {missing:string[]}).missing,['live_retain_runtime_unavailable']);
+ assert.equal((await wiring.convertAdmission(campaignId,retainBody)).status,'unavailable');
  // Worker readiness is still reported honestly; exits are what is closed.
  assert.deepEqual(await wiring.workerReadiness(),{ready:true,missing:[]});
 });
@@ -176,5 +197,10 @@ it('the composed runtime the command builds has no signer or publisher and answe
   assert.equal(preview.status,'unavailable');assert.equal(preview.actionAvailable,false);assert.equal(preview.executionEligible,false);
   const admission=await runtime.retainOperation(campaignId,retainBody);
   assert.equal(admission.status,'unavailable');assert.equal(admission.executionEligible,false);
+  const convert=await runtime.convertPreview(campaignId);
+  assert.equal(convert.status,'unavailable');assert.equal(convert.kind,'rangekeeper_live_convert_preview');
+  assert.equal(convert.actionAvailable,false);assert.equal(convert.executionEligible,false);
+  const convertAdmission=await runtime.convertOperation(campaignId,retainBody);
+  assert.equal(convertAdmission.status,'unavailable');assert.equal(convertAdmission.executionEligible,false);
  }
 });

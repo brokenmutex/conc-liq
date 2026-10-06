@@ -2,7 +2,7 @@ import {describe,it} from 'node:test';
 import assert from 'node:assert/strict';
 import type {Hex} from 'viem';
 import {RangeKeeperLiveStaleManagementReviewError,createRangeKeeperLiveWalletWorker} from '../src/deployments/rangekeeper-live-wallet-worker.js';
-import {RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
+import {RangeKeeperExitConversionUnavailableError,RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
 import type {LiveJob,LiveOutbox,LiveWalletQueue} from '../src/deployments/live-wallet-queue.js';
 import type {PilotIntent} from '../src/live-pilot/journal.js';
 
@@ -293,5 +293,74 @@ describe('RangeKeeper live wallet worker kernel',()=>{
     nextStage:async()=>{order.push('next');return {kind:'wait',reason:'wait'};}})})};};
   await mk('change_range').worker.execute();await mk('open').worker.execute();
   assert.deepEqual(order,['refresh:change_range','next','next']);
+ });
+
+ describe('convert exit',()=>{
+  it('prepares, plans, finishes and closes a convert job through the same management path as a retained close',async()=>{
+   const h=harness(outbox('confirmed'),'close_convert');let prepared=0,closed=0,finishDone=false;
+   (h.queue.finish as any)=async()=>{finishDone=true;return {status:'succeeded',cleanup:{verified:true,custodyState:'closed_empty'}};};
+   const worker=createRangeKeeperLiveWalletWorker({queue:h.queue,wallet,adapters:baseAdapters({
+    initializeOpeningCampaign:async()=>{throw Error('a convert exit must not initialize a campaign');},
+    prepareManagementCampaign:async({job:managed}:{job:LiveJob})=>{prepared++;assert.equal(managed.kind,'close_convert');},
+    completeManagedLifecycle:async({job:managed,cleanup}:{job:LiveJob;cleanup:any})=>{assert(finishDone,'close only after the queue cleanup proof');
+     assert.equal(managed.kind,'close_convert');assert.equal(cleanup.cleanup.custodyState,'closed_empty');closed++;}})});
+   const result=await worker.execute();assert.equal(result.status,'completed');assert.equal(prepared,1);assert.equal(closed,1);
+  });
+  it('waits for a convert sale that cannot be planned yet, and degrades it to a retained exit the same job continues',async()=>{
+   const unavailable=new RangeKeeperExitConversionUnavailableError('Exit pool/reference deviation');
+   const h=harness(outbox('confirmed'),'close_convert');let calls=0,settled=0,mode:'wait'|'exit'='wait';
+   const worker=createRangeKeeperLiveWalletWorker({queue:h.queue,wallet,adapters:baseAdapters({
+    nextStage:async()=>{calls++;if(mode==='wait'||calls%2===1)throw unavailable;return {kind:'stage',value:{stage:'exit-cleanup',intent,plan:{}}};},
+    settleManagementStage:async({error}:{error:unknown})=>{settled++;assert.equal(error,unavailable);
+     return mode==='wait'?{kind:'wait',reason:'convert_swap_unavailable_wait: Exit pool/reference deviation'}:{kind:'exit',reason:'convert_swap_unavailable_retained'};}})});
+   let result=await worker.execute();
+   assert.deepEqual(result,{status:'blocked',jobId:h.job.id,reason:'convert_swap_unavailable_wait: Exit pool/reference deviation'});
+   assert.equal(h.prepares.length,0,'nothing is prepared or signed while the sale cannot be planned');
+   mode='exit';calls=0;
+   result=await worker.execute();assert.equal(settled,2);assert.deepEqual(h.prepares,['exit-cleanup'],'after the fallback the same job continues with the retained exit stages');
+   assert.equal(result.status,'disabled');
+  });
+  it('does not settle other errors of a convert exit: they stay blocked with their own reason',async()=>{
+   const h=harness(outbox('confirmed'),'close_convert');
+   const worker=createRangeKeeperLiveWalletWorker({queue:h.queue,wallet,adapters:baseAdapters({
+    nextStage:async()=>{throw Error('HTTP 503 reference outage');},
+    settleManagementStage:async()=>({kind:'unsettled'})})});
+   const result=await worker.execute();assert.deepEqual(result,{status:'blocked',jobId:h.job.id,reason:'HTTP 503 reference outage'});
+  });
+  it('continues a convert exit after a reverted sale only when campaign state degraded to a retained exit',async()=>{
+   const run=async(recovered:boolean|undefined)=>{
+    const h=harness(outbox('reverted'),'close_convert');const effects:string[]=[];let closed=0,finished=0;
+    (h.queue.finish as any)=async()=>{finished++;return {status:'succeeded',cleanup:{verified:true,custodyState:'closed_empty'}};};
+    const worker=createRangeKeeperLiveWalletWorker({queue:h.queue,wallet,adapters:baseAdapters({
+     advanceCampaignEffect:async({effectId}:{effectId:string})=>{effects.push(effectId);},
+     ...(recovered===undefined?{}:{revertedStageRecovered:async()=>recovered}),
+     completeManagedLifecycle:async()=>{closed++;}})});
+    return {result:await worker.execute(),h,effects,closed:()=>closed,finished:()=>finished};
+   };
+   const blocked=await run(false);
+   assert.equal(blocked.result.status,'blocked');assert.equal((blocked.result as any).reason,'canonical_stage_reverted');
+   assert.equal(blocked.finished(),0);assert.equal(blocked.closed(),0);
+   assert.equal((await run(undefined)).result.status,'blocked','an adapter without the recovery hook never continues past a revert');
+   const continued=await run(true);
+   assert.equal(continued.result.status,'completed',JSON.stringify(continued.result));
+   assert.equal(continued.finished(),1);assert.equal(continued.closed(),1);
+   assert.equal(continued.effects.length,2,'the reverted receipt is attributed idempotently by both the revert and continuation turns');
+   // A reverted receipt of any other job kind never takes this path, even if an adapter claims recovery.
+   const retain=harness(outbox('reverted'),'close_retain');
+   const retainWorker=createRangeKeeperLiveWalletWorker({queue:retain.queue,wallet,adapters:baseAdapters({revertedStageRecovered:async()=>true})});
+   assert.equal((await retainWorker.execute()).status,'blocked');
+  });
+  it('re-checks a reverted sale soon after cost attribution instead of waiting out the full lease',async()=>{
+   const h=harness(outbox('signed',`0x${'ab'.repeat(65)}` as Hex),'close_convert');
+   (h.queue.reconcileStage as any)=async()=>{h.calls.push('reconcile');return outbox('reverted');};
+   const worker=createRangeKeeperLiveWalletWorker({queue:h.queue,wallet,options:{publisherEnabled:true},adapters:baseAdapters({
+    signIntent:async()=>{throw Error('must not resign');},publishRaw:async()=>h.persisted.hash!})});
+   const result=await worker.execute();assert.equal(result.status,'blocked');assert.deepEqual(h.retries,[10_000]);
+   const retain=harness(outbox('signed',`0x${'ab'.repeat(65)}` as Hex),'close_retain');
+   (retain.queue.reconcileStage as any)=async()=>outbox('reverted');
+   await createRangeKeeperLiveWalletWorker({queue:retain.queue,wallet,options:{publisherEnabled:true},adapters:baseAdapters({
+    publishRaw:async()=>retain.persisted.hash!})}).execute();
+   assert.deepEqual(retain.retries,[],'other job kinds keep their existing retry timing');
+  });
  });
 });

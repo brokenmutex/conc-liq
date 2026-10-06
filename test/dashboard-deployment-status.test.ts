@@ -16,7 +16,7 @@ const context=vm.createContext({
 });
 const appScript=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
  .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
-  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};')
+  'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{},mountLiveConvertAction=()=>{},liveConvertStorageKey=id=>`live-convert-${id}`;')
  .replace(/import (\{[^}]+\}) from '\.\/tabs\.js';/s,'const $1=__tabs;');
 vm.runInContext(appScript,context);
 const run=(expression:string)=>vm.runInContext(expression,context);

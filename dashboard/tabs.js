@@ -474,8 +474,9 @@ export function liveRowModel(position, capability = null, now = Date.now()) {
     case 'opening': summary = `Opening · ${summaryParts.join(' · ') || 'waiting for canonical receipts'}`; break;
     case 'holding': summary = `Holding · ${rangeText}${inFlight ? ` · ${summaryParts.join(' · ')}` : ''}`; break;
     case 'recentering': summary = `Recentering · ${summaryParts.join(' · ') || 'waiting for the next stage'}`; break;
-    case 'closing': summary = `Closing · retain tokens · ${summaryParts.join(' · ') || 'waiting for the next stage'}`; break;
-    case 'closed': summary = 'Closed · retained tokens remain in the shared wallet'; break;
+    case 'closing': summary = `Closing · ${job?.kind === 'close_convert' ? 'convert to USDG' : 'retain tokens'} · ${summaryParts.join(' · ') || 'waiting for the next stage'}`; break;
+    case 'closed': summary = job?.kind === 'close_convert' ? 'Closed · converted to USDG; any unsold tokens remain in the shared wallet'
+      : 'Closed · retained tokens remain in the shared wallet'; break;
     case 'blocked': summary = `Blocked · ${liveBlockedReasonLabel(live.blockedReason)}`; break;
     default: summary = LIVE_LIFECYCLE_LABELS[live.lifecycle] ?? 'State unavailable';
   }

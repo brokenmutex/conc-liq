@@ -38,11 +38,12 @@ export interface RangeKeeperRuntimeEventResult {state:RangeKeeperLiveState;state
 export type RangeKeeperPrices={price0:bigint;price1:bigint;nativePrice:bigint};
 
 /** Immutable manager review consumed by the existing wallet queue. It can
- * request a recenter or retain-only close for an existing allocation; it never
- * changes campaign capital or contains signer/transaction material. */
+ * request a recenter, a retain-only close or a convert-to-quote close for an
+ * existing allocation; it never changes campaign capital or contains
+ * signer/transaction material. */
 export interface RangeKeeperLiveManagementReviewPayload {
  schemaVersion:1;kind:'rangekeeper_live_management_review';mode:'live';strategyId:'rangekeeper_v1';
- operationKind:'change_range'|'close_retain';campaignId:string;revision:number;allocationId:string;
+ operationKind:'change_range'|'close_retain'|'close_convert';campaignId:string;revision:number;allocationId:string;
  profileId:string;profileHash:string;configHash:string;buildId:string;runtimeStateHash:string;stateRevision:number;
  wallet:{address:string;generation:number;commitmentsHash:string;nonce:string};
  source:LiveWalletSource;reference:{proofHash:string;price0:string;price1:string;nativePrice:string;evidence:unknown};
@@ -88,11 +89,13 @@ export function deriveRangeKeeperLiveManagementTransition(campaign:RangeKeeperLi
   typeof costValue==='string'&&/^[1-9][0-9]*$/.test(costValue),'Management review lacks source-bound owned-fork cost evidence');
  assert(payload.decision.observationHash.length===64&&/^[0-9a-f]{64}$/.test(payload.decision.observationHash),
   'Management review observation digest is malformed');
- const desiredPhase=payload.operationKind==='close_retain'?'exit':'recenter';
+ const isClose=payload.operationKind==='close_retain'||payload.operationKind==='close_convert';
+ const closeMode:RangeKeeperLiveExitMode=payload.operationKind==='close_convert'?'convert':'retain';
+ const desiredPhase=isClose?'exit':'recenter';
  const replayed=campaign.stateHash!==payload.runtimeStateHash&&state.phase===desiredPhase&&
-  state.lastReason===`manager_${payload.operationKind==='close_retain'?'close_retain':'recenter'}:${payload.decision.reason}`&&
+  state.lastReason===`manager_${isClose?payload.operationKind:'recenter'}:${payload.decision.reason}`&&
   sameLiveSource(state.last.source,payload.source)&&
-  (payload.operationKind==='close_retain'?state.exitMode==='retain':state.candidate!==null&&payload.candidate!==null&&
+  (isClose?state.exitMode===closeMode:state.candidate!==null&&payload.candidate!==null&&
    JSON.stringify(state.candidate,(_,v)=>typeof v==='bigint'?String(v):v)===
    JSON.stringify(payload.candidate,(_,v)=>typeof v==='bigint'?String(v):v));
  assert(campaign.stateHash===payload.runtimeStateHash&&campaign.stateRevision===payload.stateRevision||replayed,
@@ -100,14 +103,15 @@ export function deriveRangeKeeperLiveManagementTransition(campaign:RangeKeeperLi
  if(replayed)return structuredClone(state);
  const next=structuredClone(state);
  next.last=structuredClone(payload.snapshot);
- if(payload.operationKind==='close_retain'){
-  assert(state.phase==='holding'&&state.activeTokenId!==null,'Retain close requires a held campaign position');
-  next.phase='exit';next.desired='stopped';next.exitMode='retain';next.candidate=null;next.swapDone=false;next.swapConfirmedAt=null;
+ if(isClose){
+  assert(state.phase==='holding'&&state.activeTokenId!==null,`${closeMode==='convert'?'Convert':'Retain'} close requires a held campaign position`);
+  if(closeMode==='convert')assertConvertConversionEvidence(payload.costs,campaign.config.pool,campaign.config.limits);
+  next.phase='exit';next.desired='stopped';next.exitMode=closeMode;next.candidate=null;next.swapDone=false;next.swapConfirmedAt=null;
   next.withdrawDone=false;next.actionStartCostIndex=next.costEvents.length;
   next.reservedActionCost=BigInt((payload.costs as any)?.actionCostValue??(payload.costs as any)?.costValue??
    (payload.costs as any)?.gasValueUsdX18??'0');
-  assert(next.reservedActionCost>0n,'Retain cost authorization is missing');
-  next.lastReason=`manager_close_retain:${payload.decision.reason}`;
+  assert(next.reservedActionCost>0n,`${closeMode==='convert'?'Convert':'Retain'} cost authorization is missing`);
+  next.lastReason=`manager_${payload.operationKind}:${payload.decision.reason}`;
  }else{
   assert(state.phase==='holding'&&state.activeTokenId!==null,'Recenter requires a held campaign position');
   const candidate=payload.candidate;assert(candidate&&candidate.kind==='recenter','Recenter review lacks a recenter candidate');
@@ -130,13 +134,15 @@ export function deriveRangeKeeperLiveManagementTransition(campaign:RangeKeeperLi
 }
 
 /** Terminal state is only created after the queue independently verifies the
- * retain-close receipt and allowance/custody cleanup. */
+ * close receipts and allowance/custody cleanup. A convert exit that completed
+ * its sale closes as `convert_close_complete`; one that degraded to retain (or
+ * a retained close) closes as `retain_close_complete`. */
 export function deriveRangeKeeperLiveClosedState(state:RangeKeeperLiveState,source:LiveWalletSource):RangeKeeperLiveState{
- assert(state.phase==='exit'&&state.desired==='stopped'&&state.exitMode==='retain'&&state.activeTokenId===null&&state.candidate===null,
-  'Campaign can close only after retained exit has removed its managed position');
+ assert(isRangeKeeperManagedExit(state)&&state.activeTokenId===null&&state.candidate===null,
+  'Campaign can close only after a retain or convert exit has removed its managed position');
  assert(BigInt(source.block)>=state.last.source.block,'Close source moved backwards');
  const next=structuredClone(state);next.phase='closed';next.desired='stopped';next.closedAt=source.timestamp;
- next.lastReason='retain_close_complete';next.last={...next.last,source:{block:BigInt(source.block),hash:source.hash as `0x${string}`,timestamp:source.timestamp}};
+ next.lastReason=state.exitMode==='convert'?'convert_close_complete':'retain_close_complete';next.last={...next.last,source:{block:BigInt(source.block),hash:source.hash as `0x${string}`,timestamp:source.timestamp}};
  return next;
 }
 /** `retry` counts this job's cancelled unsigned intents: a cancelled outbox row keeps its (job,stage) key,
@@ -146,9 +152,42 @@ export function deriveRangeKeeperStage(plan:RangeKeeperTxPlan,stateRevision=0,re
  assert(Number.isSafeInteger(retry)&&retry>=0&&retry<=9999,'Invalid stage retry counter');
  return `${plan.kind}:${liveSetupEvidenceHash({plan,stateRevision}).slice(0,32)}${retry>0?`:r${retry}`:''}`;
 }
-/** A retained exit is the only state in which the exit reserve is spendable, whichever job kind carries it. */
+export type RangeKeeperLiveExitMode='retain'|'convert';
+/** A retained exit: withdraw and leave both tokens in the wallet. */
 export const isRangeKeeperRetainedExit=(state:Pick<RangeKeeperLiveState,'phase'|'desired'|'exitMode'>|null|undefined)=>
  !!state&&state.phase==='exit'&&state.desired==='stopped'&&state.exitMode==='retain';
+/** A retained or convert exit. Only these states may spend the campaign's exit reserve, whichever job kind carries it. */
+export const isRangeKeeperManagedExit=(state:Pick<RangeKeeperLiveState,'phase'|'desired'|'exitMode'>|null|undefined)=>
+ !!state&&state.phase==='exit'&&state.desired==='stopped'&&(state.exitMode==='retain'||state.exitMode==='convert');
+/** The convert exit is still allowed to sell the risky leg (as opposed to a retained close or a degraded convert). */
+export const isRangeKeeperConvertExit=(state:Pick<RangeKeeperLiveState,'phase'|'desired'|'exitMode'>|null|undefined)=>
+ !!state&&state.phase==='exit'&&state.desired==='stopped'&&state.exitMode==='convert';
+/** A convert exit whose risky-leg sale cannot or did not complete falls back to a retained close: both tokens stay in the
+ * wallet, the withdrawal and every receipt already recorded stay, and nothing already executed is repeated. */
+export function degradeRangeKeeperConvertExitToRetain(state:RangeKeeperLiveState,reason:string,snapshot?:RangeKeeperSnapshot):RangeKeeperLiveState{
+ assert(isRangeKeeperConvertExit(state)&&state.activeTokenId===null,'Only a convert exit that has withdrawn its position can degrade to retain');
+ const next=structuredClone(state);
+ next.exitMode='retain';next.haltReason=null;next.candidate=null;next.swapDone=false;next.swapConfirmedAt=null;
+ next.lastReason=`convert_degraded_to_retain:${reason}`.slice(0,200);
+ if(snapshot)next.last=structuredClone(snapshot);
+ return next;
+}
+const DECIMAL=/^(0|[1-9][0-9]*)$/;
+/** A convert review must carry the frozen sale of the non-quote leg: either an explicit no-swap-needed marker or a
+ * well-formed direct-route swap bounded by the frozen slippage and swap-shortfall policy. */
+export function assertConvertConversionEvidence(costs:unknown,pool:RangeKeeperConfig['pool'],limits:RangeKeeperConfig['limits']){
+ const conv=(costs as any)?.conversion;
+ assert(conv&&conv.mode==='convert'&&typeof conv.swapRequired==='boolean','Convert review lacks its conversion evidence');
+ assert(DECIMAL.test(String(conv.withdrawn0))&&DECIMAL.test(String(conv.withdrawn1))&&DECIMAL.test(String(conv.shortfallValue??'0'))&&
+  DECIMAL.test(String(conv.feeValue??'0')),'Convert conversion evidence is malformed');
+ if(!conv.swapRequired)return;
+ const risky:0|1=pool.quoteToken===0?1:0;
+ assert(conv.token===risky&&DECIMAL.test(String(conv.amountIn))&&BigInt(conv.amountIn)>0n&&DECIMAL.test(String(conv.minOut))&&
+  BigInt(conv.minOut)>0n&&DECIMAL.test(String(conv.expectedOut))&&BigInt(conv.expectedOut)>=BigInt(conv.minOut),
+  'Convert conversion must sell the non-quote leg directly into the quote token');
+ assert(conv.maxSlippageBps===limits.maxSlippageBps&&BigInt(conv.shortfallValue)<=BigInt(limits.maxSwapShortfallValue),
+  'Convert conversion exceeds the frozen slippage or swap-shortfall policy');
+}
 /** A recenter whose withdrawal is reconciled but whose replacement range was discarded as stale. It owns loose
  * inventory only; the next range must be re-planned from fresh canonical observations. */
 export const isRangeKeeperAwaitingReplan=(state:RangeKeeperLiveState|null|undefined)=>
@@ -238,9 +277,9 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
  assert(wb.nativeWei===s.nativeWei&&wb.tokens[c.config.pool.token0.toLowerCase()]===s.wallet0&&
   wb.tokens[c.config.pool.token1.toLowerCase()]===s.wallet1,'Whole-wallet liquid inventory differs from strategy snapshot');
  const strategySnapshot=deriveRangeKeeperCampaignStageSnapshot(c,input.snapshot);
- const retainedExit=c.state.phase==='exit'&&c.state.desired==='stopped'&&c.state.exitMode==='retain';
- assert(input.exitSpendAllowed!==true||retainedExit,'Exit reserve is spendable only for a retained close');
- const exitSpendAllowed=input.exitSpendAllowed===true&&retainedExit;
+ const managedExit=isRangeKeeperManagedExit(c.state),convertExit=isRangeKeeperConvertExit(c.state);
+ assert(input.exitSpendAllowed!==true||managedExit,'Exit reserve is spendable only for a retained or convert close');
+ const exitSpendAllowed=input.exitSpendAllowed===true&&managedExit,exitConvert=exitSpendAllowed&&convertExit;
  const allowancePolicy=input.allowancePolicy??rangeKeeperCampaignAllowancePolicy(c);
  const plan=await nextRangeKeeperStage(c.state,strategySnapshot,c.config,input.chain,
   {price0:input.references.price0,price1:input.references.price1},allowancePolicy);
@@ -254,7 +293,7 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
   config:c.config,source:{block:BigInt(input.source.block),hash:input.source.hash as Hex,timestamp:input.source.timestamp},plan,beforePool:input.snapshot,
   allocation,prices:{price0:input.references.price0,price1:input.references.price1,nativePrice:input.references.nativePrice},
   referenceProofHash:input.references.proofHash,futureApprovalCap:futureApprovalCap(c,strategySnapshot,plan,input.references),
-  allowanceCeiling:[allowanceCeiling(allowancePolicy.exposure[0]),allowanceCeiling(allowancePolicy.exposure[1])],exitSpendAllowed};
+  allowanceCeiling:[allowanceCeiling(allowancePolicy.exposure[0]),allowanceCeiling(allowancePolicy.exposure[1])],exitSpendAllowed,exitConvert};
  return {stage,plan,request};
 }
 
@@ -280,16 +319,19 @@ export async function authorizeRangeKeeperLiveStage(input:PrepareRangeKeeperLive
  assert(same(input.intent.to,call.to)&&same(input.intent.data,call.data),'Intent calldata differs from strategy encoding');
  assert.equal(input.intent.action,plan.kind);assert.equal(input.intent.value,'0');
  const stageGasWei=BigInt(evidence.stageGasWei),stageCost=BigInt(evidence.costValue);
- const retainedExit=c.state!.phase==='exit'&&c.state!.desired==='stopped'&&c.state!.exitMode==='retain';
+ const retainedExit=isRangeKeeperManagedExit(c.state),convertExit=isRangeKeeperConvertExit(c.state);
  assert(request.exitSpendAllowed===retainedExit||request.exitSpendAllowed===false&&!retainedExit,
   'Stage proof exit-reserve permission differs from campaign state');
+ assert((request.exitConvert===true)===convertExit&&evidence.exitConvert===convertExit,
+  'Stage proof convert permission differs from campaign state');
  assert(stageGasWei>=0n&&stageCost>=0n&&stageGasWei<=c.allocation.nativeSpendWei+(request.exitSpendAllowed?c.allocation.exitReserveWei:0n),
   'Stage gas would invade exit reserve or exceed remaining campaign native spend');
  const actionStart=c.state!.actionStartCostIndex;
  assert(Number.isSafeInteger(actionStart)&&actionStart>=0&&actionStart<=c.state!.costEvents.length,
   'Campaign action-cost cursor is invalid');
- // Cost policy bounds discretionary actions. A retained exit is bounded by the scoped exit reserve above and
- // must stay reachable when the campaign budget is exhausted or an earlier receipt could not be valued.
+ // Cost policy bounds discretionary actions. A retained or convert exit is bounded by the scoped exit reserve above and
+ // must stay reachable when the campaign budget is exhausted or an earlier receipt could not be valued. The convert
+ // swap additionally stays under the frozen swap-shortfall limit, enforced by the planner and the stage proof.
  if(!retainedExit){
   const actionCost=c.state!.costEvents.slice(actionStart).reduce<bigint|null>((sum,event)=>
    sum===null||event.gasValue===null||event.swapFeeValue===null||event.swapShortfallValue===null?null:

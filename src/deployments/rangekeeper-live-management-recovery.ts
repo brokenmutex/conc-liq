@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import type {RangeKeeperTxPlan} from '../strategy/rangekeeper/calldata.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../strategy/rangekeeper/live-domain.js';
-import {RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../strategy/rangekeeper/live-stage.js';
-import {isRangeKeeperAwaitingReplan,type RangeKeeperLiveCampaign} from './rangekeeper-live-campaign.js';
+import {RangeKeeperExitConversionUnavailableError,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../strategy/rangekeeper/live-stage.js';
+import {degradeRangeKeeperConvertExitToRetain,isRangeKeeperAwaitingReplan,isRangeKeeperConvertExit,type RangeKeeperLiveCampaign} from './rangekeeper-live-campaign.js';
 import type {LiveWalletSource} from './live-wallet-store.js';
 
 /** Seconds a completed swap may wait for a feasible mint before the campaign exits with the inventory it holds. */
 export const RANGEKEEPER_MINT_WAIT_SECONDS=300;
+/** Seconds a withdrawn convert exit may wait for its sale to become feasible (pool back inside the reference policy,
+ * quote within the shortfall limit, gas within the scoped reserve) before it falls back to a retained close. */
+export const RANGEKEEPER_CONVERT_WAIT_SECONDS=900;
 
 const sameSource=(a:{block:string|bigint;hash:string;timestamp:number},b:{block:string|bigint;hash:string;timestamp:number})=>
  String(a.block)===String(b.block)&&a.hash.toLowerCase()===b.hash.toLowerCase()&&a.timestamp===b.timestamp;
@@ -35,6 +38,26 @@ export type RangeKeeperStageSettlement=
  |{kind:'unsettled'}
  |{kind:'wait';reason:string}
  |{kind:'replan'|'exit';reason:string;state:RangeKeeperLiveState};
+
+/** Map a pre-signing failure of a convert exit's risky-leg stage (router approval or sale) to the typed recoverable error:
+ * its simulation, gas bound or shortfall bound failed before anything was signed. Other plans are returned unchanged. */
+export function classifyRangeKeeperConvertExitStageError(plan:RangeKeeperTxPlan|null|undefined,error:unknown):unknown{
+ if(error instanceof RangeKeeperExitConversionUnavailableError)return error;
+ if(plan&&(plan.kind==='swap'||plan.kind==='approve'&&plan.spender==='router'&&plan.amount>0n))
+  return new RangeKeeperExitConversionUnavailableError(`Exit ${plan.kind} could not be authorized: ${
+   error instanceof Error?error.message:'stage_unavailable'}`.slice(0,240));
+ return error;
+}
+/** Settle a recoverable stage-planning error of a withdrawn convert exit: wait a bounded time for the sale to become
+ * feasible, then degrade to a retained close so the campaign lands in a safe terminal path (both tokens stay in the
+ * wallet) instead of a permanently blocked job. The withdrawal and any completed receipt are never repeated. */
+export function settleRangeKeeperLiveConvertExitError(state:RangeKeeperLiveState,snapshot:RangeKeeperSnapshot,
+ waitedSeconds:number,error:unknown):RangeKeeperStageSettlement{
+ if(!(error instanceof RangeKeeperExitConversionUnavailableError))return {kind:'unsettled'};
+ if(!isRangeKeeperConvertExit(state)||state.activeTokenId!==null)return {kind:'unsettled'};
+ if(!(waitedSeconds>=RANGEKEEPER_CONVERT_WAIT_SECONDS))return {kind:'wait',reason:`convert_swap_unavailable_wait: ${error.message}`.slice(0,300)};
+ return {kind:'exit',reason:'convert_swap_unavailable_retained',state:degradeRangeKeeperConvertExitToRetain(state,error.message,snapshot)};
+}
 
 /** Retained exit for a recenter that can no longer complete. The retired NFT and every completed swap stay
  * recorded; nothing is repeated, converted or approved. Exit costs are scoped to the exit itself. */

@@ -5,30 +5,33 @@ import {parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState,type Rang
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import {contentHash} from './contracts.js';
 import {readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
-import {deriveRangeKeeperLiveManagementTransition,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
+import {assertConvertConversionEvidence,deriveRangeKeeperLiveManagementTransition,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
  deriveRangeKeeperLiveClosedState,type RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import {lookupLiveJobByRequest,readReview,readWalletState,recordReview,type LiveWalletIdentity} from './live-wallet-store.js';
 
+export type RangeKeeperLiveClosePreviewKind='rangekeeper_live_retain_preview'|'rangekeeper_live_convert_preview';
 export interface RangeKeeperLiveManagementPreview {
- kind:'rangekeeper_live_retain_preview';mode:'live';strategyId:'rangekeeper_v1';status:'indicative'|'unavailable';
+ kind:RangeKeeperLiveClosePreviewKind;mode:'live';strategyId:'rangekeeper_v1';status:'indicative'|'unavailable';
  trustedPreviewSaved:boolean;previewId:string|null;contentDigest:string|null;expectedRevision:number;expiresAt:string|null;
  source:RangeKeeperLiveManagementReviewPayload['source']|null;position:unknown;costs:unknown;missing:string[];
  actionAvailable:boolean;operationAcceptanceAvailable:boolean;executionEligible:false;
 }
 export interface RangeKeeperLiveManagementReviewInput {
- wallet:LiveWalletIdentity;campaign:RangeKeeperLiveCampaign;operationKind:'close_retain'|'change_range';
+ wallet:LiveWalletIdentity;campaign:RangeKeeperLiveCampaign;operationKind:'close_retain'|'close_convert'|'change_range';
  source:{block:string;hash:string;timestamp:number};snapshot:RangeKeeperSnapshot;references:RangeKeeperStageReferences;
  position:unknown;decision:{reason:string;observationHash:string};candidate:RangeKeeperCandidate|null;policy:RangeKeeperState|null;
  costs:unknown;missing?:readonly string[];expiresAt:number;
 }
 export interface RangeKeeperLiveManagementQueueInput extends LiveWalletIdentity {
- campaignId:string;revision:number;allocationId:string;reviewId:string;kind:'change_range'|'close_retain';
+ campaignId:string;revision:number;allocationId:string;reviewId:string;kind:'change_range'|'close_retain'|'close_convert';
  /** Exact JSON-safe payload read from the immutable review row. Decode markers
   * only for validation; passing decoded BigInts to the queue breaks its JSON hash. */
  payload:unknown;buildId:string;idempotencyKey:string;requestDigest:string;
 }
-const unavailable=(campaign:RangeKeeperLiveCampaign,missing:string[]):RangeKeeperLiveManagementPreview=>({
- kind:'rangekeeper_live_retain_preview',mode:'live',strategyId:'rangekeeper_v1',status:'unavailable',trustedPreviewSaved:false,
+const previewKindFor=(operationKind:'close_retain'|'close_convert'|'change_range'):RangeKeeperLiveClosePreviewKind=>
+ operationKind==='close_convert'?'rangekeeper_live_convert_preview':'rangekeeper_live_retain_preview';
+const unavailable=(campaign:RangeKeeperLiveCampaign,missing:string[],kind:RangeKeeperLiveClosePreviewKind='rangekeeper_live_retain_preview'):RangeKeeperLiveManagementPreview=>({
+ kind,mode:'live',strategyId:'rangekeeper_v1',status:'unavailable',trustedPreviewSaved:false,
  previewId:null,contentDigest:null,expectedRevision:campaign.revision,expiresAt:null,source:null,position:null,costs:null,
  missing:[...new Set(missing)],actionAvailable:false,operationAcceptanceAvailable:false,executionEligible:false,
 });
@@ -44,7 +47,8 @@ function validBoundCost(value:unknown,source:{block:string;hash:string;timestamp
 export function parseRangeKeeperLiveManagementReviewPayload(value:unknown):RangeKeeperLiveManagementReviewPayload{
  const parsed=parseRangeKeeperJson<RangeKeeperLiveManagementReviewPayload>(value);
  assert(parsed&&parsed.schemaVersion===1&&parsed.kind==='rangekeeper_live_management_review'&&
-  (parsed.operationKind==='close_retain'||parsed.operationKind==='change_range'),'Invalid persisted live management review');
+  (parsed.operationKind==='close_retain'||parsed.operationKind==='close_convert'||parsed.operationKind==='change_range'),
+  'Invalid persisted live management review');
  return parsed;
 }
 
@@ -58,7 +62,7 @@ export async function recordRangeKeeperLiveManagementReview(pool:Pool,input:Rang
  try{
   const {campaign:c,wallet}=input;
   assert(c.state&&c.stateHash&&c.status==='active','Campaign runtime is not in active management state');
-  assert(input.operationKind==='close_retain'||input.operationKind==='change_range');
+  assert(input.operationKind==='close_retain'||input.operationKind==='close_convert'||input.operationKind==='change_range');
   assert(c.state.phase==='holding'&&c.state.activeTokenId!==null,'Management review requires a held position');
   assert(wallet.chainId===4663&&wallet.address.toLowerCase()===c.wallet.toLowerCase(),'Management wallet identity mismatch');
   assert(input.references.source.block===input.source.block&&input.references.source.hash.toLowerCase()===input.source.hash.toLowerCase()&&
@@ -67,9 +71,10 @@ export async function recordRangeKeeperLiveManagementReview(pool:Pool,input:Rang
   assert(validHash(input.decision.observationHash),'Management decision observation hash is malformed');
   assert(Number.isSafeInteger(input.expiresAt)&&(deps.now??Date.now)()<input.expiresAt*1000,'Management review is expired');
   if(input.operationKind==='change_range')assert(input.candidate?.kind==='recenter'&&input.policy,'Recenter candidate/policy missing');
-  else assert(input.candidate===null,'Retain-only close cannot include a replacement candidate');
+  else assert(input.candidate===null,'A close cannot include a replacement candidate');
   if(!validBoundCost(input.costs,input.source))missing.push('owned_fork_management_cost_unavailable');
-  if(missing.length) return unavailable(c,missing);
+  if(input.operationKind==='close_convert')assertConvertConversionEvidence(input.costs,c.config.pool,c.config.limits);
+  if(missing.length) return unavailable(c,missing,previewKindFor(input.operationKind));
   const state=await readWalletState(pool,wallet);
   assert(state.status==='available'&&state.source&&state.commitmentsHash&&state.snapshotHash,'Persisted wallet inventory is unavailable');
   assert(state.source.block===input.source.block&&state.source.hash.toLowerCase()===input.source.hash.toLowerCase()&&
@@ -96,13 +101,13 @@ export async function recordRangeKeeperLiveManagementReview(pool:Pool,input:Rang
   const reviewId=randomUUID(),payloadHash=contentHash(persistedPayload);
   await recordReview(pool,{...wallet,reviewId,payload:persistedPayload,payloadHash,buildId,source:input.source,expiresAt:new Date(input.expiresAt*1000),
    walletGeneration:state.generation,commitmentsHash:state.commitmentsHash});
-  return {kind:'rangekeeper_live_retain_preview',mode:'live',strategyId:'rangekeeper_v1',status:'indicative',trustedPreviewSaved:true,
+  return {kind:previewKindFor(input.operationKind),mode:'live',strategyId:'rangekeeper_v1',status:'indicative',trustedPreviewSaved:true,
    previewId:reviewId,contentDigest:payloadHash,expectedRevision:c.revision,expiresAt:new Date(input.expiresAt*1000).toISOString(),
    source:input.source,position:input.position,costs:input.costs,missing:[],actionAvailable:true,
    operationAcceptanceAvailable:true,executionEligible:false};
  }catch(error){
   const message=error instanceof Error?error.message:'live_management_review_unavailable';
-  return unavailable(input.campaign,[message]);
+  return unavailable(input.campaign,[message],previewKindFor(input.operationKind));
  }
 }
 
@@ -116,8 +121,11 @@ export type RangeKeeperLiveManagementAdmissionResult=
  * The same idempotency key/digest replays the same job; no allocation rows are
  * added and the original setup review is never treated as an approval. */
 export async function enqueueRangeKeeperLiveManagementReview(input:{wallet:LiveWalletIdentity;campaignId:string;previewId:string;
- contentDigest:string;expectedRevision:number;idempotencyKey:string;expectedOperationKind?:'close_retain'|'change_range'},deps:{pool:Pool;buildId:string;now?:()=>number;
+ contentDigest:string;expectedRevision:number;idempotencyKey:string;expectedOperationKind?:'close_retain'|'close_convert'|'change_range'},deps:{pool:Pool;buildId:string;now?:()=>number;
  verifyPinned:(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload)=>Promise<boolean>;
+ /** Convert exits only: re-validate the sale against a freshly read canonical source (pool within the reference policy and
+  * a quote within the shortfall limit) before queueing. Absent, a convert admission fails closed. */
+ verifyConvertFresh?:(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload)=>Promise<boolean>;
  enqueue:(job:RangeKeeperLiveManagementQueueInput)=>Promise<{campaignId:string;jobId:string;allocationId?:string;replayed:boolean;status:string}>}):Promise<
  RangeKeeperLiveManagementAdmissionResult&{requestDigest?:string;reviewId?:string;contentDigest?:string}>{
  const unavailableResult=(...missing:string[]):RangeKeeperLiveManagementAdmissionResult=>({status:'unavailable',
@@ -125,8 +133,10 @@ export async function enqueueRangeKeeperLiveManagementReview(input:{wallet:LiveW
  try{
   assert(/^0x[0-9a-fA-F]{40}$/.test(input.wallet.address)&&input.wallet.chainId===4663);
   assert(/^[0-9a-f]{64}$/.test(input.contentDigest)&&/^[A-Za-z0-9._:-]{1,128}$/.test(input.idempotencyKey));
+  // A convert request is bound to its operation kind, so a retain request key can never replay as a convert (or back).
   const requestDigest=contentHash({kind:'rangekeeper_live_management_request_v1',campaignId:input.campaignId,
-   expectedRevision:input.expectedRevision,previewId:input.previewId,contentDigest:input.contentDigest});
+   expectedRevision:input.expectedRevision,previewId:input.previewId,contentDigest:input.contentDigest,
+   ...(input.expectedOperationKind==='close_convert'?{operationKind:'close_convert'}:{})});
   const prior=await lookupLiveJobByRequest(deps.pool,{...input.wallet,requestId:input.idempotencyKey,requestDigest});
   if(prior)return {status:'queued',campaignId:prior.campaignId,jobId:prior.jobId,allocationId:prior.allocationId,
    replayed:true,executionEligible:false,reason:'rangekeeper_live_execution_unavailable',requestDigest};
@@ -147,6 +157,9 @@ export async function enqueueRangeKeeperLiveManagementReview(input:{wallet:LiveW
    'Wallet changed after management preview');
   deriveRangeKeeperLiveManagementTransition(campaign,payload);
   assert(await deps.verifyPinned(campaign,payload),'Management preview canonical evidence could not be revalidated');
+  if(payload.operationKind==='close_convert')
+   assert(deps.verifyConvertFresh&&await deps.verifyConvertFresh(campaign,payload),
+    'Convert exit could not be re-validated against a fresh canonical source');
   const result=await deps.enqueue({...input.wallet,campaignId:campaign.id,revision:campaign.revision,allocationId:campaign.allocation.allocationId,
    reviewId:review.reviewId,kind:payload.operationKind,payload:review.payload,buildId:deps.buildId,idempotencyKey:input.idempotencyKey,requestDigest});
   return {status:'queued',campaignId:result.campaignId,jobId:result.jobId,allocationId:result.allocationId,
@@ -161,8 +174,9 @@ export async function enqueueRangeKeeperLiveManagementReview(input:{wallet:LiveW
 }
 
 export async function admitRangeKeeperLiveManagement(input:{wallet:LiveWalletIdentity;campaignId:string;previewId:string;
- contentDigest:string;expectedRevision:number;idempotencyKey:string},deps:Parameters<typeof enqueueRangeKeeperLiveManagementReview>[1]){
- const result=await enqueueRangeKeeperLiveManagementReview({...input,expectedOperationKind:'close_retain'},deps);
+ contentDigest:string;expectedRevision:number;idempotencyKey:string},deps:Parameters<typeof enqueueRangeKeeperLiveManagementReview>[1],
+ operationKind:'close_retain'|'close_convert'='close_retain'){
+ const result=await enqueueRangeKeeperLiveManagementReview({...input,expectedOperationKind:operationKind},deps);
  if(result.status==='queued'){
   const {reviewId,contentDigest,requestDigest,...publicResult}=result;return publicResult;
  }
@@ -179,31 +193,42 @@ export interface RangeKeeperLiveManagementObservation {
  * module only freezes and admits its evidence through the existing ledger. */
 export function createRangeKeeperLiveManagementRuntime(input:{pool:Pool;wallet:LiveWalletIdentity;buildId:string;
  persistReviews?:boolean;observe:(campaign:RangeKeeperLiveCampaign)=>Promise<RangeKeeperLiveManagementObservation>;
+ /** Observation priced as a convert exit (withdraw plus sale of the non-quote leg into the quote token). */
+ observeConvert?:(campaign:RangeKeeperLiveCampaign)=>Promise<RangeKeeperLiveManagementObservation>;
  verifyPinned:(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload)=>Promise<boolean>;
+ verifyConvertFresh?:(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload)=>Promise<boolean>;
  enqueue:(job:RangeKeeperLiveManagementQueueInput)=>Promise<{campaignId:string;jobId:string;allocationId?:string;replayed:boolean;status:string}>;now?:()=>number}){
- const unavailablePreview=(campaign:RangeKeeperLiveCampaign,reason:string)=>unavailable(campaign,[reason]);
+ const closePreview=async(campaignId:string,operationKind:'close_retain'|'close_convert'):Promise<RangeKeeperLiveManagementPreview>=>{
+  const kind=previewKindFor(operationKind),observe=operationKind==='close_convert'?input.observeConvert:input.observe;
+  let campaign:RangeKeeperLiveCampaign;
+  try{campaign=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,campaignId});}
+  catch{return {kind,mode:'live',strategyId:'rangekeeper_v1',status:'unavailable',
+   trustedPreviewSaved:false,previewId:null,contentDigest:null,expectedRevision:0,expiresAt:null,source:null,position:null,costs:null,
+   missing:['live_campaign_unavailable'],actionAvailable:false,operationAcceptanceAvailable:false,executionEligible:false};}
+  if(input.persistReviews!==true)return unavailable(campaign,['live_management_review_persistence_disabled'],kind);
+  if(!observe)return unavailable(campaign,['live_convert_exit_unavailable'],kind);
+  try{
+   const observation=await observe(campaign);
+   return recordRangeKeeperLiveManagementReview(input.pool,{wallet:input.wallet,campaign,operationKind,
+    source:observation.source,snapshot:observation.snapshot,references:observation.references,position:observation.position,
+    decision:observation.decision,candidate:null,policy:null,costs:observation.costs,missing:observation.missing,
+    expiresAt:observation.expiresAt},{buildId:input.buildId,verifyPinned:input.verifyPinned,now:input.now});
+  }catch(error){return unavailable(campaign,[error instanceof Error?error.message:'live_management_observation_unavailable'],kind);}
+ };
+ const closeOperation=async(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;idempotencyKey:string},
+  operationKind:'close_retain'|'close_convert')=>{
+  if(input.persistReviews!==true)return {status:'unavailable' as const,missing:['live_management_review_persistence_disabled'],
+   actionAvailable:false as const,executionEligible:false as const};
+  return admitRangeKeeperLiveManagement({wallet:input.wallet,campaignId,...body},{pool:input.pool,buildId:input.buildId,
+   verifyPinned:input.verifyPinned,verifyConvertFresh:input.verifyConvertFresh,enqueue:input.enqueue,now:input.now},operationKind);
+ };
  return {
-  async retainPreview(campaignId:string):Promise<RangeKeeperLiveManagementPreview>{
-   let campaign:RangeKeeperLiveCampaign;
-   try{campaign=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,campaignId});}
-   catch{return {kind:'rangekeeper_live_retain_preview',mode:'live',strategyId:'rangekeeper_v1',status:'unavailable',
-    trustedPreviewSaved:false,previewId:null,contentDigest:null,expectedRevision:0,expiresAt:null,source:null,position:null,costs:null,
-    missing:['live_campaign_unavailable'],actionAvailable:false,operationAcceptanceAvailable:false,executionEligible:false};}
-   if(input.persistReviews!==true)return unavailablePreview(campaign,'live_management_review_persistence_disabled');
-   try{
-    const observation=await input.observe(campaign);
-    return recordRangeKeeperLiveManagementReview(input.pool,{wallet:input.wallet,campaign,operationKind:'close_retain',
-     source:observation.source,snapshot:observation.snapshot,references:observation.references,position:observation.position,
-     decision:observation.decision,candidate:null,policy:null,costs:observation.costs,missing:observation.missing,
-     expiresAt:observation.expiresAt},{buildId:input.buildId,verifyPinned:input.verifyPinned,now:input.now});
-   }catch(error){return unavailablePreview(campaign,error instanceof Error?error.message:'live_management_observation_unavailable');}
-  },
-  async retainOperation(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;idempotencyKey:string}){
-   if(input.persistReviews!==true)return {status:'unavailable' as const,missing:['live_management_review_persistence_disabled'],
-    actionAvailable:false as const,executionEligible:false as const};
-   return admitRangeKeeperLiveManagement({wallet:input.wallet,campaignId,...body},{pool:input.pool,buildId:input.buildId,
-    verifyPinned:input.verifyPinned,enqueue:input.enqueue,now:input.now});
-  },
+  retainPreview:(campaignId:string)=>closePreview(campaignId,'close_retain'),
+  retainOperation:(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;idempotencyKey:string})=>
+   closeOperation(campaignId,body,'close_retain'),
+  convertPreview:(campaignId:string)=>closePreview(campaignId,'close_convert'),
+  convertOperation:(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;idempotencyKey:string})=>
+   closeOperation(campaignId,body,'close_convert'),
  };
 }
 

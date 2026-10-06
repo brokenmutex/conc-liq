@@ -8,6 +8,7 @@ import {parseRangeKeeperJson,type RangeKeeperLiveState,type RangeKeeperSnapshot}
 import type {RangeKeeperTxPlan} from '../strategy/rangekeeper/calldata.js';
 import type {RangeKeeperConfig} from '../strategy/rangekeeper/config.js';
 import {rawValue} from '../strategy/rangekeeper/planner.js';
+import {degradeRangeKeeperConvertExitToRetain,isRangeKeeperConvertExit} from './rangekeeper-live-campaign.js';
 
 type Source={block:string;hash:string;timestamp:number};
 type StoredReceipt={receipt:any;receiptHash:string;proofHash:string;source:Source};
@@ -131,7 +132,13 @@ export async function applyRangeKeeperLiveReceiptEffectInTransaction(client:Pool
  if(plan.kind==='swap'&&row.status==='confirmed')assert((cost.actualSwapOutput??0n)>0n,'Successful swap receipt lacks positive output-token balance delta');
  state.gasSpentWei+=gasWei;state.costEvents.push({hash:stored.receipt.transactionHash,block:BigInt(source.block),timestamp:source.timestamp,
   gasWei,gasValue,swapFeeValue,swapShortfallValue});state.last=after;
- if(row.status==='reverted'){
+ if(row.status==='reverted'&&job.kind==='close_convert'&&plan.kind==='swap'&&isRangeKeeperConvertExit(state)&&state.activeTokenId===null){
+  // The withdrawal is reconciled and the reverted sale's gas is booked above. Both tokens are in the wallet, so the exit
+  // falls back to a retained close (allowance cleanup, then close) instead of halting with a recoverable position.
+  const degraded=degradeRangeKeeperConvertExitToRetain(state,`swap_reverted:${outbox.stage}`.slice(0,120),after);
+  degraded.lastReason=`convert_swap_reverted_degraded_to_retain:${outbox.stage}`.slice(0,200);
+  Object.assign(state,degraded);
+ }else if(row.status==='reverted'){
   state.phase='halted';state.haltReason=`transaction_reverted:${job.id}:${outbox.stage}`;state.lastReason=state.haltReason;
  }else if(plan.kind==='withdraw'){
   const collection=effects.effects;assert(collection&&decimal(collection.fee0)&&decimal(collection.fee1),'Withdrawal fee collection evidence is missing');

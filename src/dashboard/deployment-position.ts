@@ -767,7 +767,7 @@ export function deploymentPosition(row:DeploymentRow){
   nextAction:(liveView?liveView.lifecycle==='closed':row.lifecycle==='closed')?null:
    liveView&&['queued','opening'].includes(liveView.lifecycle)?'Live opening queued; inventory and costs await canonical receipts':
    liveView?.lifecycle==='recentering'?'Automatic recenter in progress; value and range update after canonical receipts':
-   liveView?.lifecycle==='closing'?'Retain-only close in progress; value is final only after canonical receipts':
+   liveView?.lifecycle==='closing'?`${liveView.job?.kind==='close_convert'?'Withdraw-and-convert exit':'Retain-only close'} in progress; value is final only after canonical receipts`:
    liveView?.lifecycle==='blocked'?'Live management is blocked; no further action runs until the recorded reason is resolved':
    liveModel?.navQuote!==null&&liveModel?.navQuote!==undefined?'Canonical live NAV and fee inventory from a source-bound observation; paid gas is separately recorded':
    row.mode==='live'?'Canonical live position observed; independent reference or complete fee evidence is unavailable':

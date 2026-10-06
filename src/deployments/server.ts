@@ -41,6 +41,9 @@ export interface CommandServerOptions {origin:string;publicOrigin?:string;now?:(
  rangeKeeperLiveWorkerReadiness?:()=>Promise<{ready:boolean;missing:readonly string[]}>;
  rangeKeeperLiveRetainPreview?:(campaignId:string)=>Promise<unknown>;
  rangeKeeperLiveRetainAdmission?:(campaignId:string,input:z.infer<typeof liveRetainInput>)=>Promise<RangeKeeperLiveReviewAdmissionResult>;
+ /** Withdraw and convert the non-quote leg to the quote token (USDG); same review, digest and queue contract as retain. */
+ rangeKeeperLiveConvertPreview?:(campaignId:string)=>Promise<unknown>;
+ rangeKeeperLiveConvertAdmission?:(campaignId:string,input:z.infer<typeof liveRetainInput>)=>Promise<RangeKeeperLiveReviewAdmissionResult>;
  paperPreview?:(campaignId:string,kind:'open'|'pause'|'resume'|'close_retain'|'close_convert')=>Promise<unknown>;
  paperSetupPreflight?:(input:PaperSetupPreflightInput)=>Promise<unknown>;
  paperSetupDraftAdmission?:(input:unknown)=>Promise<unknown>;
@@ -375,6 +378,32 @@ export function createDeploymentCommandServer(store:CommandStore,
      send(response,503,{error:'draft_creation_reconciliation_required',...result});return;}
     const reason=result.missing?.[0]??'rangekeeper_setup_draft_unavailable';
     send(response,RANGEKEEPER_SETUP_STALE_REASONS.includes(reason)?409:422,{error:reason,...result});return;
+   }
+   // Convert exit: the retained close's twin that also sells the non-quote leg into USDG. Same session/CSRF gate, strict review
+   // and shared wallet queue; readiness is reported, never a precondition, and queueing is never execution.
+   const liveConvertPreview=path.match(/^\/api\/deployments\/([0-9a-f-]+)\/live\/convert-preview$/i);
+   if(liveConvertPreview&&uuid.test(liveConvertPreview[1]!)&&request.method==='POST'){
+    sessionInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperLiveConvertPreview){send(response,503,{error:'rangekeeper_live_convert_preview_unavailable'});return;}
+    const result=await options.rangeKeeperLiveConvertPreview(liveConvertPreview[1]!);
+    const available=Boolean(options.rangeKeeperLiveConvertAdmission);
+    send(response,200,{...(result as Record<string,unknown>),
+     operationAcceptanceAvailable:available&&(result as Record<string,unknown>).operationAcceptanceAvailable===true,
+     actionAvailable:available&&(result as Record<string,unknown>).actionAvailable===true,executionEligible:false,
+     liveWorker:await liveWorkerState()});return;
+   }
+   const liveConvertAdmission=path.match(/^\/api\/deployments\/([0-9a-f-]+)\/live\/convert-operations$/i);
+   if(liveConvertAdmission&&uuid.test(liveConvertAdmission[1]!)&&request.method==='POST'){
+    const input=liveRetainInput.parse(await jsonBody(request));
+    if(!options.rangeKeeperLiveConvertAdmission){
+     send(response,503,{error:'rangekeeper_live_convert_unavailable',status:'unavailable',
+      missing:['rangekeeper_live_convert_unavailable'],actionAvailable:false,executionEligible:false});return;
+    }
+    const result=await options.rangeKeeperLiveConvertAdmission(liveConvertAdmission[1]!,input);
+    if(result.status==='queued'){send(response,result.replayed?200:202,{...result,liveWorker:await liveWorkerState()});return;}
+    if(result.status==='request_conflict'){send(response,409,{error:'live_request_id_conflict',...result});return;}
+    send(response,409,{error:result.status==='unavailable'?result.missing[0]??'rangekeeper_live_convert_unavailable':
+     'rangekeeper_live_convert_unavailable',...result});return;
    }
    if(path==='/api/deployments/setup-drafts'&&request.method==='POST'){
     if(!options.paperSetupDraftAdmission){send(response,503,{error:'paper_setup_draft_admission_unavailable'});return;}

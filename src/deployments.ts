@@ -655,6 +655,7 @@ async function main(){
   rangeKeeperLiveAdmissionReady:async()=>(await liveWiring.workerReadiness()).ready,
   rangeKeeperLiveWorkerReadiness:liveWiring.workerReadiness,
   rangeKeeperLiveRetainPreview:liveWiring.retainPreview,rangeKeeperLiveRetainAdmission:liveWiring.retainAdmission,
+  rangeKeeperLiveConvertPreview:liveWiring.convertPreview,rangeKeeperLiveConvertAdmission:liveWiring.convertAdmission,
   setupDefaults:()=>deploymentSetupDefaults(env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS),
   paperPreview,paperSetupPreflight,paperSetupDraftAdmission,paperSetupDraftList:()=>store.listStaticPaperDrafts(),
   rangeKeeperSetupPreflight,rangeKeeperSetupDraftAdmission,rangeKeeperOpenAcceptance,

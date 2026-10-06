@@ -175,6 +175,10 @@ test('live rows format lifecycle, current job, stage, nonce and transaction hash
  assert.equal(fact(recentering,'Current job').startsWith('Recenter executing'),true);
  const closing=liveRowModel(livePosition('closing',{job:{...baseJob,kind:'close_retain',status:'queued',inFlight:true}}));
  assert.equal(closing.summary,'Closing · retain tokens · Retain-close queued');assert.equal(closing.retain.reason,'Retain-close is already in progress.');
+ const convertClosing=liveRowModel(livePosition('closing',{job:{...baseJob,kind:'close_convert',status:'executing',inFlight:true}}));
+ assert.match(convertClosing.summary,/^Closing · convert to USDG · Convert-close executing/,'a convert exit is not described as a retained close');
+ const convertClosed=liveRowModel(livePosition('closed',{job:{...baseJob,kind:'close_convert'},nftId:null,range:{state:'no_liquidity'}},{history:true,range:[null,null]}));
+ assert.match(convertClosed.summary,/^Closed · converted to USDG; any unsold tokens remain/);
  const closed=liveRowModel(livePosition('closed',{job:{...baseJob,kind:'close_retain'},nftId:null,range:{state:'no_liquidity'}},{history:true,range:[null,null]}));
  assert.match(closed.summary,/^Closed/);assert.equal(closed.retain.reason,'This campaign is closed.');assert.equal(fact(closed,'Position NFT'),'none');
  const blocked=liveRowModel(livePosition('blocked',{blockedReason:'transaction_reverted:55555555-5555-4555-8555-555555555501:mint:abc'}));
@@ -209,7 +213,7 @@ function appContext(capability:unknown=null,pathname='/operator'){
   location:{pathname},fetch:()=>new Promise(()=>{}),AbortSignal,__tabs:tabsModule});
  const script=readFileSync(new URL('../dashboard/app.js',import.meta.url),'utf8')
   .replace(/import \{[^\n]+\} from '\.\/deployment-actions\.js';/,
-   'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{};')
+   'const mountPaperLifecycleAction=()=>{},mountStaticRetainAction=()=>{},mountPaperConvertAction=()=>{},mountPendingPaperAcceptanceRecovery=()=>{},mountLiveConvertAction=()=>{},liveConvertStorageKey=id=>`live-convert-${id}`;')
   .replace(/import (\{[^}]+\}) from '\.\/tabs\.js';/s,'const $1=__tabs;');
  vm.runInContext(script,context);
  return {context,run:(expression:string)=>vm.runInContext(expression,context)};
@@ -255,7 +259,8 @@ test('several live campaigns render concurrently as their own rows; only holding
  assert.match(html,/<span class="muted">unavailable<\/span>/);
  const queuedRow=html.split('<tr class="live-row-facts')[4]!;
  assert.doesNotMatch(queuedRow,/>0\.00</,'a queued campaign is not zero-filled');
- assert.equal((html.match(/data-can-review="true"/g)??[]).length,2);
+ assert.equal((html.match(/live-convert-action-root/g)??[]).length,2,'only the two holding campaigns offer the withdraw-and-convert exit');
+ assert.equal((html.match(/data-can-review="true"/g)??[]).length,4,'each holding campaign offers both exits');
  run('modes.live.history=true');
  assert.deepEqual((run('visible("live")') as any[]).map(p=>p.deployment.live.lifecycle),['closed']);
  assert.equal(run('positions.filter(p=>["queued","blocked"].includes(p.deployment.live.lifecycle)).some(sourceStale)'),false,
@@ -268,7 +273,7 @@ test('live retain actions are omitted on the public dashboard and unauthenticate
  Object.assign(context,{position});
  context.p=run('normalize(position)');
  const html=run('row(p,null)') as string;
- assert.doesNotMatch(html,/live-retain-action-root/);
+ assert.doesNotMatch(html,/live-retain-action-root|live-convert-action-root/);
  assert.match(html,/Live actions are available on the operator dashboard/);
  assert.equal(run('lifecycleControls(p)'),'','live positions get no pause or convert controls');
 });

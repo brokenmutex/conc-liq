@@ -22,7 +22,8 @@ import {liveWalletCommitmentFingerprint,liveWalletInventoryMatchesState} from '.
 import {verifyRangeKeeperWalletCode} from '../strategy/rangekeeper/wallet-code.js';
 import {marketProfileSchema,type MarketProfile} from './market-profile.js';
 import {contentHash} from './contracts.js';
-import {simulateRangeKeeperRetain} from '../strategy/rangekeeper/fork-simulator.js';
+import {simulateRangeKeeperExit} from '../strategy/rangekeeper/fork-simulator.js';
+import {rangeKeeperPoolWithinReference} from '../strategy/rangekeeper/live-stage.js';
 import {recordRangeKeeperLiveManagementReview,type RangeKeeperLiveManagementObservation,type RangeKeeperLiveManagementQueueInput} from './rangekeeper-live-management.js';
 import type {RangeKeeperSnapshot} from '../strategy/rangekeeper/live-domain.js';
 
@@ -100,7 +101,8 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   assert(result.state.source?.block===String(source.block)&&lower(result.state.source.hash)===lower(source.hash),'Wallet refresh source differs');
   return {obs,state:result.state};
  };
- const collect=async(campaign:RangeKeeperLiveCampaign,includeRetainCost:boolean,refreshWallet=true):Promise<RangeKeeperLiveManagementObservation>=>{
+ const collect=async(campaign:RangeKeeperLiveCampaign,includeRetainCost:boolean,refreshWallet=true,
+  exitMode:'retain'|'convert'='retain'):Promise<RangeKeeperLiveManagementObservation>=>{
   // A recenter in progress is observed (never retain-priced) so policy exits can still reach a stuck campaign.
   assert(campaign.state&&campaign.status==='active'&&(campaign.state.phase==='holding'&&campaign.state.activeTokenId!==null||
    campaign.state.phase==='recenter'&&!includeRetainCost),'Management observation requires an active held campaign');
@@ -140,7 +142,7 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
    uncollected0Raw:String(mark.uncollected0),uncollected1Raw:String(mark.uncollected1),grossFee0Raw:String(mark.grossFee0),
    grossFee1Raw:String(mark.grossFee1),inventory0Raw:String(mark.principal0+mark.uncollected0),inventory1Raw:String(mark.principal1+mark.uncollected1),
    collectionSimulation:'canonical_eth_call',referenceProofHash:refs.proofHash}:null;
-  const costs=includeRetainCost?await managementCosts(campaign,source,profile,refs):null;
+  const costs=includeRetainCost?await managementCosts(campaign,source,profile,refs,exitMode):null;
   const position=p?{tokenId:String(p.tokenId),liquidityRaw:String(p.liquidity),principal0Raw:String(mark.principal0),principal1Raw:String(mark.principal1),
    uncollected0Raw:String(mark.uncollected0),uncollected1Raw:String(mark.uncollected1),inventory0Raw:String(mark.inventory0),inventory1Raw:String(mark.inventory1),
    grossFee0Raw:String(mark.grossFee0),grossFee1Raw:String(mark.grossFee1),gasSpentWei:String(campaign.state.gasSpentWei),
@@ -151,31 +153,76 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   const dbstate=await readWalletState(input.pool,input.wallet);assert(dbstate.status==='available'&&dbstate.source&&dbstate.commitmentsHash,'Refreshed wallet state unavailable');
   assert(dbstate.generation>=campaign.allocation.sourceGeneration,'Wallet generation predates campaign allocation');
   return {source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},snapshot,references:refs,position,
-   positionFeeEvidence:feeEvidence,decision:{reason:'retain_only_preview',observationHash},costs,expiresAt:source.timestamp+90};
+   positionFeeEvidence:feeEvidence,decision:{reason:exitMode==='convert'?'convert_exit_preview':'retain_only_preview',observationHash},costs,
+   expiresAt:source.timestamp+90};
  };
- const managementCosts=async(campaign:RangeKeeperLiveCampaign,source:RangeKeeperSource,profile:MarketProfile,refs:RangeKeeperStageReferences)=>{
-  const tokenId=campaign.state?.activeTokenId;assert(tokenId!==null&&tokenId!==undefined,'Retain cost requires managed NFT');
-  const retain=await simulateRangeKeeperRetain({rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary,source,config:campaign.config,
-   operator:campaign.wallet,activeTokenId:tokenId,prices:{price0:refs.price0,price1:refs.price1},
+ const managementCosts=async(campaign:RangeKeeperLiveCampaign,source:RangeKeeperSource,profile:MarketProfile,refs:RangeKeeperStageReferences,
+  exitMode:'retain'|'convert'='retain')=>{
+  const label=exitMode==='convert'?'Convert':'Retain';
+  const tokenId=campaign.state?.activeTokenId;assert(tokenId!==null&&tokenId!==undefined,`${label} cost requires managed NFT`);
+  const retain=await simulateRangeKeeperExit({rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary,source,config:campaign.config,
+   operator:campaign.wallet,activeTokenId:tokenId,prices:{price0:refs.price0,price1:refs.price1},exitMode,
    allocation:{amount0:campaign.allocation.liquidByTokenAddress[profile.pool.token0.toLowerCase()]!,
     amount1:campaign.allocation.liquidByTokenAddress[profile.pool.token1.toLowerCase()]!}});
-  assert(sameSource(retain.source,{block:String(source.block),hash:source.hash,timestamp:source.timestamp}),'Retain fork proof source changed');
+  assert(sameSource(retain.source,{block:String(source.block),hash:source.hash,timestamp:source.timestamp}),`${label} fork proof source changed`);
   const stages=retain.gasByStage.map(row=>{const actual=row.gasUsed,estimated=(row as any).estimatedGas;
-   assert(actual>0n&&typeof estimated==='bigint'&&estimated>0n,'Retain stage gas proof is incomplete');
+   assert(actual>0n&&typeof estimated==='bigint'&&estimated>0n,`${label} stage gas proof is incomplete`);
    const basis=actual>estimated?actual:estimated;return {...row,gasUnitsBound:ceilDiv(basis*13n,10n)};});
   const gasWei=stages.reduce((sum,row)=>sum+row.gasUnitsBound,0n);
   const block=await input.client.getBlock({blockNumber:source.block}),gasPrice=await input.client.getGasPrice();
   const feePerGas=ceilDiv((block.baseFeePerGas&&block.baseFeePerGas>gasPrice?block.baseFeePerGas:gasPrice)*5n,4n),gasCostWei=gasWei*feePerGas;
   const gasCostValue=ceilDiv(gasCostWei*refs.nativePrice,10n**18n);
-  assert(gasCostWei>0n&&gasCostValue>0n&&gasCostWei<=campaign.allocation.exitReserveWei,'Retain cost exceeds reviewed exit reserve');
-  const now=Math.floor((input.now??Date.now)()/1000);assert(source.timestamp<=now+5&&now-source.timestamp<=180,'Retain proof source expired');
-  return {status:'estimated',provenance:'owned_fork_allocated_lifecycle_v1',source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
+  // A retained exit draws on the scoped exit reserve. A convert exit's stages are gas-bounded the same way, and its reserve was
+  // sized for a complete conversion; the campaign's remaining operating gas may also fund it, as it does stage by stage.
+  const gasBudgetWei=exitMode==='convert'?campaign.allocation.exitReserveWei+campaign.allocation.nativeSpendWei:campaign.allocation.exitReserveWei;
+  assert(gasCostWei>0n&&gasCostValue>0n&&gasCostWei<=gasBudgetWei,`${label} cost exceeds reviewed exit reserve`);
+  const now=Math.floor((input.now??Date.now)()/1000);assert(source.timestamp<=now+5&&now-source.timestamp<=180,`${label} proof source expired`);
+  const base={status:'estimated',provenance:'owned_fork_allocated_lifecycle_v1',source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
    stages:stages.map(s=>({kind:s.kind,phase:s.phase,gasUsed:String(s.gasUsed),estimatedGas:String((s as any).estimatedGas),gasUnitsBound:String(s.gasUnitsBound)})),
    gasUnitsBound:String(gasWei),
-   feePerGasBoundWei:String(feePerGas),gasWei:String(gasCostWei),gasValueUsdX18:String(gasCostValue),actionCostValue:String(gasCostValue),
+   feePerGasBoundWei:String(feePerGas),gasWei:String(gasCostWei),gasValueUsdX18:String(gasCostValue),
    retained0:String(retain.retained0),retained1:String(retain.retained1)};
+  if(exitMode==='retain')return {...base,actionCostValue:String(gasCostValue)};
+  const swap=retain.conversion;
+  const conversion={mode:'convert' as const,swapRequired:swap!==null,
+   withdrawn0:String(retain.withdrawn?.amount0??0n),withdrawn1:String(retain.withdrawn?.amount1??0n),
+   maxSlippageBps:campaign.config.limits.maxSlippageBps,maxSwapShortfallValue:String(campaign.config.limits.maxSwapShortfallValue),
+   quoteIndex:profile.pool.quoteToken,decimals0:profile.pool.decimals0,decimals1:profile.pool.decimals1,
+   quoteToken:profile.pool.quoteToken===0?profile.pool.token0:profile.pool.token1,
+   riskyToken:profile.pool.quoteToken===0?profile.pool.token1:profile.pool.token0,
+   route:{kind:'direct_exact_input_single',router:profile.pool.router,fee:profile.pool.fee},
+   ...(swap?{token:swap.token,amountIn:String(swap.amountIn),minOut:String(swap.minOut),expectedOut:String(swap.expectedOut),
+    rehearsedOut:String(swap.actualOut),feeValue:String(swap.feeValue),shortfallValue:String(swap.shortfallValue)}:
+    {feeValue:'0',shortfallValue:'0'})};
+  const swapCost=BigInt(conversion.feeValue)+BigInt(conversion.shortfallValue);
+  return {...base,conversion,swapCostValue:String(swapCost),actionCostValue:String(gasCostValue+swapCost)};
+ };
+ /** Fresh-source recheck of a convert review at admission: a newly read confirmed source must still show the pool inside the
+  * reference policy and the sale (sized as previewed) quoted within the shortfall limit. Fails closed on any doubt. */
+ const verifyConvertFresh=async(campaign:RangeKeeperLiveCampaign,payload:RangeKeeperLiveManagementReviewPayload):Promise<boolean>=>{
+  try{
+   const conv=(payload.costs as any)?.conversion;
+   if(!conv||conv.mode!=='convert'||payload.operationKind!=='close_convert')return false;
+   const allProfiles=await input.pool.connect().then(async db=>{try{return await profiles(db);}finally{db.release();}});
+   const row=allProfiles.find(p=>(p.id===null||p.id===campaign.profileId)&&contentHash(p.profile)===payload.profileHash),profile=row?.profile;
+   if(!profile||contentHash(profile)!==payload.profileHash)return false;
+   const source=await sourceNow();
+   const latest=await input.client.getBlock();if(latest.number<source.block)return false;
+   const chain=new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances);
+   await chain.verify(source);
+   const refs=await readRangeKeeperLiveStageReferences({client:input.client,campaignId:campaign.id,revision:campaign.revision,profile,source});
+   if(!await verifyRangeKeeperLiveStageReferences({client:input.client,campaignId:campaign.id,revision:campaign.revision,profile,expected:refs}))return false;
+   const snapshot=await chain.snapshot(source,campaign.wallet,BigInt(String((payload.position as any)?.tokenId)));
+   // The pool must not have drifted from the independent references, and a withdrawn position must not have moved out of sight.
+   if(!rangeKeeperPoolWithinReference(profile.pool,snapshot.sqrtPriceX96,{price0:refs.price0,price1:refs.price1},
+    campaign.config.referencePolicy.maxPoolDeviationPpm))return false;
+   if(!conv.swapRequired)return true;
+   const quote=await chain.quote(source,conv.token,BigInt(conv.amountIn),refs.price0,refs.price1);
+   return quote.amountOut>0n&&quote.shortfallValue<=campaign.config.limits.maxSwapShortfallValue;
+  }catch{return false;}
  };
  const observe=(campaign:RangeKeeperLiveCampaign)=>collect(campaign,true);
+ const observeConvert=(campaign:RangeKeeperLiveCampaign)=>collect(campaign,true,true,'convert');
  const observeForManagement=async(campaign:RangeKeeperLiveCampaign)=>{
   const result=await collect(campaign,false,false);
   return {source:result.source,snapshot:result.snapshot,references:result.references,position:result.position,
@@ -245,5 +292,5 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
   const source=await sourceNow();
   return (await refresh(source,allProfiles)).state;
  };
- return {observe,observeForManagement,verifyPinned,observeHoldingCampaigns,refreshWallet};
+ return {observe,observeConvert,observeForManagement,verifyPinned,verifyConvertFresh,observeHoldingCampaigns,refreshWallet};
 }

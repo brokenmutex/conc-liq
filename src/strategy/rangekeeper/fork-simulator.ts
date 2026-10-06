@@ -177,13 +177,16 @@ export async function simulateRangeKeeperCandidate(input:{rpcUrl:string;anvilBin
  }
 }
 
-/** Rehearse a retain-only close using the actual held NFT and only this
- * campaign's liquid allocation. Every mutation is confined to an owned fork;
- * native funding is synthetic and is never evidence of canonical funding. */
-export async function simulateRangeKeeperRetain(input:{rpcUrl:string;anvilBinary:string;source:RangeKeeperSource;
+/** Rehearse a retain-only or convert close using the actual held NFT and only
+ * this campaign's liquid allocation. Every mutation is confined to an owned
+ * fork; native funding is synthetic and is never evidence of canonical funding.
+ * A convert exit also withdraws and then sells the non-quote leg straight into
+ * the quote token through the pool's own router, exactly as the live stages do,
+ * and reports the measured withdrawal and sale. */
+export async function simulateRangeKeeperExit(input:{rpcUrl:string;anvilBinary:string;source:RangeKeeperSource;
  config:RangeKeeperConfig;operator:Address;activeTokenId:bigint;prices:{price0:bigint;price1:bigint};
- allocation:{amount0:bigint;amount1:bigint}}){
- const {source,config,operator}=input;
+ allocation:{amount0:bigint;amount1:bigint};exitMode:'retain'|'convert'}){
+ const {source,config,operator,exitMode}=input;
  const fork=await openPaperFork({source:{number:source.block,hash:source.hash,timestamp:BigInt(source.timestamp)},
   rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary,beforeRead:async()=>{},timeoutMs:180_000,maxRequests:10_000});
  try{
@@ -193,20 +196,27 @@ export async function simulateRangeKeeperRetain(input:{rpcUrl:string;anvilBinary
   const chain=new RangeKeeperChain(client,config.pool);await chain.verify(source);
   let current=await chain.snapshot(source,operator,input.activeTokenId);
   assert(current.position?.tokenId===input.activeTokenId&&current.position.liquidity>0n,
-   'Retain rehearsal requires the campaign held NFT');
+   `${exitMode==='convert'?'Convert':'Retain'} rehearsal requires the campaign held NFT`);
   assert(input.allocation.amount0>=0n&&input.allocation.amount1>=0n&&
    input.allocation.amount0<=current.wallet0&&input.allocation.amount1<=current.wallet1,
-   'Retain rehearsal allocation exceeds canonical inventory');
+   `${exitMode==='convert'?'Convert':'Retain'} rehearsal allocation exceeds canonical inventory`);
   const reserve0=current.wallet0-input.allocation.amount0,reserve1=current.wallet1-input.allocation.amount1;
-  const state={phase:'exit',exitMode:'retain',activeTokenId:input.activeTokenId,
+  const state={phase:'exit',exitMode,activeTokenId:input.activeTokenId,
    reserve0,reserve1,reserveNativeWei:0n} as RangeKeeperLiveState;
   const gasByStage:{kind:string;gasUsed:bigint;estimatedGas:bigint;phase:'exit'}[]=[];
-  let complete=false;
+  const risky:0|1=config.pool.quoteToken===0?1:0,quoteIs0=config.pool.quoteToken===0;
+  let complete=false,withdrawn:{amount0:bigint;amount1:bigint}|null=null;
+  let conversion:null|{token:0|1;amountIn:bigint;minOut:bigint;expectedOut:bigint;actualOut:bigint;feeValue:bigint;shortfallValue:bigint}=null;
   for(let i=0;i<16;i++){
    const plan=await nextRangeKeeperStage(state,current,config,chain,input.prices);
    if(!plan){complete=true;break;}
-   assert(plan.kind==='withdraw'||plan.kind==='approve'&&plan.amount===0n,
+   if(exitMode==='retain')assert(plan.kind==='withdraw'||plan.kind==='approve'&&plan.amount===0n,
     'Retain-only rehearsal attempted a conversion or new approval');
+   else assert(plan.kind==='withdraw'||plan.kind==='approve'&&(plan.amount===0n||plan.spender==='router'&&plan.token===risky)||
+    plan.kind==='swap'&&plan.token===risky,'Convert rehearsal attempted a stage outside the withdrawal, risky-leg sale and cleanup');
+   // Measured before the transaction: the exact quote the live planner used for this sale.
+   const quote=plan.kind==='swap'?await chain.quote(current.source,plan.token,plan.amountIn,input.prices.price0,input.prices.price1):null;
+   const walletBefore={wallet0:current.wallet0,wallet1:current.wallet1};
    authorizeRangeKeeperTx(config.pool,{operator,wallet0:current.wallet0,wallet1:current.wallet1,
     tick:current.tick,sqrtPriceX96:current.sqrtPriceX96,timestamp:current.source.timestamp,
     position:current.position?{...current.position,tokenId:current.position.tokenId!}:null},plan,
@@ -214,11 +224,11 @@ export async function simulateRangeKeeperRetain(input:{rpcUrl:string;anvilBinary
    const call=encodeRangeKeeperTx(config.pool,operator,plan);
    await client.call({account:operator,to:call.to,data:call.data});
    const gas=await client.estimateGas({account:operator,to:call.to,data:call.data});
-   assert(gas>0n&&gas<=8_000_000n,'Retain rehearsal gas estimate unavailable');
+   assert(gas>0n&&gas<=8_000_000n,'Exit rehearsal gas estimate unavailable');
    const hash=await fork.rpc('eth_sendTransaction',[{from:operator,to:call.to,data:call.data,gas:'0x7a1200'}]);
    assert(typeof hash==='string'&&/^0x[0-9a-fA-F]{64}$/.test(hash));
    const receipt=await client.waitForTransactionReceipt({hash:hash as `0x${string}`});
-   assert(receipt.status==='success','Retain rehearsal reverted');
+   assert(receipt.status==='success',`${exitMode==='convert'?'Convert':'Retain'} rehearsal ${plan.kind} reverted`);
    const header=await client.getBlock({blockNumber:receipt.blockNumber});
    const after=await chain.snapshot({block:header.number,hash:header.hash,timestamp:Number(header.timestamp)},operator,input.activeTokenId);
    const proof=reconcileRangeKeeperAction(config.pool,{hash:receipt.transactionHash,plan,before:current,
@@ -227,12 +237,29 @@ export async function simulateRangeKeeperRetain(input:{rpcUrl:string;anvilBinary
      sourceBlock:String(current.source.block),sourceHash:current.source.hash}},receipt,after);
    assert.equal(proof.status,'success');
    gasByStage.push({kind:plan.kind,gasUsed:receipt.gasUsed,estimatedGas:gas,phase:'exit'});current=after;
-   assert(current.wallet0>=reserve0&&current.wallet1>=reserve1,'Retain rehearsal spent sibling capital');
-   if(plan.kind==='withdraw')state.activeTokenId=null;
+   assert(current.wallet0>=reserve0&&current.wallet1>=reserve1,`${exitMode==='convert'?'Convert':'Retain'} rehearsal spent sibling capital`);
+   if(plan.kind==='withdraw'){
+    state.activeTokenId=null;
+    withdrawn={amount0:current.wallet0-walletBefore.wallet0,amount1:current.wallet1-walletBefore.wallet1};
+   }
+   if(plan.kind==='swap'&&quote){
+    const actualOut=quoteIs0?current.wallet0-walletBefore.wallet0:current.wallet1-walletBefore.wallet1;
+    assert(actualOut>=plan.minOut&&actualOut>0n,'Convert rehearsal sale returned less than its minimum');
+    conversion={token:plan.token,amountIn:plan.amountIn,minOut:plan.minOut,expectedOut:quote.amountOut,actualOut,
+     feeValue:quote.feeValue,shortfallValue:quote.shortfallValue};
+   }
   }
   assert(complete&&gasByStage.some(stage=>stage.kind==='withdraw')&&current.position?.liquidity===0n&&
    current.position.tokensOwed0===0n&&current.position.tokensOwed1===0n&&current.allowances.every(a=>a.amount===0n),
-   'Retain rehearsal custody or allowance cleanup is incomplete');
-  return {source,tokenId:input.activeTokenId,gasByStage,retained0:current.wallet0-reserve0,retained1:current.wallet1-reserve1};
+   `${exitMode==='convert'?'Convert':'Retain'} rehearsal custody or allowance cleanup is incomplete`);
+  if(exitMode==='convert')assert((risky===0?current.wallet0-reserve0:current.wallet1-reserve1)===0n,
+   'Convert rehearsal left risky-leg inventory unsold');
+  return {source,tokenId:input.activeTokenId,gasByStage,retained0:current.wallet0-reserve0,retained1:current.wallet1-reserve1,
+   withdrawn,conversion};
  }finally{await fork.close();}
+}
+
+/** Rehearse a retain-only close (see {@link simulateRangeKeeperExit}). */
+export async function simulateRangeKeeperRetain(input:Omit<Parameters<typeof simulateRangeKeeperExit>[0],'exitMode'>){
+ return simulateRangeKeeperExit({...input,exitMode:'retain'});
 }

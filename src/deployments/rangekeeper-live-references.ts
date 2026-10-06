@@ -8,7 +8,7 @@ import {readCanonicalPaperOpenFrame,type PaperOpenFrame} from './paper-preview.j
 import {rangeKeeperPinnedSemanticProofHash} from './rangekeeper-live-review-runtime.js';
 import type {RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import type {RangeKeeperLiveManagementReviewPayload} from './rangekeeper-live-campaign.js';
-import {isRangeKeeperRetainedExit} from './rangekeeper-live-campaign.js';
+import {isRangeKeeperConvertExit,isRangeKeeperManagedExit,isRangeKeeperRetainedExit} from './rangekeeper-live-campaign.js';
 import {parseRangeKeeperJson,rangeKeeperJson} from '../strategy/rangekeeper/live-domain.js';
 import {readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
 import {marketProfileSchema} from './market-profile.js';
@@ -84,7 +84,7 @@ export function createRangeKeeperLivePreparedIntentVerifier(input:{pool:Pool;cli
  return async(args:{job:LiveJob;outbox:LiveOutbox}):Promise<boolean>=>{
   try{
    const {job,outbox}=args;
-   if(!['open','change_range','close_retain'].includes(job.kind)||
+   if(!['open','change_range','close_retain','close_convert'].includes(job.kind)||
     job.status==='succeeded'||job.status==='rejected'||job.status==='cancelled')return false;
    const row=(await input.pool.query<any>(`SELECT authorization_json,authorization_hash,source_block,source_hash,source_timestamp,
     campaign_id,revision,allocation_id,profile_hash,config_hash,allocation_hash
@@ -105,10 +105,13 @@ export function createRangeKeeperLivePreparedIntentVerifier(input:{pool:Pool;cli
     String(beforeSource.hash).toLowerCase()!==source.hash.toLowerCase()||Number(beforeSource.timestamp)!==source.timestamp||
     e.nonce!==outbox.intent.nonce||e.gasUnitsBound!==outbox.intent.gas||e.maxFeePerGasWei!==outbox.intent.maxFeePerGas||
     e.priorityFeePerGasWei!==outbox.intent.maxPriorityFeePerGas)return false;
-   if(e.exitSpendAllowed!==(job.kind==='close_retain'))return false;
    const persistedAuthorization=(outbox.before as any)?.authorization;
    if(persistedAuthorization&&contentHash(persistedAuthorization)!==row.authorization_hash)return false;
    const campaign=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,address:job.wallet,campaignId:job.campaignId,revision:job.revision});
+   // Exit-reserve and convert permission are bound to the job's operation kind and to the persisted campaign state the stage
+   // was authorized under (a recenter that settled into a retained exit, or a convert exit that degraded to retain).
+   const expectExitSpend=job.kind==='close_retain'||job.kind==='close_convert'||isRangeKeeperManagedExit(campaign.state);
+   if(e.exitSpendAllowed!==expectExitSpend||(e.exitConvert===true)!==(expectExitSpend&&isRangeKeeperConvertExit(campaign.state)))return false;
    if(campaign.profileHash!==e.profileHash||campaign.allocation.allocationHash!==e.allocationHash||
     campaign.allocation.allocationId!==e.allocationId||campaign.configHash.slice(2)!==e.configHash)return false;
    if(job.kind==='open'){
@@ -132,6 +135,9 @@ export function createRangeKeeperLivePreparedIntentVerifier(input:{pool:Pool;cli
     // A recenter that can no longer complete settles into a retained exit and its job continues as that exit.
     if(job.kind==='change_range'){
      if(current.phase!=='recenter'&&current.phase!=='holding'&&!isRangeKeeperRetainedExit(current))return false;
+    }else if(job.kind==='close_convert'){
+     // A convert exit continues as a convert exit, or as the retained exit it degraded to after a bounded wait or a revert.
+     if(!isRangeKeeperManagedExit(current))return false;
     }else if(!isRangeKeeperRetainedExit(current))return false;
    }
    const walletState=await readWalletState(input.pool,input.wallet),commitments=await readCommitments(input.pool,input.wallet),before=outbox.before as any;

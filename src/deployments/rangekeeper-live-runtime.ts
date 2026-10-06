@@ -34,7 +34,7 @@ export interface RangeKeeperLiveRuntimeInput {
 }
 
 /** Compose one shared wallet queue, campaign worker, canonical management
- * observer/planner, and retained-exit review API. Constructing this runtime
+ * observer/planner, and retained/convert exit review API. Constructing this runtime
  * never starts the worker. Management persistence and transaction execution
  * are independently closed by default. */
 export function createRangeKeeperLiveRuntime(input:RangeKeeperLiveRuntimeInput){
@@ -63,7 +63,8 @@ export function createRangeKeeperLiveRuntime(input:RangeKeeperLiveRuntimeInput){
  observeAndEnqueueManagement=async()=>{await planner.observeAndEnqueueManagement();};
  refreshWalletSnapshot=async()=>{await observer.refreshWallet();};
  const management=createRangeKeeperLiveManagementRuntime({pool:input.pool,wallet,buildId:input.buildId,
-  persistReviews:input.persistReviews===true,observe:observer.observe,verifyPinned:observer.verifyPinned,
+  persistReviews:input.persistReviews===true,observe:observer.observe,observeConvert:observer.observeConvert,
+  verifyPinned:observer.verifyPinned,verifyConvertFresh:observer.verifyConvertFresh,
   enqueue:job=>runtime.queue.enqueue(job),now:input.now});
  // Process-local self-check only. It cannot prove a separately supervised
  // worker is alive and must not be used by the command server as that proof.
@@ -86,5 +87,7 @@ export function createRangeKeeperLiveRuntime(input:RangeKeeperLiveRuntimeInput){
    executionConfigured:execution!==undefined,missing:[...new Set(missing)]};
  };
  return {...runtime,observer,planner,management,workerReadiness,retainPreview:(campaignId:string)=>management.retainPreview(campaignId),
-  retainOperation:(campaignId:string,body:Parameters<typeof management.retainOperation>[1])=>management.retainOperation(campaignId,body)};
+  retainOperation:(campaignId:string,body:Parameters<typeof management.retainOperation>[1])=>management.retainOperation(campaignId,body),
+  convertPreview:(campaignId:string)=>management.convertPreview(campaignId),
+  convertOperation:(campaignId:string,body:Parameters<typeof management.convertOperation>[1])=>management.convertOperation(campaignId,body)};
 }

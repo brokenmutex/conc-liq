@@ -20,15 +20,17 @@ export interface RangeKeeperLiveStageProofRequest {
  prices:{price0:bigint;price1:bigint;nativePrice:bigint};referenceProofHash:string;futureApprovalCap?:bigint;
  /** persistent_capped_v1: per-token raw ceiling an approval may reach (5x the initiating campaign's exposure). */
  allowanceCeiling?:readonly [bigint,bigint];
- /** True only for a retained close whose persisted campaign state is exit/stopped/retain. */
+ /** True only for a retain or convert close whose persisted campaign state is exit/stopped/(retain|convert). */
  exitSpendAllowed?:boolean;
+ /** True only for a convert exit that may still sell the non-quote leg (persisted state exit/stopped/convert). */
+ exitConvert?:boolean;
 }
 export interface RangeKeeperLiveStageEvidence {
  schemaVersion:1;kind:'rangekeeper_live_owned_stage_v1';status:'success';
  campaignId:string;allocationId:string;revision:number;stage:string;buildId:string;
  source:{block:string;hash:Hex;timestamp:number};profileHash:string;allocationHash:string;
  configHash:string;referenceProofHash:string;planHash:string;calldataHash:string;beforeHash:string;requestHash:string;
- exitSpendAllowed:boolean;
+ exitSpendAllowed:boolean;exitConvert:boolean;
  nonce:number;gasUsed:string;gasUnitsBound:string;maxFeePerGasWei:string;priorityFeePerGasWei:'0';
  stageGasWei:string;costValue:string;forkReceiptHash:string;evidenceHash:string;
  syntheticNativeFunding:true;expiresAt:number;
@@ -54,8 +56,16 @@ function assertRequest(r:RangeKeeperLiveStageProofRequest){
  const amount0=allocation.liquidByTokenAddress[address(p.token0)],amount1=allocation.liquidByTokenAddress[address(p.token1)];
  assert(amount0!==undefined&&amount1!==undefined&&amount0>=0n&&amount1>=0n&&
   amount0<=r.beforePool.wallet0&&amount1<=r.beforePool.wallet1,'Stage allocation exceeds canonical wallet tokens');
- if(r.exitSpendAllowed===true)assert(r.plan.kind==='withdraw'||r.plan.kind==='approve'&&r.plan.amount===0n,
-  'Retained exit reserve is available only to withdraw/allowance-cleanup stages');
+ assert(r.exitConvert!==true||r.exitSpendAllowed===true,'Convert permission requires an exit stage');
+ if(r.exitSpendAllowed===true){
+  // A convert exit may additionally approve the router for, and sell, the non-quote leg straight into the quote token.
+  // Every plan still passes the semantic calldata authorization below (direct route, bounded amounts).
+  const risky:0|1=p.quoteToken===0?1:0;
+  assert(r.plan.kind==='withdraw'||r.plan.kind==='approve'&&r.plan.amount===0n||
+   r.exitConvert===true&&(r.plan.kind==='swap'&&r.plan.token===risky||
+    r.plan.kind==='approve'&&r.plan.spender==='router'&&r.plan.token===risky),
+   'Exit reserve is available only to withdraw/allowance-cleanup stages and the convert exit risky-leg sale');
+ }
  assert(allocation.nativeSpendWei>=0n&&allocation.exitReserveWei>=0n&&
   allocation.nativeSpendWei+allocation.exitReserveWei<=r.beforePool.nativeWei,'Stage allocation exceeds canonical native');
  authorizeRangeKeeperTx(p,{operator:r.beforePool.operator,wallet0:amount0,wallet1:amount1,
@@ -102,7 +112,7 @@ export function buildRangeKeeperLiveStageEvidence(r:RangeKeeperLiveStageProofReq
   campaignId:r.campaignId,allocationId:r.allocationId,revision:r.revision,stage:r.stage,buildId:r.buildId,
   source:{block:String(r.source.block),hash:r.source.hash,timestamp:r.source.timestamp},
   profileHash:r.profileHash,allocationHash:r.allocationHash,configHash:rangeKeeperConfigHash(r.config).slice(2),
-  exitSpendAllowed:r.exitSpendAllowed===true,
+  exitSpendAllowed:r.exitSpendAllowed===true,exitConvert:r.exitConvert===true,
   referenceProofHash:r.referenceProofHash,planHash:liveSetupEvidenceHash(r.plan),
   calldataHash:liveSetupEvidenceHash(encodeRangeKeeperTx(r.config.pool,r.beforePool.operator,r.plan)),
   beforeHash:liveSetupEvidenceHash(r.beforePool),requestHash:liveSetupEvidenceHash(r),nonce:r.beforePool.nonce,

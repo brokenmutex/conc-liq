@@ -13,6 +13,17 @@ const same=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
 const haircut=(n:bigint,bps:number)=>n*(10_000n-BigInt(bps))/10_000n;
 export class RangeKeeperStaleCandidateError extends Error {}
 export class RangeKeeperMintUnavailableError extends Error {}
+/** The risky-leg sale of a convert exit cannot be planned now (detached pool, no/excessive-shortfall quote, or its
+ * simulation/cost bound failed). Nothing was signed; the exit may wait and then degrade to a retained close. */
+export class RangeKeeperExitConversionUnavailableError extends Error {}
+/** True when the pool's spot price agrees with the independent references within the frozen deviation policy. */
+export function rangeKeeperPoolWithinReference(p:{decimals0:number;decimals1:number},sqrtPriceX96:bigint,
+ prices:{price0:bigint;price1:bigint},maxPoolDeviationPpm:number):boolean{
+ const poolPrice1=((1n<<192n)*10n**BigInt(p.decimals1)*prices.price0)/
+  (sqrtPriceX96*sqrtPriceX96*10n**BigInt(p.decimals0));
+ const deviation=poolPrice1>prices.price1?poolPrice1-prices.price1:prices.price1-poolPrice1;
+ return deviation*1_000_000n<=prices.price1*BigInt(maxPoolDeviationPpm);
+}
 
 /** Without `allowancePolicy` this is the legacy zero-at-rest planner (live CLI controller, paper sampler, fork tests).
  * The shared live wallet passes `persistent_capped_v1`: approvals persist and are capped, there is no per-stage cleanup,
@@ -59,14 +70,12 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   const amount=state.exitMode==='retain'?0n:(risky===0?funds.amount0:funds.amount1);
   if(amount>0n){
    // Do not sell a verified asset into a detached or manipulated pool.
-   const poolPrice1=((1n<<192n)*10n**BigInt(p.decimals1)*prices.price0)/
-    (s.sqrtPriceX96*s.sqrtPriceX96*10n**BigInt(p.decimals0));
-   const deviation=poolPrice1>prices.price1?poolPrice1-prices.price1:prices.price1-poolPrice1;
-   assert(deviation*1_000_000n<=prices.price1*BigInt(config.referencePolicy.maxPoolDeviationPpm),
-    'Exit pool/reference deviation');
+   if(!rangeKeeperPoolWithinReference(p,s.sqrtPriceX96,prices,config.referencePolicy.maxPoolDeviationPpm))
+    throw new RangeKeeperExitConversionUnavailableError('Exit pool/reference deviation');
    const approval=grant(risky,'router',amount);if(approval)return approval;
    const quote=await chain.quote(s.source,risky,amount,prices.price0,prices.price1);
-   assert(quote.amountOut>0n&&quote.shortfallValue<=l.maxSwapShortfallValue,'Exit quote unavailable or excessive shortfall');
+   if(!(quote.amountOut>0n&&quote.shortfallValue<=l.maxSwapShortfallValue))
+    throw new RangeKeeperExitConversionUnavailableError('Exit quote unavailable or excessive shortfall');
    return {kind:'swap',token:risky,amountIn:amount,minOut:haircut(quote.amountOut,l.maxSlippageBps),deadline};
   }
   return zeroUnusedAllowance();

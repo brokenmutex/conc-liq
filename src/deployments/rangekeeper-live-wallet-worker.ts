@@ -34,6 +34,9 @@ export interface RangeKeeperLiveWorkerAdapters {
  nextStage(input:{job:LiveJob;lastOutbox:LiveOutbox|null}):Promise<RangeKeeperNextStage>;
  /** Persist a recoverable stale/infeasible stage condition as campaign state so it is never repeated blindly. */
  settleManagementStage?(input:{job:LiveJob;error:unknown}):Promise<RangeKeeperManagementSettlement>;
+ /** After a canonical revert was attributed (its gas and effect are persisted), true only when campaign state settled into
+  * a recoverable retained exit that the same convert-close job continues, instead of halting. Absent or false blocks. */
+ revertedStageRecovered?(input:{job:LiveJob;outbox:LiveOutbox}):Promise<boolean>;
  /** Re-anchor the persisted whole-wallet snapshot before deriving a new stage when it has aged. No unresolved transaction may exist. */
  refreshWalletSnapshot?(input:{job:LiveJob}):Promise<void>;
  /** Idempotent effect reducer keyed by effectId for every accepted stage receipt. */
@@ -111,7 +114,7 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
    return done({status:'blocked',jobId:job.id,reason});
   };
   try{
-   if(job.kind!=='open'&&job.kind!=='change_range'&&job.kind!=='close_retain'){
+   if(job.kind!=='open'&&job.kind!=='change_range'&&job.kind!=='close_retain'&&job.kind!=='close_convert'){
     await input.queue.transition(input.wallet,job.id,leaseToken,'blocked',outbox?.stage??undefined);
     return done({status:'blocked',jobId:job.id,reason:'followup_operation_worker_unavailable'});
    }
@@ -129,7 +132,7 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
     if(job.kind!=='open')await input.adapters.refreshWalletSnapshot?.({job});
     try{return await input.adapters.nextStage({job,lastOutbox:last});}
     catch(error){
-     const settle=job.kind==='change_range'?input.adapters.settleManagementStage:undefined;
+     const settle=job.kind==='change_range'||job.kind==='close_convert'?input.adapters.settleManagementStage:undefined;
      if(!settle)throw error;
      // A failure to settle (for example an RPC outage while reading the snapshot) must not mask the original error.
      const settled=await settle({job,error}).catch(()=>({kind:'unsettled'} as const));
@@ -143,9 +146,12 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
     if(typeof receiptHash!=='string'||!/^[0-9a-f]{64}$/.test(receiptHash))throw new Error('reverted_receipt_hash_missing');
     const effectId=contentHash({jobId:job.id,stage:outbox.stage,receiptHash});
     await input.adapters.advanceCampaignEffect({effectId,job,outbox});
-    return block('canonical_stage_reverted',outbox.stage,REVERTED_RETRY_MS);
+    // A reverted risky-leg sale of a convert exit degrades the campaign to a retained exit; the same job continues
+    // (its remaining stages are the allowance cleanup) rather than waiting on a halt that nothing would clear.
+    const recovered=job.kind==='close_convert'&&await input.adapters.revertedStageRecovered?.({job,outbox})===true;
+    if(!recovered)return block('canonical_stage_reverted',outbox.stage,REVERTED_RETRY_MS);
    }
-   if(outbox?.status==='confirmed'){
+   if(outbox?.status==='confirmed'||outbox?.status==='reverted'){
     const receiptHash=(outbox.receipt as any)?.receiptHash;
     if(typeof receiptHash!=='string'||! /^[0-9a-f]{64}$/.test(receiptHash))throw new Error('confirmed_receipt_hash_missing');
     const effectId=contentHash({jobId:job.id,stage:outbox.stage,receiptHash});
@@ -160,7 +166,7 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
      const lifecycleEffectId=contentHash({kind:`rangekeeper_${job.kind}_cleanup_complete`,jobId:job.id,stage:outbox.stage,receiptHash});
      const custodyState=((cleanup as any)?.cleanup??cleanup as any)?.custodyState;
      if(job.kind==='open')await input.adapters.completeOpeningLifecycle({effectId:lifecycleEffectId,job,finalOutbox:outbox,cleanup});
-     else if(job.kind==='close_retain'||job.kind==='change_range'&&custodyState==='closed_empty'){
+     else if(job.kind==='close_retain'||job.kind==='close_convert'||job.kind==='change_range'&&custodyState==='closed_empty'){
       if(!input.adapters.completeManagedLifecycle)throw new Error('retained_close_lifecycle_unavailable');
       await input.adapters.completeManagedLifecycle({effectId:lifecycleEffectId,job,finalOutbox:outbox,cleanup});
      }
@@ -217,7 +223,8 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
    const effectId=contentHash({jobId:job.id,stage:reconciled.stage,receiptHash});
    await input.adapters.advanceCampaignEffect({effectId,job,outbox:reconciled});
    if(reconciled.status!=='confirmed'){
-    await input.queue.transition(input.wallet,job.id,leaseToken,'blocked',reconciled.stage);
+    // A convert exit retries soon: its revert may already have degraded it to a retained exit the job can continue.
+    await input.queue.transition(input.wallet,job.id,leaseToken,'blocked',reconciled.stage,job.kind==='close_convert'?10_000:undefined);
     return done({status:'blocked',jobId:job.id,reason:'canonical_stage_reverted_after_cost_attribution'});
    }
    await input.queue.yieldAfterConfirmedReceipt(input.wallet,job.id,reconciled.stage,leaseToken);

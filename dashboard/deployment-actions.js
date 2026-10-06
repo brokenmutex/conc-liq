@@ -719,3 +719,193 @@ async function pollOperation(id, request, setStatus, onChanged, actionName = 'Re
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Live RangeKeeper exit · withdraw and convert to USDG. It mirrors the live
+// retain-close review (frozen server-side review, content digest, one durable
+// idempotency key) and queues the exit on the shared wallet queue; the
+// supervised worker executes it. Queueing is never execution.
+// ---------------------------------------------------------------------------
+const rawInteger = /^(0|[1-9][0-9]*)$/;
+const evmHash = /^0x[0-9a-fA-F]{64}$/;
+
+export const liveConvertStorageKey = campaignId => `concliq.operator.live-convert.pending.v1.${campaignId}`;
+const liveRetainPendingKey = campaignId => `concliq.operator.live-retain.pending.v1.${campaignId}`;
+export function liveConvertPreviewPathFor(campaignId) {
+  return uuid.test(campaignId ?? '') ? `/api/deployments/${encodeURIComponent(campaignId)}/live/convert-preview` : null;
+}
+export function liveConvertOperationPathFor(campaignId) {
+  return uuid.test(campaignId ?? '') ? `/api/deployments/${encodeURIComponent(campaignId)}/live/convert-operations` : null;
+}
+/** A convert review is acceptable only while it is a fresh, saved, server-frozen live convert preview that carries its
+ * conversion evidence and a convert-specific cost estimate; nothing about it implies execution. */
+export function liveConvertPreviewCanBeAccepted(preview, now = Date.now()) {
+  const source = preview?.source, sourceAt = typeof source?.timestamp === 'number' ? source.timestamp * 1000 : NaN;
+  const conv = preview?.costs?.conversion;
+  const conversionOk = Boolean(conv && conv.mode === 'convert' && typeof conv.swapRequired === 'boolean' &&
+    rawInteger.test(String(conv.withdrawn0 ?? '')) && rawInteger.test(String(conv.withdrawn1 ?? '')) &&
+    (!conv.swapRequired || ([0, 1].includes(conv.token) && rawInteger.test(String(conv.amountIn ?? '')) &&
+      BigInt(conv.amountIn) > 0n && rawInteger.test(String(conv.minOut ?? '')) && BigInt(conv.minOut) > 0n &&
+      rawInteger.test(String(conv.expectedOut ?? '')) && BigInt(conv.expectedOut) >= BigInt(conv.minOut) &&
+      rawInteger.test(String(conv.shortfallValue ?? '')) && rawInteger.test(String(conv.feeValue ?? '')))));
+  return Boolean(preview?.kind === 'rangekeeper_live_convert_preview' && preview.mode === 'live' &&
+    preview.strategyId === 'rangekeeper_v1' && preview.status === 'indicative' && preview.trustedPreviewSaved === true &&
+    uuid.test(preview.previewId ?? '') && digest.test(preview.contentDigest ?? '') &&
+    Number.isSafeInteger(preview.expectedRevision) && preview.expectedRevision > 0 &&
+    Number.isFinite(Date.parse(preview.expiresAt ?? '')) && Date.parse(preview.expiresAt) > now &&
+    Number.isSafeInteger(source?.timestamp) && source.timestamp > 0 && sourceAt <= now && now - sourceAt <= 180_000 &&
+    rawInteger.test(String(source?.block ?? '')) && evmHash.test(source?.hash ?? '') &&
+    preview.costs?.status === 'estimated' && conversionOk &&
+    preview.executionEligible === false && preview.actionAvailable === true && preview.operationAcceptanceAvailable === true);
+}
+export function liveConvertAcceptPayload(preview, idempotencyKey, now = Date.now()) {
+  if (!liveConvertPreviewCanBeAccepted(preview, now) || !uuid.test(idempotencyKey ?? '')) return null;
+  return {previewId: preview.previewId, contentDigest: preview.contentDigest,
+    expectedRevision: preview.expectedRevision, idempotencyKey};
+}
+export function liveConvertAcceptResult(result, campaignId) {
+  return Boolean(result && result.status === 'queued' && uuid.test(result.campaignId ?? '') &&
+    result.campaignId === campaignId && uuid.test(result.jobId ?? '') &&
+    (result.allocationId == null || uuid.test(result.allocationId)) && typeof result.replayed === 'boolean');
+}
+function formatRawAmount(raw, decimals, places = 6) {
+  if (!rawInteger.test(String(raw ?? '')) || !Number.isSafeInteger(decimals) || decimals < 0 || decimals > 36) return 'Unavailable';
+  const value = BigInt(raw), unit = 10n ** BigInt(decimals), whole = value / unit;
+  if (decimals === 0) return whole.toString();
+  const fraction = (value % unit).toString().padStart(decimals, '0').slice(0, Math.min(places, decimals));
+  return `${whole}.${fraction}`;
+}
+function savedLiveConvertRequest(campaignId) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(liveConvertStorageKey(campaignId)) ?? 'null');
+    return saved?.campaignId === campaignId && uuid.test(saved?.payload?.previewId ?? '') &&
+      digest.test(saved?.payload?.contentDigest ?? '') && Number.isSafeInteger(saved?.payload?.expectedRevision) &&
+      saved.payload.expectedRevision > 0 && uuid.test(saved?.payload?.idempotencyKey ?? '') ? saved : null;
+  } catch { return null; }
+}
+
+/** The live convert exit command. It never signs or publishes: it requests a fresh server-side review (withdraw estimate,
+ * the sale of the non-quote leg back into USDG with its minimum output, shortfall against the independent reference and
+ * gas), then queues exactly that frozen review once. */
+export function mountLiveConvertAction(root, {campaignId, positionLabel, authenticated, request, canReview = true,
+  liveCapability = () => null, onAccepted = () => {}, now = Date.now} = {}) {
+  root.replaceChildren();
+  const onOperator = location.pathname === '/operator' || location.pathname.startsWith('/operator/');
+  if (!onOperator || !uuid.test(campaignId ?? '') || typeof request !== 'function') return;
+  const label = positionLabel || `campaign ${campaignId}`;
+  root.setAttribute('role', 'group');
+  root.setAttribute('aria-label', `Exit ${label} · withdraw and convert to USDG`);
+  const button = document.createElement('button'); button.type = 'button'; button.className = 'convert-preview-button';
+  button.textContent = 'Review exit · withdraw and convert to USDG';
+  button.setAttribute('aria-label', `Review exit · withdraw ${label} and convert tokens to USDG`);
+  const status = document.createElement('p'); status.className = 'convert-action-status'; status.setAttribute('role', 'status');
+  const review = document.createElement('div'); review.className = 'convert-action-review'; review.hidden = true;
+  root.append(button, status, review);
+  const setStatus = value => { status.textContent = value; };
+  const isAuthenticated = () => authenticated?.() === true;
+  const retainPending = (() => { try { return localStorage.getItem(liveRetainPendingKey(campaignId)) !== null; } catch { return false; } })();
+  let pending = savedLiveConvertRequest(campaignId);
+  const recovery = document.createElement('button'); recovery.type = 'button'; recovery.className = 'convert-reconcile-button';
+  recovery.textContent = 'Retry same exit · convert to USDG'; recovery.hidden = true; root.append(recovery);
+  const finish = (text, disabled = true) => { setStatus(text); button.disabled = disabled; };
+  const submit = async (payload, trigger = button) => {
+    const saved = savedLiveConvertRequest(campaignId);
+    if (!isAuthenticated() || !saved || JSON.stringify(saved.payload) !== JSON.stringify(payload)) return;
+    trigger.disabled = true; recovery.disabled = true;
+    setStatus('Submitting the saved exit request…');
+    try {
+      const path = liveConvertOperationPathFor(campaignId); if (!path) throw new Error('campaign_id_invalid');
+      const result = await request(path, {method: 'POST', body: payload, csrf: true});
+      if (!liveConvertAcceptResult(result, campaignId)) throw new Error('live_convert_acceptance_response_invalid');
+      try { localStorage.removeItem(liveConvertStorageKey(campaignId)); } catch { /* the next refresh clears it */ }
+      pending = null; recovery.hidden = true; button.disabled = true;
+      const workerDown = result.liveWorker?.ready === false || liveCapability()?.worker?.ready === false;
+      setStatus(`Exit queued as job ${result.jobId}. The live worker withdraws the position, sells the non-USDG leg back into USDG and closes the campaign; if the sale cannot run it falls back to a retained close with the tokens in the shared wallet.${workerDown ? ' The worker is not connected, so nothing runs until it reconnects.' : ''}`);
+      try { await onAccepted(result); } catch { /* the position refresh is best effort */ }
+    } catch (error) {
+      const reason = error?.data?.error ?? error?.message ?? 'command_failed';
+      if (error?.status === 409 || error?.status === 503) {
+        try { localStorage.removeItem(liveConvertStorageKey(campaignId)); } catch { /* fail closed below */ }
+        pending = null; recovery.hidden = true;
+        finish(`Exit admission unavailable (${reason}). No operation was accepted; request a fresh review when ready.`);
+        return;
+      }
+      setStatus(`Exit request outcome unknown (${reason}). Retry with the same key; do not request a new review until reconciled.`);
+      recovery.hidden = false; recovery.disabled = !isAuthenticated();
+    }
+  };
+  recovery.addEventListener('click', () => { if (pending) void submit(pending.payload, recovery); });
+  if (!isAuthenticated()) {
+    button.disabled = true; setStatus('Operator authentication is required for a live exit review.'); return;
+  }
+  if (pending) {
+    button.disabled = true; recovery.hidden = false;
+    setStatus('A prior exit request may already be queued. Reconcile it with the same key before requesting another review.'); return;
+  }
+  if (retainPending) {
+    button.disabled = true;
+    setStatus('A retain-close request may already be queued for this campaign. Reconcile it before requesting an exit review.'); return;
+  }
+  if (!canReview) {
+    button.disabled = true; setStatus('A new exit review is unavailable while the campaign has pending work.'); return;
+  }
+  setStatus('Withdraws the position and converts the remaining non-USDG token to USDG. Fresh canonical source, quote and cost review required; nothing is signed until you confirm.');
+  button.addEventListener('click', async () => {
+    if (!isAuthenticated() || !canReview) return;
+    button.disabled = true; review.hidden = true; review.replaceChildren();
+    setStatus('Checking a fresh canonical source, the sale quote against the independent reference and gas…');
+    try {
+      const path = liveConvertPreviewPathFor(campaignId); if (!path) throw new Error('campaign_id_invalid');
+      const preview = await request(path, {method: 'POST', body: {}, csrf: true});
+      if (!liveConvertPreviewCanBeAccepted(preview, now())) {
+        const missing = Array.isArray(preview?.missing) && preview.missing.length ? preview.missing.join(', ') : 'required evidence unavailable';
+        setStatus(`Exit review unavailable: ${missing}. No operation was submitted.`);
+        button.disabled = !isAuthenticated(); return;
+      }
+      const conv = preview.costs.conversion, costs = preview.costs, position = preview.position ?? {};
+      const d0 = conv.decimals0, d1 = conv.decimals1, quoteIs0 = conv.quoteIndex === 0;
+      const quoteDecimals = quoteIs0 ? d0 : d1, riskyDecimals = quoteIs0 ? d1 : d0;
+      const heading = document.createElement('h4'); heading.textContent = 'Exit · withdraw and convert to USDG'; review.append(heading);
+      const consequence = document.createElement('p'); consequence.className = 'convert-action-consequence';
+      consequence.textContent = 'Live money. This withdraws the LP position and sells the non-USDG token back into USDG through the pool\'s approved direct route, then closes the campaign. If the sale cannot run (pool detached from the reference, quote worse than the limit, or the transaction reverts) the exit falls back to a retained close and the tokens stay in the shared wallet.';
+      const facts = document.createElement('div'); facts.className = 'retain-preview-facts';
+      addFact(facts, 'Canonical source block', String(preview.source.block));
+      if (position.tokenId != null) addFact(facts, 'Position token', String(position.tokenId));
+      addFact(facts, 'Withdraw estimate · token 0 / token 1',
+        `${formatRawAmount(conv.withdrawn0, d0)} / ${formatRawAmount(conv.withdrawn1, d1)}`);
+      if (conv.swapRequired) {
+        addFact(facts, 'Sell · non-USDG leg', formatRawAmount(conv.amountIn, riskyDecimals));
+        addFact(facts, 'Receive USDG · expected', formatRawAmount(conv.expectedOut, quoteDecimals));
+        addFact(facts, `Receive USDG · minimum (${conv.maxSlippageBps} bps slippage limit)`, formatRawAmount(conv.minOut, quoteDecimals));
+        addFact(facts, 'Shortfall vs independent reference · USD', formatX18(conv.shortfallValue));
+        addFact(facts, 'Pool fee · USD', formatX18(conv.feeValue));
+        addFact(facts, 'Route', `direct ${conv.route?.fee != null ? `${conv.route.fee / 10000}% ` : ''}pool via the approved router`);
+      } else addFact(facts, 'Sale', 'No non-USDG token to sell');
+      addFact(facts, 'Exit gas · estimated / not paid', costs.gasWei != null ? `${costs.gasWei} wei (${formatX18(costs.gasValueUsdX18)} USD)` : 'Unavailable');
+      addFact(facts, 'Estimated total exit cost · USD', formatX18(costs.actionCostValue));
+      const worker = preview.liveWorker;
+      const workerDown = worker && typeof worker === 'object' && worker.ready === false;
+      const note = document.createElement('p'); note.className = 'convert-action-consequence';
+      note.textContent = workerDown ? `The live worker is not ready (${(Array.isArray(worker.missing) && worker.missing.length ? worker.missing : ['live_wallet_worker_not_ready']).join(', ')}). The exit queues now and runs when the worker reconnects.` : '';
+      const accept = document.createElement('button'); accept.type = 'button'; accept.className = 'convert-confirm-button';
+      accept.textContent = 'Confirm exit · withdraw and convert to USDG'; accept.disabled = !isAuthenticated();
+      accept.setAttribute('aria-label', `Confirm exit · withdraw ${label} and convert tokens to USDG`);
+      review.append(consequence, facts); if (note.textContent) review.append(note); review.append(accept); review.hidden = false;
+      setStatus('Review the withdraw estimate, sale, minimum USDG and costs, then confirm once.');
+      accept.addEventListener('click', async () => {
+        const idempotencyKey = globalThis.crypto?.randomUUID?.();
+        const payload = liveConvertAcceptPayload(preview, idempotencyKey, now());
+        if (!payload || !idempotencyKey) {
+          setStatus('Review expired or could not create a durable request key. Request a fresh exit review.'); accept.disabled = true; return;
+        }
+        try { localStorage.setItem(liveConvertStorageKey(campaignId), JSON.stringify({campaignId, payload})); }
+        catch { setStatus('A durable same-request key could not be saved. No exit was submitted.'); accept.disabled = true; return; }
+        pending = savedLiveConvertRequest(campaignId); accept.disabled = true;
+        await submit(payload, accept);
+      });
+    } catch (error) {
+      setStatus(`Exit review failed (${error?.data?.error ?? error?.message ?? 'command_failed'}). No operation was submitted.`);
+      button.disabled = !isAuthenticated();
+    }
+  });
+}

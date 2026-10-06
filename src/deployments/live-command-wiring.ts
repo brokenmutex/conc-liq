@@ -15,10 +15,14 @@ export interface LiveCommandRuntime {
  retainPreview(campaignId:string):Promise<unknown>;
  retainOperation(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;
   idempotencyKey:string}):Promise<RangeKeeperLiveReviewAdmissionResult>;
+ /** Withdraw plus sale of the non-quote leg into the quote token (USDG). */
+ convertPreview(campaignId:string):Promise<unknown>;
+ convertOperation(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;
+  idempotencyKey:string}):Promise<RangeKeeperLiveReviewAdmissionResult>;
 }
 
 /** Command-side live surface. It reads the supervised worker's readiness proof
- * and, only on the proven v14 schema, queues reviewed retained exits through the
+ * and, only on the proven v14 schema, queues reviewed retained and convert exits through the
  * composed runtime. It never holds a signer or publisher and runs no DDL; below
  * v14 every callback reports a specific unavailable reason instead of throwing. */
 export function createLiveCommandWiring(input:{schemaVersion:number;walletIdentity:LiveWalletIdentity|null;
@@ -41,19 +45,30 @@ export function createLiveCommandWiring(input:{schemaVersion:number;walletIdenti
   catch{return {ready:false,missing:['live_worker_readiness_probe_failed']};}
  };
  let previewBusy=false;
- const retainPreview=async(campaignId:string)=>{
-  if(!runtime)return {kind:'rangekeeper_live_retain_preview',mode:'live',strategyId:'rangekeeper_v1',
-   status:'unavailable',trustedPreviewSaved:false,previewId:null,contentDigest:null,expectedRevision:0,expiresAt:null,
-   source:null,position:null,costs:null,missing:[unavailableReason],actionAvailable:false,
-   operationAcceptanceAvailable:false,executionEligible:false};
-  // One owned fork at a time, as for the live setup review. This is per
-  // request and releases at once, so a later exit attempt is never locked out.
-  if(previewBusy)throw new DeploymentConflict('rangekeeper_live_retain_preview_busy');
+ const closedPreview=(kind:'rangekeeper_live_retain_preview'|'rangekeeper_live_convert_preview')=>({kind,mode:'live',strategyId:'rangekeeper_v1',
+  status:'unavailable',trustedPreviewSaved:false,previewId:null,contentDigest:null,expectedRevision:0,expiresAt:null,
+  source:null,position:null,costs:null,missing:[unavailableReason],actionAvailable:false,
+  operationAcceptanceAvailable:false,executionEligible:false});
+ // One owned fork at a time, as for the live setup review, shared by both exit previews. This is per
+ // request and releases at once, so a later exit attempt is never locked out.
+ const exclusivePreview=async(busyCode:string,run:(runtime:LiveCommandRuntime)=>Promise<unknown>)=>{
+  if(previewBusy)throw new DeploymentConflict(busyCode);
   previewBusy=true;
-  try{return await runtime.retainPreview(campaignId);}finally{previewBusy=false;}
+  try{return await run(runtime!);}finally{previewBusy=false;}
+ };
+ const retainPreview=async(campaignId:string)=>{
+  if(!runtime)return closedPreview('rangekeeper_live_retain_preview');
+  return exclusivePreview('rangekeeper_live_retain_preview_busy',r=>r.retainPreview(campaignId));
+ };
+ const convertPreview=async(campaignId:string)=>{
+  if(!runtime)return closedPreview('rangekeeper_live_convert_preview');
+  return exclusivePreview('rangekeeper_live_convert_preview_busy',r=>r.convertPreview(campaignId));
  };
  const retainAdmission=async(campaignId:string,body:Parameters<LiveCommandRuntime['retainOperation']>[1]):
   Promise<RangeKeeperLiveReviewAdmissionResult>=>runtime?runtime.retainOperation(campaignId,body):
   {status:'unavailable',missing:[unavailableReason!],actionAvailable:false,executionEligible:false};
- return {workerReadiness,retainPreview,retainAdmission,runtimeAvailable:runtime!==null,unavailableReason};
+ const convertAdmission=async(campaignId:string,body:Parameters<LiveCommandRuntime['convertOperation']>[1]):
+  Promise<RangeKeeperLiveReviewAdmissionResult>=>runtime?runtime.convertOperation(campaignId,body):
+  {status:'unavailable',missing:[unavailableReason!],actionAvailable:false,executionEligible:false};
+ return {workerReadiness,retainPreview,retainAdmission,convertPreview,convertAdmission,runtimeAvailable:runtime!==null,unavailableReason};
 }
