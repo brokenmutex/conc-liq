@@ -4,6 +4,11 @@ import {replayPaperMint} from '../../v3/position-math.js';
 import type {RangeKeeperCandidate,RangeKeeperDecision,RangeKeeperLimits,RangeKeeperObservation,RangeKeeperState} from './domain.js';
 
 const PPM=1_000_000n;
+/** A swap is chosen to reach at least this share of the peak deployable value (99%).
+ * The 1% slack avoids buying the last sliver of ratio at disproportionate swap fee and
+ * price impact, and absorbs integer rounding noise on the capped plateau, while still
+ * leaving ~99% of the allocation working. minDeploymentPpm stays the hard floor only. */
+export const RANGEKEEPER_NEAR_PEAK_PPM=990_000n;
 const min=(a:bigint,b:bigint)=>a<b?a:b;
 const max=(a:bigint,b:bigint)=>a>b?a:b;
 const remaining=(limit:bigint,spent:bigint)=>limit>spent?limit-spent:0n;
@@ -82,12 +87,19 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
    amount0Min:r.mint.amount0*haircut/10_000n,amount1Min:r.mint.amount1*haircut/10_000n,
    liquidity:r.mint.liquidity,deployedValue:r.deployed,sourceBlock:o.block,sourceHash:o.hash,expiresAt:o.timestamp+90};
  };
- if(initial?.feasible)return make(base0,base1,o.sqrtPriceX96,null);
+ // minDeploymentPpm is only the hard minimum acceptable deployment, never the
+ // target. No-swap is accepted only when it already reaches the near-peak share
+ // of the deployable ceiling; otherwise a swap search takes the smallest swap
+ // that gets within RANGEKEEPER_NEAR_PEAK_PPM of the achievable peak.
+ const ceiling=min(total,l.maxDeploymentValue);
+ const noSwap=initial?.feasible?make(base0,base1,o.sqrtPriceX96,null):null;
+ if(noSwap&&noSwap.deployedValue*PPM>=ceiling*RANGEKEEPER_NEAR_PEAK_PPM)return noSwap;
  // The capped no-swap mint identifies the surplus leg. The swap may draw
  // from full strategy inventory, while the eventual mint remains capped.
  const idle0=initial?.mint.idle0??base0,idle1=initial?.mint.idle1??base1;
  const token:0|1=rawValue(idle0,p0,d0)>rawValue(idle1,p1,d1)?0:1;
  const available=token===0?wallet0:wallet1,priceIn=token===0?p0:p1,decimalsIn=token===0?d0:d1;
+ const searchSwap=async():Promise<RangeKeeperCandidate|null>=>{
  if(available===0n)return null;
  const bound=min(available*BigInt(l.maxSwapInputPpm)/PPM,affordableRaw(l.maxSwapInputValue,priceIn,decimalsIn));
  if(bound===0n)return null;
@@ -121,16 +133,18 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
    minOut:q.amountOut*haircut/10_000n,priceAfter:q.priceAfter,feeValue:q.feeValue,shortfallValue:q.shortfallValue}):null;
   const result={candidate:candidate??null,deployed:sized.deployed};evaluated.set(amount,result);return result;
  };
+ const grid=(from:bigint,to:bigint)=>Array.from({length:9},(_,i)=>from+(to-from)*BigInt(i)/8n);
+ const probe=(points:bigint[])=>Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
  // Minted value rises as the missing leg is acquired, then falls when the
  // swap overshoots the range's inventory ratio. Exponential feasibility
  // probing can jump across a narrow valid window (e.g. 98% of a $250 cap).
  // Find the value peak first, then search its increasing side for the first
- // feasible raw input. Parallel brackets reduce quote rounds; exact minimum
- // and predecessor checks remain mandatory. Any unproven shape fails closed.
+ // feasible raw input that reaches the near-peak target. Parallel brackets
+ // reduce quote rounds; exact minimum and predecessor checks remain mandatory.
+ // Any unproven shape fails closed.
  let lo=1n,hi=bound;
  while(hi-lo>8n&&evaluated.size<320){
-  const span=hi-lo,points=Array.from({length:9},(_,i)=>lo+span*BigInt(i)/8n);
-  const values=await Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
+  const points=grid(lo,hi),values=await probe(points);
   // Eight parallel intervals reduce the peak search to one quarter of its
   // prior span per provider round while retaining the neighboring maximum.
   let best=0;for(let i=1;i<values.length;i++)if(values[i]!.deployed>values[best]!.deployed)best=i;
@@ -144,20 +158,61 @@ async function construct(input:RangeKeeperPlannerInput,range:{tickLower:number;t
   peak=peakPoints[i]!;peakValue=peakResults[i]!.deployed;
  }
  if(peakValue<floor)return null;
+ // Smallest input whose candidate is feasible (shortfall cap, price in range,
+ // floor, cap) AND whose deployed value is within tolerance of the peak. The
+ // shortfall cap can null a candidate where deployed is high, so the predicate
+ // checks both.
+ const target=max(floor,peakValue*RANGEKEEPER_NEAR_PEAK_PPM/PPM);
+ const meets=(r:{candidate:RangeKeeperCandidate|null;deployed:bigint})=>r.candidate!==null&&r.deployed>=target;
  lo=0n;hi=peak;
- while(hi-lo>1n&&evaluated.size<400){
-  const span=hi-lo,points=Array.from({length:9},(_,i)=>lo+span*BigInt(i)/8n);
-  const values=await Promise.all(points.map(amount=>amount===0n?Promise.resolve({candidate:null,deployed:0n}):quoted(amount)));
-  const first=values.findIndex(value=>value.deployed>=floor);
-  if(first<=0)return null;
+ let reachable=true;
+ for(let round=0;hi-lo>1n&&evaluated.size<400;round++){
+  const points=grid(lo,hi),values=await probe(points);
+  const first=values.findIndex(meets);
+  if(first<0){
+   // Only the first round spans the whole rising side; later rounds are
+   // bracketed by a known meeting upper bound, so a miss there is unproven.
+   if(round>0)return null;
+   reachable=false;break;
+  }
+  if(first===0)return null;
   lo=points[first-1]!;hi=points[first]!;
  }
+ if(reachable){
+  if(hi-lo>1n)return null;
+  const found=(await quoted(hi)).candidate;
+  if(!found||!meets(await quoted(hi)))return null;
+  // The predecessor must fail the target even after its own price impact and quote.
+  if(hi>1n&&meets(await quoted(hi-1n)))return null;
+  return found;
+ }
+ // The shortfall cap prevents reaching the target. Fall back to the largest
+ // feasible deployment (candidate is non-null, so it meets the floor and every
+ // cap). Feasibility is a single interval [floor crossing, shortfall limit] on
+ // the rising side; its successor must be infeasible.
+ const coarse=grid(0n,peak),coarseValues=await probe(coarse);
+ let last=-1;for(let i=0;i<coarseValues.length;i++)if(coarseValues[i]!.candidate)last=i;
+ if(last<0||last===8)return null;
+ lo=coarse[last]!;hi=coarse[last+1]!;
+ while(hi-lo>1n&&evaluated.size<400){
+  const points=grid(lo,hi),values=await probe(points);
+  let k=0;for(let i=0;i<values.length;i++)if(values[i]!.candidate)k=i;
+  if(k>=8)return null;
+  lo=points[k]!;hi=points[k+1]!;
+ }
  if(hi-lo>1n)return null;
- const found=(await quoted(hi)).candidate;
- if(!found)return null;
- // The predecessor must fail even after its own price impact and quote.
- if(hi>1n&&(await quoted(hi-1n)).candidate)return null;
- return found;
+ if((await quoted(hi)).candidate)return null;
+ return (await quoted(lo)).candidate;
+ };
+ let swapped:RangeKeeperCandidate|null;
+ try{swapped=await searchSwap();}
+ catch(error){
+  // A no-swap mint needs no quote, so an unproven quote path cannot invalidate it.
+  if(noSwap)return noSwap;
+  throw error;
+ }
+ if(!swapped)return noSwap;
+ return noSwap&&noSwap.deployedValue>=swapped.deployedValue?noSwap:swapped;
 }
 
 /** One observation advances the persisted timer/confirmation and returns a

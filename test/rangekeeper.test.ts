@@ -10,7 +10,7 @@ import {assertRangeKeeperStageGas,rangeKeeperCostEnvelope} from '../src/strategy
 import {assertRangeKeeperWithdrawGasMigration} from '../src/strategy/rangekeeper/live-controller.js';
 import {rangeKeeperJson,type RangeKeeperLiveState} from '../src/strategy/rangekeeper/live-domain.js';
 import {allocateRangeKeeperFunding,strategyBalances} from '../src/strategy/rangekeeper/funding.js';
-import {planRangeKeeper,rangeKeeperRange,rawValue,type RangeKeeperPlannerInput} from '../src/strategy/rangekeeper/planner.js';
+import {planRangeKeeper,RANGEKEEPER_NEAR_PEAK_PPM,rangeKeeperRange,rawValue,type RangeKeeperPlannerInput} from '../src/strategy/rangekeeper/planner.js';
 import type {RangeKeeperObservation} from '../src/strategy/rangekeeper/domain.js';
 
 const unit=10n**18n,hash=`0x${'ab'.repeat(32)}` as const;
@@ -129,34 +129,116 @@ test('observed exit needs continuous five minutes; a return or gap restarts it',
  r=await planRangeKeeper({...input(observation({block:10n,timestamp:1660,position:p,continuity:'reorg'})),state:r.state});
  assert.equal(r.reason,'source_reorg');assert.equal(r.state.exit,null);
 });
-test('configured 98% floor accepts feasible deployment below the old 99.8% override',async()=>{
+test('swap targets near-peak deployment; the configured floor is only the hard minimum',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
  const limits={...config.limits,minDeploymentPpm:980000};
  const r=await planRangeKeeper({...input(o),limits});
  assert.equal(r.action,'confirm');assert.equal(r.candidate?.swap?.token,0);
  const amount=r.candidate!.swap!.amountIn;assert(amount>0n&&amount<=100n*unit);
  const range=r.candidate!.range;
+ // Zero-impact mock: peak is the $200 cap, so the target is 99% of it, above the 98% floor.
+ const peak=200n*unit,target=peak*RANGEKEEPER_NEAR_PEAK_PPM/1000000n;
+ assert(target>200n*unit*BigInt(limits.minDeploymentPpm)/1000000n);
+ assert(r.candidate!.deployedValue>=target);
  const prior=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(prior.amount0,unit,18)+rawValue(prior.amount1,unit,18);
- const sizingTarget=200n*unit*BigInt(limits.minDeploymentPpm)/1000000n;
- assert(r.candidate!.deployedValue>=sizingTarget);
- assert(r.candidate!.deployedValue<200n*unit*998000n/1000000n,
-  'The feasible mint should not be pushed to the old 99.8% target');
- assert(value<sizingTarget,'The raw-unit predecessor must miss the configured floor');
+ assert(value<target,'The raw-unit predecessor must miss the near-peak target');
 });
-test('minimum-swap solver finds a narrow feasible window before ratio overshoot at configured floor',async()=>{
+test('minimum-swap solver finds the near-peak target even when the floor is far below it',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
  const limits={...config.limits,maxSwapInputValue:150n*unit,minDeploymentPpm:980000};
  const r=await planRangeKeeper({...input(o),limits});
  assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
  const amount=r.candidate.swap.amountIn,range=r.candidate.range;
- assert(amount<128n*unit,'The first exponential probe after the window would be infeasible');
+ const target=200n*unit*RANGEKEEPER_NEAR_PEAK_PPM/1000000n;
+ assert(amount<=100n*unit,'Swaps beyond the inventory ratio only lower the deployed value');
  const previous=replayPaperMint(o.sqrtPriceX96,range,200n*unit-(amount-1n),amount-1n,0n);
  const value=rawValue(previous.amount0,unit,18)+rawValue(previous.amount1,unit,18);
- const sizingTarget=200n*unit*BigInt(limits.minDeploymentPpm)/1000000n;
- assert(r.candidate.deployedValue>=sizingTarget);
- assert(r.candidate.deployedValue<200n*unit*998000n/1000000n);
- assert(value<sizingTarget,'Raw-unit predecessor must miss the configured floor');
+ assert(r.candidate.deployedValue>=target);
+ assert(value<target,'Raw-unit predecessor must miss the near-peak target');
+});
+test('a minimal floor never makes the planner mint only the floor from a one-sided wallet',async()=>{
+ // Regression for the live campaign that deployed $25 of $250 at minDeploymentPpm=100000.
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const limits={...config.limits,minDeploymentPpm:100000};
+ const r=await planRangeKeeper({...input(o),limits});
+ assert.equal(r.action,'confirm',r.reason);
+ const floor=200n*unit*100000n/1000000n;
+ assert(r.candidate!.deployedValue>=190n*unit,`deployed ${r.candidate!.deployedValue} must be near peak, not floor ${floor}`);
+ assert(r.candidate!.swap!.amountIn>=90n*unit);
+});
+test('shortfall cap binding falls back to the largest feasible swap at or above the floor',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const i=input(o),base=i.quote;
+ // Shortfall is 1 unit at a 60-unit swap, the configured cap; larger swaps are too costly.
+ const quote:RangeKeeperPlannerInput['quote']=async(token,amount)=>({...await base(token,amount),shortfallValue:amount/60n});
+ const r=await planRangeKeeper({...i,quote});
+ assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
+ const amount=r.candidate.swap.amountIn;
+ assert.equal(amount,60n*unit+59n,'largest input whose shortfall stays within the cap');
+ assert((await quote(0,amount)).shortfallValue<=config.limits.maxSwapShortfallValue);
+ assert((await quote(0,amount+1n)).shortfallValue>config.limits.maxSwapShortfallValue);
+ const floor=200n*unit*BigInt(config.limits.minDeploymentPpm)/1000000n;
+ assert(r.candidate.deployedValue>=floor);
+ assert(r.candidate.deployedValue<200n*unit*RANGEKEEPER_NEAR_PEAK_PPM/1000000n,'target is unreachable under the shortfall cap');
+});
+test('shortfall cap leaving no deployment at the floor stays unfeasible',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const i=input(o),base=i.quote;
+ // Cap binds at ~20 units, which deploys only ~$40 against a $100 floor.
+ const r=await planRangeKeeper({...i,quote:async(token,amount)=>({...await base(token,amount),shortfallValue:amount/20n})});
+ assert.equal(r.reason,'inventory_deployment_unfeasible');
+});
+test('shortfall cap beyond the target-reaching swap still picks the smallest near-peak swap',async()=>{
+ const o=observation({wallet0:200n*unit,wallet1:0n});
+ const i=input(o),base=i.quote;
+ const quote:RangeKeeperPlannerInput['quote']=async(token,amount)=>({...await base(token,amount),shortfallValue:amount/105n});
+ const r=await planRangeKeeper({...i,quote});
+ assert.equal(r.action,'confirm',r.reason);
+ assert(r.candidate!.deployedValue>=200n*unit*RANGEKEEPER_NEAR_PEAK_PPM/1000000n);
+ assert.equal(r.candidate!.swap!.amountIn,99n*unit,'unconstrained smallest near-peak swap is 99 units');
+});
+test('balanced inventory deploys without a swap and never needs a quote',async()=>{
+ const i=input();
+ const r=await planRangeKeeper({...i,quote:async()=>{throw Error('quote must not be called');}});
+ assert.equal(r.action,'confirm',r.reason);assert.equal(r.candidate?.swap,null);
+ assert(r.candidate!.deployedValue*1000000n>=200n*unit*RANGEKEEPER_NEAR_PEAK_PPM);
+});
+test('a feasible but lopsided no-swap mint is improved by a swap instead of idling the surplus leg',async()=>{
+ // 150/50 clears the 50% floor with a $100 no-swap mint, but a 50-unit swap deploys the full $200.
+ const o=observation({wallet0:150n*unit,wallet1:50n*unit});
+ const r=await planRangeKeeper(input(o));
+ assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
+ assert.equal(r.candidate.swap.token,0);
+ assert(r.candidate.deployedValue>=200n*unit*RANGEKEEPER_NEAR_PEAK_PPM/1000000n);
+ const noSwap=await planRangeKeeper({...input(o),quote:async()=>{throw Error('quote_unavailable');}});
+ assert.equal(noSwap.action,'confirm',noSwap.reason);assert.equal(noSwap.candidate?.swap,null,'unproven quotes fall back to the proven no-swap mint');
+ assert(noSwap.candidate!.deployedValue<r.candidate.deployedValue);
+});
+test('second observation re-plans the same near-peak policy identity as the first',async()=>{
+ const first=await planRangeKeeper(input(observation({wallet0:200n*unit,wallet1:0n})));
+ assert.equal(first.action,'confirm',first.reason);
+ const second=await planRangeKeeper({...input(observation({block:2n,timestamp:1030,wallet0:200n*unit,wallet1:0n})),state:first.state});
+ assert.equal(second.action,'execute',second.reason);
+ assert.equal(second.candidate?.swap?.amountIn,first.candidate?.swap?.amountIn);
+});
+test('live GOOGL/USDG case deploys near the allocation instead of the $25 floor',async()=>{
+ // Wallet 250 USDG (6 decimals) allocated, no GOOGL, +-2% range around tick -217834.
+ const tick=-217834,ratio=Math.pow(1.0001,tick);
+ const sqrt=sqrtRatioAtTick(tick),googl=BigInt(Math.round(ratio*1e12*1e18));
+ const o=observation({tick,sqrtPriceX96:sqrt,wallet0:0n,wallet1:250_000_000n,price0:googl,price1:unit,
+  campaignStartValue:250n*unit,highWaterValue:250n*unit});
+ const limits={...config.limits,maxDeploymentValue:250n*unit,minDeploymentPpm:100000,maxSwapInputPpm:500000,
+  maxSwapInputValue:125n*unit,maxSwapShortfallValue:5n*unit/2n,maxSlippageBps:50,fullWidthSpacings:40};
+ const i=input(o);
+ const r=await planRangeKeeper({...i,limits,decimals0:18,decimals1:6,quoteToken:1,
+  quote:async(_token,amountIn)=>({amountOut:BigInt(Math.floor(Number(amountIn)/ratio)),priceAfter:sqrt,feeValue:0n,shortfallValue:0n,
+   sourceBlock:o.block,sourceHash:o.hash})});
+ assert.equal(r.action,'confirm',r.reason);assert(r.candidate?.swap);
+ assert.deepEqual(r.candidate.range,{tickLower:-218030,tickUpper:-217630});
+ assert.equal(r.candidate.swap.token,1);
+ assert(r.candidate.deployedValue>=240n*unit,`deployed ${r.candidate.deployedValue}`);
+ assert(r.candidate.swap.amountIn>100_000_000n&&r.candidate.swap.amountIn<=125_000_000n);
 });
 test('strict configured deployment floor is met exactly by the minimum feasible swap',async()=>{
  const o=observation({wallet0:200n*unit,wallet1:0n});
