@@ -65,3 +65,15 @@ test('paper diagnostics preserve machine codes and never return arbitrary error 
  assert.equal(safePaperDiagnosticFailure({code:'paper_fee_cursor_settle_timeout'}),
   'paper_fee_cursor_settle_timeout');
 });
+
+test('paper diagnostics name PostgreSQL failures by bounded SQLSTATE, not the bare class',()=>{
+ // node-postgres errors are named 'error', so a canceled statement used to log
+ // reason 'Error' and look identical to any other unclassified failure.
+ const pgError=(code:string,message:string)=>Object.assign(new Error(message),{name:'error',code});
+ assert.equal(safePaperDiagnosticFailure(pgError('57014','canceling statement due to statement timeout')),
+  'postgres_statement_timeout');
+ assert.equal(safePaperDiagnosticFailure(pgError('40P01','deadlock detected\nDETAIL: secret row')),
+  'postgres_sqlstate_40p01');
+ assert.equal(safePaperDiagnosticFailure(Object.assign(new Error('socket'),{code:'ECONNRESET'})),'Error');
+ assert.equal(safePaperDiagnosticFailure(pgError('https://rpc.example/key?secret=abc','x')),'Error');
+});

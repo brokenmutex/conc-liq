@@ -27,6 +27,12 @@ export function safePaperDiagnosticFailure(error:unknown):string{
  if(error!==null&&typeof error==='object'&&'code' in error&&
   typeof error.code==='string'&&/^(?:paper|rangekeeper)_[a-z0-9_]{1,100}$/.test(error.code))
   return error.code;
+ // node-postgres errors are named 'error' (lower case), which used to fall
+ // through to the bare token 'Error'. A five-character SQLSTATE is a bounded
+ // server-assigned code, so a statement timeout or deadlock stays identifiable.
+ if(error!==null&&typeof error==='object'&&'code' in error&&
+  typeof error.code==='string'&&/^[0-9A-Z]{5}$/.test(error.code))
+  return error.code==='57014'?'postgres_statement_timeout':`postgres_sqlstate_${error.code.toLowerCase()}`;
  if(!(error instanceof Error))return 'unknown';
  const firstLine=error.message.split('\n',1)[0]??'';
  if(/^(?:paper|rangekeeper)_[a-z0-9_]{1,100}$/.test(firstLine))return firstLine;
