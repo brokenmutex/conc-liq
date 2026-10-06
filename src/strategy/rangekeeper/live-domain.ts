@@ -27,6 +27,20 @@ export interface RangeKeeperLiveState {
  activeSeconds:number;outsideSeconds:number;lastMarkTimestamp:number;
  lastReason:string;closedAt:number|null;
 }
+/** Live time-in-range accrual, applied by the valuation-mark writer before the state is hashed.
+ * Left-Riemann: the elapsed gap since the previous observed snapshot (state.last) is attributed to
+ * the state observed AT that previous snapshot, matching src/experiment/portfolio.ts. activeSeconds
+ * is in-range time and outsideSeconds is out-of-range time (disjoint). Time with no active
+ * liquid position (entry/exit/cash) is not counted. A gap longer than maxGapSeconds (the policy's
+ * maxObservationGapSeconds, i.e. worker downtime) is unobserved and not attributed to either bucket.
+ * Mutates and returns state; call before advancing state.last/lastMarkTimestamp. */
+export function accrueRangeKeeperTimeInRange(state:RangeKeeperLiveState,nextTimestamp:number,maxGapSeconds:number){
+ const prev=state.last,gap=nextTimestamp-prev.source.timestamp,p=prev.position;
+ if(!Number.isFinite(gap)||gap<=0||gap>maxGapSeconds)return state;
+ if(state.activeTokenId===null||!p||p.tokenId!==state.activeTokenId||p.liquidity<=0n)return state;
+ if(prev.tick>=p.tickLower&&prev.tick<p.tickUpper)state.activeSeconds+=gap;else state.outsideSeconds+=gap;
+ return state;
+}
 export interface RangeKeeperLiveAction {
  id:string;campaignId:string;intent:PilotIntent;plan:RangeKeeperTxPlan;before:RangeKeeperSnapshot;
  status:'prepared'|'signed'|'confirmed'|'reverted'|'cancelled';raw:Hex|null;hash:Hex|null;

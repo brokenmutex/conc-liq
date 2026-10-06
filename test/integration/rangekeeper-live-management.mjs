@@ -230,6 +230,38 @@ try{
   assert(busyRefresh.missing.includes('persisted_live_queue_has_priority'));
   assert.equal((await readWalletState(db,walletIdentity)).generation,beforeBusyGeneration,'Busy queue must not refresh wallet generation');
 
+  // Live time-in-range accrual (left-Riemann on the previous snapshot, oversized gaps dropped) and the
+  // campaign-row range_state mirror, written in the mark transaction and only on change.
+  {
+   const rangeState=async()=>(await db.query('SELECT range_state,updated_at FROM deployment_campaigns WHERE id=$1',[campaignId])).rows[0];
+   const secs=async()=>{const c=await readRangeKeeperLiveCampaign(db,{...walletIdentity,campaignId});return {a:c.state.activeSeconds,o:c.state.outsideSeconds,c};};
+   // Policy events advance the runtime source beyond state.last, so start after both and prime with an in-range mark.
+   const rt=(await db.query('SELECT source_block,source_timestamp FROM deployment_live_campaign_runtime WHERE campaign_id=$1',[campaignId])).rows[0];
+   let t=Math.max(Number(rt.source_timestamp),(await secs()).c.state.last.source.timestamp),blk=BigInt(rt.source_block);
+   const mark=async(dt,tick,pos=position)=>{
+    t+=dt;blk+=1n;const before=await secs();
+    const snap={...snapshot,source:{block:blk,hash:hash(String(Number(blk%10n))),timestamp:t},tick,position:pos};
+    const c=await db.connect();let r;try{r=await recordRangeKeeperLiveValuationMarkInTransaction(c,{wallet:walletIdentity,campaignId,revision:1,snapshot:snap,references:null});}finally{c.release();}
+    assert.equal(r.replayed,false);const after=await secs();
+    assert.equal(after.c.state.lastMarkTimestamp,t);
+    return {da:after.a-before.a,do:after.o-before.o};
+   };
+   await mark(1,0);
+   assert.deepEqual(await mark(30,0),{da:30,do:0},'prev in range: gap is in-range time');
+   assert.equal((await rangeState()).range_state,'inside');
+   assert.deepEqual(await mark(20,100),{da:20,do:0},'gap belongs to the previous (in-range) tick');
+   assert.equal((await rangeState()).range_state,'outside');
+   assert.deepEqual(await mark(30,100),{da:0,do:30},'prev out of range: gap is outside time');
+   const stamp=(await rangeState()).updated_at.toISOString();
+   assert.deepEqual(await mark(5,101),{da:0,do:5});
+   assert.equal((await rangeState()).updated_at.toISOString(),stamp,'unchanged range_state must not rewrite the campaign row');
+   assert.deepEqual(await mark(200,0),{da:0,do:0},'gap above maxObservationGapSeconds is not attributed');
+   assert.equal((await rangeState()).range_state,'inside');
+   assert.deepEqual(await mark(10,0,null),{da:10,do:0},'last snapshot had liquidity; gap counts');
+   assert.equal((await rangeState()).range_state,'no_liquidity');
+   assert.deepEqual(await mark(10,0,null),{da:0,do:0},'no active position: nothing accrues');
+  }
+
   // Complete/release this synthetic job and allocation, then replay the exact
   // idempotency request. Lookup must happen before stale review/allocation checks.
   await db.query("UPDATE deployment_live_jobs SET status='succeeded',completed_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1",[accepted.jobId]);

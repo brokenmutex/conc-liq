@@ -250,7 +250,10 @@ function liveCampaignView(row:DeploymentRow,model:LiveMarkModel|null){
    expiresAt:expiresAt!==null&&expiresAt!==Number.MAX_SAFE_INTEGER&&Number.isSafeInteger(expiresAt)&&expiresAt>0&&expiresAt<4_102_444_800?
     new Date(expiresAt*1000).toISOString():null,
    economicActions:runtime&&Number.isSafeInteger(runtime.economicActions)&&runtime.economicActions>=0?runtime.economicActions:null};
- return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,scope,
+ // In-range / out-of-range seconds accrued by the live mark writer; null when the runtime state is unverified.
+ const timeInRange=runtime&&Number.isFinite(runtime.activeSeconds)&&Number.isFinite(runtime.outsideSeconds)?
+  {activeSeconds:runtime.activeSeconds,outsideSeconds:runtime.outsideSeconds}:null;
+ return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,timeInRange,scope,
   allocation:allocation.success?allocation.data:null,
   recenters:runtime&&Number.isSafeInteger(runtime.recenters)?runtime.recenters:null,
   paidGasWei:runtime&&typeof runtime.gasSpentWei==='bigint'?String(runtime.gasSpentWei):null,
@@ -780,6 +783,7 @@ export function deploymentPosition(row:DeploymentRow){
    ...(liveView?{live:{lifecycle:liveView.lifecycle,phase:liveView.phase,job:liveView.job,
     blockedReason:liveView.blockedReason,nftId:liveView.nftId,
     range:{state:liveView.rangeState,tick:liveView.tick,tickLower:liveView.tickLower,tickUpper:liveView.tickUpper},
+    timeInRange:liveView.timeInRange,
     allocation:liveView.allocation,scope:liveView.scope,recenters:liveView.recenters,paidGasWei:liveView.paidGasWei,
     runtimeVerified:liveView.runtimeVerified,valuationAvailable:liveModel?.navQuote!=null}}:{}),
    sourceBlock:liveModel?.source.block??row.source_block,sourceHash:liveModel?.source.hash??row.source_hash,

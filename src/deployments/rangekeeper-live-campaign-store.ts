@@ -8,7 +8,7 @@ import {withLiveWalletTransaction,type LiveWalletIdentity} from './live-wallet-s
 import {parseRangeKeeperConfig,rangeKeeperConfigHash,type RangeKeeperConfig} from '../strategy/rangekeeper/config.js';
 import {rawValue} from '../strategy/rangekeeper/planner.js';
 import {marketProfileSchema} from './market-profile.js';
-import {parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js';
+import {accrueRangeKeeperTimeInRange,parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState} from '../strategy/rangekeeper/live-domain.js';
 import type {AuthorizedRangeKeeperLiveStage,RangeKeeperLiveCampaign,RangeKeeperRuntimeEventInput,RangeKeeperRuntimeEventResult} from './rangekeeper-live-campaign.js';
 import type {RangeKeeperSnapshot} from '../strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperLiveStageReferences} from './rangekeeper-live-references.js';
@@ -183,6 +183,7 @@ export async function recordRangeKeeperLiveValuationMarkInTransaction(client:Poo
  if(input.references){assert(input.references.source.block===source.block&&input.references.source.hash.toLowerCase()===source.hash.toLowerCase()&&
   input.references.source.timestamp===source.timestamp&&input.references.price0>0n&&input.references.price1>0n&&input.references.nativePrice>0n&&
   /^[0-9a-f]{64}$/.test(input.references.proofHash),'Valuation reference is not bound to observed source');}
+ accrueRangeKeeperTimeInRange(state,source.timestamp,campaign.config.limits.maxObservationGapSeconds);
  state.last=snapshot;state.lastMarkTimestamp=source.timestamp;
  const runtimeStateHash=contentHash(JSON.parse(rangeKeeperJson(state)));
  const payload={schemaVersion:1,kind:'rangekeeper_live_valuation_mark_v1',campaignId:campaign.id,revision:campaign.revision,
@@ -202,8 +203,15 @@ export async function recordRangeKeeperLiveValuationMarkInTransaction(client:Poo
   missing:[...(input.missing??[])]};
  const effectId=input.effectId??contentHash({kind:payload.kind,campaignId:campaign.id,revision:campaign.revision,source,
   runtimeStateHash});
- return appendRangeKeeperLiveCampaignEventInTransaction(client,{...input.wallet,campaignId:campaign.id,revision:campaign.revision,
+ const result=await appendRangeKeeperLiveCampaignEventInTransaction(client,{...input.wallet,campaignId:campaign.id,revision:campaign.revision,
   effectId,kind:'mark',expectedStateHash:campaign.stateHash,state,source,payload});
+ // Mirror the observed range onto the campaign row in the same transaction (paper does this per mark). Written only on change.
+ if(!result.replayed){
+  const p=snapshot.position,rangeState=!p||p.liquidity<=0n?'no_liquidity':snapshot.tick>=p.tickLower&&snapshot.tick<p.tickUpper?'inside':'outside';
+  await client.query(`UPDATE deployment_campaigns SET range_state=$2,updated_at=clock_timestamp()
+   WHERE id=$1 AND lifecycle<>'closed' AND range_state IS DISTINCT FROM $2`,[campaign.id,rangeState]);
+ }
+ return result;
 }
 
 /** Persist the consumed owned-fork capability beside its already-inserted
