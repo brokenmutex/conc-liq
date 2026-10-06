@@ -64,7 +64,7 @@ interface DeploymentMark {
  conversion_accounting_snapshot:unknown;conversion_accounting_hash:string|null;
  accounting_invalidated_at:Date|null;accounting_invalidation_reason:string|null;
 }
-type LiveMarkModel={payload:any;state:RangeKeeperLiveState;source:{block:string;hash:string;timestamp:number};
+type LiveMarkModel={payload:any;state:RangeKeeperLiveState;runtime:RangeKeeperLiveState|null;source:{block:string;hash:string;timestamp:number};
  amounts:[string,string];navQuote:string|null;passiveQuote:string|null;feesQuote:string|null;gasQuote:string|null;swapCostQuote:string|null;
  pnlQuote:string|null;alphaQuote:string|null;epoch:number;sqrt:string|null;tick:number|null;tickLower:number|null;
  tickUpper:number|null;hasPosition:boolean;feeEvidenceAvailable:boolean;nativeWei:string;referencesAvailable:boolean;missing:string[];
@@ -151,7 +151,8 @@ function liveMarkModel(row:DeploymentRow,profile:MarketProfile,history=false):Li
    pnlQuote=initialCapital===null?null:String(BigInt(navQuote)-BigInt(initialCapital));
    alphaQuote=String(BigInt(navQuote)-BigInt(passiveQuote));
   }
-  return {payload,state,source:{block:String(payload.source.block),hash:String(payload.source.hash),timestamp:Number(payload.source.timestamp)},
+  // `runtime` is the full persisted runtime state, hash-verified above for the current (non-history) projection.
+  return {payload,state,runtime:history?null:runtime,source:{block:String(payload.source.block),hash:String(payload.source.hash),timestamp:Number(payload.source.timestamp)},
    referenceBasis,nativeTotalWei:String(nativeTotal),
    amounts:[String(total0),String(total1)],navQuote,passiveQuote,feesQuote,gasQuote,swapCostQuote,pnlQuote,alphaQuote,
    epoch:Number.isSafeInteger(payload.epoch)&&payload.epoch>=0?payload.epoch:
@@ -251,8 +252,10 @@ function liveCampaignView(row:DeploymentRow,model:LiveMarkModel|null){
     new Date(expiresAt*1000).toISOString():null,
    economicActions:runtime&&Number.isSafeInteger(runtime.economicActions)&&runtime.economicActions>=0?runtime.economicActions:null};
  // In-range / out-of-range seconds accrued by the live mark writer; null when the runtime state is unverified.
- const timeInRange=runtime&&Number.isFinite(runtime.activeSeconds)&&Number.isFinite(runtime.outsideSeconds)?
-  {activeSeconds:runtime.activeSeconds,outsideSeconds:runtime.outsideSeconds}:null;
+ // The mark payload's accountingState is a subset without these counters, so they come from the full verified runtime.
+ const timed=model?model.runtime:runtime,
+  timeInRange=timed&&Number.isFinite(timed.activeSeconds)&&Number.isFinite(timed.outsideSeconds)?
+  {activeSeconds:timed.activeSeconds,outsideSeconds:timed.outsideSeconds}:null;
  return {lifecycle,phase,job,blockedReason,nftId,hasPosition,tickLower,tickUpper,tick,rangeState,timeInRange,scope,
   allocation:allocation.success?allocation.data:null,
   recenters:runtime&&Number.isSafeInteger(runtime.recenters)?runtime.recenters:null,

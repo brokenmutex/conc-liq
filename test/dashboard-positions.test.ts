@@ -93,6 +93,21 @@ test('live RangeKeeper projection values complete source-bound custody and fees,
  assert.equal(position.inventory.tokens[1]!.amountRaw,'24000000000000000000');
  assert.doesNotThrow(()=>JSON.stringify(position),'Positions API projection must be JSON-safe');
  assert.equal(position.initialQuote,'32000000','opening native reserve is included in the exact opening capital baseline');
+ // The mark payload's accountingState is a subset without the time-in-range counters; they come from the full verified runtime.
+ const {activeSeconds:_a,outsideSeconds:_o,...subset}=accountingState,
+  fullRuntime={...accountingState,activeSeconds:120,outsideSeconds:30},
+  fullRuntimeHash=contentHash(JSON.parse(rangeKeeperJson(fullRuntime))),
+  subsetPayload={...payload,accountingState:subset,runtimeStateHash:fullRuntimeHash},
+  timed={...row,live_mark_payload:JSON.parse(rangeKeeperJson(subsetPayload)),
+   live_mark_payload_hash:contentHash(JSON.parse(rangeKeeperJson(subsetPayload))),
+   live_runtime_state:JSON.parse(rangeKeeperJson(fullRuntime)),live_runtime_state_hash:fullRuntimeHash};
+ const timedPosition=deploymentPosition(timed);
+ assert.equal(timedPosition.accounting,'recorded','the subset accountingState still values the mark');
+ assert.deepEqual(timedPosition.deployment.live!.timeInRange,{activeSeconds:120,outsideSeconds:30});
+ assert.equal(timedPosition.deployment.live!.runtimeVerified,true);
+ assert.equal(deploymentPosition(row).deployment.live!.timeInRange!.activeSeconds,0,'a runtime with zero counters reports zero');
+ const unverified=deploymentPosition({...timed,live_runtime_state_hash:'0'.repeat(64)});
+ assert.equal(unverified.deployment.live!.timeInRange,null,'an unverified runtime never reports time in range');
  const stale={...row,live_mark_payload:{...row.live_mark_payload as any,referenceValuation:{...(row.live_mark_payload as any).referenceValuation,
   source:{...source,block:'99'}}}};
  stale.live_mark_payload_hash=contentHash(stale.live_mark_payload);
