@@ -468,3 +468,17 @@ test('live row facts show when a campaign expires and how many economic actions 
  assert.equal(liveRowModel(livePosition('holding',{scope:undefined})).facts.some(([key]:[string,string])=>key==='Expires'),false,
   'an older projection without a scope renders unchanged');
 });
+
+test('position detail defaults to the Price & range chart and shows the range width in ticks',()=>{
+ const {context,run}=appContext();
+ assert.equal(run('modes.live.metric'),'range');assert.equal(run('modes.paper.metric'),'range');
+ const width=(p:Record<string,unknown>)=>{context.p=p;return run('widthRow(p)') as string;};
+ const text=(html:string)=>html.replace(/<[^>]+>/g,'');
+ const live={tickLower:-218030,tickUpper:-217630,tickSpacing:10,strategy:{fullWidthSpacings:40}};
+ assert.equal(text(width(live)),'Range width400 ticks (40 × 10) · ±2.0%');
+ assert.equal(text(width({...live,strategy:{fullWidthSpacings:48}})),'Range width400 ticks (40 × 10) · ±2.0% · configured 480 ticks (48 × 10)');
+ assert.equal(text(width({tickLower:-60,tickUpper:60})),'Range width120 ticks · ±0.6%','static strategies show the actual width only');
+ assert.equal(text(width({rangekeeper:{tickLower:0,tickUpper:400},tickSpacing:10})),'Range width400 ticks (40 × 10) · ±2.0%');
+ assert.equal(width({tickLower:null,tickUpper:null,tickSpacing:10,strategy:{fullWidthSpacings:40}}),'','no position, no width');
+ assert.equal(width({}),'');
+});

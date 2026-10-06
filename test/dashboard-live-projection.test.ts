@@ -119,6 +119,7 @@ test('holding rows take NFT id, range and in or out of range from the integrity-
  assert.equal(inside.deployment.live!.lifecycle,'holding');assert.equal(inside.deployment.live!.nftId,'1000');
  assert.equal(inside.tokenId,'1000');assert.equal(inside.hasLiquidity,true);assert.equal(inside.history,false);
  assert.equal(inside.deployment.live!.recenters,2);assert.equal(inside.deployment.live!.paidGasWei,'1234');
+ assert.equal(inside.tickLower,-60);assert.equal(inside.tickUpper,60);assert.equal(inside.tickSpacing,60,'actual ticks and pool spacing reach the dashboard row');
  assert.equal(inside.range?.length,2);assert.equal(inside.navQuote,null);assert.equal(inside.accounting,'unavailable');
  assert(inside.reasons.includes('live_valuation_unavailable'),'missing valuation is stated, not hidden');
  const outside=deploymentPosition(liveRow({lifecycle:'active'},runtimeState({},{source:{block:'101',hash,timestamp:now-5},tick:61,

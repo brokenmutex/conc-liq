@@ -737,6 +737,7 @@ export function deploymentPosition(row:DeploymentRow){
   invalidatedAt:row.accounting_invalidated_at?.toISOString()??null,
   reserveQuote:null,strategy:{...record(row.config),live:row.mode==='live'},
   range:hasLiquidity&&tickLower!==null&&tickUpper!==null?rangePrices(tickLower,tickUpper,p):null,
+  tickLower:hasLiquidity?tickLower:null,tickUpper:hasLiquidity?tickUpper:null,tickSpacing:p.tickSpacing,
   priceQuoteX18:sqrt?poolPrice(BigInt(sqrt),p):null,
   referencePriceQuoteX18:liveModel?liveModel.referencesAvailable?referencePrice({reference:{price0:liveModel.payload.referenceValuation.price0,
    price1:liveModel.payload.referenceValuation.price1}},p):null:economicsFallback&&rangeKeeperModel?.reference.eligible?
