@@ -7,6 +7,7 @@ import {contentHash} from './contracts.js';
 import {readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
 import {assertConvertConversionEvidence,assertRangeKeeperLiveCampaignBuildCompatible,deriveRangeKeeperLiveManagementTransition,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
  deriveRangeKeeperLiveClosedState,type RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
+import {withLiveManagementPreviewHold} from './live-management-hold.js';
 import {lookupLiveJobByRequest,readReview,readWalletState,recordReview,type LiveWalletIdentity} from './live-wallet-store.js';
 
 export type RangeKeeperLiveClosePreviewKind='rangekeeper_live_retain_preview'|'rangekeeper_live_convert_preview';
@@ -211,11 +212,18 @@ export function createRangeKeeperLiveManagementRuntime(input:{pool:Pool;wallet:L
   if(input.persistReviews!==true)return unavailable(campaign,['live_management_review_persistence_disabled'],kind);
   if(!observe)return unavailable(campaign,['live_convert_exit_unavailable'],kind);
   try{
-   const observation=await observe(campaign);
-   return recordRangeKeeperLiveManagementReview(input.pool,{wallet:input.wallet,campaign,operationKind,
-    source:observation.source,snapshot:observation.snapshot,references:observation.references,position:observation.position,
-    decision:observation.decision,candidate:null,policy:null,costs:observation.costs,missing:observation.missing,
-    expiresAt:observation.expiresAt},{buildId:input.buildId,verifyPinned:input.verifyPinned,now:input.now});
+   // The wallet hold keeps the worker's holding observer from refreshing the wallet source or marking this campaign's
+   // runtime state for the whole preview (a fork simulation of 10 s or more). The review row, once recorded, continues
+   // the hold until it expires or is consumed. The campaign is re-read under the hold: a mark written before the hold was
+   // taken would otherwise freeze a stale state hash into the review.
+   return await withLiveManagementPreviewHold(input.pool,input.wallet,async()=>{
+    const held=await readRangeKeeperLiveCampaign(input.pool,{...input.wallet,campaignId});
+    const observation=await observe(held);
+    return recordRangeKeeperLiveManagementReview(input.pool,{wallet:input.wallet,campaign:held,operationKind,
+     source:observation.source,snapshot:observation.snapshot,references:observation.references,position:observation.position,
+     decision:observation.decision,candidate:null,policy:null,costs:observation.costs,missing:observation.missing,
+     expiresAt:observation.expiresAt},{buildId:input.buildId,verifyPinned:input.verifyPinned,now:input.now});
+   });
   }catch(error){return unavailable(campaign,[error instanceof Error?error.message:'live_management_observation_unavailable'],kind);}
  };
  const closeOperation=async(campaignId:string,body:{previewId:string;contentDigest:string;expectedRevision:number;idempotencyKey:string},

@@ -18,6 +18,7 @@ import {deriveRangeKeeperCampaignStageSnapshot,type RangeKeeperLiveCampaign,type
  type RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import {readCommitments,readWalletState,withLiveWalletTransaction,type LiveWalletIdentity,type LiveWalletSnapshotInput} from './live-wallet-store.js';
 import {readLiveWalletLane} from './live-wallet-queue.js';
+import {liveWalletHasPendingManagementReview,tryAcquireLiveWalletObservationLease} from './live-management-hold.js';
 import {liveWalletCommitmentFingerprint,liveWalletInventoryMatchesState} from './live-wallet-commitment-projection.js';
 import {verifyRangeKeeperWalletCode} from '../strategy/rangekeeper/wallet-code.js';
 import {marketProfileSchema,type MarketProfile} from './market-profile.js';
@@ -269,19 +270,31 @@ export function createRangeKeeperLiveManagementObserver(input:RangeKeeperLiveMan
    if(!campaign.state||campaign.state.phase!=='holding'||campaign.state.activeTokenId===null)continue;
    // A campaign with its own queued or blocked job is not marked: its frozen review is bound to the current state hash.
    if((await readLiveWalletLane(input.pool,input.wallet,campaign.id)).campaignWork)continue;
+   // Management hold. A wallet refresh moves the wallet source and a mark moves the campaign state hash, and an operator
+   // review pins both. Skip the whole pass (the snapshot is wallet-wide) while a preview is being generated, which holds
+   // the wallet lock, or while an unexpired unconsumed close review exists. The review is checked only after the lock is
+   // taken, so a preview that finishes between the two cannot be missed. Worker safety exits never pass through here.
+   let lease:Awaited<ReturnType<typeof tryAcquireLiveWalletObservationLease>>=null;
+   try{lease=await tryAcquireLiveWalletObservationLease(input.pool,input.wallet);}
+   catch(error){missing.push(`${campaign.id}:${error instanceof Error?error.message:'management_hold_unavailable'}`);continue;}
+   if(!lease)return {status:'held' as const,recorded,missing:[...missing,'operator_management_preview_in_progress']};
    try{
-    const observation=await collect(campaign,false),profile=marketProfileSchema.parse(campaign.profile);
-    const walletRead=await readWalletState(input.pool,input.wallet);
-    assert(walletRead.source&&sameSource(walletRead.source,observation.source),'Wallet changed after management observation');
-    const chain=new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances);
-    const fee=(observation.position as any).feeEvidence;
-    await withLiveWalletTransaction(input.pool,input.wallet,async db=>{
-     const lane=await readLiveWalletLane(db,input.wallet,campaign.id);
-     assert(!lane.inflight&&!lane.unresolved&&!lane.campaignWork,'Shared wallet queue became busy');
-     await recordRangeKeeperLiveValuationMarkInTransaction(db,{wallet:input.wallet,campaignId:campaign.id,revision:campaign.revision,
-     snapshot:observation.snapshot,references:observation.references as any,positionFeeEvidence:fee});
-    });recorded++;
-   }catch(error){missing.push(`${campaign.id}:${error instanceof Error?error.message:'valuation_unavailable'}`);}
+    if(await liveWalletHasPendingManagementReview(input.pool,input.wallet,(input.now??Date.now)()))
+     return {status:'held' as const,recorded,missing:[...missing,'operator_management_review_pending']};
+     try{
+      const observation=await collect(campaign,false),profile=marketProfileSchema.parse(campaign.profile);
+      const walletRead=await readWalletState(input.pool,input.wallet);
+      assert(walletRead.source&&sameSource(walletRead.source,observation.source),'Wallet changed after management observation');
+      const chain=new RangeKeeperChain(input.client,profile.pool,campaign.config.zeroAllowances);
+      const fee=(observation.position as any).feeEvidence;
+      await withLiveWalletTransaction(input.pool,input.wallet,async db=>{
+       const lane=await readLiveWalletLane(db,input.wallet,campaign.id);
+       assert(!lane.inflight&&!lane.unresolved&&!lane.campaignWork,'Shared wallet queue became busy');
+       await recordRangeKeeperLiveValuationMarkInTransaction(db,{wallet:input.wallet,campaignId:campaign.id,revision:campaign.revision,
+       snapshot:observation.snapshot,references:observation.references as any,positionFeeEvidence:fee});
+      });recorded++;
+     }catch(error){missing.push(`${campaign.id}:${error instanceof Error?error.message:'valuation_unavailable'}`);}
+   }finally{await lease.release();}
   }
   return {status:'observed' as const,recorded,missing};
  };

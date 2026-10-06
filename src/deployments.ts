@@ -117,7 +117,7 @@ async function main(){
  // Unset follows the proven schema (v14 and a configured wallet); '0'/'1' stay explicit.
  const persistLiveReviews=resolveLiveReviewPersistence(env.DEPLOYMENT_LIVE_REVIEW_PERSISTENCE,walletTransferStore!==null);
  const liveReviewPool=persistLiveReviews?
-  new Pool({connectionString:env.DATABASE_URL,max:2,statement_timeout:15000}):undefined;
+  new Pool({connectionString:env.DATABASE_URL,max:3,statement_timeout:15000}):undefined;
  const liveSetup=createRangeKeeperLiveSetupRuntime({store,indexer,client,
   walletAddress:env.DEPLOYMENT_OPERATOR_WALLET_ADDRESS,buildId:runtime.buildId??'',
   rpcUrl:env.PAPER_FORK_RPC_URL??env.ROBINHOOD_READ_HTTP_URL,
