@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {compatibleCampaignIdentity} from './helpers/rangekeeper-live-compat.js';
 import {deriveRangeKeeperCampaignStageSnapshot,deriveRangeKeeperLiveManagementTransition,deriveRangeKeeperStage,rangeKeeperCampaignAllowancePolicy,
  type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload} from '../src/deployments/rangekeeper-live-campaign.js';
 
@@ -51,14 +52,15 @@ test('retain management transition freezes exit-only mode and rejects stale camp
   wallet0:20n,wallet1:30n,nativeWei:40n,tick:0,sqrtPriceX96:1n,unlocked:true,poolLiquidity:100n,allowances:[],
   position:{tokenId:77n,token0:'0x1111111111111111111111111111111111111111',token1:'0x2222222222222222222222222222222222222222',
    fee:3000,tickLower:-60,tickUpper:60,liquidity:10n,tokensOwed0:0n,tokensOwed1:0n}} as any;
- const state={version:1,id:'campaign-1',operator:wallet,configHash:`0x${'b'.repeat(64)}`,buildId:'d'.repeat(64),phase:'holding',
-  desired:'running',exitMode:null,haltReason:null,createdAt:1,expiresAt:3000,economicActions:1,recenters:0,policy:{configHash:`0x${'b'.repeat(64)}`,
-   buildId:'d'.repeat(64)},last:snapshot,activeTokenId:77n,retiredTokenIds:[],legacyNftCount:0n,reserve0:0n,reserve1:0n,reserveNativeWei:0n,
+ const identity=compatibleCampaignIdentity({pool:{token0:snapshot.position.token0,token1:snapshot.position.token1}},'d'.repeat(64));
+ const state={version:1,id:'campaign-1',operator:wallet,configHash:identity.configHash,buildId:'d'.repeat(64),phase:'holding',
+  desired:'running',exitMode:null,haltReason:null,createdAt:1,expiresAt:3000,economicActions:1,recenters:0,policy:identity.policy,last:snapshot,activeTokenId:77n,retiredTokenIds:[],legacyNftCount:0n,reserve0:0n,reserve1:0n,reserveNativeWei:0n,
   initial0:1n,initial1:1n,initialNativeWei:1n,initialStrategyValue:1n,candidate:null,swapDone:false,swapConfirmedAt:null,withdrawDone:false,
   actionStartCostIndex:0,reservedActionCost:0n,mintRecoveryAttempts:0,collectedFee0:0n,collectedFee1:0n,gasSpentWei:0n,costEvents:[],
   highWaterValue:1n,activeSeconds:0,outsideSeconds:0,lastMarkTimestamp:0,lastReason:'opened',closedAt:null} as any;
  const campaign={id:'campaign-1',chainId:4663,wallet,revision:1,profileId:'profile-1',profileHash:'c'.repeat(64),profile:{},
-  config:{pool:{token0:snapshot.position.token0,token1:snapshot.position.token1}},configHash:state.configHash,revisionConfig:{},revisionConfigHash:'f'.repeat(64),
+  config:identity.config,configHash:state.configHash,strategyId:identity.strategyId,strategyVersion:identity.strategyVersion,
+  stateSchemaVersion:identity.stateSchemaVersion,revisionConfig:{},revisionConfigHash:'f'.repeat(64),
   allocation:{allocationId:'allocation-1',campaignId:'campaign-1',revision:1,wallet,liquidByTokenAddress:{},nativeSpendWei:40n,
    pendingNativeSpendWei:0n,exitReserveWei:10n,nftTokenIds:['77'],allocationHash:'e'.repeat(64),sourceGeneration:3,sourceHash:source.hash},
   baseline:{},reviewPayload:{binding:{buildId:state.buildId}},state,stateHash:'1'.repeat(64),stateRevision:7,status:'active'} as unknown as RangeKeeperLiveCampaign;
@@ -78,9 +80,11 @@ test('recenter management transition requires source-bound candidate and freezes
  const wallet='0x3333333333333333333333333333333333333333',source={block:'10',hash:`0x${'a'.repeat(64)}`,timestamp:1000};
  const snapshot={operator:wallet,source:{block:10n,hash:source.hash,timestamp:1000},nonce:4n,nftCount:1n,position:{tokenId:77n},
   wallet0:20n,wallet1:30n,nativeWei:40n,tick:0,sqrtPriceX96:1n,unlocked:true,poolLiquidity:100n,allowances:[]} as any;
- const state={id:'campaign-1',operator:wallet,configHash:`0x${'b'.repeat(64)}`,buildId:'d'.repeat(64),phase:'holding',
-  desired:'running',exitMode:null,last:snapshot,activeTokenId:77n,costEvents:[],policy:{},actionStartCostIndex:0} as any;
+ const identity=compatibleCampaignIdentity({pool:{}},'d'.repeat(64));
+ const state={version:1,id:'campaign-1',operator:wallet,configHash:identity.configHash,buildId:'d'.repeat(64),phase:'holding',
+  desired:'running',exitMode:null,last:snapshot,activeTokenId:77n,costEvents:[],policy:identity.policy,actionStartCostIndex:0} as any;
  const campaign={id:'campaign-1',chainId:4663,wallet,revision:1,profileId:'profile-1',profileHash:'c'.repeat(64),profile:{},
+  config:identity.config,strategyId:identity.strategyId,strategyVersion:identity.strategyVersion,stateSchemaVersion:identity.stateSchemaVersion,
   configHash:state.configHash,allocation:{allocationId:'allocation-1',sourceGeneration:1,nftTokenIds:['77']},state,stateHash:'1'.repeat(64),
   stateRevision:2,status:'active'} as unknown as RangeKeeperLiveCampaign;
  const candidate={kind:'recenter',range:{tickLower:-60,tickUpper:60},swap:null,amount0Desired:1n,amount1Desired:2n,

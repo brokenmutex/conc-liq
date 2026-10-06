@@ -22,7 +22,8 @@ const root=new pg.Pool({connectionString:process.env.TEST_DATABASE_URL,max:5}),a
 const schema=`rk_live_management_${randomUUID().replaceAll('-','')}`;
 const wallet='0x0000000000000000000000000000000000000900',token0='0x1000000000000000000000000000000000000001';
 const token1='0x2000000000000000000000000000000000000002',manager='0x5000000000000000000000000000000000000005';
-const buildId='b'.repeat(64),profileId=randomUUID(),campaignId=randomUUID(),allocationId=randomUUID(),openReviewId=randomUUID(),openJobId=randomUUID();
+// The campaign is opened under buildId and managed by a different, later build (managerBuildId): a deploy never strands it.
+const buildId='b'.repeat(64),managerBuildId='9'.repeat(64),otherBuildId='8'.repeat(64),profileId=randomUUID(),campaignId=randomUUID(),allocationId=randomUUID(),openReviewId=randomUUID(),openJobId=randomUUID();
 const source={block:'78211393',hash:`0x${'a'.repeat(64)}`,timestamp:Math.floor(Date.now()/1000)};
 const addr=n=>`0x${BigInt(n).toString(16).padStart(40,'0')}`,hash=c=>`0x${c.repeat(64)}`;
 const limits={maxDeploymentValue:'1000000000000000000',minDeploymentPpm:1,maxSwapInputValue:'1000000000000000000',
@@ -66,6 +67,10 @@ const references={source,price0:100n,price1:200n,nativePrice:300n,proofHash:'d'.
 const managementQueueAdapters={authorizeStage:async()=>{throw Error('No stage authorization in this storage test');},
  reconcile:async()=>{throw Error('No canonical receipt adapter in this storage test');},
  verifyCleanup:async()=>{throw Error('No cleanup adapter in this storage test');}};
+// Revision rows are immutable evidence; the disposable schema lifts that only to simulate a future incompatible persisted identity.
+const mutateRevision=async(db,set)=>{await db.query('ALTER TABLE deployment_revisions DISABLE TRIGGER USER');
+ try{await db.query(`UPDATE deployment_revisions SET ${set} WHERE campaign_id=$1`,[campaignId]);}
+ finally{await db.query('ALTER TABLE deployment_revisions ENABLE TRIGGER USER');}};
 const json=(v)=>JSON.parse(JSON.stringify(v,(_,x)=>typeof x==='bigint'?x.toString():x));
 
 try{
@@ -143,7 +148,7 @@ try{
     timestamp:args.blockNumber===BigInt(plannerSource.block)?plannerSource.timestamp:source.timestamp,baseFeePerGas:1n}:
     {number:BigInt(plannerSource.block)+64n,hash:plannerSource.hash,timestamp:plannerSource.timestamp},
    getGasPrice:async()=>{throw Error('An inside-range observation must not request fork gas pricing');}},
-   rpcUrl:'http://127.0.0.1:1',anvilBinary:'/unused',buildId,enabled:true,queueReady:async()=>true,
+   rpcUrl:'http://127.0.0.1:1',anvilBinary:'/unused',buildId:managerBuildId,enabled:true,queueReady:async()=>true,
    enqueue:async()=>{throw Error('An inside-range observation must not enqueue an operation');},
    observer:{observeForManagement:async()=>({source:plannerSource,snapshot:plannerSnapshot,references:plannerReferences,
     position:{principal0Raw:'100',principal1Raw:'100',uncollected0Raw:'0',uncollected1Raw:'0',inventory0Raw:'1100',inventory1Raw:'1100'},
@@ -174,13 +179,22 @@ try{
    decision:{reason:'fixture_retain',observationHash:'f'.repeat(64)},candidate:null,policy:null,
    costs:{status:'estimated',provenance:'owned_fork_allocated_lifecycle_v1',source,gasWei:'5',gasValueUsdX18:'7',actionCostValue:'7'},
    expiresAt:source.timestamp+90};
-  const preview=await recordRangeKeeperLiveManagementReview(db,reviewInput,{buildId,verifyPinned:async()=>true});
+  // A campaign state/revision identity this build cannot manage fails closed, for the preview and for admission.
+  await mutateRevision(db,'state_schema_version=2');
+  const incompatible=await recordRangeKeeperLiveManagementReview(db,{...reviewInput,campaign:await readRangeKeeperLiveCampaign(db,{...walletIdentity,campaignId})},{buildId:managerBuildId,verifyPinned:async()=>true});
+  assert.equal(incompatible.status,'unavailable');
+  assert(incompatible.missing.some(m=>m.startsWith('rangekeeper_live_campaign_build_incompatible')),JSON.stringify(incompatible));
+  await mutateRevision(db,'state_schema_version=1');
+  const preview=await recordRangeKeeperLiveManagementReview(db,reviewInput,{buildId:managerBuildId,verifyPinned:async()=>true});
   assert.equal(preview.status,'indicative',JSON.stringify(preview));
   assert.equal(preview.trustedPreviewSaved,true);const persisted=await readReview(db,{...walletIdentity,reviewId:preview.previewId});
   assert(persisted);const frozen=persisted.payload;
+  assert.equal(frozen.buildId,managerBuildId,'The review binds to the build that previewed it');
+  assert.equal(frozen.campaignBuildId,buildId,'The review records the build the campaign was opened under');
+  assert.equal(persisted.buildId,managerBuildId);
   const requestId='retain-review-atomicity-1',requestDigest=contentHash({kind:'fixture_management_request',reviewId:preview.previewId});
   const jobInput={...walletIdentity,campaignId,revision:1,allocationId,reviewId:preview.previewId,kind:'close_retain',payload:frozen,
-   buildId,idempotencyKey:requestId,requestDigest};
+   buildId:managerBuildId,idempotencyKey:requestId,requestDigest};
   const counts=async()=>({campaigns:Number((await db.query("SELECT count(*) n FROM deployment_campaigns WHERE mode='live'")).rows[0].n),
    allocations:Number((await db.query('SELECT count(*) n FROM deployment_live_allocations')).rows[0].n),
    tokenRows:(await db.query('SELECT allocation_id,token_address,allocated_raw FROM deployment_live_allocation_tokens ORDER BY token_address')).rows,
@@ -206,10 +220,27 @@ try{
 
   const managementRequest={wallet:walletIdentity,campaignId,previewId:preview.previewId,contentDigest:preview.contentDigest,
    expectedRevision:preview.expectedRevision,idempotencyKey:requestId};
-  const managementAdmissionDeps={pool:db,buildId,verifyPinned:async()=>true,enqueue:job=>queue.enqueue(job)};
+  const managementAdmissionDeps={pool:db,buildId:managerBuildId,verifyPinned:async()=>true,enqueue:job=>queue.enqueue(job)};
+  // A preview made by one build is never admitted by another (not the open build, not a third build), nor queued with another build id.
+  for(const other of [buildId,otherBuildId]){
+   const wrongBuild=await admitRangeKeeperLiveManagement(managementRequest,{...managementAdmissionDeps,buildId:other});
+   assert.equal(wrongBuild.status,'unavailable',JSON.stringify(wrongBuild));
+   assert(wrongBuild.missing.some(m=>/Runtime build changed after management preview/.test(m)),JSON.stringify(wrongBuild));
+   await assert.rejects(queue.enqueue({...jobInput,buildId:other}),/no longer matches|missing, consumed, or stale/i);
+  }
+  assert.equal((await readReview(db,{...walletIdentity,reviewId:preview.previewId})).consumedByJob,null);
+  await mutateRevision(db,'state_schema_version=2');
+  const incompatibleAdmission=await admitRangeKeeperLiveManagement(managementRequest,managementAdmissionDeps);
+  assert.equal(incompatibleAdmission.status,'unavailable');
+  assert(incompatibleAdmission.missing.some(m=>m.startsWith('rangekeeper_live_campaign_build_incompatible')),JSON.stringify(incompatibleAdmission));
+  await mutateRevision(db,'state_schema_version=1');
   const accepted=await admitRangeKeeperLiveManagement(managementRequest,managementAdmissionDeps);
   assert.equal(accepted.status,'queued',JSON.stringify(accepted));assert.equal(accepted.replayed,false);
   assert.equal(accepted.allocationId,allocationId);assert.equal(accepted.campaignId,campaignId);
+  assert.equal((await db.query('SELECT build_id FROM deployment_live_jobs WHERE id=$1',[accepted.jobId])).rows[0].build_id,managerBuildId,
+   'The queued management job carries the managing build');
+  assert.equal((await readRangeKeeperLiveCampaign(db,{...walletIdentity,campaignId})).state.buildId,buildId,
+   'Management leaves the campaign open-build provenance untouched');
   const after=await counts();assert.equal(after.campaigns,before.campaigns,'Management must not create another campaign');
   assert.equal(after.allocations,before.allocations,'Management must not create another allocation');
   assert.deepEqual(after.tokenRows,before.tokenRows,'Management must not reserve or borrow liquid wallet capital');

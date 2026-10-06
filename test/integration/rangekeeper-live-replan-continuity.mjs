@@ -39,7 +39,8 @@ const schema=`rk_replan_continuity_${randomUUID().replaceAll('-','')}`;
 // ---------------------------------------------------------------- fixture constants
 const signer=privateKeyToAccount(`0x${'1'.padStart(64,'0')}`),wallet=signer.address.toLowerCase(),walletIdentity={chainId:4663,address:wallet};
 const token0='0x1000000000000000000000000000000000000001',token1='0x2000000000000000000000000000000000000002',manager='0x5000000000000000000000000000000000000005';
-const buildId='b'.repeat(64),profileId=randomUUID();
+// Campaigns are opened under buildId; management previews, admissions and executions run under the later managerBuildId.
+const buildId='b'.repeat(64),managerBuildId='9'.repeat(64),profileId=randomUUID();
 const addr=n=>`0x${BigInt(n).toString(16).padStart(40,'0')}`,hash=c=>`0x${c.repeat(64)}`;
 const limits={maxDeploymentValue:'1000',minDeploymentPpm:1,maxSwapInputValue:'1000',maxSwapInputPpm:1000000,maxSwapShortfallValue:'1000',
  maxSlippageBps:50,maxActionCost:'1000',maxRollingCost:'1000',maxCampaignCost:'1000',maxExposurePpm:1000000,maxLossValue:'1000',
@@ -172,7 +173,7 @@ try{
     const allocTokens=(await client.query(`SELECT token_address,allocated_raw FROM deployment_live_allocation_tokens WHERE allocation_id=$1`,[job.allocationId])).rows;
     const source={block:String(walletState.source_block),hash:walletState.source_hash,timestamp:Number(walletState.source_timestamp)};
     const authorization={schemaVersion:1,kind:'rangekeeper_live_owned_stage_v1',status:'success',campaignId:job.campaignId,allocationId:job.allocationId,
-     revision:job.revision,stage,buildId,source,profileId:campaign.profileId,profileHash:campaign.profileHash,allocationHash:campaign.allocation.allocationHash,
+     revision:job.revision,stage,buildId:job.buildId,source,profileId:campaign.profileId,profileHash:campaign.profileHash,allocationHash:campaign.allocation.allocationHash,
      configHash:campaign.configHash.slice(2),referenceProofHash:'d'.repeat(64),planHash:liveSetupEvidenceHash(plan),calldataHash:'1'.repeat(64),
      beforeHash:'f'.repeat(64),requestHash:'a'.repeat(64),exitSpendAllowed:false,nonce:intent.nonce,gasUsed:'10',gasUnitsBound:'13',maxFeePerGasWei:'5',
      priorityFeePerGasWei:'0',stageGasWei:'65',costValue:'65',forkReceiptHash:hash('3'),evidenceHash:'4'.repeat(64),syntheticNativeFunding:true,
@@ -267,7 +268,7 @@ try{
    actionCostValue:value,gasValueUsdX18:gas});
   const positionValuation=id=>({tokenId:String(id),liquidityRaw:String(positionOf(id).liquidity),principal0Raw:'100',principal1Raw:'100',uncollected0Raw:'0',
    uncollected1Raw:'0',inventory0Raw:'100',inventory1Raw:'100'});
-  const deps={buildId,verifyPinned:async()=>true,pool:db,enqueue:job=>queue.enqueue(job)};
+  const deps={buildId:managerBuildId,verifyPinned:async()=>true,pool:db,enqueue:job=>queue.enqueue(job)};
   const enqueueRecenter=async c=>{
    const campaign=await campaignOf(c),wstate=await readWalletState(db,walletIdentity),source=wstate.source;
    const candidate={kind:'recenter',range:{tickLower:-30,tickUpper:30},swap:{token:0,amountIn:20n,quotedOut:19n,minOut:18n,priceAfter:1n<<96n,feeValue:0n,shortfallValue:1n},
@@ -276,7 +277,7 @@ try{
    const policy={...initialRangeKeeperState(config,buildId),lastEligible:{block:BigInt(source.block),hash:source.hash,timestamp:source.timestamp}};
    const review=await recordRangeKeeperLiveManagementReview(db,{wallet:walletIdentity,campaign,operationKind:'change_range',source,snapshot:snapshotAt(source,c.nft),
     references:refsAt(source),position:positionValuation(c.nft),decision:{reason:'confirmed_outside_range',observationHash:'f'.repeat(64)},candidate,policy,
-    costs:frozenCosts(source),expiresAt:source.timestamp+90},{buildId,verifyPinned:async()=>true});
+    costs:frozenCosts(source),expiresAt:source.timestamp+90},{buildId:managerBuildId,verifyPinned:async()=>true});
    assert.equal(review.status,'indicative',JSON.stringify(review));
    return enqueueRangeKeeperLiveManagementReview({wallet:walletIdentity,campaignId:c.campaignId,previewId:review.previewId,contentDigest:review.contentDigest,
     expectedRevision:1,idempotencyKey:`recenter-${c.label}-${randomUUID()}`,expectedOperationKind:'change_range'},deps);
@@ -306,7 +307,7 @@ try{
    verifyPinned:async()=>true,
   };
   let forkRuns=0;
-  const planner=createRangeKeeperLiveManagementPlanner({pool:db,client:fakeClient,wallet:walletIdentity,rpcUrl:'http://127.0.0.1:1',anvilBinary:'/unused',buildId,
+  const planner=createRangeKeeperLiveManagementPlanner({pool:db,client:fakeClient,wallet:walletIdentity,rpcUrl:'http://127.0.0.1:1',anvilBinary:'/unused',buildId:managerBuildId,
    enabled:true,observer,queueReady:()=>real.managementObservationReady(),enqueue:job=>queue.enqueue(job),
    runFork:async input=>{forkRuns++;return {source:input.source,createdTokenId:99n,gasByStage:[
     {phase:'entry',kind:'approve',gasUsed:50n,estimatedGas:50n},{phase:'entry',kind:'mint',gasUsed:100n,estimatedGas:100n},

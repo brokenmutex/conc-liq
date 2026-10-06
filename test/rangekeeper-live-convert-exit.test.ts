@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {compatibleCampaignIdentity} from './helpers/rangekeeper-live-compat.js';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
 import {parseRangeKeeperConfig} from '../src/strategy/rangekeeper/config.js';
@@ -82,14 +83,15 @@ function campaignFixture(){
  const snap={operator:wallet,source:{block:10n,hash:hashSource.hash,timestamp:hashSource.timestamp},nonce:4n,nftCount:1n,
   wallet0:20n,wallet1:30n,nativeWei:40n,tick:0,sqrtPriceX96:1n,unlocked:true,poolLiquidity:100n,allowances:[],
   position:{tokenId:77n,token0:p.token0,token1:p.token1,fee:p.fee,tickLower:-60,tickUpper:60,liquidity:10n,tokensOwed0:0n,tokensOwed1:0n}} as any;
- const state={version:1,id:'campaign-1',operator:wallet,configHash:`0x${'b'.repeat(64)}`,buildId:'d'.repeat(64),phase:'holding',
-  desired:'running',exitMode:null,haltReason:null,createdAt:1,expiresAt:3000,economicActions:1,recenters:0,policy:{configHash:`0x${'b'.repeat(64)}`,
-   buildId:'d'.repeat(64)},last:snap,activeTokenId:77n,retiredTokenIds:[],legacyNftCount:0n,reserve0:0n,reserve1:0n,reserveNativeWei:0n,
+ const identity=compatibleCampaignIdentity(config as any,'d'.repeat(64));
+ const state={version:1,id:'campaign-1',operator:wallet,configHash:identity.configHash,buildId:'d'.repeat(64),phase:'holding',
+  desired:'running',exitMode:null,haltReason:null,createdAt:1,expiresAt:3000,economicActions:1,recenters:0,policy:identity.policy,last:snap,activeTokenId:77n,retiredTokenIds:[],legacyNftCount:0n,reserve0:0n,reserve1:0n,reserveNativeWei:0n,
   initial0:1n,initial1:1n,initialNativeWei:1n,initialStrategyValue:1n,candidate:null,swapDone:false,swapConfirmedAt:null,withdrawDone:false,
   actionStartCostIndex:0,reservedActionCost:0n,mintRecoveryAttempts:0,collectedFee0:0n,collectedFee1:0n,gasSpentWei:0n,costEvents:[],
   highWaterValue:1n,activeSeconds:0,outsideSeconds:0,lastMarkTimestamp:0,lastReason:'opened',closedAt:null} as any;
  const campaign={id:'campaign-1',chainId:4663,wallet,revision:1,profileId:'profile-1',profileHash:'c'.repeat(64),profile:{},
-  config,configHash:state.configHash,revisionConfig:{},revisionConfigHash:'f'.repeat(64),
+  config:identity.config,configHash:state.configHash,strategyId:identity.strategyId,strategyVersion:identity.strategyVersion,
+  stateSchemaVersion:identity.stateSchemaVersion,revisionConfig:{},revisionConfigHash:'f'.repeat(64),
   allocation:{allocationId:'allocation-1',campaignId:'campaign-1',revision:1,wallet,liquidByTokenAddress:{},nativeSpendWei:40n,
    pendingNativeSpendWei:0n,exitReserveWei:10n,nftTokenIds:['77'],allocationHash:'e'.repeat(64),sourceGeneration:3,sourceHash:hashSource.hash},
   baseline:{},reviewPayload:{binding:{buildId:state.buildId}},state,stateHash:'1'.repeat(64),stateRevision:7,status:'active'} as unknown as RangeKeeperLiveCampaign;

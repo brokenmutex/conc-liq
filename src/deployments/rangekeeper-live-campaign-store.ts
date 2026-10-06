@@ -80,7 +80,8 @@ export async function readRangeKeeperLiveCampaign(db:Pool|PoolClient,input:LiveW
    state.buildId===String(payload.binding.buildId),'Persisted strategy state identity/config/build mismatch');
  }else assert(row.state_hash===null&&Number(row.state_revision??0)===0,'Runtime state row is incomplete');
  return {id:row.id,chainId:4663,wallet:getAddress(wallet),revision:row.revision,profileId:row.market_profile_id,profileHash:row.profile_hash,profile:row.profile,
-  config,configHash,revisionConfig,revisionConfigHash:row.revision_config_hash,allocation,baseline:row.initial_baseline??{
+  config,configHash,revisionConfig,revisionConfigHash:row.revision_config_hash,strategyId:row.strategy_id,strategyVersion:row.strategy_version,
+  stateSchemaVersion:Number(row.state_schema_version),allocation,baseline:row.initial_baseline??{
    requirements:payload.requirements,references:payload.references,source:payload.source},reviewPayload:payload,state,stateHash:row.state_hash,
   stateRevision:Number(row.state_revision??0),status:row.lifecycle};
 }

@@ -5,7 +5,7 @@ import {parseRangeKeeperJson,rangeKeeperJson,type RangeKeeperLiveState,type Rang
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import {contentHash} from './contracts.js';
 import {readRangeKeeperLiveCampaign} from './rangekeeper-live-campaign-store.js';
-import {assertConvertConversionEvidence,deriveRangeKeeperLiveManagementTransition,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
+import {assertConvertConversionEvidence,assertRangeKeeperLiveCampaignBuildCompatible,deriveRangeKeeperLiveManagementTransition,type RangeKeeperLiveCampaign,type RangeKeeperLiveManagementReviewPayload,
  deriveRangeKeeperLiveClosedState,type RangeKeeperStageReferences} from './rangekeeper-live-campaign.js';
 import {lookupLiveJobByRequest,readReview,readWalletState,recordReview,type LiveWalletIdentity} from './live-wallet-store.js';
 
@@ -83,11 +83,14 @@ export async function recordRangeKeeperLiveManagementReview(pool:Pool,input:Rang
    'Canonical/pending nonce is not settled');
   assert(Number.isSafeInteger(c.allocation.sourceGeneration)&&c.allocation.sourceGeneration>0&&
    c.allocation.sourceGeneration<=state.generation,'Campaign allocation generation is invalid');
-  const profileHash=contentHash(c.profile),buildId=String((c.reviewPayload as any)?.binding?.buildId);
-  assert(profileHash===c.profileHash&&buildId===deps.buildId,'Registered profile or build changed');
+  // The review binds to the build running now. Cross-build compatibility is decided by what determines behaviour: the
+  // profile and config hashes, the strategy/state versions and whether the persisted state parses under this build.
+  const profileHash=contentHash(c.profile),buildId=deps.buildId;
+  assert(profileHash===c.profileHash,'Registered profile changed');
+  assertRangeKeeperLiveCampaignBuildCompatible(c);
   const payload:RangeKeeperLiveManagementReviewPayload={schemaVersion:1,kind:'rangekeeper_live_management_review',mode:'live',
    strategyId:'rangekeeper_v1',operationKind:input.operationKind,campaignId:c.id,revision:c.revision,allocationId:c.allocation.allocationId,
-   profileId:c.profileId,profileHash:c.profileHash,configHash:c.configHash.slice(2),buildId,runtimeStateHash:c.stateHash,
+   profileId:c.profileId,profileHash:c.profileHash,configHash:c.configHash.slice(2),buildId,campaignBuildId:c.state.buildId,runtimeStateHash:c.stateHash,
    stateRevision:c.stateRevision,wallet:{address:state.address,generation:state.generation,commitmentsHash:state.commitmentsHash,nonce:state.nonce},
    source:input.source,snapshot:input.snapshot,reference:{proofHash:input.references.proofHash,price0:String(input.references.price0),
     price1:String(input.references.price1),nativePrice:String(input.references.nativePrice),evidence:input.references.evidence},position:input.position,

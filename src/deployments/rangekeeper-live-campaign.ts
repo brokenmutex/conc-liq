@@ -1,6 +1,7 @@
 import type {Address,Hex} from 'viem';
 import type {LiveWalletIdentity,LiveWalletSource,LiveWalletTokenAllocation} from './live-wallet-store.js';
-import type {RangeKeeperConfig} from '../strategy/rangekeeper/config.js';
+import {rangeKeeperConfigHash,type RangeKeeperConfig} from '../strategy/rangekeeper/config.js';
+import {parseRangeKeeperState,serializeRangeKeeperState} from '../strategy/rangekeeper/state.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from '../strategy/rangekeeper/live-domain.js';
 import type {RangeKeeperCandidate,RangeKeeperState} from '../strategy/rangekeeper/domain.js';
 import type {RangeKeeperTxPlan} from '../strategy/rangekeeper/calldata.js';
@@ -24,6 +25,9 @@ export interface RangeKeeperLiveCampaignAllocation {
 export interface RangeKeeperLiveCampaign {
  id:string;chainId:4663;wallet:Address;revision:number;profileId:string;profileHash:string;profile:unknown;
  config:RangeKeeperConfig;configHash:Hex;revisionConfig:unknown;revisionConfigHash:string;
+ /** Persisted revision identity. Together with the config hash and the state versions these decide whether the running
+  * build can manage the campaign; the build id the campaign was opened under does not. */
+ strategyId:string;strategyVersion:string;stateSchemaVersion:number;
  allocation:RangeKeeperLiveCampaignAllocation;baseline:unknown;reviewPayload:unknown;
  state:RangeKeeperLiveState|null;stateHash:string|null;stateRevision:number;status:'opening'|'active'|'blocked'|'closing'|'closed';
 }
@@ -44,7 +48,13 @@ export type RangeKeeperPrices={price0:bigint;price1:bigint;nativePrice:bigint};
 export interface RangeKeeperLiveManagementReviewPayload {
  schemaVersion:1;kind:'rangekeeper_live_management_review';mode:'live';strategyId:'rangekeeper_v1';
  operationKind:'change_range'|'close_retain'|'close_convert';campaignId:string;revision:number;allocationId:string;
- profileId:string;profileHash:string;configHash:string;buildId:string;runtimeStateHash:string;stateRevision:number;
+ profileId:string;profileHash:string;configHash:string;
+ /** The build that previewed (and will admit) this management action: the build running now. */
+ buildId:string;
+ /** The build the campaign was opened under (state.buildId). Recorded for the audit trail of cross-build management;
+  * absent only on reviews persisted before cross-build management existed, which must then match `buildId`. */
+ campaignBuildId?:string;
+ runtimeStateHash:string;stateRevision:number;
  wallet:{address:string;generation:number;commitmentsHash:string;nonce:string};
  source:LiveWalletSource;reference:{proofHash:string;price0:string;price1:string;nativePrice:string;evidence:unknown};
  snapshot:RangeKeeperSnapshot;position:unknown;decision:{reason:string;observationHash:string};candidate:RangeKeeperCandidate|null;
@@ -52,6 +62,30 @@ export interface RangeKeeperLiveManagementReviewPayload {
 }
 
 const eqAddress=(a:string,b:string)=>a.toLowerCase()===b.toLowerCase();
+
+/** What this source tree can manage. A campaign is managed across builds when, and only when, its persisted identity is
+ * inside this envelope: the strategy/state versions are ones this code understands, the frozen config still hashes to the
+ * persisted config hash, and the persisted policy state still parses. The build id itself is provenance, not a gate. */
+export const RANGEKEEPER_LIVE_SUPPORTED_VERSIONS={strategyId:'rangekeeper_v1',strategyVersions:['1.0.0'] as readonly string[],
+ stateSchemaVersions:[1] as readonly number[],liveStateVersions:[1] as readonly number[]} as const;
+export const RANGEKEEPER_LIVE_BUILD_INCOMPATIBLE='rangekeeper_live_campaign_build_incompatible';
+export function assertRangeKeeperLiveCampaignBuildCompatible(campaign:RangeKeeperLiveCampaign):void{
+ const fail=(why:string):never=>{throw new Error(`${RANGEKEEPER_LIVE_BUILD_INCOMPATIBLE}: ${why}`);};
+ const v=RANGEKEEPER_LIVE_SUPPORTED_VERSIONS,state=campaign.state;
+ if(!state)fail('campaign runtime state is not initialized');
+ if(campaign.strategyId!==v.strategyId)fail(`unsupported strategy ${String(campaign.strategyId)}`);
+ if(!v.strategyVersions.includes(campaign.strategyVersion)||campaign.config.strategyVersion!==campaign.strategyVersion)
+  fail(`unsupported strategy version ${String(campaign.strategyVersion)}`);
+ if(!v.stateSchemaVersions.includes(campaign.stateSchemaVersion))fail(`unsupported state schema version ${String(campaign.stateSchemaVersion)}`);
+ if(!v.liveStateVersions.includes((state as {version:number}).version))fail(`unsupported live state version ${String((state as {version:unknown}).version)}`);
+ let configHash:string;
+ try{configHash=rangeKeeperConfigHash(campaign.config);}catch{return fail('frozen config no longer parses');}
+ if(configHash!==campaign.configHash||state!.configHash!==campaign.configHash)fail('frozen config hash differs from the persisted campaign state');
+ let policy;
+ try{policy=parseRangeKeeperState(serializeRangeKeeperState(state!.policy));}catch{return fail('persisted policy state does not parse');}
+ if(policy.configHash!==campaign.configHash)fail('policy state is bound to another config');
+ if(typeof state!.buildId!=='string'||state!.buildId.length===0||policy.buildId!==state!.buildId)fail('state and policy build provenance disagree');
+}
 const sameLiveSource=(a:{block:string|bigint;hash:string;timestamp:number},b:{block:string|bigint;hash:string;timestamp:number})=>
  String(a.block)===String(b.block)&&a.hash.toLowerCase()===b.hash.toLowerCase()&&a.timestamp===b.timestamp;
 /** Validate the frozen manager review against persisted campaign identity and
@@ -60,14 +94,20 @@ const sameLiveSource=(a:{block:string|bigint;hash:string;timestamp:number},b:{bl
 export function deriveRangeKeeperLiveManagementTransition(campaign:RangeKeeperLiveCampaign,
  payload:RangeKeeperLiveManagementReviewPayload):RangeKeeperLiveState{
  const state=campaign.state;assert(state,'Campaign runtime state is not initialized');
+ assertRangeKeeperLiveCampaignBuildCompatible(campaign);
  assert(payload.schemaVersion===1&&payload.kind==='rangekeeper_live_management_review'&&payload.mode==='live'&&
   payload.strategyId==='rangekeeper_v1','Unsupported live management review');
  assert(payload.campaignId===campaign.id&&payload.revision===campaign.revision&&payload.allocationId===campaign.allocation.allocationId,
   'Management review campaign/allocation identity changed');
  assert(payload.profileId===campaign.profileId&&payload.profileHash===campaign.profileHash&&
-  payload.configHash===campaign.configHash.slice(2)&&payload.buildId===state.buildId&&
+  payload.configHash===campaign.configHash.slice(2)&&/^[0-9a-f]{64}$/.test(payload.buildId)&&
   /^[0-9a-f]{64}$/.test(payload.runtimeStateHash)&&Number.isSafeInteger(payload.stateRevision)&&payload.stateRevision>0,
   'Management review is stale or bound to another runtime');
+ // The review is bound to the managing build (checked again between preview and admission). The campaign's open build is
+ // audit provenance that must still be the persisted one; a review from before cross-build management carries none and
+ // was same-build only.
+ assert(payload.campaignBuildId===undefined?payload.buildId===state.buildId:payload.campaignBuildId===state.buildId,
+  'Management review campaign build provenance changed');
  assert(eqAddress(payload.wallet.address,campaign.wallet)&&eqAddress(state.operator,campaign.wallet)&&
   Number.isSafeInteger(payload.wallet.generation)&&payload.wallet.generation>0&&payload.wallet.generation>=campaign.allocation.sourceGeneration&&
   /^[0-9a-f]{64}$/.test(payload.wallet.commitmentsHash),
@@ -223,6 +263,10 @@ export interface PrepareRangeKeeperLiveStageInput {
  stageRetry?:number;
  /** Shared-wallet allowance policy with the pairs sibling campaigns still use; defaults to no retained pair. */
  allowancePolicy?:RangeKeeperAllowancePolicy;
+ /** The build that admitted the job being executed (`job.buildId`). Management jobs are admitted by the running build, which
+  * need not be the build that opened the campaign; the prepared-intent verifier compares this to `job.buildId`. Defaults to
+  * the campaign's open build, which is what an open job carries. */
+ buildId?:string;
 }
 export interface AuthorizedRangeKeeperLiveStage {
  intent:PilotIntent;plan:RangeKeeperTxPlan;pool:RangeKeeperConfig['pool'];
@@ -260,6 +304,7 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
 }>{
  const c=input.campaign;assert(c.state,'Campaign runtime state is not initialized');
  assert(contentHash(c.profile)===c.profileHash,'Registered profile hash changed');
+ assertRangeKeeperLiveCampaignBuildCompatible(c);
  assert(c.config.operator&&same(c.config.operator,c.wallet),'Frozen kernel operator differs from allocated wallet');
  assert(input.source.block===String(input.snapshot.source.block)&&input.source.hash.toLowerCase()===input.snapshot.source.hash.toLowerCase()&&
   input.source.timestamp===input.snapshot.source.timestamp,'Stage source differs from strategy snapshot');
@@ -289,7 +334,7 @@ export async function prepareRangeKeeperLiveStageAuthorization(input:PrepareRang
  const allocation={campaignId:c.id,liquidByTokenAddress:c.allocation.liquidByTokenAddress,nativeSpendWei:c.allocation.nativeSpendWei,
   exitReserveWei:c.allocation.exitReserveWei,nftTokenIds:c.allocation.nftTokenIds};
  const request:RangeKeeperLiveStageProofRequest={campaignId:c.id,allocationId:c.allocation.allocationId,revision:c.revision,stage,
-  buildId:String((c.reviewPayload as any)?.binding?.buildId),profileHash:c.profileHash,allocationHash:c.allocation.allocationHash,
+  buildId:input.buildId??String((c.reviewPayload as any)?.binding?.buildId),profileHash:c.profileHash,allocationHash:c.allocation.allocationHash,
   config:c.config,source:{block:BigInt(input.source.block),hash:input.source.hash as Hex,timestamp:input.source.timestamp},plan,beforePool:input.snapshot,
   allocation,prices:{price0:input.references.price0,price1:input.references.price1,nativePrice:input.references.nativePrice},
   referenceProofHash:input.references.proofHash,futureApprovalCap:futureApprovalCap(c,strategySnapshot,plan,input.references),

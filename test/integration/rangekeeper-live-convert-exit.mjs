@@ -41,7 +41,8 @@ const schema=`rk_convert_exit_${randomUUID().replaceAll('-','')}`;
 // ---------------------------------------------------------------- fixture constants
 const signer=privateKeyToAccount(`0x${'1'.padStart(64,'0')}`),wallet=signer.address.toLowerCase(),walletIdentity={chainId:4663,address:wallet};
 const token0='0x1000000000000000000000000000000000000001',token1='0x2000000000000000000000000000000000000002',manager='0x5000000000000000000000000000000000000005';
-const buildId='b'.repeat(64),profileId=randomUUID();
+// Campaigns are opened under buildId; every management preview/admission/execution below runs under the later managerBuildId.
+const buildId='b'.repeat(64),managerBuildId='9'.repeat(64),profileId=randomUUID();
 const addr=n=>`0x${BigInt(n).toString(16).padStart(40,'0')}`,hash=c=>`0x${c.repeat(64)}`;
 const limits={maxDeploymentValue:'1000',minDeploymentPpm:1,maxSwapInputValue:'1000',maxSwapInputPpm:1000000,maxSwapShortfallValue:'1000',
  maxSlippageBps:50,maxActionCost:'1000',maxRollingCost:'1000',maxCampaignCost:'1000',maxExposurePpm:1000000,maxLossValue:'1000',
@@ -177,7 +178,7 @@ try{
     const allocTokens=(await client.query(`SELECT token_address,allocated_raw FROM deployment_live_allocation_tokens WHERE allocation_id=$1`,[job.allocationId])).rows;
     const source={block:String(walletState.source_block),hash:walletState.source_hash,timestamp:Number(walletState.source_timestamp)};
     const authorization={schemaVersion:1,kind:'rangekeeper_live_owned_stage_v1',status:'success',campaignId:job.campaignId,allocationId:job.allocationId,
-     revision:job.revision,stage,buildId,source,profileId:campaign.profileId,profileHash:campaign.profileHash,allocationHash:campaign.allocation.allocationHash,
+     revision:job.revision,stage,buildId:job.buildId,source,profileId:campaign.profileId,profileHash:campaign.profileHash,allocationHash:campaign.allocation.allocationHash,
      configHash:campaign.configHash.slice(2),referenceProofHash:'d'.repeat(64),planHash:liveSetupEvidenceHash(plan),calldataHash:'1'.repeat(64),
      beforeHash:'f'.repeat(64),requestHash:'a'.repeat(64),exitSpendAllowed:job.kind.startsWith('close_')||isRangeKeeperManagedExit(campaign.state),
      exitConvert:isRangeKeeperConvertExit(campaign.state),nonce:intent.nonce,gasUsed:'10',gasUnitsBound:'13',maxFeePerGasWei:'5',
@@ -296,10 +297,10 @@ try{
    const campaign=await campaignOf(c),source=await walletSource(),id=model.active.get(c.campaignId);
    return recordRangeKeeperLiveManagementReview(db,{wallet:walletIdentity,campaign,operationKind:kind,source,snapshot:snapshotAt(source,id),
     references:refsAt(source),position:positionValuation(id),decision:{reason:kind==='close_convert'?'convert_exit_preview':'retain_only_preview',observationHash:'f'.repeat(64)},
-    candidate:null,policy:null,costs:costs??convertCosts(source),expiresAt:source.timestamp+90},{buildId,verifyPinned:async()=>true});
+    candidate:null,policy:null,costs:costs??convertCosts(source),expiresAt:source.timestamp+90},{buildId:managerBuildId,verifyPinned:async()=>true});
   };
   let freshChecks=0,freshResult=true;
-  const deps={buildId,pool:db,verifyPinned:async()=>true,verifyConvertFresh:async()=>{freshChecks++;return freshResult;},enqueue:job=>queue.enqueue(job)};
+  const deps={buildId:managerBuildId,pool:db,verifyPinned:async()=>true,verifyConvertFresh:async()=>{freshChecks++;return freshResult;},enqueue:job=>queue.enqueue(job)};
   const request=(c,review,key,expectedOperationKind='close_convert',overrides={},d=deps)=>enqueueRangeKeeperLiveManagementReview({wallet:walletIdentity,campaignId:c.campaignId,
    previewId:review.previewId,contentDigest:review.contentDigest,expectedRevision:1,idempotencyKey:key,expectedOperationKind,...overrides},d);
   const jobsOf=async c=>(await db.query(`SELECT id,kind,status FROM deployment_live_jobs WHERE campaign_id=$1 AND kind<>'open' ORDER BY created_at`,[c.campaignId])).rows;
@@ -365,7 +366,7 @@ try{
   assert.equal((await campaignOf(D)).state.phase,'holding','a rejected admission never changes campaign state');
 
   // ============================================================ S2: A converts end to end (admission through the runtime facade)
-  const runtime=createRangeKeeperLiveManagementRuntime({pool:db,wallet:walletIdentity,buildId,persistReviews:true,
+  const runtime=createRangeKeeperLiveManagementRuntime({pool:db,wallet:walletIdentity,buildId:managerBuildId,persistReviews:true,
    observe:async()=>{throw Error('retain observation must not be used for a convert');},
    observeConvert:async campaign=>{const source=await walletSource(),id=campaign.state.activeTokenId;
     return {source,snapshot:snapshotAt(source,id),references:refsAt(source),position:positionValuation(id),
@@ -509,6 +510,13 @@ try{
   assert.deepEqual(Object.fromEntries(wfinal.tokens.map(t=>[t.address,t.balanceRaw])),{[token0]:String(model.t0),[token1]:String(model.t1)});
   assert.equal(wfinal.commitmentsHash,liveWalletCommitmentFingerprint(await readCommitments(db,walletIdentity)));
   assert.equal((await db.query(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE status IN('prepared','signed')`)).rows[0].n,0);
+  // Cross-build management: every management job ran under the managing build, every campaign kept its open build.
+  const mgmtBuilds=(await db.query(`SELECT DISTINCT build_id FROM deployment_live_jobs WHERE kind<>'open'`)).rows.map(r=>r.build_id);
+  assert.deepEqual(mgmtBuilds,[managerBuildId],'Management jobs bind to the build that admitted them');
+  const stateBuilds=(await db.query(`SELECT DISTINCT state_json->>'buildId' b FROM deployment_live_campaign_runtime`)).rows.map(r=>r.b);
+  assert.deepEqual(stateBuilds,[buildId],'Campaign open-build provenance is never rewritten by management');
+  const reviewBuilds=(await db.query(`SELECT DISTINCT payload->>'buildId' b,payload->>'campaignBuildId' cb FROM deployment_live_reviews WHERE payload->>'kind'='rangekeeper_live_management_review'`)).rows;
+  assert.deepEqual(reviewBuilds,[{b:managerBuildId,cb:buildId}]);
   console.log('RangeKeeper live convert exit isolated PostgreSQL integration passed');
  }finally{await db.end();}
 }finally{await admin.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);admin.release();await root.end();}

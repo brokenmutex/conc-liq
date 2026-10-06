@@ -386,13 +386,13 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
     allowances:observed.observed.allowances}};
    const prepared=await prepareRangeKeeperLiveStageAuthorization({campaign,snapshot,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
     references,chain,walletBefore,stage,proposedPlan:plan as any,intent,verifyReferences,exitSpendAllowed,stageRetry,
-    allowancePolicy:allowancePolicyFromUses(uses,job.campaignId)});
+    allowancePolicy:allowancePolicyFromUses(uses,job.campaignId),buildId:job.buildId});
    const cacheKey=rangeKeeperLiveCapabilityCacheKey(job.id,stage,intent,plan);
    const proof=capabilityCache.get(cacheKey);assert(proof,'Exact cached owned-fork stage capability is unavailable; derive a fresh stage proposal');
    capabilityCache.delete(cacheKey);
    return authorizeRangeKeeperLiveStage({campaign,snapshot,source:{block:String(source.block),hash:source.hash,timestamp:source.timestamp},
     references,chain,walletBefore,stage,proposedPlan:plan as any,intent,capability:proof,verifyReferences,
-    exitSpendAllowed,stageRetry,allowancePolicy:allowancePolicyFromUses(uses,job.campaignId)});
+    exitSpendAllowed,stageRetry,allowancePolicy:allowancePolicyFromUses(uses,job.campaignId),buildId:job.buildId});
   },
   reconcile:async(client,{job,outbox,allocation})=>{
    assert(outbox.hash,'Signed transaction hash is required for receipt reconciliation');
@@ -626,7 +626,7 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
     value:'0' as const,gas:'8000000',maxFeePerGas:'1',maxPriorityFeePerGas:'0',sourceBlock:String(source.block),sourceHash:source.hash};
    const prepared=await prepareRangeKeeperLiveStageAuthorization({campaign,snapshot,source:sourceText,references,chain:new RangeKeeperChain(
     input.client,profile.pool,campaign.config.zeroAllowances),walletBefore,stage,proposedPlan:plan,intent:placeholder,verifyReferences,
-    exitSpendAllowed,stageRetry,allowancePolicy});
+    exitSpendAllowed,stageRetry,allowancePolicy,buildId:job.buildId});
    // A router price failure for the mint is a pre-signing timing condition, not a custody or authorization fault.
    const proof=await simulateRangeKeeperLiveStage(prepared.request,{client:input.client,rpcUrl:input.rpcUrl,anvilBinary:input.anvilBinary})
     .catch(error=>{const classified=classifyRangeKeeperStageError(plan,error);
