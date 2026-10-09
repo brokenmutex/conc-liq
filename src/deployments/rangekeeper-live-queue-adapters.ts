@@ -39,7 +39,7 @@ import {initializeRangeKeeperLiveCampaignInTransaction,appendRangeKeeperLiveCamp
 import {createRangeKeeperLiveWalletWorker,RangeKeeperLiveStaleManagementReviewError,type RangeKeeperLiveWorkerAdapters,type RangeKeeperLiveWorkerOptions,
  type RangeKeeperManagementSettlement,type RangeKeeperNextStage} from './rangekeeper-live-wallet-worker.js';
 import {classifyRangeKeeperConvertExitStageError,classifyRangeKeeperStageError,settleRangeKeeperLiveConvertExitError,
- settleRangeKeeperLiveStageError} from './rangekeeper-live-management-recovery.js';
+ recoverRangeKeeperRevertedRecenterWithdrawal,settleRangeKeeperLiveStageError} from './rangekeeper-live-management-recovery.js';
 import {RangeKeeperExitConversionUnavailableError,RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../strategy/rangekeeper/live-stage.js';
 import {createRangeKeeperLivePreparedIntentVerifier,readRangeKeeperLiveStageReferences,verifyRangeKeeperLiveStageReferences} from './rangekeeper-live-references.js';
 import {contentHash} from './contracts.js';
@@ -471,10 +471,10 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
    const campaign=await readRangeKeeperLiveCampaign(client,{...identity,campaignId:job.campaignId,revision:job.revision});
    const catalog=await profiles(client),extraAllowanceTargets=await walletAllowanceTargets(client,job.wallet,catalog);
    const custodyState=job.kind==='close_retain'||job.kind==='close_convert'||isRangeKeeperManagedExit(campaign.state)?'closed_empty':'managed';
-   if(job.kind==='close_convert'){
-    // A reverted risky-leg sale may be skipped by the queue only when campaign state fell back to a retained exit.
+   if(job.kind==='close_convert'||job.kind==='change_range'){
+    // A reverted sale or recenter withdrawal may be skipped by the queue only when campaign state fell back to a retained exit.
     const reverted=(await client.query<any>(`SELECT count(*)::int n FROM deployment_live_stage_outbox WHERE job_id=$1 AND status='reverted'`,[job.id])).rows[0].n;
-    assert(reverted===0||isRangeKeeperRetainedExit(campaign.state),'A convert exit with a reverted stage must have degraded to a retained exit');
+    assert(reverted===0||isRangeKeeperRetainedExit(campaign.state),'A management job with a reverted stage must have settled into a retained exit');
    }
    // A closing campaign no longer uses its pool's pairs: whatever it leaves non-zero must be a sibling's still-used pair.
    const allowanceScope=await readRangeKeeperAllowanceScope(client,job.wallet,catalog,custodyState==='closed_empty'?job.campaignId:undefined);
@@ -519,6 +519,32 @@ export function createRangeKeeperLiveQueueAdapters(input:{pool:Pool;client:Robin
 /** Persist a recoverable stale/infeasible recenter condition as campaign state (replan or retained exit), so a
  * completed withdrawal or swap is never repeated and the job never loops on the same failure. A bounded post-swap
  * mint wait is returned without a state write. Any other error is left unsettled, with no reads or writes. */
+/** Settle a recenter halted by its own reverted withdrawal into a retained exit of the untouched NFT. Idempotent: true once
+ * the campaign is that retained exit, so the same change_range job continues with the exit withdrawal and cleanup. */
+export async function recoverRangeKeeperLiveRevertedRecenterWithdrawal(pool:Pool,input:{job:LiveJob;outbox:LiveOutbox;
+ readSnapshot:(campaign:LiveCampaign,source:RangeKeeperSource)=>Promise<RangeKeeperSnapshot>}):Promise<boolean>{
+ const {job,outbox}=input;
+ if(job.kind!=='change_range'||outbox.status!=='reverted'||(outbox.plan as any)?.kind!=='withdraw')return false;
+ return withLiveWalletTransaction(pool,{chainId:4663,address:job.wallet},async db=>{
+  const campaign=await readRangeKeeperLiveCampaign(db,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision});
+  assert(campaign.state&&campaign.stateHash,'Management campaign state is unavailable');
+  if(isRangeKeeperRetainedExit(campaign.state)&&campaign.state.haltReason===null&&campaign.state.activeTokenId!==null)return true;
+  const row=(await db.query<any>(`SELECT source_block,source_hash,source_timestamp FROM deployment_live_wallets WHERE chain_id=4663 AND wallet=$1`,
+   [job.wallet.toLowerCase()])).rows[0];assert(row,'Canonical live wallet snapshot missing');
+  const source:RangeKeeperSource={block:BigInt(row.source_block),hash:row.source_hash,timestamp:Number(row.source_timestamp)};
+  const next=recoverRangeKeeperRevertedRecenterWithdrawal(campaign.state,`transaction_reverted:${job.id}:${outbox.stage}`,
+   await input.readSnapshot(campaign,source));
+  if(!next)return false;
+  const sourceText={block:String(source.block),hash:source.hash,timestamp:source.timestamp};
+  await appendRangeKeeperLiveCampaignEventInTransaction(db,{chainId:4663,address:job.wallet,campaignId:job.campaignId,revision:job.revision,
+   effectId:contentHash({kind:'rangekeeper_reverted_recenter_withdrawal_retain',jobId:job.id,stage:outbox.stage,previousStateHash:campaign.stateHash}),
+   kind:'mark',expectedStateHash:campaign.stateHash,state:next,source:sourceText,
+   payload:{schemaVersion:1,kind:'rangekeeper_live_management_settle_v1',jobId:job.id,action:'exit',reason:'recenter_withdraw_reverted',
+    error:`transaction_reverted:${outbox.stage}`.slice(0,300),source:sourceText,previousStateHash:campaign.stateHash}});
+  return true;
+ });
+}
+
 export async function settleRangeKeeperLiveManagementStage(pool:Pool,input:{job:LiveJob;error:unknown;
  readSnapshot:(campaign:LiveCampaign,source:RangeKeeperSource)=>Promise<RangeKeeperSnapshot>;now?:()=>number}):Promise<RangeKeeperManagementSettlement>{
  const {job,error}=input;
@@ -778,9 +804,10 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
   assert(rows.length<=100,'Finished retained-close recovery bound exceeded');
   for(const row of rows)await releaseLiveWalletAllocation(input.pool,{chainId:4663,address:row.wallet,allocationId:row.allocation_id});
  };
+ const readCampaignSnapshot=(campaign:LiveCampaign,source:RangeKeeperSource)=>new RangeKeeperChain(input.client,
+  marketProfileSchema.parse(campaign.profile).pool,campaign.config.zeroAllowances).snapshot(source,campaign.wallet,campaign.state!.activeTokenId);
  const settleManagementStage=({job,error}:{job:LiveJob;error:unknown})=>settleRangeKeeperLiveManagementStage(input.pool,{job,error,
-  readSnapshot:async(campaign,source)=>new RangeKeeperChain(input.client,marketProfileSchema.parse(campaign.profile).pool,campaign.config.zeroAllowances)
-   .snapshot(source,campaign.wallet,campaign.state!.activeTokenId)});
+  readSnapshot:readCampaignSnapshot});
  const workerAdapters:RangeKeeperLiveWorkerAdapters={initializeOpeningCampaign,nextStage,
   advanceCampaignEffect:async({job,outbox})=>{await withLiveWalletTransaction(input.pool,{chainId:4663,address:job.wallet},
    async db=>{await applyRangeKeeperLiveReceiptEffectInTransaction(db,{job,outbox});});},
@@ -792,6 +819,7 @@ export function createRangeKeeperLiveWalletWorkerAdapters(input:{pool:Pool;clien
    }finally{db.release();}
   },completeOpeningLifecycle,prepareManagementCampaign,settleManagementStage,completeManagedLifecycle,
   revertedStageRecovered:async({job,outbox})=>{
+   if(job.kind==='change_range')return recoverRangeKeeperLiveRevertedRecenterWithdrawal(input.pool,{job,outbox,readSnapshot:readCampaignSnapshot});
    if(job.kind!=='close_convert'||outbox.status!=='reverted'||(outbox.plan as any)?.kind!=='swap')return false;
    const db=await input.pool.connect();
    try{const campaign=await campaignFor(job,db);

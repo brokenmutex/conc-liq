@@ -71,6 +71,19 @@ export function convertRangeKeeperRecenterToRetainExit(state:RangeKeeperLiveStat
  return next;
 }
 
+/** A recenter whose withdrawal reverted still holds its untouched NFT: only that transaction's gas was spent, and the
+ * receipt effect has booked it. The halt it left is settled into a retained exit of that same NFT rather than a block
+ * nothing would clear. Nothing is swapped, minted or repeated; null when the halt is not exactly that case. */
+export function recoverRangeKeeperRevertedRecenterWithdrawal(state:RangeKeeperLiveState,haltReason:string,
+ snapshot:RangeKeeperSnapshot):RangeKeeperLiveState|null{
+ if(state.phase!=='halted'||state.haltReason!==haltReason||state.desired!=='running')return null;
+ if(state.activeTokenId===null||state.withdrawDone||state.swapDone||state.candidate?.kind!=='recenter')return null;
+ if(snapshot.position?.tokenId!==state.activeTokenId||!(snapshot.position.liquidity>0n))return null;
+ const next=convertRangeKeeperRecenterToRetainExit({...state,phase:'recenter'},'recenter_withdraw_reverted',snapshot);
+ next.haltReason=null;
+ return next;
+}
+
 /** Settle a recoverable stage-planning error for a recenter in progress, mirroring the proven legacy controller:
  * a stale candidate after the confirmed withdrawal is discarded for re-planning; a post-swap mint that stays
  * infeasible waits a bounded time and then exits retained. A completed withdrawal or swap is never repeated. */

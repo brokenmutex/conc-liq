@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import {sqrtRatioAtTick} from '../../backtest/principal.js';
-import {principalAmounts} from '../../backtest/principal.js';
 import {strategyBalances} from './funding.js';
 import {sizeRangeKeeperMint} from './planner.js';
 import type {RangeKeeperConfig} from './config.js';
 import type {RangeKeeperChain} from './chain.js';
-import type {RangeKeeperTxPlan} from './calldata.js';
+import {rangeKeeperWithdrawalMinimums,type RangeKeeperTxPlan} from './calldata.js';
 import type {RangeKeeperLiveState,RangeKeeperSnapshot} from './live-domain.js';
 import {allowancePairKey,persistentAllowanceGrant,type RangeKeeperAllowancePolicy} from './allowance-policy.js';
 
@@ -62,9 +61,8 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
   const pos=s.position;
   if(pos&&pos.liquidity>0n){
    assert(state.activeTokenId===pos.tokenId,'Exit NFT identity changed');
-   const a=principalAmounts({...pos,sqrtPriceX96:s.sqrtPriceX96});
    return {kind:'withdraw',tokenId:pos.tokenId!,liquidity:pos.liquidity,
-    min0:haircut(a.amount0,l.maxSlippageBps),min1:haircut(a.amount1,l.maxSlippageBps),deadline};
+    ...rangeKeeperWithdrawalMinimums(pos,s.sqrtPriceX96,l.maxSlippageBps),deadline};
   }
   const risky:0|1=p.quoteToken===0?1:0;
   const amount=state.exitMode==='retain'?0n:(risky===0?funds.amount0:funds.amount1);
@@ -90,9 +88,8 @@ export async function nextRangeKeeperStage(state:RangeKeeperLiveState,s:RangeKee
  const pos=s.position;
  if(pos&&pos.liquidity>0n){
   assert(state.phase==='recenter'&&state.activeTokenId===pos.tokenId,'Ordinary withdrawal identity');
-  const a=principalAmounts({...pos,sqrtPriceX96:s.sqrtPriceX96});
   return {kind:'withdraw',tokenId:pos.tokenId!,liquidity:pos.liquidity,
-   min0:haircut(a.amount0,l.maxSlippageBps),min1:haircut(a.amount1,l.maxSlippageBps),deadline};
+   ...rangeKeeperWithdrawalMinimums(pos,s.sqrtPriceX96,l.maxSlippageBps),deadline};
  }
  if(c.swap&&!state.swapDone){
   const available=c.swap.token===0?funds.amount0:funds.amount1;

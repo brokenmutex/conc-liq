@@ -345,6 +345,15 @@ describe('RangeKeeper live wallet worker kernel',()=>{
    assert.equal(continued.result.status,'completed',JSON.stringify(continued.result));
    assert.equal(continued.finished(),1);assert.equal(continued.closed(),1);
    assert.equal(continued.effects.length,2,'the reverted receipt is attributed idempotently by both the revert and continuation turns');
+   // A recenter whose withdrawal reverted continues the same way once the adapter settled it into a retained exit.
+   const recenter=harness(outbox('reverted'),'change_range');let recenterClosed=0;
+   (recenter.queue.finish as any)=async()=>({status:'succeeded',cleanup:{verified:true,custodyState:'closed_empty'}});
+   const recenterWorker=createRangeKeeperLiveWalletWorker({queue:recenter.queue,wallet,adapters:baseAdapters({
+    revertedStageRecovered:async()=>true,completeManagedLifecycle:async()=>{recenterClosed++;}})});
+   assert.equal((await recenterWorker.execute()).status,'completed');assert.equal(recenterClosed,1);
+   const stuck=harness(outbox('reverted'),'change_range');
+   assert.equal((await createRangeKeeperLiveWalletWorker({queue:stuck.queue,wallet,adapters:baseAdapters({revertedStageRecovered:async()=>false})})
+    .execute()).status,'blocked','an unrecovered recenter revert stays blocked');
    // A reverted receipt of any other job kind never takes this path, even if an adapter claims recovery.
    const retain=harness(outbox('reverted'),'close_retain');
    const retainWorker=createRangeKeeperLiveWalletWorker({queue:retain.queue,wallet,adapters:baseAdapters({revertedStageRecovered:async()=>true})});

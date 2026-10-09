@@ -55,10 +55,22 @@ export function authorizeRangeKeeperTx(pool:RangeKeeperPool,wallet:RangeKeeperWa
   const p=wallet.position;
   assert(p&&p.tokenId===plan.tokenId&&same(p.owner,wallet.operator)&&same(p.token0,token(0))&&same(p.token1,token(1))&&p.fee===pool.fee);
   assert(plan.liquidity===p.liquidity&&plan.liquidity>0n);
-  const amounts=principalAmounts({...p,sqrtPriceX96:wallet.sqrtPriceX96});
-  const haircut=10_000n-BigInt(slippageBps);
-  assert(plan.min0>=amounts.amount0*haircut/10_000n&&plan.min1>=amounts.amount1*haircut/10_000n,'Withdrawal minimum weakened');
+  const floor=rangeKeeperWithdrawalMinimums(p,wallet.sqrtPriceX96,slippageBps);
+  assert(plan.min0>=floor.min0&&plan.min1>=floor.min1,'Withdrawal minimum weakened');
  }
+}
+
+const isqrt=(n:bigint)=>{if(n<2n)return n;let x=n,y=(x+1n)>>1n;while(y<x){x=y;y=(x+n/x)>>1n;}return x;};
+/** Withdrawal minimums that hold anywhere within ±slippageBps of the observed price. A per-token haircut at the exact
+ * price reverts on a few-tick move whenever the position sits at a range edge (where recenters and exits happen),
+ * because a burn's composition shifts while its value barely does. The price band still bounds a manipulated burn. */
+export function rangeKeeperWithdrawalMinimums(position:{liquidity:bigint;tickLower:number;tickUpper:number},sqrtPriceX96:bigint,slippageBps:number){
+ assert(Number.isSafeInteger(slippageBps)&&slippageBps>=0&&slippageBps<10_000,'Invalid withdrawal slippage');
+ const bps=BigInt(slippageBps),one=10n**18n,
+  edge=(f:bigint)=>sqrtPriceX96*isqrt(f*one*one/10_000n)/one,
+  low=principalAmounts({...position,sqrtPriceX96:edge(10_000n-bps)}),high=principalAmounts({...position,sqrtPriceX96:edge(10_000n+bps)});
+ // token0 falls and token1 rises with price, so each minimum is that token's amount at the adverse band edge.
+ return {min0:high.amount0,min1:low.amount1};
 }
 
 export function encodeRangeKeeperTx(pool:RangeKeeperPool,operator:Address,plan:RangeKeeperTxPlan){

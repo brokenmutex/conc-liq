@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe,it} from 'node:test';
 import {RangeKeeperMintUnavailableError,RangeKeeperStaleCandidateError} from '../src/strategy/rangekeeper/live-stage.js';
 import {RANGEKEEPER_MINT_WAIT_SECONDS,classifyRangeKeeperStageError,convertRangeKeeperRecenterToRetainExit,
- deriveRangeKeeperLiveReplanTransition,isRangeKeeperMintPriceSlippage,rangeKeeperLiveCostBudgetExhausted,
+ deriveRangeKeeperLiveReplanTransition,recoverRangeKeeperRevertedRecenterWithdrawal,isRangeKeeperMintPriceSlippage,rangeKeeperLiveCostBudgetExhausted,
  rangeKeeperLiveRemainingActionBudget,settleRangeKeeperLiveStageError} from '../src/deployments/rangekeeper-live-management-recovery.js';
 import {deriveRangeKeeperStage,isRangeKeeperAwaitingReplan,isRangeKeeperRetainedExit,
  type RangeKeeperLiveCampaign} from '../src/deployments/rangekeeper-live-campaign.js';
@@ -159,5 +159,32 @@ describe('stage identity and error handling helpers',()=>{
   assert.equal(shouldRetryReceiptValuation(http503,old,now),true,'transport outages always retry');
   assert.equal(shouldRetryReceiptValuation(new Error('independent_reference_unavailable'),recent,now),true);
   assert.equal(shouldRetryReceiptValuation(new Error('independent_reference_unavailable'),old,now),false);
+ });
+});
+
+describe('reverted recenter withdrawal recovery',()=>{
+ const halt='transaction_reverted:j1:withdraw:abc';
+ const halted=(over:Record<string,unknown>={})=>state({phase:'halted',haltReason:halt,lastReason:halt,activeTokenId:9n,retiredTokenIds:[],
+  withdrawDone:false,...over});
+ const held=(over:Record<string,unknown>={}):any=>({...snapshot(70),position:{tokenId:9n,liquidity:500n,tickLower:-60,tickUpper:60},...over});
+ it('settles the halt into a retained exit of the untouched NFT without repeating or adding anything',()=>{
+  const before=halted(),next=recoverRangeKeeperRevertedRecenterWithdrawal(before,halt,held());
+  assert(next);assert(isRangeKeeperRetainedExit(next));
+  assert.equal(next.haltReason,null);assert.equal(next.activeTokenId,9n,'the NFT is still the one to withdraw');
+  assert.equal(next.withdrawDone,false);assert.equal(next.swapDone,false);assert.equal(next.candidate,null);
+  assert.equal(next.reservedActionCost,0n);assert.equal(next.actionStartCostIndex,before.costEvents.length,'exit costs are scoped to the exit');
+  assert.equal(next.costEvents.length,1,'the reverted gas stays booked once');assert.equal(next.recenters,0);
+  assert.equal(next.last.tick,70);assert.equal(before.phase,'halted','input state stays untouched');
+ });
+ it('refuses any other halt, a moved NFT or a recenter that already withdrew or swapped',()=>{
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted(),'transaction_reverted:j2:withdraw:abc',held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted({phase:'recenter'}),halt,held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted({withdrawDone:true}),halt,held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted({swapDone:true}),halt,held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted({candidate:null}),halt,held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted({desired:'stopped'}),halt,held()),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted(),halt,held({position:null})),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted(),halt,held({position:{tokenId:8n,liquidity:500n,tickLower:-60,tickUpper:60}})),null);
+  assert.equal(recoverRangeKeeperRevertedRecenterWithdrawal(halted(),halt,held({position:{tokenId:9n,liquidity:0n,tickLower:-60,tickUpper:60}})),null);
  });
 });

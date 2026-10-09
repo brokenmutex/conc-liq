@@ -146,9 +146,9 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
     if(typeof receiptHash!=='string'||!/^[0-9a-f]{64}$/.test(receiptHash))throw new Error('reverted_receipt_hash_missing');
     const effectId=contentHash({jobId:job.id,stage:outbox.stage,receiptHash});
     await input.adapters.advanceCampaignEffect({effectId,job,outbox});
-    // A reverted risky-leg sale of a convert exit degrades the campaign to a retained exit; the same job continues
-    // (its remaining stages are the allowance cleanup) rather than waiting on a halt that nothing would clear.
-    const recovered=job.kind==='close_convert'&&await input.adapters.revertedStageRecovered?.({job,outbox})===true;
+    // A reverted risky-leg sale of a convert exit, or a recenter's reverted withdrawal, settles the campaign into a retained
+    // exit; the same job continues (exit withdrawal and/or allowance cleanup) rather than waiting on a halt nothing would clear.
+    const recovered=(job.kind==='close_convert'||job.kind==='change_range')&&await input.adapters.revertedStageRecovered?.({job,outbox})===true;
     if(!recovered)return block('canonical_stage_reverted',outbox.stage,REVERTED_RETRY_MS);
    }
    if(outbox?.status==='confirmed'||outbox?.status==='reverted'){
@@ -223,8 +223,9 @@ export function createRangeKeeperLiveWalletWorker(input:{queue:LiveWalletQueue;w
    const effectId=contentHash({jobId:job.id,stage:reconciled.stage,receiptHash});
    await input.adapters.advanceCampaignEffect({effectId,job,outbox:reconciled});
    if(reconciled.status!=='confirmed'){
-    // A convert exit retries soon: its revert may already have degraded it to a retained exit the job can continue.
-    await input.queue.transition(input.wallet,job.id,leaseToken,'blocked',reconciled.stage,job.kind==='close_convert'?10_000:undefined);
+    // Convert exits and recenters retry soon: the revert can settle into a retained exit the job continues.
+    await input.queue.transition(input.wallet,job.id,leaseToken,'blocked',reconciled.stage,
+     job.kind==='close_convert'||job.kind==='change_range'?10_000:undefined);
     return done({status:'blocked',jobId:job.id,reason:'canonical_stage_reverted_after_cost_attribution'});
    }
    await input.queue.yieldAfterConfirmedReceipt(input.wallet,job.id,reconciled.stage,leaseToken);
